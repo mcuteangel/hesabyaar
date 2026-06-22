@@ -169,6 +169,21 @@ object GeminiParser {
         }
 
         // Determine type based on sentence keyword matches
+        // Check income FIRST because income keywords are more specific than expense defaults
+        val incomeKeywords = listOf(
+            "حقوق", "درآمد", "واریز", "اضافه کار", "اضافه‌کار", "دستمزد", "پاداش",
+            "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی", "کارانه",
+            "فروش", "درآمدزایی", "حق بیمه", "عیدی", " سنوات", "پرداختی",
+            "حقوق ماه", "حقوق اداره", "حقوق شرکت", "حقوقم", "حقوقم رو",
+            "دریافت کردم", "واریز شد", "رسید", "واریز کرد"
+        )
+        val expenseKeywords = listOf(
+            "خریدم", "پرداخت", "هزینه", "قبض", " اجاره", "خرید", "پول دادم",
+            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم"
+        )
+        val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
+        val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
+
         if (sentence.contains("قرض گرفتم") || sentence.contains("بدهکار شدم") || sentence.contains("گرفتم از")) {
             type = "LOAN_CREDITOR"
             category = "Loans"
@@ -185,11 +200,19 @@ object GeminiParser {
             if (sentence.contains("تیر")) daysFromNow = 15
             else if (sentence.contains("مرداد")) daysFromNow = 45
             else daysFromNow = 30
-        } else if (sentence.contains("حقوق") || sentence.contains("درآمد") || sentence.contains("واریز")) {
+        } else if (isIncome) {
             type = "INCOME"
             category = "Income"
-            description = "دریافت حقوق"
-        } else {
+            description = when {
+                sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
+                sentence.contains("پاداش") -> "دریافت پاداش"
+                sentence.contains("دستمزد") -> "دریافت دستمزد"
+                sentence.contains("فروش") -> "درآمد از فروش"
+                sentence.contains("سود") -> "دریافت سود"
+                sentence.contains("حقوق") -> "دریافت حقوق"
+                else -> "دریافت درآمد"
+            }
+        } else if (isExpense) {
             type = "EXPENSE"
             if (sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") || sentence.contains("میوه") || sentence.contains("رستوران") || sentence.contains("خرید")) {
                 category = "Food"
@@ -207,6 +230,11 @@ object GeminiParser {
                 category = "Other"
                 description = "ثبت دستی"
             }
+        } else {
+            // Default to expense when no clear income or expense signal detected
+            type = "EXPENSE"
+            category = "Other"
+            description = "ثبت دستی"
         }
 
         return ParsedResult(

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mojri.hesabyar.api.AiConfigManager
+import io.github.mojri.hesabyar.api.AiProvider
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.GeminiParser
@@ -39,25 +40,92 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         sharedPrefs.edit().putBoolean("dark_mode", isDarkMode.value).commit()
     }
 
-    // AI Provider Config State
-    var aiProviderConfig = mutableStateOf(aiConfigManager.loadConfig())
+    // AI Multi-Config State
+    var aiConfigs = mutableStateOf(aiConfigManager.loadConfigs())
         private set
 
-    fun updateAiProviderConfig(config: AiProviderConfig) {
-        aiConfigManager.saveConfig(config)
-        aiProviderConfig.value = config
-        showMessage("تنظیمات هوش مصنوعی ذخیره شد")
+    var activeConfigId = mutableStateOf(aiConfigManager.getActiveConfigId() ?: "")
+        private set
+
+    var isOnlineMode = mutableStateOf(aiConfigManager.isOnlineMode())
+        private set
+
+    fun toggleOnlineMode() {
+        isOnlineMode.value = !isOnlineMode.value
+        aiConfigManager.setOnlineMode(isOnlineMode.value)
     }
 
-    fun isAiConfigured(): Boolean = aiProviderConfig.value.isConfigured
+    fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
+
+    fun addAiConfig(config: AiProviderConfig) {
+        val newConfig = aiConfigManager.addConfig(config)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+        if (aiConfigs.value.size == 1) {
+            activeConfigId.value = newConfig.id
+            aiConfigManager.setActiveConfigId(newConfig.id)
+        }
+        showMessage("تنظیمات جدید ذخیره شد")
+    }
+
+    fun updateAiConfig(config: AiProviderConfig) {
+        aiConfigManager.updateConfig(config)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+        showMessage("تنظیمات به‌روزرسانی شد")
+    }
+
+    fun deleteAiConfig(id: String) {
+        aiConfigManager.deleteConfig(id)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+        activeConfigId.value = aiConfigManager.getActiveConfigId() ?: ""
+        showMessage("تنظیمات حذف شد")
+    }
+
+    fun setActiveConfig(id: String) {
+        activeConfigId.value = id
+        aiConfigManager.setActiveConfigId(id)
+    }
+
+    fun isAiConfigured(): Boolean = aiConfigManager.getActiveConfig()?.isConfigured == true
 
     fun getProviderStatusText(): String {
-        val config = aiProviderConfig.value
-        return if (config.isConfigured) {
+        val config = aiConfigManager.getActiveConfig()
+        return if (config != null && config.isConfigured) {
             "${config.displayName} | ${config.model}"
         } else {
             "تنظیم نشده (حالت آفلاین)"
         }
+    }
+
+    // Model fetching state
+    private val _modelFetchState = MutableStateFlow<ModelFetchState>(ModelFetchState.Idle)
+    val modelFetchState = _modelFetchState.asStateFlow()
+
+    fun fetchModels(providerType: AiProviderType, apiKey: String, baseUrl: String? = null) {
+        viewModelScope.launch {
+            _modelFetchState.value = ModelFetchState.Loading
+            try {
+                val cached = aiConfigManager.getCachedModels(providerType)
+                if (cached != null && !cached.isExpired) {
+                    _modelFetchState.value = ModelFetchState.Success(cached.models)
+                    return@launch
+                }
+
+                val models = AiProvider.fetchModels(providerType, apiKey, baseUrl)
+                if (models.isNotEmpty()) {
+                    val modelIds = models.map { it.id }
+                    aiConfigManager.cacheModels(providerType, modelIds)
+                    _modelFetchState.value = ModelFetchState.Success(modelIds)
+                } else {
+                    _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
+                }
+            } catch (e: Exception) {
+                _modelFetchState.value = ModelFetchState.Error(e.localizedMessage ?: "خطا در دریافت مدل‌ها")
+            }
+        }
+    }
+
+    fun clearModelFetchState() {
+        _modelFetchState.value = ModelFetchState.Idle
     }
 
     // Flows from database
@@ -153,7 +221,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _parserState.value = ParserUIState.Loading
             try {
-                val config = aiProviderConfig.value
+                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
                 val result = GeminiParser.parseSentence(sentence, config)
                 if (result != null) {
                     _parserState.value = ParserUIState.Success(result)
@@ -178,7 +246,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _advisorState.value = AdvisorUIState.Loading
             try {
-                val config = aiProviderConfig.value
+                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
                 val currentTransactions = transactions.value
                 val advice = io.github.mojri.hesabyar.api.BudgetAdvisor.getBudgetAdvice(currentTransactions, config)
                 _advisorState.value = AdvisorUIState.Success(advice)
@@ -200,7 +268,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _forecastState.value = ForecastUIState.Loading
             try {
-                val config = aiProviderConfig.value
+                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
                 val currentTransactions = transactions.value
                 val currentLoans = loans.value
                 val currentInstallments = installments.value
@@ -519,5 +587,12 @@ sealed interface ForecastUIState {
     object Loading : ForecastUIState
     data class Success(val forecast: String) : ForecastUIState
     data class Error(val message: String) : ForecastUIState
+}
+
+sealed interface ModelFetchState {
+    object Idle : ModelFetchState
+    object Loading : ModelFetchState
+    data class Success(val models: List<String>) : ModelFetchState
+    data class Error(val message: String) : ModelFetchState
 }
 

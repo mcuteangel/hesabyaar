@@ -29,6 +29,13 @@ object AiProvider {
         data class Failure(val error: String) : ApiResult()
     }
 
+    data class FetchedModel(
+        val id: String,
+        val displayName: String,
+        val provider: String,
+        val isFree: Boolean
+    )
+
     suspend fun generateContent(
         config: AiProviderConfig,
         prompt: String,
@@ -44,6 +51,122 @@ object AiProvider {
             AiProviderType.GEMINI -> callGemini(config, prompt, systemInstruction, temperature, responseMimeType)
             AiProviderType.OPENROUTER -> callOpenAiCompatible(config, prompt, systemInstruction, temperature, responseMimeType, isGeminiFormat = true)
             AiProviderType.CUSTOM -> callOpenAiCompatible(config, prompt, systemInstruction, temperature, responseMimeType, isGeminiFormat = false)
+        }
+    }
+
+    suspend fun fetchModels(
+        providerType: AiProviderType,
+        apiKey: String,
+        baseUrl: String? = null
+    ): List<FetchedModel> = withContext(Dispatchers.IO) {
+        try {
+            when (providerType) {
+                AiProviderType.GEMINI -> fetchGeminiModels(apiKey)
+                AiProviderType.OPENROUTER -> fetchOpenRouterModels(apiKey)
+                AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl ?: "")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch models for $providerType", e)
+            emptyList()
+        }
+    }
+
+    private fun fetchGeminiModels(apiKey: String): List<FetchedModel> {
+        val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+        val request = Request.Builder().url(url).get().build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return emptyList()
+            val body = response.body?.string() ?: return emptyList()
+            val json = JSONObject(body)
+            val modelsArray = json.getJSONArray("models")
+
+            return (0 until modelsArray.length()).mapNotNull { i ->
+                val model = modelsArray.getJSONObject(i)
+                val name = model.getString("name").removePrefix("models/")
+                val displayName = model.optString("displayName", name)
+                val methods = model.optJSONArray("supportedGenerationMethods")
+                val supportsGenerate = (0 until (methods?.length() ?: 0)).any {
+                    methods!!.getString(it) == "generateContent"
+                }
+                if (!supportsGenerate) return@mapNotNull null
+
+                val family = when {
+                    name.contains("gemini", ignoreCase = true) -> "Gemini"
+                    name.contains("gemma", ignoreCase = true) -> "Gemma"
+                    name.contains("imagen", ignoreCase = true) -> "Imagen"
+                    else -> "Other"
+                }
+
+                FetchedModel(
+                    id = name,
+                    displayName = "$displayName ($family)",
+                    provider = family,
+                    isFree = false
+                )
+            }.sortedBy { it.displayName }
+        }
+    }
+
+    private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
+        val url = "https://openrouter.ai/api/v1/models"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .get()
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return emptyList()
+            val body = response.body?.string() ?: return emptyList()
+            val json = JSONObject(body)
+            val modelsArray = json.getJSONArray("data")
+
+            return (0 until modelsArray.length()).map { i ->
+                val model = modelsArray.getJSONObject(i)
+                val id = model.getString("id")
+                val name = model.optString("name", id)
+                val pricing = model.optJSONObject("pricing")
+                val promptPrice = pricing?.optString("prompt", "0")?.toDoubleOrNull() ?: 0.0
+                val provider = id.split("/").firstOrNull() ?: "unknown"
+
+                FetchedModel(
+                    id = id,
+                    displayName = "$name ($provider)",
+                    provider = provider.replaceFirstChar { it.uppercase() },
+                    isFree = promptPrice == 0.0
+                )
+            }.sortedWith(compareBy<FetchedModel> { !it.isFree }.thenBy { it.displayName })
+        }
+    }
+
+    private fun fetchCustomModels(apiKey: String, baseUrl: String): List<FetchedModel> {
+        if (baseUrl.isBlank()) return emptyList()
+        val url = "${baseUrl.trimEnd('/')}/models"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .get()
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return emptyList()
+            val body = response.body?.string() ?: return emptyList()
+            val json = JSONObject(body)
+            val modelsArray = json.optJSONArray("data") ?: return emptyList()
+
+            return (0 until modelsArray.length()).map { i ->
+                val model = modelsArray.getJSONObject(i)
+                val id = model.getString("id")
+                val name = model.optString("name", id)
+
+                FetchedModel(
+                    id = id,
+                    displayName = name,
+                    provider = "Custom",
+                    isFree = false
+                )
+            }.sortedBy { it.displayName }
         }
     }
 
