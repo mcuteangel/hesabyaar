@@ -1,35 +1,24 @@
 package io.github.mojri.hesabyar.api
 
 import android.util.Log
-import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.text.NumberFormat
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 object BudgetAdvisor {
     private const val TAG = "BudgetAdvisor"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    // Fetch budget insights and advice from Gemini with offline fallback
-    suspend fun getBudgetAdvice(transactions: List<Transaction>): String = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is blank or placeholder, using offline local rules budget advisor")
+    suspend fun getBudgetAdvice(
+        transactions: List<Transaction>,
+        config: AiProviderConfig? = null
+    ): String = withContext(Dispatchers.IO) {
+        val providerConfig = config ?: AiProviderConfig()
+        if (!providerConfig.isConfigured) {
+            Log.w(TAG, "AI provider not configured, using offline local rules budget advisor")
             return@withContext getOfflineAdvice(transactions)
         }
 
@@ -37,7 +26,6 @@ object BudgetAdvisor {
             return@withContext "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا هوش مصنوعی بتواند بودجه شما را تحلیل کند."
         }
 
-        // Aggregate statistics for the prompt
         val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
         val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
         val categoriesGroup = transactions.filter { it.type == "EXPENSE" }
@@ -75,51 +63,18 @@ object BudgetAdvisor {
 
         val systemInstruction = "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions carefully and provide smart, structured financial recommendations in beautiful Persian. Be friendly, polite, action-oriented, and encouraging."
 
-        val requestJson = JSONObject().apply {
-            put("contents", JSONArray().put(JSONObject().apply {
-                put("parts", JSONArray().put(JSONObject().apply {
-                    put("text", prompt)
-                }))
-            }))
-            put("systemInstruction", JSONObject().apply {
-                put("parts", JSONArray().put(JSONObject().apply {
-                    put("text", systemInstruction)
-                }))
-            })
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.7)
-            })
-        }
-
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = requestJson.toString().toRequestBody(mediaType)
-        val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
-            .post(requestBody)
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val bodyStr = response.body?.string()
-                    Log.e(TAG, "API budget advice failure: $bodyStr")
-                    return@withContext getOfflineAdvice(transactions)
-                }
-
-                val bodyField = response.body?.string() ?: return@withContext getOfflineAdvice(transactions)
-                val jsonObject = JSONObject(bodyField)
-                val candidates = jsonObject.getJSONArray("candidates")
-                if (candidates.length() > 0) {
-                    val parts = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts")
-                    if (parts.length() > 0) {
-                        return@withContext parts.getJSONObject(0).getString("text")
-                    }
-                }
+        when (val result = AiProvider.generateContent(
+            config = providerConfig,
+            prompt = prompt,
+            systemInstruction = systemInstruction,
+            temperature = 0.7
+        )) {
+            is AiProvider.ApiResult.Success -> result.text
+            is AiProvider.ApiResult.Failure -> {
+                Log.e(TAG, "AI budget advice failed: ${result.error}")
+                getOfflineAdvice(transactions)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error connecting to Gemini for budget advice, using offline fallback", e)
         }
-        return@withContext getOfflineAdvice(transactions)
     }
 
     private fun getPersianCategoryName(category: String): String {
@@ -201,15 +156,15 @@ object BudgetAdvisor {
         return sb.toString()
     }
 
-    // Fetch budget forecast for the next month from Gemini with offline fallback
     suspend fun getBudgetForecast(
         transactions: List<Transaction>,
         loans: List<Loan>,
-        installments: List<Installment>
+        installments: List<Installment>,
+        config: AiProviderConfig? = null
     ): String = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is blank or placeholder, using offline local budget forecast")
+        val providerConfig = config ?: AiProviderConfig()
+        if (!providerConfig.isConfigured) {
+            Log.w(TAG, "AI provider not configured, using offline local budget forecast")
             return@withContext getOfflineForecast(transactions, loans, installments)
         }
 
@@ -257,52 +212,20 @@ object BudgetAdvisor {
             از ساختار مارک‌داون روان با ایموجی‌های مناسب استفاده کن. در متن نهایی از کلمه‌های انگلیسی استفاده نکن و همه چیز کاملاً فارسی و روان باشد.
         """.trimIndent()
 
-        try {
-            val endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
-            val requestBodyJson = JSONObject().apply {
-                put("contents", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", promptText)
-                            })
-                        })
-                    })
-                })
+        val systemInstruction = "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions carefully and provide smart, structured financial recommendations in beautiful Persian. Be friendly, polite, action-oriented, and encouraging."
+
+        when (val result = AiProvider.generateContent(
+            config = providerConfig,
+            prompt = promptText,
+            systemInstruction = systemInstruction,
+            temperature = 0.7
+        )) {
+            is AiProvider.ApiResult.Success -> result.text
+            is AiProvider.ApiResult.Failure -> {
+                Log.e(TAG, "AI forecast failed: ${result.error}")
+                "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" + 
+                    getOfflineForecast(transactions, loans, installments)
             }
-
-            val request = Request.Builder()
-                .url(endpoint)
-                .post(requestBodyJson.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val errorBody = response.body?.string() ?: ""
-                    Log.e(TAG, "Gemini API error during forecast: Code ${response.code}, Body: $errorBody")
-                    throw Exception("خطا در پاسخ سرور گوگل: ${response.code}")
-                }
-                
-                val responseBody = response.body?.string()
-                if (responseBody.isNullOrBlank()) {
-                    throw Exception("پاسخ دریافتی از سرور هوش مصنوعی خالی بود")
-                }
-
-                val jsonResponse = JSONObject(responseBody)
-                val candidates = jsonResponse.getJSONArray("candidates")
-                if (candidates.length() > 0) {
-                    val content = candidates.getJSONObject(0).getJSONObject("content")
-                    val parts = content.getJSONArray("parts")
-                    if (parts.length() > 0) {
-                        return@withContext parts.getJSONObject(0).getString("text")
-                    }
-                }
-                throw Exception("ساختار پاسخ هوش مصنوعی سازگار نبود")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "API failed, reverting to local offline budget forecasting logic", e)
-            return@withContext "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" + 
-                getOfflineForecast(transactions, loans, installments)
         }
     }
 

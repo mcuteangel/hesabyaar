@@ -20,9 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.api.AiProviderConfig
+import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
 import java.io.InputStream
 import java.io.OutputStream
@@ -191,6 +195,16 @@ fun SettingsScreen(
             }
         }
 
+        // AI Provider Settings Section
+        Text(
+            text = "🤖 تنظیمات هوش مصنوعی (API Settings)",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        AiProviderSettingsCard(viewModel = viewModel)
+
         Text(
             text = "💾 پشتیبان‌گیری و بازیابی داده‌ها (آفلاین)",
             style = MaterialTheme.typography.titleMedium,
@@ -250,6 +264,229 @@ fun SettingsScreen(
                         Text("ذخیره فایل پشتیبان", style = MaterialTheme.typography.labelSmall)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiProviderSettingsCard(viewModel: HesabyarViewModel) {
+    val currentConfig by viewModel.aiProviderConfig
+    var selectedProvider by remember { mutableStateOf(currentConfig.providerType) }
+    var apiKey by remember { mutableStateOf(currentConfig.apiKey) }
+    var model by remember { mutableStateOf(currentConfig.model) }
+    var baseUrl by remember { mutableStateOf(currentConfig.baseUrl) }
+    var showApiKey by remember { mutableStateOf(false) }
+
+    val defaultModels = mapOf(
+        AiProviderType.GEMINI to listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro"),
+        AiProviderType.OPENROUTER to listOf("google/gemini-2.0-flash-001", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini", "meta-llama/llama-3.1-8b-instruct:free"),
+        AiProviderType.CUSTOM to emptyList()
+    )
+
+    val isConfigured = currentConfig.isConfigured
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Status banner
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isConfigured) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = if (isConfigured) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = if (isConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column {
+                    Text(
+                        text = if (isConfigured) "هوش مصنوعی فعال" else "هوش مصنوعی غیرفعال",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = viewModel.getProviderStatusText(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // Provider Type Selector
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "ارائه‌دهنده هوش مصنوعی:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AiProviderType.entries.forEach { type ->
+                        FilterChip(
+                            selected = selectedProvider == type,
+                            onClick = {
+                                selectedProvider = type
+                                model = defaultModels[type]?.firstOrNull() ?: ""
+                                baseUrl = when (type) {
+                                    AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
+                                    AiProviderType.CUSTOM -> ""
+                                    AiProviderType.GEMINI -> ""
+                                }
+                            },
+                            label = { Text(type.displayName, style = MaterialTheme.typography.labelSmall) },
+                            leadingIcon = if (selectedProvider == type) {
+                                { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // API Key Input
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "کلید API Key:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = {
+                        Text(
+                            when (selectedProvider) {
+                                AiProviderType.GEMINI -> "AIza..."
+                                AiProviderType.OPENROUTER -> "sk-or-..."
+                                AiProviderType.CUSTOM -> "your-api-key"
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { showApiKey = !showApiKey }) {
+                            Icon(
+                                imageVector = if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (showApiKey) "مخفی کردن" else "نمایش"
+                            )
+                        }
+                    },
+                    visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    singleLine = true
+                )
+            }
+
+            // Model Selection
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "مدل (Model):",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                if (selectedProvider != AiProviderType.CUSTOM) {
+                    val models = defaultModels[selectedProvider] ?: emptyList()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        models.forEach { m ->
+                            FilterChip(
+                                selected = model == m,
+                                onClick = { model = m },
+                                label = { Text(m, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = {
+                        Text(
+                            when (selectedProvider) {
+                                AiProviderType.GEMINI -> "gemini-2.0-flash"
+                                AiProviderType.OPENROUTER -> "google/gemini-2.0-flash-001"
+                                AiProviderType.CUSTOM -> "model-name"
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    singleLine = true
+                )
+            }
+
+            // Base URL (only for OpenRouter and Custom)
+            if (selectedProvider != AiProviderType.GEMINI) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "آدرس API (Base URL):",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    OutlinedTextField(
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        placeholder = {
+                            Text(
+                                when (selectedProvider) {
+                                    AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
+                                    AiProviderType.CUSTOM -> "https://api.example.com/v1"
+                                    else -> ""
+                                },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        singleLine = true
+                    )
+                }
+            }
+
+            // Save Button
+            Button(
+                onClick = {
+                    viewModel.updateAiProviderConfig(
+                        AiProviderConfig(
+                            providerType = selectedProvider,
+                            apiKey = apiKey.trim(),
+                            model = model.trim(),
+                            baseUrl = baseUrl.trim()
+                        )
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(imageVector = Icons.Filled.Save, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("ذخیره تنظیمات", fontWeight = FontWeight.Bold)
             }
         }
     }

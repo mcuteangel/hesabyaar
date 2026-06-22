@@ -352,7 +352,7 @@ fun SmartAssistantScreen(
             } else {
                 // Budget Advice Tab (Gemini/Offline)
                 val advisorState by viewModel.advisorState.collectAsState()
-                val isApiKeyReady = io.github.mojri.hesabyar.BuildConfig.GEMINI_API_KEY.isNotBlank() && io.github.mojri.hesabyar.BuildConfig.GEMINI_API_KEY != "MY_GEMINI_API_KEY"
+                val isApiKeyReady = viewModel.isAiConfigured()
 
                 Column(
                     modifier = Modifier
@@ -396,7 +396,7 @@ fun SmartAssistantScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی Gemini ابری" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
+                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${viewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 )

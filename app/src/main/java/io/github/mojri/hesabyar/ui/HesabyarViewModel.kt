@@ -5,6 +5,9 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.mojri.hesabyar.api.AiConfigManager
+import io.github.mojri.hesabyar.api.AiProviderConfig
+import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.GeminiParser
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.*
@@ -26,14 +29,35 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     )
 
     private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", android.content.Context.MODE_PRIVATE)
+    private val aiConfigManager = AiConfigManager(application)
 
-    // Dark Mode Toggle State
     var isDarkMode = mutableStateOf(sharedPrefs.getBoolean("dark_mode", true))
         private set
 
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
         sharedPrefs.edit().putBoolean("dark_mode", isDarkMode.value).commit()
+    }
+
+    // AI Provider Config State
+    var aiProviderConfig = mutableStateOf(aiConfigManager.loadConfig())
+        private set
+
+    fun updateAiProviderConfig(config: AiProviderConfig) {
+        aiConfigManager.saveConfig(config)
+        aiProviderConfig.value = config
+        showMessage("تنظیمات هوش مصنوعی ذخیره شد")
+    }
+
+    fun isAiConfigured(): Boolean = aiProviderConfig.value.isConfigured
+
+    fun getProviderStatusText(): String {
+        val config = aiProviderConfig.value
+        return if (config.isConfigured) {
+            "${config.displayName} | ${config.model}"
+        } else {
+            "تنظیم نشده (حالت آفلاین)"
+        }
     }
 
     // Flows from database
@@ -129,7 +153,8 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _parserState.value = ParserUIState.Loading
             try {
-                val result = GeminiParser.parseSentence(sentence)
+                val config = aiProviderConfig.value
+                val result = GeminiParser.parseSentence(sentence, config)
                 if (result != null) {
                     _parserState.value = ParserUIState.Success(result)
                 } else {
@@ -153,8 +178,9 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _advisorState.value = AdvisorUIState.Loading
             try {
+                val config = aiProviderConfig.value
                 val currentTransactions = transactions.value
-                val advice = io.github.mojri.hesabyar.api.BudgetAdvisor.getBudgetAdvice(currentTransactions)
+                val advice = io.github.mojri.hesabyar.api.BudgetAdvisor.getBudgetAdvice(currentTransactions, config)
                 _advisorState.value = AdvisorUIState.Success(advice)
             } catch (e: Exception) {
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
@@ -174,13 +200,15 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _forecastState.value = ForecastUIState.Loading
             try {
+                val config = aiProviderConfig.value
                 val currentTransactions = transactions.value
                 val currentLoans = loans.value
                 val currentInstallments = installments.value
                 val forecast = io.github.mojri.hesabyar.api.BudgetAdvisor.getBudgetForecast(
                     currentTransactions,
                     currentLoans,
-                    currentInstallments
+                    currentInstallments,
+                    config
                 )
                 _forecastState.value = ForecastUIState.Success(forecast)
             } catch (e: Exception) {

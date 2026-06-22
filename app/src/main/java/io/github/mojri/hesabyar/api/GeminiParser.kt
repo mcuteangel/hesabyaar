@@ -1,32 +1,23 @@
 package io.github.mojri.hesabyar.api
 
 import android.util.Log
-import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 object GeminiParser {
     private const val TAG = "GeminiParser"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    // Parse natural Persian sentence using Gemini-3.5-flash
-    suspend fun parseSentence(sentence: String): ParsedResult? = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is blank or placeholder, using offline local parser fallback")
+    suspend fun parseSentence(
+        sentence: String,
+        config: AiProviderConfig? = null
+    ): ParsedResult? = withContext(Dispatchers.IO) {
+        val providerConfig = config ?: AiProviderConfig()
+        if (!providerConfig.isConfigured) {
+            Log.w(TAG, "AI provider not configured, using offline local parser fallback")
             return@withContext parseSentenceOffline(sentence)
         }
 
@@ -54,54 +45,22 @@ object GeminiParser {
             Strictly return ONLY raw JSON, do not wrap in markdown tags.
         """.trimIndent()
 
-        val requestJson = JSONObject().apply {
-            put("contents", org.json.JSONArray().put(JSONObject().apply {
-                put("parts", org.json.JSONArray().put(JSONObject().apply {
-                    put("text", sentence)
-                }))
-            }))
-            put("systemInstruction", JSONObject().apply {
-                put("parts", org.json.JSONArray().put(JSONObject().apply {
-                    put("text", systemInstruction)
-                }))
-            })
-            put("generationConfig", JSONObject().apply {
-                put("responseMimeType", "application/json")
-                put("temperature", 0.1)
-            })
-        }
-
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = requestJson.toString().toRequestBody(mediaType)
-        val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
-            .post(requestBody)
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val bodyStr = response.body?.string()
-                    Log.e(TAG, "API failed response: $bodyStr")
-                    return@withContext parseSentenceOffline(sentence)
-                }
-
-                val bodyField = response.body?.string() ?: return@withContext parseSentenceOffline(sentence)
-                val jsonObject = JSONObject(bodyField)
-                val candidates = jsonObject.getJSONArray("candidates")
-                if (candidates.length() > 0) {
-                    val parts = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts")
-                    if (parts.length() > 0) {
-                        val textResult = parts.getJSONObject(0).getString("text")
-                        Log.i(TAG, "Gemini parsed output: $textResult")
-                        return@withContext parseJsonResult(textResult)
-                    }
-                }
+        when (val result = AiProvider.generateContent(
+            config = providerConfig,
+            prompt = sentence,
+            systemInstruction = systemInstruction,
+            temperature = 0.1,
+            responseMimeType = "application/json"
+        )) {
+            is AiProvider.ApiResult.Success -> {
+                Log.i(TAG, "AI parsed output: ${result.text}")
+                parseJsonResult(result.text) ?: parseSentenceOffline(sentence)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error calling Gemini, falling back to offline", e)
+            is AiProvider.ApiResult.Failure -> {
+                Log.e(TAG, "AI parse failed: ${result.error}, falling back to offline")
+                parseSentenceOffline(sentence)
+            }
         }
-        return@withContext parseSentenceOffline(sentence)
     }
 
     private fun parseJsonResult(jsonStr: String): ParsedResult? {
@@ -264,15 +223,15 @@ object GeminiParser {
         )
     }
 
-    // Generate smart budget advice via Gemini or fallback offline mechanism
     suspend fun getBudgetAdvice(
         transactions: List<Transaction>,
         loans: List<Loan>,
-        installments: List<Installment>
+        installments: List<Installment>,
+        config: AiProviderConfig? = null
     ): String? = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            Log.w(TAG, "Gemini API key is blank or placeholder, using offline local generator fallback")
+        val providerConfig = config ?: AiProviderConfig()
+        if (!providerConfig.isConfigured) {
+            Log.w(TAG, "AI provider not configured, using offline local generator fallback")
             return@withContext getBudgetAdviceOffline(transactions, loans, installments)
         }
 
@@ -336,53 +295,23 @@ object GeminiParser {
             }
         }.toString()
 
-        val requestJson = JSONObject().apply {
-            put("contents", org.json.JSONArray().put(JSONObject().apply {
-                put("parts", org.json.JSONArray().put(JSONObject().apply {
-                    put("text", "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$dataSummary")
-                }))
-            }))
-            put("systemInstruction", JSONObject().apply {
-                put("parts", org.json.JSONArray().put(JSONObject().apply {
-                    put("text", systemPrompt)
-                }))
-            })
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.6)
-            })
-        }
+        val prompt = "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$dataSummary"
 
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = requestJson.toString().toRequestBody(mediaType)
-        val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
-            .post(requestBody)
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val bodyStr = response.body?.string()
-                    Log.e(TAG, "API budget advice failure: $bodyStr")
-                    return@withContext getBudgetAdviceOffline(transactions, loans, installments)
-                }
-
-                val bodyField = response.body?.string() ?: return@withContext getBudgetAdviceOffline(transactions, loans, installments)
-                val jsonObject = JSONObject(bodyField)
-                val candidates = jsonObject.getJSONArray("candidates")
-                if (candidates.length() > 0) {
-                    val parts = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts")
-                    if (parts.length() > 0) {
-                        val textResult = parts.getJSONObject(0).getString("text")
-                        Log.i(TAG, "Gemini advice outcome: $textResult")
-                        return@withContext textResult
-                    }
-                }
+        when (val result = AiProvider.generateContent(
+            config = providerConfig,
+            prompt = prompt,
+            systemInstruction = systemPrompt,
+            temperature = 0.6
+        )) {
+            is AiProvider.ApiResult.Success -> {
+                Log.i(TAG, "AI advice outcome: ${result.text}")
+                result.text
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating Gemini budget advice", e)
+            is AiProvider.ApiResult.Failure -> {
+                Log.e(TAG, "AI budget advice failed: ${result.error}")
+                getBudgetAdviceOffline(transactions, loans, installments)
+            }
         }
-        return@withContext getBudgetAdviceOffline(transactions, loans, installments)
     }
 
     private fun getPersianCategoryName(category: String): String {
