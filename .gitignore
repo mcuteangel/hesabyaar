@@ -1,0 +1,27 @@
+# IDE
+*.iml
+/.idea/
+/.vscode/
+.DS_Store
+
+# Gradle
+.gradle/
+**/build/
+
+# Local configuration
+/local.properties
+local.properties
+.env
+.env.local
+
+# Android specific
+/captures
+.externalNativeBuild/
+.cxx/
+debug.keystore
+*.keystore
+*.jks
+my-upload-key.jks
+
+# Kotlin
+.kotlin
