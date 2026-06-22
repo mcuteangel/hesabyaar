@@ -25,3 +25,4 @@ my-upload-key.jks
 
 # Kotlin
 .kotlin
+keystore-backups/my-upload-key.jks.bak
