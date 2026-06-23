@@ -32,4 +32,8 @@ interface HesabyarRepositoryInterface {
         installments: List<Installment>,
         paymentHistories: List<PaymentHistory>
     )
+
+    suspend fun replaceAllFromBackup(backup: BackupPayload)
+    suspend fun mergeFromBackup(backup: BackupPayload)
+    suspend fun getAllPaymentHistories(): List<PaymentHistory>
 }

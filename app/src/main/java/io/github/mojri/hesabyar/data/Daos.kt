@@ -103,4 +103,7 @@ interface PaymentHistoryDao {
 
     @Query("DELETE FROM payment_history")
     suspend fun deleteAllPaymentHistory()
+
+    @Query("SELECT * FROM payment_history ORDER BY date DESC")
+    suspend fun getAllPaymentHistories(): List<PaymentHistory>
 }

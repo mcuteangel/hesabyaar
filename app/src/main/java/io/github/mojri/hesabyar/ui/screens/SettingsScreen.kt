@@ -29,9 +29,11 @@ import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.ui.BackupOperationState
 import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
+import io.github.mojri.hesabyar.data.RestoreMode
 import java.io.InputStream
 import java.io.OutputStream
 import android.content.ClipData
@@ -73,12 +75,112 @@ fun SettingsScreen(
             try {
                 val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
                 if (inputStream != null) {
-                    backupViewModel.importBackupFromFile(inputStream)
+                    backupViewModel.validateAndStageImport(inputStream)
                 }
             } catch (e: Exception) {
                 settingsViewModel.showMessage("خطا در بارگذاری فایل")
             }
         }
+    }
+
+    val operationState by backupViewModel.operationState
+    val pendingRestore = backupViewModel.pendingRestoreBackup
+    val restoreMode by backupViewModel.selectedRestoreMode
+
+    LaunchedEffect(operationState) {
+        when (val state = operationState) {
+            is BackupOperationState.ExportSuccess -> {
+                settingsViewModel.showMessage(state.message)
+                backupViewModel.clearOperationState()
+            }
+            is BackupOperationState.ImportSuccess -> {
+                settingsViewModel.showMessage(state.message)
+                backupViewModel.clearOperationState()
+            }
+            is BackupOperationState.Error -> {
+                settingsViewModel.showMessage(state.message)
+                backupViewModel.clearOperationState()
+            }
+            is BackupOperationState.ValidationFailed -> {
+                settingsViewModel.showMessage("خطا در اعتبارسنجی: ${state.errors.first()}")
+                backupViewModel.clearOperationState()
+            }
+            else -> {}
+        }
+    }
+
+    if (pendingRestore.value != null) {
+        val backup = pendingRestore.value!!
+        AlertDialog(
+            onDismissRequest = { backupViewModel.cancelPendingRestore() },
+            title = {
+                Text("بازیابی پشتیبان", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "فایل پشتیبان معتبر است. لطفاً نوع بازیابی را انتخاب کنید:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} | اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RadioButton(
+                            selected = restoreMode == RestoreMode.REPLACE,
+                            onClick = { backupViewModel.selectedRestoreMode.value = RestoreMode.REPLACE }
+                        )
+                        Column {
+                            Text("جایگزینی کامل", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("تمام داده‌های فعلی حذف و جایگزین می‌شود", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RadioButton(
+                            selected = restoreMode == RestoreMode.MERGE,
+                            onClick = { backupViewModel.selectedRestoreMode.value = RestoreMode.MERGE }
+                        )
+                        Column {
+                            Text("ادغام", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("داده‌های جدید به اطلاعات فعلی اضافه می‌شود", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { backupViewModel.executeRestore() },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = if (restoreMode == RestoreMode.REPLACE)
+                        ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    else
+                        ButtonDefaults.buttonColors()
+                ) {
+                    Text(
+                        if (restoreMode == RestoreMode.REPLACE) "جایگزینی کامل" else "ادغام",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { backupViewModel.cancelPendingRestore() }) {
+                    Text("انصراف")
+                }
+            }
+        )
     }
 
     Column(
@@ -267,10 +369,20 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = { importFileLauncher.launch("application/json") },
                         modifier = Modifier.weight(1f).height(48.dp).testTag("restore_button"),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = operationState !is BackupOperationState.Importing
                     ) {
-                        Icon(imageVector = Icons.Filled.UploadFile, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
+                        if (operationState is BackupOperationState.Importing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        } else {
+                            Icon(imageVector = Icons.Filled.UploadFile, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
                         Text("بازیابی پشتیبان", style = MaterialTheme.typography.labelSmall)
                     }
 
@@ -278,10 +390,20 @@ fun SettingsScreen(
                         onClick = { exportFileLauncher.launch("hesabyar_backup_${System.currentTimeMillis() / 1000}.json") },
                         modifier = Modifier.weight(1.1f).height(48.dp).testTag("backup_button"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        enabled = operationState !is BackupOperationState.Exporting
                     ) {
-                        Icon(imageVector = Icons.Filled.Save, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
+                        if (operationState is BackupOperationState.Exporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        } else {
+                            Icon(imageVector = Icons.Filled.Save, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
                         Text("ذخیره فایل پشتیبان", style = MaterialTheme.typography.labelSmall)
                     }
                 }

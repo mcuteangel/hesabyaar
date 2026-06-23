@@ -146,4 +146,48 @@ class HesabyarRepository(
         installments.forEach { installmentDao.insertInstallment(it) }
         paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
     }
+
+    override suspend fun getAllPaymentHistories(): List<PaymentHistory> {
+        return paymentHistoryDao.getAllPaymentHistories()
+    }
+
+    override suspend fun replaceAllFromBackup(backup: BackupPayload) {
+        transactionDao.deleteAllTransactions()
+        loanDao.deleteAllLoans()
+        installmentDao.deleteAllInstallments()
+        paymentHistoryDao.deleteAllPaymentHistory()
+
+        backup.categories.forEach { categoryDao.insertCategory(it) }
+        backup.transactions.forEach { transactionDao.insertTransaction(it) }
+        backup.loans.forEach { loanDao.insertLoan(it) }
+        backup.installments.forEach { installmentDao.insertInstallment(it) }
+        backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
+    }
+
+    override suspend fun mergeFromBackup(backup: BackupPayload) {
+        for (category in backup.categories) {
+            val existing = categoryDao.getCategoryByKey(category.key)
+            if (existing != null) {
+                categoryDao.updateCategory(category.copy(id = existing.id))
+            } else {
+                categoryDao.insertCategory(category)
+            }
+        }
+
+        for (transaction in backup.transactions) {
+            transactionDao.insertTransaction(transaction)
+        }
+
+        for (loan in backup.loans) {
+            loanDao.insertLoan(loan)
+        }
+
+        for (installment in backup.installments) {
+            installmentDao.insertInstallment(installment)
+        }
+
+        for (payment in backup.paymentHistories) {
+            paymentHistoryDao.insertPayment(payment)
+        }
+    }
 }
