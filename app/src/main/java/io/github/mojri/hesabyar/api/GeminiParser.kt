@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.api
 
+import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -256,13 +257,14 @@ object GeminiParser {
         transactions: List<Transaction>,
         loans: List<Loan>,
         installments: List<Installment>,
+        categories: List<Category>,
         config: AiProviderConfig? = null
     ): String? = withContext(Dispatchers.IO) {
         AppLogger.d(TAG, "getBudgetAdvice: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
             AppLogger.w(TAG, "AI provider not configured, using offline local generator fallback")
-            return@withContext getBudgetAdviceOffline(transactions, loans, installments)
+            return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
         }
 
         val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -270,7 +272,7 @@ object GeminiParser {
         val balance = incomeTotal - expenseTotal
 
         val categoryTotals = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
 
         val activeLoans = loans.filter { !it.isSettled }
@@ -297,8 +299,9 @@ object GeminiParser {
             appendLine("تراز باقیمانده (پس‌انداز): ${balance} تومان")
             
             appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
-            categoryTotals.forEach { (cat, amt) ->
-                appendLine("- ${getPersianCategoryName(cat)}: ${amt} تومان")
+            categoryTotals.forEach { (catId, amt) ->
+                val cat = categories.find { it.id == catId }
+                appendLine("- ${cat?.name ?: "سایر"}: ${amt} تومان")
             }
 
             if (activeLoans.isNotEmpty()) {
@@ -320,7 +323,8 @@ object GeminiParser {
                 appendLine("\nتراکنش‌های اخیر:")
                 transactions.sortedByDescending { it.date }.take(10).forEach { t ->
                     val sign = if (t.type == "INCOME") "آمد" else "رفت"
-                    appendLine("- ${t.description} (${getPersianCategoryName(t.category)}): ${t.amount} تومان [${sign}]")
+                    val cat = categories.find { it.id == t.categoryId }
+                    appendLine("- ${t.description} (${cat?.name ?: "سایر"}): ${t.amount} تومان [${sign}]")
                 }
             }
         }.toString()
@@ -339,28 +343,16 @@ object GeminiParser {
             }
             is AiProvider.ApiResult.Failure -> {
                 AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
-                getBudgetAdviceOffline(transactions, loans, installments)
+                getBudgetAdviceOffline(transactions, loans, installments, categories)
             }
-        }
-    }
-
-    private fun getPersianCategoryName(category: String): String {
-        return when (category) {
-            "Food" -> "خوراک"
-            "Transportation" -> "حمل و نقل"
-            "Shopping" -> "خرید"
-            "Bills" -> "قبوض"
-            "Installments" -> "اقساط"
-            "Loans" -> "قرض و وام"
-            "Income" -> "درآمد"
-            else -> "سایر"
         }
     }
 
     fun getBudgetAdviceOffline(
         transactions: List<Transaction>,
         loans: List<Loan>,
-        installments: List<Installment>
+        installments: List<Installment>,
+        categories: List<Category>
     ): String {
         val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
         val expenseTotal = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
@@ -392,13 +384,14 @@ object GeminiParser {
 
         // 2. High spending category detection
         val categoryTotals = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { trans -> trans.amount } }
 
-        val worstCategory = categoryTotals.maxByOrNull { it.value }
+        val worstCategoryId = categoryTotals.maxByOrNull { it.value }?.key
+        val worstCategory = categories.find { it.id == worstCategoryId }
         if (worstCategory != null && expenseTotal > 0) {
-            val catName = getPersianCategoryName(worstCategory.key)
-            val catPct = (worstCategory.value * 100.0 / expenseTotal)
+            val catName = worstCategory.name
+            val catPct = (categoryTotals[worstCategoryId] ?: 0L) * 100.0 / expenseTotal
             sb.append("📊 **بزرگترین کانون هزینه**: دسته‌بندی **$catName** با سهمی معادل ${catPct.toInt()}٪، بیشترین میزان مصرف نقدینگی را داشته است. بررسی کنید آیا امکان کنترل هزینه‌ها در این بخش وجود دارد یا خیر.\n\n")
         }
 

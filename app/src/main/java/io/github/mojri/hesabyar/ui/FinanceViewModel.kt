@@ -13,7 +13,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         database.transactionDao(),
         database.loanDao(),
         database.installmentDao(),
-        database.paymentHistoryDao()
+        database.paymentHistoryDao(),
+        database.categoryDao()
     )
 
     val transactions: StateFlow<List<Transaction>> = repository.allTransactions
@@ -23,6 +24,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val installments: StateFlow<List<Installment>> = repository.allInstallments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val categories: StateFlow<List<Category>> = repository.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val dashboardState = combine(transactions, loans, installments) { trans, loanList, instList ->
@@ -66,11 +70,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
 
-    fun addTransaction(type: String, category: String, amount: Long, description: String, personName: String? = null, customDate: Long? = null) {
+    fun addTransaction(type: String, categoryId: Long, amount: Long, description: String, personName: String? = null, customDate: Long? = null) {
         viewModelScope.launch {
             repository.insertTransaction(Transaction(
                 type = type,
-                category = category,
+                categoryId = categoryId,
                 amount = amount,
                 description = description,
                 personName = personName,

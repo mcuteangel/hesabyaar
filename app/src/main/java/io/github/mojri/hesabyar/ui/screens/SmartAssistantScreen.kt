@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import java.util.Calendar
 import io.github.mojri.hesabyar.api.ParsedResult
+import io.github.mojri.hesabyar.data.Category
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
@@ -54,6 +55,7 @@ fun SmartAssistantScreen(
     var activeTab by remember { mutableStateOf(0) } // 0 = Smart Registration, 1 = Budget Advice
     var inputText by remember { mutableStateOf("") }
     val parserState by aiServiceViewModel.parserState.collectAsState()
+    val categories by financeViewModel.categories.collectAsState()
     val scrollState = rememberScrollState()
 
     // Intent-based Speech Recognition Launcher for native Persian voice-to-text
@@ -89,6 +91,7 @@ fun SmartAssistantScreen(
         val successState = parserState as ParserUIState.Success
         ParsedResultCard(
             result = successState.result,
+            categories = categories,
             onApprove = { updatedResult, approvedTimestamp ->
                 aiServiceViewModel.approveParsedResult(updatedResult, approvedTimestamp)
                 inputText = "" // clear input on success
@@ -453,7 +456,7 @@ fun SmartAssistantScreen(
                                     )
 
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value) },
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -518,7 +521,7 @@ fun SmartAssistantScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                        IconButton(onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }) {
+                                        IconButton(onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Refresh,
                                                 contentDescription = "بروزرسانی گزارش",
@@ -534,7 +537,7 @@ fun SmartAssistantScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
                                         modifier = Modifier.fillMaxWidth().height(48.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -575,7 +578,7 @@ fun SmartAssistantScreen(
                                         textAlign = TextAlign.Center
                                     )
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -684,6 +687,7 @@ fun parseBoldMarkdown(text: String): androidx.compose.ui.text.AnnotatedString {
 @Composable
 fun ParsedResultCard(
     result: ParsedResult,
+    categories: List<Category>,
     onApprove: (ParsedResult, Long) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -696,7 +700,7 @@ fun ParsedResultCard(
     }
     var descriptionText by remember(result) { mutableStateOf(result.description) }
     var selectedType by remember(result) { mutableStateOf(result.type) }
-    var selectedCategory by remember(result) { mutableStateOf(result.category) }
+    var selectedCategoryKey by remember(result) { mutableStateOf(result.category) }
     var personNameText by remember(result) { mutableStateOf(result.personName ?: "") }
     var titleText by remember(result) { mutableStateOf(result.title ?: "") }
     var daysFromNowText by remember(result) { mutableStateOf(result.daysFromNow?.toString() ?: "30") }
@@ -715,7 +719,13 @@ fun ParsedResultCard(
         mutableStateOf(finalCal.timeInMillis)
     }
     
-    val categoriesList = listOf("Food", "Transportation", "Shopping", "Bills", "Installments", "Loans", "Income", "Other")
+    val filteredCategories = categories.filter { cat ->
+        when (selectedType) {
+            "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
+            "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
+            else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
+        }
+    }
     
     val typeColor = when (selectedType) {
         "INCOME", "LOAN_DEBTOR" -> IncomeGreen
@@ -801,9 +811,12 @@ fun ParsedResultCard(
                             onClick = { 
                                 selectedType = typeKey
                                 // Auto-assign logical category based on type
-                                if (typeKey == "INCOME") selectedCategory = "Income"
-                                else if (typeKey == "LOAN_DEBTOR" || typeKey == "LOAN_CREDITOR") selectedCategory = "Loans"
-                                else if (typeKey == "INSTALLMENT") selectedCategory = "Installments"
+                                selectedCategoryKey = when (typeKey) {
+                                    "INCOME" -> "Income"
+                                    "LOAN_DEBTOR", "LOAN_CREDITOR" -> "Loans"
+                                    "INSTALLMENT" -> "Installments"
+                                    else -> selectedCategoryKey
+                                }
                             },
                             selectedColor = chipColor,
                             onSelectedColor = Color.White
@@ -867,12 +880,12 @@ fun ParsedResultCard(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    categoriesList.forEach { cat ->
-                        val isSelected = selectedCategory == cat
+                    filteredCategories.forEach { cat ->
+                        val isSelected = selectedCategoryKey == cat.key
                         CustomChip(
-                            text = getPersianCategory(cat),
+                            text = cat.name,
                             isSelected = isSelected,
-                            onClick = { selectedCategory = cat }
+                            onClick = { selectedCategoryKey = cat.key }
                         )
                     }
                 }
@@ -1011,7 +1024,7 @@ fun ParsedResultCard(
                         val updatedResult = ParsedResult(
                             type = selectedType,
                             amount = finalAmountToman * 1000L,
-                            category = selectedCategory,
+                            category = selectedCategoryKey,
                             personName = if (finalPersonName.isNullOrBlank()) null else finalPersonName,
                             description = descriptionText.ifBlank { "ثبت دستیار هوشمند" },
                             daysFromNow = finalDaysFromNow,

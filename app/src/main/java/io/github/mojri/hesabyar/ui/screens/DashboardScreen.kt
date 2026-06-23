@@ -38,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AiConfigViewModel
@@ -78,12 +79,13 @@ fun DashboardScreen(
 ) {
     val dashboardData by financeViewModel.dashboardState.collectAsState()
     val transactions by financeViewModel.transactions.collectAsState()
+    val categories by financeViewModel.categories.collectAsState()
     val forecastState by aiServiceViewModel.forecastState.collectAsState()
     var showManualAddDialog by remember { mutableStateOf(false) }
     var showFullForecast by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = transactions) {
-        aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value)
+        aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -245,7 +247,7 @@ fun DashboardScreen(
                     .testTag("budget_forecast_alert_card")
                     .clickable {
                         if (forecastState is ForecastUIState.Idle || forecastState is ForecastUIState.Error) {
-                            aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value)
+                            aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value)
                         }
                         showFullForecast = true
                     },
@@ -682,7 +684,7 @@ fun DashboardScreen(
             }
         } else {
             items(transactions.take(5)) { transaction ->
-                TransactionMiniItem(transaction = transaction)
+                TransactionMiniItem(transaction = transaction, categories = categories)
             }
         }
     }
@@ -706,6 +708,7 @@ fun DashboardScreen(
 if (showManualAddDialog) {
     ManualTransactionDialog(
         financeViewModel = financeViewModel,
+        categories = categories,
         onDismiss = { showManualAddDialog = false }
     )
 }
@@ -714,7 +717,7 @@ if (showFullForecast) {
     ForecastDetailDialog(
         forecastState = forecastState,
         onDismiss = { showFullForecast = false },
-        onRefresh = { aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }
+        onRefresh = { aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }
     )
 }
 }
@@ -785,9 +788,10 @@ fun InstallmentMiniItem(
 }
 
 @Composable
-fun TransactionMiniItem(transaction: Transaction) {
+fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = emptyList()) {
     val isIncome = transaction.type == "INCOME"
-    val icon = when (transaction.category) {
+    val category = categories.find { it.id == transaction.categoryId }
+    val icon = when (category?.key) {
         "Food" -> Icons.Filled.Restaurant
         "Transportation" -> Icons.Filled.DirectionsCar
         "Shopping" -> Icons.Filled.ShoppingBag
@@ -841,7 +845,7 @@ fun TransactionMiniItem(transaction: Transaction) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${formatPersianDate(transaction.date)} | ${getPersianCategory(transaction.category)}",
+                        text = "${formatPersianDate(transaction.date)} | ${category?.name ?: "سایر"}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -1014,19 +1018,38 @@ fun ForecastDetailDialog(
 @Composable
 fun ManualTransactionDialog(
     financeViewModel: FinanceViewModel,
+    categories: List<Category>,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     var selectedType by remember { mutableStateOf("EXPENSE") }
     var amountText by remember { mutableStateOf("") }
     var descriptionText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Food") }
+    var selectedCategoryId by remember { mutableStateOf(0L) }
     var personNameText by remember { mutableStateOf("") }
     var titleText by remember { mutableStateOf("") }
     var daysFromNowText by remember { mutableStateOf("30") }
     var customDate by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    val categoriesList = listOf("Food", "Transportation", "Shopping", "Bills", "Installments", "Loans", "Income", "Other")
+    val filteredCategories = categories.filter { cat ->
+        when (selectedType) {
+            "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
+            "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
+            else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
+        }
+    }
+
+    LaunchedEffect(selectedType) {
+        if (selectedCategoryId == 0L || categories.find { it.id == selectedCategoryId } == null) {
+            selectedCategoryId = when (selectedType) {
+                "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                "EXPENSE" -> categories.find { it.key == "Food" }?.id ?: 1L
+                "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
+                "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                else -> categories.find { it.key == "Other" }?.id ?: 1L
+            }
+        }
+    }
 
     val typeColor = when (selectedType) {
         "INCOME", "LOAN_DEBTOR" -> IncomeGreen
@@ -1122,9 +1145,12 @@ fun ManualTransactionDialog(
                                         )
                                         .clickable {
                                             selectedType = typeKey
-                                            if (typeKey == "INCOME") selectedCategory = "Income"
-                                            else if (typeKey == "LOAN_DEBTOR" || typeKey == "LOAN_CREDITOR") selectedCategory = "Loans"
-                                            else if (typeKey == "INSTALLMENT") selectedCategory = "Installments"
+                                            selectedCategoryId = when (typeKey) {
+                                                "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                                                "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
+                                                "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                                                else -> selectedCategoryId
+                                            }
                                         }
                                         .padding(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
@@ -1194,19 +1220,19 @@ fun ManualTransactionDialog(
                                     .horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                categoriesList.forEach { cat ->
-                                    val isSelected = selectedCategory == cat
+                                filteredCategories.forEach { cat ->
+                                    val isSelected = selectedCategoryId == cat.id
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(
                                                 if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                             )
-                                            .clickable { selectedCategory = cat }
+                                            .clickable { selectedCategoryId = cat.id }
                                             .padding(horizontal = 14.dp, vertical = 8.dp)
                                     ) {
                                         Text(
-                                            text = getPersianCategory(cat),
+                                            text = cat.name,
                                             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Medium
@@ -1344,10 +1370,11 @@ fun ManualTransactionDialog(
 
                             when (selectedType) {
                                 "INCOME", "EXPENSE" -> {
-                                    val desc = descriptionText.trim().ifEmpty { getPersianCategory(selectedCategory) }
+                                    val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
+                                    val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
                                     financeViewModel.addTransaction(
                                         type = selectedType,
-                                        category = selectedCategory,
+                                        categoryId = selectedCategoryId,
                                         amount = finalAmountRial,
                                         description = desc,
                                         customDate = customDate

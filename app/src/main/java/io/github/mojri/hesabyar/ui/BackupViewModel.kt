@@ -17,7 +17,8 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         database.transactionDao(),
         database.loanDao(),
         database.installmentDao(),
-        database.paymentHistoryDao()
+        database.paymentHistoryDao(),
+        database.categoryDao()
     )
 
     private val transactions = repository.allTransactions
@@ -44,7 +45,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                     transArray.put(JSONObject().apply {
                         put("id", it.id)
                         put("type", it.type)
-                        put("category", it.category)
+                        put("categoryId", it.categoryId)
                         put("amount", it.amount.toLong())
                         put("description", it.description)
                         put("personName", it.personName ?: "")
@@ -114,9 +115,14 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
                 val transArray = rootJson.optJSONArray("transactions") ?: JSONArray()
                 for (i in 0 until transArray.length()) {
                     val obj = transArray.getJSONObject(i)
+                    val categoryId = if (obj.has("categoryId")) {
+                        obj.getLong("categoryId")
+                    } else {
+                        1L
+                    }
                     transList.add(Transaction(
                         type = obj.getString("type"),
-                        category = obj.getString("category"),
+                        categoryId = categoryId,
                         amount = obj.getLong("amount"),
                         description = obj.getString("description"),
                         personName = obj.optString("personName").let { if (it.isBlank()) null else it },

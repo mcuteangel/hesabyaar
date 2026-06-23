@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.FinanceViewModel
 import io.github.mojri.hesabyar.ui.AiServiceViewModel
@@ -39,8 +40,9 @@ fun ReportsScreen(
     modifier: Modifier = Modifier
 ) {
     val transactions by financeViewModel.transactions.collectAsState()
+    val categories by financeViewModel.categories.collectAsState()
     var filterSelection by remember { mutableStateOf("MONTHLY") } // "DAILY", "MONTHLY", "YEARLY"
-    var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
 
     // Calculate dynamic stats based on filter selection
     val now = System.currentTimeMillis()
@@ -53,22 +55,22 @@ fun ReportsScreen(
 
     val filteredList = transactions.filter { it.date >= (now - filterDuration) }
     val displayList = if (selectedCategoryFilter != null) {
-        transactions.filter { it.category == selectedCategoryFilter }.sortedByDescending { it.date }
+        transactions.filter { it.categoryId == selectedCategoryFilter }.sortedByDescending { it.date }
     } else {
         transactions.sortedByDescending { it.date }
     }
 
     var totalIncome = 0L
     var totalExpense = 0L
-    val categoryTotals = HashMap<String, Long>()
+    val categoryTotals = HashMap<Long, Long>()
 
     filteredList.forEach {
         if (it.type == "INCOME") {
             totalIncome += it.amount
         } else {
             totalExpense += it.amount
-            val catTotal = categoryTotals[it.category] ?: 0L
-            categoryTotals[it.category] = catTotal + it.amount
+            val catTotal = categoryTotals[it.categoryId] ?: 0L
+            categoryTotals[it.categoryId] = catTotal + it.amount
         }
     }
 
@@ -265,7 +267,7 @@ fun ReportsScreen(
                                     lineHeight = 18.sp
                                 )
                                 Button(
-                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, false) },
+                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, false) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -323,7 +325,7 @@ fun ReportsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     OutlinedButton(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, true) },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
@@ -368,7 +370,7 @@ fun ReportsScreen(
                                     )
                                 }
                                 Button(
-                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, true) },
+                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, true) },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error
@@ -414,26 +416,18 @@ fun ReportsScreen(
             }
         } else {
             // Display visual progress bars for each expense category
-            items(categoryTotals.toList().sortedByDescending { it.second }) { (category, total) ->
+            items(categoryTotals.toList().sortedByDescending { it.second }) { (categoryId, total) ->
                 val ratio = if (totalExpense > 0) (total.toDouble() / totalExpense.toDouble()).toFloat() else 0f
                 val percent = (ratio * 100).toInt()
-                val isSelected = selectedCategoryFilter == category
+                val isSelected = selectedCategoryFilter == categoryId
+                val category = categories.find { it.id == categoryId }
 
-                val categoryColor = when (category) {
-                    "Food" -> IncomeGreen
-                    "Transportation" -> WarningOrange
-                    "Shopping" -> MaterialTheme.colorScheme.primary
-                    "Bills" -> MaterialTheme.colorScheme.tertiary
-                    "Installments" -> ExpenseRed
-                    "Loans" -> Color(0xFF9C27B0)
-                    "Income" -> IncomeGreen
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                val categoryColor = Color(category?.color ?: 0xFF757575)
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { selectedCategoryFilter = if (isSelected) null else category },
+                        .clickable { selectedCategoryFilter = if (isSelected) null else categoryId },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
@@ -459,7 +453,7 @@ fun ReportsScreen(
                                         .background(categoryColor, CircleShape)
                                 )
                                 Text(
-                                    text = getPersianCategory(category),
+                                    text = category?.name ?: "سایر",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -502,40 +496,23 @@ fun ReportsScreen(
                 )
 
                 // Horizontal category filter chips row
-                val categoriesList = listOf(
-                    null to "همه",
-                    "Food" to "خوراک",
-                    "Transportation" to "حمل و نقل",
-                    "Shopping" to "خرید",
-                    "Bills" to "قبوض",
-                    "Installments" to "اقساط",
-                    "Loans" to "وام و قرض",
-                    "Income" to "درآمد",
-                    "Other" to "سایر"
-                )
+                val categoryFilterList = listOf<Pair<Long?, String>>(null to "همه") + 
+                    categories.map { it.id to it.name }
 
                 androidx.compose.foundation.lazy.LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
-                    items(categoriesList) { (catKey, catValue) ->
-                        val isSelected = selectedCategoryFilter == catKey
-                        val chipColor = when (catKey) {
-                            "Food" -> IncomeGreen
-                            "Transportation" -> WarningOrange
-                            "Shopping" -> MaterialTheme.colorScheme.primary
-                            "Bills" -> MaterialTheme.colorScheme.tertiary
-                            "Installments" -> ExpenseRed
-                            "Loans" -> Color(0xFF9C27B0)
-                            "Income" -> IncomeGreen
-                            else -> MaterialTheme.colorScheme.primary
-                        }
+                    items(categoryFilterList) { (catId, catName) ->
+                        val isSelected = selectedCategoryFilter == catId
+                        val cat = categories.find { it.id == catId }
+                        val chipColor = if (catId != null) Color(cat?.color ?: 0xFF2196F3) else MaterialTheme.colorScheme.primary
 
                         CategoryFilterChip(
-                            text = catValue,
+                            text = catName,
                             isSelected = isSelected,
-                            onClick = { selectedCategoryFilter = catKey },
+                            onClick = { selectedCategoryFilter = catId },
                             activeColor = chipColor
                         )
                     }
@@ -573,7 +550,7 @@ fun ReportsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${formatPersianDate(transaction.date)} | ${getPersianCategory(transaction.category)}",
+                            text = "${formatPersianDate(transaction.date)} | ${categories.find { it.id == transaction.categoryId }?.name ?: "سایر"}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )

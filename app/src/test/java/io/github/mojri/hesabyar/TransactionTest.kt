@@ -8,8 +8,8 @@ import org.junit.Test
 
 class TransactionTest {
 
-    private fun createTransaction(type: String, amount: Long, category: String = "Other"): Transaction {
-        return Transaction(type = type, amount = amount, category = category, description = "test")
+    private fun createTransaction(type: String, amount: Long, categoryId: Long = 8L): Transaction {
+        return Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
     }
 
     private fun createLoan(type: String, originalAmount: Long, remainingAmount: Long, isSettled: Boolean = false): Loan {
@@ -74,20 +74,24 @@ class TransactionTest {
 
     @Test
     fun `category totals grouping`() {
+        val foodCategoryId = 1L
+        val transportCategoryId = 2L
+        val incomeCategoryId = 7L
+
         val transactions = listOf(
-            createTransaction("EXPENSE", 1_000_000, "Food"),
-            createTransaction("EXPENSE", 2_000_000, "Food"),
-            createTransaction("EXPENSE", 500_000, "Transportation"),
-            createTransaction("INCOME", 10_000_000, "Income")
+            createTransaction("EXPENSE", 1_000_000, foodCategoryId),
+            createTransaction("EXPENSE", 2_000_000, foodCategoryId),
+            createTransaction("EXPENSE", 500_000, transportCategoryId),
+            createTransaction("INCOME", 10_000_000, incomeCategoryId)
         )
 
         val categoryTotals = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
 
-        assertEquals(3_000_000L, categoryTotals["Food"])
-        assertEquals(500_000L, categoryTotals["Transportation"])
-        assertEquals(null, categoryTotals["Income"])
+        assertEquals(3_000_000L, categoryTotals[foodCategoryId])
+        assertEquals(500_000L, categoryTotals[transportCategoryId])
+        assertEquals(null, categoryTotals[incomeCategoryId])
     }
 
     @Test

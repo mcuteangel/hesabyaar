@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.api
 
+import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -14,13 +15,14 @@ object BudgetAdvisor {
 
     suspend fun getBudgetAdvice(
         transactions: List<Transaction>,
+        categories: List<Category>,
         config: AiProviderConfig? = null
     ): String = withContext(Dispatchers.IO) {
         AppLogger.d(TAG, "getBudgetAdvice: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
             AppLogger.w(TAG, "AI provider not configured, using offline local rules budget advisor")
-            return@withContext getOfflineAdvice(transactions)
+            return@withContext getOfflineAdvice(transactions, categories)
         }
 
         if (transactions.isEmpty()) {
@@ -30,16 +32,18 @@ object BudgetAdvisor {
         val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
         val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
         val categoriesGroup = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { tx -> tx.amount } }
 
-        val categoryReport = categoriesGroup.entries.joinToString("\n") { (cat, sum) ->
-            "- ${getPersianCategoryName(cat)}: ${formatTomanClean(sum)} تومان"
+        val categoryReport = categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
+            val cat = categories.find { it.id == catId }
+            "- ${cat?.name ?: "سایر"}: ${formatTomanClean(sum)} تومان"
         }
 
         val transactionListPrompt = transactions.take(30).joinToString("\n") { tx ->
             val typeStr = if (tx.type == "INCOME") "درآمد" else "هزینه"
-            "- ${getPersianCategoryName(tx.category)} | $typeStr | ${formatTomanClean(tx.amount)} تومان | شرح: ${tx.description}"
+            val cat = categories.find { it.id == tx.categoryId }
+            "- ${cat?.name ?: "سایر"} | $typeStr | ${formatTomanClean(tx.amount)} تومان | شرح: ${tx.description}"
         }
 
         val prompt = """
@@ -73,7 +77,7 @@ object BudgetAdvisor {
             is AiProvider.ApiResult.Success -> result.text
             is AiProvider.ApiResult.Failure -> {
                 AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
-                getOfflineAdvice(transactions)
+                getOfflineAdvice(transactions, categories)
             }
         }
     }
@@ -103,15 +107,16 @@ object BudgetAdvisor {
     }
 
     // High quality local rules budget advisor for offline mode
-    fun getOfflineAdvice(transactions: List<Transaction>): String {
+    fun getOfflineAdvice(transactions: List<Transaction>, categories: List<Category>): String {
         val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
         val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
 
         val categoryTotals = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
 
-        val highestCategory = categoryTotals.maxByOrNull { it.value }?.key
+        val highestCategoryId = categoryTotals.maxByOrNull { it.value }?.key
+        val highestCategory = categories.find { it.id == highestCategoryId }
 
         val sb = java.lang.StringBuilder()
         sb.append("### 💡 توصیه‌های هوشمند بودجه (تحلیل هوش مصنوعی محلی)\n\n")
@@ -133,12 +138,12 @@ object BudgetAdvisor {
         }
 
         if (highestCategory != null) {
-            val catNameFarsi = getPersianCategoryName(highestCategory)
-            val catExpense = categoryTotals[highestCategory] ?: 0L
+            val catNameFarsi = highestCategory.name
+            val catExpense = categoryTotals[highestCategoryId] ?: 0L
             sb.append("📊 ** تمرکز روی پرهزینه‌ترین بخش مخارج:**\n")
             sb.append("بزرگترین کانون مخارج شما مربوط به دسته‌بندی **$catNameFarsi** با مجموع مبلغ **${formatTomanClean(catExpense)}** تومان است.\n\n")
             sb.append("💡 **پیشنهاد تخصصی مشاور:** ")
-            when (highestCategory) {
+            when (highestCategory.key) {
                 "Food" -> sb.append("تدارک مواد غذایی خانگی به جای رستوران‌ها و کافه‌های غیرضروری و نوشتن لیست خریدهای خواربار قبل از مراجعه به فروشگاه، می‌تواند تا ۳۰ درصد هزینه‌های این دسته را کاهش دهد.")
                 "Shopping" -> sb.append("بسیاری از خریدهای پوشاک یا وسایل شخصی جنبه احساسی دارند. قانون ۲۴ ساعت را اجرا کنید: برای هر خرید غیرضروری، ۲۴ ساعت صبر کنید. اگر پس از آن همچنان مایل بودید، اقدام کنید.")
                 "Transportation" -> sb.append("هزینه‌های تردد خود را با استفاده ترکیبی از تاکسی‌های اشتراکی، مترو یا اتوبوس بهینه‌سازی کنید و تا حد امکان ترددهای انفرادی اتومبیل را محدود سازید.")
@@ -162,6 +167,7 @@ object BudgetAdvisor {
         transactions: List<Transaction>,
         loans: List<Loan>,
         installments: List<Installment>,
+        categories: List<Category>,
         config: AiProviderConfig? = null
     ): String = withContext(Dispatchers.IO) {
         AppLogger.d(TAG, "getBudgetForecast: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
@@ -182,10 +188,11 @@ object BudgetAdvisor {
         val totalUpcomingAmount = upcomingInstallments.sumOf { it.amount }
         
         val categoryReport = transactions.filter { it.type == "EXPENSE" }
-            .groupBy { it.category }
+            .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { tx -> tx.amount } }
-            .entries.joinToString("\n") { (cat, sum) ->
-                "- ${getPersianCategoryName(cat)}: ${formatTomanClean(sum)} تومان"
+            .entries.joinToString("\n") { (catId, sum) ->
+                val cat = categories.find { it.id == catId }
+                "- ${cat?.name ?: "سایر"}: ${formatTomanClean(sum)} تومان"
             }
 
         val installmentListPrompt = upcomingInstallments.take(15).joinToString("\n") { inst ->

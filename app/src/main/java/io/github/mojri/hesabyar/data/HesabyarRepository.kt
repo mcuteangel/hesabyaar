@@ -1,20 +1,45 @@
 package io.github.mojri.hesabyar.data
 
 import kotlinx.coroutines.flow.Flow
-import java.io.Serializable
 
 class HesabyarRepository(
     private val transactionDao: TransactionDao,
     private val loanDao: LoanDao,
     private val installmentDao: InstallmentDao,
-    private val paymentHistoryDao: PaymentHistoryDao
+    private val paymentHistoryDao: PaymentHistoryDao,
+    private val categoryDao: CategoryDao
 ) {
     val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
     val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
     val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
+    val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
 
     fun getTransactionsInRange(start: Long, end: Long): Flow<List<Transaction>> {
         return transactionDao.getTransactionsInRange(start, end)
+    }
+
+    fun getCategoriesByType(type: String): Flow<List<Category>> {
+        return categoryDao.getCategoriesByType(type)
+    }
+
+    suspend fun getCategoryById(id: Long): Category? {
+        return categoryDao.getCategoryById(id)
+    }
+
+    suspend fun getCategoryByKey(key: String): Category? {
+        return categoryDao.getCategoryByKey(key)
+    }
+
+    suspend fun insertCategory(category: Category): Long {
+        return categoryDao.insertCategory(category)
+    }
+
+    suspend fun updateCategory(category: Category) {
+        categoryDao.updateCategory(category)
+    }
+
+    suspend fun deleteCategory(category: Category) {
+        categoryDao.deleteCategory(category)
     }
 
     suspend fun insertTransaction(transaction: Transaction): Long {
@@ -63,7 +88,7 @@ class HesabyarRepository(
         ))
 
         // Create an associated transaction matching this repayment
-        val categoryName = "Loans"
+        val loansCategory = getCategoryByKey("Loans")
         val desc = if (loan.type == "CREDITOR") {
             "بازپرداخت بدهی به ${loan.personName} - $notes"
         } else {
@@ -72,7 +97,7 @@ class HesabyarRepository(
 
         insertTransaction(Transaction(
             type = if (loan.type == "CREDITOR") "EXPENSE" else "INCOME",
-            category = categoryName,
+            categoryId = loansCategory?.id ?: 1L,
             amount = amount,
             description = desc,
             personName = loan.personName
@@ -90,9 +115,10 @@ class HesabyarRepository(
         installmentDao.updateInstallment(installment)
         // If paid, create an associated transaction!
         if (installment.isPaid) {
+            val installmentsCategory = getCategoryByKey("Installments")
             insertTransaction(Transaction(
                 type = "EXPENSE",
-                category = "Installments",
+                categoryId = installmentsCategory?.id ?: 1L,
                 amount = installment.amount,
                 description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
             ))

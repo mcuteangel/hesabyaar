@@ -17,7 +17,8 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
         database.transactionDao(),
         database.loanDao(),
         database.installmentDao(),
-        database.paymentHistoryDao()
+        database.paymentHistoryDao(),
+        database.categoryDao()
     )
     private val aiConfigManager = AiConfigManager(application)
 
@@ -70,11 +71,13 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             try {
                 val amountRial = result.amount
+                val category = repository.getCategoryByKey(result.category)
+                val categoryId = category?.id ?: 1L
                 when (result.type) {
                     "INCOME", "EXPENSE" -> {
                         repository.insertTransaction(Transaction(
                             type = result.type,
-                            category = result.category,
+                            categoryId = categoryId,
                             amount = amountRial,
                             description = result.description,
                             personName = result.personName,
@@ -116,6 +119,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun fetchBudgetAdvice(
         transactions: List<Transaction>,
+        categories: List<Category>,
         isOnlineMode: Boolean,
         forceRefresh: Boolean = false
     ) {
@@ -127,7 +131,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
             _advisorState.value = AdvisorUIState.Loading
             try {
                 val config = if (isOnlineMode) aiConfigManager.getActiveConfig() else null
-                val advice = BudgetAdvisor.getBudgetAdvice(transactions, config)
+                val advice = BudgetAdvisor.getBudgetAdvice(transactions, categories, config)
                 cachedAdvice = advice
                 lastAdviceTime = System.currentTimeMillis()
                 _advisorState.value = AdvisorUIState.Success(advice)
@@ -150,6 +154,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
         transactions: List<Transaction>,
         loans: List<Loan>,
         installments: List<Installment>,
+        categories: List<Category>,
         isOnlineMode: Boolean,
         forceRefresh: Boolean = false
     ) {
@@ -162,7 +167,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val config = if (isOnlineMode) aiConfigManager.getActiveConfig() else null
                 val forecast = BudgetAdvisor.getBudgetForecast(
-                    transactions, loans, installments, config
+                    transactions, loans, installments, categories, config
                 )
                 cachedForecast = forecast
                 lastForecastTime = System.currentTimeMillis()
