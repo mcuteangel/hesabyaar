@@ -27,7 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
+import io.github.mojri.hesabyar.ui.AiConfigViewModel
+import io.github.mojri.hesabyar.ui.AiServiceViewModel
 import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
 import java.io.InputStream
@@ -38,6 +41,9 @@ import android.content.Context
 
 @Composable
 fun SettingsScreen(
+    aiConfigViewModel: AiConfigViewModel,
+    aiServiceViewModel: AiServiceViewModel,
+    backupViewModel: BackupViewModel,
     viewModel: HesabyarViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -51,7 +57,7 @@ fun SettingsScreen(
             try {
                 val outputStream: OutputStream? = context.contentResolver.openOutputStream(uri)
                 if (outputStream != null) {
-                    viewModel.exportBackupToFile(outputStream)
+                    backupViewModel.exportBackupToFile(outputStream)
                 } else {
                     viewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
@@ -68,7 +74,7 @@ fun SettingsScreen(
             try {
                 val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
                 if (inputStream != null) {
-                    viewModel.importBackupFromFile(inputStream)
+                    backupViewModel.importBackupFromFile(inputStream)
                 }
             } catch (e: Exception) {
                 viewModel.showMessage("خطا در بارگذاری فایل")
@@ -192,7 +198,7 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        AiProviderSettingsCard(viewModel = viewModel)
+        AiProviderSettingsCard(aiConfigViewModel = aiConfigViewModel)
 
         // Backup
         Text(
@@ -410,11 +416,11 @@ fun DebugLogsSection() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiProviderSettingsCard(viewModel: HesabyarViewModel) {
-    val configs by viewModel.aiConfigs
-    val activeConfigId by viewModel.activeConfigId
-    val isOnlineMode by viewModel.isOnlineMode
-    val modelFetchState by viewModel.modelFetchState.collectAsState()
+fun AiProviderSettingsCard(aiConfigViewModel: AiConfigViewModel) {
+    val configs by aiConfigViewModel.aiConfigs
+    val activeConfigId by aiConfigViewModel.activeConfigId
+    val isOnlineMode by aiConfigViewModel.isOnlineMode
+    val modelFetchState by aiConfigViewModel.modelFetchState.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingConfig by remember { mutableStateOf<AiProviderConfig?>(null) }
@@ -463,7 +469,7 @@ fun AiProviderSettingsCard(viewModel: HesabyarViewModel) {
                 }
                 Switch(
                     checked = isOnlineMode,
-                    onCheckedChange = { viewModel.toggleOnlineMode() }
+                    onCheckedChange = { aiConfigViewModel.toggleOnlineMode() }
                 )
             }
 
@@ -480,9 +486,9 @@ fun AiProviderSettingsCard(viewModel: HesabyarViewModel) {
                     ConfigItem(
                         config = config,
                         isActive = isActive,
-                        onSelect = { viewModel.setActiveConfig(config.id) },
+                        onSelect = { aiConfigViewModel.setActiveConfig(config.id) },
                         onEdit = { editingConfig = config },
-                        onDelete = { viewModel.deleteAiConfig(config.id) }
+                        onDelete = { aiConfigViewModel.deleteAiConfig(config.id) }
                     )
                 }
             }
@@ -510,18 +516,18 @@ fun AiProviderSettingsCard(viewModel: HesabyarViewModel) {
             },
             onSave = { config ->
                 if (editingConfig != null) {
-                    viewModel.updateAiConfig(config)
+                    aiConfigViewModel.updateAiConfig(config)
                 } else {
-                    viewModel.addAiConfig(config)
+                    aiConfigViewModel.addAiConfig(config)
                 }
                 showAddDialog = false
                 editingConfig = null
             },
             onFetchModels = { providerType, apiKey, baseUrl ->
-                viewModel.fetchModels(providerType, apiKey, baseUrl)
+                aiConfigViewModel.fetchModels(providerType, apiKey, baseUrl)
             },
             modelFetchState = modelFetchState,
-            onClearModelFetchState = { viewModel.clearModelFetchState() }
+            onClearModelFetchState = { aiConfigViewModel.clearModelFetchState() }
         )
     }
 }

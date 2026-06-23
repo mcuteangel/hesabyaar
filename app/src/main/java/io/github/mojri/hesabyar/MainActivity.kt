@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -29,12 +29,15 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: HesabyarViewModel by viewModels()
+    private val financeViewModel: FinanceViewModel by viewModels()
+    private val aiConfigViewModel: AiConfigViewModel by viewModels()
+    private val aiServiceViewModel: AiServiceViewModel by viewModels()
+    private val backupViewModel: BackupViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Handle Toast messaging safely from the shared Flow in ViewModel
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiMessage.collectLatest { msg ->
@@ -84,27 +87,40 @@ class MainActivity : ComponentActivity() {
                         val modifier = Modifier.padding(innerPadding)
                         when (currentTab) {
                             "DASHBOARD" -> DashboardScreen(
+                                financeViewModel = financeViewModel,
+                                aiServiceViewModel = aiServiceViewModel,
+                                aiConfigViewModel = aiConfigViewModel,
                                 viewModel = viewModel,
                                 onNavigateToAssistant = { currentTab = "ASSISTANT" },
                                 modifier = modifier
                             )
                             "ASSISTANT" -> SmartAssistantScreen(
+                                financeViewModel = financeViewModel,
+                                aiServiceViewModel = aiServiceViewModel,
+                                aiConfigViewModel = aiConfigViewModel,
                                 viewModel = viewModel,
                                 modifier = modifier
                             )
                             "LOANS" -> LoanManagementScreen(
+                                financeViewModel = financeViewModel,
                                 viewModel = viewModel,
                                 modifier = modifier
                             )
                             "INSTALLMENTS" -> InstallmentScreen(
+                                financeViewModel = financeViewModel,
                                 viewModel = viewModel,
                                 modifier = modifier
                             )
                             "REPORTS" -> ReportsScreen(
-                                viewModel = viewModel,
+                                financeViewModel = financeViewModel,
+                                aiServiceViewModel = aiServiceViewModel,
+                                aiConfigViewModel = aiConfigViewModel,
                                 modifier = modifier
                             )
                             "SETTINGS" -> SettingsScreen(
+                                aiConfigViewModel = aiConfigViewModel,
+                                aiServiceViewModel = aiServiceViewModel,
+                                backupViewModel = backupViewModel,
                                 viewModel = viewModel,
                                 modifier = modifier
                             )

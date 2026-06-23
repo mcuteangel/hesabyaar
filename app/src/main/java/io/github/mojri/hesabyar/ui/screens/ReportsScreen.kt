@@ -22,7 +22,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Transaction
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.FinanceViewModel
+import io.github.mojri.hesabyar.ui.AiServiceViewModel
+import io.github.mojri.hesabyar.ui.AiConfigViewModel
 import io.github.mojri.hesabyar.ui.AdvisorUIState
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
@@ -31,10 +33,12 @@ import java.util.*
 
 @Composable
 fun ReportsScreen(
-    viewModel: HesabyarViewModel,
+    financeViewModel: FinanceViewModel,
+    aiServiceViewModel: AiServiceViewModel,
+    aiConfigViewModel: AiConfigViewModel,
     modifier: Modifier = Modifier
 ) {
-    val transactions by viewModel.transactions.collectAsState()
+    val transactions by financeViewModel.transactions.collectAsState()
     var filterSelection by remember { mutableStateOf("MONTHLY") } // "DAILY", "MONTHLY", "YEARLY"
     var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
 
@@ -178,8 +182,8 @@ fun ReportsScreen(
 
         // AI Budget Advisor Card
         item {
-            val budgetState by viewModel.advisorState.collectAsState()
-            val providerStatus = viewModel.getProviderStatusText()
+            val budgetState by aiServiceViewModel.advisorState.collectAsState()
+            val providerStatus = aiConfigViewModel.getProviderStatusText()
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -235,7 +239,7 @@ fun ReportsScreen(
 
                         if (budgetState is AdvisorUIState.Success) {
                             IconButton(
-                                onClick = { viewModel.clearAdvisorState() },
+                                onClick = { aiServiceViewModel.clearAdvisorState() },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
@@ -261,7 +265,7 @@ fun ReportsScreen(
                                     lineHeight = 18.sp
                                 )
                                 Button(
-                                    onClick = { viewModel.fetchBudgetAdvice() },
+                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, false) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -319,7 +323,7 @@ fun ReportsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     OutlinedButton(
-                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, true) },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
@@ -333,7 +337,7 @@ fun ReportsScreen(
                                     }
 
                                     OutlinedButton(
-                                        onClick = { viewModel.clearAdvisorState() },
+                                        onClick = { aiServiceViewModel.clearAdvisorState() },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
@@ -364,7 +368,7 @@ fun ReportsScreen(
                                     )
                                 }
                                 Button(
-                                    onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
+                                    onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, true) },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error

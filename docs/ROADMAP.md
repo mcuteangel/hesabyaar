@@ -56,7 +56,7 @@
 
 # Security
 
-- [ ] Encrypted API Keys
+- [x] Encrypted API Keys
 - [ ] Secure Backup
 - [ ] Secret Management
 
@@ -64,7 +64,7 @@
 
 # Architecture
 
-- [ ] ViewModel Refactor
+- [x] ViewModel Refactor
 - [ ] Use Cases Layer
 - [ ] Full Test Coverage
 

@@ -33,6 +33,9 @@ import io.github.mojri.hesabyar.api.ParsedResult
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.AiServiceViewModel
+import io.github.mojri.hesabyar.ui.AiConfigViewModel
+import io.github.mojri.hesabyar.ui.FinanceViewModel
 import io.github.mojri.hesabyar.ui.ParserUIState
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
@@ -41,13 +44,16 @@ import java.util.*
 
 @Composable
 fun SmartAssistantScreen(
+    aiServiceViewModel: AiServiceViewModel,
+    aiConfigViewModel: AiConfigViewModel,
+    financeViewModel: FinanceViewModel,
     viewModel: HesabyarViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var activeTab by remember { mutableStateOf(0) } // 0 = Smart Registration, 1 = Budget Advice
     var inputText by remember { mutableStateOf("") }
-    val parserState by viewModel.parserState.collectAsState()
+    val parserState by aiServiceViewModel.parserState.collectAsState()
     val scrollState = rememberScrollState()
 
     // Intent-based Speech Recognition Launcher for native Persian voice-to-text
@@ -59,7 +65,7 @@ fun SmartAssistantScreen(
             val text = spokenTextList?.firstOrNull() ?: ""
             if (text.isNotBlank()) {
                 inputText = text
-                viewModel.parseSmartSentence(text)
+                aiServiceViewModel.parseSmartSentence(text, aiConfigViewModel.isOnlineMode.value)
             }
         }
     }
@@ -84,10 +90,10 @@ fun SmartAssistantScreen(
         ParsedResultCard(
             result = successState.result,
             onApprove = { updatedResult, approvedTimestamp ->
-                viewModel.approveParsedResult(updatedResult, approvedTimestamp)
+                aiServiceViewModel.approveParsedResult(updatedResult, approvedTimestamp)
                 inputText = "" // clear input on success
             },
-            onCancel = { viewModel.clearParserState() },
+            onCancel = { aiServiceViewModel.clearParserState() },
             modifier = modifier
                 .fillMaxSize()
                 .padding(16.dp)
@@ -203,7 +209,7 @@ fun SmartAssistantScreen(
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                                         .clickable {
                                             inputText = ex
-                                            viewModel.parseSmartSentence(ex)
+                                            aiServiceViewModel.parseSmartSentence(ex, aiConfigViewModel.isOnlineMode.value)
                                         }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -280,7 +286,7 @@ fun SmartAssistantScreen(
                                 Button(
                                     onClick = {
                                         if (inputText.isNotBlank()) {
-                                            viewModel.parseSmartSentence(inputText)
+                                            aiServiceViewModel.parseSmartSentence(inputText, aiConfigViewModel.isOnlineMode.value)
                                         } else {
                                             viewModel.showMessage("لطفا متنی را جهت تحلیل وارد کنید")
                                         }
@@ -351,8 +357,8 @@ fun SmartAssistantScreen(
                 }
             } else {
                 // Budget Advice Tab (Gemini/Offline)
-                val advisorState by viewModel.advisorState.collectAsState()
-                val isApiKeyReady = viewModel.isAiConfigured()
+                val advisorState by aiServiceViewModel.advisorState.collectAsState()
+                val isApiKeyReady = aiConfigViewModel.isAiConfigured()
 
                 Column(
                     modifier = Modifier
@@ -396,7 +402,7 @@ fun SmartAssistantScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${viewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
+                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${aiConfigViewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 )
@@ -447,7 +453,7 @@ fun SmartAssistantScreen(
                                     )
 
                                     Button(
-                                        onClick = { viewModel.fetchBudgetAdvice() },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value) },
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -512,7 +518,7 @@ fun SmartAssistantScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                        IconButton(onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) }) {
+                                        IconButton(onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Refresh,
                                                 contentDescription = "بروزرسانی گزارش",
@@ -528,7 +534,7 @@ fun SmartAssistantScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Button(
-                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
                                         modifier = Modifier.fillMaxWidth().height(48.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -569,7 +575,7 @@ fun SmartAssistantScreen(
                                         textAlign = TextAlign.Center
                                     )
                                     Button(
-                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
+                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -1055,5 +1061,3 @@ fun CustomChip(
         )
     }
 }
-
-

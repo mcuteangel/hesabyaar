@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.FinanceViewModel
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
 import io.github.mojri.hesabyar.ui.theme.WarningOrange
@@ -35,10 +36,11 @@ import java.util.*
 
 @Composable
 fun LoanManagementScreen(
+    financeViewModel: FinanceViewModel,
     viewModel: HesabyarViewModel,
     modifier: Modifier = Modifier
 ) {
-    val loans by viewModel.loans.collectAsState()
+    val loans by financeViewModel.loans.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
 
@@ -146,8 +148,9 @@ fun LoanManagementScreen(
                 items(activeList) { loan ->
                     LoanListItem(
                         loan = loan,
+                        financeViewModel = financeViewModel,
                         viewModel = viewModel,
-                        onDelete = { viewModel.deleteLoan(loan) }
+                        onDelete = { financeViewModel.deleteLoan(loan) }
                     )
                 }
             }
@@ -238,7 +241,7 @@ fun LoanManagementScreen(
                         val amountToman = amountText.toDoubleOrNull() ?: 0.0
                         if (personName.isNotBlank() && amountToman > 0.0) {
                             val amountRial = (amountToman * 1000).toLong()
-                            viewModel.addLoan(personName, loanType, amountRial, description)
+                            financeViewModel.addLoan(personName, loanType, amountRial, description)
                             showAddDialog = false
                         } else {
                             viewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
@@ -260,12 +263,13 @@ fun LoanManagementScreen(
 @Composable
 fun LoanListItem(
     loan: Loan,
+    financeViewModel: FinanceViewModel,
     viewModel: HesabyarViewModel,
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showRepayDialog by remember { mutableStateOf(false) }
-    val paymentHistory by viewModel.getPaymentHistory(loan.id).collectAsState(initial = emptyList())
+    val paymentHistory by financeViewModel.getPaymentHistory(loan.id).collectAsState(initial = emptyList())
 
     val statusColor = if (loan.isSettled) MaterialTheme.colorScheme.primary else if (loan.type == "DEBTOR") IncomeGreen else ExpenseRed
     val statusText = if (loan.isSettled) "تسویه شده" else if (loan.type == "DEBTOR") "طلب وصول‌نشده" else "جای بازپرداخت باقی‌مانده"
@@ -497,7 +501,7 @@ fun LoanListItem(
                         val amountToman = repayAmount.toDoubleOrNull() ?: 0.0
                         if (amountToman > 0.0) {
                             val amountRial = (amountToman * 1000).toLong()
-                            viewModel.makeRepayment(loan.id, amountRial, repayNotes)
+                            financeViewModel.makeRepayment(loan.id, amountRial, repayNotes)
                             showRepayDialog = false
                         } else {
                             viewModel.showMessage("لطفا مبلغ صحیح وارد کنید")

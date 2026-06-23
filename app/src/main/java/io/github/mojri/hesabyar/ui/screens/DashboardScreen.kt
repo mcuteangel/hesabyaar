@@ -40,6 +40,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.ui.AiConfigViewModel
+import io.github.mojri.hesabyar.ui.AiServiceViewModel
+import io.github.mojri.hesabyar.ui.FinanceViewModel
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
@@ -66,18 +69,21 @@ fun formatPersianDate(timestamp: Long): String {
 
 @Composable
 fun DashboardScreen(
+    financeViewModel: FinanceViewModel,
+    aiServiceViewModel: AiServiceViewModel,
+    aiConfigViewModel: AiConfigViewModel,
     viewModel: HesabyarViewModel,
     onNavigateToAssistant: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dashboardData by viewModel.dashboardState.collectAsState()
-    val transactions by viewModel.transactions.collectAsState()
-    val forecastState by viewModel.forecastState.collectAsState()
+    val dashboardData by financeViewModel.dashboardState.collectAsState()
+    val transactions by financeViewModel.transactions.collectAsState()
+    val forecastState by aiServiceViewModel.forecastState.collectAsState()
     var showManualAddDialog by remember { mutableStateOf(false) }
     var showFullForecast by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = transactions) {
-        viewModel.fetchBudgetForecast()
+        aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -239,7 +245,7 @@ fun DashboardScreen(
                     .testTag("budget_forecast_alert_card")
                     .clickable {
                         if (forecastState is ForecastUIState.Idle || forecastState is ForecastUIState.Error) {
-                            viewModel.fetchBudgetForecast()
+                            aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value)
                         }
                         showFullForecast = true
                     },
@@ -640,7 +646,7 @@ fun DashboardScreen(
             items(dashboardData.upcomingInstallments.take(3)) { installment ->
                 InstallmentMiniItem(
                     installment = installment,
-                    onTogglePaid = { viewModel.toggleInstallmentPaid(installment) }
+                    onTogglePaid = { financeViewModel.toggleInstallmentPaid(installment) }
                 )
             }
         }
@@ -699,7 +705,7 @@ fun DashboardScreen(
 
 if (showManualAddDialog) {
     ManualTransactionDialog(
-        viewModel = viewModel,
+        financeViewModel = financeViewModel,
         onDismiss = { showManualAddDialog = false }
     )
 }
@@ -708,7 +714,7 @@ if (showFullForecast) {
     ForecastDetailDialog(
         forecastState = forecastState,
         onDismiss = { showFullForecast = false },
-        onRefresh = { viewModel.fetchBudgetForecast(forceRefresh = true) }
+        onRefresh = { aiServiceViewModel.fetchBudgetForecast(financeViewModel.transactions.value, financeViewModel.loans.value, financeViewModel.installments.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }
     )
 }
 }
@@ -1007,7 +1013,7 @@ fun ForecastDetailDialog(
 
 @Composable
 fun ManualTransactionDialog(
-    viewModel: HesabyarViewModel,
+    financeViewModel: FinanceViewModel,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1339,7 +1345,7 @@ fun ManualTransactionDialog(
                             when (selectedType) {
                                 "INCOME", "EXPENSE" -> {
                                     val desc = descriptionText.trim().ifEmpty { getPersianCategory(selectedCategory) }
-                                    viewModel.addTransaction(
+                                    financeViewModel.addTransaction(
                                         type = selectedType,
                                         category = selectedCategory,
                                         amount = finalAmountRial,
@@ -1354,7 +1360,7 @@ fun ManualTransactionDialog(
                                         return@Button
                                     }
                                     val desc = descriptionText.trim().ifEmpty { if (selectedType == "LOAN_DEBTOR") "قرض دادن به $person" else "قرض گرفتن از $person" }
-                                    viewModel.addLoan(
+                                    financeViewModel.addLoan(
                                         personName = person,
                                         type = if (selectedType == "LOAN_DEBTOR") "DEBTOR" else "CREDITOR",
                                         amount = finalAmountRial,
@@ -1369,7 +1375,7 @@ fun ManualTransactionDialog(
                                         return@Button
                                     }
                                     val desc = descriptionText.trim()
-                                    viewModel.addInstallment(
+                                    financeViewModel.addInstallment(
                                         title = title,
                                         amount = finalAmountRial,
                                         dueDate = customDate,
