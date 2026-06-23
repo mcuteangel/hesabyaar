@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.api
 
-import android.util.Log
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -92,13 +91,14 @@ object BudgetAdvisor {
         }
     }
 
-    private fun formatTomanClean(amount: Double): String {
+    private fun formatTomanClean(amount: Long): String {
+        val tomanValue = amount / 1000
         return try {
             val formatter = NumberFormat.getNumberInstance(Locale.US)
             formatter.maximumFractionDigits = 0
-            formatter.format(amount)
+            formatter.format(tomanValue)
         } catch (e: Exception) {
-            amount.toLong().toString()
+            tomanValue.toString()
         }
     }
 
@@ -123,7 +123,7 @@ object BudgetAdvisor {
 
         sb.append("بر اساس تحلیل تراکنش‌های ثبت شده شما در حسابیار، گزارش زیر آماده شده است:\n\n")
 
-        val ratio = if (totalIncome > 0) (totalExpense / totalIncome) else 2.0
+        val ratio = if (totalIncome > 0) (totalExpense.toDouble() / totalIncome.toDouble()) else 2.0
         if (ratio > 0.9) {
             sb.append("⚠️ **ناترازی و زنگ خطر مالی:** میزان هزینه‌های شما بسیار نزدیک به درآمد یا فراتر از آن است (**${(ratio * 100).toInt()}%** از درآمد شما خرج شده است!). توصیه اکید داریم که با کنترل فوری خریدهای غیرضروری، جلوی کسری بودجه یا کشیده شدن به سمت بدهی بیشتر را بگیرید.\n\n")
         } else if (ratio < 0.3 && totalIncome > 0) {
@@ -134,7 +134,7 @@ object BudgetAdvisor {
 
         if (highestCategory != null) {
             val catNameFarsi = getPersianCategoryName(highestCategory)
-            val catExpense = categoryTotals[highestCategory] ?: 0.0
+            val catExpense = categoryTotals[highestCategory] ?: 0L
             sb.append("📊 ** تمرکز روی پرهزینه‌ترین بخش مخارج:**\n")
             sb.append("بزرگترین کانون مخارج شما مربوط به دسته‌بندی **$catNameFarsi** با مجموع مبلغ **${formatTomanClean(catExpense)}** تومان است.\n\n")
             sb.append("💡 **پیشنهاد تخصصی مشاور:** ")
@@ -249,8 +249,8 @@ object BudgetAdvisor {
             return "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
         }
         
-        val averageIncome = if (transactions.any { it.type == "INCOME" }) totalIncome else 0.0
-        val averageExpense = if (transactions.any { it.type == "EXPENSE" }) totalExpense else 0.0
+        val averageIncome = if (transactions.any { it.type == "INCOME" }) totalIncome else 0L
+        val averageExpense = if (transactions.any { it.type == "EXPENSE" }) totalExpense else 0L
         
         val estimatedBalance = averageIncome - averageExpense - upcomingInstallmentsSum
         
@@ -264,7 +264,7 @@ object BudgetAdvisor {
         sb.append("- 💸 **مخارج تخمینی:** ${formatTomanClean(averageExpense)} تومان\n")
         sb.append("- 🗓️ **تعهد اقساط در شرف سررسید:** ${formatTomanClean(upcomingInstallmentsSum)} تومان\n")
         
-        val formattedEstimatedBalance = formatTomanClean(Math.abs(estimatedBalance))
+        val formattedEstimatedBalance = formatTomanClean(kotlin.math.abs(estimatedBalance))
         if (estimatedBalance < 0) {
             sb.append("\n### 🚨 هشدار هوشمند: ریسک کسری بودجه در ماه بعد!\n")
             sb.append("با نگرانی خفیف به استحضار می‌رساند مخارج متوسط شما به همراه اقساط پیش رو، احتمالاً تراز نقدی شما در ماه آینده را با **کسری حدودی $formattedEstimatedBalance تومان** روبرو خواهد کرد.\n\n")

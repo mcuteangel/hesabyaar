@@ -9,7 +9,7 @@ data class Transaction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val type: String, // "EXPENSE", "INCOME"
     val category: String, // "Food", "Transportation", "Shopping", "Bills", "Installments", "Loans", "Income", "Other"
-    val amount: Double,
+    val amount: Long, // Rial
     val description: String,
     val personName: String? = null,
     val date: Long = System.currentTimeMillis(),
@@ -22,8 +22,8 @@ data class Loan(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val personName: String,
     val type: String, // "DEBTOR" (you are owed money), "CREDITOR" (you owe money)
-    val originalAmount: Double,
-    val remainingAmount: Double,
+    val originalAmount: Long, // Rial
+    val remainingAmount: Long, // Rial
     val description: String,
     val date: Long = System.currentTimeMillis(),
     val isSettled: Boolean = false
@@ -33,7 +33,7 @@ data class Loan(
 data class Installment(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
-    val amount: Double,
+    val amount: Long, // Rial
     val dueDate: Long,
     val isPaid: Boolean = false,
     val reminderEnabled: Boolean = true,
@@ -44,7 +44,7 @@ data class Installment(
 data class PaymentHistory(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val loanId: Long,
-    val amount: Double,
+    val amount: Long, // Rial
     val date: Long = System.currentTimeMillis(),
     val notes: String = ""
 ) : Serializable

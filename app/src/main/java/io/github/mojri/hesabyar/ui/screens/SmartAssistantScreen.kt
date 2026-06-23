@@ -838,8 +838,9 @@ fun ParsedResultCard(
                 // Formatted Amount preview in Persian words
                 val amtDouble = amountText.toDoubleOrNull() ?: 0.0
                 if (amtDouble > 0.0) {
+                    val amtRial = (amtDouble * 1000).toLong()
                     Text(
-                        text = "معادل: ${formatToman(amtDouble)}",
+                        text = "معادل: ${formatToman(amtRial)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = typeColor,
                         fontWeight = FontWeight.Bold,

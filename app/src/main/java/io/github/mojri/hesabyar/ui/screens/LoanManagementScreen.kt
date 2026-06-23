@@ -235,9 +235,10 @@ fun LoanManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amount = amountText.toDoubleOrNull() ?: 0.0
-                        if (personName.isNotBlank() && amount > 0.0) {
-                            viewModel.addLoan(personName, loanType, amount, description)
+                        val amountToman = amountText.toDoubleOrNull() ?: 0.0
+                        if (personName.isNotBlank() && amountToman > 0.0) {
+                            val amountRial = (amountToman * 1000).toLong()
+                            viewModel.addLoan(personName, loanType, amountRial, description)
                             showAddDialog = false
                         } else {
                             viewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
@@ -493,9 +494,10 @@ fun LoanListItem(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amount = repayAmount.toDoubleOrNull() ?: 0.0
-                        if (amount > 0.0) {
-                            viewModel.makeRepayment(loan.id, amount, repayNotes)
+                        val amountToman = repayAmount.toDoubleOrNull() ?: 0.0
+                        if (amountToman > 0.0) {
+                            val amountRial = (amountToman * 1000).toLong()
+                            viewModel.makeRepayment(loan.id, amountRial, repayNotes)
                             showRepayDialog = false
                         } else {
                             viewModel.showMessage("لطفا مبلغ صحیح وارد کنید")

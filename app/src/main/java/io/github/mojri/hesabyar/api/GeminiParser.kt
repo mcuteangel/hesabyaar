@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.api
 
-import android.util.Log
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -216,18 +215,18 @@ object GeminiParser {
             }
         } else if (isExpense) {
             type = "EXPENSE"
-            if (sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") || sentence.contains("میوه") || sentence.contains("رستوران") || sentence.contains("خرید")) {
-                category = "Food"
-                description = "خرید مواد غذایی"
+            if (sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک")) {
+                category = "Shopping"
+                description = "خرید پوشاک"
             } else if (sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") || sentence.contains("تاکسی") || sentence.contains("ماشین")) {
                 category = "Transportation"
                 description = "هزینه های رفت و آمد"
-            } else if (sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک")) {
-                category = "Shopping"
-                description = "خرید پوشاک"
             } else if (sentence.contains("قبض") || sentence.contains("برق") || sentence.contains("آب") || sentence.contains("گاز") || sentence.contains("تلفن")) {
                 category = "Bills"
                 description = "پرداخت قبوض"
+            } else if (sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") || sentence.contains("میوه") || sentence.contains("رستوران") || sentence.contains("خرید")) {
+                category = "Food"
+                description = "خرید مواد غذایی"
             } else {
                 category = "Other"
                 description = "ثبت دستی"

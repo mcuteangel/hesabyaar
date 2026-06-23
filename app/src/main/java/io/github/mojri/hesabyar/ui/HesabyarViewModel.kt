@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
 import android.app.Application
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -37,7 +35,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
-        sharedPrefs.edit().putBoolean("dark_mode", isDarkMode.value).commit()
+        sharedPrefs.edit().putBoolean("dark_mode", isDarkMode.value).apply()
     }
 
     // AI Multi-Config State
@@ -171,10 +169,10 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
 
     // Core Dashboard Calculations
     val dashboardState = combine(transactions, loans, installments) { trans, loanList, instList ->
-        var totalIncome = 0.0
-        var totalExpense = 0.0
-        var monthlyIncome = 0.0
-        var monthlyExpense = 0.0
+        var totalIncome = 0L
+        var totalExpense = 0L
+        var monthlyIncome = 0L
+        var monthlyExpense = 0L
 
         val now = System.currentTimeMillis()
         val oneMonthAgo = now - (30L * 24L * 60L * 60L * 1000L)
@@ -189,8 +187,8 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        var debtorsTotal = 0.0
-        var creditorsTotal = 0.0
+        var debtorsTotal = 0L
+        var creditorsTotal = 0L
         loanList.filter { !it.isSettled }.forEach {
             if (it.type == "DEBTOR") {
                 debtorsTotal += it.remainingAmount
@@ -212,7 +210,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
 
     // Transactions operations
-    fun addTransaction(type: String, category: String, amount: Double, description: String, personName: String? = null, customDate: Long? = null) {
+    fun addTransaction(type: String, category: String, amount: Long, description: String, personName: String? = null, customDate: Long? = null) {
         viewModelScope.launch {
             repository.insertTransaction(Transaction(
                 type = type,
@@ -336,12 +334,13 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     fun approveParsedResult(result: ParsedResult, customDate: Long? = null) {
         viewModelScope.launch {
             try {
+                val amountRial = (result.amount * 1000).toLong()
                 when (result.type) {
                     "INCOME", "EXPENSE" -> {
                         repository.insertTransaction(Transaction(
                             type = result.type,
                             category = result.category,
-                            amount = result.amount,
+                            amount = amountRial,
                             description = result.description,
                             personName = result.personName,
                             date = customDate ?: System.currentTimeMillis()
@@ -352,8 +351,8 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                         repository.insertLoan(Loan(
                             personName = result.personName ?: "نامشخص",
                             type = loanType,
-                            originalAmount = result.amount,
-                            remainingAmount = result.amount,
+                            originalAmount = amountRial,
+                            remainingAmount = amountRial,
                             description = result.description,
                             date = customDate ?: System.currentTimeMillis()
                         ))
@@ -363,7 +362,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                         val due = customDate ?: (System.currentTimeMillis() + (days * 24L * 60L * 60L * 1000L))
                         repository.insertInstallment(Installment(
                             title = result.title ?: "قسط دستیار",
-                            amount = result.amount,
+                            amount = amountRial,
                             dueDate = due,
                             notes = result.description
                         ))
@@ -378,7 +377,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Loans operations
-    fun addLoan(personName: String, type: String, amount: Double, description: String, customDate: Long? = null) {
+    fun addLoan(personName: String, type: String, amount: Long, description: String, customDate: Long? = null) {
         viewModelScope.launch {
             repository.insertLoan(Loan(
                 personName = personName,
@@ -392,7 +391,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun makeRepayment(loanId: Long, amount: Double, notes: String) {
+    fun makeRepayment(loanId: Long, amount: Long, notes: String) {
         viewModelScope.launch {
             val success = repository.addPaymentToLoan(loanId, amount, notes)
             if (success) {
@@ -415,7 +414,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Installments operations
-    fun addInstallment(title: String, amount: Double, dueDate: Long, reminderEnabled: Boolean, notes: String) {
+    fun addInstallment(title: String, amount: Long, dueDate: Long, reminderEnabled: Boolean, notes: String) {
         viewModelScope.launch {
             repository.insertInstallment(Installment(
                 title = title,
@@ -467,7 +466,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                         put("id", it.id)
                         put("type", it.type)
                         put("category", it.category)
-                        put("amount", it.amount)
+                        put("amount", it.amount.toLong())
                         put("description", it.description)
                         put("personName", it.personName ?: "")
                         put("date", it.date)
@@ -499,7 +498,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     instArray.put(JSONObject().apply {
                         put("id", it.id)
                         put("title", it.title)
-                        put("amount", it.amount)
+                        put("amount", it.amount.toLong())
                         put("dueDate", it.dueDate)
                         put("isPaid", it.isPaid)
                         put("reminderEnabled", it.reminderEnabled)
@@ -514,7 +513,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     paymentsArray.put(JSONObject().apply {
                         put("id", it.id)
                         put("loanId", it.loanId)
-                        put("amount", it.amount)
+                        put("amount", it.amount.toLong())
                         put("date", it.date)
                         put("notes", it.notes)
                     })
@@ -544,7 +543,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     transList.add(Transaction(
                         type = obj.getString("type"),
                         category = obj.getString("category"),
-                        amount = obj.getDouble("amount"),
+                        amount = obj.getLong("amount"),
                         description = obj.getString("description"),
                         personName = obj.optString("personName").let { if (it.isBlank()) null else it },
                         date = obj.getLong("date"),
@@ -560,8 +559,8 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     loanList.add(Loan(
                         personName = obj.getString("personName"),
                         type = obj.getString("type"),
-                        originalAmount = obj.getDouble("originalAmount"),
-                        remainingAmount = obj.getDouble("remainingAmount"),
+                        originalAmount = obj.getLong("originalAmount"),
+                        remainingAmount = obj.getLong("remainingAmount"),
                         description = obj.getString("description"),
                         date = obj.getLong("date"),
                         isSettled = obj.getBoolean("isSettled")
@@ -574,7 +573,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     val obj = instArray.getJSONObject(i)
                     instList.add(Installment(
                         title = obj.getString("title"),
-                        amount = obj.getDouble("amount"),
+                        amount = obj.getLong("amount"),
                         dueDate = obj.getLong("dueDate"),
                         isPaid = obj.getBoolean("isPaid"),
                         reminderEnabled = obj.getBoolean("reminderEnabled"),
@@ -588,7 +587,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     val obj = paymentsArray.getJSONObject(i)
                     pmList.add(PaymentHistory(
                         loanId = obj.getLong("loanId"),
-                        amount = obj.getDouble("amount"),
+                        amount = obj.getLong("amount"),
                         date = obj.getLong("date"),
                         notes = obj.optString("notes", "")
                     ))
@@ -604,11 +603,11 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
 }
 
 data class DashboardData(
-    val currentBalance: Double = 0.0,
-    val monthlyExpenses: Double = 0.0,
-    val monthlyIncome: Double = 0.0,
-    val debtorsTotal: Double = 0.0,
-    val creditorsTotal: Double = 0.0,
+    val currentBalance: Long = 0L,
+    val monthlyExpenses: Long = 0L,
+    val monthlyIncome: Long = 0L,
+    val debtorsTotal: Long = 0L,
+    val creditorsTotal: Long = 0L,
     val upcomingInstallments: List<Installment> = emptyList()
 )
 

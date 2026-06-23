@@ -250,9 +250,10 @@ fun InstallmentScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amount = amountText.toDoubleOrNull() ?: 0.0
-                        if (title.isNotBlank() && amount > 0.0) {
-                            viewModel.addInstallment(title, amount, dateInMillis, reminderEnabled, notes)
+                        val amountToman = amountText.toDoubleOrNull() ?: 0.0
+                        if (title.isNotBlank() && amountToman > 0.0) {
+                            val amountRial = (amountToman * 1000).toLong()
+                            viewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
                             showAddDialog = false
                         } else {
                             viewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")

@@ -46,10 +46,10 @@ class HesabyarRepository(
         return paymentHistoryDao.getPaymentHistoryForLoan(loanId)
     }
 
-    suspend fun addPaymentToLoan(loanId: Long, amount: Double, notes: String): Boolean {
+    suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String): Boolean {
         val loan = loanDao.getLoanById(loanId) ?: return false
-        val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0.0)
-        val isSettled = newRemaining <= 0.0
+        val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
+        val isSettled = newRemaining <= 0L
 
         updateLoan(loan.copy(
             remainingAmount = newRemaining,

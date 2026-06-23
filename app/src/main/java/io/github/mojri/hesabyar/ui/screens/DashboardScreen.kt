@@ -49,9 +49,10 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun formatToman(value: Double): String {
+fun formatToman(value: Long): String {
+    val tomanValue = value / 1000
     val formatter = DecimalFormat("#,###")
-    return "${formatter.format(value)} تومان"
+    return "${formatter.format(tomanValue)} تومان"
 }
 
 fun formatPersianDate(timestamp: Long): String {
@@ -1162,8 +1163,9 @@ fun ManualTransactionDialog(
                         )
                         val amtDouble = amountText.toDoubleOrNull() ?: 0.0
                         if (amtDouble > 0.0) {
+                            val amtRial = (amtDouble * 1000).toLong()
                             Text(
-                                text = "معادل: ${formatToman(amtDouble)}",
+                                text = "معادل: ${formatToman(amtRial)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = typeColor,
                                 fontWeight = FontWeight.Bold,
@@ -1327,11 +1329,12 @@ fun ManualTransactionDialog(
 
                     Button(
                         onClick = {
-                            val finalAmount = amountText.toDoubleOrNull() ?: 0.0
-                            if (finalAmount <= 0.0) {
+                            val finalAmountToman = amountText.toDoubleOrNull() ?: 0.0
+                            if (finalAmountToman <= 0.0) {
                                 android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
+                            val finalAmountRial = (finalAmountToman * 1000).toLong()
 
                             when (selectedType) {
                                 "INCOME", "EXPENSE" -> {
@@ -1339,7 +1342,7 @@ fun ManualTransactionDialog(
                                     viewModel.addTransaction(
                                         type = selectedType,
                                         category = selectedCategory,
-                                        amount = finalAmount,
+                                        amount = finalAmountRial,
                                         description = desc,
                                         customDate = customDate
                                     )
@@ -1354,7 +1357,7 @@ fun ManualTransactionDialog(
                                     viewModel.addLoan(
                                         personName = person,
                                         type = if (selectedType == "LOAN_DEBTOR") "DEBTOR" else "CREDITOR",
-                                        amount = finalAmount,
+                                        amount = finalAmountRial,
                                         description = desc,
                                         customDate = customDate
                                     )
@@ -1368,7 +1371,7 @@ fun ManualTransactionDialog(
                                     val desc = descriptionText.trim()
                                     viewModel.addInstallment(
                                         title = title,
-                                        amount = finalAmount,
+                                        amount = finalAmountRial,
                                         dueDate = customDate,
                                         reminderEnabled = true,
                                         notes = desc

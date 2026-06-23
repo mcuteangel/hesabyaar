@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.api
 
-import android.util.Log
 import io.github.mojri.hesabyar.ui.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

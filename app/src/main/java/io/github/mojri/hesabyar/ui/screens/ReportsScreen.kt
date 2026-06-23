@@ -54,16 +54,16 @@ fun ReportsScreen(
         transactions.sortedByDescending { it.date }
     }
 
-    var totalIncome = 0.0
-    var totalExpense = 0.0
-    val categoryTotals = HashMap<String, Double>()
+    var totalIncome = 0L
+    var totalExpense = 0L
+    val categoryTotals = HashMap<String, Long>()
 
     filteredList.forEach {
         if (it.type == "INCOME") {
             totalIncome += it.amount
         } else {
             totalExpense += it.amount
-            val catTotal = categoryTotals[it.category] ?: 0.0
+            val catTotal = categoryTotals[it.category] ?: 0L
             categoryTotals[it.category] = catTotal + it.amount
         }
     }
@@ -411,7 +411,7 @@ fun ReportsScreen(
         } else {
             // Display visual progress bars for each expense category
             items(categoryTotals.toList().sortedByDescending { it.second }) { (category, total) ->
-                val ratio = if (totalExpense > 0) (total / totalExpense).toFloat() else 0f
+                val ratio = if (totalExpense > 0) (total.toDouble() / totalExpense.toDouble()).toFloat() else 0f
                 val percent = (ratio * 100).toInt()
                 val isSelected = selectedCategoryFilter == category
 
