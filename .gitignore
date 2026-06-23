@@ -26,3 +26,8 @@ my-upload-key.jks
 # Kotlin
 .kotlin
 keystore-backups/my-upload-key.jks.bak
+
+# AI Agents Skills & Prompts
+**/skill.md
+.agents/
+skills-lock.json
