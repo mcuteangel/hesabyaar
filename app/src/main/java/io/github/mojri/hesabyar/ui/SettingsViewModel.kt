@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
-class HesabyarViewModel(application: Application) : AndroidViewModel(application) {
+class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", android.content.Context.MODE_PRIVATE)
 
     var isDarkMode = mutableStateOf(sharedPrefs.getBoolean("dark_mode", true))

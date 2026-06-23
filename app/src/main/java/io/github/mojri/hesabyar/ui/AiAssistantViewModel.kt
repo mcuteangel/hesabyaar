@@ -1,9 +1,13 @@
 package io.github.mojri.hesabyar.ui
 
 import android.app.Application
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.mojri.hesabyar.api.AiConfigManager
+import io.github.mojri.hesabyar.api.AiProvider
+import io.github.mojri.hesabyar.api.AiProviderConfig
+import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.api.GeminiParser
 import io.github.mojri.hesabyar.api.ParsedResult
@@ -11,9 +15,9 @@ import io.github.mojri.hesabyar.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class AiServiceViewModel(application: Application) : AndroidViewModel(application) {
+class AiAssistantViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AppDatabase.getDatabase(application)
-    private val repository = HesabyarRepository(
+    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
         database.transactionDao(),
         database.loanDao(),
         database.installmentDao(),
@@ -22,6 +26,91 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
     )
     private val aiConfigManager = AiConfigManager(application)
 
+    // AI Configuration
+    var aiConfigs = mutableStateOf(aiConfigManager.loadConfigs())
+        private set
+
+    var activeConfigId = mutableStateOf(aiConfigManager.getActiveConfigId() ?: "")
+        private set
+
+    var isOnlineMode = mutableStateOf(aiConfigManager.isOnlineMode())
+        private set
+
+    fun toggleOnlineMode() {
+        isOnlineMode.value = !isOnlineMode.value
+        aiConfigManager.setOnlineMode(isOnlineMode.value)
+    }
+
+    fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
+
+    fun addAiConfig(config: AiProviderConfig) {
+        val newConfig = aiConfigManager.addConfig(config)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+        if (aiConfigs.value.size == 1) {
+            activeConfigId.value = newConfig.id
+            aiConfigManager.setActiveConfigId(newConfig.id)
+        }
+    }
+
+    fun updateAiConfig(config: AiProviderConfig) {
+        aiConfigManager.updateConfig(config)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+    }
+
+    fun deleteAiConfig(id: String) {
+        aiConfigManager.deleteConfig(id)
+        aiConfigs.value = aiConfigManager.loadConfigs()
+        activeConfigId.value = aiConfigManager.getActiveConfigId() ?: ""
+    }
+
+    fun setActiveConfig(id: String) {
+        activeConfigId.value = id
+        aiConfigManager.setActiveConfigId(id)
+    }
+
+    fun isAiConfigured(): Boolean = aiConfigManager.getActiveConfig()?.isConfigured == true
+
+    fun getProviderStatusText(): String {
+        val config = aiConfigManager.getActiveConfig()
+        return if (config != null && config.isConfigured) {
+            "${config.displayName} | ${config.model}"
+        } else {
+            "تنظیم نشده (حالت آفلاین)"
+        }
+    }
+
+    private val _modelFetchState = MutableStateFlow<ModelFetchState>(ModelFetchState.Idle)
+    val modelFetchState = _modelFetchState.asStateFlow()
+
+    fun fetchModels(providerType: AiProviderType, apiKey: String, baseUrl: String? = null) {
+        viewModelScope.launch {
+            _modelFetchState.value = ModelFetchState.Loading
+            try {
+                val cached = aiConfigManager.getCachedModels(providerType)
+                if (cached != null && !cached.isExpired) {
+                    _modelFetchState.value = ModelFetchState.Success(cached.models)
+                    return@launch
+                }
+
+                val models = AiProvider.fetchModels(providerType, apiKey, baseUrl)
+                if (models.isNotEmpty()) {
+                    val modelIds = models.map { it.id }
+                    aiConfigManager.cacheModels(providerType, modelIds)
+                    _modelFetchState.value = ModelFetchState.Success(modelIds)
+                } else {
+                    _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
+                }
+            } catch (e: Exception) {
+                _modelFetchState.value = ModelFetchState.Error(e.localizedMessage ?: "خطا در دریافت مدل‌ها")
+            }
+        }
+    }
+
+    fun clearModelFetchState() {
+        _modelFetchState.value = ModelFetchState.Idle
+    }
+
+    // AI Cache for Forecast and Advice
     private var lastForecastTime = 0L
     private var cachedForecast: String? = null
     private var lastAdviceTime = 0L
@@ -49,7 +138,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
             _parserState.value = ParserUIState.Loading
             try {
                 val config = if (isOnlineMode) aiConfigManager.getActiveConfig() else null
-                AppLogger.d("AiServiceViewModel", "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
+                AppLogger.d("AiAssistantViewModel", "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
                 val result = GeminiParser.parseSentence(sentence, config)
                 if (result != null) {
                     _parserState.value = ParserUIState.Success(result)
@@ -57,7 +146,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
                     _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
                 }
             } catch (e: Exception) {
-                AppLogger.e("AiServiceViewModel", "parseSmartSentence failed", e)
+                AppLogger.e("AiAssistantViewModel", "parseSmartSentence failed", e)
                 _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
             }
         }
@@ -108,7 +197,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 _parserState.value = ParserUIState.Idle
             } catch (e: Exception) {
-                AppLogger.e("AiServiceViewModel", "approveParsedResult failed", e)
+                AppLogger.e("AiAssistantViewModel", "approveParsedResult failed", e)
             }
         }
     }
@@ -136,7 +225,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
                 lastAdviceTime = System.currentTimeMillis()
                 _advisorState.value = AdvisorUIState.Success(advice)
             } catch (e: Exception) {
-                AppLogger.e("AiServiceViewModel", "fetchBudgetAdvice failed", e)
+                AppLogger.e("AiAssistantViewModel", "fetchBudgetAdvice failed", e)
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
             }
         }
@@ -173,7 +262,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
                 lastForecastTime = System.currentTimeMillis()
                 _forecastState.value = ForecastUIState.Success(forecast)
             } catch (e: Exception) {
-                AppLogger.e("AiServiceViewModel", "fetchBudgetForecast failed", e)
+                AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed", e)
                 _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای ناشناخته در پیش‌بینی بودجه")
             }
         }

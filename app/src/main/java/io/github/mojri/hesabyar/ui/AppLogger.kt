@@ -55,7 +55,7 @@ object AppLogger {
     fun getLogsForTag(tag: String): List<LogEntry> = logs.filter { it.tag == tag }
 
     fun getAiLogs(): List<LogEntry> = logs.filter {
-        it.tag in listOf("AiConfigManager", "GeminiParser", "BudgetAdvisor", "AiProvider", "HesabyarViewModel")
+        it.tag in listOf("AiConfigManager", "GeminiParser", "BudgetAdvisor", "AiProvider", "AiAssistantViewModel")
     }
 
     fun clear() {

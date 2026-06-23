@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
-import io.github.mojri.hesabyar.ui.FinanceViewModel
+import io.github.mojri.hesabyar.ui.LoanViewModel
+import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
 import io.github.mojri.hesabyar.ui.theme.WarningOrange
@@ -36,11 +36,11 @@ import java.util.*
 
 @Composable
 fun LoanManagementScreen(
-    financeViewModel: FinanceViewModel,
-    viewModel: HesabyarViewModel,
+    loanViewModel: LoanViewModel,
+    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val loans by financeViewModel.loans.collectAsState()
+    val loans by loanViewModel.loans.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
 
@@ -148,9 +148,9 @@ fun LoanManagementScreen(
                 items(activeList) { loan ->
                     LoanListItem(
                         loan = loan,
-                        financeViewModel = financeViewModel,
-                        viewModel = viewModel,
-                        onDelete = { financeViewModel.deleteLoan(loan) }
+                        loanViewModel = loanViewModel,
+                        settingsViewModel = settingsViewModel,
+                        onDelete = { loanViewModel.deleteLoan(loan) }
                     )
                 }
             }
@@ -241,10 +241,10 @@ fun LoanManagementScreen(
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
                             val amountRial = amountToman * 1000L
-                            financeViewModel.addLoan(personName, loanType, amountRial, description)
+                            loanViewModel.addLoan(personName, loanType, amountRial, description)
                             showAddDialog = false
                         } else {
-                            viewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
+                            settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
                         }
                     }
                 ) {
@@ -263,13 +263,13 @@ fun LoanManagementScreen(
 @Composable
 fun LoanListItem(
     loan: Loan,
-    financeViewModel: FinanceViewModel,
-    viewModel: HesabyarViewModel,
+    loanViewModel: LoanViewModel,
+    settingsViewModel: SettingsViewModel,
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showRepayDialog by remember { mutableStateOf(false) }
-    val paymentHistory by financeViewModel.getPaymentHistory(loan.id).collectAsState(initial = emptyList())
+    val paymentHistory by loanViewModel.getPaymentHistory(loan.id).collectAsState(initial = emptyList())
 
     val statusColor = if (loan.isSettled) MaterialTheme.colorScheme.primary else if (loan.type == "DEBTOR") IncomeGreen else ExpenseRed
     val statusText = if (loan.isSettled) "تسویه شده" else if (loan.type == "DEBTOR") "طلب وصول‌نشده" else "جای بازپرداخت باقی‌مانده"
@@ -501,10 +501,10 @@ fun LoanListItem(
                         val amountToman = repayAmount.toLongOrNull() ?: 0L
                         if (amountToman > 0L) {
                             val amountRial = amountToman * 1000L
-                            financeViewModel.makeRepayment(loan.id, amountRial, repayNotes)
+                            loanViewModel.makeRepayment(loan.id, amountRial, repayNotes)
                             showRepayDialog = false
                         } else {
-                            viewModel.showMessage("لطفا مبلغ صحیح وارد کنید")
+                            settingsViewModel.showMessage("لطفا مبلغ صحیح وارد کنید")
                         }
                     }
                 ) {

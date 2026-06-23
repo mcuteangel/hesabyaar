@@ -24,8 +24,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.ui.FinanceViewModel
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.InstallmentViewModel
+import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
 import io.github.mojri.hesabyar.ui.theme.WarningOrange
@@ -33,11 +33,11 @@ import java.util.*
 
 @Composable
 fun InstallmentScreen(
-    financeViewModel: FinanceViewModel,
-    viewModel: HesabyarViewModel,
+    installmentViewModel: InstallmentViewModel,
+    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val installments by financeViewModel.installments.collectAsState()
+    val installments by installmentViewModel.installments.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
 
@@ -150,7 +150,7 @@ fun InstallmentScreen(
                 items(displayList) { installment ->
                     InstallmentListItem(
                         installment = installment,
-                        financeViewModel = financeViewModel
+                        installmentViewModel = installmentViewModel
                     )
                 }
             }
@@ -255,10 +255,10 @@ fun InstallmentScreen(
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (title.isNotBlank() && amountToman > 0L) {
                             val amountRial = amountToman * 1000L
-                            financeViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+                            installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
                             showAddDialog = false
                         } else {
-                            viewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
+                            settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
                         }
                     }
                 ) {
@@ -277,7 +277,7 @@ fun InstallmentScreen(
 @Composable
 fun InstallmentListItem(
     installment: Installment,
-    financeViewModel: FinanceViewModel
+    installmentViewModel: InstallmentViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
     val colorAccent = if (installment.isPaid) IncomeGreen else WarningOrange
@@ -364,7 +364,7 @@ fun InstallmentListItem(
                 }
 
                 Button(
-                    onClick = { financeViewModel.toggleInstallmentPaid(installment) },
+                    onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
                         contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
@@ -408,7 +408,7 @@ fun InstallmentListItem(
                         horizontalArrangement = Arrangement.End
                     ) {
                         IconButton(
-                            onClick = { financeViewModel.deleteInstallment(installment) },
+                            onClick = { installmentViewModel.deleteInstallment(installment) },
                             modifier = Modifier
                                 .background(ExpenseRed.copy(alpha = 0.1f), CircleShape)
                                 .size(36.dp)

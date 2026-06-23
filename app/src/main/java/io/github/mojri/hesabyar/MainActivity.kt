@@ -28,10 +28,13 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: HesabyarViewModel by viewModels()
-    private val financeViewModel: FinanceViewModel by viewModels()
-    private val aiConfigViewModel: AiConfigViewModel by viewModels()
-    private val aiServiceViewModel: AiServiceViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
+    private val dashboardViewModel: DashboardViewModel by viewModels()
+    private val transactionViewModel: TransactionViewModel by viewModels()
+    private val loanViewModel: LoanViewModel by viewModels()
+    private val installmentViewModel: InstallmentViewModel by viewModels()
+    private val categoryViewModel: CategoryViewModel by viewModels()
+    private val aiAssistantViewModel: AiAssistantViewModel by viewModels()
     private val backupViewModel: BackupViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,14 +43,14 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiMessage.collectLatest { msg ->
+                settingsViewModel.uiMessage.collectLatest { msg ->
                     Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                 }
             }
         }
 
         setContent {
-            val isDark by viewModel.isDarkMode
+            val isDark by settingsViewModel.isDarkMode
             HesabyarTheme(darkTheme = isDark) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     var currentTab by remember { mutableStateOf("DASHBOARD") }
@@ -55,7 +58,7 @@ class MainActivity : ComponentActivity() {
 
                     if (showCategoryManagement) {
                         CategoryManagementScreen(
-                            financeViewModel = financeViewModel,
+                            categoryViewModel = categoryViewModel,
                             onBack = { showCategoryManagement = false },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -95,41 +98,41 @@ class MainActivity : ComponentActivity() {
                         val modifier = Modifier.padding(innerPadding)
                         when (currentTab) {
                             "DASHBOARD" -> DashboardScreen(
-                                financeViewModel = financeViewModel,
-                                aiServiceViewModel = aiServiceViewModel,
-                                aiConfigViewModel = aiConfigViewModel,
-                                viewModel = viewModel,
+                                dashboardViewModel = dashboardViewModel,
+                                transactionViewModel = transactionViewModel,
+                                loanViewModel = loanViewModel,
+                                installmentViewModel = installmentViewModel,
+                                aiAssistantViewModel = aiAssistantViewModel,
+                                settingsViewModel = settingsViewModel,
                                 onNavigateToAssistant = { currentTab = "ASSISTANT" },
                                 modifier = modifier
                             )
                             "ASSISTANT" -> SmartAssistantScreen(
-                                financeViewModel = financeViewModel,
-                                aiServiceViewModel = aiServiceViewModel,
-                                aiConfigViewModel = aiConfigViewModel,
-                                viewModel = viewModel,
+                                aiAssistantViewModel = aiAssistantViewModel,
+                                categoryViewModel = categoryViewModel,
+                                dashboardViewModel = dashboardViewModel,
+                                settingsViewModel = settingsViewModel,
                                 modifier = modifier
                             )
                             "LOANS" -> LoanManagementScreen(
-                                financeViewModel = financeViewModel,
-                                viewModel = viewModel,
+                                loanViewModel = loanViewModel,
+                                settingsViewModel = settingsViewModel,
                                 modifier = modifier
                             )
                             "INSTALLMENTS" -> InstallmentScreen(
-                                financeViewModel = financeViewModel,
-                                viewModel = viewModel,
+                                installmentViewModel = installmentViewModel,
+                                settingsViewModel = settingsViewModel,
                                 modifier = modifier
                             )
                             "REPORTS" -> ReportsScreen(
-                                financeViewModel = financeViewModel,
-                                aiServiceViewModel = aiServiceViewModel,
-                                aiConfigViewModel = aiConfigViewModel,
+                                dashboardViewModel = dashboardViewModel,
+                                aiAssistantViewModel = aiAssistantViewModel,
                                 modifier = modifier
                             )
                             "SETTINGS" -> SettingsScreen(
-                                aiConfigViewModel = aiConfigViewModel,
-                                aiServiceViewModel = aiServiceViewModel,
+                                aiAssistantViewModel = aiAssistantViewModel,
                                 backupViewModel = backupViewModel,
-                                viewModel = viewModel,
+                                settingsViewModel = settingsViewModel,
                                 onNavigateToCategories = { showCategoryManagement = true },
                                 modifier = modifier
                             )

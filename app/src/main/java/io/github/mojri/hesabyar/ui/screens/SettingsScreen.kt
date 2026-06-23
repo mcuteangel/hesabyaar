@@ -27,11 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
-import io.github.mojri.hesabyar.ui.AiConfigViewModel
-import io.github.mojri.hesabyar.ui.AiServiceViewModel
+import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.AppLogger
 import io.github.mojri.hesabyar.ui.BackupViewModel
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
+import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
 import java.io.InputStream
 import java.io.OutputStream
@@ -41,10 +40,9 @@ import android.content.Context
 
 @Composable
 fun SettingsScreen(
-    aiConfigViewModel: AiConfigViewModel,
-    aiServiceViewModel: AiServiceViewModel,
+    aiAssistantViewModel: AiAssistantViewModel,
     backupViewModel: BackupViewModel,
-    viewModel: HesabyarViewModel,
+    settingsViewModel: SettingsViewModel,
     onNavigateToCategories: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -60,10 +58,10 @@ fun SettingsScreen(
                 if (outputStream != null) {
                     backupViewModel.exportBackupToFile(outputStream)
                 } else {
-                    viewModel.showMessage("خطا در باز کردن نویسنده فایل")
+                    settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
             } catch (e: Exception) {
-                viewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی")
+                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی")
             }
         }
     }
@@ -78,7 +76,7 @@ fun SettingsScreen(
                     backupViewModel.importBackupFromFile(inputStream)
                 }
             } catch (e: Exception) {
-                viewModel.showMessage("خطا در بارگذاری فایل")
+                settingsViewModel.showMessage("خطا در بارگذاری فایل")
             }
         }
     }
@@ -190,8 +188,8 @@ fun SettingsScreen(
                         Text("تم تاریک فعال (Dark Theme)", style = MaterialTheme.typography.bodyMedium)
                     }
                     Switch(
-                        checked = viewModel.isDarkMode.value,
-                        onCheckedChange = { viewModel.toggleDarkMode() },
+                        checked = settingsViewModel.isDarkMode.value,
+                        onCheckedChange = { settingsViewModel.toggleDarkMode() },
                         modifier = Modifier.testTag("dark_mode_switch")
                     )
                 }
@@ -235,7 +233,7 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        AiProviderSettingsCard(aiConfigViewModel = aiConfigViewModel)
+        AiProviderSettingsCard(aiAssistantViewModel = aiAssistantViewModel)
 
         // Backup
         Text(
@@ -453,11 +451,11 @@ fun DebugLogsSection() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiProviderSettingsCard(aiConfigViewModel: AiConfigViewModel) {
-    val configs by aiConfigViewModel.aiConfigs
-    val activeConfigId by aiConfigViewModel.activeConfigId
-    val isOnlineMode by aiConfigViewModel.isOnlineMode
-    val modelFetchState by aiConfigViewModel.modelFetchState.collectAsState()
+fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
+    val configs by aiAssistantViewModel.aiConfigs
+    val activeConfigId by aiAssistantViewModel.activeConfigId
+    val isOnlineMode by aiAssistantViewModel.isOnlineMode
+    val modelFetchState by aiAssistantViewModel.modelFetchState.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingConfig by remember { mutableStateOf<AiProviderConfig?>(null) }
@@ -506,7 +504,7 @@ fun AiProviderSettingsCard(aiConfigViewModel: AiConfigViewModel) {
                 }
                 Switch(
                     checked = isOnlineMode,
-                    onCheckedChange = { aiConfigViewModel.toggleOnlineMode() }
+                    onCheckedChange = { aiAssistantViewModel.toggleOnlineMode() }
                 )
             }
 
@@ -523,9 +521,9 @@ fun AiProviderSettingsCard(aiConfigViewModel: AiConfigViewModel) {
                     ConfigItem(
                         config = config,
                         isActive = isActive,
-                        onSelect = { aiConfigViewModel.setActiveConfig(config.id) },
+                        onSelect = { aiAssistantViewModel.setActiveConfig(config.id) },
                         onEdit = { editingConfig = config },
-                        onDelete = { aiConfigViewModel.deleteAiConfig(config.id) }
+                        onDelete = { aiAssistantViewModel.deleteAiConfig(config.id) }
                     )
                 }
             }
@@ -553,18 +551,18 @@ fun AiProviderSettingsCard(aiConfigViewModel: AiConfigViewModel) {
             },
             onSave = { config ->
                 if (editingConfig != null) {
-                    aiConfigViewModel.updateAiConfig(config)
+                    aiAssistantViewModel.updateAiConfig(config)
                 } else {
-                    aiConfigViewModel.addAiConfig(config)
+                    aiAssistantViewModel.addAiConfig(config)
                 }
                 showAddDialog = false
                 editingConfig = null
             },
             onFetchModels = { providerType, apiKey, baseUrl ->
-                aiConfigViewModel.fetchModels(providerType, apiKey, baseUrl)
+                aiAssistantViewModel.fetchModels(providerType, apiKey, baseUrl)
             },
             modelFetchState = modelFetchState,
-            onClearModelFetchState = { aiConfigViewModel.clearModelFetchState() }
+            onClearModelFetchState = { aiAssistantViewModel.clearModelFetchState() }
         )
     }
 }

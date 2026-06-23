@@ -33,10 +33,10 @@ import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Category
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.mojri.hesabyar.ui.HesabyarViewModel
-import io.github.mojri.hesabyar.ui.AiServiceViewModel
-import io.github.mojri.hesabyar.ui.AiConfigViewModel
-import io.github.mojri.hesabyar.ui.FinanceViewModel
+import io.github.mojri.hesabyar.ui.AiAssistantViewModel
+import io.github.mojri.hesabyar.ui.CategoryViewModel
+import io.github.mojri.hesabyar.ui.DashboardViewModel
+import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.ParserUIState
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
@@ -45,17 +45,17 @@ import java.util.*
 
 @Composable
 fun SmartAssistantScreen(
-    aiServiceViewModel: AiServiceViewModel,
-    aiConfigViewModel: AiConfigViewModel,
-    financeViewModel: FinanceViewModel,
-    viewModel: HesabyarViewModel,
+    aiAssistantViewModel: AiAssistantViewModel,
+    categoryViewModel: CategoryViewModel,
+    dashboardViewModel: DashboardViewModel,
+    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var activeTab by remember { mutableStateOf(0) } // 0 = Smart Registration, 1 = Budget Advice
     var inputText by remember { mutableStateOf("") }
-    val parserState by aiServiceViewModel.parserState.collectAsState()
-    val categories by financeViewModel.categories.collectAsState()
+    val parserState by aiAssistantViewModel.parserState.collectAsState()
+    val categories by categoryViewModel.categories.collectAsState()
     val scrollState = rememberScrollState()
 
     // Intent-based Speech Recognition Launcher for native Persian voice-to-text
@@ -67,7 +67,7 @@ fun SmartAssistantScreen(
             val text = spokenTextList?.firstOrNull() ?: ""
             if (text.isNotBlank()) {
                 inputText = text
-                aiServiceViewModel.parseSmartSentence(text, aiConfigViewModel.isOnlineMode.value)
+                aiAssistantViewModel.parseSmartSentence(text, aiAssistantViewModel.isOnlineMode.value)
             }
         }
     }
@@ -83,7 +83,7 @@ fun SmartAssistantScreen(
             }
             speechLauncher.launch(intent)
         } catch (e: Exception) {
-            viewModel.showMessage("سیستم گفتار به نوشتار در دستگاه شما در دسترس نیست")
+            settingsViewModel.showMessage("سیستم گفتار به نوشتار در دستگاه شما در دسترس نیست")
         }
     }
 
@@ -93,10 +93,10 @@ fun SmartAssistantScreen(
             result = successState.result,
             categories = categories,
             onApprove = { updatedResult, approvedTimestamp ->
-                aiServiceViewModel.approveParsedResult(updatedResult, approvedTimestamp)
+                aiAssistantViewModel.approveParsedResult(updatedResult, approvedTimestamp)
                 inputText = "" // clear input on success
             },
-            onCancel = { aiServiceViewModel.clearParserState() },
+            onCancel = { aiAssistantViewModel.clearParserState() },
             modifier = modifier
                 .fillMaxSize()
                 .padding(16.dp)
@@ -212,7 +212,7 @@ fun SmartAssistantScreen(
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                                         .clickable {
                                             inputText = ex
-                                            aiServiceViewModel.parseSmartSentence(ex, aiConfigViewModel.isOnlineMode.value)
+                                            aiAssistantViewModel.parseSmartSentence(ex, aiAssistantViewModel.isOnlineMode.value)
                                         }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -289,9 +289,9 @@ fun SmartAssistantScreen(
                                 Button(
                                     onClick = {
                                         if (inputText.isNotBlank()) {
-                                            aiServiceViewModel.parseSmartSentence(inputText, aiConfigViewModel.isOnlineMode.value)
+                                            aiAssistantViewModel.parseSmartSentence(inputText, aiAssistantViewModel.isOnlineMode.value)
                                         } else {
-                                            viewModel.showMessage("لطفا متنی را جهت تحلیل وارد کنید")
+                                            settingsViewModel.showMessage("لطفا متنی را جهت تحلیل وارد کنید")
                                         }
                                     },
                                     modifier = Modifier
@@ -360,8 +360,8 @@ fun SmartAssistantScreen(
                 }
             } else {
                 // Budget Advice Tab (Gemini/Offline)
-                val advisorState by aiServiceViewModel.advisorState.collectAsState()
-                val isApiKeyReady = aiConfigViewModel.isAiConfigured()
+                val advisorState by aiAssistantViewModel.advisorState.collectAsState()
+                val isApiKeyReady = aiAssistantViewModel.isAiConfigured()
 
                 Column(
                     modifier = Modifier
@@ -405,7 +405,7 @@ fun SmartAssistantScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${aiConfigViewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
+                                    text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${aiAssistantViewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                 )
@@ -456,7 +456,7 @@ fun SmartAssistantScreen(
                                     )
 
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value) },
+                                        onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value) },
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -521,7 +521,7 @@ fun SmartAssistantScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                        IconButton(onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) }) {
+                                        IconButton(onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, forceRefresh = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Refresh,
                                                 contentDescription = "بروزرسانی گزارش",
@@ -537,7 +537,7 @@ fun SmartAssistantScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
+                                        onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, forceRefresh = true) },
                                         modifier = Modifier.fillMaxWidth().height(48.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -578,7 +578,7 @@ fun SmartAssistantScreen(
                                         textAlign = TextAlign.Center
                                     )
                                     Button(
-                                        onClick = { aiServiceViewModel.fetchBudgetAdvice(financeViewModel.transactions.value, financeViewModel.categories.value, aiConfigViewModel.isOnlineMode.value, forceRefresh = true) },
+                                        onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, forceRefresh = true) },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {

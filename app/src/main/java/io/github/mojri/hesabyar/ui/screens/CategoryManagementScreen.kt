@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
-import io.github.mojri.hesabyar.ui.FinanceViewModel
+import io.github.mojri.hesabyar.ui.CategoryViewModel
 
 private val CATEGORY_ICONS = mapOf(
     "Restaurant" to Icons.Filled.Restaurant,
@@ -72,11 +72,11 @@ private val CATEGORY_COLORS = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryManagementScreen(
-    financeViewModel: FinanceViewModel,
+    categoryViewModel: CategoryViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categories by financeViewModel.categories.collectAsState()
+    val categories by categoryViewModel.categories.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCategory by remember { mutableStateOf<Category?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
@@ -180,7 +180,7 @@ fun CategoryManagementScreen(
             initialCategory = null,
             onDismiss = { showAddDialog = false },
             onSave = { name, key, icon, color, type ->
-                financeViewModel.addCategory(name, key, icon, color, type)
+                categoryViewModel.addCategory(name, key, icon, color, type)
                 showAddDialog = false
             }
         )
@@ -191,7 +191,7 @@ fun CategoryManagementScreen(
             initialCategory = editingCategory,
             onDismiss = { editingCategory = null },
             onSave = { name, key, icon, color, type ->
-                financeViewModel.updateCategory(
+                categoryViewModel.updateCategory(
                     editingCategory!!.copy(
                         name = name,
                         key = key,
@@ -222,7 +222,7 @@ fun CategoryManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        financeViewModel.deleteCategory(showDeleteConfirmation!!)
+                        categoryViewModel.deleteCategory(showDeleteConfirmation!!)
                         showDeleteConfirmation = null
                     },
                     colors = ButtonDefaults.buttonColors(
