@@ -28,7 +28,7 @@ android {
         ?: ""
       keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
         ?: providers.environmentVariable("KEY_ALIAS").orNull
-        ?: "upload"
+        ?: "mojrico"
       keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
         ?: providers.environmentVariable("KEY_PASSWORD").orNull
         ?: ""
@@ -138,7 +138,7 @@ tasks.register("generateKeystore") {
             println("Generating release keystore...")
             val pb = ProcessBuilder(
                 "keytool", "-genkey", "-noprompt",
-                "-alias", "upload",
+                "-alias", "mojrico",
                 "-dname", "CN=mcuteangel, OU=None, O=None, L=None, S=None, C=US",
                 "-keystore", keystoreFile.absolutePath,
                 "-storepass", storePassword,
