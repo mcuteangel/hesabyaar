@@ -23,9 +23,15 @@ android {
   signingConfigs {
     create("release") {
       storeFile = file("${rootDir}/my-upload-key.jks")
-      storePassword = "hesabyarpass"
-      keyAlias = "upload"
-      keyPassword = "hesabyarpass"
+      storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+        ?: ""
+      keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
+        ?: providers.environmentVariable("KEY_ALIAS").orNull
+        ?: "upload"
+      keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
+        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+        ?: ""
     }
   }
 
@@ -38,8 +44,7 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      isDebuggable = false
-      signingConfig = signingConfigs.getByName("release")
+      isDebuggable = true
     }
   }
   compileOptions {
@@ -116,32 +121,38 @@ dependencies {
   "ksp"(libs.moshi.kotlin.codegen)
 }
 
-val rootDirStr = rootDir.absolutePath
-
-val generateKeystoreTask = tasks.register("generateKeystore") {
+tasks.register("generateKeystore") {
+    group = "signing"
+    description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
     doFirst {
-        val keystoreFile = File(rootDirStr, "my-upload-key.jks")
+        val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+        val keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+        if (storePassword.isBlank() || keyPassword.isBlank()) {
+            throw GradleException(
+                "KEYSTORE_PASSWORD and KEY_PASSWORD environment variables must be set.\n" +
+                "Add them to your local .env file or export them in your shell."
+            )
+        }
+        val keystoreFile = File(rootDir, "my-upload-key.jks")
         if (!keystoreFile.exists()) {
-            println("Generating release keystore via Task...")
+            println("Generating release keystore...")
             val pb = ProcessBuilder(
                 "keytool", "-genkey", "-noprompt",
                 "-alias", "upload",
                 "-dname", "CN=mcuteangel, OU=None, O=None, L=None, S=None, C=US",
                 "-keystore", keystoreFile.absolutePath,
-                "-storepass", "hesabyarpass",
-                "-keypass", "hesabyarpass",
+                "-storepass", storePassword,
+                "-keypass", keyPassword,
                 "-keyalg", "RSA",
                 "-keysize", "2048",
                 "-validity", "10000"
             )
             val proc = pb.start()
             proc.waitFor()
-            println("Keystore generated via Task successfully.")
+            println("Keystore generated successfully at: ${keystoreFile.absolutePath}")
+        } else {
+            println("Keystore already exists, skipping generation.")
         }
     }
-}
-
-tasks.matching { it.name == "preBuild" || it.name.startsWith("compile") }.configureEach {
-    dependsOn(generateKeystoreTask)
 }
 
