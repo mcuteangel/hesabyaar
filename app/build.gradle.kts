@@ -28,7 +28,7 @@ android {
         ?: ""
       keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
         ?: providers.environmentVariable("KEY_ALIAS").orNull
-        ?: "mojrico"
+        ?: ""
       keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
         ?: providers.environmentVariable("KEY_PASSWORD").orNull
         ?: ""
@@ -63,6 +63,37 @@ android {
 secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
+}
+
+tasks.register("checkSigningConfig") {
+    group = "signing"
+    description = "Validates that release signing credentials are configured"
+    doFirst {
+        val storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+            ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+            ?: ""
+        val keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
+            ?: providers.environmentVariable("KEY_ALIAS").orNull
+            ?: ""
+        val keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
+            ?: providers.environmentVariable("KEY_PASSWORD").orNull
+            ?: ""
+        val keystoreFile = file("${rootDir}/my-upload-key.jks")
+
+        val issues = mutableListOf<String>()
+        if (storePassword.isBlank()) issues.add("KEYSTORE_PASSWORD is not set")
+        if (keyAlias.isBlank()) issues.add("KEY_ALIAS is not set")
+        if (keyPassword.isBlank()) issues.add("KEY_PASSWORD is not set")
+        if (!keystoreFile.exists()) issues.add("Keystore file not found: my-upload-key.jks")
+
+        if (issues.isNotEmpty()) {
+            logger.warn("⚠ Signing configuration issues:")
+            issues.forEach { logger.warn("  - $it") }
+            logger.warn("Add signing credentials to your local .env file. See .env.example for reference.")
+        } else {
+            logger.lifecycle("✓ Signing configuration is valid.")
+        }
+    }
 }
 
 // Some unused dependencies are commented out below instead of being removed.
@@ -125,12 +156,20 @@ tasks.register("generateKeystore") {
     group = "signing"
     description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
     doFirst {
-        val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-        val keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+        val storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+            ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+            ?: ""
+        val keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
+            ?: providers.environmentVariable("KEY_PASSWORD").orNull
+            ?: ""
+        val keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
+            ?: providers.environmentVariable("KEY_ALIAS").orNull
+            ?: "mojrico"
         if (storePassword.isBlank() || keyPassword.isBlank()) {
             throw GradleException(
-                "KEYSTORE_PASSWORD and KEY_PASSWORD environment variables must be set.\n" +
-                "Add them to your local .env file or export them in your shell."
+                "KEYSTORE_PASSWORD and KEY_PASSWORD must be set.\n" +
+                "Add them to your local .env file or set as environment variables.\n" +
+                "See .env.example for reference."
             )
         }
         val keystoreFile = File(rootDir, "my-upload-key.jks")
@@ -138,8 +177,8 @@ tasks.register("generateKeystore") {
             println("Generating release keystore...")
             val pb = ProcessBuilder(
                 "keytool", "-genkey", "-noprompt",
-                "-alias", "mojrico",
-                "-dname", "CN=mcuteangel, OU=None, O=None, L=None, S=None, C=US",
+                "-alias", keyAlias,
+                "-dname", "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
                 "-keystore", keystoreFile.absolutePath,
                 "-storepass", storePassword,
                 "-keypass", keyPassword,

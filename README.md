@@ -80,23 +80,33 @@ cd hesanyaar
 cp .env.example .env
 ```
 
-سپس `GEMINI_API_KEY` را با کلید API خود جایگزین کنید:
+سپس مقادیر زیر را پر کنید:
 
 ```env
 # فایل .env
 GEMINI_API_KEY=your_gemini_api_key_here
+KEYSTORE_PASSWORD=your_keystore_password
+KEY_ALIAS=your_key_alias
+KEY_PASSWORD=your_key_password
 ```
 
-> ⚠️ **هشدار:** هرگز کلید API خود را در Git commit نکنید!
+> ⚠️ **هشدار:** هرگز فایل `.env` یا کلیدهای API را در Git commit نکنید!
 
-#### ۴. تنظیمات Gradle (برای اجرا روی دستگاه واقعی)
+#### ۴. ایجاد Keystore برای امضا (اختیاری - برای Release)
 
-خط زیر را از فایل `app/build.gradle.kts` حذف کنید:
+اگر می‌خواهید نسخه Release بسازید، ابتدا یک keystore ایجاد کنید:
 
-```kotlin
-// این خط را حذف کنید
-signingConfig = signingConfigs.getByName("debugConfig")
+```bash
+./gradlew generateKeystore
 ```
+
+برای بررسی صحت تنظیمات امضا:
+
+```bash
+./gradlew checkSigningConfig
+```
+
+> 📌 **نکته:** برای اجرای debug، نیازی به تنظیم امضا نیست. فقط فایل `.env` با `GEMINI_API_KEY` کافی است.
 
 #### ۵. اجرا کردن اپلیکیشن
 
@@ -304,9 +314,28 @@ data class Installment(
 
 ✅ **EncryptedSharedPreferences** برای ذخیره کلیدهای API
 ✅ **Android Keystore** برای مدیریت کلیدها
-✅ **ممنوعیت hardcode کردن کلیدها**
+✅ **ممنوعیت hardcode کردن کلیدها** - تمام رمزها از فایل `.env` یا متغیرهای محیطی خوانده می‌شوند
+✅ **امضای اپلیکیشن** با استفاده از Secrets Gradle Plugin
 ✅ **داده‌های مالی روی دستگاه کاربر** (بدون آپلود خودکار)
 ✅ **پشتیبان‌گیری محلی** با امکان بازیابی
+
+### 🔹 تنظیم امضای اپلیکیشن
+
+امضای اپلیکیشن از طریق فایل `.env` یا متغیرهای محیطی پیکربندی می‌شود:
+
+1. فایل `.env` را از `.env.example` کپی کنید
+2. مقادیر `KEYSTORE_PASSWORD`، `KEY_ALIAS`، و `KEY_PASSWORD` را تنظیم کنید
+3. فایل keystore (`my-upload-key.jks`) را در ریشه پروژه قرار دهید
+
+```bash
+# ایجاد keystore جدید
+./gradlew generateKeystore
+
+# بررسی صحت تنظیمات
+./gradlew checkSigningConfig
+```
+
+> ⚠️ فایل `.env`، `*.jks`، و `*.keystore` به صورت خودکار از Git نادیده گرفته می‌شوند.
 
 ### 🔹 سیاست حریم خصوصی
 

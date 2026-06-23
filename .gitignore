@@ -13,6 +13,8 @@
 local.properties
 .env
 .env.local
+.env.*
+!.env.example
 
 # Android specific
 /captures
@@ -22,6 +24,7 @@ debug.keystore
 *.keystore
 *.jks
 my-upload-key.jks
+google-services.json
 
 # Kotlin
 .kotlin
