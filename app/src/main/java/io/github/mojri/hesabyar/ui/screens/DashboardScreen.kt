@@ -1167,9 +1167,9 @@ fun ManualTransactionDialog(
                                 focusedLabelColor = typeColor
                             )
                         )
-                        val amtDouble = amountText.toDoubleOrNull() ?: 0.0
-                        if (amtDouble > 0.0) {
-                            val amtRial = (amtDouble * 1000).toLong()
+                        val amtToman = amountText.toLongOrNull() ?: 0L
+                        if (amtToman > 0L) {
+                            val amtRial = amtToman * 1000L
                             Text(
                                 text = "معادل: ${formatToman(amtRial)}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -1335,12 +1335,12 @@ fun ManualTransactionDialog(
 
                     Button(
                         onClick = {
-                            val finalAmountToman = amountText.toDoubleOrNull() ?: 0.0
-                            if (finalAmountToman <= 0.0) {
+                            val finalAmountToman = amountText.toLongOrNull() ?: 0L
+                            if (finalAmountToman <= 0L) {
                                 android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val finalAmountRial = (finalAmountToman * 1000).toLong()
+                            val finalAmountRial = finalAmountToman * 1000L
 
                             when (selectedType) {
                                 "INCOME", "EXPENSE" -> {

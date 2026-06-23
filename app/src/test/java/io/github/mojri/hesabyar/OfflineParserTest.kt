@@ -11,7 +11,7 @@ class OfflineParserTest {
     fun `parse expense with million`() {
         val result = GeminiParser.parseSentenceOffline("امروز مرغ خریدم 5 میلیون")
         assertEquals("EXPENSE", result.type)
-        assertEquals(5_000_000.0, result.amount, 0.01)
+        assertEquals(5_000_000_000L, result.amount)
         assertEquals("Food", result.category)
     }
 
@@ -19,7 +19,7 @@ class OfflineParserTest {
     fun `parse expense with thousand`() {
         val result = GeminiParser.parseSentenceOffline("بنزین خریدم 450 هزار تومان")
         assertEquals("EXPENSE", result.type)
-        assertEquals(450_000.0, result.amount, 0.01)
+        assertEquals(450_000_000L, result.amount)
         assertEquals("Transportation", result.category)
     }
 
@@ -27,7 +27,7 @@ class OfflineParserTest {
     fun `parse income with million`() {
         val result = GeminiParser.parseSentenceOffline("حقوق گرفتم 20 میلیون")
         assertEquals("INCOME", result.type)
-        assertEquals(20_000_000.0, result.amount, 0.01)
+        assertEquals(20_000_000_000L, result.amount)
         assertEquals("Income", result.category)
     }
 
@@ -35,7 +35,7 @@ class OfflineParserTest {
     fun `parse loan creditor`() {
         val result = GeminiParser.parseSentenceOffline("از علی 5 میلیون قرض گرفتم")
         assertEquals("LOAN_CREDITOR", result.type)
-        assertEquals(5_000_000.0, result.amount, 0.01)
+        assertEquals(5_000_000_000L, result.amount)
         assertEquals("علی", result.personName)
     }
 
@@ -43,14 +43,14 @@ class OfflineParserTest {
     fun `parse loan debtor`() {
         val result = GeminiParser.parseSentenceOffline("به رضا 2 میلیون قرض دادم")
         assertEquals("LOAN_DEBTOR", result.type)
-        assertEquals(2_000_000.0, result.amount, 0.01)
+        assertEquals(2_000_000_000L, result.amount)
     }
 
     @Test
     fun `parse installment`() {
         val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون")
         assertEquals("INSTALLMENT", result.type)
-        assertEquals(3_000_000.0, result.amount, 0.01)
+        assertEquals(3_000_000_000L, result.amount)
         assertNotNull(result.title)
     }
 
@@ -69,7 +69,7 @@ class OfflineParserTest {
     @Test
     fun `parse amount without multiplier`() {
         val result = GeminiParser.parseSentenceOffline("1200 تومان خرج کردم")
-        assertEquals(1200.0, result.amount, 0.01)
+        assertEquals(1_200_000L, result.amount)
     }
 
     @Test

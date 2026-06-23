@@ -69,7 +69,7 @@ class AiServiceViewModel(application: Application) : AndroidViewModel(applicatio
     fun approveParsedResult(result: ParsedResult, customDate: Long? = null) {
         viewModelScope.launch {
             try {
-                val amountRial = (result.amount * 1000).toLong()
+                val amountRial = result.amount
                 when (result.type) {
                     "INCOME", "EXPENSE" -> {
                         repository.insertTransaction(Transaction(

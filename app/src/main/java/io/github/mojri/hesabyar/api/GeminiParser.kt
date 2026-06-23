@@ -70,7 +70,7 @@ object GeminiParser {
             val json = JSONObject(cleanStr)
             ParsedResult(
                 type = json.optString("type", "EXPENSE"),
-                amount = json.optDouble("amount", 0.0),
+                amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
                 category = json.optString("category", "Other"),
                 personName = json.optString("personName", "").let { if (it == "null" || it.isBlank()) null else it },
                 description = json.optString("description", "ثبت دستیار هوشمند"),
@@ -89,7 +89,7 @@ object GeminiParser {
     // High quality regex-based fallback parsing for offline/no key scenarios
     fun parseSentenceOffline(sentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
-        var amount = 0.0
+        var amountToman = 0.0
         var type = "EXPENSE"
         var category = "Other"
         var personName: String? = null
@@ -137,20 +137,20 @@ object GeminiParser {
 
         if (millionMatch != null) {
             val num = millionMatch.groupValues[1].replace("/", ".").toDoubleOrNull() ?: 1.0
-            amount = num * 1_000_000.0
+            amountToman = num * 1_000_000.0
         } else if (thousandMatch != null) {
             val num = thousandMatch.groupValues[1].replace("/", ".").toDoubleOrNull() ?: 1.0
             // check context if it's high digit e.g. 450 هزار or just 450
-            amount = if (sentence.contains("هزار")) num * 1000.0 else num
+            amountToman = if (sentence.contains("هزار")) num * 1000.0 else num
         } else {
             // Check for simple number
             val numbers = "\\d+".toRegex().findAll(sentence).toList()
             if (numbers.isNotEmpty()) {
                 val num = numbers.last().value.toDoubleOrNull() ?: 0.0
                 if (num < 1000) {
-                    amount = if (sentence.contains("میلیون")) num * 1_000_000 else if (sentence.contains("هزار")) num * 1000 else num
+                    amountToman = if (sentence.contains("میلیون")) num * 1_000_000 else if (sentence.contains("هزار")) num * 1000 else num
                 } else {
-                    amount = num
+                    amountToman = num
                 }
             }
         }
@@ -240,7 +240,7 @@ object GeminiParser {
 
         return ParsedResult(
             type = type,
-            amount = amount,
+            amount = (amountToman * 1000).toLong(),
             category = category,
             personName = personName,
             description = description,
@@ -378,7 +378,7 @@ object GeminiParser {
 
         // 1. Savings advice
         if (incomeTotal > 0) {
-            val savingRate = (balance / incomeTotal) * 100
+            val savingRate = (balance * 100.0 / incomeTotal)
             if (savingRate < 0) {
                 sb.append("⚠️ **کنترل تراز مخارج**: متاسفانه مخارج شما در این دوره بیش از درآمدتان بوده است (${String.format("%.1f", savingRate)}٪ کسری). توصیه می‌شود خریدهای غیرضروری خود را به زمان بهتری موکول کرده و روی کالاهای اساسی متمرکز شوید.\n\n")
             } else if (savingRate < 10) {
@@ -398,7 +398,7 @@ object GeminiParser {
         val worstCategory = categoryTotals.maxByOrNull { it.value }
         if (worstCategory != null && expenseTotal > 0) {
             val catName = getPersianCategoryName(worstCategory.key)
-            val catPct = (worstCategory.value / expenseTotal) * 100
+            val catPct = (worstCategory.value * 100.0 / expenseTotal)
             sb.append("📊 **بزرگترین کانون هزینه**: دسته‌بندی **$catName** با سهمی معادل ${catPct.toInt()}٪، بیشترین میزان مصرف نقدینگی را داشته است. بررسی کنید آیا امکان کنترل هزینه‌ها در این بخش وجود دارد یا خیر.\n\n")
         }
 
@@ -421,7 +421,7 @@ object GeminiParser {
 
 data class ParsedResult(
     val type: String,
-    val amount: Double,
+    val amount: Long,
     val category: String,
     val personName: String?,
     val description: String,

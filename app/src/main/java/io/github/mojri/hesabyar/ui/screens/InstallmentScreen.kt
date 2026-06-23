@@ -252,9 +252,9 @@ fun InstallmentScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amountToman = amountText.toDoubleOrNull() ?: 0.0
-                        if (title.isNotBlank() && amountToman > 0.0) {
-                            val amountRial = (amountToman * 1000).toLong()
+                        val amountToman = amountText.toLongOrNull() ?: 0L
+                        if (title.isNotBlank() && amountToman > 0L) {
+                            val amountRial = amountToman * 1000L
                             financeViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
                             showAddDialog = false
                         } else {

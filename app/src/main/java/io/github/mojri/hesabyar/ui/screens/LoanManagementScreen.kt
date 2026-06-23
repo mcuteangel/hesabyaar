@@ -238,9 +238,9 @@ fun LoanManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amountToman = amountText.toDoubleOrNull() ?: 0.0
-                        if (personName.isNotBlank() && amountToman > 0.0) {
-                            val amountRial = (amountToman * 1000).toLong()
+                        val amountToman = amountText.toLongOrNull() ?: 0L
+                        if (personName.isNotBlank() && amountToman > 0L) {
+                            val amountRial = amountToman * 1000L
                             financeViewModel.addLoan(personName, loanType, amountRial, description)
                             showAddDialog = false
                         } else {
@@ -498,9 +498,9 @@ fun LoanListItem(
             confirmButton = {
                 Button(
                     onClick = {
-                        val amountToman = repayAmount.toDoubleOrNull() ?: 0.0
-                        if (amountToman > 0.0) {
-                            val amountRial = (amountToman * 1000).toLong()
+                        val amountToman = repayAmount.toLongOrNull() ?: 0L
+                        if (amountToman > 0L) {
+                            val amountRial = amountToman * 1000L
                             financeViewModel.makeRepayment(loan.id, amountRial, repayNotes)
                             showRepayDialog = false
                         } else {

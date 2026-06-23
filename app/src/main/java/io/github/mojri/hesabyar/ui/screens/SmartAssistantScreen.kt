@@ -692,8 +692,7 @@ fun ParsedResultCard(
     
     // States for interactive editing
     var amountText by remember(result) { 
-        val initVal = if (result.amount % 1.0 == 0.0) result.amount.toLong().toString() else result.amount.toString()
-        mutableStateOf(initVal) 
+        mutableStateOf((result.amount / 1000).toString())
     }
     var descriptionText by remember(result) { mutableStateOf(result.description) }
     var selectedType by remember(result) { mutableStateOf(result.type) }
@@ -842,9 +841,9 @@ fun ParsedResultCard(
                     )
                 )
                 // Formatted Amount preview in Persian words
-                val amtDouble = amountText.toDoubleOrNull() ?: 0.0
-                if (amtDouble > 0.0) {
-                    val amtRial = (amtDouble * 1000).toLong()
+                val amtToman = amountText.toLongOrNull() ?: 0L
+                if (amtToman > 0L) {
+                    val amtRial = amtToman * 1000L
                     Text(
                         text = "معادل: ${formatToman(amtRial)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -999,8 +998,8 @@ fun ParsedResultCard(
 
                 Button(
                     onClick = {
-                        val finalAmount = amountText.toDoubleOrNull() ?: 0.0
-                        if (finalAmount <= 0.0) {
+                        val finalAmountToman = amountText.toLongOrNull() ?: 0L
+                        if (finalAmountToman <= 0L) {
                             android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                             return@Button
                         }
@@ -1011,7 +1010,7 @@ fun ParsedResultCard(
 
                         val updatedResult = ParsedResult(
                             type = selectedType,
-                            amount = finalAmount,
+                            amount = finalAmountToman * 1000L,
                             category = selectedCategory,
                             personName = if (finalPersonName.isNullOrBlank()) null else finalPersonName,
                             description = descriptionText.ifBlank { "ثبت دستیار هوشمند" },
