@@ -201,7 +201,7 @@ object AiProvider {
         }
 
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${config.apiKey}"
-        return executePost(url, requestJson, ::parseGeminiResponse)
+        return executePost(url, requestJson, ::parseGeminiResponse, apiKey = null)
     }
 
     private fun callOpenAiCompatible(
@@ -246,27 +246,38 @@ object AiProvider {
         }
 
         val url = "${baseUrl.trimEnd('/')}/chat/completions"
-        return executePost(url, requestJson, ::parseOpenAiResponse)
+        return executePost(url, requestJson, ::parseOpenAiResponse, apiKey = config.apiKey, isOpenRouter = isGeminiFormat)
     }
 
     private fun executePost(
         url: String,
         body: JSONObject,
-        responseParser: (String) -> ApiResult
+        responseParser: (String) -> ApiResult,
+        apiKey: String? = null,
+        isOpenRouter: Boolean = false
     ): ApiResult {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val requestBody = body.toString().toRequestBody(mediaType)
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url(url)
             .post(requestBody)
-            .build()
+
+        if (!apiKey.isNullOrBlank()) {
+            requestBuilder.addHeader("Authorization", "Bearer $apiKey")
+        }
+        if (isOpenRouter) {
+            requestBuilder.addHeader("HTTP-Referer", "https://github.com/mojri/hesabyar")
+            requestBuilder.addHeader("X-Title", "Hesabyar")
+        }
+
+        val request = requestBuilder.build()
 
         return try {
             client.newCall(request).execute().use { response ->
                 val bodyStr = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "API error ${response.code}: $bodyStr")
-                    ApiResult.Failure("API error ${response.code}: ${response.message}")
+                    Log.e(TAG, "API error ${response.code} for URL $url: $bodyStr")
+                    ApiResult.Failure("API error ${response.code}: $bodyStr")
                 } else {
                     responseParser(bodyStr)
                 }
