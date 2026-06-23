@@ -2,7 +2,9 @@ package io.github.mojri.hesabyar.api
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import io.github.mojri.hesabyar.ui.AppLogger
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -43,22 +45,97 @@ data class ModelCacheEntry(
 }
 
 class AiConfigManager(context: Context) {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("ai_provider_config", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = createEncryptedPrefs(context)
 
     companion object {
         private const val TAG = "AiConfigManager"
+        private const val ENCRYPTED_PREFS_FILE = "ai_provider_config_encrypted"
+        private const val LEGACY_PREFS_FILE = "ai_provider_config"
         private const val KEY_CONFIGS_JSON = "configs_json"
         private const val KEY_ACTIVE_ID = "active_id"
         private const val KEY_ONLINE_MODE = "online_mode"
         private const val KEY_MODEL_CACHE = "model_cache"
+        private const val KEY_MIGRATION_COMPLETE = "migration_complete_v1"
+    }
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        val encryptedPrefs = EncryptedSharedPreferences.create(
+            context,
+            ENCRYPTED_PREFS_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+
+        migrateFromLegacyIfNeeded(context, encryptedPrefs)
+
+        return encryptedPrefs
+    }
+
+    private fun migrateFromLegacyIfNeeded(context: Context, encryptedPrefs: SharedPreferences) {
+        if (encryptedPrefs.getBoolean(KEY_MIGRATION_COMPLETE, false)) return
+
+        try {
+            val legacyPrefs = context.getSharedPreferences(
+                LEGACY_PREFS_FILE,
+                Context.MODE_PRIVATE
+            )
+
+            val hasLegacyData = legacyPrefs.contains(KEY_CONFIGS_JSON) ||
+                    legacyPrefs.contains(KEY_ACTIVE_ID) ||
+                    legacyPrefs.contains(KEY_ONLINE_MODE) ||
+                    legacyPrefs.contains(KEY_MODEL_CACHE)
+
+            if (!hasLegacyData) {
+                AppLogger.d(TAG, "No legacy data found, marking migration complete")
+                encryptedPrefs.edit().putBoolean(KEY_MIGRATION_COMPLETE, true).apply()
+                return
+            }
+
+            val editor = encryptedPrefs.edit()
+
+            val configsJson = legacyPrefs.getString(KEY_CONFIGS_JSON, null)
+            if (!configsJson.isNullOrBlank()) {
+                editor.putString(KEY_CONFIGS_JSON, configsJson)
+            }
+
+            val activeId = legacyPrefs.getString(KEY_ACTIVE_ID, null)
+            if (!activeId.isNullOrBlank()) {
+                editor.putString(KEY_ACTIVE_ID, activeId)
+            }
+
+            editor.putBoolean(KEY_ONLINE_MODE, legacyPrefs.getBoolean(KEY_ONLINE_MODE, true))
+
+            val modelCache = legacyPrefs.getString(KEY_MODEL_CACHE, null)
+            if (!modelCache.isNullOrBlank()) {
+                editor.putString(KEY_MODEL_CACHE, modelCache)
+            }
+
+            editor.putBoolean(KEY_MIGRATION_COMPLETE, true)
+            editor.apply()
+
+            legacyPrefs.edit().clear().apply()
+
+                AppLogger.i(TAG, "Successfully migrated AI configs to EncryptedSharedPreferences")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Failed to migrate from legacy SharedPreferences", e)
+            try {
+                encryptedPrefs.edit().clear().apply()
+            } catch (ignored: Exception) {}
+        }
     }
 
     fun loadConfigs(): List<AiProviderConfig> {
-        val json = prefs.getString(KEY_CONFIGS_JSON, null) ?: return emptyList()
+        val json = prefs.getString(KEY_CONFIGS_JSON, null)
+        AppLogger.d(TAG, "loadConfigs: json ${if (json != null) "found (${json.length} chars)" else "is null"}")
+        if (json == null) return emptyList()
         return try {
             val arr = JSONArray(json)
-            (0 until arr.length()).map { i ->
+            val configs = (0 until arr.length()).map { i ->
                 val obj = arr.getJSONObject(i)
                 AiProviderConfig(
                     id = obj.optString("id", ""),
@@ -69,8 +146,10 @@ class AiConfigManager(context: Context) {
                     label = obj.optString("label", "")
                 )
             }.filter { it.id.isNotBlank() }
+            AppLogger.d(TAG, "loadConfigs: parsed ${configs.size} configs")
+            configs
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse configs", e)
+            AppLogger.e(TAG, "Failed to parse configs", e)
             emptyList()
         }
     }
@@ -87,7 +166,10 @@ class AiConfigManager(context: Context) {
                 put("label", c.label)
             })
         }
-        prefs.edit().putString(KEY_CONFIGS_JSON, arr.toString()).apply()
+        val jsonStr = arr.toString()
+        AppLogger.d(TAG, "saveConfigs: saving ${configs.size} configs (${jsonStr.length} chars)")
+        prefs.edit().putString(KEY_CONFIGS_JSON, jsonStr).apply()
+        AppLogger.d(TAG, "saveConfigs: write completed")
     }
 
     fun getActiveConfigId(): String? = prefs.getString(KEY_ACTIVE_ID, null)
@@ -99,12 +181,20 @@ class AiConfigManager(context: Context) {
     fun getActiveConfig(): AiProviderConfig? {
         val configs = loadConfigs()
         val activeId = getActiveConfigId()
-        return configs.find { it.id == activeId } ?: configs.firstOrNull { it.isConfigured }
+        AppLogger.d(TAG, "getActiveConfig: activeId=$activeId, configsCount=${configs.size}")
+        val result = configs.find { it.id == activeId } ?: configs.firstOrNull { it.isConfigured }
+        AppLogger.d(TAG, "getActiveConfig: result=${result?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
+        return result
     }
 
-    fun isOnlineMode(): Boolean = prefs.getBoolean(KEY_ONLINE_MODE, true)
+    fun isOnlineMode(): Boolean {
+        val value = prefs.getBoolean(KEY_ONLINE_MODE, true)
+        AppLogger.d(TAG, "isOnlineMode: $value")
+        return value
+    }
 
     fun setOnlineMode(online: Boolean) {
+        AppLogger.d(TAG, "setOnlineMode: $online")
         prefs.edit().putBoolean(KEY_ONLINE_MODE, online).apply()
     }
 

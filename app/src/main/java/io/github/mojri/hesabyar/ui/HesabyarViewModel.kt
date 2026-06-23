@@ -55,6 +55,24 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         aiConfigManager.setOnlineMode(isOnlineMode.value)
     }
 
+    // AI Result Caching
+    private var lastForecastTime = 0L
+    private var cachedForecast: String? = null
+    private var lastAdviceTime = 0L
+    private var cachedAdvice: String? = null
+    private val AI_CACHE_DURATION_MS = 10 * 60 * 1000L // 10 minutes
+
+    private fun isForecastCacheValid(): Boolean {
+        return cachedForecast != null && (System.currentTimeMillis() - lastForecastTime) < AI_CACHE_DURATION_MS
+    }
+
+    private fun isAdviceCacheValid(): Boolean {
+        return cachedAdvice != null && (System.currentTimeMillis() - lastAdviceTime) < AI_CACHE_DURATION_MS
+    }
+
+    fun getCachedForecast(): String? = cachedForecast
+    fun getCachedAdvice(): String? = cachedAdvice
+
     fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
 
     fun addAiConfig(config: AiProviderConfig) {
@@ -99,6 +117,9 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     // Model fetching state
     private val _modelFetchState = MutableStateFlow<ModelFetchState>(ModelFetchState.Idle)
     val modelFetchState = _modelFetchState.asStateFlow()
+
+    fun getAiLogs(): List<AppLogger.LogEntry> = AppLogger.getAiLogs()
+    fun clearLogs() = AppLogger.clear()
 
     fun fetchModels(providerType: AiProviderType, apiKey: String, baseUrl: String? = null) {
         viewModelScope.launch {
@@ -221,7 +242,9 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _parserState.value = ParserUIState.Loading
             try {
-                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
+                val isOnline = isOnlineMode.value
+                val config = if (isOnline) aiConfigManager.getActiveConfig() else null
+                AppLogger.d("HesabyarViewModel", "parseSmartSentence: isOnlineMode=$isOnline, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
                 val result = GeminiParser.parseSentence(sentence, config)
                 if (result != null) {
                     _parserState.value = ParserUIState.Success(result)
@@ -229,6 +252,7 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
                 }
             } catch (e: Exception) {
+                AppLogger.e("HesabyarViewModel", "parseSmartSentence failed", e)
                 _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
             }
         }
@@ -242,15 +266,25 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     private val _advisorState = MutableStateFlow<AdvisorUIState>(AdvisorUIState.Idle)
     val advisorState = _advisorState.asStateFlow()
 
-    fun fetchBudgetAdvice() {
+    fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
+        if (!forceRefresh && isAdviceCacheValid()) {
+            AppLogger.d("HesabyarViewModel", "fetchBudgetAdvice: using cached result")
+            _advisorState.value = AdvisorUIState.Success(cachedAdvice!!)
+            return
+        }
         viewModelScope.launch {
             _advisorState.value = AdvisorUIState.Loading
             try {
-                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
+                val isOnline = isOnlineMode.value
+                val config = if (isOnline) aiConfigManager.getActiveConfig() else null
+                AppLogger.d("HesabyarViewModel", "fetchBudgetAdvice: isOnlineMode=$isOnline, config=${config?.let { "found(${it.providerType})" } ?: "null"}")
                 val currentTransactions = transactions.value
                 val advice = io.github.mojri.hesabyar.api.BudgetAdvisor.getBudgetAdvice(currentTransactions, config)
+                cachedAdvice = advice
+                lastAdviceTime = System.currentTimeMillis()
                 _advisorState.value = AdvisorUIState.Success(advice)
             } catch (e: Exception) {
+                AppLogger.e("HesabyarViewModel", "fetchBudgetAdvice failed", e)
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
             }
         }
@@ -264,11 +298,18 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
     private val _forecastState = MutableStateFlow<ForecastUIState>(ForecastUIState.Idle)
     val forecastState = _forecastState.asStateFlow()
 
-    fun fetchBudgetForecast() {
+    fun fetchBudgetForecast(forceRefresh: Boolean = false) {
+        if (!forceRefresh && isForecastCacheValid()) {
+            AppLogger.d("HesabyarViewModel", "fetchBudgetForecast: using cached result")
+            _forecastState.value = ForecastUIState.Success(cachedForecast!!)
+            return
+        }
         viewModelScope.launch {
             _forecastState.value = ForecastUIState.Loading
             try {
-                val config = if (isOnlineMode.value) aiConfigManager.getActiveConfig() else null
+                val isOnline = isOnlineMode.value
+                val config = if (isOnline) aiConfigManager.getActiveConfig() else null
+                AppLogger.d("HesabyarViewModel", "fetchBudgetForecast: isOnlineMode=$isOnline, config=${config?.let { "found(${it.providerType})" } ?: "null"}")
                 val currentTransactions = transactions.value
                 val currentLoans = loans.value
                 val currentInstallments = installments.value
@@ -278,8 +319,11 @@ class HesabyarViewModel(application: Application) : AndroidViewModel(application
                     currentInstallments,
                     config
                 )
+                cachedForecast = forecast
+                lastForecastTime = System.currentTimeMillis()
                 _forecastState.value = ForecastUIState.Success(forecast)
             } catch (e: Exception) {
+                AppLogger.e("HesabyarViewModel", "fetchBudgetForecast failed", e)
                 _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای ناشناخته در پیش‌بینی بودجه")
             }
         }

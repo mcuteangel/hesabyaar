@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.ui.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -15,9 +16,10 @@ object GeminiParser {
         sentence: String,
         config: AiProviderConfig? = null
     ): ParsedResult? = withContext(Dispatchers.IO) {
+        AppLogger.d(TAG, "parseSentence: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}, model=${it.model}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
-            Log.w(TAG, "AI provider not configured, using offline local parser fallback")
+            AppLogger.w(TAG, "AI provider not configured, using offline local parser fallback")
             return@withContext parseSentenceOffline(sentence)
         }
 
@@ -53,11 +55,11 @@ object GeminiParser {
             responseMimeType = "application/json"
         )) {
             is AiProvider.ApiResult.Success -> {
-                Log.i(TAG, "AI parsed output: ${result.text}")
+                AppLogger.i(TAG, "AI parsed output: ${result.text}")
                 parseJsonResult(result.text) ?: parseSentenceOffline(sentence)
             }
             is AiProvider.ApiResult.Failure -> {
-                Log.e(TAG, "AI parse failed: ${result.error}, falling back to offline")
+                AppLogger.e(TAG, "AI parse failed: ${result.error}, falling back to offline")
                 parseSentenceOffline(sentence)
             }
         }
@@ -80,14 +82,14 @@ object GeminiParser {
                 minute = if (json.isNull("minute")) null else json.optInt("minute")
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse json result: $jsonStr", e)
+            AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
             null
         }
     }
 
     // High quality regex-based fallback parsing for offline/no key scenarios
     fun parseSentenceOffline(sentence: String): ParsedResult {
-        Log.i(TAG, "Using offline natural parser heuristics")
+        AppLogger.i(TAG, "Using offline natural parser heuristics")
         var amount = 0.0
         var type = "EXPENSE"
         var category = "Other"
@@ -257,9 +259,10 @@ object GeminiParser {
         installments: List<Installment>,
         config: AiProviderConfig? = null
     ): String? = withContext(Dispatchers.IO) {
+        AppLogger.d(TAG, "getBudgetAdvice: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
-            Log.w(TAG, "AI provider not configured, using offline local generator fallback")
+            AppLogger.w(TAG, "AI provider not configured, using offline local generator fallback")
             return@withContext getBudgetAdviceOffline(transactions, loans, installments)
         }
 
@@ -332,11 +335,11 @@ object GeminiParser {
             temperature = 0.6
         )) {
             is AiProvider.ApiResult.Success -> {
-                Log.i(TAG, "AI advice outcome: ${result.text}")
+                AppLogger.i(TAG, "AI advice outcome: ${result.text}")
                 result.text
             }
             is AiProvider.ApiResult.Failure -> {
-                Log.e(TAG, "AI budget advice failed: ${result.error}")
+                AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
                 getBudgetAdviceOffline(transactions, loans, installments)
             }
         }

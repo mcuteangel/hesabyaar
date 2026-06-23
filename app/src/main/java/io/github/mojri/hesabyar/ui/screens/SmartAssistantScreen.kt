@@ -512,7 +512,7 @@ fun SmartAssistantScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
-                                        IconButton(onClick = { viewModel.fetchBudgetAdvice() }) {
+                                        IconButton(onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) }) {
                                             Icon(
                                                 imageVector = Icons.Filled.Refresh,
                                                 contentDescription = "بروزرسانی گزارش",
@@ -528,7 +528,7 @@ fun SmartAssistantScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
 
                                     Button(
-                                        onClick = { viewModel.fetchBudgetAdvice() },
+                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
                                         modifier = Modifier.fillMaxWidth().height(48.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -569,7 +569,7 @@ fun SmartAssistantScreen(
                                         textAlign = TextAlign.Center
                                     )
                                     Button(
-                                        onClick = { viewModel.fetchBudgetAdvice() },
+                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {

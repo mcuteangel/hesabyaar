@@ -27,10 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
+import io.github.mojri.hesabyar.ui.AppLogger
 import io.github.mojri.hesabyar.ui.HesabyarViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
 import java.io.InputStream
 import java.io.OutputStream
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 
 @Composable
 fun SettingsScreen(
@@ -238,6 +242,165 @@ fun SettingsScreen(
                         Icon(imageVector = Icons.Filled.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("ذخیره فایل پشتیبان", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        }
+
+        // Debug Logs Section
+        DebugLogsSection()
+    }
+}
+
+@Composable
+fun DebugLogsSection() {
+    var isExpanded by remember { mutableStateOf(false) }
+    var logs by remember { mutableStateOf(AppLogger.getAiLogs()) }
+    var autoRefresh by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+
+    LaunchedEffect(autoRefresh) {
+        if (autoRefresh) {
+            while (true) {
+                logs = AppLogger.getAiLogs()
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+    }
+
+    Text(
+        text = "🔍 لاگ‌های دیباگ (Debug Logs)",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.padding(top = 8.dp)
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.BugReport,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "لاگ‌های هوش مصنوعی",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${logs.size} رویداد ثبت شده",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = { logs = AppLogger.getAiLogs() }) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "بروزرسانی",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = {
+                        val logsText = logs.joinToString("\n") { it.formatted() }
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("AI Logs", logsText)
+                        clipboard.setPrimaryClip(clip)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "کپی لاگ‌ها",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { AppLogger.clear(); logs = emptyList() }) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteSweep,
+                            contentDescription = "پاک کردن",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Switch(
+                    checked = autoRefresh,
+                    onCheckedChange = { autoRefresh = it },
+                    modifier = Modifier.testTag("auto_refresh_switch")
+                )
+                Text(
+                    text = if (autoRefresh) "بروزرسانی خودکار (هر ۱ ثانیه)" else "بروزرسانی خودکار غیرفعال",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            if (logs.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "هنوز لاگی ثبت نشده است.\nیک عملیات AI انجام دهید.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    logs.reversed().forEach { entry ->
+                        val levelColor = when (entry.level) {
+                            "E" -> MaterialTheme.colorScheme.error
+                            "W" -> MaterialTheme.colorScheme.tertiary
+                            "I" -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        }
+                        Text(
+                            text = entry.formatted(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = levelColor,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(vertical = 1.dp)
+                        )
                     }
                 }
             }

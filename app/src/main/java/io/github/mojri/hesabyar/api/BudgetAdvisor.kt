@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.ui.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
@@ -16,9 +17,10 @@ object BudgetAdvisor {
         transactions: List<Transaction>,
         config: AiProviderConfig? = null
     ): String = withContext(Dispatchers.IO) {
+        AppLogger.d(TAG, "getBudgetAdvice: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
-            Log.w(TAG, "AI provider not configured, using offline local rules budget advisor")
+            AppLogger.w(TAG, "AI provider not configured, using offline local rules budget advisor")
             return@withContext getOfflineAdvice(transactions)
         }
 
@@ -71,7 +73,7 @@ object BudgetAdvisor {
         )) {
             is AiProvider.ApiResult.Success -> result.text
             is AiProvider.ApiResult.Failure -> {
-                Log.e(TAG, "AI budget advice failed: ${result.error}")
+                AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
                 getOfflineAdvice(transactions)
             }
         }
@@ -162,9 +164,10 @@ object BudgetAdvisor {
         installments: List<Installment>,
         config: AiProviderConfig? = null
     ): String = withContext(Dispatchers.IO) {
+        AppLogger.d(TAG, "getBudgetForecast: config=${config?.let { "provider=${it.providerType}, isConfigured=${it.isConfigured}" } ?: "null"}")
         val providerConfig = config ?: AiProviderConfig()
         if (!providerConfig.isConfigured) {
-            Log.w(TAG, "AI provider not configured, using offline local budget forecast")
+            AppLogger.w(TAG, "AI provider not configured, using offline local budget forecast")
             return@withContext getOfflineForecast(transactions, loans, installments)
         }
 
@@ -222,7 +225,7 @@ object BudgetAdvisor {
         )) {
             is AiProvider.ApiResult.Success -> result.text
             is AiProvider.ApiResult.Failure -> {
-                Log.e(TAG, "AI forecast failed: ${result.error}")
+                AppLogger.e(TAG, "AI forecast failed: ${result.error}")
                 "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" + 
                     getOfflineForecast(transactions, loans, installments)
             }

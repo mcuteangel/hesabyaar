@@ -179,6 +179,7 @@ fun ReportsScreen(
         // AI Budget Advisor Card
         item {
             val budgetState by viewModel.advisorState.collectAsState()
+            val providerStatus = viewModel.getProviderStatusText()
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -217,12 +218,19 @@ fun ReportsScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Text(
-                                text = "توصیه‌های هوشمند بودجه با جمینی",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Column {
+                                Text(
+                                    text = "توصیه‌های هوشمند بودجه",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = providerStatus,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
                         }
 
                         if (budgetState is AdvisorUIState.Success) {
@@ -311,7 +319,7 @@ fun ReportsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     OutlinedButton(
-                                        onClick = { viewModel.fetchBudgetAdvice() },
+                                        onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
@@ -356,7 +364,7 @@ fun ReportsScreen(
                                     )
                                 }
                                 Button(
-                                    onClick = { viewModel.fetchBudgetAdvice() },
+                                    onClick = { viewModel.fetchBudgetAdvice(forceRefresh = true) },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error

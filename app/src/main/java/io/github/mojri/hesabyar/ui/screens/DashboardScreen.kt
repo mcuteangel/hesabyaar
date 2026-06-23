@@ -73,6 +73,7 @@ fun DashboardScreen(
     val transactions by viewModel.transactions.collectAsState()
     val forecastState by viewModel.forecastState.collectAsState()
     var showManualAddDialog by remember { mutableStateOf(false) }
+    var showFullForecast by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = transactions) {
         viewModel.fetchBudgetForecast()
@@ -229,13 +230,19 @@ fun DashboardScreen(
             }
         }
 
-        // Smart Forecast Alert Card (هشدار هوشمند پیش‌بینی بودجه ماه آینده)
+        // Smart Forecast Alert Card (Compact)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("budget_forecast_alert_card"),
-                shape = RoundedCornerShape(24.dp),
+                    .testTag("budget_forecast_alert_card")
+                    .clickable {
+                        if (forecastState is ForecastUIState.Idle || forecastState is ForecastUIState.Error) {
+                            viewModel.fetchBudgetForecast()
+                        }
+                        showFullForecast = true
+                    },
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
                 ),
@@ -244,99 +251,80 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Text(
-                                text = "پیش‌بینی وضعیت بودجه ماه آینده",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "هشدار هوشمند",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-
-                    when (val state = forecastState) {
-                        is ForecastUIState.Loading -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "پیش‌بینی بودجه ماه آینده",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        when (val state = forecastState) {
+                            is ForecastUIState.Loading -> {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.5.dp,
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 1.5.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
+                                        text = "در حال تحلیل...",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
                                 }
                             }
-                        }
-                        is ForecastUIState.Error -> {
-                            Text(
-                                text = "⚠️ متاسفانه خطایی در تخمین هوشمند بودجه رخ داد: ${state.message}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = ExpenseRed
-                            )
-                        }
-                        is ForecastUIState.Success -> {
-                            MarkdownText(text = state.forecast)
-                        }
-                        is ForecastUIState.Idle -> {
-                            Text(
-                                text = "در حال بارگذاری...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
+                            is ForecastUIState.Success -> {
+                                Text(
+                                    text = "✓ گزارش آماده است - برای مشاهده کلیک کنید",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            is ForecastUIState.Error -> {
+                                Text(
+                                    text = "خطا - برای تلاش مجدد کلیک کنید",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    maxLines = 1
+                                )
+                            }
+                            is ForecastUIState.Idle -> {
+                                Text(
+                                    text = "برای دریافت پیش‌بینی کلیک کنید",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
+                    Icon(
+                        imageVector = Icons.Filled.ChevronLeft,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
@@ -714,6 +702,14 @@ if (showManualAddDialog) {
         onDismiss = { showManualAddDialog = false }
     )
 }
+
+if (showFullForecast) {
+    ForecastDetailDialog(
+        forecastState = forecastState,
+        onDismiss = { showFullForecast = false },
+        onRefresh = { viewModel.fetchBudgetForecast(forceRefresh = true) }
+    )
+}
 }
 
 @Composable
@@ -865,6 +861,146 @@ fun getPersianCategory(english: String): String {
         "Loans" -> "وام و قرض"
         "Income" -> "درآمد"
         else -> "سایر"
+    }
+}
+
+@Composable
+fun ForecastDetailDialog(
+    forecastState: ForecastUIState,
+    onDismiss: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "پیش‌بینی وضعیت بودجه ماه آینده",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "بستن"
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                when (val state = forecastState) {
+                    is ForecastUIState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                    is ForecastUIState.Error -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "⚠️ خطا در دریافت پیش‌بینی",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = state.message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = onRefresh) {
+                                Text("تلاش مجدد")
+                            }
+                        }
+                    }
+                    is ForecastUIState.Success -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                MarkdownText(text = state.forecast)
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onRefresh,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("بروزرسانی پیش‌بینی", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    is ForecastUIState.Idle -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Button(onClick = onRefresh) {
+                                Text("دریافت پیش‌بینی")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
