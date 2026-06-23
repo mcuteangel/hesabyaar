@@ -1,0 +1,591 @@
+package io.github.mojri.hesabyar.ui.screens
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.ui.FinanceViewModel
+
+private val CATEGORY_ICONS = mapOf(
+    "Restaurant" to Icons.Filled.Restaurant,
+    "DirectionsCar" to Icons.Filled.DirectionsCar,
+    "ShoppingBag" to Icons.Filled.ShoppingBag,
+    "ReceiptLong" to Icons.Filled.ReceiptLong,
+    "CreditCard" to Icons.Filled.CreditCard,
+    "HistoryEdu" to Icons.Filled.HistoryEdu,
+    "Paid" to Icons.Filled.Paid,
+    "AttachMoney" to Icons.Filled.AttachMoney,
+    "Home" to Icons.Filled.Home,
+    "HealthAndSafety" to Icons.Filled.HealthAndSafety,
+    "School" to Icons.Filled.School,
+    "Flight" to Icons.Filled.Flight,
+    "LocalCafe" to Icons.Filled.LocalCafe,
+    "Pets" to Icons.Filled.Pets,
+    "CardGiftcard" to Icons.Filled.CardGiftcard,
+    "Work" to Icons.Filled.Work,
+    "SportsEsports" to Icons.Filled.SportsEsports,
+    "Checkroom" to Icons.Filled.Checkroom,
+    "LocalGroceryStore" to Icons.Filled.LocalGroceryStore,
+    "Savings" to Icons.Filled.Savings,
+    "AccountBalance" to Icons.Filled.AccountBalance,
+    "TrendingUp" to Icons.Filled.TrendingUp,
+    "TrendingDown" to Icons.Filled.TrendingDown,
+    "Build" to Icons.Filled.Build,
+    "Phone" to Icons.Filled.Phone,
+    "Wifi" to Icons.Filled.Wifi,
+    "LocalHospital" to Icons.Filled.LocalHospital,
+    "ChildCare" to Icons.Filled.ChildCare,
+    "LocalDining" to Icons.Filled.LocalDining,
+    "CleaningServices" to Icons.Filled.CleaningServices
+)
+
+private val CATEGORY_COLORS = listOf(
+    0xFF4CAF50L, 0xFFFF9800L, 0xFF2196F3L, 0xFF009688L,
+    0xFFF44336L, 0xFF9C27B0L, 0xFF757575L, 0xFFE91E63L,
+    0xFF3F51B5L, 0xFF00BCD4L, 0xFF8BC34AL, 0xFFFF5722L,
+    0xFF607D8BL, 0xFF795548L, 0xFFCDDC39L, 0xFF03A9F4L
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryManagementScreen(
+    financeViewModel: FinanceViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val categories by financeViewModel.categories.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingCategory by remember { mutableStateOf<Category?>(null) }
+    var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "مدیریت دسته‌بندی‌ها",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowForward,
+                            contentDescription = "بازگشت"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "افزودن دسته‌بندی"
+                )
+            }
+        }
+    ) { innerPadding ->
+        if (categories.isEmpty()) {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "هنوز دسته‌بندی‌ای ثبت نشده است.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        } else {
+            val defaultCategories = categories.filter { it.isDefault }
+            val customCategories = categories.filter { !it.isDefault }
+
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (defaultCategories.isNotEmpty()) {
+                    item {
+                        SectionHeader(title = "دسته‌بندی‌های پیش‌فرض")
+                    }
+                    items(defaultCategories, key = { it.id }) { category ->
+                        CategoryItem(
+                            category = category,
+                            isDefault = true,
+                            onEdit = { editingCategory = it },
+                            onDelete = { showDeleteConfirmation = it }
+                        )
+                    }
+                }
+
+                if (customCategories.isNotEmpty()) {
+                    item {
+                        SectionHeader(title = "دسته‌بندی‌های اختصاصی")
+                    }
+                    items(customCategories, key = { it.id }) { category ->
+                        CategoryItem(
+                            category = category,
+                            isDefault = false,
+                            onEdit = { editingCategory = it },
+                            onDelete = { showDeleteConfirmation = it }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        CategoryDialog(
+            initialCategory = null,
+            onDismiss = { showAddDialog = false },
+            onSave = { name, key, icon, color, type ->
+                financeViewModel.addCategory(name, key, icon, color, type)
+                showAddDialog = false
+            }
+        )
+    }
+
+    if (editingCategory != null) {
+        CategoryDialog(
+            initialCategory = editingCategory,
+            onDismiss = { editingCategory = null },
+            onSave = { name, key, icon, color, type ->
+                financeViewModel.updateCategory(
+                    editingCategory!!.copy(
+                        name = name,
+                        key = key,
+                        icon = icon,
+                        color = color,
+                        type = type
+                    )
+                )
+                editingCategory = null
+            }
+        )
+    }
+
+    if (showDeleteConfirmation != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = null },
+            title = {
+                Text(
+                    text = "حذف دسته‌بندی",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "آیا از حذف دسته‌بندی «${showDeleteConfirmation!!.name}» اطمینان دارید؟"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        financeViewModel.deleteCategory(showDeleteConfirmation!!)
+                        showDeleteConfirmation = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("حذف", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = null }) {
+                    Text("انصراف")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun CategoryItem(
+    category: Category,
+    isDefault: Boolean,
+    onEdit: (Category) -> Unit,
+    onDelete: (Category) -> Unit
+) {
+    val icon = CATEGORY_ICONS[category.icon] ?: Icons.Filled.Paid
+    val categoryColor = Color(category.color)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(categoryColor.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = categoryColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = category.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = category.key,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = when (category.type) {
+                            Category.TYPE_EXPENSE -> "هزینه"
+                            Category.TYPE_INCOME -> "درآمد"
+                            else -> "هر دو"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = categoryColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = { onEdit(category) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = "ویرایش",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            if (!isDefault) {
+                IconButton(
+                    onClick = { onDelete(category) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "حذف",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryDialog(
+    initialCategory: Category?,
+    onDismiss: () -> Unit,
+    onSave: (name: String, key: String, icon: String, color: Long, type: String) -> Unit
+) {
+    val isEditing = initialCategory != null
+    var name by remember { mutableStateOf(initialCategory?.name ?: "") }
+    var key by remember { mutableStateOf(initialCategory?.key ?: "") }
+    var selectedIcon by remember { mutableStateOf(initialCategory?.icon ?: "Paid") }
+    var selectedColor by remember { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
+    var selectedType by remember { mutableStateOf(initialCategory?.type ?: Category.TYPE_EXPENSE) }
+    var typeDropdownExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isEditing) "ویرایش دسته‌بندی" else "افزودن دسته‌بندی جدید",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("نام فارسی") },
+                    placeholder = { Text("مثلاً: حمل و نقل") },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { key = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("کلید انگلیسی (اختیاری)") },
+                    placeholder = { Text("مثلاً: Transportation") },
+                    singleLine = true,
+                    enabled = !isEditing || initialCategory?.isDefault != true
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "نوع:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = typeDropdownExpanded,
+                        onExpandedChange = { typeDropdownExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = when (selectedType) {
+                                Category.TYPE_EXPENSE -> "هزینه"
+                                Category.TYPE_INCOME -> "درآمد"
+                                else -> "هر دو"
+                            },
+                            onValueChange = {},
+                            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            readOnly = true,
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) }
+                        )
+                        ExposedDropdownMenu(
+                            expanded = typeDropdownExpanded,
+                            onDismissRequest = { typeDropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("هزینه") },
+                                onClick = {
+                                    selectedType = Category.TYPE_EXPENSE
+                                    typeDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("درآمد") },
+                                onClick = {
+                                    selectedType = Category.TYPE_INCOME
+                                    typeDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("هر دو") },
+                                onClick = {
+                                    selectedType = Category.TYPE_BOTH
+                                    typeDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "رنگ:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier.height(60.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(CATEGORY_COLORS) { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(color))
+                                    .clickable { selectedColor = color },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selectedColor == color) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "آیکون:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(7),
+                        modifier = Modifier.height(180.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(CATEGORY_ICONS.entries.toList()) { (iconName, iconVector) ->
+                            val isSelected = selectedIcon == iconName
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    )
+                                    .clickable { selectedIcon = iconName },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = iconVector,
+                                    contentDescription = iconName,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val previewIcon = CATEGORY_ICONS[selectedIcon] ?: Icons.Filled.Paid
+                    val previewColor = Color(selectedColor)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(previewColor.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = previewIcon,
+                            contentDescription = null,
+                            tint = previewColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = name.ifBlank { "نام دسته‌بندی" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = when (selectedType) {
+                                Category.TYPE_EXPENSE -> "هزینه"
+                                Category.TYPE_INCOME -> "درآمد"
+                                else -> "هر دو"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = previewColor
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalKey = key.trim().ifBlank {
+                        name.trim().replace("\\s+".toRegex(), "")
+                    }
+                    onSave(name.trim(), finalKey, selectedIcon, selectedColor, selectedType)
+                },
+                shape = RoundedCornerShape(12.dp),
+                enabled = name.isNotBlank()
+            ) {
+                Text("ذخیره", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("انصراف")
+            }
+        }
+    )
+}

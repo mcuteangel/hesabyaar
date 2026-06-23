@@ -141,4 +141,26 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             repository.deleteInstallment(installment)
         }
     }
+
+    fun addCategory(name: String, key: String, icon: String, color: Long, type: String) {
+        viewModelScope.launch {
+            repository.insertCategory(Category(name = name, key = key, icon = icon, color = color, type = type))
+        }
+    }
+
+    fun updateCategory(category: Category) {
+        viewModelScope.launch {
+            repository.updateCategory(category)
+        }
+    }
+
+    fun deleteCategory(category: Category) {
+        viewModelScope.launch {
+            repository.deleteCategory(category)
+        }
+    }
+
+    suspend fun getCategoryByKey(key: String): Category? {
+        return repository.getCategoryByKey(key)
+    }
 }

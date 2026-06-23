@@ -51,7 +51,15 @@ class MainActivity : ComponentActivity() {
             HesabyarTheme(darkTheme = isDark) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     var currentTab by remember { mutableStateOf("DASHBOARD") }
+                    var showCategoryManagement by remember { mutableStateOf(false) }
 
+                    if (showCategoryManagement) {
+                        CategoryManagementScreen(
+                            financeViewModel = financeViewModel,
+                            onBack = { showCategoryManagement = false },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
                         bottomBar = {
@@ -122,9 +130,11 @@ class MainActivity : ComponentActivity() {
                                 aiServiceViewModel = aiServiceViewModel,
                                 backupViewModel = backupViewModel,
                                 viewModel = viewModel,
+                                onNavigateToCategories = { showCategoryManagement = true },
                                 modifier = modifier
                             )
                         }
+                    }
                     }
                 }
             }
