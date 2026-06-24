@@ -719,9 +719,12 @@ fun ParsedResultCard(
     
     var customDate by remember(result) {
         val finalCal = Calendar.getInstance()
-        result.dateOffsetDays?.let { offset ->
-            finalCal.add(Calendar.DAY_OF_YEAR, offset)
+        val offsetDays = if (result.daysFromNow != null && result.daysFromNow != 0) {
+            result.daysFromNow
+        } else {
+            result.dateOffsetDays ?: 0
         }
+        finalCal.add(Calendar.DAY_OF_YEAR, offsetDays)
         result.hour?.let { h ->
             finalCal.set(Calendar.HOUR_OF_DAY, h)
         }

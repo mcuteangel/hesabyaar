@@ -221,10 +221,11 @@ object GeminiParser {
             val day = toArabicDigits(dayStr).toIntOrNull() ?: continue
             if (day < 1 || day > 31) continue
             val target = io.github.mojri.hesabyar.ui.JalaliCalendarHelper.jalaliToGregorian(currentJalaliYear, monthNum, day)
-            val targetMs = target.timeInMillis
-            val todayMs = System.currentTimeMillis()
-            val diffMs = targetMs - todayMs
-            if (diffMs > 0) return (diffMs / (24L * 60L * 60L * 1000L)).toInt()
+            val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val todayDate = java.time.Instant.ofEpochMilli(System.currentTimeMillis())
+                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val days = java.time.temporal.ChronoUnit.DAYS.between(todayDate, targetDate)
+            return days.toInt()
         }
         return 30
     }
