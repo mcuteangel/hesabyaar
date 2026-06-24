@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private val categoryViewModel: CategoryViewModel by viewModels()
     private val aiAssistantViewModel: AiAssistantViewModel by viewModels()
     private val backupViewModel: BackupViewModel by viewModels()
+    private val exportViewModel: ExportViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,6 +133,7 @@ class MainActivity : ComponentActivity() {
                             "SETTINGS" -> SettingsScreen(
                                 aiAssistantViewModel = aiAssistantViewModel,
                                 backupViewModel = backupViewModel,
+                                exportViewModel = exportViewModel,
                                 settingsViewModel = settingsViewModel,
                                 onNavigateToCategories = { showCategoryManagement = true },
                                 modifier = modifier

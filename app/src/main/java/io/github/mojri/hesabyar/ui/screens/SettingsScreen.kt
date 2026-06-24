@@ -31,6 +31,8 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.AppLogger
 import io.github.mojri.hesabyar.ui.BackupOperationState
 import io.github.mojri.hesabyar.ui.BackupViewModel
+import io.github.mojri.hesabyar.ui.ExportViewModel
+import io.github.mojri.hesabyar.ui.ExportState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
 import io.github.mojri.hesabyar.data.RestoreMode
@@ -44,6 +46,7 @@ import android.content.Context
 fun SettingsScreen(
     aiAssistantViewModel: AiAssistantViewModel,
     backupViewModel: BackupViewModel,
+    exportViewModel: ExportViewModel,
     settingsViewModel: SettingsViewModel,
     onNavigateToCategories: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -86,6 +89,21 @@ fun SettingsScreen(
     val operationState by backupViewModel.operationState
     val pendingRestore = backupViewModel.pendingRestoreBackup
     val restoreMode by backupViewModel.selectedRestoreMode
+    val exportState by exportViewModel.exportState
+
+    LaunchedEffect(exportState) {
+        when (val state = exportState) {
+            is ExportState.Success -> {
+                settingsViewModel.showMessage(state.summary)
+                exportViewModel.clearState()
+            }
+            is ExportState.Error -> {
+                settingsViewModel.showMessage(state.message)
+                exportViewModel.clearState()
+            }
+            else -> {}
+        }
+    }
 
     LaunchedEffect(operationState) {
         when (val state = operationState) {
@@ -406,6 +424,54 @@ fun SettingsScreen(
                         }
                         Text("ذخیره فایل پشتیبان", style = MaterialTheme.typography.labelSmall)
                     }
+                }
+            }
+        }
+
+        // Excel Export
+        Text(
+            text = "📊 خروجی اکسل (Excel)",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "گزارش کامل مالی شامل تراکنش‌ها، دریافتی‌ها، پرداختی‌ها، وام‌ها و اقساط در قالب فایل اکسل (.xlsx) خروجی گرفته شود.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    lineHeight = 18.sp
+                )
+
+                Button(
+                    onClick = { exportViewModel.exportExcel() },
+                    modifier = Modifier.fillMaxWidth().height(48.dp).testTag("export_excel_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    enabled = exportState !is ExportState.Exporting
+                ) {
+                    if (exportState is ExportState.Exporting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    } else {
+                        Icon(imageVector = Icons.Filled.TableChart, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text("ذخیره در Downloads", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
