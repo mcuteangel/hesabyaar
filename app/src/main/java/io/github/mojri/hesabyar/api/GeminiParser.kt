@@ -24,27 +24,28 @@ object GeminiParser {
         }
 
         val systemInstruction = """
-            You are a smart financial analyzer for a Persian accounting app. Parse the Persian text and return JSON matching this schema:
+            You are a smart financial analyzer for a Persian accounting app. Parse Persian text and return JSON:
             {
               "type": "EXPENSE" | "INCOME" | "LOAN_DEBTOR" | "LOAN_CREDITOR" | "INSTALLMENT",
-              "amount": double (extracted raw Toman amount. If "میلیون" is written, convert to double e.g. 5 میلیون = 5000000, 450 هزار = 450000),
+              "amount": double (Toman amount. Convert: 5 میلیون = 5000000, 450 هزار = 450000),
               "category": "Food" | "Transportation" | "Shopping" | "Bills" | "Installments" | "Loans" | "Income" | "Other",
-              "personName": string (if person is specified, else empty/null),
-              "description": string (Farsi description of what was purchased/done),
-              "daysFromNow": integer (if installment or due date has numeric info like '15 تیر', extract approximate days from now. Today's date is June 21, 2026. So 15 تیر is July 6 which is 15 days from now),
-              "title": string (for installment titles, e.g., 'قسط ماشین', or null),
-              "dateOffsetDays": integer (if text specifies relative day like 'دیروز' -> -1, 'پریروز' -> -2, 'فردا' -> 1, 'امروز' -> 0, otherwise default to 0),
-              "hour": integer (hour specified in text 0-23, e.g. 'ساعت ۲' -> 14 or 2, 'ساعت ۸ شب' -> 20, otherwise null),
-              "minute": integer (minute specified in text 0-59, e.g. 'ساعت ۲ و ده دقیقه' -> 10, 'ساعت ۲ و نیم' -> 30, otherwise null)
+              "personName": string (person name if specified, else null),
+              "description": string (Persian description. For INSTALLMENT type, use future-oriented like 'قسط آینده' not 'پرداخت شده'),
+              "daysFromNow": integer (calculate actual days from today to the Jalali date specified. Today's date is ${java.time.LocalDate.now()}. If text says '25 تیر', convert that Jalali date to Gregorian and compute days from today),
+              "title": string (installment title like 'قسط ماشین', or null),
+              "dateOffsetDays": integer ('دیروز'=-1, 'پریروز'=-2, 'فردا'=1, 'امروز'=0, default 0),
+              "hour": integer (0-23, 'ساعت ۸ شب'=20, else null),
+              "minute": integer (0-59, 'ساعت ۲ و نیم'=30, else null),
+              "confidence": float (0.0-1.0 based on text clarity),
+              "notes": string (for INSTALLMENT: 'قسط در انتظار پرداخت'. For loans: brief note. Or null)
             }
-            Ensure categories match the requested categories: Food, Transportation, Shopping, Bills, Installments, Loans, Income, Other.
-            Example inputs:
-            - "امروز مرغ خریدم 450 هزار تومان" -> type="EXPENSE", amount=450000, category="Food", description="خرید مرغ", dateOffsetDays=0
-            - "دیروز از علی 5 میلیون قرض گرفتم" -> type="LOAN_CREDITOR", amount=5000000, category="Loans", personName="علی", description="قرض گرفتن از علی", dateOffsetDays=-1
-            - "به رضا 2 میلیون قرض دادم ساعت ۸ شب" -> type="LOAN_DEBTOR", amount=2000000, category="Loans", personName="رضا", description="قرض دادن به رضا", dateOffsetDays=0, hour=20, minute=0
-            - "قسط ماشین 15 تیر 3 میلیون" -> type="INSTALLMENT", amount=3000000, category="Installments", title="قسط ماشین", daysFromNow=15, description="قسط ماشین"
-            - "حقوق گرفتم 20 میلیون ساعت ۲ و نیم بعد از ظهر" -> type="INCOME", amount=20000000, category="Income", description="دریافت حقوق", hour=14, minute=30
-            Strictly return ONLY raw JSON, do not wrap in markdown tags.
+            Jalali months: فروردین(1), اردیبهشت(2), خرداد(3), تیر(4), مرداد(5), شهریور(6), مهر(7), آبان(8), آذر(9), دی(10), بهمن(11), اسفند(12). Days: months 1-6 have 31 days, months 7-11 have 30 days, month 12 has 29 (30 in leap years).
+            Persian examples:
+            - "۵۰۰ هزار تومن بابت برق" -> type="EXPENSE", amount=500000, category="Bills", description="پرداخت قبض برق"
+            - "امروز حقوق گرفتم ۲۰ میلیون" -> type="INCOME", amount=20000000, category="Income", description="دریافت حقوق"
+            - "به علی ۲ میلیون قرض دادم" -> type="LOAN_DEBTOR", amount=2000000, category="Loans", personName="علی"
+            - "قسط ماشین 25 تیر 10 میلیون" -> type="INSTALLMENT", amount=10000000, category="Installments", title="قسط ماشین", daysFromNow=(actual days to 25 Tir), description="قسط آینده", notes="قسط در انتظار پرداخت"
+            Return ONLY raw JSON, no markdown tags.
         """.trimIndent()
 
         when (val result = AiProvider.generateContent(
@@ -79,7 +80,9 @@ object GeminiParser {
                 title = json.optString("title", "").let { if (it == "null" || it.isBlank()) null else it },
                 dateOffsetDays = json.optInt("dateOffsetDays", 0),
                 hour = if (json.isNull("hour")) null else json.optInt("hour"),
-                minute = if (json.isNull("minute")) null else json.optInt("minute")
+                minute = if (json.isNull("minute")) null else json.optInt("minute"),
+                confidence = json.optDouble("confidence", 0.8).toFloat(),
+                notes = json.optString("notes", "").let { if (it == "null" || it.isBlank()) null else it }
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
@@ -194,6 +197,42 @@ object GeminiParser {
         }
     }
 
+    private fun toArabicDigits(s: String): String = s
+        .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
+        .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
+        .replace("۸", "8").replace("۹", "9")
+
+    private fun extractJalaliDaysFromNow(sentence: String): Int {
+        val jalaliMonths = mapOf(
+            "فروردین" to 1, "اردیبهشت" to 2, "خرداد" to 3,
+            "تیر" to 4, "مرداد" to 5, "شهریور" to 6,
+            "مهر" to 7, "آبان" to 8, "آذر" to 9,
+            "دی" to 10, "بهمن" to 11, "اسفند" to 12
+        )
+
+        val today = io.github.mojri.hesabyar.ui.JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+        val currentJalaliYear = today.year
+
+        for ((monthName, monthNum) in jalaliMonths) {
+            if (!sentence.contains(monthName)) continue
+            val dayPattern = "(\\d+|${toArabicDigitsRegex()})\\s*$monthName".toRegex()
+            val match = dayPattern.find(sentence)
+            val dayStr = match?.groupValues?.get(1) ?: continue
+            val day = toArabicDigits(dayStr).toIntOrNull() ?: continue
+            if (day < 1 || day > 31) continue
+            val target = io.github.mojri.hesabyar.ui.JalaliCalendarHelper.jalaliToGregorian(currentJalaliYear, monthNum, day)
+            val targetMs = target.timeInMillis
+            val todayMs = System.currentTimeMillis()
+            val diffMs = targetMs - todayMs
+            if (diffMs > 0) return (diffMs / (24L * 60L * 60L * 1000L)).toInt()
+        }
+        return 30
+    }
+
+    private fun toArabicDigitsRegex(): String {
+        return "[۰-۹]+"
+    }
+
     // High quality regex-based fallback parsing for offline/no key scenarios
     fun parseSentenceOffline(sentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
@@ -207,6 +246,8 @@ object GeminiParser {
         var dateOffsetDays = 0
         var hour: Int? = null
         var minute: Int? = null
+        var confidence = 0.7f
+        var notes: String? = null
 
         if (sentence.contains("دیروز")) {
             dateOffsetDays = -1
@@ -250,11 +291,6 @@ object GeminiParser {
         val millionRegex = "$numPattern\\s*(میلیون|میلیون تومان|ملیون)".toRegex()
         val thousandRegex = "$numPattern\\s*(هزار|تومن|تومان)".toRegex()
 
-        fun toArabicDigits(s: String): String = s
-            .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
-            .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
-            .replace("۸", "8").replace("۹", "9")
-
         val millionMatch = millionRegex.find(sentence)
         val thousandMatch = thousandRegex.find(sentence)
 
@@ -297,11 +333,11 @@ object GeminiParser {
             "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی", "کارانه",
             "فروش", "درآمدزایی", "حق بیمه", "عیدی", " سنوات", "پرداختی",
             "حقوق ماه", "حقوق اداره", "حقوق شرکت", "حقوقم", "حقوقم رو",
-            "دریافت کردم", "واریز شد", "رسید", "واریز کرد"
+            "دریافت کردم", "واریز شد", "رسید", "واریز کرد", "گرفتم"
         )
         val expenseKeywords = listOf(
             "خریدم", "پرداخت", "هزینه", "قبض", " اجاره", "خرید", "پول دادم",
-            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم",
+            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم", "پرداخت کردم",
             "اصلاح", "سالن", "آرایشگاه", "کوتاهی مو", "رنگ مو", "واکس", "پدیکور", "مانیکور",
             "ماساژ", "اسپا", "فیشال", "لیزر", "کرم", "شامپو", "عطر", "ادکلن", "لوازم آرایش", "آرایش",
             "پیرایش", "ابرو", "ریمل", "رژ لب", "پودر", "کانسیلر", "بنز", "سیگار", "قلیان",
@@ -321,10 +357,25 @@ object GeminiParser {
             "هدیه", "جشن", "تولد", "عروسی", "نامزدی", "سالگرد", "مراسم", "مهمانی",
             "خیریه", "صدقه", " کمک", "سرمایه گذاری", "خرید سهام", "صندوق سرمایه",
             "طلا", "سکه", "دلار", "ارز", "نفت", "بیمه عمر", "بیمه تصادف", "بیمه آتش سوزی",
-            "بیمه زلزله", "بیمه سرقت", "بیمه مسئولیت"
+            "بیمه زلزله", "بیمه سرقت", "بیمه مسئولیت", "طلب دارم", "طلبکار", "بدهکار"
         )
         val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
         val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
+
+        // Calculate confidence based on multiple factors
+        var confidenceFactors = 0
+        if (amountToman > 0) confidenceFactors++
+        if (isIncome || isExpense) confidenceFactors++
+        if (personName != null) confidenceFactors++
+        if (hour != null) confidenceFactors++
+        if (daysFromNow != null) confidenceFactors++
+        confidence = when {
+            confidenceFactors >= 4 -> 0.95f
+            confidenceFactors >= 3 -> 0.90f
+            confidenceFactors >= 2 -> 0.85f
+            confidenceFactors >= 1 -> 0.75f
+            else -> 0.60f
+        }
 
         fun extractDescription(): String {
             val cleaned = sentence
@@ -333,6 +384,7 @@ object GeminiParser {
                 .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
                 .replace("هزار", "").replace("تومان", "").replace("تومن", "")
                 .replace("میلیون", "").replace("ملیون", "")
+                .replace("طلب دارم", "").replace("طلبکار", "").replace("بدهکار", "")
                 .trim()
                 .replace("\\s+".toRegex(), " ")
             return cleaned.ifBlank { sentence }
@@ -342,18 +394,24 @@ object GeminiParser {
             type = "LOAN_CREDITOR"
             category = "Loans"
             description = "قرض گرفتن از ${personName ?: "طلبکار"}"
-        } else if (sentence.contains("قرض دادم") || sentence.contains("طلبکار شدم") || sentence.contains("دادم به")) {
+            notes = "قرض جدید ثبت شده"
+        } else if (sentence.contains("قرض دادم") || sentence.contains("طلبکار شدم") || sentence.contains("دادم به") || sentence.contains("طلب دارم")) {
             type = "LOAN_DEBTOR"
             category = "Loans"
             description = "قرض دادن به ${personName ?: "بدهکار"}"
+            notes = "طلب جدید ثبت شده"
         } else if (sentence.contains("قسط")) {
             type = "INSTALLMENT"
             category = "Installments"
-            description = "قسطی"
-            installmentTitle = if (sentence.contains("ماشین")) "قسط ماشین" else if (sentence.contains("خانه")) "قسط خانه" else "قسط جدید"
-            if (sentence.contains("تیر")) daysFromNow = 15
-            else if (sentence.contains("مرداد")) daysFromNow = 45
-            else daysFromNow = 30
+            description = "قسط آینده"
+            installmentTitle = when {
+                sentence.contains("ماشین") -> "قسط ماشین"
+                sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
+                sentence.contains("وام") -> "قسط وام"
+                else -> "قسط جدید"
+            }
+            daysFromNow = extractJalaliDaysFromNow(sentence)
+            notes = "قسط در انتظار پرداخت"
         } else if (isIncome) {
             type = "INCOME"
             category = "Income"
@@ -389,7 +447,9 @@ object GeminiParser {
             title = installmentTitle,
             dateOffsetDays = dateOffsetDays,
             hour = hour,
-            minute = minute
+            minute = minute,
+            confidence = confidence,
+            notes = notes
         )
     }
 
@@ -562,5 +622,7 @@ data class ParsedResult(
     val title: String?,
     val dateOffsetDays: Int? = 0,
     val hour: Int? = null,
-    val minute: Int? = null
+    val minute: Int? = null,
+    val confidence: Float = 0.8f,
+    val notes: String? = null
 )

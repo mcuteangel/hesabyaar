@@ -115,4 +115,67 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن")
         assertTrue(result.description.isNotBlank())
     }
+
+    @Test
+    fun `installment description is future-oriented not paid`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertEquals("قسط آینده", result.description)
+    }
+
+    @Test
+    fun `installment notes indicate pending status`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون")
+        assertEquals("قسط در انتظار پرداخت", result.notes)
+    }
+
+    @Test
+    fun `installment with specific jalali date calculates correct days`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertNotNull(result.daysFromNow)
+        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
+        assertTrue("daysFromNow should be less than 365", result.daysFromNow!! < 365)
+    }
+
+    @Test
+    fun `installment with mordad month extracts days`() {
+        val result = GeminiParser.parseSentenceOffline("قسط خانه 15 مرداد 5 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertNotNull(result.daysFromNow)
+        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
+    }
+
+    @Test
+    fun `installment without specific date defaults to 30`() {
+        val result = GeminiParser.parseSentenceOffline("قسط جدید 2 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertEquals(30, result.daysFromNow)
+    }
+
+    @Test
+    fun `installment with persian numerals in date`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین ۱۰ تیر ۸ میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertNotNull(result.daysFromNow)
+        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
+    }
+
+    @Test
+    fun `installment title is extracted correctly`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون")
+        assertEquals("قسط ماشین", result.title)
+    }
+
+    @Test
+    fun `installment for mortgage loan extracts correct title`() {
+        val result = GeminiParser.parseSentenceOffline("قسط وام مسکن 10 مرداد 5 میلیون")
+        assertEquals("قسط وام مسکن", result.title)
+    }
+
+    @Test
+    fun `installment amount is correct`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون")
+        assertEquals(10_000_000_000L, result.amount)
+    }
 }

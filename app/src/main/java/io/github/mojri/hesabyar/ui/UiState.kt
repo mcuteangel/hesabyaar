@@ -17,6 +17,7 @@ sealed interface ParserUIState {
     object Loading : ParserUIState
     data class Success(val result: ParsedResult) : ParserUIState
     data class Error(val message: String) : ParserUIState
+    data class Confirming(val result: ParsedResult) : ParserUIState
 }
 
 sealed interface AdvisorUIState {

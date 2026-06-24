@@ -87,7 +87,16 @@ fun SmartAssistantScreen(
         }
     }
 
-    if (parserState is ParserUIState.Success) {
+    if (parserState is ParserUIState.Confirming) {
+        val confirmingState = parserState as ParserUIState.Confirming
+        ConfirmationDialog(
+            result = confirmingState.result,
+            onConfirm = { 
+                aiAssistantViewModel.confirmParsedResult(confirmingState.result)
+            },
+            onCancel = { aiAssistantViewModel.clearParserState() }
+        )
+    } else if (parserState is ParserUIState.Success) {
         val successState = parserState as ParserUIState.Success
         ParsedResultCard(
             result = successState.result,
@@ -198,11 +207,11 @@ fun SmartAssistantScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             val examples = listOf(
-                                "امروز مرغ خریدم 450 هزار تومان",
-                                "بنزین زدم 600 هزار تومان",
-                                "از علی 5 میلیون قرض گرفتم",
-                                "حقوق گرفتم 20 میلیون",
-                                "قسط ماشین 15 تیر 3 میلیون تومان"
+                                "۵۰۰ هزار تومن بابت برق",
+                                "امروز حقوق گرفتم ۲۰ میلیون",
+                                "به علی ۲ میلیون قرض دادم",
+                                "از رضا ۳ میلیون طلب دارم",
+                                "قسط وام مسکن رو پرداخت کردم"
                             )
                             examples.forEach { ex ->
                                 Row(
@@ -351,6 +360,9 @@ fun SmartAssistantScreen(
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
+                            }
+                            is ParserUIState.Confirming -> {
+                                // Handled at top-level
                             }
                             is ParserUIState.Success -> {
                                 // Handled at top-level
@@ -768,6 +780,52 @@ fun ParsedResultCard(
                 }
             }
 
+            // Confidence Score Display
+            val confidenceColor = when {
+                result.confidence >= 0.9f -> IncomeGreen
+                result.confidence >= 0.7f -> WarningOrange
+                else -> ExpenseRed
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = confidenceColor.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "اطمینان تحلیل:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${(result.confidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = confidenceColor
+                    )
+                }
+            }
+            
+            // Notes Display (if exists)
+            if (!result.notes.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Text(
+                        text = result.notes,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
 
             // Scrollable Form Content Container
@@ -1072,4 +1130,167 @@ fun CustomChip(
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
         )
     }
+}
+
+@Composable
+fun ConfirmationDialog(
+    result: ParsedResult,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val confidenceColor = when {
+        result.confidence >= 0.9f -> IncomeGreen
+        result.confidence >= 0.7f -> WarningOrange
+        else -> ExpenseRed
+    }
+    
+    val typeLabel = when (result.type) {
+        "EXPENSE" -> "هزینه"
+        "INCOME" -> "درآمد"
+        "LOAN_DEBTOR" -> "طلب (قرض دادم)"
+        "LOAN_CREDITOR" -> "بدهی (قرض گرفتم)"
+        "INSTALLMENT" -> "قسط"
+        else -> result.type
+    }
+    
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = {
+            Text(
+                text = "تایید تراکنش",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Confidence Score
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = confidenceColor.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "اطمینان:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${(result.confidence * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = confidenceColor
+                        )
+                    }
+                }
+                
+                // Transaction Type
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("نوع:", style = MaterialTheme.typography.bodyMedium)
+                    Text(typeLabel, fontWeight = FontWeight.Bold)
+                }
+                
+                // Amount
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("مبلغ:", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = formatToman(result.amount),
+                        fontWeight = FontWeight.Bold,
+                        color = if (result.type == "INCOME") IncomeGreen else ExpenseRed
+                    )
+                }
+                
+                // Category
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("دسته:", style = MaterialTheme.typography.bodyMedium)
+                    Text(result.category, fontWeight = FontWeight.Bold)
+                }
+                
+                // Description
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("شرح:", style = MaterialTheme.typography.bodyMedium)
+                    Text(result.description, fontWeight = FontWeight.Bold)
+                }
+                
+                // Person Name (if exists)
+                if (!result.personName.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("شخص:", style = MaterialTheme.typography.bodyMedium)
+                        Text(result.personName, fontWeight = FontWeight.Bold)
+                    }
+                }
+                
+                // Notes (if exists)
+                if (!result.notes.isNullOrBlank()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Text(
+                            text = result.notes,
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                
+                // Warning for low confidence
+                if (result.confidence < 0.7f) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = ExpenseRed.copy(alpha = 0.1f))
+                    ) {
+                        Text(
+                            text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
+                            modifier = Modifier.padding(8.dp),
+                            color = ExpenseRed,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen)
+            ) {
+                Text("تایید و ادامه", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("انصراف")
+            }
+        }
+    )
 }

@@ -141,7 +141,7 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
                 AppLogger.d("AiAssistantViewModel", "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
                 val result = GeminiParser.parseSentence(sentence, config)
                 if (result != null) {
-                    _parserState.value = ParserUIState.Success(result)
+                    _parserState.value = ParserUIState.Confirming(result)
                 } else {
                     _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
                 }
@@ -150,6 +150,10 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
                 _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
             }
         }
+    }
+
+    fun confirmParsedResult(result: ParsedResult) {
+        _parserState.value = ParserUIState.Success(result)
     }
 
     fun clearParserState() {
