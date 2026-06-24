@@ -59,6 +59,9 @@ interface LoanDao {
     @Query("SELECT * FROM loans WHERE id = :id LIMIT 1")
     suspend fun getLoanById(id: Long): Loan?
 
+    @Query("SELECT * FROM loans ORDER BY date DESC")
+    suspend fun getAllLoansSync(): List<Loan>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLoan(loan: Loan): Long
 
@@ -85,6 +88,9 @@ interface InstallmentDao {
 
     @Delete
     suspend fun deleteInstallment(installment: Installment)
+
+    @Query("SELECT * FROM installments ORDER BY dueDate ASC")
+    suspend fun getAllInstallmentsSync(): List<Installment>
 
     @Query("DELETE FROM installments")
     suspend fun deleteAllInstallments()

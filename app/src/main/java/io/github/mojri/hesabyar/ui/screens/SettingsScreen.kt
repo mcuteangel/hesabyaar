@@ -316,32 +316,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Filled.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("هشدار خودکار اقساط و بدهی‌ها", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "روشن / سراسری",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                ReminderSettingsSection(settingsViewModel = settingsViewModel)
             }
         }
 
@@ -1212,4 +1187,253 @@ fun AiConfigDialog(
             }
         }
     )
+}
+
+@Composable
+fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val settingsManager = remember { io.github.mojri.hesabyar.reminder.ReminderSettingsManager(context) }
+    var config by remember { mutableStateOf(settingsManager.getConfig()) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(imageVector = Icons.Filled.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("هشدار خودکار اقساط و بدهی‌ها", style = MaterialTheme.typography.bodyMedium)
+            }
+            Switch(
+                checked = config.masterEnabled,
+                onCheckedChange = { enabled ->
+                    config = config.copy(masterEnabled = enabled)
+                    settingsManager.setMasterEnabled(enabled)
+                    io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                }
+            )
+        }
+
+        if (config.masterEnabled) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            // Installment reminders toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Filled.CreditCard, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text("یادآوری اقساط", style = MaterialTheme.typography.bodyMedium)
+                }
+                Switch(
+                    checked = config.installmentReminderEnabled,
+                    onCheckedChange = { enabled ->
+                        config = config.copy(installmentReminderEnabled = enabled)
+                        settingsManager.setInstallmentReminderEnabled(enabled)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    }
+                )
+            }
+
+            // Loan reminders toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Filled.HistoryEdu, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text("یادآوری وام‌ها", style = MaterialTheme.typography.bodyMedium)
+                }
+                Switch(
+                    checked = config.loanReminderEnabled,
+                    onCheckedChange = { enabled ->
+                        config = config.copy(loanReminderEnabled = enabled)
+                        settingsManager.setLoanReminderEnabled(enabled)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    }
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            // Days before due
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "روز قبل از سررسید",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "${config.reminderDaysBeforeDue} روز",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Slider(
+                    value = config.reminderDaysBeforeDue.toFloat(),
+                    onValueChange = { days ->
+                        config = config.copy(reminderDaysBeforeDue = days.toInt())
+                    },
+                    onValueChangeFinished = {
+                        settingsManager.setReminderDaysBeforeDue(config.reminderDaysBeforeDue)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    valueRange = 1f..14f,
+                    steps = 12,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("۱ روز", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("۱۴ روز", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            // Reminder time
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Filled.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text("زمان یادآوری", style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    text = String.format("%02d:%02d", config.reminderHour, config.reminderMinute),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Time picker row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hour
+                OutlinedButton(
+                    onClick = {
+                        val newHour = (config.reminderHour + 1) % 24
+                        config = config.copy(reminderHour = newHour)
+                        settingsManager.setReminderTime(newHour, config.reminderMinute)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("+ ساعت", style = MaterialTheme.typography.labelSmall)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val newHour = (config.reminderHour - 1 + 24) % 24
+                        config = config.copy(reminderHour = newHour)
+                        settingsManager.setReminderTime(newHour, config.reminderMinute)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("- ساعت", style = MaterialTheme.typography.labelSmall)
+                }
+
+                // Minute
+                OutlinedButton(
+                    onClick = {
+                        val newMinute = (config.reminderMinute + 15) % 60
+                        config = config.copy(reminderMinute = newMinute)
+                        settingsManager.setReminderTime(config.reminderHour, newMinute)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("+ دقیقه", style = MaterialTheme.typography.labelSmall)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val newMinute = (config.reminderMinute - 15 + 60) % 60
+                        config = config.copy(reminderMinute = newMinute)
+                        settingsManager.setReminderTime(config.reminderHour, newMinute)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("- دقیقه", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            // Loan reminder interval
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "دوره یادآوری وام (روز)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "هر ${config.loanReminderDaysInterval} روز",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Slider(
+                    value = config.loanReminderDaysInterval.toFloat(),
+                    onValueChange = { days ->
+                        config = config.copy(loanReminderDaysInterval = days.toInt())
+                    },
+                    onValueChangeFinished = {
+                        settingsManager.setLoanReminderInterval(config.loanReminderDaysInterval)
+                        io.github.mojri.hesabyar.reminder.ReminderScheduler.refreshReminders(context)
+                    },
+                    valueRange = 1f..30f,
+                    steps = 28,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("۱ روز", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("۳۰ روز", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
+            }
+        }
+    }
 }
