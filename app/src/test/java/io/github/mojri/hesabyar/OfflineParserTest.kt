@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.api.GeminiParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OfflineParserTest {
@@ -84,5 +85,34 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("قبض برق دادم 200 هزار")
         assertEquals("EXPENSE", result.type)
         assertEquals("Bills", result.category)
+    }
+
+    @Test
+    fun `parse haircut expense with thousand`() {
+        val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن")
+        assertEquals("EXPENSE", result.type)
+        assertEquals(200_000_000L, result.amount)
+        assertEquals("Personal Care", result.category)
+    }
+
+    @Test
+    fun `parse amount with persian numerals`() {
+        val result = GeminiParser.parseSentenceOffline("بنزین زدم ۶۰۰ هزار تومان")
+        assertEquals("EXPENSE", result.type)
+        assertEquals(600_000_000L, result.amount)
+    }
+
+    @Test
+    fun `parse salon visit`() {
+        val result = GeminiParser.parseSentenceOffline("آرایشگاه رفتم ۱۵۰ هزار تومان")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Personal Care", result.category)
+        assertEquals(150_000_000L, result.amount)
+    }
+
+    @Test
+    fun `parse description extracted from sentence`() {
+        val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن")
+        assertTrue(result.description.isNotBlank())
     }
 }

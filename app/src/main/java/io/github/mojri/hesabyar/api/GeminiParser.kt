@@ -87,6 +87,113 @@ object GeminiParser {
         }
     }
 
+    private fun inferExpenseCategory(sentence: String): Pair<String, String> {
+        return when {
+            sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") ||
+                    sentence.contains("میوه") || sentence.contains("رستوران") ||
+                    sentence.contains("نان") || sentence.contains("شیر") || sentence.contains("پنیر") ||
+                    sentence.contains("شام") || sentence.contains("ناهار") ||
+                    sentence.contains(" صبحانه") || sentence.contains("چای") || sentence.contains("قهوه") ||
+                    sentence.contains("اسنک") || sentence.contains("بستنی") || sentence.contains("سالاد") ||
+                    sentence.contains("ماهی") || sentence.contains("میگو") || sentence.contains("سبزی") ||
+                    sentence.contains("مربا") || sentence.contains("روغن") || sentence.contains("برنج") ||
+                    sentence.contains("ماکارونی") || sentence.contains("رب") || sentence.contains("ادویه") -> Pair("Food", "خرید مواد غذایی")
+            sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") ||
+                    sentence.contains("تاکسی") || sentence.contains("مترو") || sentence.contains("اتوبوس") ||
+                    sentence.contains("بلیط") || sentence.contains("پارکینگ") || sentence.contains("عوارض") ||
+                    sentence.contains("لنت") || sentence.contains("لاستیک") || sentence.contains("تعویض روغن") ||
+                    sentence.contains("مکانیک") || sentence.contains("تعمیرگاه") -> Pair("Transportation", "هزینه حمل و نقل")
+            sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک") ||
+                    sentence.contains("کیف") || sentence.contains("کلاه") || sentence.contains("عینک") ||
+                    sentence.contains("ساعت مچی") || sentence.contains("جواهرات") || sentence.contains("زیورآلات") ||
+                    sentence.contains("کت") || sentence.contains("شلوار") || sentence.contains("پیراهن") ||
+                    sentence.contains("مانتو") || sentence.contains("چادر") -> Pair("Shopping", "خرید پوشاک و اکسسوری")
+            sentence.contains("قبض") || sentence.contains("برق") || sentence.contains("آب") ||
+                    sentence.contains("گاز") || sentence.contains("تلفن") || sentence.contains("اینترنت") ||
+                    sentence.contains("شارژ") || sentence.contains("فیبر") || sentence.contains("موبایل") ||
+                    sentence.contains("tv") || sentence.contains("tv اشتراک") -> Pair("Bills", "پرداخت قبوض و شارژ")
+            sentence.contains("اصلاح") || sentence.contains("سالن") || sentence.contains("آرایشگاه") ||
+                    sentence.contains("کوتاهی") || sentence.contains("رنگ مو") || sentence.contains("واکس") ||
+                    sentence.contains("پدیکور") || sentence.contains("مانیکور") || sentence.contains("ماساژ") ||
+                    sentence.contains("اسپا") || sentence.contains("فیشال") || sentence.contains("لیزر") ||
+                    sentence.contains("کرم") || sentence.contains("شامپو") || sentence.contains("عطر") ||
+                    sentence.contains("ادکلن") || sentence.contains("لوازم آرایش") || sentence.contains("آرایش") ||
+                    sentence.contains("پیرایش") || sentence.contains("ابرو") || sentence.contains("ریمل") ||
+                    sentence.contains("رژ لب") || sentence.contains("پودر") || sentence.contains("کانسیلر") ||
+                    sentence.contains("بنز") || sentence.contains("سیگار") || sentence.contains("قلیان") ||
+                    sentence.contains("قهوه خانه") || sentence.contains("چایخانه") || sentence.contains("بستنی") ||
+                    sentence.contains("هتل") || sentence.contains("اقامت") || sentence.contains("بلیط هواپیما") ||
+                    sentence.contains("بلیط قطار") || sentence.contains("سفر") || sentence.contains("گردشگری") ||
+                    sentence.contains("تفریح") || sentence.contains("سینما") || sentence.contains("تئاتر") ||
+                    sentence.contains("کنسرت") || sentence.contains("بازی") || sentence.contains("ورزش") ||
+                    sentence.contains("باشگاه") || sentence.contains("fitness") || sentence.contains("Gym") ||
+                    sentence.contains("دارو") || sentence.contains("داروخانه") || sentence.contains("ویتامین") ||
+                    sentence.contains("درمان") || sentence.contains("دندانپزشکی") || sentence.contains("چشم پزشکی") ||
+                    sentence.contains("آزمایش") || sentence.contains("رادیولوژی") || sentence.contains("سونوگرافی") ||
+                    sentence.contains("MRI") || sentence.contains("CT") || sentence.contains("تست") -> Pair("Personal Care", "هزینه شخصی، آرایشی و بهداشتی")
+            sentence.contains("کتاب") || sentence.contains("مجله") || sentence.contains("روزنامه") ||
+                    sentence.contains("دوره آموزشی") || sentence.contains("کلاس") || sentence.contains("آموزش") ||
+                    sentence.contains("مدرسه") || sentence.contains("دانشگاه") || sentence.contains("شهریه") ||
+                    sentence.contains("سرویس مدرسه") || sentence.contains("لوازم تحریر") || sentence.contains("مداد") ||
+                    sentence.contains("خودکار") || sentence.contains("دفتر") || sentence.contains("کاغذ") ||
+                    sentence.contains("Printer") || sentence.contains("پرینتر") || sentence.contains("کارتریج") ||
+                    sentence.contains("نرم افزار") || sentence.contains("اپلیکیشن") || sentence.contains("اشتراک") ||
+                    sentence.contains("سرویس") || sentence.contains("service") || sentence.contains("membership") -> Pair("Education", "هزینه آموزش و تحصیل")
+            sentence.contains("اجاره") || sentence.contains("رهن") || sentence.contains("آپارتمان") ||
+                    sentence.contains("خانه") || sentence.contains("ملک") || sentence.contains("زمین") ||
+                    sentence.contains("ویلا") || sentence.contains("باغ") || sentence.contains("کلبه") ||
+                    sentence.contains("اقامتگاه") || sentence.contains("هتل") || sentence.contains("مهمانخانه") ||
+                    sentence.contains("پارکینگ") || sentence.contains("انبار") || sentence.contains("دفتر کار") ||
+                    sentence.contains("مغازه") || sentence.contains("فروشگاه") || sentence.contains("بازرگانی") ||
+                    sentence.contains("شرکت") || sentence.contains("کارخانه") || sentence.contains("کارگاه") ||
+                    sentence.contains("بیمه") || sentence.contains("مالیات") || sentence.contains(" عوارض شهرداری") ||
+                    sentence.contains("شارژ آپارتمان") || sentence.contains("تعمیرات ساختمان") ||
+                    sentence.contains("نقاشی ساختمان") || sentence.contains("لوله کشی") ||
+                    sentence.contains("برقکاری") || sentence.contains("بنایی") || sentence.contains("سنگ") ||
+                    sentence.contains("سیمان") || sentence.contains("آجر") || sentence.contains("چوب") ||
+                    sentence.contains("MDF") || sentence.contains("لمینت") || sentence.contains("سرامیک") ||
+                    sentence.contains("کاشی") || sentence.contains("شیرآلات") || sentence.contains("شوفاژ") ||
+                    sentence.contains("کولر") || sentence.contains("بخاری") || sentence.contains("شومینه") ||
+                    sentence.contains("پکیج") || sentence.contains("رادیاتور") || sentence.contains("لوله") -> Pair("Rent & Utilities", "هزینه اجاره، رهن و نگهداری ملک")
+            sentence.contains("قرض") || sentence.contains("وام") || sentence.contains("بدهی") ||
+                    sentence.contains("قسط") || sentence.contains("چک") || sentence.contains("سفته") ||
+                    sentence.contains("ضمانت") || sentence.contains("سود وام") || sentence.contains("جریمه") ||
+                    sentence.contains("کارمزد") || sentence.contains("سود بانکی") || sentence.contains("بهره") ||
+                    sentence.contains("سود مرکب") || sentence.contains("وام مسکن") || sentence.contains("وام خودرو") ||
+                    sentence.contains("وام ازدواج") || sentence.contains("وام تحصیلی") || sentence.contains("وام ضربت") ||
+                    sentence.contains("وام فوری") || sentence.contains("وام بازنشستگی") || sentence.contains("وام کارمندی") ||
+                    sentence.contains("وام دولتی") || sentence.contains("وام خصوصی") || sentence.contains("وام بانکی") ||
+                    sentence.contains("وام بدون بهره") || sentence.contains("وام با بهره") || sentence.contains("وام با سود") ||
+                    sentence.contains("وام بدون سود") || sentence.contains("وام با کارمزد") || sentence.contains("وام بدون کارمزد") ||
+                    sentence.contains("وام با ضمانت") || sentence.contains("وام بدون ضمانت") || sentence.contains("وام با چک") ||
+                    sentence.contains("وام با سفته") || sentence.contains("وام با ضامن") || sentence.contains("وام بدون ضامن") -> Pair("Loans & Debt", "بدهی و وام")
+            sentence.contains("درآمد") || sentence.contains("حقوق") || sentence.contains("واریز") ||
+                    sentence.contains("اضافه کار") || sentence.contains("پاداش") || sentence.contains("بونوس") ||
+                    sentence.contains("سود") || sentence.contains("دریافتی") || sentence.contains("واریزی") ||
+                    sentence.contains("حقوقی") || sentence.contains("کارانه") || sentence.contains("فروش") ||
+                    sentence.contains("درآمدزایی") || sentence.contains("حق بیمه") || sentence.contains("عیدی") ||
+                    sentence.contains(" سنوات") || sentence.contains("پرداختی") || sentence.contains("حقوق ماه") ||
+                    sentence.contains("حقوق اداره") || sentence.contains("حقوق شرکت") || sentence.contains("حقوقم") ||
+                    sentence.contains("حقوقم رو") || sentence.contains("دریافت کردم") || sentence.contains("واریز شد") ||
+                    sentence.contains("رسید") || sentence.contains("واریز کرد") || sentence.contains("فروش رفت") ||
+                    sentence.contains("درآمد داشتم") || sentence.contains("پول درآوردم") || sentence.contains("سود کردم") ||
+                    sentence.contains("بازدهی") || sentence.contains("return") || sentence.contains("profit") -> Pair("Income", "درآمد")
+            sentence.contains("هدیه") || sentence.contains("جشن") || sentence.contains("تولد") ||
+                    sentence.contains("عروسی") || sentence.contains("نامزدی") || sentence.contains("سالگرد") ||
+                    sentence.contains("مراسم") || sentence.contains("مهمانی") || sentence.contains("party") ||
+                    sentence.contains("celebration") || sentence.contains("event") || sentence.contains("wedding") -> Pair("Events & Gifts", "جشن و هدیه")
+            sentence.contains("خیریه") || sentence.contains("صدقه") || sentence.contains("کمک") ||
+                    sentence.contains(" donate") || sentence.contains("charity") || sentence.contains("philanthropy") -> Pair("Charity", "خیریه و کمک مالی")
+            sentence.contains("سرمایه گذاری") || sentence.contains("خرید سهام") || sentence.contains("صندوق سرمایه") ||
+                    sentence.contains("طلا") || sentence.contains("سکه") || sentence.contains("دلار") ||
+                    sentence.contains("ارز") || sentence.contains("نفت") || sentence.contains("گاز") ||
+                    sentence.contains("مسکن") || sentence.contains("زمین") || sentence.contains("باغ") ||
+                    sentence.contains("بیمه عمر") || sentence.contains("بیمه تصادف") || sentence.contains("بیمه آتش سوزی") ||
+                    sentence.contains("بیمه زلزله") || sentence.contains("بیمه سرقت") || sentence.contains("بیمه مسئولیت") -> Pair("Investment", "سرمایه گذاری")
+            else -> Pair("Other", "سایر هزینه‌ها")
+        }
+    }
+
     // High quality regex-based fallback parsing for offline/no key scenarios
     fun parseSentenceOffline(sentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
@@ -114,40 +221,54 @@ object GeminiParser {
         }
 
         // Try extracting simple time "ساعت ۱۲" or "ساعت 14:30" or similar
-        val hourRegex = "(ساعت|ساعتِ)\\s*(\\d+)".toRegex()
+        val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
         val hourMatch = hourRegex.find(sentence)
         if (hourMatch != null) {
-            hour = hourMatch.groupValues[2].toIntOrNull()
+            hour = hourMatch.groupValues[2]
+                .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
+                .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
+                .replace("۸", "8").replace("۹", "9")
+                .toIntOrNull()
             if (sentence.contains("نیم")) {
                 minute = 30
             } else {
-                val minRegex = "و\\s*(\\d+)\\s*(دقیقه)?".toRegex()
+                val minRegex = "و\\s*([0-9۰-۹]+)\\s*(دقیقه)?".toRegex()
                 val minMatch = minRegex.find(sentence, hourMatch.range.last + 1)
                 if (minMatch != null) {
-                    minute = minMatch.groupValues[1].toIntOrNull()
+                    minute = minMatch.groupValues[1]
+                        .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
+                        .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
+                        .replace("۸", "8").replace("۹", "9")
+                        .toIntOrNull()
                 }
             }
         }
 
         // Extract amount helper (e.g. 450 هزار or 5 میلیون)
-        val millionRegex = "(\\d+([./]\\d+)?)\\s*(میلیون|میلیون تومان|ملیون)".toRegex()
-        val thousandRegex = "(\\d+([./]\\d+)?)\\s*(هزار|تومن|تومان)".toRegex()
+        val digit = "[0-9۰-۹]"
+        val numPattern = "($digit+([./]$digit+)?)"
+        val millionRegex = "$numPattern\\s*(میلیون|میلیون تومان|ملیون)".toRegex()
+        val thousandRegex = "$numPattern\\s*(هزار|تومن|تومان)".toRegex()
+
+        fun toArabicDigits(s: String): String = s
+            .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
+            .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
+            .replace("۸", "8").replace("۹", "9")
 
         val millionMatch = millionRegex.find(sentence)
         val thousandMatch = thousandRegex.find(sentence)
 
         if (millionMatch != null) {
-            val num = millionMatch.groupValues[1].replace("/", ".").toDoubleOrNull() ?: 1.0
+            val num = toArabicDigits(millionMatch.groupValues[1]).replace("/", ".").toDoubleOrNull() ?: 1.0
             amountToman = num * 1_000_000.0
         } else if (thousandMatch != null) {
-            val num = thousandMatch.groupValues[1].replace("/", ".").toDoubleOrNull() ?: 1.0
-            // check context if it's high digit e.g. 450 هزار or just 450
+            val num = toArabicDigits(thousandMatch.groupValues[1]).replace("/", ".").toDoubleOrNull() ?: 1.0
             amountToman = if (sentence.contains("هزار")) num * 1000.0 else num
         } else {
             // Check for simple number
-            val numbers = "\\d+".toRegex().findAll(sentence).toList()
+            val numbers = "[$digit]+".toRegex().findAll(sentence).toList()
             if (numbers.isNotEmpty()) {
-                val num = numbers.last().value.toDoubleOrNull() ?: 0.0
+                val num = toArabicDigits(numbers.last().value).toDoubleOrNull() ?: 0.0
                 if (num < 1000) {
                     amountToman = if (sentence.contains("میلیون")) num * 1_000_000 else if (sentence.contains("هزار")) num * 1000 else num
                 } else {
@@ -170,8 +291,7 @@ object GeminiParser {
             }
         }
 
-        // Determine type based on sentence keyword matches
-        // Check income FIRST because income keywords are more specific than expense defaults
+        // Determine type and category based on sentence keyword matches
         val incomeKeywords = listOf(
             "حقوق", "درآمد", "واریز", "اضافه کار", "اضافه‌کار", "دستمزد", "پاداش",
             "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی", "کارانه",
@@ -181,10 +301,42 @@ object GeminiParser {
         )
         val expenseKeywords = listOf(
             "خریدم", "پرداخت", "هزینه", "قبض", " اجاره", "خرید", "پول دادم",
-            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم"
+            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم",
+            "اصلاح", "سالن", "آرایشگاه", "کوتاهی مو", "رنگ مو", "واکس", "پدیکور", "مانیکور",
+            "ماساژ", "اسپا", "فیشال", "لیزر", "کرم", "شامپو", "عطر", "ادکلن", "لوازم آرایش", "آرایش",
+            "پیرایش", "ابرو", "ریمل", "رژ لب", "پودر", "کانسیلر", "بنز", "سیگار", "قلیان",
+            "قهوه خانه", "چایخانه", "بستنی", "هتل", "اقامت", "بلیط هواپیما", "بلیط قطار",
+            "سفر", "گردشگری", "تفریح", "سینما", "تئاتر", "کنسرت", "بازی", "ورزش", "باشگاه",
+            "fitness", "Gym", "دارو", "داروخانه", "ویتامین", "درمان", "دندانپزشکی", "چشم پزشکی",
+            "آزمایش", "رادیولوژی", "سونوگرافی", "MRI", "CT", "تست",
+            "اجاره", "رهن", "آپارتمان", "خانه", "ملک", "زمین", "ویلا", "باغ", "کلبه",
+            "اقامتگاه", "مهمانخانه", "پارکینگ", "انبار", "دفتر کار", "مغازه", "فروشگاه",
+            "بازرگانی", "شرکت", "کارخانه", "کارگاه", "بیمه", "مالیات", " عوارض شهرداری",
+            "شارژ آپارتمان", "تعمیرات ساختمان", "نقاشی ساختمان", "لوله کشی", "برقکاری",
+            "بنایی", "سنگ", "سیمان", "آجر", "چوب", "MDF", "لمینت", "سرامیک", "کاشی",
+            "شیرآلات", "شوفاژ", "کولر", "بخاری", "شومینه", "پکیج", "رادیاتور", "لوله",
+            "قرض", "وام", "بدهی", "قسط", "چک", "سفته", "ضمانت", "سود وام", "جریمه",
+            "کارمزد", "سود بانکی", "بهره", "سود مرکب", "وام مسکن", "وام خودرو", "وام ازدواج",
+            "وام تحصیلی", "وام ضربت", "وام فوری", "وام بازنشستگی", "وام کارمندی",
+            "هدیه", "جشن", "تولد", "عروسی", "نامزدی", "سالگرد", "مراسم", "مهمانی",
+            "خیریه", "صدقه", " کمک", "سرمایه گذاری", "خرید سهام", "صندوق سرمایه",
+            "طلا", "سکه", "دلار", "ارز", "نفت", "بیمه عمر", "بیمه تصادف", "بیمه آتش سوزی",
+            "بیمه زلزله", "بیمه سرقت", "بیمه مسئولیت"
         )
         val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
         val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
+
+        fun extractDescription(): String {
+            val cleaned = sentence
+                .replace("امروز", "").replace("دیروز", "").replace("پریروز", "")
+                .replace("فردا", "").replace("پسفردا", "").replace("پس فردا", "")
+                .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
+                .replace("هزار", "").replace("تومان", "").replace("تومن", "")
+                .replace("میلیون", "").replace("ملیون", "")
+                .trim()
+                .replace("\\s+".toRegex(), " ")
+            return cleaned.ifBlank { sentence }
+        }
 
         if (sentence.contains("قرض گرفتم") || sentence.contains("بدهکار شدم") || sentence.contains("گرفتم از")) {
             type = "LOAN_CREDITOR"
@@ -216,27 +368,15 @@ object GeminiParser {
             }
         } else if (isExpense) {
             type = "EXPENSE"
-            if (sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک")) {
-                category = "Shopping"
-                description = "خرید پوشاک"
-            } else if (sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") || sentence.contains("تاکسی") || sentence.contains("ماشین")) {
-                category = "Transportation"
-                description = "هزینه های رفت و آمد"
-            } else if (sentence.contains("قبض") || sentence.contains("برق") || sentence.contains("آب") || sentence.contains("گاز") || sentence.contains("تلفن")) {
-                category = "Bills"
-                description = "پرداخت قبوض"
-            } else if (sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") || sentence.contains("میوه") || sentence.contains("رستوران") || sentence.contains("خرید")) {
-                category = "Food"
-                description = "خرید مواد غذایی"
-            } else {
-                category = "Other"
-                description = "ثبت دستی"
-            }
+            val (inferredCategory, inferredDescription) = inferExpenseCategory(sentence)
+            category = inferredCategory
+            description = inferredDescription
         } else {
-            // Default to expense when no clear income or expense signal detected
+            // Default: still infer category even without explicit expense keywords
             type = "EXPENSE"
-            category = "Other"
-            description = "ثبت دستی"
+            val (inferredCategory, inferredDescription) = inferExpenseCategory(sentence)
+            category = inferredCategory
+            description = if (inferredCategory != "Other") inferredDescription else extractDescription()
         }
 
         return ParsedResult(
