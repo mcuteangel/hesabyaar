@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private val aiAssistantViewModel: AiAssistantViewModel by viewModels()
     private val backupViewModel: BackupViewModel by viewModels()
     private val exportViewModel: ExportViewModel by viewModels()
+    private val analyticsViewModel: AnalyticsViewModel by viewModels()
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
                                     Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
                                     Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
                                     Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
+                                    Triple("ANALYTICS", "تحلیل و آمار", Icons.Filled.BarChart),
                                     Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
                                     Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
                                 )
@@ -140,6 +142,10 @@ class MainActivity : ComponentActivity() {
                             "INSTALLMENTS" -> InstallmentScreen(
                                 installmentViewModel = installmentViewModel,
                                 settingsViewModel = settingsViewModel,
+                                modifier = modifier
+                            )
+                            "ANALYTICS" -> AnalyticsScreen(
+                                analyticsViewModel = analyticsViewModel,
                                 modifier = modifier
                             )
                             "REPORTS" -> ReportsScreen(
