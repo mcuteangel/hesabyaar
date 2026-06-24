@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,8 @@ import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.api.GeminiParser
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -25,6 +28,7 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
         database.categoryDao()
     )
     private val aiConfigManager = AiConfigManager(application)
+    private val sharedPrefs = application.getSharedPreferences("ai_cache_prefs", Context.MODE_PRIVATE)
 
     // AI Configuration
     var aiConfigs = mutableStateOf(aiConfigManager.loadConfigs())
@@ -111,22 +115,113 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // AI Cache for Forecast and Advice
-    private var lastForecastTime = 0L
-    private var cachedForecast: String? = null
-    private var lastAdviceTime = 0L
-    private var cachedAdvice: String? = null
     private val AI_CACHE_DURATION_MS = 10 * 60 * 1000L
+    private var cachedForecast: String? = sharedPrefs.getString(KEY_CACHED_FORECAST, null)
+    private var cachedAdvice: String? = sharedPrefs.getString(KEY_CACHED_ADVICE, null)
+    private var lastForecastFetchTimeMs = sharedPrefs.getLong(KEY_FORECAST_FETCH_TIME, 0L)
+    private var lastAdviceFetchTimeMs = sharedPrefs.getLong(KEY_ADVICE_FETCH_TIME, 0L)
+    private var lastKnownForecastSignature = sharedPrefs.getString(KEY_FORECAST_SIGNATURE, "") ?: ""
+    private var lastKnownAdviceSignature = sharedPrefs.getString(KEY_ADVICE_SIGNATURE, "") ?: ""
+    private var forecastDebounceJob: Job? = null
+    private var adviceDebounceJob: Job? = null
+
+    private val _lastForecastFetchTime = MutableStateFlow(lastForecastFetchTimeMs)
+    val lastForecastFetchTime: StateFlow<Long> = _lastForecastFetchTime.asStateFlow()
+
+    private val _lastAdviceFetchTime = MutableStateFlow(lastAdviceFetchTimeMs)
+    val lastAdviceFetchTime: StateFlow<Long> = _lastAdviceFetchTime.asStateFlow()
+
+    private fun persistForecastCache() {
+        sharedPrefs.edit()
+            .putString(KEY_CACHED_FORECAST, cachedForecast)
+            .putLong(KEY_FORECAST_FETCH_TIME, lastForecastFetchTimeMs)
+            .putString(KEY_FORECAST_SIGNATURE, lastKnownForecastSignature)
+            .apply()
+    }
+
+    private fun persistAdviceCache() {
+        sharedPrefs.edit()
+            .putString(KEY_CACHED_ADVICE, cachedAdvice)
+            .putLong(KEY_ADVICE_FETCH_TIME, lastAdviceFetchTimeMs)
+            .putString(KEY_ADVICE_SIGNATURE, lastKnownAdviceSignature)
+            .apply()
+    }
+
+    internal fun computeDataSignature(
+        transactions: List<Transaction>,
+        loans: List<Loan>,
+        installments: List<Installment>,
+        categories: List<Category>
+    ): String {
+        val txCount = transactions.size
+        val txTotal = transactions.sumOf { it.amount }
+        val loanCount = loans.size
+        val instCount = installments.size
+        val catCount = categories.size
+        return "$txCount|$txTotal|$loanCount|$instCount|$catCount"
+    }
+
+    internal fun computeAdviceSignature(
+        transactions: List<Transaction>,
+        categories: List<Category>
+    ): String {
+        val txCount = transactions.size
+        val txTotal = transactions.sumOf { it.amount }
+        val catCount = categories.size
+        return "$txCount|$txTotal|$catCount"
+    }
 
     private fun isForecastCacheValid(): Boolean {
-        return cachedForecast != null && (System.currentTimeMillis() - lastForecastTime) < AI_CACHE_DURATION_MS
+        return cachedForecast != null && (System.currentTimeMillis() - lastForecastFetchTimeMs) < AI_CACHE_DURATION_MS
     }
 
     private fun isAdviceCacheValid(): Boolean {
-        return cachedAdvice != null && (System.currentTimeMillis() - lastAdviceTime) < AI_CACHE_DURATION_MS
+        return cachedAdvice != null && (System.currentTimeMillis() - lastAdviceFetchTimeMs) < AI_CACHE_DURATION_MS
     }
 
     fun getCachedForecast(): String? = cachedForecast
     fun getCachedAdvice(): String? = cachedAdvice
+
+    fun formatLastFetchTime(timestamp: Long): String {
+        if (timestamp == 0L) return "هنوز به‌روز نشده"
+        val diff = System.currentTimeMillis() - timestamp
+        val minutes = (diff / 60000).toInt()
+        return when {
+            minutes < 1 -> "همین الان"
+            minutes == 1 -> "۱ دقیقه پیش"
+            minutes < 60 -> "$minutes دقیقه پیش"
+            else -> {
+                val hours = minutes / 60
+                if (hours == 1) "۱ ساعت پیش" else "$hours ساعت پیش"
+            }
+        }
+    }
+
+    fun onFinancialDataChanged(
+        transactions: List<Transaction>,
+        loans: List<Loan>,
+        installments: List<Installment>,
+        categories: List<Category>
+    ) {
+        val newSignature = computeDataSignature(transactions, loans, installments, categories)
+
+        if (newSignature == lastKnownForecastSignature && !cachedForecast.isNullOrEmpty()) {
+            return
+        }
+
+        forecastDebounceJob?.cancel()
+
+        if (lastForecastFetchTimeMs == 0L) {
+            viewModelScope.launch {
+                fetchBudgetForecast(transactions, loans, installments, categories, isOnlineMode.value)
+            }
+        } else {
+            forecastDebounceJob = viewModelScope.launch {
+                delay(AI_CACHE_DURATION_MS)
+                fetchBudgetForecast(transactions, loans, installments, categories, isOnlineMode.value)
+            }
+        }
+    }
 
     // Smart Parser
     private val _parserState = MutableStateFlow<ParserUIState>(ParserUIState.Idle)
@@ -207,7 +302,9 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // Budget Advisor
-    private val _advisorState = MutableStateFlow<AdvisorUIState>(AdvisorUIState.Idle)
+    private val _advisorState = MutableStateFlow<AdvisorUIState>(
+        if (!cachedAdvice.isNullOrEmpty()) AdvisorUIState.Success(cachedAdvice!!) else AdvisorUIState.Idle
+    )
     val advisorState = _advisorState.asStateFlow()
 
     fun fetchBudgetAdvice(
@@ -216,17 +313,26 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
         isOnlineMode: Boolean,
         forceRefresh: Boolean = false
     ) {
-        if (!forceRefresh && isAdviceCacheValid()) {
+        val currentSignature = computeAdviceSignature(transactions, categories)
+
+        if (!forceRefresh
+            && currentSignature == lastKnownAdviceSignature
+            && !cachedAdvice.isNullOrEmpty()
+        ) {
             _advisorState.value = AdvisorUIState.Success(cachedAdvice!!)
             return
         }
+
         viewModelScope.launch {
             _advisorState.value = AdvisorUIState.Loading
             try {
                 val config = if (isOnlineMode) aiConfigManager.getActiveConfig() else null
                 val advice = BudgetAdvisor.getBudgetAdvice(transactions, categories, config)
                 cachedAdvice = advice
-                lastAdviceTime = System.currentTimeMillis()
+                lastAdviceFetchTimeMs = System.currentTimeMillis()
+                lastKnownAdviceSignature = currentSignature
+                _lastAdviceFetchTime.value = lastAdviceFetchTimeMs
+                persistAdviceCache()
                 _advisorState.value = AdvisorUIState.Success(advice)
             } catch (e: Exception) {
                 AppLogger.e("AiAssistantViewModel", "fetchBudgetAdvice failed", e)
@@ -240,7 +346,9 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // Budget Forecast
-    private val _forecastState = MutableStateFlow<ForecastUIState>(ForecastUIState.Idle)
+    private val _forecastState = MutableStateFlow<ForecastUIState>(
+        if (!cachedForecast.isNullOrEmpty()) ForecastUIState.Success(cachedForecast!!) else ForecastUIState.Idle
+    )
     val forecastState = _forecastState.asStateFlow()
 
     fun fetchBudgetForecast(
@@ -251,10 +359,16 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
         isOnlineMode: Boolean,
         forceRefresh: Boolean = false
     ) {
-        if (!forceRefresh && isForecastCacheValid()) {
+        val currentSignature = computeDataSignature(transactions, loans, installments, categories)
+
+        if (!forceRefresh
+            && currentSignature == lastKnownForecastSignature
+            && !cachedForecast.isNullOrEmpty()
+        ) {
             _forecastState.value = ForecastUIState.Success(cachedForecast!!)
             return
         }
+
         viewModelScope.launch {
             _forecastState.value = ForecastUIState.Loading
             try {
@@ -263,7 +377,10 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
                     transactions, loans, installments, categories, config
                 )
                 cachedForecast = forecast
-                lastForecastTime = System.currentTimeMillis()
+                lastForecastFetchTimeMs = System.currentTimeMillis()
+                lastKnownForecastSignature = currentSignature
+                _lastForecastFetchTime.value = lastForecastFetchTimeMs
+                persistForecastCache()
                 _forecastState.value = ForecastUIState.Success(forecast)
             } catch (e: Exception) {
                 AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed", e)
@@ -274,5 +391,14 @@ class AiAssistantViewModel(application: Application) : AndroidViewModel(applicat
 
     fun clearForecastState() {
         _forecastState.value = ForecastUIState.Idle
+    }
+
+    companion object {
+        private const val KEY_CACHED_FORECAST = "cached_forecast"
+        private const val KEY_CACHED_ADVICE = "cached_advice"
+        private const val KEY_FORECAST_FETCH_TIME = "forecast_fetch_time"
+        private const val KEY_ADVICE_FETCH_TIME = "advice_fetch_time"
+        private const val KEY_FORECAST_SIGNATURE = "forecast_signature"
+        private const val KEY_ADVICE_SIGNATURE = "advice_signature"
     }
 }

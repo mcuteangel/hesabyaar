@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
 import java.util.Calendar
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Category
@@ -513,6 +514,7 @@ fun SmartAssistantScreen(
                             }
                         }
                         is io.github.mojri.hesabyar.ui.AdvisorUIState.Success -> {
+                            val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -545,6 +547,12 @@ fun SmartAssistantScreen(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
 
                                     MarkdownText(text = state.advice)
+
+                                    Text(
+                                        text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(lastAdviceFetchTime)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
 
                                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -609,7 +617,9 @@ fun SmartAssistantScreen(
 @Composable
 fun MarkdownText(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle = LocalTextStyle.current,
+    textColor: Color = Color.Unspecified
 ) {
     val lines = text.split("\n")
     Column(
@@ -664,16 +674,16 @@ fun MarkdownText(
                     )
                     Text(
                         text = parseBoldMarkdown(itemText),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = textStyle,
+                        color = textColor,
                         lineHeight = 22.sp
                     )
                 }
             } else {
                 Text(
                     text = parseBoldMarkdown(trimmed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = textStyle,
+                    color = if (textColor != Color.Unspecified) textColor else MaterialTheme.colorScheme.onSurface,
                     lineHeight = 22.sp
                 )
             }

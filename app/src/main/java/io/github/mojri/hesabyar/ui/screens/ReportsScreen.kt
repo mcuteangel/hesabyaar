@@ -307,15 +307,21 @@ fun ReportsScreen(
                             }
                         }
                         is AdvisorUIState.Success -> {
+                            val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text(
+                                MarkdownText(
                                     text = state.advice,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 20.sp,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textStyle = MaterialTheme.typography.bodySmall,
+                                    textColor = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Text(
+                                    text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(lastAdviceFetchTime)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                 )
 
                                 Row(

@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.DashboardViewModel
@@ -116,13 +117,16 @@ fun DashboardScreen(
 ) {
     val dashboardData by dashboardViewModel.dashboardState.collectAsState()
     val transactions by dashboardViewModel.transactions.collectAsState()
+    val loans by dashboardViewModel.loans.collectAsState()
+    val installments by dashboardViewModel.installments.collectAsState()
     val categories by dashboardViewModel.categories.collectAsState()
     val forecastState by aiAssistantViewModel.forecastState.collectAsState()
+    val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
     var showManualAddDialog by remember { mutableStateOf(false) }
     var showFullForecast by remember { mutableStateOf(false) }
 
-    LaunchedEffect(key1 = transactions) {
-        aiAssistantViewModel.fetchBudgetForecast(dashboardViewModel.transactions.value, dashboardViewModel.loans.value, dashboardViewModel.installments.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value)
+    LaunchedEffect(transactions, loans, installments, categories) {
+        aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -283,9 +287,6 @@ fun DashboardScreen(
                     .fillMaxWidth()
                     .testTag("budget_forecast_alert_card")
                     .clickable {
-                        if (forecastState is ForecastUIState.Idle || forecastState is ForecastUIState.Error) {
-                            aiAssistantViewModel.fetchBudgetForecast(dashboardViewModel.transactions.value, dashboardViewModel.loans.value, dashboardViewModel.installments.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value)
-                        }
                         showFullForecast = true
                     },
                 shape = RoundedCornerShape(16.dp),
@@ -341,13 +342,22 @@ fun DashboardScreen(
                                 }
                             }
                             is ForecastUIState.Success -> {
-                                Text(
-                                    text = "✓ گزارش آماده است - برای مشاهده کلیک کنید",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                val preview = extractForecastPreview(state.forecast)
+                                Column {
+                                    Text(
+                                        text = preview,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(lastForecastFetchTime)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
                             }
                             is ForecastUIState.Error -> {
                                 Text(
@@ -371,6 +381,16 @@ fun DashboardScreen(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
+                }
+                Button(
+                    onClick = { showFullForecast = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(imageVector = Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("مشاهده گزارش کامل", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -759,6 +779,28 @@ if (showFullForecast) {
         onRefresh = { aiAssistantViewModel.fetchBudgetForecast(dashboardViewModel.transactions.value, dashboardViewModel.loans.value, dashboardViewModel.installments.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, forceRefresh = true) }
     )
 }
+}
+
+private fun extractForecastPreview(forecast: String): String {
+    val lines = forecast.lines()
+    val contentLines = lines.filter { line ->
+        val trimmed = line.trim()
+        trimmed.isNotEmpty() && !trimmed.startsWith("#")
+    }.map { line ->
+        line.trim().removePrefix("-").removePrefix("*").trim()
+    }.filter { it.isNotEmpty() }
+
+    if (contentLines.isEmpty()) return "گزارش آماده است"
+
+    val preview = contentLines.take(3).joinToString(" | ") { line ->
+        if (line.length > 60) line.substring(0, 60).substringBeforeLast(" ") + "..." else line
+    }
+
+    return if (preview.length > 150) {
+        preview.substring(0, 150).substringBeforeLast(" ") + "..."
+    } else {
+        preview
+    }
 }
 
 @Composable
