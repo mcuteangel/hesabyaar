@@ -96,7 +96,7 @@ object GeminiParser {
                     sentence.contains("میوه") || sentence.contains("رستوران") ||
                     sentence.contains("نان") || sentence.contains("شیر") || sentence.contains("پنیر") ||
                     sentence.contains("شام") || sentence.contains("ناهار") ||
-                    sentence.contains(" صبحانه") || sentence.contains("چای") || sentence.contains("قهوه") ||
+                    sentence.contains("صبحانه") || sentence.contains("چای") || sentence.contains("قهوه") ||
                     sentence.contains("اسنک") || sentence.contains("بستنی") || sentence.contains("سالاد") ||
                     sentence.contains("ماهی") || sentence.contains("میگو") || sentence.contains("سبزی") ||
                     sentence.contains("مربا") || sentence.contains("روغن") || sentence.contains("برنج") ||
@@ -104,7 +104,7 @@ object GeminiParser {
                     sentence.contains("نوشابه") || sentence.contains("آب معدنی") || sentence.contains("آب") ||
                     sentence.contains("دوغ") || sentence.contains("دلستر") || sentence.contains("چیپس") ||
                     sentence.contains("شکلات") || sentence.contains("کیک") || sentence.contains("بیسکوییت") ||
-                    sentence.contains("میوه") || sentence.contains("موز") || sentence.contains("سیب") ||
+                    sentence.contains("موز") || sentence.contains("سیب") ||
                     sentence.contains("پرتقال") || sentence.contains("هندوانه") || sentence.contains("خربزه") ||
                     sentence.contains("انگور") || sentence.contains("توت") || sentence.contains("تمشک") ||
                     sentence.contains("کدو") || sentence.contains("خیار") || sentence.contains("گوجه") ||
@@ -112,8 +112,8 @@ object GeminiParser {
                     sentence.contains("نخود") || sentence.contains("عدس") || sentence.contains("لپه") ||
                     sentence.contains("سوپ") || sentence.contains("آش") || sentence.contains("حلیم") ||
                     sentence.contains("کباب") || sentence.contains("استیک") || sentence.contains("سوسیس") ||
-                    sentence.contains("کالباس") || sentence.contains("hamberger") || sentence.contains("پیتزا") ||
-                    sentence.contains("ساندویچ") || sentence.contains("همبرگر") -> Pair("Food", "خرید مواد غذایی")
+                    sentence.contains("کالباس") || sentence.contains("همبرگر") || sentence.contains("پیتزا") ||
+                    sentence.contains("ساندویچ") -> Pair("Food", "خرید مواد غذایی")
             sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") ||
                     sentence.contains("تاکسی") || sentence.contains("مترو") || sentence.contains("اتوبوس") ||
                     sentence.contains("بلیط") || sentence.contains("پارکینگ") || sentence.contains("عوارض") ||

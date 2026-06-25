@@ -180,54 +180,50 @@ The project should remain modular and scalable.
 # Project Structure
 
 ```text
-app/
+app/src/main/java/io/github/mojri/hesabyar/
 
-└── src/main/java/io/github/mojri/hesabyar
-
-    core/
-
-    ├── ai/
-    ├── database/
-    ├── designsystem/
-    ├── navigation/
-    ├── common/
-    └── utils/
-
-    features/
-
-    ├── dashboard/
-    │   ├── ui/
-    │   ├── domain/
-    │   └── data/
-    │
-    ├── transactions/
-    │   ├── ui/
-    │   ├── domain/
-    │   └── data/
-    │
-    ├── loans/
-    │   ├── ui/
-    │   ├── domain/
-    │   └── data/
-    │
-    ├── installments/
-    │   ├── ui/
-    │   ├── domain/
-    │   └── data/
-    │
-    ├── reports/
-    │   ├── ui/
-    │   ├── domain/
-    │   └── data/
-    │
-    ├── settings/
-    │   ├── ui/
-    │   └── data/
-    │
-    └── voice/
-        ├── speech/
-        ├── parser/
-        └── ui/
+├── api/
+│   ├── AiProvider.kt              # Multi-provider AI client
+│   ├── AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
+│   ├── BudgetAdvisor.kt           # AI + offline budget advice
+│   ├── GeminiParser.kt            # Sentence parsing (online + offline)
+│   ├── MoneyDetector.kt           # Money presence detection gate
+│   └── PersianAmountParser.kt     # Token-based amount extraction
+│
+├── data/
+│   ├── AppDatabase.kt             # Room database (v3)
+│   ├── BackupModels.kt            # Backup payload + validation
+│   ├── Daos.kt                    # Room DAOs (5 interfaces)
+│   ├── Entities.kt                # Room entities (5 tables)
+│   ├── ExcelExporter.kt           # .xlsx export (custom XML writer)
+│   ├── HesabyarRepository.kt      # Repository implementation
+│   └── HesabyarRepositoryInterface.kt
+│
+├── reminder/
+│   ├── BootReceiver.kt            # Re-schedule alarms on boot
+│   ├── InstallmentReminderWorker.kt
+│   ├── LoanReminderWorker.kt
+│   ├── MarkPaidReceiver.kt        # Notification action: mark paid
+│   ├── NotificationHelper.kt      # Notification channel + builders
+│   ├── ReminderScheduler.kt       # WorkManager scheduling
+│   └── ReminderSettingsManager.kt # SharedPreferences config
+│
+└── ui/
+    ├── AiAssistantViewModel.kt    # AI config + parser + advisor + cache
+    ├── AnalyticsViewModel.kt      # Analytics data computation
+    ├── AppLogger.kt               # In-memory log ring buffer
+    ├── BackupViewModel.kt         # Backup/restore operations
+    ├── CategoryViewModel.kt       # Category CRUD
+    ├── DashboardViewModel.kt      # Dashboard data aggregation
+    ├── ExportViewModel.kt         # Excel export orchestration
+    ├── InstallmentViewModel.kt    # Installment CRUD
+    ├── JalaliCalendarHelper.kt    # Gregorian ↔ Jalali conversion
+    ├── LoanViewModel.kt           # Loan CRUD + payments
+    ├── SettingsViewModel.kt       # App settings
+    ├── TransactionViewModel.kt    # Transaction CRUD
+    ├── UiState.kt                 # UI state sealed interfaces
+    ├── screens/                   # Compose screens
+    └── theme/                     # Material 3 theme
 ```
 
 ---
@@ -235,19 +231,38 @@ app/
 # Data Flow
 
 ```text
-UI
+UI (Compose Screens)
  ↓
-ViewModel
+ViewModel (AndroidViewModel)
  ↓
-UseCase
+Repository (HesabyarRepository)
  ↓
-Repository
+Room Database (AppDatabase)
  ↓
-Room Database
+Flow<List<T>> emissions
  ↓
-State Update
+StateFlow / collectAsState()
  ↓
-UI Refresh
+UI Recomposition
+```
+
+AI Flow:
+```text
+User Text Input
+ ↓
+AiAssistantViewModel.parseSmartSentence()
+ ↓
+GeminiParser.parseSentence()
+ ├── Online: AiProvider.generateContent() → API → JSON parse
+ └── Offline: MoneyDetector → PersianAmountParser → keyword inference
+ ↓
+ParsedResult (type, amount, category, description, ...)
+ ↓
+User Confirmation Dialog
+ ↓
+Repository.insertTransaction/insertLoan/insertInstallment
+ ↓
+Room Database → Flow emission → UI update
 ```
 
 ---

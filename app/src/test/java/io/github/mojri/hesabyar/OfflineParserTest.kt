@@ -413,4 +413,151 @@ class OfflineParserTest {
         assertTrue("Description should not contain دیشب", !result.description.contains("دیشب"))
         assertTrue("Description should contain نوشابه", result.description.contains("نوشابه"))
     }
+
+    // ============================================================
+    // Category inference tests
+    // ============================================================
+
+    @Test
+    fun `category inference - food keywords`() {
+        val foodSentences = listOf(
+            "مرغ خریدم 80 هزار تومن",
+            "گوشت گرفتم 150 هزار",
+            "غذا خریدم 100 هزار",
+            "میوه خریدم 50 هزار",
+            "رستوران رفتم 200 هزار",
+            "نان خریدم 10 هزار",
+            "شیر خریدم 15 هزار",
+            "چای خریدم 20 هزار",
+            "قهوه خریدم 30 هزار",
+            "کباب خریدم 120 هزار",
+            "پیتزا خریدم 90 هزار"
+        )
+        foodSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Food for: $sentence", "Food", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - transportation keywords`() {
+        val transportSentences = listOf(
+            "بنزین زدم 200 هزار",
+            "اسنپ گرفتم 50 هزار",
+            "کرایه تاکسی 30 هزار",
+            "مترو رفتم 10 هزار"
+        )
+        transportSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Transportation for: $sentence", "Transportation", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - shopping keywords`() {
+        val shoppingSentences = listOf(
+            "لباس خریدم 500 هزار",
+            "کفش خریدم 300 هزار",
+            "کیف خریدم 200 هزار"
+        )
+        shoppingSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Shopping for: $sentence", "Shopping", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - bills keywords`() {
+        val billSentences = listOf(
+            "قبض برق دادم 200 هزار",
+            "قبض گاز پرداخت کردم 100 هزار"
+        )
+        billSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Bills for: $sentence", "Bills", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - personal care keywords`() {
+        val personalSentences = listOf(
+            "اصلاح کردم 100 هزار",
+            "آرایشگاه رفتم 150 هزار",
+            "عطر خریدم 300 هزار"
+        )
+        personalSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Personal Care for: $sentence", "Personal Care", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - education keywords`() {
+        val educationSentences = listOf(
+            "کلاس ثبت نام کردم 500 هزار",
+            "شهریه دانشگاه پرداخت کردم 2 میلیون"
+        )
+        educationSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Education for: $sentence", "Education", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - income keywords`() {
+        val incomeSentences = listOf(
+            "حقوق گرفتم 20 میلیون",
+            "درآمد داشتم 5 میلیون",
+            "واریز شد 10 میلیون"
+        )
+        incomeSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Income for: $sentence", "Income", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - loans keywords`() {
+        val loanSentences = listOf(
+            "قرض دادم 5 میلیون",
+            "قرض گرفتم 10 میلیون"
+        )
+        loanSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Loans for: $sentence", "Loans", result.category)
+        }
+    }
+
+    @Test
+    fun `category inference - default to Other`() {
+        val otherSentences = listOf(
+            "چیز عجیبی خریدم 50 هزار"
+        )
+        otherSentences.forEach { sentence ->
+            val result = GeminiParser.parseSentenceOffline(sentence)
+            assertEquals("Expected Other for: $sentence", "Other", result.category)
+        }
+    }
+
+    // ============================================================
+    // Confidence calculation tests
+    // ============================================================
+
+    @Test
+    fun `confidence - multiple factors increase confidence`() {
+        val result = GeminiParser.parseSentenceOffline("دیروز مرغ خریدم 80 هزار تومن به علی")
+        assertTrue("Confidence should be >= 0.85", result.confidence >= 0.85f)
+    }
+
+    @Test
+    fun `confidence - amount only gives moderate confidence`() {
+        val result = GeminiParser.parseSentenceOffline("500 هزار تومان")
+        assertTrue("Confidence should be >= 0.70", result.confidence >= 0.70f)
+    }
+
+    @Test
+    fun `confidence - no money keywords gives low confidence`() {
+        val result = GeminiParser.parseSentenceOffline("متن بدون پول")
+        assertTrue("Confidence should be <= 0.65", result.confidence <= 0.65f)
+    }
 }

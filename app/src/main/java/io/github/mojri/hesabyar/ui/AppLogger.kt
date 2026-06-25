@@ -7,7 +7,7 @@ import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 
 object AppLogger {
-    private val logs = CopyOnWriteArrayList<LogEntry>()
+    private val logs = ArrayDeque<LogEntry>()
     private const val MAX_LOGS = 200
 
     data class LogEntry(
@@ -43,21 +43,26 @@ object AppLogger {
         addLog(tag, "E", fullMessage)
     }
 
+    @Synchronized
     private fun addLog(tag: String, level: String, message: String) {
-        logs.add(LogEntry(tag = tag, level = level, message = message))
+        logs.addLast(LogEntry(tag = tag, level = level, message = message))
         while (logs.size > MAX_LOGS) {
-            logs.removeAt(0)
+            logs.removeFirst()
         }
     }
 
+    @Synchronized
     fun getLogs(): List<LogEntry> = logs.toList()
 
+    @Synchronized
     fun getLogsForTag(tag: String): List<LogEntry> = logs.filter { it.tag == tag }
 
+    @Synchronized
     fun getAiLogs(): List<LogEntry> = logs.filter {
         it.tag in listOf("AiConfigManager", "GeminiParser", "BudgetAdvisor", "AiProvider", "AiAssistantViewModel")
     }
 
+    @Synchronized
     fun clear() {
         logs.clear()
     }

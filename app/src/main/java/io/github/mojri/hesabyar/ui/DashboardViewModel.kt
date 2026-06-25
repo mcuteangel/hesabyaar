@@ -68,5 +68,5 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             creditorsTotal = creditorsTotal,
             upcomingInstallments = upcomingIns
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
 }

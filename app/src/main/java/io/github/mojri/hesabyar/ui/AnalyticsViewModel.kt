@@ -82,7 +82,7 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
         transactions, loans, installments, categories
     ) { trans, loanList, instList, catList ->
         computeAnalytics(trans, loanList, instList, catList)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
 
     fun setSelectedJalaliMonth(year: Int?, month: Int?) {
         _selectedJalaliMonth.value = if (year != null && month != null) year to month else null

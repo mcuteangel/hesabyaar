@@ -34,3 +34,4 @@ keystore-backups/my-upload-key.jks.bak
 **/skill.md
 .agents/
 skills-lock.json
+.mimocode/
