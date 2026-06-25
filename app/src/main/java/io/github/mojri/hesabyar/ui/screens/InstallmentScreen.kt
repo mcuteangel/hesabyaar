@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.ui.screens
 
-import android.app.DatePickerDialog
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -159,27 +158,11 @@ fun InstallmentScreen(
 
     // Add Installment Dialog
     if (showAddDialog) {
-        val calendar = Calendar.getInstance()
-        val context = LocalContext.current
-
         var title by remember { mutableStateOf("") }
         var amountText by remember { mutableStateOf("") }
-        var dateInMillis by remember { mutableStateOf(calendar.timeInMillis) }
-        var datePrompt by remember { mutableStateOf("انتخاب تاریخ سررسید") }
+        var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
         var reminderEnabled by remember { mutableStateOf(true) }
         var notes by remember { mutableStateOf("") }
-
-        val datePickerDialog = DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                calendar.set(year, month, dayOfMonth)
-                dateInMillis = calendar.timeInMillis
-                datePrompt = "$year/${month + 1}/$dayOfMonth"
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
 
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
@@ -210,20 +193,10 @@ fun InstallmentScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Date Picker Button inside manual add dialog
-                    Button(
-                        onClick = { datePickerDialog.show() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(imageVector = Icons.Filled.CalendarMonth, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(datePrompt)
-                    }
+                    JalaliDateTimePicker(
+                        initialTimestamp = dateInMillis,
+                        onTimestampChanged = { dateInMillis = it }
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

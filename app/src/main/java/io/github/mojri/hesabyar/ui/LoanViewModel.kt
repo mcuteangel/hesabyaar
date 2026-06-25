@@ -33,9 +33,9 @@ class LoanViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun makeRepayment(loanId: Long, amount: Long, notes: String) {
+    fun makeRepayment(loanId: Long, amount: Long, notes: String, customDate: Long? = null) {
         viewModelScope.launch {
-            repository.addPaymentToLoan(loanId, amount, notes)
+            repository.addPaymentToLoan(loanId, amount, notes, customDate)
         }
     }
 

@@ -22,7 +22,7 @@ interface HesabyarRepositoryInterface {
     suspend fun updateLoan(loan: Loan)
     suspend fun deleteLoan(loan: Loan)
     fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>>
-    suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String): Boolean
+    suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String, customDate: Long? = null): Boolean
     suspend fun insertInstallment(installment: Installment): Long
     suspend fun updateInstallment(installment: Installment)
     suspend fun deleteInstallment(installment: Installment)

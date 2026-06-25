@@ -163,6 +163,7 @@ fun LoanManagementScreen(
         var loanType by remember { mutableStateOf(termState) } // DEBTOR or CREDITOR
         var amountText by remember { mutableStateOf("") }
         var description by remember { mutableStateOf("") }
+        var customDate by remember { mutableStateOf(System.currentTimeMillis()) }
 
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
@@ -233,6 +234,11 @@ fun LoanManagementScreen(
                         label = { Text("توضیحات و بابت چی...") },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    JalaliDateTimePicker(
+                        initialTimestamp = customDate,
+                        onTimestampChanged = { customDate = it }
+                    )
                 }
             },
             confirmButton = {
@@ -241,7 +247,7 @@ fun LoanManagementScreen(
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
                             val amountRial = amountToman * 1000L
-                            loanViewModel.addLoan(personName, loanType, amountRial, description)
+                            loanViewModel.addLoan(personName, loanType, amountRial, description, customDate)
                             showAddDialog = false
                         } else {
                             settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
@@ -464,6 +470,7 @@ fun LoanListItem(
     if (showRepayDialog) {
         var repayAmount by remember { mutableStateOf("") }
         var repayNotes by remember { mutableStateOf("") }
+        var repayDate by remember { mutableStateOf(System.currentTimeMillis()) }
 
         AlertDialog(
             onDismissRequest = { showRepayDialog = false },
@@ -493,6 +500,11 @@ fun LoanListItem(
                         label = { Text("توضیحات (مثلا نقدی یا کارت به کارت)") },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    JalaliDateTimePicker(
+                        initialTimestamp = repayDate,
+                        onTimestampChanged = { repayDate = it }
+                    )
                 }
             },
             confirmButton = {
@@ -501,7 +513,7 @@ fun LoanListItem(
                         val amountToman = repayAmount.toLongOrNull() ?: 0L
                         if (amountToman > 0L) {
                             val amountRial = amountToman * 1000L
-                            loanViewModel.makeRepayment(loan.id, amountRial, repayNotes)
+                            loanViewModel.makeRepayment(loan.id, amountRial, repayNotes, repayDate)
                             showRepayDialog = false
                         } else {
                             settingsViewModel.showMessage("لطفا مبلغ صحیح وارد کنید")

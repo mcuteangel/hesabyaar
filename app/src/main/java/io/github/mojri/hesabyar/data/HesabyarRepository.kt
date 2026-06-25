@@ -71,10 +71,11 @@ class HesabyarRepository(
         return paymentHistoryDao.getPaymentHistoryForLoan(loanId)
     }
 
-    override suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String): Boolean {
+    override suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String, customDate: Long?): Boolean {
         val loan = loanDao.getLoanById(loanId) ?: return false
         val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
         val isSettled = newRemaining <= 0L
+        val date = customDate ?: System.currentTimeMillis()
 
         updateLoan(loan.copy(
             remainingAmount = newRemaining,
@@ -84,7 +85,8 @@ class HesabyarRepository(
         paymentHistoryDao.insertPayment(PaymentHistory(
             loanId = loanId,
             amount = amount,
-            notes = notes
+            notes = notes,
+            date = date
         ))
 
         // Create an associated transaction matching this repayment
@@ -100,7 +102,8 @@ class HesabyarRepository(
             categoryId = loansCategory?.id ?: 1L,
             amount = amount,
             description = desc,
-            personName = loan.personName
+            personName = loan.personName,
+            date = date
         ))
 
         return true
