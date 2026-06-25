@@ -39,24 +39,35 @@ fun ReportsScreen(
 ) {
     val transactions by dashboardViewModel.transactions.collectAsState()
     val categories by dashboardViewModel.categories.collectAsState()
-    var filterSelection by remember { mutableStateOf("MONTHLY") } // "DAILY", "MONTHLY", "YEARLY"
     var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
+    var selectedPreset by remember { mutableStateOf<String?>(null) }
 
-    // Calculate dynamic stats based on filter selection
     val now = System.currentTimeMillis()
-    val filterDuration = when (filterSelection) {
-        "DAILY" -> 24L * 60L * 60L * 1000L                   // 24 hours
-        "MONTHLY" -> 30L * 24L * 60L * 60L * 1000L            // 30 days
-        "YEARLY" -> 365L * 24L * 60L * 60L * 1000L           // 365 days
-        else -> 30L * 24L * 60L * 60L * 1000L
+    var startDate by remember { mutableStateOf(now - 30L * 24 * 60 * 60 * 1000) }
+    var endDate by remember { mutableStateOf(now) }
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker by remember { mutableStateOf(false) }
+
+    if (showStartPicker) {
+        JalaliDatePickerDialog(
+            initialTimestamp = startDate,
+            onDismissRequest = { showStartPicker = false },
+            onDateSelected = { startDate = it; selectedPreset = null }
+        )
+    }
+    if (showEndPicker) {
+        JalaliDatePickerDialog(
+            initialTimestamp = endDate,
+            onDismissRequest = { showEndPicker = false },
+            onDateSelected = { endDate = it; selectedPreset = null }
+        )
     }
 
-    val filteredList = transactions.filter { it.date >= (now - filterDuration) }
-    val displayList = if (selectedCategoryFilter != null) {
-        transactions.filter { it.categoryId == selectedCategoryFilter }.sortedByDescending { it.date }
-    } else {
-        transactions.sortedByDescending { it.date }
-    }
+    val filteredList = transactions.filter { it.date in startDate..endDate }
+    val displayList = transactions
+        .filter { it.date in startDate..endDate }
+        .let { list -> if (selectedCategoryFilter != null) list.filter { it.categoryId == selectedCategoryFilter } else list }
+        .sortedByDescending { it.date }
 
     var totalIncome = 0L
     var totalExpense = 0L
@@ -91,35 +102,108 @@ fun ReportsScreen(
             )
         }
 
-        // Horizontal filter bar (Daily, Monthly, Yearly)
+        // Date range filter
         item {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val reportPeriods = listOf(
-                    "DAILY" to "روزانه (۲۴ ساعت)",
-                    "MONTHLY" to "ماهانه (۳۰ روز)",
-                    "YEARLY" to "سالانه (۳۶۵ روز)"
-                )
+                // Preset buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val presets = listOf(
+                        "امروز" to { Pair(now - (now % (24L * 60 * 60 * 1000)), now) },
+                        "هفته اخیر" to { Pair(now - 7L * 24 * 60 * 60 * 1000, now) },
+                        "ماه اخیر" to { Pair(now - 30L * 24 * 60 * 60 * 1000, now) },
+                        "سال اخیر" to { Pair(now - 365L * 24 * 60 * 60 * 1000, now) }
+                    )
 
-                reportPeriods.forEach { (period, title) ->
-                    Button(
-                        onClick = { filterSelection = period },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (filterSelection == period) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            contentColor = if (filterSelection == period) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = null,
-                        contentPadding = PaddingValues(8.dp)
+                    presets.forEach { (label, rangeFn) ->
+                        val isSelected = selectedPreset == label
+                        Button(
+                            onClick = {
+                                val (s, e) = rangeFn()
+                                startDate = s
+                                endDate = e
+                                selectedPreset = label
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            elevation = null,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                        ) {
+                            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                        }
+                    }
+                }
+
+                // Jalali date picker buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showStartPicker = true },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Text(title, style = MaterialTheme.typography.labelSmall)
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Column {
+                            Text(
+                                text = "از تاریخ",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = formatPersianDate(startDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { showEndPicker = true },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Column {
+                            Text(
+                                text = "تا تاریخ",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = formatPersianDate(endDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
