@@ -286,33 +286,8 @@ object GeminiParser {
             }
         }
 
-        // Extract amount helper (e.g. 450 هزار or 5 میلیون)
-        val digit = "[0-9۰-۹]"
-        val numPattern = "($digit+([./]$digit+)?)"
-        val millionRegex = "$numPattern\\s*(میلیون|میلیون تومان|ملیون)".toRegex()
-        val thousandRegex = "$numPattern\\s*(هزار|تومن|تومان)".toRegex()
-
-        val millionMatch = millionRegex.find(sentence)
-        val thousandMatch = thousandRegex.find(sentence)
-
-        if (millionMatch != null) {
-            val num = toArabicDigits(millionMatch.groupValues[1]).replace("/", ".").toDoubleOrNull() ?: 1.0
-            amountToman = num * 1_000_000.0
-        } else if (thousandMatch != null) {
-            val num = toArabicDigits(thousandMatch.groupValues[1]).replace("/", ".").toDoubleOrNull() ?: 1.0
-            amountToman = if (sentence.contains("هزار")) num * 1000.0 else num
-        } else {
-            // Check for simple number
-            val numbers = "[$digit]+".toRegex().findAll(sentence).toList()
-            if (numbers.isNotEmpty()) {
-                val num = toArabicDigits(numbers.last().value).toDoubleOrNull() ?: 0.0
-                if (num < 1000) {
-                    amountToman = if (sentence.contains("میلیون")) num * 1_000_000 else if (sentence.contains("هزار")) num * 1000 else num
-                } else {
-                    amountToman = num
-                }
-            }
-        }
+        // Extract amount using the structured parser
+        amountToman = PersianAmountParser.parseAmount(sentence).toDouble()
 
         // Detect Persons elements
         val personRegex = "(به|از)\\s+([^\\s]+)".toRegex()
@@ -334,7 +309,7 @@ object GeminiParser {
             "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی", "کارانه",
             "فروش", "درآمدزایی", "حق بیمه", "عیدی", " سنوات", "پرداختی",
             "حقوق ماه", "حقوق اداره", "حقوق شرکت", "حقوقم", "حقوقم رو",
-            "دریافت کردم", "واریز شد", "رسید", "واریز کرد", "گرفتم"
+            "دریافت کردم", "واریز شد", "رسید", "واریز کرد"
         )
         val expenseKeywords = listOf(
             "خریدم", "پرداخت", "هزینه", "قبض", " اجاره", "خرید", "پول دادم",
