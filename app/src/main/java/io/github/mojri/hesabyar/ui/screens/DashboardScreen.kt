@@ -127,6 +127,9 @@ fun DashboardScreen(
     val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
     var showManualAddDialog by remember { mutableStateOf(false) }
     var showFullForecast by remember { mutableStateOf(false) }
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var deletingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var showDetailTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     LaunchedEffect(transactions, loans, installments, categories) {
         aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories)
@@ -744,7 +747,12 @@ fun DashboardScreen(
             }
         } else {
             items(transactions.take(5)) { transaction ->
-                TransactionMiniItem(transaction = transaction, categories = categories)
+                TransactionMiniItem(
+                    transaction = transaction,
+                    categories = categories,
+                    onClick = { showDetailTransaction = transaction },
+                    onDelete = { deletingTransaction = transaction }
+                )
             }
         }
     }
@@ -772,6 +780,43 @@ if (showManualAddDialog) {
         installmentViewModel = installmentViewModel,
         categories = categories,
         onDismiss = { showManualAddDialog = false }
+    )
+}
+
+if (editingTransaction != null) {
+    ManualTransactionDialog(
+        transactionViewModel = transactionViewModel,
+        loanViewModel = loanViewModel,
+        installmentViewModel = installmentViewModel,
+        categories = categories,
+        transactionToEdit = editingTransaction,
+        onDismiss = { editingTransaction = null }
+    )
+}
+
+if (deletingTransaction != null) {
+    DeleteConfirmationDialog(
+        onConfirm = {
+            transactionViewModel.deleteTransaction(deletingTransaction!!)
+            deletingTransaction = null
+        },
+        onDismiss = { deletingTransaction = null }
+    )
+}
+
+if (showDetailTransaction != null) {
+    TransactionDetailDialog(
+        transaction = showDetailTransaction!!,
+        categories = categories,
+        onEdit = {
+            editingTransaction = showDetailTransaction
+            showDetailTransaction = null
+        },
+        onDelete = {
+            deletingTransaction = showDetailTransaction
+            showDetailTransaction = null
+        },
+        onDismiss = { showDetailTransaction = null }
     )
 }
 
@@ -872,7 +917,7 @@ fun InstallmentMiniItem(
 }
 
 @Composable
-fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = emptyList()) {
+fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = emptyList(), onClick: () -> Unit = {}, onDelete: () -> Unit = {}) {
     val isIncome = transaction.type == "INCOME"
     val category = categories.find { it.id == transaction.categoryId }
     val categoryColor = category?.let { Color(it.color) } ?: if (isIncome) IncomeGreen else ExpenseRed
@@ -881,7 +926,8 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier
@@ -928,12 +974,22 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
                 }
             }
 
-            Text(
-                text = (if (isIncome) "+" else "-") + formatToman(transaction.amount),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isIncome) IncomeGreen else ExpenseRed
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = (if (isIncome) "+" else "-") + formatToman(transaction.amount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isIncome) IncomeGreen else ExpenseRed
+                )
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "حذف تراکنش",
+                        tint = ExpenseRed.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -1079,22 +1135,202 @@ fun ForecastDetailDialog(
 }
 
 @Composable
+fun TransactionDetailDialog(
+    transaction: Transaction,
+    categories: List<Category>,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isIncome = transaction.type == "INCOME"
+    val category = categories.find { it.id == transaction.categoryId }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "جزئیات تراکنش",
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Right
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "نوع:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = if (isIncome) "درآمد" else "هزینه",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isIncome) IncomeGreen else ExpenseRed
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "مبلغ:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = formatToman(transaction.amount),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isIncome) IncomeGreen else ExpenseRed
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "دسته‌بندی:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = category?.name ?: "سایر",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "تاریخ:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = formatPersianDate(transaction.date),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "توضیحات:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = transaction.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(imageVector = Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("ویرایش")
+                }
+                Button(
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                ) {
+                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("حذف")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("بستن")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("حذف تراکنش") },
+        text = { Text("آیا از حذف این تراکنش اطمینان دارید؟") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("حذف", color = ExpenseRed)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("لغو")
+            }
+        }
+    )
+}
+
+@Composable
 fun ManualTransactionDialog(
     transactionViewModel: TransactionViewModel,
     loanViewModel: LoanViewModel,
     installmentViewModel: InstallmentViewModel,
     categories: List<Category>,
+    transactionToEdit: Transaction? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var selectedType by remember { mutableStateOf("EXPENSE") }
-    var amountValue by remember { mutableStateOf(TextFieldValue("")) }
-    var descriptionText by remember { mutableStateOf("") }
-    var selectedCategoryId by remember { mutableStateOf(0L) }
-    var personNameText by remember { mutableStateOf("") }
-    var titleText by remember { mutableStateOf("") }
+    val isEditMode = transactionToEdit != null
+    var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
+    var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) (transactionToEdit!!.amount / 1000).toString() else "")) }
+    var descriptionText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
+    var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
+    var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
+    var titleText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
     var daysFromNowText by remember { mutableStateOf("30") }
-    var customDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var customDate by remember { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
 
     val filteredCategories = categories.filter { cat ->
         when (selectedType) {
@@ -1136,7 +1372,7 @@ fun ManualTransactionDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "✍️ ثبت دستی تراکنش جدید",
+                        text = if (isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -1436,13 +1672,25 @@ fun ManualTransactionDialog(
                                 "INCOME", "EXPENSE" -> {
                                     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
                                     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
-                                    transactionViewModel.addTransaction(
-                                        type = selectedType,
-                                        categoryId = selectedCategoryId,
-                                        amount = finalAmountRial,
-                                        description = desc,
-                                        customDate = customDate
-                                    )
+                                    if (isEditMode) {
+                                        transactionViewModel.updateTransaction(
+                                            transactionToEdit!!.copy(
+                                                type = selectedType,
+                                                categoryId = selectedCategoryId,
+                                                amount = finalAmountRial,
+                                                description = desc,
+                                                date = customDate
+                                            )
+                                        )
+                                    } else {
+                                        transactionViewModel.addTransaction(
+                                            type = selectedType,
+                                            categoryId = selectedCategoryId,
+                                            amount = finalAmountRial,
+                                            description = desc,
+                                            customDate = customDate
+                                        )
+                                    }
                                 }
                                 "LOAN_DEBTOR", "LOAN_CREDITOR" -> {
                                     val person = personNameText.trim()
@@ -1481,7 +1729,7 @@ fun ManualTransactionDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = typeColor)
                     ) {
-                        Text("ثبت تراکنش", color = Color.White)
+                        Text(if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش", color = Color.White)
                     }
                 }
             }

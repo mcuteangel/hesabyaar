@@ -42,6 +42,7 @@ fun LoanManagementScreen(
 ) {
     val loans by loanViewModel.loans.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingLoan by remember { mutableStateOf<Loan?>(null) }
     var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
 
     // Filtered lists
@@ -150,7 +151,8 @@ fun LoanManagementScreen(
                         loan = loan,
                         loanViewModel = loanViewModel,
                         settingsViewModel = settingsViewModel,
-                        onDelete = { loanViewModel.deleteLoan(loan) }
+                        onDelete = { loanViewModel.deleteLoan(loan) },
+                        onEdit = { editingLoan = loan }
                     )
                 }
             }
@@ -264,6 +266,118 @@ fun LoanManagementScreen(
             }
         )
     }
+
+    // Edit Loan Dialog
+    if (editingLoan != null) {
+        val loan = editingLoan!!
+        var personName by remember { mutableStateOf(loan.personName) }
+        var loanType by remember { mutableStateOf(loan.type) }
+        var amountText by remember { mutableStateOf((loan.originalAmount / 1000).toString()) }
+        var description by remember { mutableStateOf(loan.description) }
+        var customDate by remember { mutableStateOf(loan.date) }
+
+        AlertDialog(
+            onDismissRequest = { editingLoan = null },
+            title = {
+                Text(
+                    "ویرایش قرض",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { loanType = "DEBTOR" },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (loanType == "DEBTOR") IncomeGreen else Color.Transparent,
+                                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("من قرض دادم", style = MaterialTheme.typography.labelSmall)
+                        }
+
+                        Button(
+                            onClick = { loanType = "CREDITOR" },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (loanType == "CREDITOR") ExpenseRed else Color.Transparent,
+                                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
+                            ),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("من قرض گرفتم", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = personName,
+                        onValueChange = { personName = it },
+                        label = { Text("نام شخص طرف حساب") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = amountText,
+                        onValueChange = { amountText = it },
+                        label = { Text("مبلغ قرض (تومان)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("توضیحات و بابت چی...") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    JalaliDateTimePicker(
+                        initialTimestamp = customDate,
+                        onTimestampChanged = { customDate = it }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val amountToman = amountText.toLongOrNull() ?: 0L
+                        if (personName.isNotBlank() && amountToman > 0L) {
+                            val amountRial = amountToman * 1000L
+                            loanViewModel.updateLoan(
+                                loan.copy(
+                                    personName = personName,
+                                    type = loanType,
+                                    originalAmount = amountRial,
+                                    description = description,
+                                    date = customDate
+                                )
+                            )
+                            editingLoan = null
+                        } else {
+                            settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
+                        }
+                    }
+                ) {
+                    Text("ذخیره تغییرات")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingLoan = null }) {
+                    Text("انصراف")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -271,7 +385,8 @@ fun LoanListItem(
     loan: Loan,
     loanViewModel: LoanViewModel,
     settingsViewModel: SettingsViewModel,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showRepayDialog by remember { mutableStateOf(false) }
@@ -324,9 +439,9 @@ fun LoanListItem(
                             text = "بابت: ${loan.description}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
+        )
+    }
+}
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
@@ -446,6 +561,15 @@ fun LoanListItem(
                                 .size(40.dp)
                         ) {
                             Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قرض", tint = ExpenseRed)
+                        }
+
+                        IconButton(
+                            onClick = onEdit,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape)
+                                .size(40.dp)
+                        ) {
+                            Icon(imageVector = Icons.Filled.Edit, contentDescription = "ویرایش قرض", tint = MaterialTheme.colorScheme.primary)
                         }
 
                         if (!loan.isSettled) {

@@ -25,6 +25,9 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.DashboardViewModel
+import io.github.mojri.hesabyar.ui.InstallmentViewModel
+import io.github.mojri.hesabyar.ui.LoanViewModel
+import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.AdvisorUIState
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
@@ -34,6 +37,9 @@ import java.util.*
 @Composable
 fun ReportsScreen(
     dashboardViewModel: DashboardViewModel,
+    transactionViewModel: TransactionViewModel,
+    loanViewModel: LoanViewModel,
+    installmentViewModel: InstallmentViewModel,
     aiAssistantViewModel: AiAssistantViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -41,6 +47,9 @@ fun ReportsScreen(
     val categories by dashboardViewModel.categories.collectAsState()
     var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
     var selectedPreset by remember { mutableStateOf<String?>(null) }
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var deletingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var showDetailTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     val now = System.currentTimeMillis()
     var startDate by remember { mutableStateOf(now - 30L * 24 * 60 * 60 * 1000) }
@@ -627,11 +636,12 @@ fun ReportsScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(12.dp),
+                        .padding(12.dp)
+                        .clickable { showDetailTransaction = transaction },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = transaction.description,
                             style = MaterialTheme.typography.bodyMedium,
@@ -644,15 +654,62 @@ fun ReportsScreen(
                         )
                     }
 
-                    Text(
-                        text = (if (transaction.type == "INCOME") "+" else "-") + formatToman(transaction.amount),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (transaction.type == "INCOME") IncomeGreen else ExpenseRed
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = (if (transaction.type == "INCOME") "+" else "-") + formatToman(transaction.amount),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (transaction.type == "INCOME") IncomeGreen else ExpenseRed
+                        )
+                        IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "حذف تراکنش",
+                                tint = ExpenseRed.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (showDetailTransaction != null) {
+        TransactionDetailDialog(
+            transaction = showDetailTransaction!!,
+            categories = categories,
+            onEdit = {
+                editingTransaction = showDetailTransaction
+                showDetailTransaction = null
+            },
+            onDelete = {
+                deletingTransaction = showDetailTransaction
+                showDetailTransaction = null
+            },
+            onDismiss = { showDetailTransaction = null }
+        )
+    }
+
+    if (editingTransaction != null) {
+        ManualTransactionDialog(
+            transactionViewModel = transactionViewModel,
+            loanViewModel = loanViewModel,
+            installmentViewModel = installmentViewModel,
+            categories = categories,
+            transactionToEdit = editingTransaction,
+            onDismiss = { editingTransaction = null }
+        )
+    }
+
+    if (deletingTransaction != null) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                transactionViewModel.deleteTransaction(deletingTransaction!!)
+                deletingTransaction = null
+            },
+            onDismiss = { deletingTransaction = null }
+        )
     }
 }
 

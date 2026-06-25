@@ -43,6 +43,12 @@ class LoanViewModel(application: Application) : AndroidViewModel(application) {
         return repository.getPaymentHistoryForLoan(loanId)
     }
 
+    fun updateLoan(loan: Loan) {
+        viewModelScope.launch {
+            repository.updateLoan(loan)
+        }
+    }
+
     fun deleteLoan(loan: Loan) {
         viewModelScope.launch {
             repository.deleteLoan(loan)

@@ -150,6 +150,9 @@ class MainActivity : ComponentActivity() {
                             )
                             "REPORTS" -> ReportsScreen(
                                 dashboardViewModel = dashboardViewModel,
+                                transactionViewModel = transactionViewModel,
+                                loanViewModel = loanViewModel,
+                                installmentViewModel = installmentViewModel,
                                 aiAssistantViewModel = aiAssistantViewModel,
                                 modifier = modifier
                             )
