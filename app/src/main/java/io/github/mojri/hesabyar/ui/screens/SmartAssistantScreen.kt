@@ -28,13 +28,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import java.util.Calendar
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Category
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
+import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
@@ -717,8 +720,9 @@ fun ParsedResultCard(
     val context = LocalContext.current
     
     // States for interactive editing
-    var amountText by remember(result) { 
-        mutableStateOf((result.amount / 1000).toString())
+    var amountValue by remember(result) {
+        val text = (result.amount / 1000).toString()
+        mutableStateOf(TextFieldValue(text = text, selection = TextRange(text.length)))
     }
     var descriptionText by remember(result) { mutableStateOf(result.description) }
     var selectedType by remember(result) { mutableStateOf(result.type) }
@@ -904,8 +908,8 @@ fun ParsedResultCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
+                    value = amountValue,
+                    onValueChange = { amountValue = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("parsed_amount_input"),
@@ -924,8 +928,12 @@ fun ParsedResultCard(
                         focusedLabelColor = typeColor
                     )
                 )
+                AmountQuickFillButtons(
+                    amountValue = amountValue,
+                    onValueChanged = { amountValue = it }
+                )
                 // Formatted Amount preview in Persian words
-                val amtToman = amountText.toLongOrNull() ?: 0L
+                val amtToman = amountValue.text.toLongOrNull() ?: 0L
                 if (amtToman > 0L) {
                     val amtRial = amtToman * 1000L
                     Text(
@@ -1082,7 +1090,7 @@ fun ParsedResultCard(
 
                 Button(
                     onClick = {
-                        val finalAmountToman = amountText.toLongOrNull() ?: 0L
+                        val finalAmountToman = amountValue.text.toLongOrNull() ?: 0L
                         if (finalAmountToman <= 0L) {
                             android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                             return@Button

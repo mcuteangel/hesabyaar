@@ -37,7 +37,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -49,6 +51,7 @@ import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.theme.ExpenseRed
 import io.github.mojri.hesabyar.ui.theme.IncomeGreen
 import io.github.mojri.hesabyar.ui.theme.WarningOrange
@@ -1085,7 +1088,7 @@ fun ManualTransactionDialog(
 ) {
     val context = LocalContext.current
     var selectedType by remember { mutableStateOf("EXPENSE") }
-    var amountText by remember { mutableStateOf("") }
+    var amountValue by remember { mutableStateOf(TextFieldValue("")) }
     var descriptionText by remember { mutableStateOf("") }
     var selectedCategoryId by remember { mutableStateOf(0L) }
     var personNameText by remember { mutableStateOf("") }
@@ -1098,18 +1101,6 @@ fun ManualTransactionDialog(
             "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
             "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
             else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
-        }
-    }
-
-    LaunchedEffect(selectedType) {
-        if (selectedCategoryId == 0L || categories.find { it.id == selectedCategoryId } == null) {
-            selectedCategoryId = when (selectedType) {
-                "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
-                "EXPENSE" -> categories.find { it.key == "Food" }?.id ?: 1L
-                "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
-                "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
-                else -> categories.find { it.key == "Other" }?.id ?: 1L
-            }
         }
     }
 
@@ -1235,8 +1226,8 @@ fun ManualTransactionDialog(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         OutlinedTextField(
-                            value = amountText,
-                            onValueChange = { amountText = it },
+                            value = amountValue,
+                            onValueChange = { amountValue = it },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("manual_amount_input"),
@@ -1255,7 +1246,11 @@ fun ManualTransactionDialog(
                                 focusedLabelColor = typeColor
                             )
                         )
-                        val amtToman = amountText.toLongOrNull() ?: 0L
+                        AmountQuickFillButtons(
+                            amountValue = amountValue,
+                            onValueChanged = { amountValue = it }
+                        )
+                        val amtToman = amountValue.text.toLongOrNull() ?: 0L
                         if (amtToman > 0L) {
                             val amtRial = amtToman * 1000L
                             Text(
@@ -1423,12 +1418,19 @@ fun ManualTransactionDialog(
 
                     Button(
                         onClick = {
-                            val finalAmountToman = amountText.toLongOrNull() ?: 0L
+                            val finalAmountToman = amountValue.text.toLongOrNull() ?: 0L
                             if (finalAmountToman <= 0L) {
                                 android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             val finalAmountRial = finalAmountToman * 1000L
+
+                            if (selectedType == "INCOME" || selectedType == "EXPENSE") {
+                                if (selectedCategoryId == 0L) {
+                                    android.widget.Toast.makeText(context, "لطفا دسته‌بندی را انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                            }
 
                             when (selectedType) {
                                 "INCOME", "EXPENSE" -> {
