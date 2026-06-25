@@ -1,0 +1,49 @@
+# EditorConfig — https://editorconfig.org
+# Root config for the Hesabyar project. Applies to all files.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
+# Kotlin — drives ktlint behavior.
+[*.{kt,kts}]
+indent_size = 2
+max_line_length = 120
+# Keep imports that ktlint would otherwise flag. The codebase uses wildcard
+# imports in places (e.g. material3.*); we relax the rule to avoid churning
+# the whole UI layer in Phase 0. Revisit in a later phase.
+ktlint_standard_no_wildcard-imports = disabled
+# Allow experimental/trailing-comma freedom until a cleanup pass.
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+
+# Gradle / config
+[*.{gradle,kts,btf}]
+indent_size = 2
+
+# TOML (version catalog)
+[*.toml]
+indent_size = 2
+
+# Markdown docs
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# XML resources
+[*.{xml,svg}]
+indent_size = 4
+
+# YAML (CI workflows)
+[*.{yml,yaml}]
+indent_size = 2
+
+# Makefile (tabs required)
+[Makefile]
+indent_style = tab

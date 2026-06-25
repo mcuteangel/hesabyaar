@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+  alias(libs.plugins.ktlint)
 }
 
 android {
@@ -22,7 +23,7 @@ android {
 
   signingConfigs {
     create("release") {
-      storeFile = file("${rootDir}/my-upload-key.jks")
+      storeFile = file("$rootDir/my-upload-key.jks")
       storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
         ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
         ?: ""
@@ -55,7 +56,15 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      isReturnDefaultValues = true
+    }
+  }
+  lint {
+    baseline = file("lint-baseline.xml")
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -66,34 +75,37 @@ secrets {
 }
 
 tasks.register("checkSigningConfig") {
-    group = "signing"
-    description = "Validates that release signing credentials are configured"
-    doFirst {
-        val storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
-            ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
-            ?: ""
-        val keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
-            ?: providers.environmentVariable("KEY_ALIAS").orNull
-            ?: ""
-        val keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
-            ?: providers.environmentVariable("KEY_PASSWORD").orNull
-            ?: ""
-        val keystoreFile = file("${rootDir}/my-upload-key.jks")
+  group = "signing"
+  description = "Validates that release signing credentials are configured"
+  doFirst {
+    val storePassword =
+      providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+        ?: ""
+    val keyAlias =
+      providers.gradleProperty("KEY_ALIAS").orNull
+        ?: providers.environmentVariable("KEY_ALIAS").orNull
+        ?: ""
+    val keyPassword =
+      providers.gradleProperty("KEY_PASSWORD").orNull
+        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+        ?: ""
+    val keystoreFile = file("$rootDir/my-upload-key.jks")
 
-        val issues = mutableListOf<String>()
-        if (storePassword.isBlank()) issues.add("KEYSTORE_PASSWORD is not set")
-        if (keyAlias.isBlank()) issues.add("KEY_ALIAS is not set")
-        if (keyPassword.isBlank()) issues.add("KEY_PASSWORD is not set")
-        if (!keystoreFile.exists()) issues.add("Keystore file not found: my-upload-key.jks")
+    val issues = mutableListOf<String>()
+    if (storePassword.isBlank()) issues.add("KEYSTORE_PASSWORD is not set")
+    if (keyAlias.isBlank()) issues.add("KEY_ALIAS is not set")
+    if (keyPassword.isBlank()) issues.add("KEY_PASSWORD is not set")
+    if (!keystoreFile.exists()) issues.add("Keystore file not found: my-upload-key.jks")
 
-        if (issues.isNotEmpty()) {
-            logger.warn("⚠ Signing configuration issues:")
-            issues.forEach { logger.warn("  - $it") }
-            logger.warn("Add signing credentials to your local .env file. See .env.example for reference.")
-        } else {
-            logger.lifecycle("✓ Signing configuration is valid.")
-        }
+    if (issues.isNotEmpty()) {
+      logger.warn("⚠ Signing configuration issues:")
+      issues.forEach { logger.warn("  - $it") }
+      logger.warn("Add signing credentials to your local .env file. See .env.example for reference.")
+    } else {
+      logger.lifecycle("✓ Signing configuration is valid.")
     }
+  }
 }
 
 // Some unused dependencies are commented out below instead of being removed.
@@ -154,46 +166,53 @@ dependencies {
   "ksp"(libs.moshi.kotlin.codegen)
 }
 
-tasks.register("generateKeystore") {
-    group = "signing"
-    description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
-    doFirst {
-        val storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
-            ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
-            ?: ""
-        val keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
-            ?: providers.environmentVariable("KEY_PASSWORD").orNull
-            ?: ""
-        val keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
-            ?: providers.environmentVariable("KEY_ALIAS").orNull
-            ?: "mojrico"
-        if (storePassword.isBlank() || keyPassword.isBlank()) {
-            throw GradleException(
-                "KEYSTORE_PASSWORD and KEY_PASSWORD must be set.\n" +
-                "Add them to your local .env file or set as environment variables.\n" +
-                "See .env.example for reference."
-            )
-        }
-        val keystoreFile = File(rootDir, "my-upload-key.jks")
-        if (!keystoreFile.exists()) {
-            println("Generating release keystore...")
-            val pb = ProcessBuilder(
-                "keytool", "-genkey", "-noprompt",
-                "-alias", keyAlias,
-                "-dname", "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
-                "-keystore", keystoreFile.absolutePath,
-                "-storepass", storePassword,
-                "-keypass", keyPassword,
-                "-keyalg", "RSA",
-                "-keysize", "2048",
-                "-validity", "10000"
-            )
-            val proc = pb.start()
-            proc.waitFor()
-            println("Keystore generated successfully at: ${keystoreFile.absolutePath}")
-        } else {
-            println("Keystore already exists, skipping generation.")
-        }
-    }
+ktlint {
+  android = true
 }
 
+tasks.register("generateKeystore") {
+  group = "signing"
+  description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
+  doFirst {
+    val storePassword =
+      providers.gradleProperty("KEYSTORE_PASSWORD").orNull
+        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+        ?: ""
+    val keyPassword =
+      providers.gradleProperty("KEY_PASSWORD").orNull
+        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+        ?: ""
+    val keyAlias =
+      providers.gradleProperty("KEY_ALIAS").orNull
+        ?: providers.environmentVariable("KEY_ALIAS").orNull
+        ?: "mojrico"
+    if (storePassword.isBlank() || keyPassword.isBlank()) {
+      throw GradleException(
+        "KEYSTORE_PASSWORD and KEY_PASSWORD must be set.\n" +
+          "Add them to your local .env file or set as environment variables.\n" +
+          "See .env.example for reference."
+      )
+    }
+    val keystoreFile = File(rootDir, "my-upload-key.jks")
+    if (!keystoreFile.exists()) {
+      println("Generating release keystore...")
+      val pb =
+        ProcessBuilder(
+          "keytool", "-genkey", "-noprompt",
+          "-alias", keyAlias,
+          "-dname", "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
+          "-keystore", keystoreFile.absolutePath,
+          "-storepass", storePassword,
+          "-keypass", keyPassword,
+          "-keyalg", "RSA",
+          "-keysize", "2048",
+          "-validity", "10000"
+        )
+      val proc = pb.start()
+      proc.waitFor()
+      println("Keystore generated successfully at: ${keystoreFile.absolutePath}")
+    } else {
+      println("Keystore already exists, skipping generation.")
+    }
+  }
+}
