@@ -377,4 +377,40 @@ class OfflineParserTest {
         assertEquals("EXPENSE", result.type)
         assertEquals(109_800_000L, result.amount)
     }
+
+    @Test
+    fun `income description includes subject`() {
+        val result = GeminiParser.parseSentenceOffline("بابت فروش پرتقال ها 200 هزار تومن گرفتم")
+        assertEquals("INCOME", result.type)
+        assertTrue("Description should mention subject", result.description.contains("پرتقال"))
+    }
+
+    @Test
+    fun `expense description includes subject`() {
+        val result = GeminiParser.parseSentenceOffline("بسته اینترنت خریدم 100 هزار تومن")
+        assertEquals("EXPENSE", result.type)
+        assertTrue("Description should mention subject", result.description.contains("بسته اینترنت"))
+    }
+
+    @Test
+    fun `expense description for food includes item`() {
+        val result = GeminiParser.parseSentenceOffline("مرغ خریدم 80 هزار تومن")
+        assertEquals("EXPENSE", result.type)
+        assertTrue("Description should mention food item", result.description.contains("مرغ"))
+    }
+
+    @Test
+    fun `soda purchase description includes soda`() {
+        val result = GeminiParser.parseSentenceOffline("نوشابه خریدم 85 هزار تومن")
+        assertEquals("EXPENSE", result.type)
+        assertTrue("Description should mention نوشابه", result.description.contains("نوشابه"))
+    }
+
+    @Test
+    fun `soda with time word excludes time from subject`() {
+        val result = GeminiParser.parseSentenceOffline("دیشب نوشابه گرفتم")
+        assertEquals("EXPENSE", result.type)
+        assertTrue("Description should not contain دیشب", !result.description.contains("دیشب"))
+        assertTrue("Description should contain نوشابه", result.description.contains("نوشابه"))
+    }
 }

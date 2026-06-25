@@ -100,7 +100,20 @@ object GeminiParser {
                     sentence.contains("اسنک") || sentence.contains("بستنی") || sentence.contains("سالاد") ||
                     sentence.contains("ماهی") || sentence.contains("میگو") || sentence.contains("سبزی") ||
                     sentence.contains("مربا") || sentence.contains("روغن") || sentence.contains("برنج") ||
-                    sentence.contains("ماکارونی") || sentence.contains("رب") || sentence.contains("ادویه") -> Pair("Food", "خرید مواد غذایی")
+                    sentence.contains("ماکارونی") || sentence.contains("رب") || sentence.contains("ادویه") ||
+                    sentence.contains("نوشابه") || sentence.contains("آب معدنی") || sentence.contains("آب") ||
+                    sentence.contains("دوغ") || sentence.contains("دلستر") || sentence.contains("چیپس") ||
+                    sentence.contains("شکلات") || sentence.contains("کیک") || sentence.contains("بیسکوییت") ||
+                    sentence.contains("میوه") || sentence.contains("موز") || sentence.contains("سیب") ||
+                    sentence.contains("پرتقال") || sentence.contains("هندوانه") || sentence.contains("خربزه") ||
+                    sentence.contains("انگور") || sentence.contains("توت") || sentence.contains("تمشک") ||
+                    sentence.contains("کدو") || sentence.contains("خیار") || sentence.contains("گوجه") ||
+                    sentence.contains("کلم") || sentence.contains("اسفناج") || sentence.contains("لوبیا") ||
+                    sentence.contains("نخود") || sentence.contains("عدس") || sentence.contains("لپه") ||
+                    sentence.contains("سوپ") || sentence.contains("آش") || sentence.contains("حلیم") ||
+                    sentence.contains("کباب") || sentence.contains("استیک") || sentence.contains("سوسیس") ||
+                    sentence.contains("کالباس") || sentence.contains("hamberger") || sentence.contains("پیتزا") ||
+                    sentence.contains("ساندویچ") || sentence.contains("همبرگر") -> Pair("Food", "خرید مواد غذایی")
             sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") ||
                     sentence.contains("تاکسی") || sentence.contains("مترو") || sentence.contains("اتوبوس") ||
                     sentence.contains("بلیط") || sentence.contains("پارکینگ") || sentence.contains("عوارض") ||
@@ -359,11 +372,30 @@ object GeminiParser {
                 .replace("فردا", "").replace("پسفردا", "").replace("پس فردا", "")
                 .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
                 .replace("هزار", "").replace("تومان", "").replace("تومن", "")
-                .replace("میلیون", "").replace("ملیون", "")
+                .replace("میلیون", "").replace("ملیون", "").replace("میلیارد", "")
                 .replace("طلب دارم", "").replace("طلبکار", "").replace("بدهکار", "")
                 .trim()
                 .replace("\\s+".toRegex(), " ")
             return cleaned.ifBlank { sentence }
+        }
+
+        fun extractSubject(): String {
+            val fillerWords = setOf(
+                "امروز", "دیروز", "پریروز", "فردا", "پسفردا", "پس فردا",
+                "دیشب", "شب", "صبح", "عصر", "ظهر", "شب قبل",
+                "ساعت", "نیم", "دقیقه", "روز",
+                "خریدم", "خرید", "گرفتم", "گرفت", "دادم", "داد",
+                "پرداخت", "پرداخت کردم", "هزینه", "خرج", "واریز", "واریز کردم",
+                "فروش", "فروختم", "فروش رفت",
+                "بابت", "برای", "از", "به",
+                "تومان", "تومن", "هزار", "میلیون", "ملیون", "میلیارد",
+                "قرض", "وام", "قسط"
+            )
+            val words = sentence.split("\\s+".toRegex()).filter { it.isNotEmpty() }
+            val meaningful = words.filter { word ->
+                word.none { it.isDigit() } && word !in fillerWords
+            }
+            return meaningful.joinToString(" ").ifEmpty { sentence }
         }
 
         if (sentence.contains("قرض گرفتم") || sentence.contains("بدهکار شدم") || sentence.contains("گرفتم از")) {
@@ -391,26 +423,66 @@ object GeminiParser {
         } else if (isIncome) {
             type = "INCOME"
             category = "Income"
+            val subject = extractSubject()
             description = when {
                 sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
                 sentence.contains("پاداش") -> "دریافت پاداش"
                 sentence.contains("دستمزد") -> "دریافت دستمزد"
-                sentence.contains("فروش") -> "درآمد از فروش"
+                sentence.contains("فروش") -> "درآمد از فروش ($subject)"
                 sentence.contains("سود") -> "دریافت سود"
                 sentence.contains("حقوق") -> "دریافت حقوق"
-                else -> "دریافت درآمد"
+                else -> "دریافت درآمد ($subject)"
             }
         } else if (isExpense) {
             type = "EXPENSE"
-            val (inferredCategory, inferredDescription) = inferExpenseCategory(sentence)
+            val (inferredCategory, _) = inferExpenseCategory(sentence)
             category = inferredCategory
-            description = inferredDescription
+            val subject = extractSubject()
+            val baseDescription = when (inferredCategory) {
+                "Food" -> "خرید مواد غذایی"
+                "Transportation" -> "هزینه حمل و نقل"
+                "Shopping" -> "خرید پوشاک و اکسسوری"
+                "Bills" -> "پرداخت قبوض و شارژ"
+                "Personal Care" -> "هزینه شخصی"
+                "Education" -> "هزینه آموزش"
+                "Rent & Utilities" -> "هزینه ملک"
+                "Loans & Debt" -> "بدهی و وام"
+                "Income" -> "درآمد"
+                "Events & Gifts" -> "جشن و هدیه"
+                "Charity" -> "خیریه"
+                "Investment" -> "سرمایه‌گذاری"
+                "Health" -> "هزینه درمان"
+                "Other" -> subject
+                else -> extractDescription()
+            }
+            description = "$baseDescription ($subject)"
         } else {
             // Default: still infer category even without explicit expense keywords
             type = "EXPENSE"
-            val (inferredCategory, inferredDescription) = inferExpenseCategory(sentence)
+            val (inferredCategory, _) = inferExpenseCategory(sentence)
             category = inferredCategory
-            description = if (inferredCategory != "Other") inferredDescription else extractDescription()
+            val subject = extractSubject()
+            val baseDescription = if (inferredCategory != "Other") {
+                when (inferredCategory) {
+                    "Food" -> "خرید مواد غذایی"
+                    "Transportation" -> "هزینه حمل و نقل"
+                    "Shopping" -> "خرید پوشاک و اکسسوری"
+                    "Bills" -> "پرداخت قبوض و شارژ"
+                    "Personal Care" -> "هزینه شخصی"
+                    "Education" -> "هزینه آموزش"
+                    "Rent & Utilities" -> "هزینه ملک"
+                    "Loans & Debt" -> "بدهی و وام"
+                    "Income" -> "درآمد"
+                    "Events & Gifts" -> "جشن و هدیه"
+                    "Charity" -> "خیریه"
+                    "Investment" -> "سرمایه‌گذاری"
+                    "Health" -> "هزینه درمان"
+                    else -> extractDescription()
+                }
+            } else {
+                subject
+            }
+            description = "$baseDescription ($subject)"
         }
 
         return ParsedResult(
