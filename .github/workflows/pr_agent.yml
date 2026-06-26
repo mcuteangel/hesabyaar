@@ -19,7 +19,7 @@ jobs:
     name: Run PR Agent
     steps:
       - name: PR Agent action
-        uses: qodo-ai/pr-agent@v2
+        uses: qodo-ai/pr-agent@v0.37.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONFIG.MODEL: "gemini/gemini-3.5-flash"
