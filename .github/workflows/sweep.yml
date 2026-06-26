@@ -1,0 +1,22 @@
+name: Sweep AI Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  sweep:
+    if: github.event.sender.type != 'Bot' && startsWith(github.event.comment.body, 'sweep:')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Run Sweep Agent
+        uses: sweepai/sweep@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_BASE: "https://generativelanguage.googleapis.com/v1beta/openai/"
+        
