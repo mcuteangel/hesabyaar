@@ -1,44 +1,41 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mojri.hesabyar.data.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class CategoryViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
-        database.transactionDao(),
-        database.loanDao(),
-        database.installmentDao(),
-        database.paymentHistoryDao(),
-        database.categoryDao()
-    )
+@HiltViewModel
+class CategoryViewModel @Inject constructor(
+    private val manageCategoryUseCase: ManageCategoryUseCase
+) : ViewModel() {
 
-    val categories: StateFlow<List<Category>> = repository.allCategories
+    val categories: StateFlow<List<Category>> = manageCategoryUseCase.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addCategory(name: String, key: String, icon: String, color: Long, type: String) {
         viewModelScope.launch {
-            repository.insertCategory(Category(name = name, key = key, icon = icon, color = color, type = type))
+            manageCategoryUseCase.addCategory(name, key, icon, color, type)
         }
     }
 
     fun updateCategory(category: Category) {
         viewModelScope.launch {
-            repository.updateCategory(category)
+            manageCategoryUseCase.updateCategory(category)
         }
     }
 
     fun deleteCategory(category: Category) {
         viewModelScope.launch {
-            repository.deleteCategory(category)
+            manageCategoryUseCase.deleteCategory(category)
         }
     }
 
     suspend fun getCategoryByKey(key: String): Category? {
-        return repository.getCategoryByKey(key)
+        return manageCategoryUseCase.getCategoryByKey(key)
     }
 }

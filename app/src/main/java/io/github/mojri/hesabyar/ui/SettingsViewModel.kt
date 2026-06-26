@@ -1,22 +1,26 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", android.content.Context.MODE_PRIVATE)
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val getSettingsUseCase: GetSettingsUseCase
+) : ViewModel() {
 
-    var isDarkMode = mutableStateOf(sharedPrefs.getBoolean("dark_mode", true))
+    var isDarkMode = mutableStateOf(getSettingsUseCase.isDarkMode())
         private set
 
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
-        sharedPrefs.edit().putBoolean("dark_mode", isDarkMode.value).apply()
+        getSettingsUseCase.setDarkMode(isDarkMode.value)
     }
 
     private val _uiMessage = MutableSharedFlow<String>()
@@ -28,6 +32,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun getAiLogs(): List<AppLogger.LogEntry> = AppLogger.getAiLogs()
-    fun clearLogs() = AppLogger.clear()
+    fun getAiLogs(): List<AppLogger.LogEntry> = getSettingsUseCase.getAiLogs()
+    fun clearLogs() = getSettingsUseCase.clearLogs()
 }

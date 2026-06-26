@@ -36,11 +36,14 @@ import io.github.mojri.hesabyar.ui.ExportState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.ModelFetchState
 import io.github.mojri.hesabyar.data.RestoreMode
+import io.github.mojri.hesabyar.auth.PinStorage
+import io.github.mojri.hesabyar.auth.BiometricHelper
 import java.io.InputStream
 import java.io.OutputStream
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.fragment.app.FragmentActivity
 
 @Composable
 fun SettingsScreen(
@@ -317,6 +320,10 @@ fun SettingsScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                 ReminderSettingsSection(settingsViewModel = settingsViewModel)
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                SecuritySection(context = context, settingsViewModel = settingsViewModel)
             }
         }
 
@@ -453,6 +460,152 @@ fun SettingsScreen(
 
         // Debug Logs Section
         DebugLogsSection()
+    }
+}
+
+@Composable
+fun SecuritySection(
+    context: Context,
+    settingsViewModel: SettingsViewModel
+) {
+    var isPinSet by remember { mutableStateOf(PinStorage.isPinSet(context)) }
+    var hasBiometric by remember { mutableStateOf(BiometricHelper.isBiometricAvailable(context)) }
+    var showSetPinDialog by remember { mutableStateOf(false) }
+    var showVerifyPinDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(imageVector = Icons.Filled.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "قفل برنامه",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (isPinSet) "قفل با رمز فعال" else "قفل غیرفعال",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        Switch(
+            checked = isPinSet,
+            onCheckedChange = {
+                if (isPinSet) {
+                    PinStorage.clearPin(context)
+                    isPinSet = false
+                    settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+                } else {
+                    showSetPinDialog = true
+                }
+            }
+        )
+    }
+
+    if (isPinSet) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    if (BiometricHelper.isBiometricAvailable(context)) {
+                        val activity = context as? FragmentActivity
+                        if (activity != null) {
+                            BiometricHelper.authenticate(
+                                activity = activity,
+                                onSuccess = { settingsViewModel.showMessage("احراز هویت با موفقیت انجام شد") },
+                                onError = { settingsViewModel.showMessage("خطا در احراز هویت") },
+                                onFailed = { settingsViewModel.showMessage("احراز هویت ناموفق") }
+                            )
+                        }
+                    } else {
+                        settingsViewModel.showMessage("احراز هویت بیومتریک در دستگاه شما پشتیبانی نمی‌شود")
+                    }
+                }
+                .clip(RoundedCornerShape(8.dp))
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(imageVector = Icons.Filled.Fingerprint, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "تست اثر انگشت",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (hasBiometric) "قفل با اثر انگشت فعال" else "پشتیبانی نمی‌شود",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+
+    if (showSetPinDialog) {
+        var newPin by remember { mutableStateOf("") }
+        var confirmPin by remember { mutableStateOf("") }
+        var pinError by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { showSetPinDialog = false },
+            title = { Text("تنظیم رمز عبور", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = newPin,
+                        onValueChange = { newPin = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        label = { Text("رمز عبور جدید") },
+                        placeholder = { Text("۶ رقم") },
+                        isError = pinError != null,
+                        supportingText = pinError?.let { { Text(it) } }
+                    )
+                    OutlinedTextField(
+                        value = confirmPin,
+                        onValueChange = { confirmPin = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        label = { Text("تکرار رمز عبور") },
+                        placeholder = { Text("۶ رقم") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        when {
+                            newPin.length < 6 -> {
+                                pinError = "رمز عبور باید ۶ رقم باشد"
+                            }
+                            newPin != confirmPin -> {
+                                pinError = "رمز عبور مطابقت ندارد"
+                            }
+                            else -> {
+                                PinStorage.setPin(context, newPin)
+                                isPinSet = true
+                                showSetPinDialog = false
+                                settingsViewModel.showMessage("قفل برنامه با رمز فعال شد")
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("ذخیره")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSetPinDialog = false }) {
+                    Text("انصراف")
+                }
+            }
+        )
     }
 }
 

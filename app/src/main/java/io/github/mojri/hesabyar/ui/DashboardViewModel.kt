@@ -1,72 +1,31 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mojri.hesabyar.data.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class DashboardViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
-        database.transactionDao(),
-        database.loanDao(),
-        database.installmentDao(),
-        database.paymentHistoryDao(),
-        database.categoryDao()
-    )
+@HiltViewModel
+class DashboardViewModel @Inject constructor(
+    private val getDashboardDataUseCase: GetDashboardDataUseCase
+) : ViewModel() {
 
-    val transactions: StateFlow<List<Transaction>> = repository.allTransactions
+    val transactions = getDashboardDataUseCase.transactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val loans: StateFlow<List<Loan>> = repository.allLoans
+    val loans = getDashboardDataUseCase.loans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val installments: StateFlow<List<Installment>> = repository.allInstallments
+    val installments = getDashboardDataUseCase.installments
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val categories: StateFlow<List<Category>> = repository.allCategories
+    val categories: StateFlow<List<Category>> = getDashboardDataUseCase.categories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val dashboardState: StateFlow<DashboardData> = combine(transactions, loans, installments) { trans, loanList, instList ->
-        var totalIncome = 0L
-        var totalExpense = 0L
-        var monthlyIncome = 0L
-        var monthlyExpense = 0L
-
-        val now = System.currentTimeMillis()
-        val oneMonthAgo = now - (30L * 24L * 60L * 60L * 1000L)
-
-        trans.forEach {
-            if (it.type == "INCOME") {
-                totalIncome += it.amount
-                if (it.date >= oneMonthAgo) monthlyIncome += it.amount
-            } else {
-                totalExpense += it.amount
-                if (it.date >= oneMonthAgo) monthlyExpense += it.amount
-            }
-        }
-
-        var debtorsTotal = 0L
-        var creditorsTotal = 0L
-        loanList.filter { !it.isSettled }.forEach {
-            if (it.type == "DEBTOR") {
-                debtorsTotal += it.remainingAmount
-            } else {
-                creditorsTotal += it.remainingAmount
-            }
-        }
-
-        val upcomingIns = instList.filter { !it.isPaid }.sortedBy { it.dueDate }
-
-        DashboardData(
-            currentBalance = totalIncome - totalExpense,
-            monthlyExpenses = monthlyExpense,
-            monthlyIncome = monthlyIncome,
-            debtorsTotal = debtorsTotal,
-            creditorsTotal = creditorsTotal,
-            upcomingInstallments = upcomingIns
-        )
+        getDashboardDataUseCase.computeDashboardData(trans, loanList, instList)
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
 }

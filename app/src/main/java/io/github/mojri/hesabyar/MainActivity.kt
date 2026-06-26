@@ -26,14 +26,21 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import dagger.hilt.android.AndroidEntryPoint
+import io.github.mojri.hesabyar.auth.AuthManager
+import io.github.mojri.hesabyar.auth.LockScreen
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject lateinit var authManager: AuthManager
+
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val transactionViewModel: TransactionViewModel by viewModels()
@@ -70,106 +77,120 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDark by settingsViewModel.isDarkMode
+            val isLocked by authManager.isLocked.collectAsState()
+
             HesabyarTheme(darkTheme = isDark) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    var currentTab by remember { mutableStateOf("DASHBOARD") }
-                    var showCategoryManagement by remember { mutableStateOf(false) }
-
-                    if (showCategoryManagement) {
-                        CategoryManagementScreen(
-                            categoryViewModel = categoryViewModel,
-                            onBack = { showCategoryManagement = false },
-                            modifier = Modifier.fillMaxSize()
+                    if (isLocked && authManager.shouldShowAuth(this@MainActivity)) {
+                        LockScreen(
+                            authManager = authManager,
+                            onUnlocked = { }
                         )
                     } else {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        bottomBar = {
-                            NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 8.dp
-                            ) {
-                                val tabs = listOf(
-                                    Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
-                                    Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
-                                    Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
-                                    Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
-                                    Triple("ANALYTICS", "تحلیل و آمار", Icons.Filled.BarChart),
-                                    Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
-                                    Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
-                                )
+                        var currentTab by remember { mutableStateOf("DASHBOARD") }
+                        var showCategoryManagement by remember { mutableStateOf(false) }
 
-                                tabs.forEach { (tabId, label, icon) ->
-                                    NavigationBarItem(
-                                        selected = currentTab == tabId,
-                                        onClick = { currentTab = tabId },
-                                        icon = { Icon(imageVector = icon, contentDescription = label) },
-                                        label = { Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                        )
+                        if (showCategoryManagement) {
+                            CategoryManagementScreen(
+                                categoryViewModel = categoryViewModel,
+                                onBack = { showCategoryManagement = false },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                        Scaffold(
+                            modifier = Modifier.fillMaxSize(),
+                            bottomBar = {
+                                NavigationBar(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 8.dp
+                                ) {
+                                    val tabs = listOf(
+                                        Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
+                                        Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
+                                        Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
+                                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
+                                        Triple("ANALYTICS", "تحلیل و آمار", Icons.Filled.BarChart),
+                                        Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
+                                        Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
                                     )
+
+                                    tabs.forEach { (tabId, label, icon) ->
+                                        NavigationBarItem(
+                                            selected = currentTab == tabId,
+                                            onClick = { currentTab = tabId },
+                                            icon = { Icon(imageVector = icon, contentDescription = label) },
+                                            label = { Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                            )
+                                        )
+                                    }
                                 }
                             }
+                        ) { innerPadding ->
+                            val modifier = Modifier.padding(innerPadding)
+                            when (currentTab) {
+                                "DASHBOARD" -> DashboardScreen(
+                                    dashboardViewModel = dashboardViewModel,
+                                    transactionViewModel = transactionViewModel,
+                                    loanViewModel = loanViewModel,
+                                    installmentViewModel = installmentViewModel,
+                                    aiAssistantViewModel = aiAssistantViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    onNavigateToAssistant = { currentTab = "ASSISTANT" },
+                                    modifier = modifier
+                                )
+                                "ASSISTANT" -> SmartAssistantScreen(
+                                    aiAssistantViewModel = aiAssistantViewModel,
+                                    categoryViewModel = categoryViewModel,
+                                    dashboardViewModel = dashboardViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    modifier = modifier
+                                )
+                                "LOANS" -> LoanManagementScreen(
+                                    loanViewModel = loanViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    modifier = modifier
+                                )
+                                "INSTALLMENTS" -> InstallmentScreen(
+                                    installmentViewModel = installmentViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    modifier = modifier
+                                )
+                                "ANALYTICS" -> AnalyticsScreen(
+                                    analyticsViewModel = analyticsViewModel,
+                                    modifier = modifier
+                                )
+                                "REPORTS" -> ReportsScreen(
+                                    dashboardViewModel = dashboardViewModel,
+                                    transactionViewModel = transactionViewModel,
+                                    loanViewModel = loanViewModel,
+                                    installmentViewModel = installmentViewModel,
+                                    aiAssistantViewModel = aiAssistantViewModel,
+                                    modifier = modifier
+                                )
+                                "SETTINGS" -> SettingsScreen(
+                                    aiAssistantViewModel = aiAssistantViewModel,
+                                    backupViewModel = backupViewModel,
+                                    exportViewModel = exportViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    onNavigateToCategories = { showCategoryManagement = true },
+                                    modifier = modifier
+                                )
+                            }
                         }
-                    ) { innerPadding ->
-                        val modifier = Modifier.padding(innerPadding)
-                        when (currentTab) {
-                            "DASHBOARD" -> DashboardScreen(
-                                dashboardViewModel = dashboardViewModel,
-                                transactionViewModel = transactionViewModel,
-                                loanViewModel = loanViewModel,
-                                installmentViewModel = installmentViewModel,
-                                aiAssistantViewModel = aiAssistantViewModel,
-                                settingsViewModel = settingsViewModel,
-                                onNavigateToAssistant = { currentTab = "ASSISTANT" },
-                                modifier = modifier
-                            )
-                            "ASSISTANT" -> SmartAssistantScreen(
-                                aiAssistantViewModel = aiAssistantViewModel,
-                                categoryViewModel = categoryViewModel,
-                                dashboardViewModel = dashboardViewModel,
-                                settingsViewModel = settingsViewModel,
-                                modifier = modifier
-                            )
-                            "LOANS" -> LoanManagementScreen(
-                                loanViewModel = loanViewModel,
-                                settingsViewModel = settingsViewModel,
-                                modifier = modifier
-                            )
-                            "INSTALLMENTS" -> InstallmentScreen(
-                                installmentViewModel = installmentViewModel,
-                                settingsViewModel = settingsViewModel,
-                                modifier = modifier
-                            )
-                            "ANALYTICS" -> AnalyticsScreen(
-                                analyticsViewModel = analyticsViewModel,
-                                modifier = modifier
-                            )
-                            "REPORTS" -> ReportsScreen(
-                                dashboardViewModel = dashboardViewModel,
-                                transactionViewModel = transactionViewModel,
-                                loanViewModel = loanViewModel,
-                                installmentViewModel = installmentViewModel,
-                                aiAssistantViewModel = aiAssistantViewModel,
-                                modifier = modifier
-                            )
-                            "SETTINGS" -> SettingsScreen(
-                                aiAssistantViewModel = aiAssistantViewModel,
-                                backupViewModel = backupViewModel,
-                                exportViewModel = exportViewModel,
-                                settingsViewModel = settingsViewModel,
-                                onNavigateToCategories = { showCategoryManagement = true },
-                                modifier = modifier
-                            )
                         }
-                    }
                     }
                 }
             }
         }
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        authManager.onUserInteraction()
     }
 
     private fun requestNotificationPermission() {

@@ -1,47 +1,37 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mojri.hesabyar.data.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.usecase.ManageTransactionUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class TransactionViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
-        database.transactionDao(),
-        database.loanDao(),
-        database.installmentDao(),
-        database.paymentHistoryDao(),
-        database.categoryDao()
-    )
+@HiltViewModel
+class TransactionViewModel @Inject constructor(
+    private val manageTransactionUseCase: ManageTransactionUseCase
+) : ViewModel() {
 
-    val transactions: StateFlow<List<Transaction>> = repository.allTransactions
+    val transactions: StateFlow<List<Transaction>> = manageTransactionUseCase.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addTransaction(type: String, categoryId: Long, amount: Long, description: String, personName: String? = null, customDate: Long? = null) {
         viewModelScope.launch {
-            repository.insertTransaction(Transaction(
-                type = type,
-                categoryId = categoryId,
-                amount = amount,
-                description = description,
-                personName = personName,
-                date = customDate ?: System.currentTimeMillis()
-            ))
+            manageTransactionUseCase.addTransaction(type, categoryId, amount, description, personName, customDate)
         }
     }
 
     fun updateTransaction(transaction: Transaction) {
         viewModelScope.launch {
-            repository.updateTransaction(transaction)
+            manageTransactionUseCase.updateTransaction(transaction)
         }
     }
 
     fun deleteTransaction(transaction: Transaction) {
         viewModelScope.launch {
-            repository.deleteTransaction(transaction)
+            manageTransactionUseCase.deleteTransaction(transaction)
         }
     }
 }

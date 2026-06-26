@@ -1,46 +1,37 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mojri.hesabyar.data.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class InstallmentViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
-        database.transactionDao(),
-        database.loanDao(),
-        database.installmentDao(),
-        database.paymentHistoryDao(),
-        database.categoryDao()
-    )
+@HiltViewModel
+class InstallmentViewModel @Inject constructor(
+    private val manageInstallmentUseCase: ManageInstallmentUseCase
+) : ViewModel() {
 
-    val installments: StateFlow<List<Installment>> = repository.allInstallments
+    val installments: StateFlow<List<Installment>> = manageInstallmentUseCase.allInstallments
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addInstallment(title: String, amount: Long, dueDate: Long, reminderEnabled: Boolean, notes: String) {
         viewModelScope.launch {
-            repository.insertInstallment(Installment(
-                title = title,
-                amount = amount,
-                dueDate = dueDate,
-                reminderEnabled = reminderEnabled,
-                notes = notes
-            ))
+            manageInstallmentUseCase.addInstallment(title, amount, dueDate, reminderEnabled, notes)
         }
     }
 
     fun toggleInstallmentPaid(installment: Installment) {
         viewModelScope.launch {
-            repository.updateInstallment(installment.copy(isPaid = !installment.isPaid))
+            manageInstallmentUseCase.toggleInstallmentPaid(installment)
         }
     }
 
     fun deleteInstallment(installment: Installment) {
         viewModelScope.launch {
-            repository.deleteInstallment(installment)
+            manageInstallmentUseCase.deleteInstallment(installment)
         }
     }
 }
