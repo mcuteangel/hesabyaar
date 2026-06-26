@@ -2,13 +2,19 @@ name: PR Agent (Gemini 3.1 Flash Lite)
 
 on:
   pull_request:
-    # بازگرداندن synchronize برای تریگر شدن اکشن با هر پوش جدید روی پی‌آر موجود
     types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
 
 jobs:
   pr_agent_job:
-    # ساده‌سازی شرط به دلیل حذف رویداد کامنت؛ حالا فقط مطمئن می‌شویم فرستنده بات نباشد
-    if: github.event.sender.type != 'Bot'
+    if: |
+      github.event.sender.type != 'Bot' &&
+      (github.event_name != 'issue_comment' || 
+        (startsWith(github.event.comment.body, '/') && 
+         (github.event.comment.author_association == 'OWNER' || 
+          github.event.comment.author_association == 'COLLABORATOR' || 
+          github.event.comment.author_association == 'MEMBER')))
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -18,16 +24,14 @@ jobs:
     steps:
       - name: PR Agent action step
         id: pragent
-        uses: docker://pragent/pr-agent:0.37.0-github_action[cite: 1]
+        uses: docker://pragent/pr-agent:0.37.0-github_action
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}[cite: 1]
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-          # استفاده از حروف کوچک کاملاً منطبق بر اسکیمای متغیرهای داکیومنت رسمی
           config.model: "gemini/gemini-3.1-flash-lite"
           config.fallback_models: '["google/gemma-4-31b"]'
-          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}[cite: 1]
+          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           
-          # ابزارهای خودکار طبق ساختار مستندات
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
