@@ -2,13 +2,11 @@ name: PR Agent (Gemini 3.1 Flash Lite)
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+    types: [opened, reopened, ready_for_review]
   issue_comment:
-    types: [created]
 
 jobs:
   pr_agent_job:
-    # محدودیت دسترسی به OWNER، COLLABORATOR و MEMBER کاملاً عمدی و برای جلوگیری از سوءاستفاده از کلید API است.
     if: |
       github.event.sender.type != 'Bot' &&
       (github.event_name != 'issue_comment' || 
@@ -23,15 +21,18 @@ jobs:
       contents: write
     name: Run PR Agent
     steps:
-      - name: PR Agent action
-        uses: qodo-ai/pr-agent@v0.37.0
+      - name: PR Agent action step
+        id: pragent
+        
+        uses: docker://pragent/pr-agent:0.37.0-github_action
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-          # مدل اصلی: جمنای ۳.۱ فلش لایت
-          CONFIG.MODEL: "gemini/gemini-3.1-flash-lite"
           
-          # مدل پشتیبان: جِما ۴ با سقف توکن نامحدود در صورت بروز مشکل برای مدل اصلی
-          CONFIG.FALLBACK_MODELS: '["google/gemma-4-31b"]'
-          
+          config.model: "gemini/gemini-3.1-flash-lite"
+          config.fallback_models: '["google/gemma-4-31b"]'
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true" 
