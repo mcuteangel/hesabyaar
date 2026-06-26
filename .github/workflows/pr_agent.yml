@@ -1,4 +1,4 @@
-name: PR Agent (Gemini 3.5 Flash)
+name: PR Agent (Gemini 3.1 Flash Lite)
 
 on:
   pull_request:
@@ -8,9 +8,14 @@ on:
 
 jobs:
   pr_agent_job:
+    # جلوگیری از اجرا روی کامنت بقیه ربات‌ها + امنیت سکرت‌ها و محدود کردن اجرای کامنت‌ها فقط به اعضای اصلی ریپو
     if: |
       github.event.sender.type != 'Bot' &&
-      (github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/'))
+      (github.event_name != 'issue_comment' || 
+        (startsWith(github.event.comment.body, '/') && 
+         (github.event.comment.author_association == 'OWNER' || 
+          github.event.comment.author_association == 'COLLABORATOR' || 
+          github.event.comment.author_association == 'MEMBER')))
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -22,6 +27,10 @@ jobs:
         uses: qodo-ai/pr-agent@v0.37.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONFIG.MODEL: "gemini/gemini-3.5-flash"
-          CONFIG.FALLBACK_MODELS: '["gemini/gemini-3.5-flash"]'
+          
+          # سوئیچ به مدل لایت با ریت‌لیمیت بالا (۱۵ درخواست در دقیقه / ۵۰۰ درخواست در روز)
+          CONFIG.MODEL: "gemini/gemini-3.1-flash-lite"
+          CONFIG.FALLBACK_MODELS: '["gemini/gemini-3.1-flash-lite"]'
+          
+          # اتصال به Google AI Studio
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
