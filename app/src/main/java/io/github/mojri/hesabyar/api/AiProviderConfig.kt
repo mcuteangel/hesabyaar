@@ -15,6 +15,29 @@ enum class AiProviderType(val displayName: String) {
     CUSTOM("Custom Endpoint")
 }
 
+enum class AiModel(
+    val displayName: String,
+    val providerType: AiProviderType,
+    val modelId: String,
+    val supportsJson: Boolean = true,
+    val supportsVision: Boolean = false
+) {
+    GEMINI_2_0_FLASH("Gemini 2.0 Flash", AiProviderType.GEMINI, "gemini-2.0-flash", supportsVision = true),
+    GEMINI_1_5_PRO("Gemini 1.5 Pro", AiProviderType.GEMINI, "gemini-1.5-pro", supportsVision = true),
+    GEMINI_1_5_FLASH("Gemini 1.5 Flash", AiProviderType.GEMINI, "gemini-1.5-flash"),
+    MISTRAL_LARGE("Mistral Large", AiProviderType.OPENROUTER, "mistralai/mistral-large-latest"),
+    MISTRAL_SMALL("Mistral Small", AiProviderType.OPENROUTER, "mistralai/mistral-small-latest"),
+    LLAMA_3_70B("Llama 3 70B", AiProviderType.OPENROUTER, "meta-llama/llama-3-70b-instruct"),
+    LLAMA_3_8B("Llama 3 8B", AiProviderType.OPENROUTER, "meta-llama/llama-3-8b-instruct"),
+    CLAUDE_SONNET("Claude Sonnet", AiProviderType.OPENROUTER, "anthropic/claude-3.5-sonnet"),
+    CLAUDE_HAIKU("Claude Haiku", AiProviderType.OPENROUTER, "anthropic/claude-3.5-haiku"),
+    CUSTOM_MODEL("Custom Model", AiProviderType.CUSTOM, "");
+
+    companion object {
+        fun forProvider(type: AiProviderType): List<AiModel> = entries.filter { it.providerType == type }
+    }
+}
+
 data class AiProviderConfig(
     val id: String = UUID.randomUUID().toString(),
     val providerType: AiProviderType = AiProviderType.GEMINI,

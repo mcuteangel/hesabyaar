@@ -70,7 +70,7 @@ object GeminiParser {
         return try {
             val cleanStr = jsonStr.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
             val json = JSONObject(cleanStr)
-            ParsedResult(
+            val result = ParsedResult(
                 type = json.optString("type", "EXPENSE"),
                 amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
                 category = json.optString("category", "Other"),
@@ -84,6 +84,7 @@ object GeminiParser {
                 confidence = json.optDouble("confidence", 0.8).toFloat(),
                 notes = json.optString("notes", "").let { if (it == "null" || it.isBlank()) null else it }
             )
+            if (PersianTextPreprocessor.validateParsedResult(result)) result else null
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
             null
@@ -248,8 +249,9 @@ object GeminiParser {
     }
 
     // High quality regex-based fallback parsing for offline/no key scenarios
-    fun parseSentenceOffline(sentence: String): ParsedResult {
+    fun parseSentenceOffline(rawSentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
+        val sentence = PersianTextPreprocessor.preprocessPersianText(rawSentence)
         var amountToman = 0.0
         var type = "EXPENSE"
         var category = "Other"
@@ -485,7 +487,7 @@ object GeminiParser {
             description = "$baseDescription ($subject)"
         }
 
-        return ParsedResult(
+        val parsed = ParsedResult(
             type = type,
             amount = (amountToman * 1000).toLong(),
             category = category,
@@ -499,6 +501,7 @@ object GeminiParser {
             confidence = confidence,
             notes = notes
         )
+        return if (PersianTextPreprocessor.validateParsedResult(parsed)) parsed else parsed.copy(amount = (amountToman * 1000).toLong().coerceAtLeast(1))
     }
 
     suspend fun getBudgetAdvice(

@@ -51,13 +51,25 @@ class GetDashboardDataUseCase(
 
         val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
 
+        val balance = totalIncome - totalExpense
+        val savingsRate = if (totalIncome > 0) {
+            balance.toDouble() / totalIncome.toDouble()
+        } else 0.0
+
+        val monthlyInstallmentTotal = upcomingIns.sumOf { it.amount }
+        val debtToIncomeRatio = if (monthlyIncome > 0) {
+            monthlyInstallmentTotal.toDouble() / monthlyIncome.toDouble()
+        } else 0.0
+
         return DashboardData(
-            currentBalance = totalIncome - totalExpense,
+            currentBalance = balance,
             monthlyExpenses = monthlyExpense,
             monthlyIncome = monthlyIncome,
             debtorsTotal = debtorsTotal,
             creditorsTotal = creditorsTotal,
-            upcomingInstallments = upcomingIns
+            upcomingInstallments = upcomingIns,
+            savingsRate = savingsRate,
+            debtToIncomeRatio = debtToIncomeRatio
         )
     }
 }

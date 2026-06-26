@@ -75,6 +75,14 @@ fun AnalyticsScreen(
             )
         }
 
+        // Combined Income vs Expense Line Chart
+        item {
+            CombinedLineChartCard(
+                spending = analyticsData.monthlySpending,
+                income = analyticsData.monthlyIncome
+            )
+        }
+
         // Category Breakdown (Donut Chart)
         item {
             CategoryBreakdownCard(categoryBreakdown = analyticsData.categoryBreakdown)
@@ -185,6 +193,119 @@ private fun MonthlyTrendCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CombinedLineChartCard(
+    spending: List<MonthlyData>,
+    income: List<MonthlyData>,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "📊 مقایسه درآمد و هزینه",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Merge by label for combined view
+            val allLabels = (spending.map { it.label } + income.map { it.label }).distinct().takeLast(6)
+            val spendByLabel = spending.associateBy { it.label }
+            val incomeByLabel = income.associateBy { it.label }
+
+            val spendValues = allLabels.map { label -> spendByLabel[label]?.expense ?: 0L }
+            val incomeValues = allLabels.map { label -> incomeByLabel[label]?.income ?: 0L }
+            val allValues = spendValues + incomeValues
+            val maxValue = allValues.maxOrNull()?.coerceAtLeast(1) ?: 1L
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+            ) {
+                val chartHeight = size.height - 40f
+                val chartWidth = size.width - 40f
+                val startX = 20f
+                val spacing = if (allLabels.isNotEmpty()) chartWidth / (allLabels.size - 1).coerceAtLeast(1) else chartWidth
+
+                // Draw income line (green)
+                if (incomeValues.isNotEmpty()) {
+                    val points = incomeValues.mapIndexed { idx, value ->
+                        val x = startX + idx * spacing
+                        val y = chartHeight - (if (maxValue > 0) (value.toFloat() / maxValue) * chartHeight else 0f)
+                        Offset(x, y)
+                    }
+                    for (i in 0 until points.size - 1) {
+                        drawLine(
+                            color = IncomeGreen,
+                            start = points[i],
+                            end = points[i + 1],
+                            strokeWidth = 4f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                    points.forEach { pt ->
+                        drawCircle(color = IncomeGreen, radius = 6f, center = pt)
+                    }
+                }
+
+                // Draw expense line (red)
+                if (spendValues.isNotEmpty()) {
+                    val points = spendValues.mapIndexed { idx, value ->
+                        val x = startX + idx * spacing
+                        val y = chartHeight - (if (maxValue > 0) (value.toFloat() / maxValue) * chartHeight else 0f)
+                        Offset(x, y)
+                    }
+                    for (i in 0 until points.size - 1) {
+                        drawLine(
+                            color = ExpenseRed,
+                            start = points[i],
+                            end = points[i + 1],
+                            strokeWidth = 4f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                    points.forEach { pt ->
+                        drawCircle(color = ExpenseRed, radius = 6f, center = pt)
+                    }
+                }
+
+                // Labels
+                drawContext.canvas.nativeCanvas.apply {
+                    val paint = android.graphics.Paint().apply {
+                        textSize = 24f
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        this.color = android.graphics.Color.GRAY
+                    }
+                    allLabels.forEachIndexed { idx, label ->
+                        val x = startX + idx * spacing
+                        drawText(label, x, size.height, paint)
+                    }
+                }
+            }
+
+            // Legend
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.size(12.dp).background(IncomeGreen, CircleShape))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("درآمد", style = MaterialTheme.typography.labelSmall)
+                Spacer(modifier = Modifier.width(16.dp))
+                Box(modifier = Modifier.size(12.dp).background(ExpenseRed, CircleShape))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("هزینه", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
