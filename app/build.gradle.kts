@@ -5,6 +5,7 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.ktlint)
+  alias(libs.plugins.hilt)
 }
 
 android {
@@ -146,6 +147,11 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  implementation(libs.hilt.android)
+  ksp(libs.hilt.compiler)
+  implementation(libs.hilt.navigation.compose)
+  implementation(libs.sqlcipher)
+  implementation(libs.biometric)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

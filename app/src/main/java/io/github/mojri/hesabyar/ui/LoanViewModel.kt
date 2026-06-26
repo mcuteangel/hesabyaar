@@ -1,57 +1,48 @@
 package io.github.mojri.hesabyar.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.mojri.hesabyar.data.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LoanViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository: HesabyarRepositoryInterface = HesabyarRepository(
-        database.transactionDao(),
-        database.loanDao(),
-        database.installmentDao(),
-        database.paymentHistoryDao(),
-        database.categoryDao()
-    )
+@HiltViewModel
+class LoanViewModel @Inject constructor(
+    private val manageLoanUseCase: ManageLoanUseCase
+) : ViewModel() {
 
-    val loans: StateFlow<List<Loan>> = repository.allLoans
+    val loans: StateFlow<List<Loan>> = manageLoanUseCase.allLoans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addLoan(personName: String, type: String, amount: Long, description: String, customDate: Long? = null) {
         viewModelScope.launch {
-            repository.insertLoan(Loan(
-                personName = personName,
-                type = type,
-                originalAmount = amount,
-                remainingAmount = amount,
-                description = description,
-                date = customDate ?: System.currentTimeMillis()
-            ))
+            manageLoanUseCase.addLoan(personName, type, amount, description, customDate)
         }
     }
 
     fun makeRepayment(loanId: Long, amount: Long, notes: String, customDate: Long? = null) {
         viewModelScope.launch {
-            repository.addPaymentToLoan(loanId, amount, notes, customDate)
+            manageLoanUseCase.makeRepayment(loanId, amount, notes, customDate)
         }
     }
 
     fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> {
-        return repository.getPaymentHistoryForLoan(loanId)
+        return manageLoanUseCase.getPaymentHistory(loanId)
     }
 
     fun updateLoan(loan: Loan) {
         viewModelScope.launch {
-            repository.updateLoan(loan)
+            manageLoanUseCase.updateLoan(loan)
         }
     }
 
     fun deleteLoan(loan: Loan) {
         viewModelScope.launch {
-            repository.deleteLoan(loan)
+            manageLoanUseCase.deleteLoan(loan)
         }
     }
 }
