@@ -8,7 +8,7 @@ on:
 
 jobs:
   pr_agent_job:
-    # جلوگیری از اجرا روی کامنت بقیه ربات‌ها + امنیت سکرت‌ها و محدود کردن اجرای کامنت‌ها فقط به اعضای اصلی ریپو
+    # محدودیت دسترسی به OWNER، COLLABORATOR و MEMBER کاملاً عمدی و برای جلوگیری از سوءاستفاده از کلید API است.
     if: |
       github.event.sender.type != 'Bot' &&
       (github.event_name != 'issue_comment' || 
@@ -28,9 +28,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-          # سوئیچ به مدل لایت با ریت‌لیمیت بالا (۱۵ درخواست در دقیقه / ۵۰۰ درخواست در روز)
+          # مدل اصلی: جمنای ۳.۱ فلش لایت
           CONFIG.MODEL: "gemini/gemini-3.1-flash-lite"
-          CONFIG.FALLBACK_MODELS: '["gemini/gemini-3.1-flash-lite"]'
           
-          # اتصال به Google AI Studio
+          # مدل پشتیبان: جِما ۴ با سقف توکن نامحدود در صورت بروز مشکل برای مدل اصلی
+          CONFIG.FALLBACK_MODELS: '["google/gemma-4-31b"]'
+          
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
