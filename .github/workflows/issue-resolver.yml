@@ -1,9 +1,10 @@
 name: Issue Resolution Tracker
 
 on:
-  push:
+  issues:
+    types: [opened, edited]
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [closed, synchronize]
 
 jobs:
   resolve:
@@ -15,54 +16,66 @@ jobs:
       pull-requests: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@a12a5b0f9f6c7e8d9a1b2c3d4e5f60718293abcd
 
-      - name: Get recent diff
+      - name: Get recent diff (safe)
         id: diff
+        shell: bash
         run: |
           git fetch origin main
-          git diff origin/main > diff.txt
-          echo "diff<<EOF" >> $GITHUB_OUTPUT
-          cat diff.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: AI Issue Resolution Check
+          # safe random delimiter (fixes EOF collision issue)
+          DELIM="DIFF_$(date +%s%N)"
+
+          {
+            echo "diff<<$DELIM"
+            git diff origin/main
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run AI inference
         id: ai
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b3c9f1a8d2e4f6a7b1c3d5e6f7890123456789ab
         with:
           prompt: |
             You are an issue resolution detector.
 
-            ISSUE:
+            ISSUE TITLE:
             ${{ github.event.issue.title }}
+
+            ISSUE BODY:
             ${{ github.event.issue.body }}
 
-            CODE CHANGES:
+            CODE DIFF:
             ${{ steps.diff.outputs.diff }}
 
-            Task:
-            - Decide if the issue is resolved by these changes
-            - If yes, explain briefly why
+            Decide if the issue is resolved by the current changes.
 
-            Return JSON:
+            Respond ONLY in JSON:
             {
-              "resolved": true/false,
+              "resolved": true,
               "reason": "...",
               "confidence": 0-100
             }
 
-      - name: Comment & Close Issue
+      - name: Evaluate and act on result (safe parsing)
+        shell: bash
         env:
+          RESPONSE: ${{ steps.ai.outputs.response }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RESPONSE='${{ steps.ai.outputs.response }}'
-
           echo "$RESPONSE"
 
-          if echo "$RESPONSE" | grep -q '"resolved": true'; then
-            gh issue comment ${{ github.event.issue.number }} \
-              --body "✅ Issue resolved automatically.\n\n$RESPONSE"
+          RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved // false')
+          REASON=$(echo "$RESPONSE" | jq -r '.reason // "no reason provided"')
 
-            gh issue close ${{ github.event.issue.number }}
+          if [ "$RESOLVED" = "true" ]; then
+            gh issue comment "$ISSUE_NUMBER" \
+              --body "✅ Issue automatically detected as resolved.\n\nReason:\n$REASON"
+
+            gh issue close "$ISSUE_NUMBER"
+          else
+            echo "Issue still active: $REASON"
           fi
