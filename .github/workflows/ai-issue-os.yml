@@ -49,7 +49,7 @@ jobs:
               .map(i => ({
                 number: i.number,
                 title: i.title,
-                body: i.body || "",
+                body: (i.body || "").slice(0, 500),
                 state: i.state,
                 updated_at: i.updated_at
               }));
@@ -151,8 +151,9 @@ jobs:
               exit 0
             fi
           else
-            # For issues events, always trigger (the event itself is the trigger)
-            echo "trigger=true" >> $GITHUB_OUTPUT
+            # For issues events, skip Gemini (no consumer path exists for its output)
+            echo "trigger=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
           # Truncate diff to last 1000 lines to avoid context limits
@@ -222,10 +223,36 @@ jobs:
             echo "Gemini output is not valid JSON; skipping issue updates."
             exit 0
           fi
+
+          VALID_IDS=$(jq -r '.[].number' <<< "$ISSUES_JSON")
+
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
-          VALID_IDS=$(jq -r '.[].number' <<< "$ISSUES_JSON")
+
+          # Build disjoint sets: detect overlaps before any mutation
+          OVERLAPS=""
+          RESOLVED_CLEAN=""
+          REOPEN_CLEAN=""
+
           for i in $RESOLVED; do
+            if echo "$REOPEN" | grep -qxF "$i"; then
+              OVERLAPS="$OVERLAPS $i"
+            else
+              RESOLVED_CLEAN="$RESOLVED_CLEAN $i"
+            fi
+          done
+
+          for i in $REOPEN; do
+            if ! echo "$RESOLVED" | grep -qxF "$i"; then
+              REOPEN_CLEAN="$REOPEN_CLEAN $i"
+            fi
+          done
+
+          if [ -n "$OVERLAPS" ]; then
+            echo "Skipping overlapping issue IDs (in both resolved and reopen):$OVERLAPS"
+          fi
+
+          for i in $RESOLVED_CLEAN; do
             if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
               echo "Skipping invalid or untrusted Issue ID: $i"
               continue
@@ -233,7 +260,8 @@ jobs:
             gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
             gh issue close "$i"
           done
-          for i in $REOPEN; do
+
+          for i in $REOPEN_CLEAN; do
             if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
               echo "Skipping invalid or untrusted Issue ID: $i"
               continue
