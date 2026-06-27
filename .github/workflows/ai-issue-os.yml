@@ -16,6 +16,9 @@ jobs:
       contents: read
       pull-requests: read
 
+    env:
+      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -171,7 +174,7 @@ jobs:
       # 4. GEMINI ANALYSIS (CONTEXT-SAFE)
       # ---------------------------
       - name: Gemini reasoning
-        if: steps.rule.outputs.trigger == 'true' && secrets.GEMINI_API_KEY != ''
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
         id: gemini
         env:
