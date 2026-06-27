@@ -173,8 +173,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gemini.outputs.summary }}
-          ISSUES_JSON: ${{ steps.issues.outputs.result }}  # Store untrusted JSON in env var
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
+          set -euo pipefail
+
           echo "$RESPONSE"
 
           # Validate that the Gemini response is well-formed JSON before proceeding.
@@ -185,7 +187,7 @@ jobs:
 
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
-          VALID_IDS=$(echo "$ISSUES_JSON" | jq -r '.[].number')  # Read from env var instead of interpolating
+          VALID_IDS=$(jq -r '.[].number' <<< "$ISSUES_JSON")
 
           # close resolved issues
           for i in $RESOLVED; do
