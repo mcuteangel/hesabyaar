@@ -123,7 +123,7 @@ jobs:
           cat intel.json >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-            # ---------------------------
+      # ---------------------------
       # 4. GEMINI ANALYSIS (Flash Lite + API Key Auth)
       # ---------------------------
       - name: Gemini reasoning
@@ -173,6 +173,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gemini.outputs.summary }}
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}  # Store untrusted JSON in env var
         run: |
           echo "$RESPONSE"
 
@@ -184,7 +185,7 @@ jobs:
 
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
-          VALID_IDS=$(echo '${{ steps.issues.outputs.result }}' | jq -r '.[].number')
+          VALID_IDS=$(echo "$ISSUES_JSON" | jq -r '.[].number')  # Read from env var instead of interpolating
 
           # close resolved issues
           for i in $RESOLVED; do
