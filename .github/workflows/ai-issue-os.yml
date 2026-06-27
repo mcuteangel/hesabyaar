@@ -1,0 +1,197 @@
+name: AI Issue OS v2 (Self-Healing)
+
+on:
+  issues:
+    types: [opened, edited, reopened, closed]
+  push:
+  pull_request:
+    types: [closed, synchronize]
+
+jobs:
+  ai_os_v2:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # ---------------------------
+      # 1. FETCH ISSUES
+      # ---------------------------
+      - name: Fetch issues
+        id: issues
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, state: "all" }
+            );
+
+            return issues
+              .filter(i => !i.pull_request)
+              .map(i => ({
+                number: i.number,
+                title: i.title,
+                body: i.body || "",
+                state: i.state
+              }));
+
+      # ---------------------------
+      # 2. FINGERPRINT + CLUSTERING
+      # ---------------------------
+      - name: Issue intelligence engine
+        id: intel
+        env:
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
+        run: |
+          python3 - << 'EOF' > intel.json
+          import json, hashlib, os
+
+          issues = json.loads(os.environ["ISSUES_JSON"])
+
+          clusters = {}
+          enriched = []
+
+          for i in issues:
+              text = (i["title"] + i["body"]).lower()
+              sig = hashlib.md5(text.encode()).hexdigest()[:10]
+
+              labels = []
+              if any(k in text for k in ["bug","error","crash","fail"]):
+                  labels.append("bug")
+              if any(k in text for k in ["feature","add","support"]):
+                  labels.append("feature")
+              if any(k in text for k in ["security","auth","token"]):
+                  labels.append("security")
+
+              enriched.append({
+                  "issue": i["number"],
+                  "signature": sig,
+                  "labels": labels
+              })
+
+              # clustering by signature prefix
+              key = sig[:6]
+              clusters.setdefault(key, []).append(i["number"])
+
+          print(json.dumps({
+              "issues": enriched,
+              "clusters": clusters
+          }))
+          EOF
+
+      # ---------------------------
+      # 3. RULE ENGINE (FAST FILTER)
+      # ---------------------------
+      - name: Rule engine
+        id: rule
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            git fetch origin main
+            BASE="origin/main"
+            HEAD="HEAD"
+          fi
+
+          git diff "$BASE" "$HEAD" > diff.txt
+
+          if grep -Eqi "fix|bug|error|null|undefined|auth|crash|fail" diff.txt; then
+            echo "trigger=true" >> $GITHUB_OUTPUT
+          else
+            echo "trigger=false" >> $GITHUB_OUTPUT
+          fi
+
+          # ذخیره کردن دیتاها در محیط برای استفاده در پرامپت جمینای
+          echo "DIFF_DATA<<EOF" >> $GITHUB_ENV
+          cat diff.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "INTEL_DATA<<EOF" >> $GITHUB_ENV
+          cat intel.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # ---------------------------
+      # 4. GEMINI ANALYSIS (Flash Lite + API Key Auth)
+      # ---------------------------
+      - name: Gemini reasoning
+        if: steps.rule.outputs.trigger == 'true'
+        uses: google-github-actions/run-gemini-cli@v0.1.22
+        id: gemini
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
+          prompt: |
+            You are a GitHub AI system.
+
+            You are given:
+            - issue clusters & fingerprints:
+            ${{ env.INTEL_DATA }}
+            - code diff:
+            ${{ env.DIFF_DATA }}
+
+            Tasks:
+            1. Detect resolved issues
+            2. Detect regressions (fixed issues that broke again)
+            3. Suggest labels (bug/feature/security/refactor)
+
+            Output ONLY JSON:
+
+            {
+              "resolved": [1,2],
+              "reopen": [3],
+              "labels": {
+                "1": ["bug"],
+                "2": ["security"]
+              },
+              "reason": "..."
+            }
+
+      # ---------------------------
+      # 5. APPLY RESOLUTIONS
+      # ---------------------------
+      - name: Apply issue updates
+        if: steps.gemini.outputs.summary != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESPONSE: ${{ steps.gemini.outputs.summary }}
+        run: |
+          echo "$RESPONSE"
+
+          RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved[]?')
+          REOPEN=$(echo "$RESPONSE" | jq -r '.reopen[]?')
+          VALID_IDS=$(echo '${{ steps.issues.outputs.result }}' | jq -r '.[].number')
+
+          # close resolved issues
+          for i in $RESOLVED; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or untrusted Issue ID: $i"
+              continue
+            fi
+            gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
+            gh issue close "$i"
+          done
+
+          # reopen regressions
+          for i in $REOPEN; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or untrusted Issue ID: $i"
+              continue
+            fi
+            gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
+            gh issue reopen "$i"
+          done
