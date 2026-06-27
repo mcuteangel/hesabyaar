@@ -1,0 +1,68 @@
+name: Issue Resolution Tracker
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get recent diff
+        id: diff
+        run: |
+          git fetch origin main
+          git diff origin/main > diff.txt
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          cat diff.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: AI Issue Resolution Check
+        id: ai
+        uses: actions/ai-inference@v1
+        with:
+          prompt: |
+            You are an issue resolution detector.
+
+            ISSUE:
+            ${{ github.event.issue.title }}
+            ${{ github.event.issue.body }}
+
+            CODE CHANGES:
+            ${{ steps.diff.outputs.diff }}
+
+            Task:
+            - Decide if the issue is resolved by these changes
+            - If yes, explain briefly why
+
+            Return JSON:
+            {
+              "resolved": true/false,
+              "reason": "...",
+              "confidence": 0-100
+            }
+
+      - name: Comment & Close Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RESPONSE='${{ steps.ai.outputs.response }}'
+
+          echo "$RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"resolved": true'; then
+            gh issue comment ${{ github.event.issue.number }} \
+              --body "✅ Issue resolved automatically.\n\n$RESPONSE"
+
+            gh issue close ${{ github.event.issue.number }}
+          fi
