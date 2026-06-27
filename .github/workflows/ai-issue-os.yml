@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       # ---------------------------
-      # 1. FETCH ISSUES
+      # 1. FETCH ISSUES (LIMITED + RECENT)
       # ---------------------------
       - name: Fetch issues
         id: issues
@@ -32,20 +32,29 @@ jobs:
           script: |
             const issues = await github.paginate(
               github.rest.issues.listForRepo,
-              { owner: context.repo.owner, repo: context.repo.repo, state: "all" }
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",      // Only open issues
+                per_page: 100,      // 100 per page
+                sort: "updated",    // Sort by updated
+                direction: "desc"   // Newest first
+              }
             );
-
-            return issues
+            // Limit to 200 most recent open issues
+            const recentIssues = issues.slice(0, 200);
+            return recentIssues
               .filter(i => !i.pull_request)
               .map(i => ({
                 number: i.number,
                 title: i.title,
                 body: i.body || "",
-                state: i.state
+                state: i.state,
+                updated_at: i.updated_at
               }));
 
       # ---------------------------
-      # 2. FINGERPRINT + CLUSTERING
+      # 2. ISSUE INTELLIGENCE ENGINE (SUMMARIZED)
       # ---------------------------
       - name: Issue intelligence engine
         id: intel
@@ -54,16 +63,15 @@ jobs:
         run: |
           python3 - << 'EOF' > intel.json
           import json, hashlib, os
+          from collections import defaultdict
 
           issues = json.loads(os.environ["ISSUES_JSON"])
-
           clusters = {}
           enriched = []
 
           for i in issues:
               text = (i["title"] + i["body"]).lower()
               sig = hashlib.md5(text.encode()).hexdigest()[:10]
-
               labels = []
               if any(k in text for k in ["bug","error","crash","fail"]):
                   labels.append("bug")
@@ -71,52 +79,82 @@ jobs:
                   labels.append("feature")
               if any(k in text for k in ["security","auth","token"]):
                   labels.append("security")
-
               enriched.append({
                   "issue": i["number"],
                   "signature": sig,
-                  "labels": labels
+                  "labels": labels,
+                  "updated_at": i.get("updated_at", "")
               })
-
-              # clustering by signature prefix
               key = sig[:6]
               clusters.setdefault(key, []).append(i["number"])
 
+          # --- Summarize for Gemini (avoid context bloat) ---
+          label_counts = defaultdict(int)
+          for issue in enriched:
+              for label in issue["labels"]:
+                  label_counts[label] += 1
+
+          sorted_issues = sorted(enriched, key=lambda x: x.get("updated_at", ""), reverse=True)
+          recent_clusters = {}
+          for issue in sorted_issues[:5]:
+              key = issue["signature"][:6]
+              if key not in recent_clusters:
+                  recent_clusters[key] = {
+                      "issues": clusters.get(key, []),
+                      "sample_labels": issue["labels"]
+                  }
+
           print(json.dumps({
-              "issues": enriched,
-              "clusters": clusters
+              "cluster_count": len(clusters),
+              "issue_count": len(enriched),
+              "label_distribution": dict(label_counts),
+              "recent_clusters": recent_clusters
           }))
           EOF
 
       # ---------------------------
-      # 3. RULE ENGINE (FAST FILTER)
+      # 3. RULE ENGINE (SCOPED + EVENT-AWARE)
       # ---------------------------
       - name: Rule engine
         id: rule
         run: |
+          # Set base/head and diff filter by event type
           if [ "${{ github.event_name }}" = "push" ]; then
             BASE="${{ github.event.before }}"
             HEAD="${{ github.event.after }}"
+            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for pushes
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
+            DIFF_FILTER=""  # Full diff for PRs
           else
             git fetch origin main
             BASE="origin/main"
             HEAD="HEAD"
+            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for issue events
           fi
 
-          git diff "$BASE" "$HEAD" > diff.txt
+          git diff "$BASE" "$HEAD" $DIFF_FILTER > diff.txt
 
-          if grep -Eqi "fix|bug|error|null|undefined|auth|crash|fail" diff.txt; then
+          # Use event-type-specific keywords
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
+          else
+            KEYWORDS="fix|bug|error|crash|fail|resolves|closes|fixes"
+          fi
+
+          if grep -Eqi "$KEYWORDS" diff.txt; then
             echo "trigger=true" >> $GITHUB_OUTPUT
           else
             echo "trigger=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
-          # ذخیره کردن دیتاها در محیط برای استفاده در پرامپت جمینای
+          # Truncate diff to last 1000 lines to avoid context limits
+          tail -n 1000 diff.txt > diff_truncated.txt
+
           echo "DIFF_DATA<<EOF" >> $GITHUB_ENV
-          cat diff.txt >> $GITHUB_ENV
+          cat diff_truncated.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
           echo "INTEL_DATA<<EOF" >> $GITHUB_ENV
@@ -124,7 +162,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       # ---------------------------
-      # 4. GEMINI ANALYSIS (Flash Lite + API Key Auth)
+      # 4. GEMINI ANALYSIS (CONTEXT-SAFE)
       # ---------------------------
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true'
@@ -138,31 +176,30 @@ jobs:
           prompt: |
             You are a GitHub AI system.
 
-            You are given:
-            - issue clusters & fingerprints:
-            ${{ env.INTEL_DATA }}
-            - code diff:
-            ${{ env.DIFF_DATA }}
+            Context:
+            - Issue intelligence summary: ${{ env.INTEL_DATA }}
+            - Truncated code diff (last 1000 lines): ${{ env.DIFF_DATA }}
 
             Tasks:
-            1. Detect resolved issues
-            2. Detect regressions (fixed issues that broke again)
+            1. Detect resolved issues based on diff content
+            2. Detect regressions (previously fixed issues that broke again)
             3. Suggest labels (bug/feature/security/refactor)
 
-            Output ONLY JSON:
+            Constraints:
+            - Focus only on issues in the provided summary.
+            - The diff is truncated; work with what is available.
+            - Be conservative with reopen suggestions.
 
+            Output ONLY valid JSON:
             {
-              "resolved": [1,2],
+              "resolved": [1, 2],
               "reopen": [3],
-              "labels": {
-                "1": ["bug"],
-                "2": ["security"]
-              },
-              "reason": "..."
+              "labels": { "1": ["bug"], "2": ["security"] },
+              "reason": "Brief explanation of decisions"
             }
 
       # ---------------------------
-      # 5. APPLY RESOLUTIONS (ONLY FOR PUSH TO DEFAULT BRANCH)
+      # 5. APPLY RESOLUTIONS
       # ---------------------------
       - name: Apply issue updates
         if: |
@@ -175,20 +212,14 @@ jobs:
           ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
           set -euo pipefail
-
           echo "$RESPONSE"
-
-          # Validate that the Gemini response is well-formed JSON before proceeding.
           if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
             echo "Gemini output is not valid JSON; skipping issue updates."
             exit 0
           fi
-
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
           VALID_IDS=$(jq -r '.[].number' <<< "$ISSUES_JSON")
-
-          # close resolved issues
           for i in $RESOLVED; do
             if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
               echo "Skipping invalid or untrusted Issue ID: $i"
@@ -197,8 +228,6 @@ jobs:
             gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
             gh issue close "$i"
           done
-
-          # reopen regressions
           for i in $REOPEN; do
             if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
               echo "Skipping invalid or untrusted Issue ID: $i"
