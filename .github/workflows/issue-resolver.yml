@@ -38,27 +38,27 @@ jobs:
         id: ai
         uses: actions/ai-inference@v2.1.1
         with:
-         model: openai/gpt-4o-mini
-         prompt: |
-            You are an issue resolution detector.
+          model: openai/gpt-5.4-mini
+          prompt: |
+             You are an issue resolution detector.
 
-            ISSUE TITLE:
-            ${{ github.event.issue.title }}
+             ISSUE TITLE:
+             ${{ github.event.issue.title }}
 
-            ISSUE BODY:
-            ${{ github.event.issue.body }}
+             ISSUE BODY:
+             ${{ github.event.issue.body }}
 
-            CODE DIFF:
-            ${{ steps.diff.outputs.diff }}
+             CODE DIFF:
+             ${{ steps.diff.outputs.diff }}
 
-            Decide if the issue is resolved by the current changes.
+             Decide if the issue is resolved by the current changes.
 
-            Respond ONLY in JSON:
-            {
-              "resolved": true,
-              "reason": "...",
-              "confidence": 0-100
-            }
+             Respond ONLY in JSON:
+             {
+               "resolved": true,
+               "reason": "...",
+               "confidence": 0-100
+             }
 
       - name: Evaluate and act on result (safe parsing)
         shell: bash
