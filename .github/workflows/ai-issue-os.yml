@@ -172,6 +172,13 @@ jobs:
         run: |
           echo "$RESPONSE"
 
+          # Validate that the Gemini response is well-formed JSON before proceeding.
+          # If validation fails, short-circuit gracefully to avoid noisy jq failures.
+          if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+            echo "Gemini output is not valid JSON; skipping issue updates."
+            exit 0
+          fi
+
           RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved[]?')
           REOPEN=$(echo "$RESPONSE" | jq -r '.reopen[]?')
           VALID_IDS=$(echo '${{ steps.issues.outputs.result }}' | jq -r '.[].number')
