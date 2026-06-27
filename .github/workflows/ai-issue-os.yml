@@ -52,7 +52,7 @@ jobs:
         env:
           ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
-          python3 - << 'EOF'
+          python3 - << 'EOF' > intel.json
           import json, hashlib, os
 
           issues = json.loads(os.environ["ISSUES_JSON"])
@@ -114,23 +114,33 @@ jobs:
             echo "trigger=false" >> $GITHUB_OUTPUT
           fi
 
+          # ذخیره کردن دیتاها در محیط برای استفاده در پرامپت جمینای
+          echo "DIFF_DATA<<EOF" >> $GITHUB_ENV
+          cat diff.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "INTEL_DATA<<EOF" >> $GITHUB_ENV
+          cat intel.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       # ---------------------------
-      # 4. GEMINI ANALYSIS (Flash Lite + fallback)
+      # 4. GEMINI ANALYSIS (Flash Lite + API Key Auth)
       # ---------------------------
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true'
         uses: google-github-actions/run-gemini-cli@v0.1.22
         id: gemini
         with:
-          model: gemini-3.1-flash-lite
-          fallback_models: '["gemini-4-31b"]'
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
           prompt: |
             You are a GitHub AI system.
 
             You are given:
-            - issue clusters
-            - issue fingerprints
-            - code diff
+            - issue clusters & fingerprints:
+            ${{ env.INTEL_DATA }}
+            - code diff:
+            ${{ env.DIFF_DATA }}
 
             Tasks:
             1. Detect resolved issues
@@ -153,24 +163,33 @@ jobs:
       # 5. APPLY RESOLUTIONS
       # ---------------------------
       - name: Apply issue updates
-        if: steps.gemini.outputs.response != ''
+        if: steps.gemini.outputs.summary != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESPONSE: ${{ steps.gemini.outputs.response }}
+          RESPONSE: ${{ steps.gemini.outputs.summary }}
         run: |
           echo "$RESPONSE"
 
           RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved[]?')
           REOPEN=$(echo "$RESPONSE" | jq -r '.reopen[]?')
+          VALID_IDS=$(echo '${{ steps.issues.outputs.result }}' | jq -r '.[].number')
 
           # close resolved issues
           for i in $RESOLVED; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or untrusted Issue ID: $i"
+              continue
+            fi
             gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
             gh issue close "$i"
           done
 
           # reopen regressions
           for i in $REOPEN; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or untrusted Issue ID: $i"
+              continue
+            fi
             gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
             gh issue reopen "$i"
           done
