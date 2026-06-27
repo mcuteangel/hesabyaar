@@ -1,0 +1,158 @@
+name: AI Issue OS v2 (Self-Healing)
+
+on:
+  issues:
+    types: [opened, edited, reopened, closed]
+  push:
+  pull_request:
+    types: [closed, synchronize]
+
+jobs:
+  ai_os_v2:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------------------------
+      # 1. FETCH ISSUES
+      # ---------------------------
+      - name: Fetch issues
+        id: issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, state: "all" }
+            );
+
+            return issues.map(i => ({
+              number: i.number,
+              title: i.title,
+              body: i.body || "",
+              state: i.state
+            }));
+
+      # ---------------------------
+      # 2. FINGERPRINT + CLUSTERING
+      # ---------------------------
+      - name: Issue intelligence engine
+        id: intel
+        run: |
+          python3 - << 'EOF'
+          import json, hashlib
+
+          issues = json.loads("""${{ steps.issues.outputs.result }}""")
+
+          clusters = {}
+          enriched = []
+
+          for i in issues:
+              text = (i["title"] + i["body"]).lower()
+              sig = hashlib.md5(text.encode()).hexdigest()[:10]
+
+              labels = []
+              if any(k in text for k in ["bug","error","crash","fail"]):
+                  labels.append("bug")
+              if any(k in text for k in ["feature","add","support"]):
+                  labels.append("feature")
+              if any(k in text for k in ["security","auth","token"]):
+                  labels.append("security")
+
+              enriched.append({
+                  "issue": i["number"],
+                  "signature": sig,
+                  "labels": labels
+              })
+
+              # clustering by signature prefix
+              key = sig[:6]
+              clusters.setdefault(key, []).append(i["number"])
+
+          print(json.dumps({
+              "issues": enriched,
+              "clusters": clusters
+          }))
+          EOF
+
+      # ---------------------------
+      # 3. RULE ENGINE (FAST FILTER)
+      # ---------------------------
+      - name: Rule engine
+        id: rule
+        run: |
+          git fetch origin main
+          git diff origin/main > diff.txt
+
+          if grep -Eqi "fix|bug|error|null|undefined|auth|crash|fail" diff.txt; then
+            echo "trigger=true" >> $GITHUB_OUTPUT
+          else
+            echo "trigger=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ---------------------------
+      # 4. GEMINI ANALYSIS (Flash Lite + fallback)
+      # ---------------------------
+      - name: Gemini reasoning
+        if: steps.rule.outputs.trigger == 'true'
+        uses: google-github-actions/run-gemini-cli@v0.1.22
+        id: gemini
+        with:
+          model: gemini-3.1-flash-lite
+          fallback_models: '["gemini-4-31b"]'
+          prompt: |
+            You are a GitHub AI system.
+
+            You are given:
+            - issue clusters
+            - issue fingerprints
+            - code diff
+
+            Tasks:
+            1. Detect resolved issues
+            2. Detect regressions (fixed issues that broke again)
+            3. Suggest labels (bug/feature/security/refactor)
+
+            Output ONLY JSON:
+
+            {
+              "resolved": [1,2],
+              "reopen": [3],
+              "labels": {
+                "1": ["bug"],
+                "2": ["security"]
+              },
+              "reason": "..."
+            }
+
+      # ---------------------------
+      # 5. APPLY RESOLUTIONS
+      # ---------------------------
+      - name: Apply issue updates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESPONSE: ${{ steps.gemini.outputs.response }}
+        run: |
+          echo "$RESPONSE"
+
+          RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved[]?')
+          REOPEN=$(echo "$RESPONSE" | jq -r '.reopen[]?')
+
+          # close resolved issues
+          for i in $RESOLVED; do
+            gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
+            gh issue close "$i"
+          done
+
+          # reopen regressions
+          for i in $REOPEN; do
+            gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
+            gh issue reopen "$i"
+          done
