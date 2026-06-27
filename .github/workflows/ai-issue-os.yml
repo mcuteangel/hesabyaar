@@ -18,14 +18,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
 
       # ---------------------------
       # 1. FETCH ISSUES
       # ---------------------------
       - name: Fetch issues
         id: issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const issues = await github.paginate(
@@ -33,23 +35,27 @@ jobs:
               { owner: context.repo.owner, repo: context.repo.repo, state: "all" }
             );
 
-            return issues.map(i => ({
-              number: i.number,
-              title: i.title,
-              body: i.body || "",
-              state: i.state
-            }));
+            return issues
+              .filter(i => !i.pull_request)
+              .map(i => ({
+                number: i.number,
+                title: i.title,
+                body: i.body || "",
+                state: i.state
+              }));
 
       # ---------------------------
       # 2. FINGERPRINT + CLUSTERING
       # ---------------------------
       - name: Issue intelligence engine
         id: intel
+        env:
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
           python3 - << 'EOF'
-          import json, hashlib
+          import json, hashlib, os
 
-          issues = json.loads("""${{ steps.issues.outputs.result }}""")
+          issues = json.loads(os.environ["ISSUES_JSON"])
 
           clusters = {}
           enriched = []
@@ -88,8 +94,19 @@ jobs:
       - name: Rule engine
         id: rule
         run: |
-          git fetch origin main
-          git diff origin/main > diff.txt
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            git fetch origin main
+            BASE="origin/main"
+            HEAD="HEAD"
+          fi
+
+          git diff "$BASE" "$HEAD" > diff.txt
 
           if grep -Eqi "fix|bug|error|null|undefined|auth|crash|fail" diff.txt; then
             echo "trigger=true" >> $GITHUB_OUTPUT
@@ -102,7 +119,7 @@ jobs:
       # ---------------------------
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true'
-        uses: google-github-actions/run-gemini-cli@v0.1.22
+        uses: google-github-actions/run-gemini-cli@83bb7a346b6fa36b5e7d03af55eb6b88d77f3b68 # v0.1.22
         id: gemini
         with:
           model: gemini-3.1-flash-lite
@@ -136,6 +153,7 @@ jobs:
       # 5. APPLY RESOLUTIONS
       # ---------------------------
       - name: Apply issue updates
+        if: steps.gemini.outputs.response != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gemini.outputs.response }}
