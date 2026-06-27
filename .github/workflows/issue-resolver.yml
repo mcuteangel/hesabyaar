@@ -16,8 +16,8 @@ jobs:
       pull-requests: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@a12a5b0f9f6c7e8d9a1b2c3d4e5f60718293abcd
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
 
       - name: Get recent diff (safe)
         id: diff
@@ -36,7 +36,7 @@ jobs:
 
       - name: Run AI inference
         id: ai
-        uses: actions/ai-inference@b3c9f1a8d2e4f6a7b1c3d5e6f7890123456789ab
+        uses: actions/ai-inference@v2.1.1
         with:
           prompt: |
             You are an issue resolution detector.
