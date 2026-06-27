@@ -32,8 +32,10 @@ env:
           config.model: "gemini/gemini-3.1-flash-lite"
           config.fallback_models: '["google/gemma-4-31b"]'
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          config.custom_model_max_tokens: "128000"
           
           # ابزارهای خودکار زمان باز شدن پی‌آر
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
+          
