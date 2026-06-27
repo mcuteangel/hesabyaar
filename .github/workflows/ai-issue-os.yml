@@ -119,7 +119,7 @@ jobs:
       # ---------------------------
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true'
-        uses: google-github-actions/run-gemini-cli@83bb7a346b6fa36b5e7d03af55eb6b88d77f3b68 # v0.1.22
+        uses: google-github-actions/run-gemini-cli@v0.1.22
         id: gemini
         with:
           model: gemini-3.1-flash-lite
