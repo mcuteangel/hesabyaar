@@ -179,8 +179,8 @@ jobs:
             exit 0
           fi
 
-          RESOLVED=$(echo "$RESPONSE" | jq -r '.resolved[]?')
-          REOPEN=$(echo "$RESPONSE" | jq -r '.reopen[]?')
+          RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
+          REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
           VALID_IDS=$(echo '${{ steps.issues.outputs.result }}' | jq -r '.[].number')
 
           # close resolved issues
