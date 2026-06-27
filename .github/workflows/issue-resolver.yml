@@ -38,7 +38,8 @@ jobs:
         id: ai
         uses: actions/ai-inference@v2.1.1
         with:
-          prompt: |
+         model: openai/gpt-4o-mini
+         prompt: |
             You are an issue resolution detector.
 
             ISSUE TITLE:
