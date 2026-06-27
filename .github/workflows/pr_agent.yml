@@ -24,14 +24,18 @@ jobs:
     steps:
       - name: PR Agent action step
         id: pragent
-        uses: docker://pragent/pr-agent:0.37.0-github_action
-        env:
+        uses: the-pr-agent/pr-agent@v0.38.0
+env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
+          # تنظیمات مدل با حروف کوچک منطبق بر داکیومنت
           config.model: "gemini/gemini-3.1-flash-lite"
           config.fallback_models: '["google/gemma-4-31b"]'
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          config.custom_model_max_tokens: "128000"
           
+          # ابزارهای خودکار زمان باز شدن پی‌آر
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
+          
