@@ -171,7 +171,7 @@ jobs:
       # 4. GEMINI ANALYSIS (CONTEXT-SAFE)
       # ---------------------------
       - name: Gemini reasoning
-        if: steps.rule.outputs.trigger == 'true'
+        if: steps.rule.outputs.trigger == 'true' && secrets.GEMINI_API_KEY != ''
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
         id: gemini
         env:
@@ -224,7 +224,9 @@ jobs:
             exit 0
           fi
 
-          VALID_IDS=$(jq -r '.[].number' <<< "$ISSUES_JSON")
+          # Build state-aware ID sets
+          OPEN_IDS=$(jq -r '.[] | select(.state == "open") | .number' <<< "$ISSUES_JSON")
+          CLOSED_IDS=$(jq -r '.[] | select(.state == "closed") | .number' <<< "$ISSUES_JSON")
 
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
@@ -253,8 +255,8 @@ jobs:
           fi
 
           for i in $RESOLVED_CLEAN; do
-            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
-              echo "Skipping invalid or untrusted Issue ID: $i"
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or non-open Issue ID: $i"
               continue
             fi
             gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
@@ -262,8 +264,8 @@ jobs:
           done
 
           for i in $REOPEN_CLEAN; do
-            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$VALID_IDS" | grep -qxF "$i"; then
-              echo "Skipping invalid or untrusted Issue ID: $i"
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$CLOSED_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or non-closed Issue ID: $i"
               continue
             fi
             gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
