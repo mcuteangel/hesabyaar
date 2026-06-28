@@ -37,8 +37,8 @@ jobs:
       - name: Run ktlint
         run: ./gradlew ktlintCheck
 
-      - name: Run Unit Tests
-        run: ./gradlew test
+      - name: Run Unit Tests with Coverage
+        run: ./gradlew testDebugUnitTest jacocoTestReport
 
       - name: Run Codacy Coverage Reporter
         env:
@@ -47,7 +47,7 @@ jobs:
           CODACY_USERNAME: mcuteangel
           CODACY_PROJECT_NAME: hesabyaar
         run: |
-          bash <(curl -Ls https://coverage.codacy.com/get.sh)
+          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
