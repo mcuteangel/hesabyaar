@@ -128,7 +128,7 @@ abstract class AppDatabase : RoomDatabase() {
                 java.io.FileInputStream(dbFile).use { it.read(header) }
                 String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
             } catch (e: Exception) {
-                e.printStackTrace()
+                println("Failed to validate SQLite header for ${dbFile.path}: ${e.message}")
                 false
             }
         }
