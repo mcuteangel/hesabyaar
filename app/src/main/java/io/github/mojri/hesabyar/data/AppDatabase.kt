@@ -111,7 +111,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     appContext,
                     AppDatabase::class.java,
-                    "hesabyar_database"
+                    DATABASE_NAME
                 )
                 .openHelperFactory(factory)
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3)

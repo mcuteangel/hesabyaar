@@ -311,9 +311,9 @@ private fun CategoryItem(
                     )
                     Text(
                         text = when (category.type) {
-                            Category.TYPE_EXPENSE -> "هزینه"
-                            Category.TYPE_INCOME -> "درآمد"
-                            else -> "هر دو"
+                            Category.TYPE_EXPENSE -> EXPENSE_LABEL
+                            Category.TYPE_INCOME -> INCOME_LABEL
+                            else -> BOTH_LABEL
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = categoryColor,

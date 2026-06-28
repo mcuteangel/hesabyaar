@@ -138,39 +138,62 @@ class ExcelExporterTest {
         assertEquals(5500L, amount / 1000)
     }
 
+    companion object {
+        private const val RECEIVED = "دریافتی"
+        private const val PAID = "پرداختی"
+    }
     @Test
     fun `transaction type mapping`() {
-        assertEquals("دریافتی", if ("INCOME" == "INCOME") "دریافتی" else "پرداختی")
-        assertEquals("پرداختی", if ("EXPENSE" == "INCOME") "دریافتی" else "پرداختی")
+        assertEquals(RECEIVED, if ("INCOME" == "INCOME") RECEIVED else PAID)
+        assertEquals(PAID, if ("EXPENSE" == "INCOME") RECEIVED else PAID)
+    }
+
+    companion object {
+        private const val LOAN_TYPE_DEBTOR_LABEL = "طلبکار"
+        private const val LOAN_TYPE_CREDITOR_LABEL = "بدهکار"
     }
 
     @Test
     fun `loan type mapping`() {
-        assertEquals("طلبکار", if ("DEBTOR" == "DEBTOR") "طلبکار" else "بدهکار")
-        assertEquals("بدهکار", if ("CREDITOR" == "DEBTOR") "طلبکار" else "بدهکار")
+        assertEquals(LOAN_TYPE_DEBTOR_LABEL, if ("DEBTOR" == "DEBTOR") LOAN_TYPE_DEBTOR_LABEL else LOAN_TYPE_CREDITOR_LABEL)
+        assertEquals(LOAN_TYPE_CREDITOR_LABEL, if ("CREDITOR" == "DEBTOR") LOAN_TYPE_DEBTOR_LABEL else LOAN_TYPE_CREDITOR_LABEL)
+    }
+
+    private companion object {
+        const val SETTLED_STATUS = "تسویه شده"
+        const val OPEN_STATUS = "باز"
     }
 
     @Test
     fun `loan settled status mapping`() {
-        assertEquals("تسویه شده", if (true) "تسویه شده" else "باز")
-        assertEquals("باز", if (false) "تسویه شده" else "باز")
+        assertEquals(SETTLED_STATUS, if (true) SETTLED_STATUS else OPEN_STATUS)
+        assertEquals(OPEN_STATUS, if (false) SETTLED_STATUS else OPEN_STATUS)
     }
 
+    companion object {
+        private const val INSTALLMENT_PAID = "پرداخت شده"
+        private const val INSTALLMENT_NOT_PAID = "پرداخت نشده"
+    }
     @Test
     fun `installment paid status mapping`() {
-        assertEquals("پرداخت شده", if (true) "پرداخت شده" else "پرداخت نشده")
-        assertEquals("پرداخت نشده", if (false) "پرداخت شده" else "پرداخت نشده")
+        assertEquals(INSTALLMENT_PAID, if (true) INSTALLMENT_PAID else INSTALLMENT_NOT_PAID)
+        assertEquals(INSTALLMENT_NOT_PAID, if (false) INSTALLMENT_PAID else INSTALLMENT_NOT_PAID)
+    }
+
+    companion object {
+        private const val FOOD_NAME = "خوراک"
+        private const val TRANSPORT_NAME = "حمل و نقل"
     }
 
     @Test
     fun `category lookup returns name`() {
         val categories = listOf(
-            Category(id = 1L, name = "خوراک", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE"),
-            Category(id = 2L, name = "حمل و نقل", key = "Transportation", icon = "Car", color = 0xFFFF9800L, type = "EXPENSE")
+            Category(id = 1L, name = FOOD_NAME, key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE"),
+            Category(id = 2L, name = TRANSPORT_NAME, key = "Transportation", icon = "Car", color = 0xFFFF9800L, type = "EXPENSE")
         )
         val map = categories.associateBy { it.id }
-        assertEquals("خوراک", map[1L]?.name)
-        assertEquals("حمل و نقل", map[2L]?.name)
+        assertEquals(FOOD_NAME, map[1L]?.name)
+        assertEquals(TRANSPORT_NAME, map[2L]?.name)
     }
 
     @Test

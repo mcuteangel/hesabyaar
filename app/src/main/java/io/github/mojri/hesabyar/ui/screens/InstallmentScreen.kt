@@ -38,8 +38,8 @@ fun InstallmentScreen(
 ) {
     val installments by installmentViewModel.installments.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
-    var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
-
+    private const val LIST_FILTER_STATE_DEFAULT = "UNPAID"
+    var listFilterState by remember { mutableStateOf(LIST_FILTER_STATE_DEFAULT) } // "UNPAID", "PAID", "ALL"
     // Process lists
     val unpaid = installments.filter { !it.isPaid }
     val paid = installments.filter { it.isPaid }

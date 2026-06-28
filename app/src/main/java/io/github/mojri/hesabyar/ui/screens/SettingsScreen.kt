@@ -210,7 +210,7 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { backupViewModel.cancelPendingRestore() }) {
-                    Text("انصراف")
+                    Text(CANCEL_TEXT)
                 }
             }
         )

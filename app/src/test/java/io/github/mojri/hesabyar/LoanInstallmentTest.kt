@@ -62,13 +62,16 @@ class LoanInstallmentTest {
 
     @Test
     fun `loan payment creates transaction with correct type`() {
-        val loanType = "CREDITOR"
-        val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
-        assertEquals("EXPENSE", transactionType)
+        val CREDITOR_TYPE = "CREDITOR"
+        val EXPENSE_TYPE = "EXPENSE"
+        val INCOME_TYPE = "INCOME"
+        val loanType = CREDITOR_TYPE
+        val transactionType = if (loanType == CREDITOR_TYPE) EXPENSE_TYPE else INCOME_TYPE
+        assertEquals(EXPENSE_TYPE, transactionType)
 
         val loanType2 = "DEBTOR"
-        val transactionType2 = if (loanType2 == "CREDITOR") "EXPENSE" else "INCOME"
-        assertEquals("INCOME", transactionType2)
+        val transactionType2 = if (loanType2 == CREDITOR_TYPE) EXPENSE_TYPE else INCOME_TYPE
+        assertEquals(INCOME_TYPE, transactionType2)
     }
 
     @Test

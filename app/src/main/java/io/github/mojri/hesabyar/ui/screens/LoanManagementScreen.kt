@@ -43,11 +43,11 @@ fun LoanManagementScreen(
     val loans by loanViewModel.loans.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingLoan by remember { mutableStateOf<Loan?>(null) }
-    var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
-
+    private const val TERM_STATE_DEBTOR = "DEBTOR"
+        var termState by remember { mutableStateOf(TERM_STATE_DEBTOR) } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
     // Filtered lists
     val debtors = loans.filter { it.type == "DEBTOR" }
-    val creditors = loans.filter { it.type == "CREDITOR" }
+    val creditors = loans.filter { it.type == CREDITOR_TYPE }
 
     Column(
         modifier = modifier
@@ -261,7 +261,7 @@ fun LoanManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showAddDialog = false }) {
-                    Text("انصراف")
+                    Text(CANCEL_BUTTON_TEXT)
                 }
             }
         )

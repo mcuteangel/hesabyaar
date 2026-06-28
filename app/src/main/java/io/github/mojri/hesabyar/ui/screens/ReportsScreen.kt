@@ -83,7 +83,7 @@ fun ReportsScreen(
     val categoryTotals = HashMap<Long, Long>()
 
     filteredList.forEach {
-        if (it.type == "INCOME") {
+        if (it.type == TYPE_INCOME) {
             totalIncome += it.amount
         } else {
             totalExpense += it.amount

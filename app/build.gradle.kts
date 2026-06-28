@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
+val APP_ID = "io.github.mojri.hesabyar"
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
@@ -10,17 +11,17 @@ plugins {
 }
 
 android {
-  namespace = "io.github.mojri.hesabyar"
+  namespace = APP_ID
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "io.github.mojri.hesabyar"
+    applicationId = APP_ID
     minSdk = 24
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
 
-    testInstrumentationRunner = "io.github.mojri.hesabyar.AndroidJUnitRunner"
+    testInstrumentationRunner = "${APP_ID}.AndroidJUnitRunner"
   }
 
   signingConfigs {
@@ -58,6 +59,7 @@ android {
     compose = true
     buildConfig = true
   }
+}
   testOptions {
     unitTests {
       isIncludeAndroidResources = true

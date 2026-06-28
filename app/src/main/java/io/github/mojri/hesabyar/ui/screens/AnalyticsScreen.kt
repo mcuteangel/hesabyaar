@@ -628,9 +628,9 @@ private fun LoanStatusCard(loans: List<Loan>) {
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (loan.type == "DEBTOR") "بدهکار" else "طلبکار",
+                                text = if (loan.type == LOAN_TYPE_DEBTOR) "بدهکار" else "طلبکار",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (loan.type == "DEBTOR") ExpenseRed else IncomeGreen
+                                color = if (loan.type == LOAN_TYPE_DEBTOR) ExpenseRed else IncomeGreen
                             )
                         }
 

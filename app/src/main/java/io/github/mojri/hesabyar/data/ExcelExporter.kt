@@ -76,13 +76,15 @@ class ExcelExporter(private val context: Context) {
 
     // ─── Sheet builders ──────────────────────────────────────────────
 
+    private const val OTHER_CATEGORY_NAME = "سایر"
+
     private fun createTransactionsSheet(transactions: List<Transaction>): SheetDef {
         val headers = listOf("ردیف", "نوع", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
         val rows = transactions.map { tx ->
             listOf(
                 "",
                 if (tx.type == "INCOME") "دریافتی" else "پرداختی",
-                categoryMap[tx.categoryId]?.name ?: "سایر",
+                categoryMap[tx.categoryId]?.name ?: OTHER_CATEGORY_NAME,
                 formatAmount(tx.amount),
                 tx.description,
                 formatDate(tx.date)

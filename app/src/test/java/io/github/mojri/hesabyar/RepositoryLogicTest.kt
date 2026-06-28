@@ -51,18 +51,26 @@ class RepositoryLogicTest {
         assertEquals(0L, remainingAmount)
     }
 
+    companion object {
+        private const val LOAN_TYPE_CREDITOR = "CREDITOR"
+        private const val TRANSACTION_TYPE_EXPENSE = "EXPENSE"
+    }
     @Test
     fun `addPaymentToLoan - creditor creates expense transaction`() {
-        val loanType = "CREDITOR"
-        val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
-        assertEquals("EXPENSE", transactionType)
+        val loanType = LOAN_TYPE_CREDITOR
+        val transactionType = if (loanType == LOAN_TYPE_CREDITOR) TRANSACTION_TYPE_EXPENSE else "INCOME"
+        assertEquals(TRANSACTION_TYPE_EXPENSE, transactionType)
+    }
+
+    private companion object {
+        private const val INCOME = "INCOME"
     }
 
     @Test
     fun `addPaymentToLoan - debtor creates income transaction`() {
         val loanType = "DEBTOR"
-        val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
-        assertEquals("INCOME", transactionType)
+        val transactionType = if (loanType == "CREDITOR") "EXPENSE" else INCOME
+        assertEquals(INCOME, transactionType)
     }
 
     @Test
@@ -124,10 +132,16 @@ class RepositoryLogicTest {
         assertEquals("New", existingCategories[0].name)
     }
 
+    companion object {
+        private const val KEY_FOOD = "Food"
+        private const val ICON_RESTAURANT = "Restaurant"
+        private const val TYPE_EXPENSE = "EXPENSE"
+        private const val NEW_NAME = "New Food"
+    }
     @Test
     fun `mergeFromBackup - updates existing category`() {
-        val existing = Category(id = 1, name = "Old Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
-        val backup = Category(id = 0, name = "New Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
+        val existing = Category(id = 1, name = "Old Food", key = KEY_FOOD, icon = ICON_RESTAURANT, color = 0xFF4CAF50L, type = TYPE_EXPENSE)
+        val backup = Category(id = 0, name = NEW_NAME, key = KEY_FOOD, icon = ICON_RESTAURANT, color = 0xFF4CAF50L, type = TYPE_EXPENSE)
 
         val existingKey = existing.key
         val backupKey = backup.key
@@ -135,7 +149,7 @@ class RepositoryLogicTest {
 
         val merged = backup.copy(id = existing.id)
         assertEquals(existing.id, merged.id)
-        assertEquals("New Food", merged.name)
+        assertEquals(NEW_NAME, merged.name)
     }
 
     @Test

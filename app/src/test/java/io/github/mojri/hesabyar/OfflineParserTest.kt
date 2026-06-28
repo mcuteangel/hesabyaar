@@ -11,9 +11,13 @@ import org.junit.Test
 
 class OfflineParserTest {
 
+    companion object {
+        private const val MILLION_SENTENCE = "امروز مرغ خریدم 5 میلیون"
+    }
+
     @Test
     fun `parse expense with million`() {
-        val result = GeminiParser.parseSentenceOffline("امروز مرغ خریدم 5 میلیون")
+        val result = GeminiParser.parseSentenceOffline(MILLION_SENTENCE)
         assertEquals("EXPENSE", result.type)
         assertEquals(5_000_000_000L, result.amount)
         assertEquals("Food", result.category)
@@ -50,10 +54,15 @@ class OfflineParserTest {
         assertEquals(2_000_000_000L, result.amount)
     }
 
+    companion object {
+        private const val INSTALLMENT_SENTENCE = "قسط ماشین 3 میلیون"
+        private const val INSTALLMENT_TYPE = "INSTALLMENT"
+    }
+
     @Test
     fun `parse installment`() {
-        val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون")
-        assertEquals("INSTALLMENT", result.type)
+        val result = GeminiParser.parseSentenceOffline(INSTALLMENT_SENTENCE)
+        assertEquals(INSTALLMENT_TYPE, result.type)
         assertEquals(3_000_000_000L, result.amount)
         assertNotNull(result.title)
     }
@@ -90,14 +99,15 @@ class OfflineParserTest {
         assertEquals("Bills", result.category)
     }
 
+    private const val HAIRCUT_EXPENSE_WITH_THOUSAND = "اصلاح کردم 200 هزار تومن"
+
     @Test
     fun `parse haircut expense with thousand`() {
-        val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن")
+        val result = GeminiParser.parseSentenceOffline(HAIRCUT_EXPENSE_WITH_THOUSAND)
         assertEquals("EXPENSE", result.type)
         assertEquals(200_000_000L, result.amount)
         assertEquals("Personal Care", result.category)
     }
-
     @Test
     fun `parse amount with persian numerals`() {
         val result = GeminiParser.parseSentenceOffline("بنزین زدم ۶۰۰ هزار تومان")
@@ -132,9 +142,13 @@ class OfflineParserTest {
         assertEquals("قسط در انتظار پرداخت", result.notes)
     }
 
+    companion object {
+        private const val INSTALLMENT_SENTENCE = "قسط ماشین 25 تیر 10 میلیون"
+    }
+
     @Test
     fun `installment with specific jalali date calculates correct days`() {
-        val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون")
+        val result = GeminiParser.parseSentenceOffline(INSTALLMENT_SENTENCE)
         assertEquals("INSTALLMENT", result.type)
         assertNotNull(result.daysFromNow)
         assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)

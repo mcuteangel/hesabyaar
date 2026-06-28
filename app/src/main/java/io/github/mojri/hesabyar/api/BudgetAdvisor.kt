@@ -29,8 +29,8 @@ object BudgetAdvisor {
             return@withContext "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا هوش مصنوعی بتواند بودجه شما را تحلیل کند."
         }
 
-        val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val totalIncome = transactions.filter { it.type == TRANSACTION_TYPE_INCOME }.sumOf { it.amount }
+        val totalExpense = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
         val categoriesGroup = transactions.filter { it.type == "EXPENSE" }
             .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { tx -> tx.amount } }

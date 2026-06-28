@@ -110,8 +110,10 @@ object AiProvider {
         }
     }
 
+    private const val OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
     private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
-        val url = "https://openrouter.ai/api/v1/models"
+        val url = OPENROUTER_MODELS_URL
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $apiKey")
@@ -182,9 +184,9 @@ object AiProvider {
         val model = config.model.ifBlank { "gemini-2.0-flash" }
 
         val requestJson = JSONObject().apply {
-            put("contents", JSONArray().put(JSONObject().apply {
-                put("parts", JSONArray().put(JSONObject().apply {
-                    put("text", prompt)
+            put(JSON_KEY_CONTENTS, JSONArray().put(JSONObject().apply {
+                put(JSON_KEY_PARTS, JSONArray().put(JSONObject().apply {
+                    put(JSON_KEY_TEXT, prompt)
                 }))
             }))
             if (systemInstruction != null) {
@@ -229,8 +231,8 @@ object AiProvider {
         val messages = JSONArray()
         if (systemInstruction != null) {
             messages.put(JSONObject().apply {
-                put("role", "system")
-                put("content", systemInstruction)
+                put(KEY_ROLE, ROLE_SYSTEM)
+                put(KEY_CONTENT, systemInstruction)
             })
         }
         messages.put(JSONObject().apply {

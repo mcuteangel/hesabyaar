@@ -77,83 +77,7 @@ object GeminiParser {
         }
     }
 
-    private fun parseJsonResult(jsonStr: String): ParsedResult? {
-        return try {
-            val cleanStr = jsonStr.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-            val json = JSONObject(cleanStr)
-            val result = ParsedResult(
-                type = json.optString("type", TYPE_EXPENSE),
-                amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
-                category = json.optString("category", "Other"),
-                personName = json.optString("personName", "").let { if (it == "null" || it.isBlank()) null else it },
-                description = json.optString("description", "ثبت دستیار هوشمند"),
-                daysFromNow = if (json.isNull("daysFromNow")) null else json.optInt("daysFromNow"),
-                title = json.optString("title", "").let { if (it == "null" || it.isBlank()) null else it },
-                dateOffsetDays = json.optInt("dateOffsetDays", 0),
-                hour = if (json.isNull("hour")) null else json.optInt("hour"),
-                minute = if (json.isNull("minute")) null else json.optInt("minute"),
-                confidence = json.optDouble("confidence", 0.8).toFloat(),
-                notes = json.optString("notes", "").let { if (it == "null" || it.isBlank()) null else it }
-            )
-            if (PersianTextPreprocessor.validateParsedResult(result)) result else null
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
-            null
-        }
-    }
-
-    private fun inferExpenseCategory(sentence: String): Pair<String, String> {
-        return when {
-            sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") ||
-                    sentence.contains("میوه") || sentence.contains("رستوران") ||
-                    sentence.contains("نان") || sentence.contains("شیر") || sentence.contains("پنیر") ||
-                    sentence.contains("شام") || sentence.contains("ناهار") ||
-                    sentence.contains("صبحانه") || sentence.contains("چای") || sentence.contains("قهوه") ||
-                    sentence.contains("اسنک") || sentence.contains("بستنی") || sentence.contains("سالاد") ||
-                    sentence.contains("ماهی") || sentence.contains("میگو") || sentence.contains("سبزی") ||
-                    sentence.contains("مربا") || sentence.contains("روغن") || sentence.contains("برنج") ||
-                    sentence.contains("ماکارونی") || sentence.contains("رب") || sentence.contains("ادویه") ||
-                    sentence.contains("نوشابه") || sentence.contains("آب معدنی") || sentence.contains("آب") ||
-                    sentence.contains("دوغ") || sentence.contains("دلستر") || sentence.contains("چیپس") ||
-                    sentence.contains("شکلات") || sentence.contains("کیک") || sentence.contains("بیسکوییت") ||
-                    sentence.contains("موز") || sentence.contains("سیب") ||
-                    sentence.contains("پرتقال") || sentence.contains("هندوانه") || sentence.contains("خربزه") ||
-                    sentence.contains("انگور") || sentence.contains("توت") || sentence.contains("تمشک") ||
-                    sentence.contains("کدو") || sentence.contains("خیار") || sentence.contains("گوجه") ||
-                    sentence.contains("کلم") || sentence.contains("اسفناج") || sentence.contains("لوبیا") ||
-                    sentence.contains("نخود") || sentence.contains("عدس") || sentence.contains("لپه") ||
-                    sentence.contains("سوپ") || sentence.contains("آش") || sentence.contains("حلیم") ||
-                    sentence.contains("کباب") || sentence.contains("استیک") || sentence.contains("سوسیس") ||
-                    sentence.contains("کالباس") || sentence.contains("همبرگر") || sentence.contains("پیتزا") ||
-                    sentence.contains("ساندویچ") -> Pair("Food", "خرید مواد غذایی")
-            sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") ||
-                    sentence.contains("تاکسی") || sentence.contains("مترو") || sentence.contains("اتوبوس") ||
-                    sentence.contains("بلیط") || sentence.contains("پارکینگ") || sentence.contains("عوارض") ||
-                    sentence.contains("لنت") || sentence.contains("لاستیک") || sentence.contains("تعویض روغن") ||
-                    sentence.contains("مکانیک") || sentence.contains("تعمیرگاه") -> Pair("Transportation", "هزینه حمل و نقل")
-            sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک") ||
-                    sentence.contains("کیف") || sentence.contains("کلاه") || sentence.contains("عینک") ||
-                    sentence.contains("ساعت مچی") || sentence.contains("جواهرات") || sentence.contains("زیورآلات") ||
-                    sentence.contains("کت") || sentence.contains("شلوار") || sentence.contains("پیراهن") ||
-                    sentence.contains("مانتو") || sentence.contains("چادر") -> Pair("Shopping", "خرید پوشاک و اکسسوری")
-            sentence.contains("قبض") || sentence.contains("برق") || sentence.contains("آب") ||
-                    sentence.contains("گاز") || sentence.contains("تلفن") || sentence.contains("اینترنت") ||
-                    sentence.contains("شارژ") || sentence.contains("فیبر") || sentence.contains("موبایل") ||
-                    sentence.contains("tv") || sentence.contains("tv اشتراک") -> Pair("Bills", "پرداخت قبوض و شارژ")
-            sentence.contains("اصلاح") || sentence.contains("سالن") || sentence.contains("آرایشگاه") ||
-                    sentence.contains("کوتاهی") || sentence.contains("رنگ مو") || sentence.contains("واکس") ||
-                    sentence.contains("پدیکور") || sentence.contains("مانیکور") || sentence.contains("ماساژ") ||
-                    sentence.contains("اسپا") || sentence.contains("فیشال") || sentence.contains("لیزر") ||
-                    sentence.contains("کرم") || sentence.contains("شامپو") || sentence.contains("عطر") ||
-                    sentence.contains("ادکلن") || sentence.contains("لوازم آرایش") || sentence.contains("آرایش") ||
-                    sentence.contains("پیرایش") || sentence.contains("ابرو") || sentence.contains("ریمل") ||
-                    sentence.contains("رژ لب") || sentence.contains("پودر") || sentence.contains("کانسیلر") ||
-                    sentence.contains("بنز") || sentence.contains("سیگار") || sentence.contains("قلیان") ||
-                    sentence.contains("قهوه خانه") || sentence.contains("چایخانه") || sentence.contains("بستنی") ||
-                    sentence.contains("هتل") || sentence.contains("اقامت") || sentence.contains("بلیط هواپیما") ||
-                    sentence.contains("بلیط قطار") || sentence.contains("سفر") || sentence.contains("گردشگری") ||
-                    sentence.contains("تفریح") || sentence.contains("سینما") || sentence.contains("تئاتر") ||
-                    sentence.contains("کنسرت") || sentence.contains("بازی") || sentence.contains("ورزش") ||
+    private const val JSON_FENCE = "
                     sentence.contains("باشگاه") || sentence.contains("fitness") || sentence.contains("Gym") ||
                     sentence.contains("دارو") || sentence.contains("داروخانه") || sentence.contains("ویتامین") ||
                     sentence.contains("درمان") || sentence.contains("دندانپزشکی") || sentence.contains("چشم پزشکی") ||
@@ -255,6 +179,8 @@ object GeminiParser {
         return 30
     }
 
+    private val PAID_KEYWORD = "پرداخت کردم"
+
     private fun toArabicDigitsRegex(): String {
         return "[۰-۹]+"
     }
@@ -276,7 +202,7 @@ object GeminiParser {
         )
         val expenseKeywords = listOf(
             "خریدم", "پرداخت", "هزینه", "قبض", " اجاره", "خرید", "پول دادم",
-            "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم", "پرداخت کردم",
+            "خرج", PAID_KEYWORD, "دادم", "رفت", "گذاشتم", PAID_KEYWORD,
             "اصلاح", "سالن", "آرایشگاه", "کوتاهی مو", "رنگ مو", "واکس", "پدیکور", "مانیکور",
             "ماساژ", "اسپا", "فیشال", "لیزر", "کرم", "شامپو", "عطر", "ادکلن", "لوازم آرایش", "آرایش",
             "پیرایش", "ابرو", "ریمل", "رژ لب", "پودر", "کانسیلر", "بنز", "سیگار", "قلیان",
@@ -333,15 +259,16 @@ object GeminiParser {
         )
     }
 
+    private const val TOMORROW = "فردا"
+
     private fun extractDateOffset(sentence: String): Int = when {
         sentence.contains("پریروز") -> -2
         sentence.contains("دیروز") -> -1
-        sentence.contains(Regex("پسر?\\s*فردا")) -> 2
-        sentence.contains("فردا") -> 1
+        sentence.contains(Regex("پسر?\\s*${TOMORROW}")) -> 2
+        sentence.contains(TOMORROW) -> 1
         sentence.contains("امروز") -> 0
         else -> 0
     }
-
     private fun extractTime(sentence: String): Pair<Int?, Int?> {
         val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
         val hourMatch = hourRegex.find(sentence) ?: return Pair(null, null)

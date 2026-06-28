@@ -17,6 +17,10 @@ import org.json.JSONObject
 class ManageBackupUseCase(
     private val repository: HesabyarRepositoryInterface
 ) {
+    companion object {
+        private const val DEFAULT_EMPTY_STRING = ""
+    }
+
     fun parseBackupJson(jsonString: String): BackupPayload {
         val root = JSONObject(jsonString)
 
@@ -29,7 +33,7 @@ class ManageBackupUseCase(
                 type = obj.getString("type"),
                 categoryId = obj.optLong("categoryId", 1L),
                 amount = obj.getLong("amount"),
-                description = obj.optString("description", ""),
+                description = obj.optString("description", DEFAULT_EMPTY_STRING),
                 personName = obj.optString("personName").let { if (it.isBlank()) null else it },
                 date = obj.optLong("date", System.currentTimeMillis()),
                 dueDate = obj.optLong("dueDate", 0L).let { if (it == 0L) null else it },
@@ -47,7 +51,7 @@ class ManageBackupUseCase(
                 type = obj.getString("type"),
                 originalAmount = obj.getLong("originalAmount"),
                 remainingAmount = obj.getLong("remainingAmount"),
-                description = obj.optString("description", ""),
+                description = obj.optString("description", DEFAULT_EMPTY_STRING),
                 date = obj.optLong("date", System.currentTimeMillis()),
                 isSettled = obj.optBoolean("isSettled", false)
             ))
@@ -64,7 +68,7 @@ class ManageBackupUseCase(
                 dueDate = obj.getLong("dueDate"),
                 isPaid = obj.optBoolean("isPaid", false),
                 reminderEnabled = obj.optBoolean("reminderEnabled", true),
-                notes = obj.optString("notes", "")
+                notes = obj.optString("notes", DEFAULT_EMPTY_STRING)
             ))
         }
 
@@ -77,7 +81,7 @@ class ManageBackupUseCase(
                 loanId = obj.getLong("loanId"),
                 amount = obj.getLong("amount"),
                 date = obj.optLong("date", System.currentTimeMillis()),
-                notes = obj.optString("notes", "")
+                notes = obj.optString("notes", DEFAULT_EMPTY_STRING)
             ))
         }
 

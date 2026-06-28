@@ -7,34 +7,40 @@ import org.junit.Test
 
 class BackupValidationTest {
 
+    private const val INVALID_BACKUP_MSG = "نسخه پشتیبان نامعتبر است"
+    private const val INVALID_TRANSACTION_AMOUNT_MSG = "مبلغ تراکنش نامعتبر: %s"
+    private const val INVALID_TRANSACTION_TYPE_MSG = "نوع تراکنش نامعتبر: %s"
+    private const val INVALID_LOAN_AMOUNT_MSG = "مبلغ وام نامعتبر: %s"
+    private const val INVALID_LOAN_TYPE_MSG = "نوع وام نامعتبر: %s"
+    private const val INVALID_INSTALLMENT_AMOUNT_MSG = "مبلغ قسط نامعتبر: %s"
     private fun validateBackup(backup: BackupPayload): BackupValidationResult {
         val errors = ArrayList<String>()
 
         if (backup.version < 1) {
-            errors.add("نسخه پشتیبان نامعتبر است")
+            errors.add(INVALID_BACKUP_MSG)
         }
 
         for (tx in backup.transactions) {
             if (tx.amount <= 0) {
-                errors.add("مبلغ تراکنش نامعتبر: ${tx.description}")
+                errors.add(String.format(INVALID_TRANSACTION_AMOUNT_MSG, tx.description))
             }
             if (tx.type !in listOf("EXPENSE", "INCOME")) {
-                errors.add("نوع تراکنش نامعتبر: ${tx.type}")
+                errors.add(String.format(INVALID_TRANSACTION_TYPE_MSG, tx.type))
             }
         }
 
         for (loan in backup.loans) {
             if (loan.originalAmount <= 0) {
-                errors.add("مبلغ وام نامعتبر: ${loan.personName}")
+                errors.add(String.format(INVALID_LOAN_AMOUNT_MSG, loan.personName))
             }
             if (loan.type !in listOf("DEBTOR", "CREDITOR")) {
-                errors.add("نوع وام نامعتبر: ${loan.type}")
+                errors.add(String.format(INVALID_LOAN_TYPE_MSG, loan.type))
             }
         }
 
         for (inst in backup.installments) {
             if (inst.amount <= 0) {
-                errors.add("مبلغ قسط نامعتبر: ${inst.title}")
+                errors.add(String.format(INVALID_INSTALLMENT_AMOUNT_MSG, inst.title))
             }
         }
 
@@ -66,6 +72,10 @@ class BackupValidationTest {
         assertTrue(validateBackup(backup) is BackupValidationResult.Valid)
     }
 
+    companion object {
+        private const val TRANSACTION_TYPE_LABEL = "نوع تراکنش"
+    }
+
     @Test
     fun `invalid transaction type returns error`() {
         val backup = BackupPayload(
@@ -76,7 +86,7 @@ class BackupValidationTest {
         val result = validateBackup(backup)
         assertTrue(result is BackupValidationResult.Invalid)
         assertEquals(1, (result as BackupValidationResult.Invalid).errors.size)
-        assertTrue(result.errors[0].contains("نوع تراکنش"))
+        assertTrue(result.errors[0].contains(TRANSACTION_TYPE_LABEL))
     }
 
     @Test

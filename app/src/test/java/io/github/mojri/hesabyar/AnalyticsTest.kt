@@ -40,13 +40,15 @@ class AnalyticsTest {
         return Installment(title = title, amount = amount, dueDate = dueDate, isPaid = isPaid)
     }
 
-    private fun createCategory(id: Long, name: String, color: Long = 0xFF757575L): Category {
-        return Category(id = id, name = name, key = "test", icon = "Test", color = color, type = "EXPENSE")
+    companion object {
+        private const val TEST_KEY = "test"
+        private const val TEST_ICON = "Test"
+        private const val TYPE_EXPENSE = "EXPENSE"
     }
 
-    @Test
-    fun `monthly spending grouping by jalali month`() {
-        // Create transactions in different months
+    private fun createCategory(id: Long, name: String, color: Long = 0xFF757575L): Category {
+        return Category(id = id, name = name, key = TEST_KEY, icon = TEST_ICON, color = color, type = TYPE_EXPENSE)
+    }
         val now = System.currentTimeMillis()
         val oneMonthMs = 30L * 24 * 60 * 60 * 1000
 
@@ -103,14 +105,19 @@ class AnalyticsTest {
         assertEquals(3_000_000L + 500_000L, totalExpense)
     }
 
+    companion object {
+        private const val DEBTOR_TYPE = "DEBTOR"
+        private const val ALI_NAME = "علی"
+    }
+
     @Test
     fun `debt summary progress calculation`() {
         val loans = listOf(
-            createLoan("DEBTOR", 5_000_000, 3_000_000, "علی"),
+            createLoan(DEBTOR_TYPE, 5_000_000, 3_000_000, ALI_NAME),
             createLoan("CREDITOR", 10_000_000, 5_000_000, "محمد")
         )
 
-        val debtors = loans.filter { it.type == "DEBTOR" && !it.isSettled }.map { loan ->
+        val debtors = loans.filter { it.type == DEBTOR_TYPE && !it.isSettled }.map { loan ->
             DebtSummary(
                 personName = loan.personName,
                 originalAmount = loan.originalAmount,
@@ -123,7 +130,7 @@ class AnalyticsTest {
         }
 
         assertEquals(1, debtors.size)
-        assertEquals("علی", debtors[0].personName)
+        assertEquals(ALI_NAME, debtors[0].personName)
         // Progress should be 40% (2M paid out of 5M)
         assertEquals(0.4f, debtors[0].progress, 0.01f)
     }

@@ -203,22 +203,26 @@ class AiAssistantViewModel @Inject constructor(
 
     fun parseSmartSentence(sentence: String, isOnlineMode: Boolean) {
         if (sentence.isBlank()) return
-        viewModelScope.launch {
-            _parserState.value = ParserUIState.Loading
-            try {
-                val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
-                AppLogger.d("AiAssistantViewModel", "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
-                val result = parseTransactionUseCase.parse(sentence, config)
-                if (result != null) {
-                    _parserState.value = ParserUIState.Confirming(result)
-                } else {
-                    _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
-                }
-            } catch (e: Exception) {
-                AppLogger.e("AiAssistantViewModel", "parseSmartSentence failed", e)
-                _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
-            }
+        companion object {
+            private const val TAG = "AiAssistantViewModel"
         }
+
+            viewModelScope.launch {
+                _parserState.value = ParserUIState.Loading
+                try {
+                    val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
+                    AppLogger.d(TAG, "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let { "found(${it.providerType}, model=${it.model})" } ?: "null"}")
+                    val result = parseTransactionUseCase.parse(sentence, config)
+                    if (result != null) {
+                        _parserState.value = ParserUIState.Confirming(result)
+                    } else {
+                        _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
+                    }
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "parseSmartSentence failed", e)
+                    _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
+                }
+            }
     }
 
     fun confirmParsedResult(result: ParsedResult) {

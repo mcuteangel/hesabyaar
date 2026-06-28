@@ -90,10 +90,14 @@ class AiConfigTest {
         assertEquals("key2", copied.apiKey)
     }
 
+    companion object {
+        private const val MODEL_NAME = "model1"
+    }
+
     @Test
     fun `ModelCacheEntry - not expired when recent`() {
         val entry = ModelCacheEntry(
-            models = listOf("model1"),
+            models = listOf(MODEL_NAME),
             fetchedAt = System.currentTimeMillis()
         )
         assertFalse(entry.isExpired)
@@ -126,22 +130,30 @@ class AiConfigTest {
         assertFalse(entry.isExpired)
     }
 
+    companion object {
+        private const val TEST_ID = "my-id"
+        private const val TEST_API_KEY = "sk-test"
+        private const val TEST_MODEL = "gpt-4"
+        private const val TEST_BASE_URL = "https://api.openai.com/v1"
+        private const val TEST_LABEL = "My OpenAI"
+    }
+
     @Test
     fun `AiProviderConfig with all fields`() {
         val config = AiProviderConfig(
-            id = "my-id",
+            id = TEST_ID,
             providerType = AiProviderType.OPENROUTER,
-            apiKey = "sk-test",
-            model = "gpt-4",
-            baseUrl = "https://api.openai.com/v1",
-            label = "My OpenAI"
+            apiKey = TEST_API_KEY,
+            model = TEST_MODEL,
+            baseUrl = TEST_BASE_URL,
+            label = TEST_LABEL
         )
-        assertEquals("my-id", config.id)
+        assertEquals(TEST_ID, config.id)
         assertEquals(AiProviderType.OPENROUTER, config.providerType)
-        assertEquals("sk-test", config.apiKey)
-        assertEquals("gpt-4", config.model)
-        assertEquals("https://api.openai.com/v1", config.baseUrl)
-        assertEquals("My OpenAI", config.label)
+        assertEquals(TEST_API_KEY, config.apiKey)
+        assertEquals(TEST_MODEL, config.model)
+        assertEquals(TEST_BASE_URL, config.baseUrl)
+        assertEquals(TEST_LABEL, config.label)
         assertTrue(config.isConfigured)
     }
 

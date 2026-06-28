@@ -21,7 +21,9 @@ class BudgetAdvisorTest {
         return Installment(title = title, amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
     }
 
-    private fun createCategory(id: Long, name: String, key: String = "test"): Category {
+    private const val DEFAULT_KEY = "test"
+
+    private fun createCategory(id: Long, name: String, key: String = DEFAULT_KEY): Category {
         return Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
     }
 
@@ -31,6 +33,8 @@ class BudgetAdvisorTest {
         assertTrue(result.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید"))
     }
 
+    private val HIGH_SPENDING_WARNINGS = listOf("ناترازی", "کسری", "۹۵", "95")
+
     @Test
     fun `getOfflineAdvice - high spending ratio warns`() {
         val transactions = listOf(
@@ -38,7 +42,7 @@ class BudgetAdvisorTest {
             createTransaction("EXPENSE", 9_500_000)
         )
         val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-        assertTrue(result.contains("ناترازی") || result.contains("کسری") || result.contains("۹۵") || result.contains("95"))
+        assertTrue(HIGH_SPENDING_WARNINGS.any { result.contains(it) })
     }
 
     @Test
@@ -61,10 +65,14 @@ class BudgetAdvisorTest {
         assertTrue(result.contains("تعادل") || result.contains("تعادل نسبی"))
     }
 
+    companion object {
+        private const val HIGHEST_SPENDING_CATEGORY_NAME = "خوراک"
+    }
+
     @Test
     fun `getOfflineAdvice - mentions highest spending category`() {
         val categories = listOf(
-            createCategory(1L, "خوراک", "Food"),
+            createCategory(1L, HIGHEST_SPENDING_CATEGORY_NAME, "Food"),
             createCategory(2L, "حمل و نقل", "Transportation")
         )
         val transactions = listOf(
@@ -73,7 +81,7 @@ class BudgetAdvisorTest {
             createTransaction("EXPENSE", 1_000_000, 2L)
         )
         val result = BudgetAdvisor.getOfflineAdvice(transactions, categories)
-        assertTrue(result.contains("خوراک"))
+        assertTrue(result.contains(HIGHEST_SPENDING_CATEGORY_NAME))
     }
 
     @Test
@@ -96,7 +104,7 @@ class BudgetAdvisorTest {
             createInstallment("قسط ماشین", 2_000_000, isPaid = false)
         )
         val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-        assertTrue(result.contains("اقساط") || result.contains("بدهی"))
+        assertTrue(result.contains(INSTALLMENTS_KEY) || result.contains(DEBT_KEY))
     }
 
     @Test

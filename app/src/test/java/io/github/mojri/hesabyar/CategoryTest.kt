@@ -35,30 +35,38 @@ class CategoryTest {
         assertTrue(Category.DEFAULTS.all { it.isDefault })
     }
 
+    companion object {
+        private const val CATEGORY_PREFIX = "Category "
+    }
+
     @Test
     fun `expense categories have correct type`() {
         val expenseKeys = listOf("Food", "Transportation", "Shopping", "Bills", "Installments")
         expenseKeys.forEach { key ->
             val cat = Category.DEFAULTS.find { it.key == key }
-            assertNotNull("Category $key should exist", cat)
-            assertEquals("Category $key should be EXPENSE", Category.TYPE_EXPENSE, cat!!.type)
+            assertNotNull("$CATEGORY_PREFIX$key should exist", cat)
+            assertEquals("$CATEGORY_PREFIX$key should be EXPENSE", Category.TYPE_EXPENSE, cat!!.type)
         }
     }
 
     @Test
     fun `income category has correct type`() {
-        val income = Category.DEFAULTS.find { it.key == "Income" }
+        val income = Category.DEFAULTS.find { it.key == INCOME_KEY }
         assertNotNull(income)
         assertEquals(Category.TYPE_INCOME, income!!.type)
     }
 
+    companion object {
+        private const val CATEGORY_SHOULD_EXIST_MESSAGE = "Category %s should exist"
+        private const val CATEGORY_SHOULD_BOTH_MESSAGE = "Category %s should be BOTH"
+    }
     @Test
     fun `both-type categories have correct type`() {
         val bothKeys = listOf("Loans", "Other")
         bothKeys.forEach { key ->
             val cat = Category.DEFAULTS.find { it.key == key }
-            assertNotNull("Category $key should exist", cat)
-            assertEquals("Category $key should be BOTH", Category.TYPE_BOTH, cat!!.type)
+            assertNotNull(String.format(CATEGORY_SHOULD_EXIST_MESSAGE, key), cat)
+            assertEquals(String.format(CATEGORY_SHOULD_BOTH_MESSAGE, key), Category.TYPE_BOTH, cat!!.type)
         }
     }
 
@@ -93,18 +101,18 @@ class CategoryTest {
         }
     }
 
-    @Test
-    fun `category type constants are correct`() {
-        assertEquals("EXPENSE", Category.TYPE_EXPENSE)
-        assertEquals("INCOME", Category.TYPE_INCOME)
-        assertEquals("BOTH", Category.TYPE_BOTH)
+    companion object {
+        private const val EXPENSE_LITERAL = "EXPENSE"
+        private const val INCOME_LITERAL = "INCOME"
+        private const val BOTH_LITERAL = "BOTH"
     }
 
     @Test
-    fun `category copy preserves id`() {
-        val original = Category(id = 42, name = "Test", key = "Test", icon = "Paid", color = 0xFF0000L, type = Category.TYPE_EXPENSE)
-        val copied = original.copy(name = "Updated")
-        assertEquals(42L, copied.id)
+    fun `category type constants are correct`() {
+        assertEquals(EXPENSE_LITERAL, Category.TYPE_EXPENSE)
+        assertEquals(INCOME_LITERAL, Category.TYPE_INCOME)
+        assertEquals(BOTH_LITERAL, Category.TYPE_BOTH)
+    }
         assertEquals("Updated", copied.name)
     }
 

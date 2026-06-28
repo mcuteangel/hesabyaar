@@ -23,11 +23,13 @@ class AiCacheTest {
         return Installment(title = "test", amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
     }
 
-    private fun createCategory(id: Long, name: String): Category {
-        return Category(id = id, name = name, key = "test", icon = "Test", color = 0xFF757575L, type = "EXPENSE")
+    companion object {
+        private const val TEST_KEY = "test"
     }
 
-    private fun computeDataSignature(
+    private fun createCategory(id: Long, name: String): Category {
+        return Category(id = id, name = name, key = TEST_KEY, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
+    }
         transactions: List<Transaction>,
         loans: List<Loan>,
         installments: List<Installment>,
@@ -51,6 +53,10 @@ class AiCacheTest {
         return "$txCount|$txTotal|$catCount"
     }
 
+    companion object {
+        private const val CATEGORY_NAME = "خوراک"
+    }
+
     @Test
     fun `data signature - same data produces same signature`() {
         val transactions = listOf(
@@ -59,7 +65,7 @@ class AiCacheTest {
         )
         val loans = listOf(createLoan("DEBTOR", 5_000_000, 3_000_000))
         val installments = listOf(createInstallment(1_000_000))
-        val categories = listOf(createCategory(1L, "خوراک"))
+        val categories = listOf(createCategory(1L, CATEGORY_NAME))
 
         val sig1 = computeDataSignature(transactions, loans, installments, categories)
         val sig2 = computeDataSignature(transactions, loans, installments, categories)

@@ -1009,11 +1009,13 @@ fun InstallmentMiniItem(
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)
             ) {
-                Text("پرداخت", style = MaterialTheme.typography.labelSmall)
+                Text(PAY_BUTTON_TEXT, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
 }
+
+private const val PAY_BUTTON_TEXT = "پرداخت"
 
 @Composable
 fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = emptyList(), onClick: () -> Unit = {}, onDelete: () -> Unit = {}) {
@@ -1415,14 +1417,14 @@ fun DeleteConfirmationDialog(
 fun ManualTransactionDialog(
     transactionViewModel: TransactionViewModel,
     loanViewModel: LoanViewModel,
-    installmentViewModel: InstallmentViewModel,
-    categories: List<Category>,
-    transactionToEdit: Transaction? = null,
-    onDismiss: () -> Unit
 ) {
+    val TYPE_INCOME = "INCOME"
+    val TYPE_EXPENSE = "EXPENSE"
+    val TYPE_BOTH = "BOTH"
+
     val context = LocalContext.current
     val isEditMode = transactionToEdit != null
-    var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
+    var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: TYPE_EXPENSE) }
     var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) (transactionToEdit!!.amount / 1000).toString() else "")) }
     var descriptionText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
     var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
@@ -1433,15 +1435,15 @@ fun ManualTransactionDialog(
 
     val filteredCategories = categories.filter { cat ->
         when (selectedType) {
-            "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
-            "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
+            TYPE_INCOME -> cat.type == TYPE_INCOME || cat.type == TYPE_BOTH
+            TYPE_EXPENSE -> cat.type == TYPE_EXPENSE || cat.type == TYPE_BOTH
             else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
         }
     }
 
     val typeColor = when (selectedType) {
-        "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-        "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
+        TYPE_INCOME, "LOAN_DEBTOR" -> IncomeGreen
+        TYPE_EXPENSE, "LOAN_CREDITOR" -> ExpenseRed
         else -> WarningOrange
     }
 
@@ -1512,17 +1514,17 @@ fun ManualTransactionDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             val types = listOf(
-                                Pair("EXPENSE", "هزینه"),
-                                Pair("INCOME", "درآمد"),
-                                Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
-                                Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-                                Pair("INSTALLMENT", "قسط")
+                                Pair(TYPE_EXPENSE, "هزینه"),
+                                Pair(TYPE_INCOME, "درآمد"),
+                                Pair(TYPE_LOAN_DEBTOR, "طلب (قرض دادم)"),
+                                Pair(TYPE_LOAN_CREDITOR, "بدهی (قرض گرفتم)"),
+                                Pair(TYPE_INSTALLMENT, "قسط")
                             )
                             types.forEach { (typeKey, typeLabel) ->
                                 val isSelected = selectedType == typeKey
                                 val chipColor = when (typeKey) {
-                                    "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-                                    "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
+                                    TYPE_INCOME, TYPE_LOAN_DEBTOR -> IncomeGreen
+                                    TYPE_EXPENSE, TYPE_LOAN_CREDITOR -> ExpenseRed
                                     else -> WarningOrange
                                 }
                                 Box(
@@ -1534,9 +1536,9 @@ fun ManualTransactionDialog(
                                         .clickable {
                                             selectedType = typeKey
                                             selectedCategoryId = when (typeKey) {
-                                                "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
-                                                "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
-                                                "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                                                TYPE_INCOME -> categories.find { it.key == "Income" }?.id ?: 1L
+                                                TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR -> categories.find { it.key == "Loans" }?.id ?: 1L
+                                                TYPE_INSTALLMENT -> categories.find { it.key == "Installments" }?.id ?: 1L
                                                 else -> selectedCategoryId
                                             }
                                         }

@@ -20,19 +20,24 @@ class TransactionTest {
         return Installment(title = "test", amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
     }
 
+    private companion object {
+        private const val INCOME = "INCOME"
+        private const val EXPENSE = "EXPENSE"
+    }
+
     @Test
     fun `balance calculation - income minus expense`() {
         val transactions = listOf(
-            createTransaction("INCOME", 10_000_000),   // 10M Rial
-            createTransaction("EXPENSE", 3_000_000),   // 3M Rial
-            createTransaction("INCOME", 5_000_000),    // 5M Rial
-            createTransaction("EXPENSE", 2_000_000)    // 2M Rial
+            createTransaction(INCOME, 10_000_000),   // 10M Rial
+            createTransaction(EXPENSE, 3_000_000),   // 3M Rial
+            createTransaction(INCOME, 5_000_000),    // 5M Rial
+            createTransaction(EXPENSE, 2_000_000)    // 2M Rial
         )
 
         var totalIncome = 0L
         var totalExpense = 0L
         transactions.forEach {
-            if (it.type == "INCOME") totalIncome += it.amount
+            if (it.type == INCOME) totalIncome += it.amount
             else totalExpense += it.amount
         }
 
@@ -94,25 +99,25 @@ class TransactionTest {
         assertEquals(null, categoryTotals[incomeCategoryId])
     }
 
+    private const val LOAN_TYPE_DEBTOR = "DEBTOR"
     @Test
     fun `loan balance - remaining amount`() {
         val loans = listOf(
-            createLoan("DEBTOR", 5_000_000, 3_000_000),
+            createLoan(LOAN_TYPE_DEBTOR, 5_000_000, 3_000_000),
             createLoan("CREDITOR", 10_000_000, 10_000_000),
-            createLoan("DEBTOR", 2_000_000, 0L, isSettled = true)
+            createLoan(LOAN_TYPE_DEBTOR, 2_000_000, 0L, isSettled = true)
         )
 
         var debtorsTotal = 0L
         var creditorsTotal = 0L
         loans.filter { !it.isSettled }.forEach {
-            if (it.type == "DEBTOR") debtorsTotal += it.remainingAmount
+            if (it.type == LOAN_TYPE_DEBTOR) debtorsTotal += it.remainingAmount
             else creditorsTotal += it.remainingAmount
         }
 
         assertEquals(3_000_000L, debtorsTotal)
         assertEquals(10_000_000L, creditorsTotal)
     }
-
     @Test
     fun `installment - unpaid count and total`() {
         val installments = listOf(

@@ -78,11 +78,15 @@ fun SmartAssistantScreen(
 
     fun startVoiceInput() {
         try {
+            companion object {
+                private const val FA_IR_LANGUAGE_CODE = "fa-IR"
+            }
+
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fa-IR")
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "fa-IR")
-                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, "fa-IR")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, FA_IR_LANGUAGE_CODE)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, FA_IR_LANGUAGE_CODE)
+                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, FA_IR_LANGUAGE_CODE)
                 putExtra(RecognizerIntent.EXTRA_PROMPT, "صحبت کنید (مثلا: امروز مرغ خریدم ۴۵۰ هزار تومن)")
             }
             speechLauncher.launch(intent)
@@ -732,58 +736,62 @@ fun ParsedResultCard(
     var daysFromNowText by remember(result) { mutableStateOf(result.daysFromNow?.toString() ?: "30") }
     
     var customDate by remember(result) {
-        val finalCal = Calendar.getInstance()
-        val offsetDays = if (result.daysFromNow != null && result.daysFromNow != 0) {
-            result.daysFromNow
-        } else {
-            result.dateOffsetDays ?: 0
-        }
-        finalCal.add(Calendar.DAY_OF_YEAR, offsetDays)
-        result.hour?.let { h ->
-            finalCal.set(Calendar.HOUR_OF_DAY, h)
-        }
-        result.minute?.let { m ->
-            finalCal.set(Calendar.MINUTE, m)
-        }
-        mutableStateOf(finalCal.timeInMillis)
-    }
-    
-    val filteredCategories = categories.filter { cat ->
-        when (selectedType) {
-            "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
-            "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
-            else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
-        }
-    }
-    
-    val typeColor = when (selectedType) {
-        "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-        "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
-        else -> WarningOrange
-    }
+    private const val TYPE_INCOME = "INCOME"
+    private const val TYPE_EXPENSE = "EXPENSE"
+    private const val TYPE_BOTH = "BOTH"
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            val finalCal = Calendar.getInstance()
+            val offsetDays = if (result.daysFromNow != null && result.daysFromNow != 0) {
+                result.daysFromNow
+            } else {
+                result.dateOffsetDays ?: 0
+            }
+            finalCal.add(Calendar.DAY_OF_YEAR, offsetDays)
+            result.hour?.let { h ->
+                finalCal.set(Calendar.HOUR_OF_DAY, h)
+            }
+            result.minute?.let { m ->
+                finalCal.set(Calendar.MINUTE, m)
+            }
+            mutableStateOf(finalCal.timeInMillis)
+        }
+        
+        val filteredCategories = categories.filter { cat ->
+            when (selectedType) {
+                TYPE_INCOME -> cat.type == TYPE_INCOME || cat.type == TYPE_BOTH
+                TYPE_EXPENSE -> cat.type == TYPE_EXPENSE || cat.type == TYPE_BOTH
+                else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
+            }
+        }
+        
+        val typeColor = when (selectedType) {
+            TYPE_INCOME, "LOAN_DEBTOR" -> IncomeGreen
+            TYPE_EXPENSE, "LOAN_CREDITOR" -> ExpenseRed
+            else -> WarningOrange
+        }
+
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxSize().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "✏️ ویرایش و تایید نهایی تراکنش",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "✏️ ویرایش و تایید نهایی تراکنش",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 
                 IconButton(
                     onClick = onCancel,
@@ -791,7 +799,7 @@ fun ParsedResultCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "انصراف",
+                        contentDescription = CANCEL_CONTENT_DESCRIPTION,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -867,17 +875,17 @@ fun ParsedResultCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val types = listOf(
-                        Pair("EXPENSE", "هزینه"),
-                        Pair("INCOME", "درآمد"),
-                        Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
-                        Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-                        Pair("INSTALLMENT", "قسط")
+                        Pair(TYPE_EXPENSE, "هزینه"),
+                        Pair(TYPE_INCOME, "درآمد"),
+                        Pair(TYPE_LOAN_DEBTOR, "طلب (قرض دادم)"),
+                        Pair(TYPE_LOAN_CREDITOR, "بدهی (قرض گرفتم)"),
+                        Pair(TYPE_INSTALLMENT, "قسط")
                     )
                     types.forEach { (typeKey, typeLabel) ->
                         val isSelected = selectedType == typeKey
                         val chipColor = when (typeKey) {
-                            "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-                            "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
+                            TYPE_INCOME, TYPE_LOAN_DEBTOR -> IncomeGreen
+                            TYPE_EXPENSE, TYPE_LOAN_CREDITOR -> ExpenseRed
                             else -> WarningOrange
                         }
                         CustomChip(
@@ -887,9 +895,9 @@ fun ParsedResultCard(
                                 selectedType = typeKey
                                 // Auto-assign logical category based on type
                                 selectedCategoryKey = when (typeKey) {
-                                    "INCOME" -> "Income"
-                                    "LOAN_DEBTOR", "LOAN_CREDITOR" -> "Loans"
-                                    "INSTALLMENT" -> "Installments"
+                                    TYPE_INCOME -> "Income"
+                                    TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR -> "Loans"
+                                    TYPE_INSTALLMENT -> "Installments"
                                     else -> selectedCategoryKey
                                 }
                             },

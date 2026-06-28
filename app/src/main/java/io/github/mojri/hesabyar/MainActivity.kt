@@ -87,7 +87,7 @@ class MainActivity : FragmentActivity() {
                             onUnlocked = { }
                         )
                     } else {
-                        var currentTab by remember { mutableStateOf("DASHBOARD") }
+                        var currentTab by remember { mutableStateOf(DASHBOARD_TAB) }
                         var showCategoryManagement by remember { mutableStateOf(false) }
 
                         if (showCategoryManagement) {
@@ -113,6 +113,7 @@ class MainActivity : FragmentActivity() {
                                         Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
                                         Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
                                     )
+                                    val selectedColor = MaterialTheme.colorScheme.primary
 
                                     tabs.forEach { (tabId, label, icon) ->
                                         NavigationBarItem(
@@ -121,8 +122,8 @@ class MainActivity : FragmentActivity() {
                                             icon = { Icon(imageVector = icon, contentDescription = label) },
                                             label = { Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold) },
                                             colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                selectedIconColor = selectedColor,
+                                                selectedTextColor = selectedColor,
                                                 indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                                             )
                                         )
