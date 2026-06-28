@@ -12,6 +12,17 @@ import org.json.JSONObject
 object GeminiParser {
     private const val TAG = "GeminiParser"
 
+    private const val TYPE_EXPENSE = "EXPENSE"
+    private const val TYPE_INCOME = "INCOME"
+    private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
+    private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
+    private const val TYPE_INSTALLMENT = "INSTALLMENT"
+
+    private val VALID_TYPES = listOf(TYPE_EXPENSE, TYPE_INCOME, TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR, TYPE_INSTALLMENT)
+
+    private const val KEYWORD_TOMAN = "تومان"
+    private const val KEYWORD_HAZAR = "هزار"
+
     suspend fun parseSentence(
         sentence: String,
         config: AiProviderConfig? = null
@@ -71,7 +82,7 @@ object GeminiParser {
             val cleanStr = jsonStr.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
             val json = JSONObject(cleanStr)
             val result = ParsedResult(
-                type = json.optString("type", "EXPENSE"),
+                type = json.optString("type", TYPE_EXPENSE),
                 amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
                 category = json.optString("category", "Other"),
                 personName = json.optString("personName", "").let { if (it == "null" || it.isBlank()) null else it },
@@ -290,7 +301,7 @@ object GeminiParser {
         val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
         val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
 
-        val classification = classifyType(sentence, isIncome, isExpense, personName)
+        val classification = classifyType(sentence, isIncome, personName)
         val confidence = calculateConfidence(amountToman, isIncome, isExpense, personName, hour, classification.daysFromNow)
 
         val parsed = ParsedResult(
@@ -313,9 +324,8 @@ object GeminiParser {
     }
 
     private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Double): ParsedResult {
-        val validTypes = listOf("EXPENSE", "INCOME", "LOAN_DEBTOR", "LOAN_CREDITOR", "INSTALLMENT")
         return parsed.copy(
-            type = if (parsed.type in validTypes) parsed.type else "EXPENSE",
+            type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
             category = parsed.category.ifBlank { "Other" },
             amount = (amountToman * 1000).toLong().coerceAtLeast(1),
             hour = parsed.hour?.coerceIn(0, 23),
@@ -326,7 +336,7 @@ object GeminiParser {
     private fun extractDateOffset(sentence: String): Int = when {
         sentence.contains("پریروز") -> -2
         sentence.contains("دیروز") -> -1
-        sentence.contains("پسفردا") || sentence.contains("پس فردا") -> 2
+        sentence.contains(Regex("پسر?\\s*فردا")) -> 2
         sentence.contains("فردا") -> 1
         sentence.contains("امروز") -> 0
         else -> 0
@@ -349,8 +359,8 @@ object GeminiParser {
         val personRegex = "(به|از)\\s+([^\\s]+)".toRegex()
         val personMatch = personRegex.find(sentence) ?: return null
         val nameCandidate = personMatch.groupValues[2]
-            .replace("تومان", "")
-            .replace("هزار", "")
+            .replace(KEYWORD_TOMAN, "")
+            .replace(KEYWORD_HAZAR, "")
             .replace("قرض", "")
             .trim()
         return if (nameCandidate.length > 2 && nameCandidate != "من" && nameCandidate != "خودم") {
@@ -365,7 +375,7 @@ object GeminiParser {
             .replace("امروز", "").replace("دیروز", "").replace("پریروز", "")
             .replace("فردا", "").replace("پسفردا", "").replace("پس فردا", "")
             .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
-            .replace("هزار", "").replace("تومان", "").replace("تومن", "")
+            .replace(KEYWORD_HAZAR, "").replace(KEYWORD_TOMAN, "").replace("تومن", "")
             .replace("میلیون", "").replace("ملیون", "").replace("میلیارد", "")
             .replace("طلب دارم", "").replace("طلبکار", "").replace("بدهکار", "")
             .trim()
@@ -413,20 +423,21 @@ object GeminiParser {
     private fun classifyType(
         sentence: String,
         isIncome: Boolean,
-        isExpense: Boolean,
         personName: String?
     ): TypeClassification {
-        if (sentence.contains("قرض گرفتم") || sentence.contains("بدهکار شدم") || sentence.contains("گرفتم از")) {
+        val loanReceived = listOf("قرض گرفتم", "بدهکار شدم", "گرفتم از")
+        if (loanReceived.any { sentence.contains(it) }) {
             return TypeClassification(
-                type = "LOAN_CREDITOR",
+                type = TYPE_LOAN_CREDITOR,
                 category = "Loans",
                 description = "قرض گرفتن از ${personName ?: "طلبکار"}",
                 notes = "قرض جدید ثبت شده"
             )
         }
-        if (sentence.contains("قرض دادم") || sentence.contains("طلبکار شدم") || sentence.contains("دادم به") || sentence.contains("طلب دارم")) {
+        val loanGiven = listOf("قرض دادم", "طلبکار شدم", "دادم به", "طلب دارم")
+        if (loanGiven.any { sentence.contains(it) }) {
             return TypeClassification(
-                type = "LOAN_DEBTOR",
+                type = TYPE_LOAN_DEBTOR,
                 category = "Loans",
                 description = "قرض دادن به ${personName ?: "بدهکار"}",
                 notes = "طلب جدید ثبت شده"
@@ -440,7 +451,7 @@ object GeminiParser {
                 else -> "قسط جدید"
             }
             return TypeClassification(
-                type = "INSTALLMENT",
+                type = TYPE_INSTALLMENT,
                 category = "Installments",
                 description = "قسط آینده",
                 installmentTitle = installmentTitle,
@@ -460,7 +471,7 @@ object GeminiParser {
                 else -> "دریافت درآمد ($subject)"
             }
             return TypeClassification(
-                type = "INCOME",
+                type = TYPE_INCOME,
                 category = "Income",
                 description = description
             )
@@ -469,7 +480,7 @@ object GeminiParser {
         val subject = extractSubject(sentence)
         val baseDescription = categoryToDescription(inferredCategory, subject, sentence)
         return TypeClassification(
-            type = "EXPENSE",
+            type = TYPE_EXPENSE,
             category = inferredCategory,
             description = "$baseDescription ($subject)"
         )
@@ -512,11 +523,11 @@ object GeminiParser {
             return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
         }
 
-        val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val expenseTotal = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
+        val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
         val balance = incomeTotal - expenseTotal
 
-        val categoryTotals = transactions.filter { it.type == "EXPENSE" }
+        val categoryTotals = transactions.filter { it.type == TYPE_EXPENSE }
             .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
 
@@ -567,7 +578,7 @@ object GeminiParser {
             if (transactions.isNotEmpty()) {
                 appendLine("\nتراکنش‌های اخیر:")
                 transactions.sortedByDescending { it.date }.take(10).forEach { t ->
-                    val sign = if (t.type == "INCOME") "آمد" else "رفت"
+                    val sign = if (t.type == TYPE_INCOME) "آمد" else "رفت"
                     val cat = categories.find { it.id == t.categoryId }
                     appendLine("- ${t.description} (${cat?.name ?: "سایر"}): ${t.amount} تومان [${sign}]")
                 }
@@ -599,8 +610,8 @@ object GeminiParser {
         installments: List<Installment>,
         categories: List<Category>
     ): String {
-        val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val expenseTotal = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
+        val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
         val balance = incomeTotal - expenseTotal
 
         val sb = StringBuilder()
@@ -628,7 +639,7 @@ object GeminiParser {
         }
 
         // 2. High spending category detection
-        val categoryTotals = transactions.filter { it.type == "EXPENSE" }
+        val categoryTotals = transactions.filter { it.type == TYPE_EXPENSE }
             .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { trans -> trans.amount } }
 
