@@ -434,6 +434,13 @@ object GeminiParser {
         isIncome: Boolean,
         personName: String?
     ): TypeClassification {
+        classifyLoan(sentence, personName)?.let { return it }
+        classifyInstallment(sentence)?.let { return it }
+        if (isIncome) return classifyIncome(sentence)
+        return classifyExpense(sentence)
+    }
+
+    private fun classifyLoan(sentence: String, personName: String?): TypeClassification? {
         val loanReceived = listOf("قرض گرفتم", "بدهکار شدم", "گرفتم از")
         if (loanReceived.any { sentence.contains(it) }) {
             return TypeClassification(
@@ -452,56 +459,62 @@ object GeminiParser {
                 notes = "طلب جدید ثبت شده"
             )
         }
-        if (sentence.contains("قسط")) {
-            val installmentTitle = when {
-                sentence.contains("ماشین") -> "قسط ماشین"
-                sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
-                sentence.contains("وام") -> "قسط وام"
-                else -> "قسط جدید"
-            }
+        return null
+    }
 
-            // Detect if installment was already paid
-            val isPaid = sentence.contains("پرداخت") || sentence.contains("دادم") ||
-                    sentence.contains("پرداختم") || sentence.contains("پرداخت کردم") ||
-                    sentence.contains("واریز") || sentence.contains("تسویه")
+    private fun classifyInstallment(sentence: String): TypeClassification? {
+        if (!sentence.contains("قسط")) return null
 
-            return if (isPaid) {
-                TypeClassification(
-                    type = TYPE_EXPENSE,
-                    category = "Installments",
-                    description = "پرداخت $installmentTitle",
-                    installmentTitle = null,
-                    daysFromNow = null,
-                    notes = null
-                )
-            } else {
-                TypeClassification(
-                    type = TYPE_INSTALLMENT,
-                    category = "Installments",
-                    description = "قسط آینده",
-                    installmentTitle = installmentTitle,
-                    daysFromNow = extractJalaliDaysFromNow(sentence),
-                    notes = "قسط در انتظار پرداخت"
-                )
-            }
+        val installmentTitle = when {
+            sentence.contains("ماشین") -> "قسط ماشین"
+            sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
+            sentence.contains("وام") -> "قسط وام"
+            else -> "قسط جدید"
         }
-        if (isIncome) {
-            val subject = extractSubject(sentence)
-            val description = when {
-                sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
-                sentence.contains("پاداش") -> "دریافت پاداش"
-                sentence.contains("دستمزد") -> "دریافت دستمزد"
-                sentence.contains("فروش") -> "درآمد از فروش ($subject)"
-                sentence.contains("سود") -> "دریافت سود"
-                sentence.contains("حقوق") -> "دریافت حقوق"
-                else -> "دریافت درآمد ($subject)"
-            }
-            return TypeClassification(
-                type = TYPE_INCOME,
-                category = "Income",
-                description = description
+
+        val isPaid = listOf("پرداخت", "دادم", "پرداختم", "پرداخت کردم", "واریز", "تسویه")
+            .any { sentence.contains(it) }
+
+        return if (isPaid) {
+            TypeClassification(
+                type = TYPE_EXPENSE,
+                category = "Installments",
+                description = "پرداخت $installmentTitle",
+                installmentTitle = null,
+                daysFromNow = null,
+                notes = null
+            )
+        } else {
+            TypeClassification(
+                type = TYPE_INSTALLMENT,
+                category = "Installments",
+                description = "قسط آینده",
+                installmentTitle = installmentTitle,
+                daysFromNow = extractJalaliDaysFromNow(sentence),
+                notes = "قسط در انتظار پرداخت"
             )
         }
+    }
+
+    private fun classifyIncome(sentence: String): TypeClassification {
+        val subject = extractSubject(sentence)
+        val description = when {
+            sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
+            sentence.contains("پاداش") -> "دریافت پاداش"
+            sentence.contains("دستمزد") -> "دریافت دستمزد"
+            sentence.contains("فروش") -> "درآمد از فروش ($subject)"
+            sentence.contains("سود") -> "دریافت سود"
+            sentence.contains("حقوق") -> "دریافت حقوق"
+            else -> "دریافت درآمد ($subject)"
+        }
+        return TypeClassification(
+            type = TYPE_INCOME,
+            category = "Income",
+            description = description
+        )
+    }
+
+    private fun classifyExpense(sentence: String): TypeClassification {
         val (inferredCategory, _) = inferExpenseCategory(sentence)
         val subject = extractSubject(sentence)
         val baseDescription = categoryToDescription(inferredCategory, subject, sentence)

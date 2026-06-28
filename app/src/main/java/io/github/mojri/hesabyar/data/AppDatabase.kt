@@ -127,7 +127,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val header = ByteArray(16)
                 java.io.FileInputStream(dbFile).use { it.read(header) }
                 String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
                 false
             }
         }

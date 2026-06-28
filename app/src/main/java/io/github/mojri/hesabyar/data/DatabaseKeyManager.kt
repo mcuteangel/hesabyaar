@@ -24,8 +24,10 @@ object DatabaseKeyManager {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
-            throw RuntimeException("Failed to create encrypted preferences", e)
+        } catch (e: java.security.GeneralSecurityException) {
+            throw IllegalStateException("Failed to create encrypted preferences", e)
+        } catch (e: java.io.IOException) {
+            throw IllegalStateException("Failed to create encrypted preferences", e)
         }
     }
 
