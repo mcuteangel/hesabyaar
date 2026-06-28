@@ -1772,15 +1772,14 @@ fun ManualTransactionDialog(
                                     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
                                     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
                                     if (isEditMode) {
-                                        transactionViewModel.updateTransaction(
-                                            transactionToEdit!!.copy(
-                                                type = selectedType,
-                                                categoryId = selectedCategoryId,
-                                                amount = finalAmountRial,
-                                                description = desc,
-                                                date = customDate
-                                            )
-                                        )
+                                        val updatedTransaction = transactionToEdit?.copy(
+                                            type = selectedType,
+                                            categoryId = selectedCategoryId,
+                                            amount = finalAmountRial,
+                                            description = desc,
+                                            date = customDate
+                                        ) ?: return@Button
+                                        transactionViewModel.updateTransaction(updatedTransaction)
                                     } else {
                                         transactionViewModel.addTransaction(
                                             type = selectedType,
