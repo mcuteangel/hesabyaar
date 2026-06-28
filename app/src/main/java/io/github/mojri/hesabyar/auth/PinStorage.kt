@@ -42,7 +42,24 @@ object PinStorage {
         val prefs = getPrefs(context)
         val storedHash = prefs.getString(PIN_HASH_KEY, null) ?: return false
         val salt = prefs.getString(PIN_SALT_KEY, null) ?: return false
-        return hashPin(pin, salt) == storedHash
+
+        // Try new PBKDF2 format first
+        if (hashPin(pin, salt) == storedHash) {
+            return true
+        }
+
+        // Fall back to legacy SHA-256 format and migrate if successful
+        val legacyHash = MessageDigest.getInstance("SHA-256")
+            .digest((pin + salt).toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
+        if (legacyHash == storedHash) {
+            // Migrate to new PBKDF2 format
+            setPin(context, pin)
+            return true
+        }
+
+        return false
     }
 
     fun clearPin(context: Context) {
@@ -55,7 +72,6 @@ object PinStorage {
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
-    private fun hashPin(pin: String, salt: String): String {
     private fun hashPin(pin: String, salt: String): String {
         val spec = javax.crypto.spec.PBEKeySpec(pin.toCharArray(), salt.toByteArray(Charsets.UTF_8), 10000, 256)
         val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
