@@ -359,8 +359,8 @@ private fun CategoryDialog(
     onSave: (name: String, key: String, icon: String, color: Long, type: String) -> Unit
 ) {
     val isEditing = initialCategory != null
-    var name by remember { mutableStateOf(initialCategory?.name ?: "") }
-    var key by remember { mutableStateOf(initialCategory?.key ?: "") }
+    var name by remember { mutableStateOf(initialCategory?.name.orEmpty()) }
+    var key by remember { mutableStateOf(initialCategory?.key.orEmpty()) }
     var selectedIcon by remember { mutableStateOf(initialCategory?.icon ?: "Paid") }
     var selectedColor by remember { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
     var selectedType by remember { mutableStateOf(initialCategory?.type ?: Category.TYPE_EXPENSE) }

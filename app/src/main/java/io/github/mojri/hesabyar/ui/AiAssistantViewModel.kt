@@ -1,6 +1,9 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
+import java.io.IOException
+import retrofit2.HttpException
+import android.database.sqlite.SQLiteException
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -88,7 +91,7 @@ class AiAssistantViewModel @Inject constructor(
                 } else {
                     _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
                 }
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
                 _modelFetchState.value = ModelFetchState.Error(e.localizedMessage ?: "خطا در دریافت مدل‌ها")
             }
         }
@@ -222,6 +225,12 @@ class AiAssistantViewModel @Inject constructor(
                     AppLogger.e(TAG, "parseSmartSentence failed", e)
                     _parserState.value = ParserUIState.Error(e.localizedMessage ?: "خطای ناشناخته")
                 }
+            } catch (e: java.io.IOException) {
+                AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
+                _parserState.value = ParserUIState.Error("خطا در اتصال")
+            } catch (e: IllegalArgumentException) {
+                AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
+                _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
             }
     }
 
@@ -238,8 +247,10 @@ class AiAssistantViewModel @Inject constructor(
             try {
                 parseTransactionUseCase.approveParsedResult(result, customDate)
                 _parserState.value = ParserUIState.Idle
-            } catch (e: Exception) {
-                AppLogger.e("AiAssistantViewModel", "approveParsedResult failed", e)
+            } catch (e: java.io.IOException) {
+                AppLogger.e("AiAssistantViewModel", "approveParsedResult I/O failed", e)
+            } catch (e: java.time.format.DateTimeParseException) {
+                AppLogger.e("AiAssistantViewModel", "approveParsedResult date parse failed", e)
             }
         }
     }
@@ -276,8 +287,20 @@ class AiAssistantViewModel @Inject constructor(
                 _lastAdviceFetchTime.value = lastAdviceFetchTimeMs
                 persistAdviceCache()
                 _advisorState.value = AdvisorUIState.Success(advice)
+            } catch (e: java.io.IOException) {
+                AppLogger.e("AiAssistantViewModel", "Network or I/O error in fetchBudgetAdvice", e)
+                _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای شبکه یا ورودی/خروجی")
+            } catch (e: retrofit2.HttpException) {
+                AppLogger.e("AiAssistantViewModel", "HTTP error in fetchBudgetAdvice", e)
+                _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ارتباط با سرور")
+            } catch (e: kotlinx.serialization.SerializationException) {
+                AppLogger.e("AiAssistantViewModel", "Data parsing error in fetchBudgetAdvice", e)
+                _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
+            } catch (e: android.database.sqlite.SQLiteException) {
+                AppLogger.e("AiAssistantViewModel", "Database error in persistAdviceCache", e)
+                _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای پایگاه داده")
             } catch (e: Exception) {
-                AppLogger.e("AiAssistantViewModel", "fetchBudgetAdvice failed", e)
+                AppLogger.e("AiAssistantViewModel", "Unexpected error in fetchBudgetAdvice", e)
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
             }
         }
@@ -321,9 +344,15 @@ class AiAssistantViewModel @Inject constructor(
                 _lastForecastFetchTime.value = lastForecastFetchTimeMs
                 persistForecastCache()
                 _forecastState.value = ForecastUIState.Success(forecast)
-            } catch (e: Exception) {
-                AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed", e)
-                _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای ناشناخته در پیش‌بینی بودجه")
+            } catch (e: IOException) {
+                AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed I/O", e)
+                _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای I/O در پیش‌بینی بودجه")
+            } catch (e: HttpException) {
+                AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed HTTP", e)
+                _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای شبکه در پیش‌بینی بودجه")
+            } catch (e: SQLiteException) {
+                AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed DB", e)
+                _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای پایگاه داده در پیش‌بینی بودجه")
             }
         }
     }

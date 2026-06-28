@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.ui.AppLogger
+import java.io.IOException
+import retrofit2.HttpException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -65,10 +67,13 @@ object AiProvider {
             when (providerType) {
                 AiProviderType.GEMINI -> fetchGeminiModels(apiKey)
                 AiProviderType.OPENROUTER -> fetchOpenRouterModels(apiKey)
-                AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl ?: "")
+                AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
             }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to fetch models for $providerType", e)
+        } catch (e: IOException) {
+            AppLogger.e(TAG, "Failed to fetch models for $providerType due to I/O error", e)
+            emptyList()
+        } catch (e: HttpException) {
+            AppLogger.e(TAG, "Failed to fetch models for $providerType due to HTTP error", e)
             emptyList()
         }
     }
@@ -278,7 +283,7 @@ object AiProvider {
 
         return try {
             client.newCall(request).execute().use { response ->
-                val bodyStr = response.body?.string() ?: ""
+                val bodyStr = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     AppLogger.e(TAG, "API error ${response.code} for URL $url: $bodyStr")
                     ApiResult.Failure("API error ${response.code}: $bodyStr")
@@ -286,7 +291,7 @@ object AiProvider {
                     responseParser(bodyStr)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             AppLogger.e(TAG, "API call failed", e)
             ApiResult.Failure("Network error: ${e.localizedMessage}")
         }
@@ -309,7 +314,7 @@ object AiProvider {
             } else {
                 ApiResult.Failure("No candidates in response")
             }
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse Gemini response", e)
             ApiResult.Failure("Failed to parse response: ${e.localizedMessage}")
         }
@@ -326,7 +331,7 @@ object AiProvider {
             } else {
                 ApiResult.Failure("No choices in response")
             }
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse OpenAI response", e)
             ApiResult.Failure("Failed to parse response: ${e.localizedMessage}")
         }

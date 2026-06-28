@@ -45,9 +45,13 @@ class ExportViewModel @Inject constructor(
                 }
 
                 exportState.value = ExportState.Success(summary)
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
                 exportState.value = ExportState.Error(
-                    "خطا در ایجاد فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                    "خطا در ایجاد یا ذخیره فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
+            } catch (e: SecurityException) {
+                exportState.value = ExportState.Error(
+                    "دسترسی به پوشه Downloads امکان‌پذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
                 )
             }
         }

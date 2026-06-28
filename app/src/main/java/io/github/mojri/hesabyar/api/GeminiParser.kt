@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.data.Category
+import org.json.JSONException
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -77,7 +78,60 @@ object GeminiParser {
         }
     }
 
-    private const val JSON_FENCE = "
+    ```json").removePrefix("
+
+    private fun inferExpenseCategory(sentence: String): Pair<String, String> {
+        return when {
+            sentence.contains("مرغ") || sentence.contains("گوشت") || sentence.contains("غذا") ||
+                    sentence.contains("میوه") || sentence.contains("رستوران") ||
+                    sentence.contains("نان") || sentence.contains("شیر") || sentence.contains("پنیر") ||
+                    sentence.contains("شام") || sentence.contains("ناهار") ||
+                    sentence.contains("صبحانه") || sentence.contains("چای") || sentence.contains("قهوه") ||
+                    sentence.contains("اسنک") || sentence.contains("بستنی") || sentence.contains("سالاد") ||
+                    sentence.contains("ماهی") || sentence.contains("میگو") || sentence.contains("سبزی") ||
+                    sentence.contains("مربا") || sentence.contains("روغن") || sentence.contains("برنج") ||
+                    sentence.contains("ماکارونی") || sentence.contains("رب") || sentence.contains("ادویه") ||
+                    sentence.contains("نوشابه") || sentence.contains("آب معدنی") || sentence.contains("آب") ||
+                    sentence.contains("دوغ") || sentence.contains("دلستر") || sentence.contains("چیپس") ||
+                    sentence.contains("شکلات") || sentence.contains("کیک") || sentence.contains("بیسکوییت") ||
+                    sentence.contains("موز") || sentence.contains("سیب") ||
+                    sentence.contains("پرتقال") || sentence.contains("هندوانه") || sentence.contains("خربزه") ||
+                    sentence.contains("انگور") || sentence.contains("توت") || sentence.contains("تمشک") ||
+                    sentence.contains("کدو") || sentence.contains("خیار") || sentence.contains("گوجه") ||
+                    sentence.contains("کلم") || sentence.contains("اسفناج") || sentence.contains("لوبیا") ||
+                    sentence.contains("نخود") || sentence.contains("عدس") || sentence.contains("لپه") ||
+                    sentence.contains("سوپ") || sentence.contains("آش") || sentence.contains("حلیم") ||
+                    sentence.contains("کباب") || sentence.contains("استیک") || sentence.contains("سوسیس") ||
+                    sentence.contains("کالباس") || sentence.contains("همبرگر") || sentence.contains("پیتزا") ||
+                    sentence.contains("ساندویچ") -> Pair("Food", "خرید مواد غذایی")
+            sentence.contains("بنزین") || sentence.contains("اسنپ") || sentence.contains("کرایه") ||
+                    sentence.contains("تاکسی") || sentence.contains("مترو") || sentence.contains("اتوبوس") ||
+                    sentence.contains("بلیط") || sentence.contains("پارکینگ") || sentence.contains("عوارض") ||
+                    sentence.contains("لنت") || sentence.contains("لاستیک") || sentence.contains("تعویض روغن") ||
+                    sentence.contains("مکانیک") || sentence.contains("تعمیرگاه") -> Pair("Transportation", "هزینه حمل و نقل")
+            sentence.contains("لباس") || sentence.contains("کفش") || sentence.contains("پوشاک") ||
+                    sentence.contains("کیف") || sentence.contains("کلاه") || sentence.contains("عینک") ||
+                    sentence.contains("ساعت مچی") || sentence.contains("جواهرات") || sentence.contains("زیورآلات") ||
+                    sentence.contains("کت") || sentence.contains("شلوار") || sentence.contains("پیراهن") ||
+                    sentence.contains("مانتو") || sentence.contains("چادر") -> Pair("Shopping", "خرید پوشاک و اکسسوری")
+            sentence.contains("قبض") || sentence.contains("برق") || sentence.contains("آب") ||
+                    sentence.contains("گاز") || sentence.contains("تلفن") || sentence.contains("اینترنت") ||
+                    sentence.contains("شارژ") || sentence.contains("فیبر") || sentence.contains("موبایل") ||
+                    sentence.contains("tv") || sentence.contains("tv اشتراک") -> Pair("Bills", "پرداخت قبوض و شارژ")
+            sentence.contains("اصلاح") || sentence.contains("سالن") || sentence.contains("آرایشگاه") ||
+                    sentence.contains("کوتاهی") || sentence.contains("رنگ مو") || sentence.contains("واکس") ||
+                    sentence.contains("پدیکور") || sentence.contains("مانیکور") || sentence.contains("ماساژ") ||
+                    sentence.contains("اسپا") || sentence.contains("فیشال") || sentence.contains("لیزر") ||
+                    sentence.contains("کرم") || sentence.contains("شامپو") || sentence.contains("عطر") ||
+                    sentence.contains("ادکلن") || sentence.contains("لوازم آرایش") || sentence.contains("آرایش") ||
+                    sentence.contains("پیرایش") || sentence.contains("ابرو") || sentence.contains("ریمل") ||
+                    sentence.contains("رژ لب") || sentence.contains("پودر") || sentence.contains("کانسیلر") ||
+                    sentence.contains("بنز") || sentence.contains("سیگار") || sentence.contains("قلیان") ||
+                    sentence.contains("قهوه خانه") || sentence.contains("چایخانه") || sentence.contains("بستنی") ||
+                    sentence.contains("هتل") || sentence.contains("اقامت") || sentence.contains("بلیط هواپیما") ||
+                    sentence.contains("بلیط قطار") || sentence.contains("سفر") || sentence.contains("گردشگری") ||
+                    sentence.contains("تفریح") || sentence.contains("سینما") || sentence.contains("تئاتر") ||
+                    sentence.contains("کنسرت") || sentence.contains("بازی") || sentence.contains("ورزش") ||
                     sentence.contains("باشگاه") || sentence.contains("fitness") || sentence.contains("Gym") ||
                     sentence.contains("دارو") || sentence.contains("داروخانه") || sentence.contains("ویتامین") ||
                     sentence.contains("درمان") || sentence.contains("دندانپزشکی") || sentence.contains("چشم پزشکی") ||
