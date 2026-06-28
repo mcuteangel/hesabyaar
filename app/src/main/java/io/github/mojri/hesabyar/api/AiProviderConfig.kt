@@ -263,6 +263,8 @@ class AiConfigManager(context: Context) {
                 fetchedAt = entry.getLong("fetchedAt")
             )
         } catch (e: Exception) {
+            println("Error retrieving cached models for $providerType: ${e.message}")
+            e.printStackTrace()
             null
         }
     }
@@ -272,6 +274,7 @@ class AiConfigManager(context: Context) {
             val json = prefs.getString(KEY_MODEL_CACHE, null)
             if (json != null) JSONObject(json) else JSONObject()
         } catch (e: Exception) {
+            e.printStackTrace()
             JSONObject()
         }
 

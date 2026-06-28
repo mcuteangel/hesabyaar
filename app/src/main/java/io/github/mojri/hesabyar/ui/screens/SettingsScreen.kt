@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import android.util.Log
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -81,7 +83,8 @@ fun SettingsScreen(
                     settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
             } catch (e: Exception) {
-                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی")
+                Log.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
+                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی: ${e.localizedMessage}")
             }
         }
     }
@@ -96,6 +99,7 @@ fun SettingsScreen(
                     backupViewModel.validateAndStageImport(inputStream)
                 }
             } catch (e: Exception) {
+                Log.e("SettingsScreen", "خطا در بارگذاری فایل", e)
                 settingsViewModel.showMessage("خطا در بارگذاری فایل")
             }
         }

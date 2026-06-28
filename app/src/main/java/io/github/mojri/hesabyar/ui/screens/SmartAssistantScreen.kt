@@ -87,6 +87,7 @@ fun SmartAssistantScreen(
             }
             speechLauncher.launch(intent)
         } catch (e: Exception) {
+            e.printStackTrace()
             settingsViewModel.showMessage("سیستم گفتار به نوشتار در دستگاه شما در دسترس نیست")
         }
     }
