@@ -35,7 +35,5 @@ class CategoryViewModel @Inject constructor(
         }
     }
 
-    suspend fun getCategoryByKey(key: String): Category? {
-        return manageCategoryUseCase.getCategoryByKey(key)
-    }
+    suspend fun getCategoryByKey(key: String): Category? = manageCategoryUseCase.getCategoryByKey(key)
 }

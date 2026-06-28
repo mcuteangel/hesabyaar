@@ -7,9 +7,8 @@ class AmountQuickFillTest {
 
     private val maxAmountToman = 999_999_999_999L
 
-    private fun quickFill(currentAmount: Long, factor: Long): Long {
-        return (currentAmount * factor).coerceAtMost(maxAmountToman)
-    }
+    private fun quickFill(currentAmount: Long, factor: Long): Long =
+        (currentAmount * factor).coerceAtMost(maxAmountToman)
 
     @Test
     fun `thousand factor appends 3 zeros`() {
