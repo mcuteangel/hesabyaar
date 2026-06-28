@@ -11,7 +11,7 @@ on:
 
 jobs:
   # ==========================================
-  # JOB 1: SELF-HEALING (FULLY RESTORED)
+  # JOB 1: SELF-HEALING
   # ==========================================
   ai_os_v2:
     if: github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'
@@ -101,6 +101,21 @@ jobs:
 
           { head -n 500 diff_full.txt; echo "... [TRUNCATED] ..."; tail -n 500 diff_full.txt; } > diff.txt
 
+      - name: Prepare Gemini context
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+        run: |
+          {
+            echo "INTEL_CONTEXT<<EOF"
+            cat intel.json
+            echo "EOF"
+          } >> $GITHUB_ENV
+          
+          {
+            echo "DIFF_CONTEXT<<EOF"
+            cat diff.txt
+            echo "EOF"
+          } >> $GITHUB_ENV
+
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
@@ -113,9 +128,10 @@ jobs:
             You are a GitHub AI system.
             Context:
             - Issue intelligence summary:
-            $(cat intel.json)
+            ${{ env.INTEL_CONTEXT }}
+            
             - Code diff (truncated):
-            $(cat diff.txt)
+            ${{ env.DIFF_CONTEXT }}
 
             Tasks:
             1. Detect resolved issues based on diff content
@@ -163,7 +179,12 @@ jobs:
           done
 
           for i in $(echo "$LABELS_JSON" | jq -r 'keys[]'); do
-            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS $CLOSED_IDS" | grep -qxF "$i"; then continue; fi
+            if [[ ! "$i" =~ ^[0-9]+$ ]]; then continue; fi
+            # FIX: بررسی مجزای لیست‌های اپن و کلوزد برای جلوگیری از خطای فضای خالی (Space)
+            if ! echo "$OPEN_IDS" | grep -qxF "$i" && ! echo "$CLOSED_IDS" | grep -qxF "$i"; then
+              continue
+            fi
+            
             LABELS=$(echo "$LABELS_JSON" | jq -r ".\"$i\" | join(\",\")")
             [ -n "$LABELS" ] && gh issue edit "$i" --add-label "$LABELS" || true
           done
@@ -173,7 +194,6 @@ jobs:
   # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
   # ==========================================
   manual_issue_from_pr:
-    # اعمال فیلترهای امنیتی و محدودسازی به PR ها
     if: |
       contains(github.event.comment.body, '/ai-fix') && (
         (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
@@ -225,7 +245,6 @@ jobs:
               mediaType: { format: 'diff' }
             });
             
-            // FIX: استفاده از core.setOutput برای دسترسی مستقیم در YAML
             core.setOutput('pr_url', `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${pr_number}`);
             core.setOutput('diff', diffData.data.slice(0, 15000)); 
             core.setOutput('parent_context', parentText.slice(0, 5000));
@@ -233,7 +252,6 @@ jobs:
       - name: Acknowledge command
         env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
         run: |
-          # تعیین صحیح End-point بر اساس نوع کامنت
           if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
             ENDPOINT="/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments"
           else
@@ -293,7 +311,6 @@ jobs:
             exit 1
           fi
 
-          # FIX: اعتبارسنجی دقیق Schema
           TITLE=$(echo "$RESPONSE" | jq -r '.title // empty')
           BODY=$(echo "$RESPONSE" | jq -r '.body // empty')
           LABELS=$(echo "$RESPONSE" | jq -r 'if (.labels | type) == "array" then (.labels | join(",")) else empty end')
@@ -311,4 +328,4 @@ jobs:
           gh api --method POST -H "Accept: application/vnd.github+json" \
             $ENDPOINT \
             -f "body=✅ Successfully created issue: ${ISSUE_URL}" \
-            -f "in_reply_to_id=${{ github.event.comment.id }}"
+            -f "in_reply_to_id=${{ github.event.comment.id }}" 
