@@ -102,6 +102,7 @@ object BudgetAdvisor {
             formatter.maximumFractionDigits = 0
             formatter.format(tomanValue)
         } catch (e: Exception) {
+            e.printStackTrace()
             tomanValue.toString()
         }
     }
