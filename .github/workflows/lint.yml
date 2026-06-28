@@ -1,0 +1,24 @@
+name: Lint GitHub Actions
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+
+jobs:
+  actionlint:
+    name: Run actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download actionlint
+        uses: reviewdog/action-actionlint@v1
+        with:
+          # این فلگ خطاهای مربوط به shellcheck را مخفی می‌کند مگر اینکه در سطح error باشند
+          actionlint_flags: -shellcheck=
