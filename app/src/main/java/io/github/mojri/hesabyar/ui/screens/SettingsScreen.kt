@@ -593,8 +593,9 @@ fun SecuritySection(
                 Button(
                     onClick = {
                         when {
-                            newPin.length < 6 -> {
-                                pinError = "رمز عبور باید ۶ رقم باشد"
+                            newPin.length != 6 || !newPin.all { it.isDigit() } -> {
+                                pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
+                            }
                             }
                             newPin != confirmPin -> {
                                 pinError = "رمز عبور مطابقت ندارد"
