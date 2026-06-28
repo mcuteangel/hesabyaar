@@ -241,7 +241,7 @@ private fun CombinedLineChartCard(
                 if (incomeValues.isNotEmpty()) {
                     val points = incomeValues.mapIndexed { idx, value ->
                         val x = startX + idx * spacing
-                        val y = chartHeight - (if (maxValue > 0) (value.toFloat() / maxValue) * chartHeight else 0f)
+                        val y = chartHeight - if (maxValue > 0) value.toFloat() / maxValue * chartHeight else 0f
                         Offset(x, y)
                     }
                     for (i in 0 until points.size - 1) {
@@ -262,7 +262,7 @@ private fun CombinedLineChartCard(
                 if (spendValues.isNotEmpty()) {
                     val points = spendValues.mapIndexed { idx, value ->
                         val x = startX + idx * spacing
-                        val y = chartHeight - (if (maxValue > 0) (value.toFloat() / maxValue) * chartHeight else 0f)
+                        val y = chartHeight - if (maxValue > 0) value.toFloat() / maxValue * chartHeight else 0f
                         Offset(x, y)
                     }
                     for (i in 0 until points.size - 1) {
