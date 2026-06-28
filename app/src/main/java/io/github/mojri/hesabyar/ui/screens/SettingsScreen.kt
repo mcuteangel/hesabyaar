@@ -97,10 +97,8 @@ fun SettingsScreen(
                 if (inputStream != null) {
                     backupViewModel.validateAndStageImport(inputStream)
                 }
-            } catch (e: Exception) {
-                Log.e("SettingsScreen", "خطا در بارگذاری فایل", e)
-                settingsViewModel.showMessage("خطا در بارگذاری فایل")
-            }
+Log.e("SettingsScreen", "خطا در بارگذاری فایل", e)
+                settingsViewModel.showMessage("خطا در بارگذاری فایل: ${e.localizedMessage}")
         }
     }
 
