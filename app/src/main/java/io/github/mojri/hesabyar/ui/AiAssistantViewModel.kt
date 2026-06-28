@@ -241,7 +241,7 @@ class AiAssistantViewModel @Inject constructor(
     }
 
     private val _advisorState = MutableStateFlow<AdvisorUIState>(
-        if (!cachedAdvice.isNullOrEmpty()) AdvisorUIState.Success(cachedAdvice!!) else AdvisorUIState.Idle
+        if (!cachedAdvice.isNullOrEmpty()) AdvisorUIState.Success(cachedAdvice ?: "") else AdvisorUIState.Idle
     )
     val advisorState = _advisorState.asStateFlow()
 
@@ -257,7 +257,7 @@ class AiAssistantViewModel @Inject constructor(
             && currentSignature == lastKnownAdviceSignature
             && !cachedAdvice.isNullOrEmpty()
         ) {
-            _advisorState.value = AdvisorUIState.Success(cachedAdvice!!)
+            _advisorState.value = AdvisorUIState.Success(cachedAdvice ?: "")
             return
         }
 
@@ -284,7 +284,7 @@ class AiAssistantViewModel @Inject constructor(
     }
 
     private val _forecastState = MutableStateFlow<ForecastUIState>(
-        if (!cachedForecast.isNullOrEmpty()) ForecastUIState.Success(cachedForecast!!) else ForecastUIState.Idle
+        if (!cachedForecast.isNullOrEmpty()) ForecastUIState.Success(cachedForecast ?: "") else ForecastUIState.Idle
     )
     val forecastState = _forecastState.asStateFlow()
 
@@ -302,7 +302,7 @@ class AiAssistantViewModel @Inject constructor(
             && currentSignature == lastKnownForecastSignature
             && !cachedForecast.isNullOrEmpty()
         ) {
-            _forecastState.value = ForecastUIState.Success(cachedForecast!!)
+            _forecastState.value = ForecastUIState.Success(cachedForecast ?: "")
             return
         }
 
