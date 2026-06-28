@@ -11,21 +11,16 @@ import org.junit.Test
 
 class AiCacheTest {
 
-    private fun createTransaction(type: String, amount: Long, categoryId: Long = 1L): Transaction {
-        return Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
-    }
+    private fun createTransaction(type: String, amount: Long, categoryId: Long = 1L): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
-    private fun createLoan(type: String, originalAmount: Long, remainingAmount: Long): Loan {
-        return Loan(personName = "test", type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test")
-    }
+    private fun createLoan(type: String, originalAmount: Long, remainingAmount: Long): Loan =
+        Loan(personName = "test", type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test")
 
-    private fun createInstallment(amount: Long, isPaid: Boolean = false): Installment {
-        return Installment(title = "test", amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
-    }
+    private fun createInstallment(amount: Long, isPaid: Boolean = false): Installment =
+        Installment(title = "test", amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
 
-    companion object {
-        private const val TEST_KEY = "test"
-    }
+    private fun createCategory(id: Long, name: String): Category =
+        Category(id = id, name = name, key = "test", icon = "Test", color = 0xFF757575L, type = "EXPENSE")
 
     private fun createCategory(id: Long, name: String): Category {
         return Category(id = id, name = name, key = TEST_KEY, icon = "Test", color = 0xFF757575L, type = "EXPENSE")

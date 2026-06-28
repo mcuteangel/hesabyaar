@@ -14,25 +14,17 @@ class HesabyarRepository(
     override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
     override val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
 
-    override fun getTransactionsInRange(start: Long, end: Long): Flow<List<Transaction>> {
-        return transactionDao.getTransactionsInRange(start, end)
-    }
+    override fun getTransactionsInRange(start: Long, end: Long): Flow<List<Transaction>> = transactionDao.getTransactionsInRange(start, end)
 
-    override fun getCategoriesByType(type: String): Flow<List<Category>> {
-        return categoryDao.getCategoriesByType(type)
-    }
+    override fun getCategoriesByType(type: String): Flow<List<Category>> =
+        categoryDao.getCategoriesByType(type)
 
-    override suspend fun getCategoryById(id: Long): Category? {
-        return categoryDao.getCategoryById(id)
-    }
+    override suspend fun getCategoryById(id: Long): Category? = categoryDao.getCategoryById(id)
 
-    override suspend fun getCategoryByKey(key: String): Category? {
-        return categoryDao.getCategoryByKey(key)
-    }
+    override suspend fun getCategoryByKey(key: String): Category? =
+        categoryDao.getCategoryByKey(key)
 
-    override suspend fun insertCategory(category: Category): Long {
-        return categoryDao.insertCategory(category)
-    }
+    override suspend fun insertCategory(category: Category): Long = categoryDao.insertCategory(category)
 
     override suspend fun updateCategory(category: Category) {
         categoryDao.updateCategory(category)
@@ -42,9 +34,8 @@ class HesabyarRepository(
         categoryDao.deleteCategory(category)
     }
 
-    override suspend fun insertTransaction(transaction: Transaction): Long {
-        return transactionDao.insertTransaction(transaction)
-    }
+    override suspend fun insertTransaction(transaction: Transaction): Long =
+        transactionDao.insertTransaction(transaction)
 
     override suspend fun deleteTransaction(transaction: Transaction) {
         transactionDao.deleteTransaction(transaction)
@@ -55,9 +46,7 @@ class HesabyarRepository(
     }
 
     // Loans and Payments logic combined
-    override suspend fun insertLoan(loan: Loan): Long {
-        return loanDao.insertLoan(loan)
-    }
+    override suspend fun insertLoan(loan: Loan): Long = loanDao.insertLoan(loan)
 
     override suspend fun updateLoan(loan: Loan) {
         loanDao.updateLoan(loan)
@@ -67,9 +56,8 @@ class HesabyarRepository(
         loanDao.deleteLoan(loan)
     }
 
-    override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> {
-        return paymentHistoryDao.getPaymentHistoryForLoan(loanId)
-    }
+    override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> =
+        paymentHistoryDao.getPaymentHistoryForLoan(loanId)
 
     override suspend fun addPaymentToLoan(loanId: Long, amount: Long, notes: String, customDate: Long?): Boolean {
         val loan = loanDao.getLoanById(loanId) ?: return false
@@ -110,9 +98,7 @@ class HesabyarRepository(
     }
 
     // Installments
-    override suspend fun insertInstallment(installment: Installment): Long {
-        return installmentDao.insertInstallment(installment)
-    }
+    override suspend fun insertInstallment(installment: Installment): Long = installmentDao.insertInstallment(installment)
 
     override suspend fun updateInstallment(installment: Installment) {
         installmentDao.updateInstallment(installment)
@@ -150,9 +136,7 @@ class HesabyarRepository(
         paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
     }
 
-    override suspend fun getAllPaymentHistories(): List<PaymentHistory> {
-        return paymentHistoryDao.getAllPaymentHistories()
-    }
+    override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
 
     override suspend fun replaceAllFromBackup(backup: BackupPayload) {
         transactionDao.deleteAllTransactions()

@@ -233,11 +233,7 @@ object GeminiParser {
         return 30
     }
 
-    private val PAID_KEYWORD = "پرداخت کردم"
-
-    private fun toArabicDigitsRegex(): String {
-        return "[۰-۹]+"
-    }
+    private fun toArabicDigitsRegex(): String = "[۰-۹]+"
 
     fun parseSentenceOffline(rawSentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")

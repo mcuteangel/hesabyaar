@@ -17,9 +17,7 @@ class AnalyticsTest {
         amount: Long,
         categoryId: Long = 1L,
         date: Long = System.currentTimeMillis()
-    ): Transaction {
-        return Transaction(type = type, amount = amount, categoryId = categoryId, description = "test", date = date)
-    }
+    ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test", date = date)
 
     private fun createLoan(
         type: String,
@@ -27,24 +25,16 @@ class AnalyticsTest {
         remainingAmount: Long,
         personName: String = "test",
         isSettled: Boolean = false
-    ): Loan {
-        return Loan(personName = personName, type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test", isSettled = isSettled)
-    }
+    ): Loan = Loan(personName = personName, type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test", isSettled = isSettled)
 
     private fun createInstallment(
         title: String = "test",
         amount: Long,
         isPaid: Boolean = false,
         dueDate: Long = System.currentTimeMillis()
-    ): Installment {
-        return Installment(title = title, amount = amount, dueDate = dueDate, isPaid = isPaid)
-    }
+    ): Installment = Installment(title = title, amount = amount, dueDate = dueDate, isPaid = isPaid)
 
-    companion object {
-        private const val TEST_KEY = "test"
-        private const val TEST_ICON = "Test"
-        private const val TYPE_EXPENSE = "EXPENSE"
-    }
+    private fun createCategory(id: Long, name: String, color: Long = 0xFF757575L): Category = Category(id = id, name = name, key = "test", icon = "Test", color = color, type = "EXPENSE")
 
     private fun createCategory(id: Long, name: String, color: Long = 0xFF757575L): Category {
         return Category(id = id, name = name, key = TEST_KEY, icon = TEST_ICON, color = color, type = TYPE_EXPENSE)

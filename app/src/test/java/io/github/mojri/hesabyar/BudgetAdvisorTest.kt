@@ -9,23 +9,16 @@ import org.junit.Test
 
 class BudgetAdvisorTest {
 
-    private fun createTransaction(type: String, amount: Long, categoryId: Long = 1L): Transaction {
-        return Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
-    }
+    private fun createTransaction(type: String, amount: Long, categoryId: Long = 1L): Transaction =
+        Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
-    private fun createLoan(type: String, originalAmount: Long, remainingAmount: Long, personName: String = "test"): Loan {
-        return Loan(personName = personName, type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test")
-    }
+    private fun createLoan(type: String, originalAmount: Long, remainingAmount: Long, personName: String = "test"): Loan = Loan(personName = personName, type = type, originalAmount = originalAmount, remainingAmount = remainingAmount, description = "test")
 
-    private fun createInstallment(title: String = "test", amount: Long, isPaid: Boolean = false): Installment {
-        return Installment(title = title, amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
-    }
+    private fun createInstallment(title: String = "test", amount: Long, isPaid: Boolean = false): Installment =
+        Installment(title = title, amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
 
-    private const val DEFAULT_KEY = "test"
-
-    private fun createCategory(id: Long, name: String, key: String = DEFAULT_KEY): Category {
-        return Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
-    }
+    private fun createCategory(id: Long, name: String, key: String = "test"): Category =
+        Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
 
     @Test
     fun `getOfflineAdvice - empty transactions`() {

@@ -4,9 +4,8 @@ import java.util.Calendar
 
 object JalaliCalendarHelper {
     data class JalaliDate(val year: Int, val month: Int, val day: Int) {
-        override fun toString(): String {
-            return String.format("%04d/%02d/%02d", year, month, day)
-        }
+        override fun toString(): String =
+            String.format(java.util.Locale.US, "%04d/%02d/%02d", year, month, day)
     }
 
     fun isJalaliLeapYear(year: Int): Boolean {

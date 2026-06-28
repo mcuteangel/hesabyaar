@@ -1762,11 +1762,9 @@ fun ManualTransactionDialog(
                             }
                             val finalAmountRial = finalAmountToman * 1000L
 
-                            if (selectedType == "INCOME" || selectedType == "EXPENSE") {
-                                if (selectedCategoryId == 0L) {
-                                    android.widget.Toast.makeText(context, "لطفا دسته‌بندی را انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
+                            if ((selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L) {
+                                android.widget.Toast.makeText(context, "لطفا دسته‌بندی را انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()
+                                return@Button
                             }
 
                             when (selectedType) {

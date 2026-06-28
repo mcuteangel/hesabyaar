@@ -16,13 +16,10 @@ object AiModule {
 
     @Provides
     @Singleton
-    fun provideAiConfigManager(@ApplicationContext context: Context): AiConfigManager {
-        return AiConfigManager(context)
-    }
+    fun provideAiConfigManager(@ApplicationContext context: Context): AiConfigManager = AiConfigManager(context)
 
     @Provides
     @Singleton
-    fun provideManageAiConfigUseCase(aiConfigManager: AiConfigManager): ManageAiConfigUseCase {
-        return ManageAiConfigUseCase(aiConfigManager)
-    }
+    fun provideManageAiConfigUseCase(aiConfigManager: AiConfigManager): ManageAiConfigUseCase =
+        ManageAiConfigUseCase(aiConfigManager)
 }

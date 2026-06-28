@@ -30,9 +30,7 @@ class LoanViewModel @Inject constructor(
         }
     }
 
-    fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> {
-        return manageLoanUseCase.getPaymentHistory(loanId)
-    }
+    fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> = manageLoanUseCase.getPaymentHistory(loanId)
 
     fun updateLoan(loan: Loan) {
         viewModelScope.launch {

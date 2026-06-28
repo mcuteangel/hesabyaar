@@ -25,9 +25,7 @@ object PinStorage {
         )
     }
 
-    fun isPinSet(context: Context): Boolean {
-        return getPrefs(context).contains(PIN_HASH_KEY)
-    }
+    fun isPinSet(context: Context): Boolean = getPrefs(context).contains(PIN_HASH_KEY)
 
     fun setPin(context: Context, pin: String) {
         val salt = generateSalt()
