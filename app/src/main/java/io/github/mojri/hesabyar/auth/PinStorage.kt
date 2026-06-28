@@ -56,9 +56,10 @@ object PinStorage {
     }
 
     private fun hashPin(pin: String, salt: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val saltedPin = "$salt$pin"
-        val hash = digest.digest(saltedPin.toByteArray())
+    private fun hashPin(pin: String, salt: String): String {
+        val spec = javax.crypto.spec.PBEKeySpec(pin.toCharArray(), salt.toByteArray(Charsets.UTF_8), 10000, 256)
+        val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+        val hash = factory.generateSecret(spec).encoded
         return hash.joinToString("") { "%02x".format(it) }
     }
 }
