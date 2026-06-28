@@ -989,17 +989,17 @@ fun AiConfigDialog(
     val filteredModels = if (modelSearchQuery.isBlank()) fetchedModels
     else fetchedModels.filter { it.contains(modelSearchQuery, ignoreCase = true) }
 
-    val geminiFamilies = fetchedModels.groupBy { model ->
+    val geminiFamilies = fetchedModels.groupBy { fetchedModel ->
         when {
-            model.contains("gemini", ignoreCase = true) -> "Gemini"
-            model.contains("gemma", ignoreCase = true) -> "Gemma"
-            model.contains("imagen", ignoreCase = true) -> "Imagen"
+            fetchedModel.contains("gemini", ignoreCase = true) -> "Gemini"
+            fetchedModel.contains("gemma", ignoreCase = true) -> "Gemma"
+            fetchedModel.contains("imagen", ignoreCase = true) -> "Imagen"
             else -> "Other"
         }
     }
 
-    val openRouterGroups = fetchedModels.groupBy { model ->
-        model.split("/").firstOrNull() ?: "Unknown"
+    val openRouterGroups = fetchedModels.groupBy { fetchedModel ->
+        fetchedModel.split("/").firstOrNull() ?: "Unknown"
     }
 
     AlertDialog(
