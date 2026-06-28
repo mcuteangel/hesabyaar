@@ -14,11 +14,13 @@ jobs:
     name: Run actionlint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download actionlint
-        uses: reviewdog/action-actionlint@v1
-        with:
+       - name: Checkout
+         uses: actions/checkout@v4
+         with:
+          persist-credentials: false
+          
+       - name: Download actionlint
+         uses: reviewdog/action-actionlint@v1
+         with:
           # این فلگ خطاهای مربوط به shellcheck را مخفی می‌کند مگر اینکه در سطح error باشند
           actionlint_flags: -shellcheck=
