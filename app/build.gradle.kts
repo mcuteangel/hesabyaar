@@ -116,7 +116,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
   classDirectories.setFrom(
     fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") { include("**/*.class") },
-    fileTree("build/tmp/kotlin-classes/debug") { include("**/*.class") }
+    fileTree("build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") { include("**/*.class") }
   )
   reports {
     xml.required = true
