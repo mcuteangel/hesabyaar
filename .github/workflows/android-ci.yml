@@ -38,16 +38,13 @@ jobs:
         run: ./gradlew ktlintCheck
 
       - name: Run Unit Tests with Coverage
-        run: ./gradlew testDebugUnitTest jacocoTestReport
+        run: ./gradlew test jacocoTestReport
 
       - name: Run Codacy Coverage Reporter
-        env:
-          CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
-          CODACY_ORGANIZATION_PROVIDER: gh
-          CODACY_USERNAME: mcuteangel
-          CODACY_PROJECT_NAME: hesabyaar
-        run: |
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_API_TOKEN }}
+          coverage-reports: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
