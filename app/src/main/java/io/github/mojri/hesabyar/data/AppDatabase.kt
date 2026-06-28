@@ -6,6 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
 
@@ -24,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+        private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -96,7 +101,9 @@ abstract class AppDatabase : RoomDatabase() {
                 val appContext = context.applicationContext
                 System.loadLibrary("sqlcipher")
 
-                migratePlaintextToEncryptedIfNeeded(appContext)
+                migrationScope.launch {
+                    migratePlaintextToEncryptedIfNeeded(appContext)
+                }
 
                 val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
                 val factory = SupportOpenHelperFactory(passphrase)
@@ -135,7 +142,7 @@ abstract class AppDatabase : RoomDatabase() {
             dbFile.copyTo(tempDbFile, overwrite = true)
             listOf("-wal", "-shm").map { context.getDatabasePath("hesabyar_database$it") }
                 .filter { it.exists() }
-                .forEach { it.copyTo(context.getDatabasePath("$tempName-${it.name.removePrefix("hesabyar_database")}"), overwrite = true) }
+                .forEach { it.copyTo(context.getDatabasePath("$tempName${it.name.removePrefix("hesabyar_database")}"), overwrite = true) }
 
             val plaintextDb = Room.databaseBuilder(context, AppDatabase::class.java, tempName)
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
@@ -148,30 +155,39 @@ abstract class AppDatabase : RoomDatabase() {
             val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
 
             plaintextDb.close()
-            context.getDatabasePath(tempName).delete()
-            context.getDatabasePath("$tempName-wal").delete()
-            context.getDatabasePath("$tempName-shm").delete()
 
             dbFile.delete()
             context.getDatabasePath("hesabyar_database-wal").delete()
             context.getDatabasePath("hesabyar_database-shm").delete()
 
-            val passphrase = DatabaseKeyManager.getOrCreateKey(context)
-            val factory = SupportOpenHelperFactory(passphrase)
-            val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
-                .openHelperFactory(factory)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                .build()
+            try {
+                val passphrase = DatabaseKeyManager.getOrCreateKey(context)
+                val factory = SupportOpenHelperFactory(passphrase)
+                val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
+                    .openHelperFactory(factory)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .build()
 
-            encryptedDb.runInTransaction {
-                if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
-                if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
-                if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
-                if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
-                if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
+                encryptedDb.runInTransaction {
+                    if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
+                    if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
+                    if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
+                    if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
+                    if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
+                }
+
+                encryptedDb.close()
+
+                context.getDatabasePath(tempName).delete()
+                context.getDatabasePath("$tempName-wal").delete()
+                context.getDatabasePath("$tempName-shm").delete()
+            } catch (e: Exception) {
+                context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
+                listOf("-wal", "-shm").map { context.getDatabasePath("$tempName$it") }
+                    .filter { it.exists() }
+                    .forEach { it.copyTo(context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"), overwrite = true) }
+                throw e
             }
-
-            encryptedDb.close()
         }
     }
 }
