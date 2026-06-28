@@ -1,4 +1,21 @@
-  runs-on: ubuntu-latest
+name: AI Issue OS v2 (Self-Healing + Context-Aware Manual)
+
+on:
+  push:
+  pull_request:
+    types: [closed, synchronize]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  # ==========================================
+  # JOB 1: SELF-HEALING (FULLY RESTORED)
+  # ==========================================
+  ai_os_v2:
+    if: github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'
+    runs-on: ubuntu-latest
 
     permissions:
       issues: write
@@ -10,299 +27,162 @@
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
-      # ---------------------------
-      # 1. FETCH ISSUES (LIMITED)
-      # ---------------------------
       - name: Fetch issues
         id: issues
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@v7.0.1
         with:
           script: |
-            const issues = await github.paginate(
-              github.rest.issues.listForRepo,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: "all",       // All issues (open + closed)
-                per_page: 100,      // 100 per page
-                sort: "updated",    // Sort by updated
-                direction: "desc"   // Newest first
-              }
-            );
-            // Filter out PRs first, then limit to 200 most recent issues
-            const recentIssues = issues
-              .filter(i => !i.pull_request)
-              .slice(0, 200);
-            return recentIssues
-              .map(i => ({
-                number: i.number,
-                title: i.title,
-                body: (i.body || "").slice(0, 500),
-                state: i.state,
-                updated_at: i.updated_at
-              }));
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: "all", per_page: 100, sort: "updated", direction: "desc"
+            });
+            return issues.filter(i => !i.pull_request).slice(0, 200).map(i => ({
+              number: i.number, title: i.title, body: (i.body || "").slice(0, 500),
+              state: i.state, updated_at: i.updated_at
+            }));
 
-      # ---------------------------
-      # 2. ISSUE INTELLIGENCE ENGINE (SUMMARIZED)
-      # ---------------------------
       - name: Issue intelligence engine
         id: intel
-        env:
-          ISSUES_JSON: ${{ steps.issues.outputs.result }}
+        env: { ISSUES_JSON: ${{ steps.issues.outputs.result }} }
         run: |
           python3 - << 'EOF' > intel.json
           import json, hashlib, os
           from collections import defaultdict
-
           issues = json.loads(os.environ["ISSUES_JSON"])
-          clusters = {}
-          enriched = []
-
+          clusters, enriched = {}, []
           for i in issues:
               text = (i["title"] + i["body"]).lower()
               sig = hashlib.md5(text.encode()).hexdigest()[:10]
               labels = []
-              if any(k in text for k in ["bug","error","crash","fail"]):
-                  labels.append("bug")
-              if any(k in text for k in ["feature","add","support"]):
-                  labels.append("feature")
-              if any(k in text for k in ["security","auth","token"]):
-                  labels.append("security")
-              enriched.append({
-                  "issue": i["number"],
-                  "signature": sig,
-                  "labels": labels,
-                  "updated_at": i.get("updated_at", ""),
-                  "title": i["title"],
-                  "body_summary": i["body"][:200] if i["body"] else ""
-              })
-              key = sig[:6]
-              clusters.setdefault(key, []).append(i["number"])
-
-          # --- Summarize for Gemini (avoid context bloat) ---
+              if any(k in text for k in ["bug","error","crash","fail"]): labels.append("bug")
+              if any(k in text for k in ["feature","add","support"]): labels.append("feature")
+              if any(k in text for k in ["security","auth","token"]): labels.append("security")
+              enriched.append({"issue": i["number"], "signature": sig, "labels": labels, "updated_at": i.get("updated_at", ""), "title": i["title"], "body_summary": i["body"][:200] if i["body"] else ""})
+              clusters.setdefault(sig[:6], []).append(i["number"])
           label_counts = defaultdict(int)
           for issue in enriched:
-              for label in issue["labels"]:
-                  label_counts[label] += 1
-
+              for label in issue["labels"]: label_counts[label] += 1
           sorted_issues = sorted(enriched, key=lambda x: x.get("updated_at", ""), reverse=True)
           recent_clusters = {}
           for issue in sorted_issues[:5]:
               key = issue["signature"][:6]
               if key not in recent_clusters:
-                  recent_clusters[key] = {
-                      "issues": clusters.get(key, []),
-                      "sample_labels": issue["labels"],
-                      "title": issue["title"],
-                      "body_summary": issue["body_summary"]
-                  }
-
-          print(json.dumps({
-              "cluster_count": len(clusters),
-              "issue_count": len(enriched),
-              "label_distribution": dict(label_counts),
-              "recent_clusters": recent_clusters
-          }))
+                  recent_clusters[key] = {"issues": clusters.get(key, []), "sample_labels": issue["labels"], "title": issue["title"], "body_summary": issue["body_summary"]}
+          print(json.dumps({"cluster_count": len(clusters), "issue_count": len(enriched), "label_distribution": dict(label_counts), "recent_clusters": recent_clusters}))
           EOF
 
-      # ---------------------------
-      # 3. RULE ENGINE (SCOPED + EVENT-AWARE)
-      # ---------------------------
       - name: Rule engine
         id: rule
         run: |
-          # Set base and head based on event type
           if [ "${{ github.event_name }}" = "push" ]; then
             BASE="${{ github.event.before }}"
             HEAD="${{ github.event.after }}"
-            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for pushes
+            DIFF_FILTER="-- src/ lib/ app/"
+            if [[ "$BASE" == "0000000000000000000000000000000000000000" ]]; then BASE="HEAD~1"; fi
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
-            DIFF_FILTER=""  # Full diff for PRs
-          else
-            git fetch origin main
-            BASE="origin/main"
-            HEAD="HEAD"
-            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for issue events
+            DIFF_FILTER=""
           fi
 
-          git diff "$BASE" "$HEAD" $DIFF_FILTER > diff.txt
-
-          # Use event-type-specific keywords and trigger logic
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
-            KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
-            if grep -Eqi "$KEYWORDS" diff.txt; then
-              echo "trigger=true" >> $GITHUB_OUTPUT
-            else
-              echo "trigger=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+          git diff "$BASE" "$HEAD" $DIFF_FILTER > diff_full.txt
+          KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
+          
+          if grep -Eqi "$KEYWORDS" diff_full.txt; then
+            echo "trigger=true" >> $GITHUB_OUTPUT
           else
-            # For issues events, skip Gemini (no consumer path exists for its output)
             echo "trigger=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Truncate diff to last 1000 lines to avoid context limits
-          tail -n 1000 diff.txt > diff_truncated.txt
+          { head -n 500 diff_full.txt; echo "... [TRUNCATED] ..."; tail -n 500 diff_full.txt; } > diff.txt
 
-          echo "DIFF_DATA<<EOF_DIFF_DATA_TOKEN" >> $GITHUB_ENV
-          cat diff_truncated.txt >> $GITHUB_ENV
-          echo "EOF_DIFF_DATA_TOKEN" >> $GITHUB_ENV
-
-          echo "INTEL_DATA<<EOF_INTEL_DATA_TOKEN" >> $GITHUB_ENV
-          cat intel.json >> $GITHUB_ENV
-          echo "EOF_INTEL_DATA_TOKEN" >> $GITHUB_ENV
-
-      # ---------------------------
-      # 4. GEMINI ANALYSIS (CONTEXT-SAFE)
-      # ---------------------------
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
         id: gemini
-        env:
-          GEMINI_CLI_TRUST_WORKSPACE: "true"
+        env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: gemini-3.1-flash-lite
           prompt: |
             You are a GitHub AI system.
-
             Context:
-            - Issue intelligence summary: ${{ env.INTEL_DATA }}
-            - Truncated code diff (last 1000 lines): ${{ env.DIFF_DATA }}
+            - Issue intelligence summary:
+            $(cat intel.json)
+            - Code diff (truncated):
+            $(cat diff.txt)
 
             Tasks:
             1. Detect resolved issues based on diff content
             2. Detect regressions (previously fixed issues that broke again)
             3. Suggest labels (bug/feature/security/refactor)
 
-            Constraints:
-            - Focus only on issues in the provided summary.
-            - The diff is truncated; work with what is available.
-            - Be conservative with reopen suggestions.
-
             Output ONLY valid JSON:
-            {
-              "resolved": [1, 2],
-              "reopen": [3],
-              "labels": { "1": ["bug"], "2": ["security"] },
-              "reason": "Brief explanation of decisions"
-            }
+            {"resolved": [1], "reopen": [], "labels": {"1": ["bug"]}, "reason": "Brief explanation"}
 
-      # ---------------------------
-      # 5. APPLY RESOLUTIONS
-      # ---------------------------
       - name: Apply issue updates
-        if: |
-          steps.gemini.outputs.summary != '' &&
-          github.event_name == 'push' &&
-          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: steps.gemini.outputs.summary != '' && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gemini.outputs.summary }}
           ISSUES_JSON: ${{ steps.issues.outputs.result }}
+          SHORT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          echo "$RESPONSE"
-          if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            echo "Gemini output is not valid JSON; skipping issue updates."
-            exit 0
-          fi
+          if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then exit 0; fi
 
-          # Build state-aware ID sets
+          REASON=$(echo "$RESPONSE" | jq -r '.reason // "No reason provided"')
           OPEN_IDS=$(jq -r '.[] | select(.state == "open") | .number' <<< "$ISSUES_JSON")
           CLOSED_IDS=$(jq -r '.[] | select(.state == "closed") | .number' <<< "$ISSUES_JSON")
 
-          RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
-          REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
+          RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[:5][]? else empty end')
+          REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[:5][]? else empty end')
+          LABELS_JSON=$(echo "$RESPONSE" | jq -r 'if (.labels | type) == "object" then .labels else {} end')
 
-          # Build disjoint sets: detect overlaps before any mutation
-          OVERLAPS=""
-          RESOLVED_CLEAN=""
-          REOPEN_CLEAN=""
-
-          for i in $RESOLVED; do
-            if echo "$REOPEN" | grep -qxF "$i"; then
-              OVERLAPS="$OVERLAPS $i"
-            else
-              RESOLVED_CLEAN="$RESOLVED_CLEAN $i"
-            fi
-          done
-
-          for i in $REOPEN; do
-            if ! echo "$RESOLVED" | grep -qxF "$i"; then
-              REOPEN_CLEAN="$REOPEN_CLEAN $i"
-            fi
-          done
-
-          if [ -n "$OVERLAPS" ]; then
-            echo "Skipping overlapping issue IDs (in both resolved and reopen):$OVERLAPS"
-          fi
+          OVERLAPS="" RESOLVED_CLEAN="" REOPEN_CLEAN=""
+          for i in $RESOLVED; do echo "$REOPEN" | grep -qxF "$i" && OVERLAPS="$OVERLAPS $i" || RESOLVED_CLEAN="$RESOLVED_CLEAN $i"; done
+          for i in $REOPEN; do echo "$RESOLVED" | grep -qxF "$i" || REOPEN_CLEAN="$REOPEN_CLEAN $i"; done
 
           for i in $RESOLVED_CLEAN; do
-            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS" | grep -qxF "$i"; then
-              echo "Skipping invalid or non-open Issue ID: $i"
-              continue
-            fi
-            gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS" | grep -qxF "$i"; then continue; fi
+            COMMIT_LINK="[${SHORT_SHA:0:7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+            gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2 (Triggered by commit ${COMMIT_LINK})\n> ${REASON}"
             gh issue close "$i"
           done
 
           for i in $REOPEN_CLEAN; do
-            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$CLOSED_IDS" | grep -qxF "$i"; then
-              echo "Skipping invalid or non-closed Issue ID: $i"
-              continue
-            fi
-            gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$CLOSED_IDS" | grep -qxF "$i"; then continue; fi
+            COMMIT_LINK="[${SHORT_SHA:0:7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
+            gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue (Triggered by commit ${COMMIT_LINK})\n> ${REASON}"
             gh issue reopen "$i"
           done
-name: AI Issue OS v2 (Self-Healing + Context-Aware Manual)
 
-on:
-  push:
-  pull_request:
-    types: [closed, synchronize]
-  issue_comment:
-    types: [created]
-  # اضافه شدن تریگر برای کامنت‌های داخل کد (Inline Reviews)
-  pull_request_review_comment:
-    types: [created]
-
-jobs:
-  # ==========================================
-  # JOB 1: SELF-HEALING (بدون تغییر نسبت به قبل)
-  # ==========================================
-  ai_os_v2:
-    # جلوگیری از اجرای این جاب در کامنت‌ها
-    if: github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      contents: read
-      pull-requests: read
-    env:
-      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
-    steps:
-      # ... (کاملأ همین استپ‌های قبلی را اینجا قرار دهید - برای جلوگیری از شلوغی حذف شده است)
-      # از checkout تا آخرین استپ Apply issue updates قبلی
-      # فقط مطمئن شوید کامیت لینک همان نسخه قبل باشد که در کد قبلی هست
+          for i in $(echo "$LABELS_JSON" | jq -r 'keys[]'); do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS $CLOSED_IDS" | grep -qxF "$i"; then continue; fi
+            LABELS=$(echo "$LABELS_JSON" | jq -r ".\"$i\" | join(\",\")")
+            [ -n "$LABELS" ] && gh issue edit "$i" --add-label "$LABELS" || true
+          done
 
 
   # ==========================================
   # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
   # ==========================================
   manual_issue_from_pr:
-    # فعال سازی روی هر دو نوع کامنت PR (کلی و اینلاین)
+    # اعمال فیلترهای امنیتی و محدودسازی به PR ها
     if: |
-      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
-      contains(github.event.comment.body, '/ai-fix')
+      contains(github.event.comment.body, '/ai-fix') && (
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
+        github.event_name == 'pull_request_review_comment'
+      ) && (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR' ||
+        github.event.comment.author_association == 'MEMBER'
+      )
     runs-on: ubuntu-latest
     
     permissions:
@@ -321,54 +201,49 @@ jobs:
             const triggerComment = context.payload.comment;
             let parentText = "";
 
-            // اگر کامنت ما ریپلای به یک کامنت دیگر است
             if (triggerComment.in_reply_to_id) {
               if (isReviewComment) {
-                // گرفتن متن کامنت پدر در Review Comments
                 const parent = await github.rest.pulls.getReviewComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner: context.repo.owner, repo: context.repo.repo,
                   comment_id: triggerComment.in_reply_to_id
                 });
                 parentText = parent.data.body;
               } else {
-                // گرفتن متن کامنت پدر در Issue/PR Comments
                 const parent = await github.rest.issues.getComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner: context.repo.owner, repo: context.repo.repo,
                   comment_id: triggerComment.in_reply_to_id
                 });
                 parentText = parent.data.body;
               }
             } else {
-              // اگر ریپلای نیست، از همان متن خود کاربر استفاده کن (فالبک)
               parentText = triggerComment.body;
             }
 
-            // دریافت دیف PR
             const diffData = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               pull_number: pr_number,
               mediaType: { format: 'diff' }
             });
             
-            return {
-              pr_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${pr_number}`,
-              diff: diffData.data.slice(0, 15000), 
-              parent_context: parentText.slice(0, 5000) // محدودیت متن ربات برای جلوگیری از ترکیدن پرامپت
-            };
+            // FIX: استفاده از core.setOutput برای دسترسی مستقیم در YAML
+            core.setOutput('pr_url', `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${pr_number}`);
+            core.setOutput('diff', diffData.data.slice(0, 15000)); 
+            core.setOutput('parent_context', parentText.slice(0, 5000));
 
       - name: Acknowledge command
         env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
         run: |
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments \
+          # تعیین صحیح End-point بر اساس نوع کامنت
+          if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
+            ENDPOINT="/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments"
+          else
+            ENDPOINT="/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
+          fi
+          
+          gh api --method POST -H "Accept: application/vnd.github+json" \
+            $ENDPOINT \
             -f "body=🤖 AI OS received \`/ai-fix\`. Reading the reported context..." \
-            -f "in_reply_to_id=${{ github.event.comment.id }}" || \
-          gh pr comment ${{ github.event.issue.number }} --reply-to ${{ github.event.comment.id }} -b "🤖 AI OS received `/ai-fix`. Reading the reported context..."
+            -f "in_reply_to_id=${{ github.event.comment.id }}"
 
       - name: Generate Issue with Gemini
         id: gen_issue
@@ -399,7 +274,7 @@ jobs:
               "labels": ["bug"]
             }
 
-      - name: Create Issue & Reply to PR
+      - name: Validate, Create Issue & Reply to PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gen_issue.outputs.summary }}
@@ -407,24 +282,33 @@ jobs:
         run: |
           set -euo pipefail
           
+          if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
+            ENDPOINT="/repos/${{ github.repository }}/pulls/$PR_NUM/comments"
+          else
+            ENDPOINT="/repos/${{ github.repository }}/issues/$PR_NUM/comments"
+          fi
+
           if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            # مدیریت خطای اگر خروجی جمینی_json نبود
-            MSG="❌ AI failed to generate a valid issue."
-            gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/$PR_NUM/comments -f "body=$MSG" -f "in_reply_to_id=${{ github.event.comment.id }}" || \
-            gh pr comment $PR_NUM --reply-to ${{ github.event.comment.id }} -b "$MSG"
+            gh api --method POST -H "Accept: application/vnd.github+json" $ENDPOINT -f "body=❌ AI failed to parse JSON response." -f "in_reply_to_id=${{ github.event.comment.id }}"
             exit 1
           fi
 
-          TITLE=$(echo "$RESPONSE" | jq -r '.title')
-          BODY=$(echo "$RESPONSE" | jq -r '.body')
-          LABELS=$(echo "$RESPONSE" | jq -r '.labels | join(",")')
-          
+          # FIX: اعتبارسنجی دقیق Schema
+          TITLE=$(echo "$RESPONSE" | jq -r '.title // empty')
+          BODY=$(echo "$RESPONSE" | jq -r '.body // empty')
+          LABELS=$(echo "$RESPONSE" | jq -r 'if (.labels | type) == "array" then (.labels | join(",")) else empty end')
+
+          if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
+            gh api --method POST -H "Accept: application/vnd.github+json" $ENDPOINT -f "body=❌ AI generated invalid issue fields (missing title or body)." -f "in_reply_to_id=${{ github.event.comment.id }}"
+            exit 1
+          fi
+
           FOOTER="\n\n---\n🤖 *This issue was automatically generated via \`/ai-fix\` from [PR #${PR_NUM}](${{ steps.pr_context.outputs.pr_url }})*"
           FULL_BODY="${BODY}${FOOTER}"
 
           ISSUE_URL=$(gh issue create --title "$TITLE" --body "$FULL_BODY" --label "$LABELS")
           
-          SUCCESS_MSG="✅ Successfully created issue: ${ISSUE_URL}"
-          # ریپلای کردن به کامنت کاربر (پشتیبانی از هر دو نوع کامنت)
-          gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/$PR_NUM/comments -f "body=$SUCCESS_MSG" -f "in_reply_to_id=${{ github.event.comment.id }}" || \
-          gh pr comment $PR_NUM --reply-to ${{ github.event.comment.id }} -b "$SUCCESS_MSG"
+          gh api --method POST -H "Accept: application/vnd.github+json" \
+            $ENDPOINT \
+            -f "body=✅ Successfully created issue: ${ISSUE_URL}" \
+            -f "in_reply_to_id=${{ github.event.comment.id }}"
