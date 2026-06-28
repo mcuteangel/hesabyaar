@@ -246,7 +246,7 @@ class AiConfigManager(context: Context) {
         configs.removeAll { it.id == id }
         saveConfigs(configs)
         if (getActiveConfigId() == id) {
-            setActiveConfigId(configs.firstOrNull()?.id ?: "")
+            setActiveConfigId(configs.firstOrNull()?.id.orEmpty())
         }
     }
 

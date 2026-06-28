@@ -65,7 +65,7 @@ object AiProvider {
             when (providerType) {
                 AiProviderType.GEMINI -> fetchGeminiModels(apiKey)
                 AiProviderType.OPENROUTER -> fetchOpenRouterModels(apiKey)
-                AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl ?: "")
+                AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
             }
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to fetch models for $providerType", e)
@@ -276,7 +276,7 @@ object AiProvider {
 
         return try {
             client.newCall(request).execute().use { response ->
-                val bodyStr = response.body?.string() ?: ""
+                val bodyStr = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     AppLogger.e(TAG, "API error ${response.code} for URL $url: $bodyStr")
                     ApiResult.Failure("API error ${response.code}: $bodyStr")

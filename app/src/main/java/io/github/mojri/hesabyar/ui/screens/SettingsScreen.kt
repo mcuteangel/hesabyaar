@@ -971,11 +971,11 @@ fun AiConfigDialog(
     onClearModelFetchState: () -> Unit
 ) {
     val isEditing = initialConfig != null
-    var label by remember { mutableStateOf(initialConfig?.label ?: "") }
+    var label by remember { mutableStateOf(initialConfig?.label.orEmpty()) }
     var selectedProvider by remember { mutableStateOf(initialConfig?.providerType ?: AiProviderType.GEMINI) }
-    var apiKey by remember { mutableStateOf(initialConfig?.apiKey ?: "") }
-    var model by remember { mutableStateOf(initialConfig?.model ?: "") }
-    var baseUrl by remember { mutableStateOf(initialConfig?.baseUrl ?: "") }
+    var apiKey by remember { mutableStateOf(initialConfig?.apiKey.orEmpty()) }
+    var model by remember { mutableStateOf(initialConfig?.model.orEmpty()) }
+    var baseUrl by remember { mutableStateOf(initialConfig?.baseUrl.orEmpty()) }
     var showApiKey by remember { mutableStateOf(false) }
     var providerDropdownExpanded by remember { mutableStateOf(false) }
     var modelDropdownExpanded by remember { mutableStateOf(false) }
@@ -1326,7 +1326,7 @@ fun AiConfigDialog(
                 onClick = {
                     onSave(
                         AiProviderConfig(
-                            id = initialConfig?.id ?: "",
+                            id = initialConfig?.id.orEmpty(),
                             providerType = selectedProvider,
                             apiKey = apiKey.trim(),
                             model = model.trim(),
