@@ -1,0 +1,276 @@
+name: AI Issue OS v2 (Self-Healing)
+
+on:
+  issues:
+    types: [opened, edited, reopened, closed]
+  push:
+  pull_request:
+    types: [closed, synchronize]
+
+jobs:
+  ai_os_v2:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+
+    env:
+      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # ---------------------------
+      # 1. FETCH ISSUES (LIMITED)
+      # ---------------------------
+      - name: Fetch issues
+        id: issues
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "all",       // All issues (open + closed)
+                per_page: 100,      // 100 per page
+                sort: "updated",    // Sort by updated
+                direction: "desc"   // Newest first
+              }
+            );
+            // Filter out PRs first, then limit to 200 most recent issues
+            const recentIssues = issues
+              .filter(i => !i.pull_request)
+              .slice(0, 200);
+            return recentIssues
+              .map(i => ({
+                number: i.number,
+                title: i.title,
+                body: (i.body || "").slice(0, 500),
+                state: i.state,
+                updated_at: i.updated_at
+              }));
+
+      # ---------------------------
+      # 2. ISSUE INTELLIGENCE ENGINE (SUMMARIZED)
+      # ---------------------------
+      - name: Issue intelligence engine
+        id: intel
+        env:
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
+        run: |
+          python3 - << 'EOF' > intel.json
+          import json, hashlib, os
+          from collections import defaultdict
+
+          issues = json.loads(os.environ["ISSUES_JSON"])
+          clusters = {}
+          enriched = []
+
+          for i in issues:
+              text = (i["title"] + i["body"]).lower()
+              sig = hashlib.md5(text.encode()).hexdigest()[:10]
+              labels = []
+              if any(k in text for k in ["bug","error","crash","fail"]):
+                  labels.append("bug")
+              if any(k in text for k in ["feature","add","support"]):
+                  labels.append("feature")
+              if any(k in text for k in ["security","auth","token"]):
+                  labels.append("security")
+              enriched.append({
+                  "issue": i["number"],
+                  "signature": sig,
+                  "labels": labels,
+                  "updated_at": i.get("updated_at", ""),
+                  "title": i["title"],
+                  "body_summary": i["body"][:200] if i["body"] else ""
+              })
+              key = sig[:6]
+              clusters.setdefault(key, []).append(i["number"])
+
+          # --- Summarize for Gemini (avoid context bloat) ---
+          label_counts = defaultdict(int)
+          for issue in enriched:
+              for label in issue["labels"]:
+                  label_counts[label] += 1
+
+          sorted_issues = sorted(enriched, key=lambda x: x.get("updated_at", ""), reverse=True)
+          recent_clusters = {}
+          for issue in sorted_issues[:5]:
+              key = issue["signature"][:6]
+              if key not in recent_clusters:
+                  recent_clusters[key] = {
+                      "issues": clusters.get(key, []),
+                      "sample_labels": issue["labels"],
+                      "title": issue["title"],
+                      "body_summary": issue["body_summary"]
+                  }
+
+          print(json.dumps({
+              "cluster_count": len(clusters),
+              "issue_count": len(enriched),
+              "label_distribution": dict(label_counts),
+              "recent_clusters": recent_clusters
+          }))
+          EOF
+
+      # ---------------------------
+      # 3. RULE ENGINE (SCOPED + EVENT-AWARE)
+      # ---------------------------
+      - name: Rule engine
+        id: rule
+        run: |
+          # Set base and head based on event type
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for pushes
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            DIFF_FILTER=""  # Full diff for PRs
+          else
+            git fetch origin main
+            BASE="origin/main"
+            HEAD="HEAD"
+            DIFF_FILTER="-- src/ lib/ app/"  # Only scan source paths for issue events
+          fi
+
+          git diff "$BASE" "$HEAD" $DIFF_FILTER > diff.txt
+
+          # Use event-type-specific keywords and trigger logic
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
+            if grep -Eqi "$KEYWORDS" diff.txt; then
+              echo "trigger=true" >> $GITHUB_OUTPUT
+            else
+              echo "trigger=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          else
+            # For issues events, skip Gemini (no consumer path exists for its output)
+            echo "trigger=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Truncate diff to last 1000 lines to avoid context limits
+          tail -n 1000 diff.txt > diff_truncated.txt
+
+          echo "DIFF_DATA<<EOF_DIFF_DATA_TOKEN" >> $GITHUB_ENV
+          cat diff_truncated.txt >> $GITHUB_ENV
+          echo "EOF_DIFF_DATA_TOKEN" >> $GITHUB_ENV
+
+          echo "INTEL_DATA<<EOF_INTEL_DATA_TOKEN" >> $GITHUB_ENV
+          cat intel.json >> $GITHUB_ENV
+          echo "EOF_INTEL_DATA_TOKEN" >> $GITHUB_ENV
+
+      # ---------------------------
+      # 4. GEMINI ANALYSIS (CONTEXT-SAFE)
+      # ---------------------------
+      - name: Gemini reasoning
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        id: gemini
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
+          prompt: |
+            You are a GitHub AI system.
+
+            Context:
+            - Issue intelligence summary: ${{ env.INTEL_DATA }}
+            - Truncated code diff (last 1000 lines): ${{ env.DIFF_DATA }}
+
+            Tasks:
+            1. Detect resolved issues based on diff content
+            2. Detect regressions (previously fixed issues that broke again)
+            3. Suggest labels (bug/feature/security/refactor)
+
+            Constraints:
+            - Focus only on issues in the provided summary.
+            - The diff is truncated; work with what is available.
+            - Be conservative with reopen suggestions.
+
+            Output ONLY valid JSON:
+            {
+              "resolved": [1, 2],
+              "reopen": [3],
+              "labels": { "1": ["bug"], "2": ["security"] },
+              "reason": "Brief explanation of decisions"
+            }
+
+      # ---------------------------
+      # 5. APPLY RESOLUTIONS
+      # ---------------------------
+      - name: Apply issue updates
+        if: |
+          steps.gemini.outputs.summary != '' &&
+          github.event_name == 'push' &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESPONSE: ${{ steps.gemini.outputs.summary }}
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
+        run: |
+          set -euo pipefail
+          echo "$RESPONSE"
+          if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+            echo "Gemini output is not valid JSON; skipping issue updates."
+            exit 0
+          fi
+
+          # Build state-aware ID sets
+          OPEN_IDS=$(jq -r '.[] | select(.state == "open") | .number' <<< "$ISSUES_JSON")
+          CLOSED_IDS=$(jq -r '.[] | select(.state == "closed") | .number' <<< "$ISSUES_JSON")
+
+          RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[]? else empty end')
+          REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[]? else empty end')
+
+          # Build disjoint sets: detect overlaps before any mutation
+          OVERLAPS=""
+          RESOLVED_CLEAN=""
+          REOPEN_CLEAN=""
+
+          for i in $RESOLVED; do
+            if echo "$REOPEN" | grep -qxF "$i"; then
+              OVERLAPS="$OVERLAPS $i"
+            else
+              RESOLVED_CLEAN="$RESOLVED_CLEAN $i"
+            fi
+          done
+
+          for i in $REOPEN; do
+            if ! echo "$RESOLVED" | grep -qxF "$i"; then
+              REOPEN_CLEAN="$REOPEN_CLEAN $i"
+            fi
+          done
+
+          if [ -n "$OVERLAPS" ]; then
+            echo "Skipping overlapping issue IDs (in both resolved and reopen):$OVERLAPS"
+          fi
+
+          for i in $RESOLVED_CLEAN; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$OPEN_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or non-open Issue ID: $i"
+              continue
+            fi
+            gh issue comment "$i" --body "✅ Auto-resolved by AI OS v2"
+            gh issue close "$i"
+          done
+
+          for i in $REOPEN_CLEAN; do
+            if [[ ! "$i" =~ ^[0-9]+$ ]] || ! echo "$CLOSED_IDS" | grep -qxF "$i"; then
+              echo "Skipping invalid or non-closed Issue ID: $i"
+              continue
+            fi
+            gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
+            gh issue reopen "$i"
+          done
