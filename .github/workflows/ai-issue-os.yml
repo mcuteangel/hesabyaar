@@ -47,7 +47,8 @@ jobs:
 
       - name: Issue intelligence engine
         id: intel
-        env: { ISSUES_JSON: ${{ steps.issues.outputs.result }} }
+        env:
+          ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
           python3 - << 'EOF' > intel.json
           import json, hashlib, os
