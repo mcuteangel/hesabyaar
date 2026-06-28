@@ -68,7 +68,7 @@ fun SmartAssistantScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             val spokenTextList = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val text = spokenTextList?.firstOrNull() ?: ""
+            val text = spokenTextList?.firstOrNull().orEmpty()
             if (text.isNotBlank()) {
                 inputText = text
                 aiAssistantViewModel.parseSmartSentence(text, aiAssistantViewModel.isOnlineMode.value)
@@ -86,7 +86,8 @@ fun SmartAssistantScreen(
                 putExtra(RecognizerIntent.EXTRA_PROMPT, "صحبت کنید (مثلا: امروز مرغ خریدم ۴۵۰ هزار تومن)")
             }
             speechLauncher.launch(intent)
-        } catch (e: ActivityNotFoundException) {
+        } catch (e: Exception) {
+            e.printStackTrace()
             settingsViewModel.showMessage("سیستم گفتار به نوشتار در دستگاه شما در دسترس نیست")
         }
     }
@@ -727,8 +728,8 @@ fun ParsedResultCard(
     var descriptionText by remember(result) { mutableStateOf(result.description) }
     var selectedType by remember(result) { mutableStateOf(result.type) }
     var selectedCategoryKey by remember(result) { mutableStateOf(result.category) }
-    var personNameText by remember(result) { mutableStateOf(result.personName ?: "") }
-    var titleText by remember(result) { mutableStateOf(result.title ?: "") }
+    var personNameText by remember(result) { mutableStateOf(result.personName.orEmpty()) }
+    var titleText by remember(result) { mutableStateOf(result.title.orEmpty()) }
     var daysFromNowText by remember(result) { mutableStateOf(result.daysFromNow?.toString() ?: "30") }
     
     var customDate by remember(result) {

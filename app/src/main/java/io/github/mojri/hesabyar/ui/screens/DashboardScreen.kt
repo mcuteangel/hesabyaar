@@ -1424,7 +1424,7 @@ fun ManualTransactionDialog(
     val isEditMode = transactionToEdit != null
     var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
     var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) (transactionToEdit!!.amount / 1000).toString() else "")) }
-    var descriptionText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
+    var descriptionText by remember { mutableStateOf(transactionToEdit?.description.orEmpty()) }
     var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
     var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
     var titleText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
@@ -1772,15 +1772,14 @@ fun ManualTransactionDialog(
                                     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
                                     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
                                     if (isEditMode) {
-                                        transactionViewModel.updateTransaction(
-                                            transactionToEdit!!.copy(
-                                                type = selectedType,
-                                                categoryId = selectedCategoryId,
-                                                amount = finalAmountRial,
-                                                description = desc,
-                                                date = customDate
-                                            )
-                                        )
+                                        val updatedTransaction = transactionToEdit?.copy(
+                                            type = selectedType,
+                                            categoryId = selectedCategoryId,
+                                            amount = finalAmountRial,
+                                            description = desc,
+                                            date = customDate
+                                        ) ?: return@Button
+                                        transactionViewModel.updateTransaction(updatedTransaction)
                                     } else {
                                         transactionViewModel.addTransaction(
                                             type = selectedType,
