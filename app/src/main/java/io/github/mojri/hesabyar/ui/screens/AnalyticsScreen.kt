@@ -286,9 +286,10 @@ private fun CombinedLineChartCard(
                         textAlign = android.graphics.Paint.Align.CENTER
                         this.color = android.graphics.Color.GRAY
                     }
+                    val textPadding = 10f
                     allLabels.forEachIndexed { idx, label ->
                         val x = startX + idx * spacing
-                        drawText(label, x, size.height, paint)
+                        drawText(label, x, size.height - textPadding, paint)
                     }
                 }
             }

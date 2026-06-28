@@ -158,11 +158,15 @@ class ManageBackupUseCase(
         }
     }
 
-    suspend fun exportBackupJson(): JSONObject {
+    suspend fun exportBackupJson(isDarkMode: Boolean = true): JSONObject {
         val rootJson = JSONObject()
         rootJson.put("version", 1)
         rootJson.put("timestamp", System.currentTimeMillis())
         rootJson.put("appVersion", "1.0")
+
+        rootJson.put("settings", JSONObject().apply {
+            put("darkMode", isDarkMode)
+        })
 
         val curCategories = repository.allCategories.firstOrNull() ?: emptyList()
         val curTrans = repository.allTransactions.firstOrNull() ?: emptyList()

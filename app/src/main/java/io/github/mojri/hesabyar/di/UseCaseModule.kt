@@ -24,67 +24,56 @@ import javax.inject.Singleton
 object UseCaseModule {
 
     @Provides
-    @Singleton
     fun provideGetDashboardDataUseCase(repository: HesabyarRepositoryInterface): GetDashboardDataUseCase {
         return GetDashboardDataUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideManageTransactionUseCase(repository: HesabyarRepositoryInterface): ManageTransactionUseCase {
         return ManageTransactionUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideManageLoanUseCase(repository: HesabyarRepositoryInterface): ManageLoanUseCase {
         return ManageLoanUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase {
         return ManageInstallmentUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase {
         return ManageCategoryUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideParseTransactionUseCase(repository: HesabyarRepositoryInterface): ParseTransactionUseCase {
         return ParseTransactionUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideGetBudgetAdviceUseCase(): GetBudgetAdviceUseCase {
         return GetBudgetAdviceUseCase()
     }
 
     @Provides
-    @Singleton
     fun provideGetForecastUseCase(): GetForecastUseCase {
         return GetForecastUseCase()
     }
 
     @Provides
-    @Singleton
     fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase {
         return GetAnalyticsUseCase()
     }
 
     @Provides
-    @Singleton
     fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase {
         return ManageBackupUseCase(repository)
     }
 
     @Provides
-    @Singleton
     fun provideExportExcelUseCase(
         repository: HesabyarRepositoryInterface,
         excelExporter: ExcelExporter

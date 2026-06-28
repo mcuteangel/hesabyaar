@@ -43,7 +43,19 @@ import java.io.OutputStream
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.fragment.app.FragmentActivity
+
+fun Context.findActivity(): FragmentActivity? {
+    var currentContext = this
+    while (currentContext is ContextWrapper) {
+        if (currentContext is FragmentActivity) {
+            return currentContext
+        }
+        currentContext = currentContext.baseContext
+    }
+    return null
+}
 
 @Composable
 fun SettingsScreen(
@@ -513,7 +525,7 @@ fun SecuritySection(
                 .fillMaxWidth()
                 .clickable {
                     if (BiometricHelper.isBiometricAvailable(context)) {
-                        val activity = context as? FragmentActivity
+                        val activity = context.findActivity()
                         if (activity != null) {
                             BiometricHelper.authenticate(
                                 activity = activity,
