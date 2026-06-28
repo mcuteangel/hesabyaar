@@ -143,12 +143,17 @@ class AiConfigManager(context: Context) {
 
             legacyPrefs.edit().clear().apply()
 
-                AppLogger.i(TAG, "Successfully migrated AI configs to EncryptedSharedPreferences")
-        } catch (e: Exception) {
+            AppLogger.i(TAG, "Successfully migrated AI configs to EncryptedSharedPreferences")
+        } catch (e: SecurityException) {
             AppLogger.e(TAG, "Failed to migrate from legacy SharedPreferences", e)
             try {
                 encryptedPrefs.edit().clear().apply()
-            } catch (ignored: Exception) {}
+            } catch (ignored: SecurityException) {}
+        } catch (e: IllegalStateException) {
+            AppLogger.e(TAG, "Failed to migrate from legacy SharedPreferences", e)
+            try {
+                encryptedPrefs.edit().clear().apply()
+            } catch (ignored: IllegalStateException) {}
         }
     }
 
@@ -171,7 +176,7 @@ class AiConfigManager(context: Context) {
             }.filter { it.id.isNotBlank() }
             AppLogger.d(TAG, "loadConfigs: parsed ${configs.size} configs")
             configs
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse configs", e)
             emptyList()
         }
@@ -262,7 +267,7 @@ class AiConfigManager(context: Context) {
                 models = models,
                 fetchedAt = entry.getLong("fetchedAt")
             )
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             null
         }
     }
@@ -271,7 +276,7 @@ class AiConfigManager(context: Context) {
         val existing = try {
             val json = prefs.getString(KEY_MODEL_CACHE, null)
             if (json != null) JSONObject(json) else JSONObject()
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             JSONObject()
         }
 

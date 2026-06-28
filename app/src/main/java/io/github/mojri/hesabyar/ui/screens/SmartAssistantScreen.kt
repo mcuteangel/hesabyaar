@@ -86,7 +86,7 @@ fun SmartAssistantScreen(
                 putExtra(RecognizerIntent.EXTRA_PROMPT, "صحبت کنید (مثلا: امروز مرغ خریدم ۴۵۰ هزار تومن)")
             }
             speechLauncher.launch(intent)
-        } catch (e: Exception) {
+        } catch (e: ActivityNotFoundException) {
             settingsViewModel.showMessage("سیستم گفتار به نوشتار در دستگاه شما در دسترس نیست")
         }
     }

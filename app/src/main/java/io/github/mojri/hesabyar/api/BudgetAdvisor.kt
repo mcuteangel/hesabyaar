@@ -101,7 +101,7 @@ object BudgetAdvisor {
             val formatter = NumberFormat.getNumberInstance(Locale.US)
             formatter.maximumFractionDigits = 0
             formatter.format(tomanValue)
-        } catch (e: Exception) {
+        } catch (e: IllegalArgumentException) {
             tomanValue.toString()
         }
     }

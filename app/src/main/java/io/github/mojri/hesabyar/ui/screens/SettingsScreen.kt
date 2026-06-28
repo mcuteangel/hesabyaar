@@ -80,8 +80,10 @@ fun SettingsScreen(
                 } else {
                     settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
-            } catch (e: Exception) {
-                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی")
+            } catch (e: java.io.FileNotFoundException) {
+                settingsViewModel.showMessage("فایل پیدا نشد: ${e.localizedMessage}")
+            } catch (e: java.io.IOException) {
+                settingsViewModel.showMessage("خطا در نوشتن فایل پشتیبان: ${e.localizedMessage}")
             }
         }
     }
@@ -95,8 +97,12 @@ fun SettingsScreen(
                 if (inputStream != null) {
                     backupViewModel.validateAndStageImport(inputStream)
                 }
-            } catch (e: Exception) {
-                settingsViewModel.showMessage("خطا در بارگذاری فایل")
+            } catch (e: java.io.FileNotFoundException) {
+                settingsViewModel.showMessage("پرونده یافت نشد")
+            } catch (e: java.io.IOException) {
+                settingsViewModel.showMessage("خطا در خواندن فایل")
+            } catch (e: IllegalArgumentException) {
+                settingsViewModel.showMessage("فرمت فایل نامعتبر است")
             }
         }
     }
