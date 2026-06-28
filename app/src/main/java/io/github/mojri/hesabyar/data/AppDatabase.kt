@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
 
 @Database(
     entities = [Transaction::class, Loan::class, Installment::class, PaymentHistory::class, Category::class],
@@ -92,12 +93,16 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                val appContext = context.applicationContext
                 System.loadLibrary("sqlcipher")
-                val passphrase = DatabaseKeyManager.getOrCreateKey(context.applicationContext)
+
+                migratePlaintextToEncryptedIfNeeded(appContext)
+
+                val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
                 val factory = SupportOpenHelperFactory(passphrase)
 
                 val instance = Room.databaseBuilder(
-                    context.applicationContext,
+                    appContext,
                     AppDatabase::class.java,
                     "hesabyar_database"
                 )
@@ -107,6 +112,66 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        private fun isPlaintextDb(dbFile: File): Boolean {
+            if (!dbFile.exists()) return false
+            return try {
+                val header = ByteArray(16)
+                java.io.FileInputStream(dbFile).use { it.read(header) }
+                String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        private fun migratePlaintextToEncryptedIfNeeded(context: Context) {
+            val dbFile = context.getDatabasePath("hesabyar_database")
+            if (!isPlaintextDb(dbFile)) return
+
+            val tempName = "hesabyar_database_plaintext_backup"
+            val tempDbFile = context.getDatabasePath(tempName)
+
+            dbFile.copyTo(tempDbFile, overwrite = true)
+            listOf("-wal", "-shm").map { context.getDatabasePath("hesabyar_database$it") }
+                .filter { it.exists() }
+                .forEach { it.copyTo(context.getDatabasePath("$tempName-${it.name.removePrefix("hesabyar_database")}"), overwrite = true) }
+
+            val plaintextDb = Room.databaseBuilder(context, AppDatabase::class.java, tempName)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .build()
+
+            val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
+            val transactions = plaintextDb.transactionDao().getAllTransactionsBlocking()
+            val loans = plaintextDb.loanDao().getAllLoansBlocking()
+            val installments = plaintextDb.installmentDao().getAllInstallmentsBlocking()
+            val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+
+            plaintextDb.close()
+            context.getDatabasePath(tempName).delete()
+            context.getDatabasePath("$tempName-wal").delete()
+            context.getDatabasePath("$tempName-shm").delete()
+
+            dbFile.delete()
+            context.getDatabasePath("hesabyar_database-wal").delete()
+            context.getDatabasePath("hesabyar_database-shm").delete()
+
+            val passphrase = DatabaseKeyManager.getOrCreateKey(context)
+            val factory = SupportOpenHelperFactory(passphrase)
+            val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
+                .openHelperFactory(factory)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .build()
+
+            encryptedDb.runInTransaction {
+                if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
+                if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
+                if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
+                if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
+                if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
+            }
+
+            encryptedDb.close()
         }
     }
 }
