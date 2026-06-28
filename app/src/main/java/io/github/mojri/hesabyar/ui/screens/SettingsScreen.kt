@@ -596,7 +596,6 @@ fun SecuritySection(
                             newPin.length != 6 || !newPin.all { it.isDigit() } -> {
                                 pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
                             }
-                            }
                             newPin != confirmPin -> {
                                 pinError = "رمز عبور مطابقت ندارد"
                             }
