@@ -2,7 +2,6 @@ package io.github.mojri.hesabyar.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.util.Log
-import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
