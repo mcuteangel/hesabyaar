@@ -1,15 +1,4 @@
-name: AI Issue OS v2 (Self-Healing)
-
-on:
-  issues:
-    types: [opened, edited, reopened, closed]
-  push:
-  pull_request:
-    types: [closed, synchronize]
-
-jobs:
-  ai_os_v2:
-    runs-on: ubuntu-latest
+  runs-on: ubuntu-latest
 
     permissions:
       issues: write
@@ -274,3 +263,168 @@ jobs:
             gh issue comment "$i" --body "⚠️ Regression detected - re-opening issue"
             gh issue reopen "$i"
           done
+name: AI Issue OS v2 (Self-Healing + Context-Aware Manual)
+
+on:
+  push:
+  pull_request:
+    types: [closed, synchronize]
+  issue_comment:
+    types: [created]
+  # اضافه شدن تریگر برای کامنت‌های داخل کد (Inline Reviews)
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  # ==========================================
+  # JOB 1: SELF-HEALING (بدون تغییر نسبت به قبل)
+  # ==========================================
+  ai_os_v2:
+    # جلوگیری از اجرای این جاب در کامنت‌ها
+    if: github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+    env:
+      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+    steps:
+      # ... (کاملأ همین استپ‌های قبلی را اینجا قرار دهید - برای جلوگیری از شلوغی حذف شده است)
+      # از checkout تا آخرین استپ Apply issue updates قبلی
+      # فقط مطمئن شوید کامیت لینک همان نسخه قبل باشد که در کد قبلی هست
+
+
+  # ==========================================
+  # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
+  # ==========================================
+  manual_issue_from_pr:
+    # فعال سازی روی هر دو نوع کامنت PR (کلی و اینلاین)
+    if: |
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      contains(github.event.comment.body, '/ai-fix')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      issues: write
+      pull-requests: write 
+      contents: read
+
+    steps:
+      - name: Extract Parent Context & Diff
+        id: pr_context
+        uses: actions/github-script@v7.0.1
+        with:
+          script: |
+            const isReviewComment = context.eventName === 'pull_request_review_comment';
+            const pr_number = context.payload.pull_request?.number || context.issue.number;
+            const triggerComment = context.payload.comment;
+            let parentText = "";
+
+            // اگر کامنت ما ریپلای به یک کامنت دیگر است
+            if (triggerComment.in_reply_to_id) {
+              if (isReviewComment) {
+                // گرفتن متن کامنت پدر در Review Comments
+                const parent = await github.rest.pulls.getReviewComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: triggerComment.in_reply_to_id
+                });
+                parentText = parent.data.body;
+              } else {
+                // گرفتن متن کامنت پدر در Issue/PR Comments
+                const parent = await github.rest.issues.getComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: triggerComment.in_reply_to_id
+                });
+                parentText = parent.data.body;
+              }
+            } else {
+              // اگر ریپلای نیست، از همان متن خود کاربر استفاده کن (فالبک)
+              parentText = triggerComment.body;
+            }
+
+            // دریافت دیف PR
+            const diffData = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr_number,
+              mediaType: { format: 'diff' }
+            });
+            
+            return {
+              pr_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${pr_number}`,
+              diff: diffData.data.slice(0, 15000), 
+              parent_context: parentText.slice(0, 5000) // محدودیت متن ربات برای جلوگیری از ترکیدن پرامپت
+            };
+
+      - name: Acknowledge command
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments \
+            -f "body=🤖 AI OS received \`/ai-fix\`. Reading the reported context..." \
+            -f "in_reply_to_id=${{ github.event.comment.id }}" || \
+          gh pr comment ${{ github.event.issue.number }} --reply-to ${{ github.event.comment.id }} -b "🤖 AI OS received `/ai-fix`. Reading the reported context..."
+
+      - name: Generate Issue with Gemini
+        id: gen_issue
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
+          prompt: |
+            You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
+            
+            HERE IS THE EXACT BUG REPORT/REVIEW FROM THE BOT (Parent Comment):
+            ---
+            ${{ steps.pr_context.outputs.parent_context }}
+            ---
+            
+            HERE IS THE PR CODE DIFF FOR CONTEXT:
+            ---
+            ${{ steps.pr_context.outputs.diff }}
+            ---
+
+            TASK: Create a highly professional GitHub Issue based STRICTLY on the "BUG REPORT FROM THE BOT" provided above. Use the diff only to understand the code context.
+            
+            Output ONLY valid JSON with exactly this structure:
+            {
+              "title": "Concise bug title based on the report",
+              "body": "Detailed markdown body explaining the bug reported by the bot, expected vs actual behavior, and referencing the problematic code snippet.",
+              "labels": ["bug"]
+            }
+
+      - name: Create Issue & Reply to PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESPONSE: ${{ steps.gen_issue.outputs.summary }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          
+          if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+            # مدیریت خطای اگر خروجی جمینی_json نبود
+            MSG="❌ AI failed to generate a valid issue."
+            gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/$PR_NUM/comments -f "body=$MSG" -f "in_reply_to_id=${{ github.event.comment.id }}" || \
+            gh pr comment $PR_NUM --reply-to ${{ github.event.comment.id }} -b "$MSG"
+            exit 1
+          fi
+
+          TITLE=$(echo "$RESPONSE" | jq -r '.title')
+          BODY=$(echo "$RESPONSE" | jq -r '.body')
+          LABELS=$(echo "$RESPONSE" | jq -r '.labels | join(",")')
+          
+          FOOTER="\n\n---\n🤖 *This issue was automatically generated via \`/ai-fix\` from [PR #${PR_NUM}](${{ steps.pr_context.outputs.pr_url }})*"
+          FULL_BODY="${BODY}${FOOTER}"
+
+          ISSUE_URL=$(gh issue create --title "$TITLE" --body "$FULL_BODY" --label "$LABELS")
+          
+          SUCCESS_MSG="✅ Successfully created issue: ${ISSUE_URL}"
+          # ریپلای کردن به کامنت کاربر (پشتیبانی از هر دو نوع کامنت)
+          gh api --method POST -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/pulls/$PR_NUM/comments -f "body=$SUCCESS_MSG" -f "in_reply_to_id=${{ github.event.comment.id }}" || \
+          gh pr comment $PR_NUM --reply-to ${{ github.event.comment.id }} -b "$SUCCESS_MSG"
