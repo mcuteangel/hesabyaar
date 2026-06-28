@@ -40,6 +40,12 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew test
 
+      - name: Run Codacy Coverage Reporter
+        env:
+          CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
+        run: |
+          bash <(curl -Ls https://coverage.codacy.com/get.sh)
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
