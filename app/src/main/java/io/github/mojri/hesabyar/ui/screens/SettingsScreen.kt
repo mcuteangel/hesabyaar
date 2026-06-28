@@ -82,8 +82,8 @@ fun SettingsScreen(
                     settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
             } catch (e: Exception) {
-                Log.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
-                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی: ${e.localizedMessage}")
+Log.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
+                settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
             }
         }
     }
