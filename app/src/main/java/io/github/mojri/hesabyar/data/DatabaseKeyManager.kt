@@ -33,7 +33,11 @@ object DatabaseKeyManager {
         val prefs = getEncryptedPrefs(context)
         val existing = prefs.getString(KEY_DB_PASSPHRASE, null)
         if (existing != null) {
-            return android.util.Base64.decode(existing, android.util.Base64.DEFAULT)
+            return try {
+                android.util.Base64.decode(existing, android.util.Base64.DEFAULT)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalStateException("Stored database passphrase is corrupt or invalid. Database cannot be initialized.", e)
+            }
         }
         val key = ByteArray(32)
         SecureRandom().nextBytes(key)
