@@ -33,6 +33,8 @@ fun PinScreen(
     LaunchedEffect(error) {
         if (error != null) {
             showError = true
+        } else {
+            showError = false
         }
     }
 

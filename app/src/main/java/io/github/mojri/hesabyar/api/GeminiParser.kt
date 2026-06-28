@@ -262,7 +262,7 @@ object GeminiParser {
     fun parseSentenceOffline(rawSentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
         val sentence = PersianTextPreprocessor.preprocessPersianText(rawSentence)
-        val amountToman = PersianAmountParser.parseAmount(sentence).toDouble()
+        val amountToman = PersianAmountParser.parseAmount(sentence)
         val dateOffsetDays = extractDateOffset(sentence)
         val (hour, minute) = extractTime(sentence)
         val personName = extractPersonName(sentence)
@@ -306,7 +306,7 @@ object GeminiParser {
 
         val parsed = ParsedResult(
             type = classification.type,
-            amount = (amountToman * 1000).toLong(),
+            amount = amountToman * 1000,
             category = classification.category,
             personName = personName,
             description = classification.description,
@@ -323,11 +323,11 @@ object GeminiParser {
         return repairInvalidParsedResult(parsed, amountToman)
     }
 
-    private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Double): ParsedResult {
+    private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Long): ParsedResult {
         return parsed.copy(
             type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
             category = parsed.category.ifBlank { "Other" },
-            amount = (amountToman * 1000).toLong().coerceAtLeast(1),
+            amount = (amountToman * 1000).coerceAtLeast(1),
             hour = parsed.hour?.coerceIn(0, 23),
             minute = parsed.minute?.coerceIn(0, 59)
         )
@@ -345,7 +345,16 @@ object GeminiParser {
     private fun extractTime(sentence: String): Pair<Int?, Int?> {
         val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
         val hourMatch = hourRegex.find(sentence) ?: return Pair(null, null)
-        val hour = toArabicDigits(hourMatch.groupValues[2]).toIntOrNull() ?: return Pair(null, null)
+        var hour = toArabicDigits(hourMatch.groupValues[2]).toIntOrNull() ?: return Pair(null, null)
+
+        // Detect Persian day-part modifiers and adjust hour
+        when {
+            sentence.contains("شب") && hour in 1..11 -> hour += 12
+            sentence.contains("عصر") && hour in 1..11 -> hour += 12
+            sentence.contains("بعدازظهر") && hour in 1..11 -> hour += 12
+            sentence.contains("بعد از ظهر") && hour in 1..11 -> hour += 12
+        }
+
         if (sentence.contains("نیم")) {
             return Pair(hour, 30)
         }
@@ -450,14 +459,31 @@ object GeminiParser {
                 sentence.contains("وام") -> "قسط وام"
                 else -> "قسط جدید"
             }
-            return TypeClassification(
-                type = TYPE_INSTALLMENT,
-                category = "Installments",
-                description = "قسط آینده",
-                installmentTitle = installmentTitle,
-                daysFromNow = extractJalaliDaysFromNow(sentence),
-                notes = "قسط در انتظار پرداخت"
-            )
+
+            // Detect if installment was already paid
+            val isPaid = sentence.contains("پرداخت") || sentence.contains("دادم") ||
+                    sentence.contains("پرداختم") || sentence.contains("پرداخت کردم") ||
+                    sentence.contains("واریز") || sentence.contains("تسویه")
+
+            return if (isPaid) {
+                TypeClassification(
+                    type = TYPE_EXPENSE,
+                    category = "Installments",
+                    description = "پرداخت $installmentTitle",
+                    installmentTitle = null,
+                    daysFromNow = null,
+                    notes = null
+                )
+            } else {
+                TypeClassification(
+                    type = TYPE_INSTALLMENT,
+                    category = "Installments",
+                    description = "قسط آینده",
+                    installmentTitle = installmentTitle,
+                    daysFromNow = extractJalaliDaysFromNow(sentence),
+                    notes = "قسط در انتظار پرداخت"
+                )
+            }
         }
         if (isIncome) {
             val subject = extractSubject(sentence)
@@ -487,7 +513,7 @@ object GeminiParser {
     }
 
     private fun calculateConfidence(
-        amountToman: Double,
+        amountToman: Long,
         isIncome: Boolean,
         isExpense: Boolean,
         personName: String?,
