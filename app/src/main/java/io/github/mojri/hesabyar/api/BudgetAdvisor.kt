@@ -298,7 +298,7 @@ object BudgetAdvisor {
             loans.filter { !it.isSettled && it.type == "CREDITOR" }.sumOf {
                 it.remainingAmount / 12
             }
-        if (monthlyIncome <= 0 && monthlyDebtPayments > 0) return Double.MAX_VALUE
+        if (monthlyIncome <= 0 && monthlyDebtPayments > 0) return 1.0
         if (monthlyIncome <= 0) return 0.0
         return monthlyDebtPayments.toDouble() / monthlyIncome.toDouble()
     }

@@ -37,7 +37,8 @@ object DatabaseKeyManager {
         }
         val key = ByteArray(32)
         SecureRandom().nextBytes(key)
-        prefs.edit().putString(KEY_DB_PASSPHRASE, android.util.Base64.encodeToString(key, android.util.Base64.DEFAULT)).commit()
+        val saved = prefs.edit().putString(KEY_DB_PASSPHRASE, android.util.Base64.encodeToString(key, android.util.Base64.DEFAULT)).commit()
+        if (!saved) throw IllegalStateException("Failed to persist database key — refusing to return unsaved key")
         return key
     }
 }

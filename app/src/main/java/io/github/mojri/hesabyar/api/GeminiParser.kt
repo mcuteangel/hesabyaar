@@ -503,19 +503,17 @@ object GeminiParser {
         )
         if (PersianTextPreprocessor.validateParsedResult(parsed)) return parsed
 
-        val validTypes = listOf("EXPENSE", "INCOME", "LOAN_DEBTOR", "LOAN_CREDITOR", "INSTALLMENT")
-        val fixedType = if (type in validTypes) type else "EXPENSE"
-        val fixedCategory = if (category.isNotBlank()) category else "Other"
-        val fixedAmount = (amountToman * 1000).toLong().coerceAtLeast(1)
-        val fixedHour = hour?.coerceIn(0, 23)
-        val fixedMinute = minute?.coerceIn(0, 59)
+        return repairInvalidParsedResult(parsed, amountToman)
+    }
 
+    private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Double): ParsedResult {
+        val validTypes = listOf("EXPENSE", "INCOME", "LOAN_DEBTOR", "LOAN_CREDITOR", "INSTALLMENT")
         return parsed.copy(
-            type = fixedType,
-            category = fixedCategory,
-            amount = fixedAmount,
-            hour = fixedHour,
-            minute = fixedMinute
+            type = if (parsed.type in validTypes) parsed.type else "EXPENSE",
+            category = parsed.category.ifBlank { "Other" },
+            amount = (amountToman * 1000).toLong().coerceAtLeast(1),
+            hour = parsed.hour?.coerceIn(0, 23),
+            minute = parsed.minute?.coerceIn(0, 59)
         )
     }
 
