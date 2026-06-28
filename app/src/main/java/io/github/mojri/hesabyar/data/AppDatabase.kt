@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import io.github.mojri.hesabyar.ui.AppLogger
 import java.io.File
 
 @Database(
@@ -121,6 +122,8 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private const val TAG = "AppDatabase"
+
         private fun isPlaintextDb(dbFile: File): Boolean {
             if (!dbFile.exists()) return false
             return try {
@@ -128,6 +131,7 @@ abstract class AppDatabase : RoomDatabase() {
                 java.io.FileInputStream(dbFile).use { it.read(header) }
                 String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
             } catch (e: java.io.IOException) {
+                AppLogger.w(TAG, "Failed to read DB header for migration check: ${e.message}")
                 false
             }
         }

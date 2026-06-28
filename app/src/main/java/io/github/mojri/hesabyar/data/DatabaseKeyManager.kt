@@ -25,9 +25,11 @@ object DatabaseKeyManager {
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: java.security.GeneralSecurityException) {
-            throw IllegalStateException("Failed to create encrypted preferences", e)
+            throw IllegalStateException("Cryptographic failure creating encrypted preferences", e)
         } catch (e: java.io.IOException) {
-            throw IllegalStateException("Failed to create encrypted preferences", e)
+            throw IllegalStateException("I/O failure creating encrypted preferences", e)
+        } catch (e: Exception) {
+            throw IllegalStateException("Unexpected failure creating encrypted preferences", e)
         }
     }
 

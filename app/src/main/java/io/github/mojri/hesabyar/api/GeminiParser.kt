@@ -434,8 +434,8 @@ object GeminiParser {
         isIncome: Boolean,
         personName: String?
     ): TypeClassification {
+        classifyInstallment(sentence, isIncome)?.let { return it }
         classifyLoan(sentence, personName)?.let { return it }
-        classifyInstallment(sentence)?.let { return it }
         if (isIncome) return classifyIncome(sentence)
         return classifyExpense(sentence)
     }
@@ -462,7 +462,7 @@ object GeminiParser {
         return null
     }
 
-    private fun classifyInstallment(sentence: String): TypeClassification? {
+    private fun classifyInstallment(sentence: String, isIncome: Boolean): TypeClassification? {
         if (!sentence.contains("قسط")) return null
 
         val installmentTitle = when {
@@ -472,7 +472,7 @@ object GeminiParser {
             else -> "قسط جدید"
         }
 
-        val isPaid = listOf("پرداخت", "دادم", "پرداختم", "پرداخت کردم", "واریز", "تسویه")
+        val isPaid = !isIncome && listOf("پرداخت", "دادم", "تسویه")
             .any { sentence.contains(it) }
 
         return if (isPaid) {
@@ -520,9 +520,16 @@ object GeminiParser {
         val baseDescription = categoryToDescription(inferredCategory, subject, sentence)
         return TypeClassification(
             type = TYPE_EXPENSE,
-            category = inferredCategory,
+            category = normalizeCategory(inferredCategory),
             description = "$baseDescription ($subject)"
         )
+    }
+
+    private fun normalizeCategory(category: String): String = when (category) {
+        "Food", "Transportation", "Shopping", "Bills", "Installments",
+        "Loans", "Income", "Other" -> category
+        "Loans & Debt" -> "Loans"
+        else -> "Other"
     }
 
     private fun calculateConfidence(
