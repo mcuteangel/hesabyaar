@@ -28,8 +28,6 @@ object DatabaseKeyManager {
             throw IllegalStateException("Cryptographic failure creating encrypted preferences", e)
         } catch (e: java.io.IOException) {
             throw IllegalStateException("I/O failure creating encrypted preferences", e)
-        } catch (e: Exception) {
-            throw IllegalStateException("Unexpected failure creating encrypted preferences", e)
         }
     }
 

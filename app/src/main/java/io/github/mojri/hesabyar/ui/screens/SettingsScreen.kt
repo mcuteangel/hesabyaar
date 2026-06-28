@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.ui.BackupOperationState
 import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.ExportViewModel

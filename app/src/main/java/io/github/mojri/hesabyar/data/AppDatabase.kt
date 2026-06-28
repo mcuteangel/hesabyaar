@@ -11,7 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 import java.io.File
 
 @Database(

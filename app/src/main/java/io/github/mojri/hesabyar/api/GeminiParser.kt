@@ -4,7 +4,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -17,6 +17,22 @@ object GeminiParser {
     private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
     private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
     private const val TYPE_INSTALLMENT = "INSTALLMENT"
+
+    private const val CATEGORY_FOOD = "Food"
+    private const val CATEGORY_TRANSPORTATION = "Transportation"
+    private const val CATEGORY_SHOPPING = "Shopping"
+    private const val CATEGORY_BILLS = "Bills"
+    private const val CATEGORY_INSTALLMENTS = "Installments"
+    private const val CATEGORY_LOANS = "Loans"
+    private const val CATEGORY_INCOME = "Income"
+    private const val CATEGORY_OTHER = "Other"
+    private const val CATEGORY_PERSONAL_CARE = "Personal Care"
+    private const val CATEGORY_EDUCATION = "Education"
+    private const val CATEGORY_RENT_UTILITIES = "Rent & Utilities"
+    private const val CATEGORY_LOANS_DEBT = "Loans & Debt"
+    private const val CATEGORY_EVENTS_GIFTS = "Events & Gifts"
+    private const val CATEGORY_CHARITY = "Charity"
+    private const val CATEGORY_INVESTMENT = "Investment"
 
     private val VALID_TYPES = listOf(TYPE_EXPENSE, TYPE_INCOME, TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR, TYPE_INSTALLMENT)
 
@@ -326,7 +342,7 @@ object GeminiParser {
     private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Long): ParsedResult {
         return parsed.copy(
             type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
-            category = parsed.category.ifBlank { "Other" },
+            category = parsed.category.ifBlank { CATEGORY_OTHER },
             amount = (amountToman * 1000).coerceAtLeast(1),
             hour = parsed.hour?.coerceIn(0, 23),
             minute = parsed.minute?.coerceIn(0, 59)
@@ -425,7 +441,7 @@ object GeminiParser {
         "Charity" -> "خیریه"
         "Investment" -> "سرمایه‌گذاری"
         "Health" -> "هزینه درمان"
-        "Other" -> subject
+        CATEGORY_OTHER -> subject
         else -> extractDescription(sentence)
     }
 
@@ -445,7 +461,7 @@ object GeminiParser {
         if (loanReceived.any { sentence.contains(it) }) {
             return TypeClassification(
                 type = TYPE_LOAN_CREDITOR,
-                category = "Loans",
+                category = CATEGORY_LOANS,
                 description = "قرض گرفتن از ${personName ?: "طلبکار"}",
                 notes = "قرض جدید ثبت شده"
             )
@@ -454,7 +470,7 @@ object GeminiParser {
         if (loanGiven.any { sentence.contains(it) }) {
             return TypeClassification(
                 type = TYPE_LOAN_DEBTOR,
-                category = "Loans",
+                category = CATEGORY_LOANS,
                 description = "قرض دادن به ${personName ?: "بدهکار"}",
                 notes = "طلب جدید ثبت شده"
             )
@@ -472,13 +488,13 @@ object GeminiParser {
             else -> "قسط جدید"
         }
 
-        val isPaid = !isIncome && listOf("پرداخت", "دادم", "تسویه")
+        val isPaid = listOf("پرداخت", "دادم", "تسویه", "واریز شد", "واریز کردم", "واریز")
             .any { sentence.contains(it) }
 
         return if (isPaid) {
             TypeClassification(
                 type = TYPE_EXPENSE,
-                category = "Installments",
+                category = CATEGORY_INSTALLMENTS,
                 description = "پرداخت $installmentTitle",
                 installmentTitle = null,
                 daysFromNow = null,
@@ -509,7 +525,7 @@ object GeminiParser {
         }
         return TypeClassification(
             type = TYPE_INCOME,
-            category = "Income",
+            category = CATEGORY_INCOME,
             description = description
         )
     }
@@ -526,10 +542,10 @@ object GeminiParser {
     }
 
     private fun normalizeCategory(category: String): String = when (category) {
-        "Food", "Transportation", "Shopping", "Bills", "Installments",
-        "Loans", "Income", "Other" -> category
-        "Loans & Debt" -> "Loans"
-        else -> "Other"
+        CATEGORY_FOOD, CATEGORY_TRANSPORTATION, CATEGORY_SHOPPING, CATEGORY_BILLS, CATEGORY_INSTALLMENTS,
+        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER -> category
+        CATEGORY_LOANS_DEBT -> CATEGORY_LOANS
+        else -> CATEGORY_OTHER
     }
 
     private fun calculateConfidence(
@@ -590,7 +606,7 @@ object GeminiParser {
             4. Make references to their loans or upcoming installments if present to help them prioritize.
             5. Present prices in Toman (تومان) formatted clearly with thousands separators (e.g., 5,000,000 تومان).
             6. Keep the response concise but highly personalized, positive, and motivating.
-            
+
             Format response with neat markdown structure. Keep the total length around 150-200 words. Highlight crucial sections.
         """.trimIndent()
 
@@ -599,7 +615,7 @@ object GeminiParser {
             appendLine("کل درآمد ثبت شده: ${incomeTotal} تومان")
             appendLine("کل مخارج ثبت شده: ${expenseTotal} تومان")
             appendLine("تراز باقیمانده (پس‌انداز): ${balance} تومان")
-            
+
             appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
             categoryTotals.forEach { (catId, amt) ->
                 val cat = categories.find { it.id == catId }

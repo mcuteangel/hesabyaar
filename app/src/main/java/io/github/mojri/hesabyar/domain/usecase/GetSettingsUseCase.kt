@@ -1,7 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import android.content.SharedPreferences
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 
 class GetSettingsUseCase(
     private val sharedPrefs: SharedPreferences

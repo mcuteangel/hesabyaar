@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.*
