@@ -998,7 +998,7 @@ fun AiConfigDialog(
         }
     }
 
-    val openRouterGroups = fetchedModels.groupBy { fetchedModel ->
+    val openRouterGroups = filteredModels.groupBy { fetchedModel ->
         fetchedModel.split("/").firstOrNull() ?: "Unknown"
     }
 
