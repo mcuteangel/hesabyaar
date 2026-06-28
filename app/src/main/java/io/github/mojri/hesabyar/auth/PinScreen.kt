@@ -30,6 +30,12 @@ fun PinScreen(
     var pin by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
 
+    LaunchedEffect(error) {
+        if (error != null) {
+            showError = true
+        }
+    }
+
     val pinLength = 6
     val errorColor = MaterialTheme.colorScheme.error
 

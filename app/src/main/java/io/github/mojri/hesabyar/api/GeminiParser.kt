@@ -501,7 +501,22 @@ object GeminiParser {
             confidence = confidence,
             notes = notes
         )
-        return if (PersianTextPreprocessor.validateParsedResult(parsed)) parsed else parsed.copy(amount = (amountToman * 1000).toLong().coerceAtLeast(1))
+        if (PersianTextPreprocessor.validateParsedResult(parsed)) return parsed
+
+        val validTypes = listOf("EXPENSE", "INCOME", "LOAN_DEBTOR", "LOAN_CREDITOR", "INSTALLMENT")
+        val fixedType = if (type in validTypes) type else "EXPENSE"
+        val fixedCategory = if (category.isNotBlank()) category else "Other"
+        val fixedAmount = (amountToman * 1000).toLong().coerceAtLeast(1)
+        val fixedHour = hour?.coerceIn(0, 23)
+        val fixedMinute = minute?.coerceIn(0, 59)
+
+        return parsed.copy(
+            type = fixedType,
+            category = fixedCategory,
+            amount = fixedAmount,
+            hour = fixedHour,
+            minute = fixedMinute
+        )
     }
 
     suspend fun getBudgetAdvice(

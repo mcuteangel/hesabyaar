@@ -67,7 +67,7 @@ class GetAnalyticsUseCase {
                 remainingAmount = loan.remainingAmount,
                 type = loan.type,
                 progress = if (loan.originalAmount > 0) {
-                    1f - (loan.remainingAmount.toFloat() / loan.originalAmount)
+                    (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
                 } else 0f
             )
         }
@@ -78,7 +78,7 @@ class GetAnalyticsUseCase {
                 remainingAmount = loan.remainingAmount,
                 type = loan.type,
                 progress = if (loan.originalAmount > 0) {
-                    1f - (loan.remainingAmount.toFloat() / loan.originalAmount)
+                    (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
                 } else 0f
             )
         }

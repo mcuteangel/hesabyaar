@@ -24,7 +24,7 @@ enum class AiModel(
 ) {
     GEMINI_2_0_FLASH("Gemini 2.0 Flash", AiProviderType.GEMINI, "gemini-2.0-flash", supportsVision = true),
     GEMINI_1_5_PRO("Gemini 1.5 Pro", AiProviderType.GEMINI, "gemini-1.5-pro", supportsVision = true),
-    GEMINI_1_5_FLASH("Gemini 1.5 Flash", AiProviderType.GEMINI, "gemini-1.5-flash"),
+    GEMINI_1_5_FLASH("Gemini 1.5 Flash", AiProviderType.GEMINI, "gemini-1.5-flash", supportsVision = true),
     MISTRAL_LARGE("Mistral Large", AiProviderType.OPENROUTER, "mistralai/mistral-large-latest"),
     MISTRAL_SMALL("Mistral Small", AiProviderType.OPENROUTER, "mistralai/mistral-small-latest"),
     LLAMA_3_70B("Llama 3 70B", AiProviderType.OPENROUTER, "meta-llama/llama-3-70b-instruct"),

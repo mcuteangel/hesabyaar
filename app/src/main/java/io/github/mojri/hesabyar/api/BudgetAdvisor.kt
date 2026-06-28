@@ -294,11 +294,12 @@ object BudgetAdvisor {
         installments: List<Installment>,
         monthlyIncome: Long
     ): Double {
-        if (monthlyIncome <= 0) return 0.0
         val monthlyDebtPayments = installments.filter { !it.isPaid }.sumOf { it.amount } +
             loans.filter { !it.isSettled && it.type == "CREDITOR" }.sumOf {
                 it.remainingAmount / 12
             }
+        if (monthlyIncome <= 0 && monthlyDebtPayments > 0) return Double.MAX_VALUE
+        if (monthlyIncome <= 0) return 0.0
         return monthlyDebtPayments.toDouble() / monthlyIncome.toDouble()
     }
 
@@ -309,7 +310,9 @@ object BudgetAdvisor {
     ): Int {
         if (monthlySavings <= 0) return -1
         val remaining = goalAmount - currentSavings
-        return if (remaining > 0) (remaining / monthlySavings).toInt() else 0
+        return if (remaining > 0) {
+            ((remaining + monthlySavings - 1) / monthlySavings).toInt()
+        } else 0
     }
 
     fun getPersonalizedAdvice(

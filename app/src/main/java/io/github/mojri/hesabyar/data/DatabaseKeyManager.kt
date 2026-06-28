@@ -9,22 +9,27 @@ import java.security.SecureRandom
 object DatabaseKeyManager {
     private const val PREFS_FILE = "hesabyar_db_key_prefs"
     private const val KEY_DB_PASSPHRASE = "db_passphrase"
+    private val lock = Any()
 
     private fun getEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        return try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            throw RuntimeException("Failed to create encrypted preferences", e)
+        }
     }
 
-    fun getOrCreateKey(context: Context): ByteArray {
+    fun getOrCreateKey(context: Context): ByteArray = synchronized(lock) {
         val prefs = getEncryptedPrefs(context)
         val existing = prefs.getString(KEY_DB_PASSPHRASE, null)
         if (existing != null) {
@@ -32,7 +37,7 @@ object DatabaseKeyManager {
         }
         val key = ByteArray(32)
         SecureRandom().nextBytes(key)
-        prefs.edit().putString(KEY_DB_PASSPHRASE, android.util.Base64.encodeToString(key, android.util.Base64.DEFAULT)).apply()
+        prefs.edit().putString(KEY_DB_PASSPHRASE, android.util.Base64.encodeToString(key, android.util.Base64.DEFAULT)).commit()
         return key
     }
 }

@@ -1,8 +1,10 @@
 package io.github.mojri.hesabyar.di
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.mojri.hesabyar.data.ExcelExporter
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -11,6 +13,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetAnalyticsUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
@@ -79,5 +82,17 @@ object UseCaseModule {
         excelExporter: ExcelExporter
     ): ExportExcelUseCase {
         return ExportExcelUseCase(repository, excelExporter)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetSettingsUseCase(@ApplicationContext context: Context): GetSettingsUseCase {
+        return GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
+    }
+
+    @Provides
+    @Singleton
+    fun provideExcelExporter(@ApplicationContext context: Context): ExcelExporter {
+        return ExcelExporter(context)
     }
 }
