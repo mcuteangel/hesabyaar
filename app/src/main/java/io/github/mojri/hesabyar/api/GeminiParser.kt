@@ -12,6 +12,17 @@ import org.json.JSONObject
 object GeminiParser {
     private const val TAG = "GeminiParser"
 
+    private const val TYPE_EXPENSE = "EXPENSE"
+    private const val TYPE_INCOME = "INCOME"
+    private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
+    private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
+    private const val TYPE_INSTALLMENT = "INSTALLMENT"
+
+    private val VALID_TYPES = listOf(TYPE_EXPENSE, TYPE_INCOME, TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR, TYPE_INSTALLMENT)
+
+    private const val KEYWORD_TOMAN = "تومان"
+    private const val KEYWORD_HAZAR = "هزار"
+
     suspend fun parseSentence(
         sentence: String,
         config: AiProviderConfig? = null
@@ -70,8 +81,8 @@ object GeminiParser {
         return try {
             val cleanStr = jsonStr.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
             val json = JSONObject(cleanStr)
-            ParsedResult(
-                type = json.optString("type", "EXPENSE"),
+            val result = ParsedResult(
+                type = json.optString("type", TYPE_EXPENSE),
                 amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
                 category = json.optString("category", "Other"),
                 personName = json.optString("personName", "").let { if (it == "null" || it.isBlank()) null else it },
@@ -84,6 +95,7 @@ object GeminiParser {
                 confidence = json.optDouble("confidence", 0.8).toFloat(),
                 notes = json.optString("notes", "").let { if (it == "null" || it.isBlank()) null else it }
             )
+            if (PersianTextPreprocessor.validateParsedResult(result)) result else null
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
             null
@@ -247,76 +259,14 @@ object GeminiParser {
         return "[۰-۹]+"
     }
 
-    // High quality regex-based fallback parsing for offline/no key scenarios
-    fun parseSentenceOffline(sentence: String): ParsedResult {
+    fun parseSentenceOffline(rawSentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")
-        var amountToman = 0.0
-        var type = "EXPENSE"
-        var category = "Other"
-        var personName: String? = null
-        var description = sentence
-        var daysFromNow: Int? = null
-        var installmentTitle: String? = null
-        var dateOffsetDays = 0
-        var hour: Int? = null
-        var minute: Int? = null
-        var confidence = 0.7f
-        var notes: String? = null
+        val sentence = PersianTextPreprocessor.preprocessPersianText(rawSentence)
+        val amountToman = PersianAmountParser.parseAmount(sentence)
+        val dateOffsetDays = extractDateOffset(sentence)
+        val (hour, minute) = extractTime(sentence)
+        val personName = extractPersonName(sentence)
 
-        if (sentence.contains("دیروز")) {
-            dateOffsetDays = -1
-        } else if (sentence.contains("پریروز")) {
-            dateOffsetDays = -2
-        } else if (sentence.contains("فردا")) {
-            dateOffsetDays = 1
-        } else if (sentence.contains("پسفردا") || sentence.contains("پس فردا")) {
-            dateOffsetDays = 2
-        } else if (sentence.contains("امروز")) {
-            dateOffsetDays = 0
-        }
-
-        // Try extracting simple time "ساعت ۱۲" or "ساعت 14:30" or similar
-        val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
-        val hourMatch = hourRegex.find(sentence)
-        if (hourMatch != null) {
-            hour = hourMatch.groupValues[2]
-                .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
-                .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
-                .replace("۸", "8").replace("۹", "9")
-                .toIntOrNull()
-            if (sentence.contains("نیم")) {
-                minute = 30
-            } else {
-                val minRegex = "و\\s*([0-9۰-۹]+)\\s*(دقیقه)?".toRegex()
-                val minMatch = minRegex.find(sentence, hourMatch.range.last + 1)
-                if (minMatch != null) {
-                    minute = minMatch.groupValues[1]
-                        .replace("۰", "0").replace("۱", "1").replace("۲", "2").replace("۳", "3")
-                        .replace("۴", "4").replace("۵", "5").replace("۶", "6").replace("۷", "7")
-                        .replace("۸", "8").replace("۹", "9")
-                        .toIntOrNull()
-                }
-            }
-        }
-
-        // Extract amount using the structured parser
-        amountToman = PersianAmountParser.parseAmount(sentence).toDouble()
-
-        // Detect Persons elements
-        val personRegex = "(به|از)\\s+([^\\s]+)".toRegex()
-        val personMatch = personRegex.find(sentence)
-        if (personMatch != null) {
-            val nameCandidate = personMatch.groupValues[2]
-                .replace("تومان", "")
-                .replace("هزار", "")
-                .replace("قرض", "")
-                .trim()
-            if (nameCandidate.length > 2 && nameCandidate != "من" && nameCandidate != "خودم") {
-                personName = nameCandidate
-            }
-        }
-
-        // Determine type and category based on sentence keyword matches
         val incomeKeywords = listOf(
             "حقوق", "درآمد", "واریز", "اضافه کار", "اضافه‌کار", "دستمزد", "پاداش",
             "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی", "کارانه",
@@ -351,80 +301,193 @@ object GeminiParser {
         val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
         val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
 
-        // Calculate confidence based on multiple factors
-        var confidenceFactors = 0
-        if (amountToman > 0) confidenceFactors++
-        if (isIncome || isExpense) confidenceFactors++
-        if (personName != null) confidenceFactors++
-        if (hour != null) confidenceFactors++
-        if (daysFromNow != null) confidenceFactors++
-        confidence = when {
-            confidenceFactors >= 4 -> 0.95f
-            confidenceFactors >= 3 -> 0.90f
-            confidenceFactors >= 2 -> 0.85f
-            confidenceFactors >= 1 -> 0.75f
-            else -> 0.60f
+        val classification = classifyType(sentence, isIncome, personName)
+        val confidence = calculateConfidence(amountToman, isIncome, isExpense, personName, hour, classification.daysFromNow)
+
+        val parsed = ParsedResult(
+            type = classification.type,
+            amount = amountToman * 1000,
+            category = classification.category,
+            personName = personName,
+            description = classification.description,
+            daysFromNow = classification.daysFromNow,
+            title = classification.installmentTitle,
+            dateOffsetDays = dateOffsetDays,
+            hour = hour,
+            minute = minute,
+            confidence = confidence,
+            notes = classification.notes
+        )
+        if (PersianTextPreprocessor.validateParsedResult(parsed)) return parsed
+
+        return repairInvalidParsedResult(parsed, amountToman)
+    }
+
+    private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Long): ParsedResult {
+        return parsed.copy(
+            type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
+            category = parsed.category.ifBlank { "Other" },
+            amount = (amountToman * 1000).coerceAtLeast(1),
+            hour = parsed.hour?.coerceIn(0, 23),
+            minute = parsed.minute?.coerceIn(0, 59)
+        )
+    }
+
+    private fun extractDateOffset(sentence: String): Int = when {
+        sentence.contains("پریروز") -> -2
+        sentence.contains("دیروز") -> -1
+        sentence.contains(Regex("پسر?\\s*فردا")) -> 2
+        sentence.contains("فردا") -> 1
+        sentence.contains("امروز") -> 0
+        else -> 0
+    }
+
+    private fun extractTime(sentence: String): Pair<Int?, Int?> {
+        val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
+        val hourMatch = hourRegex.find(sentence) ?: return Pair(null, null)
+        var hour = toArabicDigits(hourMatch.groupValues[2]).toIntOrNull() ?: return Pair(null, null)
+
+        // Detect Persian day-part modifiers and adjust hour
+        when {
+            sentence.contains("شب") && hour in 1..11 -> hour += 12
+            sentence.contains("عصر") && hour in 1..11 -> hour += 12
+            sentence.contains("بعدازظهر") && hour in 1..11 -> hour += 12
+            sentence.contains("بعد از ظهر") && hour in 1..11 -> hour += 12
         }
 
-        fun extractDescription(): String {
-            val cleaned = sentence
-                .replace("امروز", "").replace("دیروز", "").replace("پریروز", "")
-                .replace("فردا", "").replace("پسفردا", "").replace("پس فردا", "")
-                .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
-                .replace("هزار", "").replace("تومان", "").replace("تومن", "")
-                .replace("میلیون", "").replace("ملیون", "").replace("میلیارد", "")
-                .replace("طلب دارم", "").replace("طلبکار", "").replace("بدهکار", "")
-                .trim()
-                .replace("\\s+".toRegex(), " ")
-            return cleaned.ifBlank { sentence }
+        if (sentence.contains("نیم")) {
+            return Pair(hour, 30)
         }
+        val minRegex = "و\\s*([0-9۰-۹]+)\\s*(دقیقه)?".toRegex()
+        val minMatch = minRegex.find(sentence, hourMatch.range.last + 1)
+        val minute = minMatch?.let { toArabicDigits(it.groupValues[1]).toIntOrNull() }
+        return Pair(hour, minute)
+    }
 
-        fun extractSubject(): String {
-            val fillerWords = setOf(
-                "امروز", "دیروز", "پریروز", "فردا", "پسفردا", "پس فردا",
-                "دیشب", "شب", "صبح", "عصر", "ظهر", "شب قبل",
-                "ساعت", "نیم", "دقیقه", "روز",
-                "خریدم", "خرید", "گرفتم", "گرفت", "دادم", "داد",
-                "پرداخت", "پرداخت کردم", "هزینه", "خرج", "واریز", "واریز کردم",
-                "فروش", "فروختم", "فروش رفت",
-                "بابت", "برای", "از", "به",
-                "تومان", "تومن", "هزار", "میلیون", "ملیون", "میلیارد",
-                "قرض", "وام", "قسط"
+    private fun extractPersonName(sentence: String): String? {
+        val personRegex = "(به|از)\\s+([^\\s]+)".toRegex()
+        val personMatch = personRegex.find(sentence) ?: return null
+        val nameCandidate = personMatch.groupValues[2]
+            .replace(KEYWORD_TOMAN, "")
+            .replace(KEYWORD_HAZAR, "")
+            .replace("قرض", "")
+            .trim()
+        return if (nameCandidate.length > 2 && nameCandidate != "من" && nameCandidate != "خودم") {
+            nameCandidate
+        } else {
+            null
+        }
+    }
+
+    private fun extractDescription(sentence: String): String {
+        val cleaned = sentence
+            .replace("امروز", "").replace("دیروز", "").replace("پریروز", "")
+            .replace("فردا", "").replace("پسفردا", "").replace("پس فردا", "")
+            .replace("ساعت", "").replace("نیم", "").replace("دقیقه", "")
+            .replace(KEYWORD_HAZAR, "").replace(KEYWORD_TOMAN, "").replace("تومن", "")
+            .replace("میلیون", "").replace("ملیون", "").replace("میلیارد", "")
+            .replace("طلب دارم", "").replace("طلبکار", "").replace("بدهکار", "")
+            .trim()
+            .replace("\\s+".toRegex(), " ")
+        return cleaned.ifBlank { sentence }
+    }
+
+    private fun extractSubject(sentence: String): String {
+        val fillerWords = setOf(
+            "امروز", "دیروز", "پریروز", "فردا", "پسفردا", "پس فردا",
+            "دیشب", "شب", "صبح", "عصر", "ظهر", "شب قبل",
+            "ساعت", "نیم", "دقیقه", "روز",
+            "خریدم", "خرید", "گرفتم", "گرفت", "دادم", "داد",
+            "پرداخت", "پرداخت کردم", "هزینه", "خرج", "واریز", "واریز کردم",
+            "فروش", "فروختم", "فروش رفت",
+            "بابت", "برای", "از", "به",
+            "تومان", "تومن", "هزار", "میلیون", "ملیون", "میلیارد",
+            "قرض", "وام", "قسط"
+        )
+        val words = sentence.split("\\s+".toRegex()).filter { it.isNotEmpty() }
+        val meaningful = words.filter { word ->
+            word.none { it.isDigit() } && word !in fillerWords
+        }
+        return meaningful.joinToString(" ").ifEmpty { sentence }
+    }
+
+    private fun categoryToDescription(category: String, subject: String, sentence: String): String = when (category) {
+        "Food" -> "خرید مواد غذایی"
+        "Transportation" -> "هزینه حمل و نقل"
+        "Shopping" -> "خرید پوشاک و اکسسوری"
+        "Bills" -> "پرداخت قبوض و شارژ"
+        "Personal Care" -> "هزینه شخصی"
+        "Education" -> "هزینه آموزش"
+        "Rent & Utilities" -> "هزینه ملک"
+        "Loans & Debt" -> "بدهی و وام"
+        "Income" -> "درآمد"
+        "Events & Gifts" -> "جشن و هدیه"
+        "Charity" -> "خیریه"
+        "Investment" -> "سرمایه‌گذاری"
+        "Health" -> "هزینه درمان"
+        "Other" -> subject
+        else -> extractDescription(sentence)
+    }
+
+    private fun classifyType(
+        sentence: String,
+        isIncome: Boolean,
+        personName: String?
+    ): TypeClassification {
+        val loanReceived = listOf("قرض گرفتم", "بدهکار شدم", "گرفتم از")
+        if (loanReceived.any { sentence.contains(it) }) {
+            return TypeClassification(
+                type = TYPE_LOAN_CREDITOR,
+                category = "Loans",
+                description = "قرض گرفتن از ${personName ?: "طلبکار"}",
+                notes = "قرض جدید ثبت شده"
             )
-            val words = sentence.split("\\s+".toRegex()).filter { it.isNotEmpty() }
-            val meaningful = words.filter { word ->
-                word.none { it.isDigit() } && word !in fillerWords
-            }
-            return meaningful.joinToString(" ").ifEmpty { sentence }
         }
-
-        if (sentence.contains("قرض گرفتم") || sentence.contains("بدهکار شدم") || sentence.contains("گرفتم از")) {
-            type = "LOAN_CREDITOR"
-            category = "Loans"
-            description = "قرض گرفتن از ${personName ?: "طلبکار"}"
-            notes = "قرض جدید ثبت شده"
-        } else if (sentence.contains("قرض دادم") || sentence.contains("طلبکار شدم") || sentence.contains("دادم به") || sentence.contains("طلب دارم")) {
-            type = "LOAN_DEBTOR"
-            category = "Loans"
-            description = "قرض دادن به ${personName ?: "بدهکار"}"
-            notes = "طلب جدید ثبت شده"
-        } else if (sentence.contains("قسط")) {
-            type = "INSTALLMENT"
-            category = "Installments"
-            description = "قسط آینده"
-            installmentTitle = when {
+        val loanGiven = listOf("قرض دادم", "طلبکار شدم", "دادم به", "طلب دارم")
+        if (loanGiven.any { sentence.contains(it) }) {
+            return TypeClassification(
+                type = TYPE_LOAN_DEBTOR,
+                category = "Loans",
+                description = "قرض دادن به ${personName ?: "بدهکار"}",
+                notes = "طلب جدید ثبت شده"
+            )
+        }
+        if (sentence.contains("قسط")) {
+            val installmentTitle = when {
                 sentence.contains("ماشین") -> "قسط ماشین"
                 sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
                 sentence.contains("وام") -> "قسط وام"
                 else -> "قسط جدید"
             }
-            daysFromNow = extractJalaliDaysFromNow(sentence)
-            notes = "قسط در انتظار پرداخت"
-        } else if (isIncome) {
-            type = "INCOME"
-            category = "Income"
-            val subject = extractSubject()
-            description = when {
+
+            // Detect if installment was already paid
+            val isPaid = sentence.contains("پرداخت") || sentence.contains("دادم") ||
+                    sentence.contains("پرداختم") || sentence.contains("پرداخت کردم") ||
+                    sentence.contains("واریز") || sentence.contains("تسویه")
+
+            return if (isPaid) {
+                TypeClassification(
+                    type = TYPE_EXPENSE,
+                    category = "Installments",
+                    description = "پرداخت $installmentTitle",
+                    installmentTitle = null,
+                    daysFromNow = null,
+                    notes = null
+                )
+            } else {
+                TypeClassification(
+                    type = TYPE_INSTALLMENT,
+                    category = "Installments",
+                    description = "قسط آینده",
+                    installmentTitle = installmentTitle,
+                    daysFromNow = extractJalaliDaysFromNow(sentence),
+                    notes = "قسط در انتظار پرداخت"
+                )
+            }
+        }
+        if (isIncome) {
+            val subject = extractSubject(sentence)
+            val description = when {
                 sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
                 sentence.contains("پاداش") -> "دریافت پاداش"
                 sentence.contains("دستمزد") -> "دریافت دستمزد"
@@ -433,72 +496,43 @@ object GeminiParser {
                 sentence.contains("حقوق") -> "دریافت حقوق"
                 else -> "دریافت درآمد ($subject)"
             }
-        } else if (isExpense) {
-            type = "EXPENSE"
-            val (inferredCategory, _) = inferExpenseCategory(sentence)
-            category = inferredCategory
-            val subject = extractSubject()
-            val baseDescription = when (inferredCategory) {
-                "Food" -> "خرید مواد غذایی"
-                "Transportation" -> "هزینه حمل و نقل"
-                "Shopping" -> "خرید پوشاک و اکسسوری"
-                "Bills" -> "پرداخت قبوض و شارژ"
-                "Personal Care" -> "هزینه شخصی"
-                "Education" -> "هزینه آموزش"
-                "Rent & Utilities" -> "هزینه ملک"
-                "Loans & Debt" -> "بدهی و وام"
-                "Income" -> "درآمد"
-                "Events & Gifts" -> "جشن و هدیه"
-                "Charity" -> "خیریه"
-                "Investment" -> "سرمایه‌گذاری"
-                "Health" -> "هزینه درمان"
-                "Other" -> subject
-                else -> extractDescription()
-            }
-            description = "$baseDescription ($subject)"
-        } else {
-            // Default: still infer category even without explicit expense keywords
-            type = "EXPENSE"
-            val (inferredCategory, _) = inferExpenseCategory(sentence)
-            category = inferredCategory
-            val subject = extractSubject()
-            val baseDescription = if (inferredCategory != "Other") {
-                when (inferredCategory) {
-                    "Food" -> "خرید مواد غذایی"
-                    "Transportation" -> "هزینه حمل و نقل"
-                    "Shopping" -> "خرید پوشاک و اکسسوری"
-                    "Bills" -> "پرداخت قبوض و شارژ"
-                    "Personal Care" -> "هزینه شخصی"
-                    "Education" -> "هزینه آموزش"
-                    "Rent & Utilities" -> "هزینه ملک"
-                    "Loans & Debt" -> "بدهی و وام"
-                    "Income" -> "درآمد"
-                    "Events & Gifts" -> "جشن و هدیه"
-                    "Charity" -> "خیریه"
-                    "Investment" -> "سرمایه‌گذاری"
-                    "Health" -> "هزینه درمان"
-                    else -> extractDescription()
-                }
-            } else {
-                subject
-            }
-            description = "$baseDescription ($subject)"
+            return TypeClassification(
+                type = TYPE_INCOME,
+                category = "Income",
+                description = description
+            )
         }
-
-        return ParsedResult(
-            type = type,
-            amount = (amountToman * 1000).toLong(),
-            category = category,
-            personName = personName,
-            description = description,
-            daysFromNow = daysFromNow,
-            title = installmentTitle,
-            dateOffsetDays = dateOffsetDays,
-            hour = hour,
-            minute = minute,
-            confidence = confidence,
-            notes = notes
+        val (inferredCategory, _) = inferExpenseCategory(sentence)
+        val subject = extractSubject(sentence)
+        val baseDescription = categoryToDescription(inferredCategory, subject, sentence)
+        return TypeClassification(
+            type = TYPE_EXPENSE,
+            category = inferredCategory,
+            description = "$baseDescription ($subject)"
         )
+    }
+
+    private fun calculateConfidence(
+        amountToman: Long,
+        isIncome: Boolean,
+        isExpense: Boolean,
+        personName: String?,
+        hour: Int?,
+        daysFromNow: Int?
+    ): Float {
+        var factors = 0
+        if (amountToman > 0) factors++
+        if (isIncome || isExpense) factors++
+        if (personName != null) factors++
+        if (hour != null) factors++
+        if (daysFromNow != null) factors++
+        return when {
+            factors >= 4 -> 0.95f
+            factors >= 3 -> 0.90f
+            factors >= 2 -> 0.85f
+            factors >= 1 -> 0.75f
+            else -> 0.60f
+        }
     }
 
     suspend fun getBudgetAdvice(
@@ -515,11 +549,11 @@ object GeminiParser {
             return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
         }
 
-        val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val expenseTotal = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
+        val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
         val balance = incomeTotal - expenseTotal
 
-        val categoryTotals = transactions.filter { it.type == "EXPENSE" }
+        val categoryTotals = transactions.filter { it.type == TYPE_EXPENSE }
             .groupBy { it.categoryId }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
 
@@ -570,7 +604,7 @@ object GeminiParser {
             if (transactions.isNotEmpty()) {
                 appendLine("\nتراکنش‌های اخیر:")
                 transactions.sortedByDescending { it.date }.take(10).forEach { t ->
-                    val sign = if (t.type == "INCOME") "آمد" else "رفت"
+                    val sign = if (t.type == TYPE_INCOME) "آمد" else "رفت"
                     val cat = categories.find { it.id == t.categoryId }
                     appendLine("- ${t.description} (${cat?.name ?: "سایر"}): ${t.amount} تومان [${sign}]")
                 }
@@ -602,8 +636,8 @@ object GeminiParser {
         installments: List<Installment>,
         categories: List<Category>
     ): String {
-        val incomeTotal = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val expenseTotal = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
+        val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
         val balance = incomeTotal - expenseTotal
 
         val sb = StringBuilder()
@@ -631,7 +665,7 @@ object GeminiParser {
         }
 
         // 2. High spending category detection
-        val categoryTotals = transactions.filter { it.type == "EXPENSE" }
+        val categoryTotals = transactions.filter { it.type == TYPE_EXPENSE }
             .groupBy { it.categoryId }
             .mapValues { it.value.sumOf { trans -> trans.amount } }
 
@@ -659,6 +693,15 @@ object GeminiParser {
         return sb.toString()
     }
 }
+
+private data class TypeClassification(
+    val type: String,
+    val category: String,
+    val description: String,
+    val installmentTitle: String? = null,
+    val daysFromNow: Int? = null,
+    val notes: String? = null
+)
 
 data class ParsedResult(
     val type: String,

@@ -30,6 +30,14 @@ fun PinScreen(
     var pin by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
 
+    LaunchedEffect(error) {
+        if (error != null) {
+            showError = true
+        } else {
+            showError = false
+        }
+    }
+
     val pinLength = 6
     val errorColor = MaterialTheme.colorScheme.error
 
@@ -82,13 +90,13 @@ fun PinScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            for (row in 0..2) {
+            for (row in 0..3) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     for (col in 0..2) {
                         val number = row * 3 + col + 1
-                        if (row == 2 && col == 1) {
+                        if (row == 3 && col == 0) {
                             if (onBiometricClick != null) {
                                 IconButton(
                                     onClick = onBiometricClick,
@@ -103,7 +111,7 @@ fun PinScreen(
                             } else {
                                 Spacer(modifier = Modifier.size(72.dp))
                             }
-                        } else if (row == 2 && col == 2) {
+                        } else if (row == 3 && col == 2) {
                             IconButton(
                                 onClick = {
                                     if (pin.isNotEmpty()) {
@@ -120,7 +128,7 @@ fun PinScreen(
                                 )
                             }
                         } else {
-                            val displayNumber = if (row == 2 && col == 0) "0" else number.toString()
+                            val displayNumber = if (row == 3 && col == 1) "0" else number.toString()
                             Box(
                                 modifier = Modifier
                                     .size(72.dp)

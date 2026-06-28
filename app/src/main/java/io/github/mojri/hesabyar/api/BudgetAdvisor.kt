@@ -288,4 +288,132 @@ object BudgetAdvisor {
         
         return sb.toString()
     }
+
+    fun calculateDebtToIncomeRatio(
+        loans: List<Loan>,
+        installments: List<Installment>,
+        monthlyIncome: Long
+    ): Double {
+        val monthlyDebtPayments = installments.filter { !it.isPaid }.sumOf { it.amount } +
+            loans.filter { !it.isSettled && it.type == "CREDITOR" }.sumOf {
+                it.remainingAmount / 12
+            }
+        if (monthlyIncome <= 0 && monthlyDebtPayments > 0) return 1.0
+        if (monthlyIncome <= 0) return 0.0
+        return monthlyDebtPayments.toDouble() / monthlyIncome.toDouble()
+    }
+
+    fun predictTimeToGoal(
+        currentSavings: Long,
+        monthlySavings: Long,
+        goalAmount: Long
+    ): Int {
+        if (monthlySavings <= 0) return -1
+        val remaining = goalAmount - currentSavings
+        return if (remaining > 0) {
+            ((remaining + monthlySavings - 1) / monthlySavings).toInt()
+        } else 0
+    }
+
+    fun getPersonalizedAdvice(
+        transactions: List<Transaction>,
+        loans: List<Loan>,
+        installments: List<Installment>,
+        categories: List<Category>
+    ): String {
+        val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+        val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val balance = totalIncome - totalExpense
+        val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+        val savingsRate = if (totalIncome > 0) balance.toDouble() / totalIncome.toDouble() else 0.0
+        val upcomingInstallments = installments.filter { !it.isPaid }
+
+        val sb = StringBuilder()
+        sb.appendLine("### 📊 تحلیل مالی شخصی شما")
+        sb.appendLine()
+        sb.appendLine("**نسبت بدهی به درآمد:** ${(debtToIncome * 100).toInt()}٪")
+        sb.appendLine("**نرخ پس‌انداز:** ${(savingsRate * 100).toInt()}٪")
+        sb.appendLine()
+
+        when {
+            debtToIncome > 0.4 -> {
+                sb.appendLine("⚠️ **هشدار:** نسبت بدهی به درآمد شما بالا است. توصیه می‌شود:")
+                sb.appendLine("- پرداخت بدهی‌های با نرخ سود بالا را در اولویت قرار دهید")
+                sb.appendLine("- از گرفتن وام جدید خودداری کنید")
+            }
+            savingsRate > 0.3 -> {
+                sb.appendLine("✅ **تبریک!** نرخ پس‌انداز شما عالی است. توصیه می‌شود:")
+                sb.appendLine("- بخشی از پس‌انداز را سرمایه‌گذاری کنید")
+                sb.appendLine("- اهداف مالی بلندمدت تعیین کنید")
+            }
+            savingsRate < 0 -> {
+                sb.appendLine("🚨 **کسری بودجه:** مخارج شما بیش از درآمد است!")
+                sb.appendLine("- خریدهای غیرضروری را کاهش دهید")
+                sb.appendLine("- فوراً یک برنامه کاهش هزینه تنظیم کنید")
+            }
+            else -> {
+                sb.appendLine("⚖️ **وضعیت نسبتاً متعادل:** پس‌انداز شما قابل قبول است.")
+                sb.appendLine("- تلاش کنید نرخ پس‌انداز را به بالای ۲۰٪ برسانید")
+            }
+        }
+
+        if (upcomingInstallments.isNotEmpty()) {
+            val totalUpcoming = upcomingInstallments.sumOf { it.amount }
+            sb.appendLine()
+            sb.appendLine("📅 **اقساط در انتظار پرداخت:** ${upcomingInstallments.size} مورد (${formatTomanClean(totalUpcoming)} تومان)")
+            upcomingInstallments.take(3).forEach { inst ->
+                sb.appendLine("- ${inst.title}: ${formatTomanClean(inst.amount)} تومان")
+            }
+        }
+
+        return sb.toString()
+    }
+
+    fun calculateFinancialHealthScore(
+        transactions: List<Transaction>,
+        loans: List<Loan>,
+        installments: List<Installment>,
+        categories: List<Category>
+    ): Int {
+        if (transactions.isEmpty()) return 0
+
+        val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+        val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        val balance = totalIncome - totalExpense
+
+        var score = 50
+
+        // Savings rate (max +25)
+        if (totalIncome > 0) {
+            val savingsRate = balance.toDouble() / totalIncome.toDouble()
+            score += when {
+                savingsRate >= 0.3 -> 25
+                savingsRate >= 0.2 -> 20
+                savingsRate >= 0.1 -> 10
+                savingsRate >= 0 -> 0
+                else -> -15
+            }
+        }
+
+        // Debt-to-income (max +15)
+        val debtRatio = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+        score += when {
+            debtRatio <= 0.1 -> 15
+            debtRatio <= 0.2 -> 10
+            debtRatio <= 0.3 -> 5
+            debtRatio <= 0.4 -> 0
+            else -> -10
+        }
+
+        // Category diversification (+10 if spending across 3+ categories)
+        val expenseCategories = transactions.filter { it.type == "EXPENSE" }
+            .map { it.categoryId }.distinct().size
+        score += when {
+            expenseCategories >= 5 -> 10
+            expenseCategories >= 3 -> 5
+            else -> 0
+        }
+
+        return score.coerceIn(0, 100)
+    }
 }

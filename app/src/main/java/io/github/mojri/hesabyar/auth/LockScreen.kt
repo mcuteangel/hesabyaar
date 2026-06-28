@@ -25,11 +25,27 @@ fun LockScreen(
 
     LaunchedEffect(Unit) {
         if (hasBiometric && activity != null && hasPin) {
-            authManager.authenticateWithBiometric(activity, context)
+            authManager.authenticateWithBiometric(
+                activity = activity,
+                onError = { errorMsg ->
+                    error = errorMsg
+                    showPinInput = true
+                },
+                onFailed = {
+                    showPinInput = true
+                }
+            )
         } else if (!hasPin) {
             authManager.unlock()
+            onUnlocked()
         } else {
             showPinInput = true
+        }
+    }
+
+    LaunchedEffect(authManager.isLocked.collectAsState().value) {
+        if (!authManager.isLocked.value) {
+            onUnlocked()
         }
     }
 
@@ -43,7 +59,17 @@ fun LockScreen(
                 }
             },
             onBiometricClick = if (hasBiometric && activity != null) {
-                { authManager.authenticateWithBiometric(activity, context) }
+                {
+                    authManager.authenticateWithBiometric(
+                        activity = activity,
+                        onError = { errorMsg ->
+                            error = errorMsg
+                        },
+                        onFailed = {
+                            error = "احراز هویت ناموفق بود"
+                        }
+                    )
+                }
             } else null,
             error = error
         )

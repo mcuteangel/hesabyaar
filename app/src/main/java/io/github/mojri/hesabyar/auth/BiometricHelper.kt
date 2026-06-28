@@ -22,6 +22,11 @@ object BiometricHelper {
         onError: (String) -> Unit,
         onFailed: () -> Unit
     ) {
+        if (!isBiometricAvailable(activity)) {
+            onError("احراز هویت بیومتریک در دسترس نیست")
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(activity)
 
         val callback = object : BiometricPrompt.AuthenticationCallback() {
@@ -46,7 +51,7 @@ object BiometricHelper {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("احراز هویت")
             .setSubtitle("لطفاً اثر انگشت یا چهره خود را اسکن کنید")
-            .setNegativeButtonText("استفاده از PIN")
+            .setNegativeButtonText("انصراف")
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                 BiometricManager.Authenticators.BIOMETRIC_WEAK

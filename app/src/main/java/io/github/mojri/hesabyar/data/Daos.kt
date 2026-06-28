@@ -28,6 +28,12 @@ interface CategoryDao {
 
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun getCategoryCount(): Int
+
+    @Query("SELECT * FROM categories ORDER BY isDefault DESC, name ASC")
+    fun getAllCategoriesBlocking(): List<Category>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAllBlocking(categories: List<Category>)
 }
 
 @Dao
@@ -49,6 +55,12 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
+
+    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    fun getAllTransactionsBlocking(): List<Transaction>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAllBlocking(transactions: List<Transaction>)
 }
 
 @Dao
@@ -73,6 +85,12 @@ interface LoanDao {
 
     @Query("DELETE FROM loans")
     suspend fun deleteAllLoans()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAllBlocking(loans: List<Loan>)
+
+    @Query("SELECT * FROM loans ORDER BY date DESC")
+    fun getAllLoansBlocking(): List<Loan>
 }
 
 @Dao
@@ -94,6 +112,12 @@ interface InstallmentDao {
 
     @Query("DELETE FROM installments")
     suspend fun deleteAllInstallments()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAllBlocking(installments: List<Installment>)
+
+    @Query("SELECT * FROM installments ORDER BY dueDate ASC")
+    fun getAllInstallmentsBlocking(): List<Installment>
 }
 
 @Dao
@@ -112,4 +136,10 @@ interface PaymentHistoryDao {
 
     @Query("SELECT * FROM payment_history ORDER BY date DESC")
     suspend fun getAllPaymentHistories(): List<PaymentHistory>
+
+    @Query("SELECT * FROM payment_history ORDER BY date DESC")
+    fun getAllPaymentHistoriesBlocking(): List<PaymentHistory>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAllBlocking(payments: List<PaymentHistory>)
 }

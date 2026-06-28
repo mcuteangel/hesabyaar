@@ -12,7 +12,9 @@ data class DashboardData(
     val monthlyIncome: Long = 0L,
     val debtorsTotal: Long = 0L,
     val creditorsTotal: Long = 0L,
-    val upcomingInstallments: List<Installment> = emptyList()
+    val upcomingInstallments: List<Installment> = emptyList(),
+    val savingsRate: Double = 0.0,
+    val debtToIncomeRatio: Double = 0.0
 )
 
 sealed interface ParserUIState {

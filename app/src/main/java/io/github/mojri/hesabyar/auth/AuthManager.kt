@@ -20,12 +20,22 @@ class AuthManager @Inject constructor() {
 
     private val lockRunnable = Runnable { lock() }
 
-    fun authenticateWithBiometric(activity: FragmentActivity, context: Context) {
+    fun authenticateWithBiometric(
+        activity: FragmentActivity,
+        onError: ((String) -> Unit)? = null,
+        onFailed: (() -> Unit)? = null
+    ) {
         BiometricHelper.authenticate(
             activity = activity,
             onSuccess = { unlock() },
-            onError = { },
-            onFailed = { }
+            onError = { errorMsg ->
+                android.util.Log.e("AuthManager", "Biometric authentication error: $errorMsg")
+                onError?.invoke(errorMsg)
+            },
+            onFailed = {
+                android.util.Log.w("AuthManager", "Biometric authentication failed")
+                onFailed?.invoke()
+            }
         )
     }
 
@@ -59,6 +69,7 @@ class AuthManager @Inject constructor() {
     }
 
     fun setLockTimeout(minutes: Int) {
+        require(minutes >= 0) { "Lock timeout must be non-negative" }
         lockTimeoutMs = minutes * 60 * 1000L
     }
 
@@ -76,7 +87,7 @@ class AuthManager @Inject constructor() {
     }
 
     fun needsBiometricOrPin(context: Context): Boolean {
-        return PinStorage.isPinSet(context)
+        return PinStorage.isPinSet(context) || BiometricHelper.isBiometricAvailable(context)
     }
 
     fun hasBiometric(context: Context): Boolean {

@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.secrets)
   alias(libs.plugins.ktlint)
   alias(libs.plugins.hilt)
+  jacoco
 }
 
 android {
@@ -106,6 +107,21 @@ tasks.register("checkSigningConfig") {
     } else {
       logger.lifecycle("✓ Signing configuration is valid.")
     }
+  }
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+  dependsOn("testDebugUnitTest")
+  executionData.setFrom(fileTree("build/jacoco") { include("*.exec") })
+  sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
+  classDirectories.setFrom(
+    fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") { include("**/*.class") },
+    fileTree("build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") { include("**/*.class") }
+  )
+  reports {
+    xml.required = true
+    html.required = false
+    csv.required = false
   }
 }
 
