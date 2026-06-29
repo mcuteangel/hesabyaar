@@ -508,19 +508,24 @@ object GeminiParser {
     private fun classifyExpense(sentence: String): TypeClassification {
         val (inferredCategory, _) = inferExpenseCategory(sentence)
         val subject = extractSubject(sentence)
-        val baseDescription = categoryToDescription(inferredCategory, subject, sentence)
+        val normalizedCategory = normalizeCategory(inferredCategory)
+        val description = if (normalizedCategory != inferredCategory) {
+            "هزینه متفرقه ($subject)"
+        } else {
+            "${categoryToDescription(normalizedCategory, subject, sentence)} ($subject)"
+        }
         return TypeClassification(
             type = TYPE_EXPENSE,
-            category = normalizeCategory(inferredCategory),
-            description = "$baseDescription ($subject)"
+            category = normalizedCategory,
+            description = description
         )
     }
 
     private fun normalizeCategory(category: String): String = when (category) {
         CATEGORY_FOOD, CATEGORY_TRANSPORTATION, CATEGORY_SHOPPING, CATEGORY_BILLS, CATEGORY_INSTALLMENTS,
-        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER, CATEGORY_PERSONAL_CARE, CATEGORY_EDUCATION,
-        CATEGORY_RENT_UTILITIES, CATEGORY_EVENTS_GIFTS, CATEGORY_CHARITY, CATEGORY_INVESTMENT -> category
-        CATEGORY_LOANS_DEBT -> CATEGORY_LOANS
+        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER -> category
+        CATEGORY_LOANS_DEBT, CATEGORY_PERSONAL_CARE, CATEGORY_EDUCATION,
+        CATEGORY_RENT_UTILITIES, CATEGORY_EVENTS_GIFTS, CATEGORY_CHARITY, CATEGORY_INVESTMENT -> CATEGORY_OTHER
         else -> CATEGORY_OTHER
     }
 
