@@ -64,9 +64,7 @@ class AuthManager @Inject constructor() {
         }
     }
 
-    fun isAuthEnabled(context: Context): Boolean {
-        return PinStorage.isPinSet(context) || BiometricHelper.isBiometricAvailable(context)
-    }
+    fun isAuthEnabled(context: Context): Boolean = PinStorage.isPinSet(context) || BiometricHelper.isBiometricAvailable(context)
 
     fun setLockTimeout(minutes: Int) {
         require(minutes >= 0) { "Lock timeout must be non-negative" }
@@ -82,15 +80,9 @@ class AuthManager @Inject constructor() {
         lockHandler.removeCallbacks(lockRunnable)
     }
 
-    fun shouldShowAuth(context: Context): Boolean {
-        return isAuthEnabled(context)
-    }
+    fun shouldShowAuth(context: Context): Boolean = isAuthEnabled(context)
 
-    fun needsBiometricOrPin(context: Context): Boolean {
-        return PinStorage.isPinSet(context) || BiometricHelper.isBiometricAvailable(context)
-    }
+    fun needsBiometricOrPin(context: Context): Boolean = isAuthEnabled(context)
 
-    fun hasBiometric(context: Context): Boolean {
-        return BiometricHelper.isBiometricAvailable(context)
-    }
+    fun hasBiometric(context: Context): Boolean = BiometricHelper.isBiometricAvailable(context)
 }

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -81,7 +82,8 @@ fun SettingsScreen(
                     settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
                 }
             } catch (e: Exception) {
-                settingsViewModel.showMessage("خطای ناشناخته در شروع خروجی تفصیلی")
+Log.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
+                settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
             }
         }
     }
@@ -95,9 +97,8 @@ fun SettingsScreen(
                 if (inputStream != null) {
                     backupViewModel.validateAndStageImport(inputStream)
                 }
-            } catch (e: Exception) {
-                settingsViewModel.showMessage("خطا در بارگذاری فایل")
-            }
+Log.e("SettingsScreen", "خطا در بارگذاری فایل", e)
+                settingsViewModel.showMessage("خطا در بارگذاری فایل: ${e.localizedMessage}")
         }
     }
 
@@ -971,11 +972,11 @@ fun AiConfigDialog(
     onClearModelFetchState: () -> Unit
 ) {
     val isEditing = initialConfig != null
-    var label by remember { mutableStateOf(initialConfig?.label ?: "") }
+    var label by remember { mutableStateOf(initialConfig?.label.orEmpty()) }
     var selectedProvider by remember { mutableStateOf(initialConfig?.providerType ?: AiProviderType.GEMINI) }
-    var apiKey by remember { mutableStateOf(initialConfig?.apiKey ?: "") }
-    var model by remember { mutableStateOf(initialConfig?.model ?: "") }
-    var baseUrl by remember { mutableStateOf(initialConfig?.baseUrl ?: "") }
+    var apiKey by remember { mutableStateOf(initialConfig?.apiKey.orEmpty()) }
+    var model by remember { mutableStateOf(initialConfig?.model.orEmpty()) }
+    var baseUrl by remember { mutableStateOf(initialConfig?.baseUrl.orEmpty()) }
     var showApiKey by remember { mutableStateOf(false) }
     var providerDropdownExpanded by remember { mutableStateOf(false) }
     var modelDropdownExpanded by remember { mutableStateOf(false) }
@@ -1326,7 +1327,7 @@ fun AiConfigDialog(
                 onClick = {
                     onSave(
                         AiProviderConfig(
-                            id = initialConfig?.id ?: "",
+                            id = initialConfig?.id.orEmpty(),
                             providerType = selectedProvider,
                             apiKey = apiKey.trim(),
                             model = model.trim(),

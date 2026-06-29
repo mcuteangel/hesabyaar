@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.data.Category
+import org.json.JSONException
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
@@ -93,30 +94,7 @@ object GeminiParser {
         }
     }
 
-    private fun parseJsonResult(jsonStr: String): ParsedResult? {
-        return try {
-            val cleanStr = jsonStr.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-            val json = JSONObject(cleanStr)
-            val result = ParsedResult(
-                type = json.optString("type", TYPE_EXPENSE),
-                amount = (json.optDouble("amount", 0.0) * 1000).toLong(),
-                category = json.optString("category", "Other"),
-                personName = json.optString("personName", "").let { if (it == "null" || it.isBlank()) null else it },
-                description = json.optString("description", "ثبت دستیار هوشمند"),
-                daysFromNow = if (json.isNull("daysFromNow")) null else json.optInt("daysFromNow"),
-                title = json.optString("title", "").let { if (it == "null" || it.isBlank()) null else it },
-                dateOffsetDays = json.optInt("dateOffsetDays", 0),
-                hour = if (json.isNull("hour")) null else json.optInt("hour"),
-                minute = if (json.isNull("minute")) null else json.optInt("minute"),
-                confidence = json.optDouble("confidence", 0.8).toFloat(),
-                notes = json.optString("notes", "").let { if (it == "null" || it.isBlank()) null else it }
-            )
-            if (PersianTextPreprocessor.validateParsedResult(result)) result else null
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to parse json result: $jsonStr", e)
-            null
-        }
-    }
+    ```json").removePrefix("
 
     private fun inferExpenseCategory(sentence: String): Pair<String, String> {
         return when {
@@ -271,9 +249,7 @@ object GeminiParser {
         return 30
     }
 
-    private fun toArabicDigitsRegex(): String {
-        return "[۰-۹]+"
-    }
+    private fun toArabicDigitsRegex(): String = "[۰-۹]+"
 
     fun parseSentenceOffline(rawSentence: String): ParsedResult {
         AppLogger.i(TAG, "Using offline natural parser heuristics")

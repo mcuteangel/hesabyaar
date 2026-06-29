@@ -27,72 +27,53 @@ import javax.inject.Singleton
 object UseCaseModule {
 
     @Provides
-    fun provideGetDashboardDataUseCase(repository: HesabyarRepositoryInterface): GetDashboardDataUseCase {
-        return GetDashboardDataUseCase(repository)
-    }
+    fun provideGetDashboardDataUseCase(repository: HesabyarRepositoryInterface): GetDashboardDataUseCase = GetDashboardDataUseCase(repository)
 
     @Provides
-    fun provideManageTransactionUseCase(repository: HesabyarRepositoryInterface): ManageTransactionUseCase {
-        return ManageTransactionUseCase(repository)
-    }
+    fun provideManageTransactionUseCase(repository: HesabyarRepositoryInterface): ManageTransactionUseCase =
+        ManageTransactionUseCase(repository)
 
     @Provides
-    fun provideManageLoanUseCase(repository: HesabyarRepositoryInterface): ManageLoanUseCase {
-        return ManageLoanUseCase(repository)
-    }
+    fun provideManageLoanUseCase(repository: HesabyarRepositoryInterface): ManageLoanUseCase =
+        ManageLoanUseCase(repository)
 
     @Provides
-    fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase {
-        return ManageInstallmentUseCase(repository)
-    }
+    fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase =
+        ManageInstallmentUseCase(repository)
 
     @Provides
-    fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase {
-        return ManageCategoryUseCase(repository)
-    }
+    fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase =
+        ManageCategoryUseCase(repository)
 
     @Provides
-    fun provideParseTransactionUseCase(repository: HesabyarRepositoryInterface): ParseTransactionUseCase {
-        return ParseTransactionUseCase(repository)
-    }
+    fun provideParseTransactionUseCase(repository: HesabyarRepositoryInterface): ParseTransactionUseCase =
+        ParseTransactionUseCase(repository)
 
     @Provides
-    fun provideGetBudgetAdviceUseCase(): GetBudgetAdviceUseCase {
-        return GetBudgetAdviceUseCase()
-    }
+    fun provideGetBudgetAdviceUseCase(): GetBudgetAdviceUseCase = GetBudgetAdviceUseCase()
 
     @Provides
-    fun provideGetForecastUseCase(): GetForecastUseCase {
-        return GetForecastUseCase()
-    }
+    fun provideGetForecastUseCase(): GetForecastUseCase = GetForecastUseCase()
 
     @Provides
-    fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase {
-        return GetAnalyticsUseCase()
-    }
+    fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase = GetAnalyticsUseCase()
 
     @Provides
-    fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase {
-        return ManageBackupUseCase(repository)
-    }
+    fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase = ManageBackupUseCase(repository)
 
     @Provides
     fun provideExportExcelUseCase(
         repository: HesabyarRepositoryInterface,
         excelExporter: ExcelExporter
-    ): ExportExcelUseCase {
-        return ExportExcelUseCase(repository, excelExporter)
-    }
+    ): ExportExcelUseCase =
+        ExportExcelUseCase(repository, excelExporter)
 
     @Provides
     @Singleton
-    fun provideGetSettingsUseCase(@ApplicationContext context: Context): GetSettingsUseCase {
-        return GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
-    }
+    fun provideGetSettingsUseCase(@ApplicationContext context: Context): GetSettingsUseCase =
+        GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
 
     @Provides
     @Singleton
-    fun provideExcelExporter(@ApplicationContext context: Context): ExcelExporter {
-        return ExcelExporter(context)
-    }
+    fun provideExcelExporter(@ApplicationContext context: Context): ExcelExporter = ExcelExporter(context)
 }

@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.data
 
 import android.content.Context
+import java.io.IOException
+import android.database.sqlite.SQLiteException
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -130,8 +132,8 @@ abstract class AppDatabase : RoomDatabase() {
                 val header = ByteArray(16)
                 java.io.FileInputStream(dbFile).use { it.read(header) }
                 String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
-            } catch (e: java.io.IOException) {
-                AppLogger.w(TAG, "Failed to read DB header for migration check: ${e.message}")
+            } catch (e: Exception) {
+                println("Failed to validate SQLite header for ${dbFile.path}: ${e.message}")
                 false
             }
         }
@@ -160,38 +162,41 @@ abstract class AppDatabase : RoomDatabase() {
 
             plaintextDb.close()
 
-            dbFile.delete()
-            context.getDatabasePath("hesabyar_database-wal").delete()
-            context.getDatabasePath("hesabyar_database-shm").delete()
+dbFile.delete()
+context.getDatabasePath("hesabyar_database-wal").delete()
+context.getDatabasePath("hesabyar_database-shm").delete()
 
-            try {
-                val passphrase = DatabaseKeyManager.getOrCreateKey(context)
-                val factory = SupportOpenHelperFactory(passphrase)
-                val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
-                    .openHelperFactory(factory)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                    .build()
+try {
+    val passphrase = DatabaseKeyManager.getOrCreateKey(context)
+    val factory = SupportOpenHelperFactory(passphrase)
+    val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
+        .openHelperFactory(factory)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .build()
 
-                encryptedDb.runInTransaction {
-                    if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
-                    if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
-                    if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
-                    if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
-                    if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
-                }
-
-                encryptedDb.close()
-
-                context.getDatabasePath(tempName).delete()
-                context.getDatabasePath("$tempName-wal").delete()
-                context.getDatabasePath("$tempName-shm").delete()
-            } catch (e: Exception) {
-                context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
-                listOf("-wal", "-shm").map { context.getDatabasePath("$tempName$it") }
-                    .filter { it.exists() }
-                    .forEach { it.copyTo(context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"), overwrite = true) }
-                throw e
-            }
-        }
+    encryptedDb.runInTransaction {
+        if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
+        if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
+        if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
+        if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
+        if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
     }
+
+    encryptedDb.close()
+
+    context.getDatabasePath(tempName).delete()
+    context.getDatabasePath("$tempName-wal").delete()
+    context.getDatabasePath("$tempName-shm").delete()
+} catch (e: IOException) {
+    context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
+    listOf("-wal", "-shm").map { context.getDatabasePath("$tempName$it") }
+        .filter { it.exists() }
+        .forEach { it.copyTo(context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"), overwrite = true) }
+    throw e
+} catch (e: SQLiteException) {
+    context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
+    listOf("-wal", "-shm").map { context.getDatabasePath("$tempName$it") }
+        .filter { it.exists() }
+        .forEach { it.copyTo(context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"), overwrite = true) }
+    throw e
 }

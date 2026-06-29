@@ -138,8 +138,8 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون")
         assertEquals("INSTALLMENT", result.type)
         assertNotNull(result.daysFromNow)
-        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
-        assertTrue("daysFromNow should be less than 365", result.daysFromNow!! < 365)
+        assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
+        assertTrue("daysFromNow should be less than 365", (result.daysFromNow ?: 0) < 365)
     }
 
     @Test
@@ -147,7 +147,7 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("قسط خانه 15 مرداد 5 میلیون")
         assertEquals("INSTALLMENT", result.type)
         assertNotNull(result.daysFromNow)
-        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
+        assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
     }
 
     @Test
@@ -162,7 +162,7 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("قسط ماشین ۱۰ تیر ۸ میلیون")
         assertEquals("INSTALLMENT", result.type)
         assertNotNull(result.daysFromNow)
-        assertTrue("daysFromNow should be positive", result.daysFromNow!! > 0)
+        assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
     }
 
     @Test

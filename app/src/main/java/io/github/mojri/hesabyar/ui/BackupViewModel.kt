@@ -1,8 +1,8 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
-import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
+import java.io.IOException
+import org.json.JSONException
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,9 +42,13 @@ class BackupViewModel @Inject constructor(
                         pendingRestoreBackup.value = backup
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 operationState.value = BackupOperationState.Error(
                     "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
+            } catch (e: JsonSyntaxException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
             }
         }
@@ -66,9 +70,17 @@ class BackupViewModel @Inject constructor(
                     }
                 )
                 pendingRestoreBackup.value = null
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 operationState.value = BackupOperationState.Error(
-                    "خطا در بازیابی: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                    "خطا در دسترسی به فایل پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
+                )
+            } catch (e: SecurityException) {
+                operationState.value = BackupOperationState.Error(
+                    "دسترسی به فایل پشتیبان غیرمجاز است: ${e.localizedMessage ?: ""}"
+                )
+            } catch (e: IllegalArgumentException) {
+                operationState.value = BackupOperationState.Error(
+                    "تنظیمات پشتیبان نامعتبر است: ${e.localizedMessage ?: ""}"
                 )
             }
         }
@@ -105,9 +117,13 @@ class BackupViewModel @Inject constructor(
                 }
 
                 operationState.value = BackupOperationState.ExportSuccess(summary)
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 operationState.value = BackupOperationState.Error(
-                    "خطا در ذخیره پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                    "خطا در ذخیره پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
+                )
+            } catch (e: JSONException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در پردازش JSON پشتیبان: ${e.localizedMessage ?: "خطای نامشخص JSON"}"
                 )
             }
         }

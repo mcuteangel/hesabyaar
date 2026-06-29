@@ -1,5 +1,7 @@
 # حسابیار (Hesabyar)
 
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge)
+
 Persian-first personal finance assistant for Android.
 
 ## Features
@@ -63,6 +65,19 @@ app/src/main/java/io/github/mojri/hesabyar/
 
 # Single test class
 ./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
+```
+
+## Benchmarks
+
+Performance is tracked with [CodSpeed](https://codspeed.io) using JMH. The
+benchmarks live in the standalone `benchmarks/` Gradle build and exercise the
+hot, pure-JVM logic (Persian amount parsing and Jalali calendar conversions).
+They run automatically in CI on every pull request.
+
+```bash
+# Requires JDK 21+. The CodSpeed JMH fork is vendored as a git submodule.
+git submodule update --init --recursive
+cd benchmarks && ./gradlew jmh
 ```
 
 ## License
