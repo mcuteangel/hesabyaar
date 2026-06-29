@@ -404,19 +404,18 @@ object GeminiParser {
     }
 
     private fun categoryToDescription(category: String, subject: String, sentence: String): String = when (category) {
-        "Food" -> "خرید مواد غذایی"
-        "Transportation" -> "هزینه حمل و نقل"
-        "Shopping" -> "خرید پوشاک و اکسسوری"
-        "Bills" -> "پرداخت قبوض و شارژ"
-        "Personal Care" -> "هزینه شخصی"
-        "Education" -> "هزینه آموزش"
-        "Rent & Utilities" -> "هزینه ملک"
-        "Loans & Debt" -> "بدهی و وام"
-        "Income" -> "درآمد"
-        "Events & Gifts" -> "جشن و هدیه"
-        "Charity" -> "خیریه"
-        "Investment" -> "سرمایه‌گذاری"
-        "Health" -> "هزینه درمان"
+        CATEGORY_FOOD -> "خرید مواد غذایی"
+        CATEGORY_TRANSPORTATION -> "هزینه حمل و نقل"
+        CATEGORY_SHOPPING -> "خرید پوشاک و اکسسوری"
+        CATEGORY_BILLS -> "پرداخت قبوض و شارژ"
+        CATEGORY_PERSONAL_CARE -> "هزینه شخصی"
+        CATEGORY_EDUCATION -> "هزینه آموزش"
+        CATEGORY_RENT_UTILITIES -> "هزینه ملک"
+        CATEGORY_LOANS_DEBT -> "بدهی و وام"
+        CATEGORY_INCOME -> "درآمد"
+        CATEGORY_EVENTS_GIFTS -> "جشن و هدیه"
+        CATEGORY_CHARITY -> "خیریه"
+        CATEGORY_INVESTMENT -> "سرمایه‌گذاری"
         CATEGORY_OTHER -> subject
         else -> extractDescription(sentence)
     }
@@ -426,7 +425,7 @@ object GeminiParser {
         isIncome: Boolean,
         personName: String?
     ): TypeClassification {
-        classifyInstallment(sentence, isIncome)?.let { return it }
+        classifyInstallment(sentence)?.let { return it }
         classifyLoan(sentence, personName)?.let { return it }
         if (isIncome) return classifyIncome(sentence)
         return classifyExpense(sentence)
@@ -454,7 +453,7 @@ object GeminiParser {
         return null
     }
 
-    private fun classifyInstallment(sentence: String, isIncome: Boolean): TypeClassification? {
+    private fun classifyInstallment(sentence: String): TypeClassification? {
         if (!sentence.contains("قسط")) return null
 
         val installmentTitle = when {
@@ -464,7 +463,7 @@ object GeminiParser {
             else -> "قسط جدید"
         }
 
-        val isPaid = listOf("پرداخت", "دادم", "تسویه", "واریز شد", "واریز کردم", "واریز")
+        val isPaid = listOf("پرداخت", "دادم", "تسویه")
             .any { sentence.contains(it) }
 
         return if (isPaid) {
@@ -479,7 +478,7 @@ object GeminiParser {
         } else {
             TypeClassification(
                 type = TYPE_INSTALLMENT,
-                category = "Installments",
+                category = CATEGORY_INSTALLMENTS,
                 description = "قسط آینده",
                 installmentTitle = installmentTitle,
                 daysFromNow = extractJalaliDaysFromNow(sentence),
@@ -519,7 +518,8 @@ object GeminiParser {
 
     private fun normalizeCategory(category: String): String = when (category) {
         CATEGORY_FOOD, CATEGORY_TRANSPORTATION, CATEGORY_SHOPPING, CATEGORY_BILLS, CATEGORY_INSTALLMENTS,
-        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER -> category
+        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER, CATEGORY_PERSONAL_CARE, CATEGORY_EDUCATION,
+        CATEGORY_RENT_UTILITIES, CATEGORY_EVENTS_GIFTS, CATEGORY_CHARITY, CATEGORY_INVESTMENT -> category
         CATEGORY_LOANS_DEBT -> CATEGORY_LOANS
         else -> CATEGORY_OTHER
     }

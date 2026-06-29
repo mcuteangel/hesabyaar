@@ -488,7 +488,7 @@ class OfflineParserTest {
         )
         personalSentences.forEach { sentence ->
             val result = GeminiParser.parseSentenceOffline(sentence)
-            assertEquals("Expected Other for: $sentence", "Other", result.category)
+            assertEquals("Expected Personal Care for: $sentence", "Personal Care", result.category)
         }
     }
 
@@ -500,7 +500,7 @@ class OfflineParserTest {
         )
         educationSentences.forEach { sentence ->
             val result = GeminiParser.parseSentenceOffline(sentence)
-            assertEquals("Expected Other for: $sentence", "Other", result.category)
+            assertEquals("Expected Education for: $sentence", "Education", result.category)
         }
     }
 
@@ -587,6 +587,7 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("قسط ماشین دادم 3 میلیون")
         assertEquals("EXPENSE", result.type)
         assertEquals("Installments", result.category)
+        assertNull(result.daysFromNow)
     }
 
     @Test

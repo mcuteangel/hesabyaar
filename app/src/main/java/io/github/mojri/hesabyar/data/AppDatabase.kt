@@ -13,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
-import io.github.mojri.hesabyar.core.AppLogger
 import java.io.File
 
 @Database(
@@ -123,8 +122,6 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
-
-        private const val TAG = "AppDatabase"
 
         private fun isPlaintextDb(dbFile: File): Boolean {
             if (!dbFile.exists()) return false
