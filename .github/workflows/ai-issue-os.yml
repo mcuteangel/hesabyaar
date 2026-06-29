@@ -92,7 +92,7 @@ jobs:
 
           git diff "$BASE" "$HEAD" $DIFF_FILTER > diff_full.txt
           KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
-          
+
           if grep -Eqi "$KEYWORDS" diff_full.txt; then
             echo "trigger=true" >> $GITHUB_OUTPUT
           else
@@ -110,7 +110,7 @@ jobs:
             cat intel.json
             echo "EOF"
           } >> $GITHUB_ENV
-          
+
           {
             echo "DIFF_CONTEXT<<EOF"
             cat diff.txt
@@ -130,7 +130,7 @@ jobs:
             Context:
             - Issue intelligence summary:
             ${{ env.INTEL_CONTEXT }}
-            
+
             - Code diff (truncated):
             ${{ env.DIFF_CONTEXT }}
 
@@ -185,7 +185,7 @@ jobs:
             if ! echo "$OPEN_IDS" | grep -qxF "$i" && ! echo "$CLOSED_IDS" | grep -qxF "$i"; then
               continue
             fi
-            
+
             LABELS=$(echo "$LABELS_JSON" | jq -r ".\"$i\" | join(\",\")")
             [ -n "$LABELS" ] && gh issue edit "$i" --add-label "$LABELS" || true
           done
@@ -195,20 +195,12 @@ jobs:
   # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
   # ==========================================
   manual_issue_from_pr:
-    if: |
-      contains(github.event.comment.body, '/ai-fix') && (
-        (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
-        github.event_name == 'pull_request_review_comment'
-      ) && (
-        github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'COLLABORATOR' ||
-        github.event.comment.author_association == 'MEMBER'
-      )
+    if: contains(github.event.comment.body, '/ai-fix') && ((github.event_name == 'issue_comment' && github.event.issue.pull_request) || github.event_name == 'pull_request_review_comment') && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER')
     runs-on: ubuntu-latest
-    
+
     permissions:
       issues: write
-      pull-requests: write 
+      pull-requests: write
       contents: read
 
     steps:
@@ -245,9 +237,9 @@ jobs:
               pull_number: pr_number,
               mediaType: { format: 'diff' }
             });
-            
+
             core.setOutput('pr_url', `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${pr_number}`);
-            core.setOutput('diff', diffData.data.slice(0, 15000)); 
+            core.setOutput('diff', diffData.data.slice(0, 15000));
             core.setOutput('parent_context', parentText.slice(0, 5000));
 
       - name: Acknowledge command
@@ -258,7 +250,7 @@ jobs:
           else
             ENDPOINT="/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
           fi
-          
+
           gh api --method POST -H "Accept: application/vnd.github+json" \
             $ENDPOINT \
             -f "body=🤖 AI OS received \`/ai-fix\`. Reading the reported context..." \
@@ -273,19 +265,19 @@ jobs:
           gemini_model: gemini-3.1-flash-lite
           prompt: |
             You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
-            
+
             HERE IS THE EXACT BUG REPORT/REVIEW FROM THE BOT (Parent Comment):
             ---
             ${{ steps.pr_context.outputs.parent_context }}
             ---
-            
+
             HERE IS THE PR CODE DIFF FOR CONTEXT:
             ---
             ${{ steps.pr_context.outputs.diff }}
             ---
 
             TASK: Create a highly professional GitHub Issue based STRICTLY on the "BUG REPORT FROM THE BOT" provided above. Use the diff only to understand the code context.
-            
+
             Output ONLY valid JSON with exactly this structure:
             {
               "title": "Concise bug title based on the report",
@@ -300,7 +292,7 @@ jobs:
           PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           set -euo pipefail
-          
+
           if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
             ENDPOINT="/repos/${{ github.repository }}/pulls/$PR_NUM/comments"
           else
@@ -325,8 +317,8 @@ jobs:
           FULL_BODY="${BODY}${FOOTER}"
 
           ISSUE_URL=$(gh issue create --title "$TITLE" --body "$FULL_BODY" --label "$LABELS")
-          
+
           gh api --method POST -H "Accept: application/vnd.github+json" \
             $ENDPOINT \
             -f "body=✅ Successfully created issue: ${ISSUE_URL}" \
-            -f "in_reply_to_id=${{ github.event.comment.id }}" 
+            -f "in_reply_to_id=${{ github.event.comment.id }}"
