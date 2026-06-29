@@ -1,4 +1,4 @@
-package io.github.mojri.hesabyar.ui
+package io.github.mojri.hesabyar.core
 
 import android.util.Log
 import java.text.SimpleDateFormat

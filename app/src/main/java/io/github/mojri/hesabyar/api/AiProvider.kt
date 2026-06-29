@@ -1,6 +1,6 @@
 package io.github.mojri.hesabyar.api
 
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 import java.io.IOException
 import retrofit2.HttpException
 import kotlinx.coroutines.Dispatchers

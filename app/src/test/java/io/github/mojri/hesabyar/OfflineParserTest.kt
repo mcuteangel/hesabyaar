@@ -6,6 +6,7 @@ import io.github.mojri.hesabyar.api.PersianAmountParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -95,7 +96,7 @@ class OfflineParserTest {
         val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن")
         assertEquals("EXPENSE", result.type)
         assertEquals(200_000_000L, result.amount)
-        assertEquals("Personal Care", result.category)
+        assertEquals("Other", result.category)
     }
 
     @Test
@@ -109,7 +110,7 @@ class OfflineParserTest {
     fun `parse salon visit`() {
         val result = GeminiParser.parseSentenceOffline("آرایشگاه رفتم ۱۵۰ هزار تومان")
         assertEquals("EXPENSE", result.type)
-        assertEquals("Personal Care", result.category)
+        assertEquals("Other", result.category)
         assertEquals(150_000_000L, result.amount)
     }
 
@@ -487,7 +488,7 @@ class OfflineParserTest {
         )
         personalSentences.forEach { sentence ->
             val result = GeminiParser.parseSentenceOffline(sentence)
-            assertEquals("Expected Personal Care for: $sentence", "Personal Care", result.category)
+            assertEquals("Expected Other for: $sentence", "Other", result.category)
         }
     }
 
@@ -499,7 +500,7 @@ class OfflineParserTest {
         )
         educationSentences.forEach { sentence ->
             val result = GeminiParser.parseSentenceOffline(sentence)
-            assertEquals("Expected Education for: $sentence", "Education", result.category)
+            assertEquals("Expected Other for: $sentence", "Other", result.category)
         }
     }
 
@@ -559,5 +560,73 @@ class OfflineParserTest {
     fun `confidence - no money keywords gives low confidence`() {
         val result = GeminiParser.parseSentenceOffline("متن بدون پول")
         assertTrue("Confidence should be <= 0.65", result.confidence <= 0.65f)
+    }
+
+    // ============================================================
+    // classifyInstallment paid vs pending tests
+    // ============================================================
+
+    @Test
+    fun `paid installment with tasvie returns expense`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین را تسویه کردم 3 میلیون")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Installments", result.category)
+        assertNull(result.daysFromNow)
+    }
+
+    @Test
+    fun `paid installment with pardakht returns expense`() {
+        val result = GeminiParser.parseSentenceOffline("قسط خانه پرداخت کردم 5 میلیون")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Installments", result.category)
+        assertNull(result.daysFromNow)
+    }
+
+    @Test
+    fun `paid installment with dadam returns expense`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین دادم 3 میلیون")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Installments", result.category)
+        assertNull(result.daysFromNow)
+    }
+
+    @Test
+    fun `pending installment without paid keyword returns installment type`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertEquals("Installments", result.category)
+        assertNotNull(result.daysFromNow)
+    }
+
+    @Test
+    fun `installment with variz does not force expense`() {
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین واریز شد 3 میلیون")
+        assertEquals("INSTALLMENT", result.type)
+        assertEquals("Installments", result.category)
+    }
+
+    @Test
+    fun `category OTHER expense description does not include subject in parentheses`() {
+        val result = GeminiParser.parseSentenceOffline("چیز عجیبی خریدم 50 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Other", result.category)
+        assertFalse("Description should not contain parentheses with subject", result.description.contains("(چیز عجیبی)"))
+        assertTrue("Description should contain the subject directly", result.description.contains("چیز عجیبی"))
+    }
+
+    @Test
+    fun `category OTHER expense uses base description without formatting`() {
+        val result = GeminiParser.parseSentenceOffline("خرج غیرمعمول 100 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Other", result.category)
+        assertFalse("Description should not have formatted subject in parentheses", result.description.matches(Regex(".*\\(.*\\).*")))
+    }
+
+    @Test
+    fun `non-OTHER category expense includes subject in parentheses`() {
+        val result = GeminiParser.parseSentenceOffline("مرغ خریدم 80 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Food", result.category)
+        assertTrue("Description should include subject in parentheses", result.description.contains("(") && result.description.contains(")"))
     }
 }

@@ -5,7 +5,7 @@ import org.json.JSONException
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.ui.AppLogger
+import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -13,11 +13,30 @@ import org.json.JSONObject
 object GeminiParser {
     private const val TAG = "GeminiParser"
 
+    private const val EXPENSE_DESCRIPTION_FORMAT = "%s (%s)"
+    private const val EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT = "هزینه متفرقه (%s)"
+
     private const val TYPE_EXPENSE = "EXPENSE"
     private const val TYPE_INCOME = "INCOME"
     private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
     private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
     private const val TYPE_INSTALLMENT = "INSTALLMENT"
+
+    private const val CATEGORY_FOOD = "Food"
+    private const val CATEGORY_TRANSPORTATION = "Transportation"
+    private const val CATEGORY_SHOPPING = "Shopping"
+    private const val CATEGORY_BILLS = "Bills"
+    private const val CATEGORY_INSTALLMENTS = "Installments"
+    private const val CATEGORY_LOANS = "Loans"
+    private const val CATEGORY_INCOME = "Income"
+    private const val CATEGORY_OTHER = "Other"
+    private const val CATEGORY_PERSONAL_CARE = "Personal Care"
+    private const val CATEGORY_EDUCATION = "Education"
+    private const val CATEGORY_RENT_UTILITIES = "Rent & Utilities"
+    private const val CATEGORY_LOANS_DEBT = "Loans & Debt"
+    private const val CATEGORY_EVENTS_GIFTS = "Events & Gifts"
+    private const val CATEGORY_CHARITY = "Charity"
+    private const val CATEGORY_INVESTMENT = "Investment"
 
     private val VALID_TYPES = listOf(TYPE_EXPENSE, TYPE_INCOME, TYPE_LOAN_DEBTOR, TYPE_LOAN_CREDITOR, TYPE_INSTALLMENT)
 
@@ -302,7 +321,7 @@ object GeminiParser {
     private fun repairInvalidParsedResult(parsed: ParsedResult, amountToman: Long): ParsedResult {
         return parsed.copy(
             type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
-            category = parsed.category.ifBlank { "Other" },
+            category = parsed.category.ifBlank { CATEGORY_OTHER },
             amount = (amountToman * 1000).coerceAtLeast(1),
             hour = parsed.hour?.coerceIn(0, 23),
             minute = parsed.minute?.coerceIn(0, 59)
@@ -388,20 +407,19 @@ object GeminiParser {
     }
 
     private fun categoryToDescription(category: String, subject: String, sentence: String): String = when (category) {
-        "Food" -> "خرید مواد غذایی"
-        "Transportation" -> "هزینه حمل و نقل"
-        "Shopping" -> "خرید پوشاک و اکسسوری"
-        "Bills" -> "پرداخت قبوض و شارژ"
-        "Personal Care" -> "هزینه شخصی"
-        "Education" -> "هزینه آموزش"
-        "Rent & Utilities" -> "هزینه ملک"
-        "Loans & Debt" -> "بدهی و وام"
-        "Income" -> "درآمد"
-        "Events & Gifts" -> "جشن و هدیه"
-        "Charity" -> "خیریه"
-        "Investment" -> "سرمایه‌گذاری"
-        "Health" -> "هزینه درمان"
-        "Other" -> subject
+        CATEGORY_FOOD -> "خرید مواد غذایی"
+        CATEGORY_TRANSPORTATION -> "هزینه حمل و نقل"
+        CATEGORY_SHOPPING -> "خرید پوشاک و اکسسوری"
+        CATEGORY_BILLS -> "پرداخت قبوض و شارژ"
+        CATEGORY_PERSONAL_CARE -> "هزینه شخصی"
+        CATEGORY_EDUCATION -> "هزینه آموزش"
+        CATEGORY_RENT_UTILITIES -> "هزینه ملک"
+        CATEGORY_LOANS_DEBT -> "بدهی و وام"
+        CATEGORY_INCOME -> "درآمد"
+        CATEGORY_EVENTS_GIFTS -> "جشن و هدیه"
+        CATEGORY_CHARITY -> "خیریه"
+        CATEGORY_INVESTMENT -> "سرمایه‌گذاری"
+        CATEGORY_OTHER -> subject
         else -> extractDescription(sentence)
     }
 
@@ -410,11 +428,18 @@ object GeminiParser {
         isIncome: Boolean,
         personName: String?
     ): TypeClassification {
+        classifyInstallment(sentence)?.let { return it }
+        classifyLoan(sentence, personName)?.let { return it }
+        if (isIncome) return classifyIncome(sentence)
+        return classifyExpense(sentence)
+    }
+
+    private fun classifyLoan(sentence: String, personName: String?): TypeClassification? {
         val loanReceived = listOf("قرض گرفتم", "بدهکار شدم", "گرفتم از")
         if (loanReceived.any { sentence.contains(it) }) {
             return TypeClassification(
                 type = TYPE_LOAN_CREDITOR,
-                category = "Loans",
+                category = CATEGORY_LOANS,
                 description = "قرض گرفتن از ${personName ?: "طلبکار"}",
                 notes = "قرض جدید ثبت شده"
             )
@@ -423,69 +448,93 @@ object GeminiParser {
         if (loanGiven.any { sentence.contains(it) }) {
             return TypeClassification(
                 type = TYPE_LOAN_DEBTOR,
-                category = "Loans",
+                category = CATEGORY_LOANS,
                 description = "قرض دادن به ${personName ?: "بدهکار"}",
                 notes = "طلب جدید ثبت شده"
             )
         }
-        if (sentence.contains("قسط")) {
-            val installmentTitle = when {
-                sentence.contains("ماشین") -> "قسط ماشین"
-                sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
-                sentence.contains("وام") -> "قسط وام"
-                else -> "قسط جدید"
-            }
+        return null
+    }
 
-            // Detect if installment was already paid
-            val isPaid = sentence.contains("پرداخت") || sentence.contains("دادم") ||
-                    sentence.contains("پرداختم") || sentence.contains("پرداخت کردم") ||
-                    sentence.contains("واریز") || sentence.contains("تسویه")
+    private fun classifyInstallment(sentence: String): TypeClassification? {
+        if (!sentence.contains("قسط")) return null
 
-            return if (isPaid) {
-                TypeClassification(
-                    type = TYPE_EXPENSE,
-                    category = "Installments",
-                    description = "پرداخت $installmentTitle",
-                    installmentTitle = null,
-                    daysFromNow = null,
-                    notes = null
-                )
-            } else {
-                TypeClassification(
-                    type = TYPE_INSTALLMENT,
-                    category = "Installments",
-                    description = "قسط آینده",
-                    installmentTitle = installmentTitle,
-                    daysFromNow = extractJalaliDaysFromNow(sentence),
-                    notes = "قسط در انتظار پرداخت"
-                )
-            }
+        val installmentTitle = when {
+            sentence.contains("ماشین") -> "قسط ماشین"
+            sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
+            sentence.contains("وام") -> "قسط وام"
+            else -> "قسط جدید"
         }
-        if (isIncome) {
-            val subject = extractSubject(sentence)
-            val description = when {
-                sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
-                sentence.contains("پاداش") -> "دریافت پاداش"
-                sentence.contains("دستمزد") -> "دریافت دستمزد"
-                sentence.contains("فروش") -> "درآمد از فروش ($subject)"
-                sentence.contains("سود") -> "دریافت سود"
-                sentence.contains("حقوق") -> "دریافت حقوق"
-                else -> "دریافت درآمد ($subject)"
-            }
-            return TypeClassification(
-                type = TYPE_INCOME,
-                category = "Income",
-                description = description
+
+        val isPaid = listOf("پرداخت", "دادم", "تسویه")
+            .any { sentence.contains(it) }
+
+        return if (isPaid) {
+            TypeClassification(
+                type = TYPE_EXPENSE,
+                category = CATEGORY_INSTALLMENTS,
+                description = "پرداخت $installmentTitle",
+                installmentTitle = null,
+                daysFromNow = null,
+                notes = null
+            )
+        } else {
+            TypeClassification(
+                type = TYPE_INSTALLMENT,
+                category = CATEGORY_INSTALLMENTS,
+                description = "قسط آینده",
+                installmentTitle = installmentTitle,
+                daysFromNow = extractJalaliDaysFromNow(sentence),
+                notes = "قسط در انتظار پرداخت"
             )
         }
+    }
+
+    private fun classifyIncome(sentence: String): TypeClassification {
+        val subject = extractSubject(sentence)
+        val description = when {
+            sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
+            sentence.contains("پاداش") -> "دریافت پاداش"
+            sentence.contains("دستمزد") -> "دریافت دستمزد"
+            sentence.contains("فروش") -> "درآمد از فروش ($subject)"
+            sentence.contains("سود") -> "دریافت سود"
+            sentence.contains("حقوق") -> "دریافت حقوق"
+            else -> "دریافت درآمد ($subject)"
+        }
+        return TypeClassification(
+            type = TYPE_INCOME,
+            category = CATEGORY_INCOME,
+            description = description
+        )
+    }
+
+    private fun classifyExpense(sentence: String): TypeClassification {
         val (inferredCategory, _) = inferExpenseCategory(sentence)
         val subject = extractSubject(sentence)
-        val baseDescription = categoryToDescription(inferredCategory, subject, sentence)
+        val normalizedCategory = normalizeCategory(inferredCategory)
+        val description = if (normalizedCategory != inferredCategory) {
+            String.format(EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT, subject)
+        } else {
+            val baseDescription = categoryToDescription(normalizedCategory, subject, sentence)
+            if (normalizedCategory == CATEGORY_OTHER) {
+                baseDescription
+            } else {
+                String.format(EXPENSE_DESCRIPTION_FORMAT, baseDescription, subject)
+            }
+        }
         return TypeClassification(
             type = TYPE_EXPENSE,
-            category = inferredCategory,
-            description = "$baseDescription ($subject)"
+            category = normalizedCategory,
+            description = description
         )
+    }
+
+    private fun normalizeCategory(category: String): String = when (category) {
+        CATEGORY_FOOD, CATEGORY_TRANSPORTATION, CATEGORY_SHOPPING, CATEGORY_BILLS, CATEGORY_INSTALLMENTS,
+        CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER -> category
+        CATEGORY_LOANS_DEBT, CATEGORY_PERSONAL_CARE, CATEGORY_EDUCATION,
+        CATEGORY_RENT_UTILITIES, CATEGORY_EVENTS_GIFTS, CATEGORY_CHARITY, CATEGORY_INVESTMENT -> CATEGORY_OTHER
+        else -> CATEGORY_OTHER
     }
 
     private fun calculateConfidence(
@@ -546,7 +595,7 @@ object GeminiParser {
             4. Make references to their loans or upcoming installments if present to help them prioritize.
             5. Present prices in Toman (تومان) formatted clearly with thousands separators (e.g., 5,000,000 تومان).
             6. Keep the response concise but highly personalized, positive, and motivating.
-            
+
             Format response with neat markdown structure. Keep the total length around 150-200 words. Highlight crucial sections.
         """.trimIndent()
 
@@ -555,7 +604,7 @@ object GeminiParser {
             appendLine("کل درآمد ثبت شده: ${incomeTotal} تومان")
             appendLine("کل مخارج ثبت شده: ${expenseTotal} تومان")
             appendLine("تراز باقیمانده (پس‌انداز): ${balance} تومان")
-            
+
             appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
             categoryTotals.forEach { (catId, amt) ->
                 val cat = categories.find { it.id == catId }
