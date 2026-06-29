@@ -190,7 +190,6 @@ jobs:
             [ -n "$LABELS" ] && gh issue edit "$i" --add-label "$LABELS" || true
           done
 
-
   # ==========================================
   # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
   # ==========================================
@@ -243,7 +242,8 @@ jobs:
             core.setOutput('parent_context', parentText.slice(0, 5000));
 
       - name: Acknowledge command
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" == "pull_request_review_comment" ]; then
             ENDPOINT="/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments"
