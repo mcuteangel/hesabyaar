@@ -604,4 +604,29 @@ class OfflineParserTest {
         assertEquals("INSTALLMENT", result.type)
         assertEquals("Installments", result.category)
     }
+
+    @Test
+    fun `category OTHER expense description does not include subject in parentheses`() {
+        val result = GeminiParser.parseSentenceOffline("چیز عجیبی خریدم 50 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Other", result.category)
+        assertFalse("Description should not contain parentheses with subject", result.description.contains("(چیز عجیبی)"))
+        assertTrue("Description should contain the subject directly", result.description.contains("چیز عجیبی"))
+    }
+
+    @Test
+    fun `category OTHER expense uses base description without formatting`() {
+        val result = GeminiParser.parseSentenceOffline("خرج غیرمعمول 100 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Other", result.category)
+        assertFalse("Description should not have formatted subject in parentheses", result.description.matches(Regex(".*\\(.*\\).*")))
+    }
+
+    @Test
+    fun `non-OTHER category expense includes subject in parentheses`() {
+        val result = GeminiParser.parseSentenceOffline("مرغ خریدم 80 هزار")
+        assertEquals("EXPENSE", result.type)
+        assertEquals("Food", result.category)
+        assertTrue("Description should include subject in parentheses", result.description.contains("(") && result.description.contains(")"))
+    }
 }

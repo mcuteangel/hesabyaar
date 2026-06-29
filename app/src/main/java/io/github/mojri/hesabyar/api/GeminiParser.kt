@@ -13,6 +13,9 @@ import org.json.JSONObject
 object GeminiParser {
     private const val TAG = "GeminiParser"
 
+    private const val EXPENSE_DESCRIPTION_FORMAT = "%s (%s)"
+    private const val EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT = "هزینه متفرقه (%s)"
+
     private const val TYPE_EXPENSE = "EXPENSE"
     private const val TYPE_INCOME = "INCOME"
     private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
@@ -510,13 +513,13 @@ object GeminiParser {
         val subject = extractSubject(sentence)
         val normalizedCategory = normalizeCategory(inferredCategory)
         val description = if (normalizedCategory != inferredCategory) {
-            "هزینه متفرقه ($subject)"
+            String.format(EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT, subject)
         } else {
             val baseDescription = categoryToDescription(normalizedCategory, subject, sentence)
             if (normalizedCategory == CATEGORY_OTHER) {
                 baseDescription
             } else {
-                "$baseDescription ($subject)"
+                String.format(EXPENSE_DESCRIPTION_FORMAT, baseDescription, subject)
             }
         }
         return TypeClassification(
