@@ -512,7 +512,12 @@ object GeminiParser {
         val description = if (normalizedCategory != inferredCategory) {
             "هزینه متفرقه ($subject)"
         } else {
-            "${categoryToDescription(normalizedCategory, subject, sentence)} ($subject)"
+            val baseDescription = categoryToDescription(normalizedCategory, subject, sentence)
+            if (normalizedCategory == CATEGORY_OTHER) {
+                baseDescription
+            } else {
+                "$baseDescription ($subject)"
+            }
         }
         return TypeClassification(
             type = TYPE_EXPENSE,
