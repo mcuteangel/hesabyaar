@@ -19,7 +19,6 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
 
 @Composable
 fun CategoryFilterChip(
@@ -31,6 +30,7 @@ fun CategoryFilterChip(
 ) {
     val categoryColor = category?.let { Color(it.color) } ?: Color.Gray
     val categoryInitial = category?.name?.firstOrNull()?.toString() ?: ""
+    val textColor = if (0.299f * categoryColor.red + 0.587f * categoryColor.green + 0.114f * categoryColor.blue > 0.5f) Color.Black else Color.White
 
     FilterChip(
         selected = selected,
@@ -51,7 +51,7 @@ fun CategoryFilterChip(
                     Text(
                         text = categoryInitial,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = textColor
                     )
                 }
                 Text(

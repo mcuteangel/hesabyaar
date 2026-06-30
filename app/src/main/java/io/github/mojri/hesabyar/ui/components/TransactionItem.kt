@@ -7,11 +7,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,7 +36,7 @@ fun TransactionItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val formatter = DecimalFormat("#,###")
+    val formatter = remember { DecimalFormat("#,###") }
     val amountColor = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
     val prefix = if (isIncome) "+" else "-"
 
@@ -41,6 +45,7 @@ fun TransactionItem(
             .fillMaxWidth()
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick)
+                    .semantics { role = Role.Button }
                 else Modifier
             )
             .padding(vertical = SpacingTokens.sm),

@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
-import com.squareup.moshi.JsonDataException
 import java.io.IOException
 import org.json.JSONException
 import androidx.compose.runtime.mutableStateOf
@@ -49,7 +48,7 @@ class BackupViewModel @Inject constructor(
                 operationState.value = BackupOperationState.Error(
                     "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
-            } catch (e: JsonDataException) {
+            } catch (e: JSONException) {
                 operationState.value = BackupOperationState.Error(
                     "خطا در تجزیه فایل پشتیبان: ${e.message ?: "خطای ناشناخته"}"
                 )

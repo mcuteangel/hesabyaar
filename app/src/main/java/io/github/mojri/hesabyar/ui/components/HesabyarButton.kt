@@ -27,6 +27,7 @@ fun HesabyarButton(
     modifier: Modifier = Modifier,
     text: String? = null,
     icon: ImageVector? = null,
+    iconContentDescription: String? = null,
     variant: ButtonVariant = ButtonVariant.Filled,
     enabled: Boolean = true,
     loading: Boolean = false,
@@ -55,7 +56,7 @@ fun HesabyarButton(
                     icon?.let {
                         Icon(
                             imageVector = it,
-                            contentDescription = null,
+                            contentDescription = iconContentDescription,
                             modifier = Modifier.size(Dimens.IconMedium)
                         )
                     }
@@ -70,7 +71,8 @@ fun HesabyarButton(
                 onClick = onClick,
                 modifier = buttonModifier,
                 enabled = enabled && !loading,
-                shape = ShapeTokens.Small
+                shape = ShapeTokens.Small,
+                colors = colors
             ) {
                 if (loading) {
                     CircularProgressIndicator(
@@ -81,7 +83,7 @@ fun HesabyarButton(
                     icon?.let {
                         Icon(
                             imageVector = it,
-                            contentDescription = null,
+                            contentDescription = iconContentDescription,
                             modifier = Modifier.size(Dimens.IconMedium)
                         )
                     }
@@ -96,7 +98,8 @@ fun HesabyarButton(
                 onClick = onClick,
                 modifier = buttonModifier,
                 enabled = enabled && !loading,
-                shape = ShapeTokens.Small
+                shape = ShapeTokens.Small,
+                colors = colors
             ) {
                 if (loading) {
                     CircularProgressIndicator(
@@ -107,7 +110,7 @@ fun HesabyarButton(
                     icon?.let {
                         Icon(
                             imageVector = it,
-                            contentDescription = null,
+                            contentDescription = iconContentDescription,
                             modifier = Modifier.size(Dimens.IconMedium)
                         )
                     }
