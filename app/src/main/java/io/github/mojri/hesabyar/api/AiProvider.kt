@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -291,7 +292,7 @@ object AiProvider {
             }
         } catch (e: IOException) {
             AppLogger.e(TAG, "API call failed", e)
-            ApiResult.Failure("Network error: ${e.localizedMessage}")
+            ApiResult.Failure("Network error: ${e.message}")
         }
     }
 
@@ -314,7 +315,7 @@ object AiProvider {
             }
         } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse Gemini response", e)
-            ApiResult.Failure("Failed to parse response: ${e.localizedMessage}")
+            ApiResult.Failure("Failed to parse response: ${e.message}")
         }
     }
 
@@ -331,7 +332,7 @@ object AiProvider {
             }
         } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse OpenAI response", e)
-            ApiResult.Failure("Failed to parse response: ${e.localizedMessage}")
+            ApiResult.Failure("Failed to parse response: ${e.message}")
         }
     }
 }

@@ -1,0 +1,121 @@
+package io.github.mojri.hesabyar.ui.components
+
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+
+enum class ButtonVariant {
+    Filled, Outlined, Text
+}
+
+@Composable
+fun HesabyarButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    text: String? = null,
+    icon: ImageVector? = null,
+    variant: ButtonVariant = ButtonVariant.Filled,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary
+    )
+) {
+    val buttonModifier = modifier.height(Dimens.ButtonHeight)
+
+    when (variant) {
+        ButtonVariant.Filled -> {
+            Button(
+                onClick = onClick,
+                modifier = buttonModifier,
+                enabled = enabled && !loading,
+                shape = ShapeTokens.Small,
+                colors = colors
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimens.IconSmall),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = Dimens.DividerThickness
+                    )
+                } else {
+                    icon?.let {
+                        Icon(
+                            imageVector = it,
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimens.IconMedium)
+                        )
+                    }
+                    text?.let {
+                        Text(text = it)
+                    }
+                }
+            }
+        }
+        ButtonVariant.Outlined -> {
+            OutlinedButton(
+                onClick = onClick,
+                modifier = buttonModifier,
+                enabled = enabled && !loading,
+                shape = ShapeTokens.Small
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimens.IconSmall),
+                        strokeWidth = Dimens.DividerThickness
+                    )
+                } else {
+                    icon?.let {
+                        Icon(
+                            imageVector = it,
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimens.IconMedium)
+                        )
+                    }
+                    text?.let {
+                        Text(text = it)
+                    }
+                }
+            }
+        }
+        ButtonVariant.Text -> {
+            TextButton(
+                onClick = onClick,
+                modifier = buttonModifier,
+                enabled = enabled && !loading,
+                shape = ShapeTokens.Small
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimens.IconSmall),
+                        strokeWidth = Dimens.DividerThickness
+                    )
+                } else {
+                    icon?.let {
+                        Icon(
+                            imageVector = it,
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimens.IconMedium)
+                        )
+                    }
+                    text?.let {
+                        Text(text = it)
+                    }
+                }
+            }
+        }
+    }
+}

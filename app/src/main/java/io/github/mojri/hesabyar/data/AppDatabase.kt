@@ -197,3 +197,6 @@ try {
         .forEach { it.copyTo(context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"), overwrite = true) }
     throw e
 }
+        }
+    }
+}

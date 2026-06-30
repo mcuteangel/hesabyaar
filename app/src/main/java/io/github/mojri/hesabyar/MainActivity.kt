@@ -1,10 +1,25 @@
+package io.github.mojri.hesabyar
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -15,6 +30,8 @@ import io.github.mojri.hesabyar.auth.AuthManager
 import io.github.mojri.hesabyar.auth.LockScreen
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -105,7 +122,7 @@ class MainActivity : FragmentActivity() {
                                             selected = currentTab == tabId,
                                             onClick = { currentTab = tabId },
                                             icon = { Icon(imageVector = icon, contentDescription = label) },
-                                            label = { Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold) },
+                                            label = { Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                                 selectedTextColor = MaterialTheme.colorScheme.primary,

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -25,11 +24,13 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.ui.*
-import io.github.mojri.hesabyar.ui.theme.ExpenseRed
-import io.github.mojri.hesabyar.ui.theme.IncomeGreen
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
 fun AnalyticsScreen(
@@ -41,9 +42,9 @@ fun AnalyticsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+            .padding(horizontal = SpacingTokens.lg),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
+        contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = SpacingTokens.xl)
     ) {
         // Title
         item {
@@ -61,7 +62,7 @@ fun AnalyticsScreen(
                 title = "📈 روند هزینه‌های ماهانه",
                 data = analyticsData.monthlySpending,
                 getValue = { it.expense },
-                color = ExpenseRed
+                color = FinancialColors.ExpenseRed
             )
         }
 
@@ -71,7 +72,7 @@ fun AnalyticsScreen(
                 title = "💰 روند درآمدهای ماهانه",
                 data = analyticsData.monthlyIncome,
                 getValue = { it.income },
-                color = IncomeGreen
+                color = FinancialColors.IncomeGreen
             )
         }
 
@@ -133,14 +134,11 @@ private fun MonthlyTrendCard(
     getValue: (MonthlyData) -> Long,
     color: Color
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Text(
                 text = title,
@@ -154,7 +152,7 @@ private fun MonthlyTrendCard(
                     text = "داده‌ای موجود نیست",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(SpacingTokens.xl),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -204,18 +202,16 @@ private fun CombinedLineChartCard(
     income: List<MonthlyData>,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Text(
                 text = "📊 مقایسه درآمد و هزینه",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(SpacingTokens.md))
 
             // Merge by label for combined view
             val allLabels = (spending.map { it.label } + income.map { it.label }).distinct().takeLast(6)
@@ -246,7 +242,7 @@ private fun CombinedLineChartCard(
                     }
                     for (i in 0 until points.size - 1) {
                         drawLine(
-                            color = IncomeGreen,
+                            color = FinancialColors.IncomeGreen,
                             start = points[i],
                             end = points[i + 1],
                             strokeWidth = 4f,
@@ -254,7 +250,7 @@ private fun CombinedLineChartCard(
                         )
                     }
                     points.forEach { pt ->
-                        drawCircle(color = IncomeGreen, radius = 6f, center = pt)
+                        drawCircle(color = FinancialColors.IncomeGreen, radius = 6f, center = pt)
                     }
                 }
 
@@ -267,7 +263,7 @@ private fun CombinedLineChartCard(
                     }
                     for (i in 0 until points.size - 1) {
                         drawLine(
-                            color = ExpenseRed,
+                            color = FinancialColors.ExpenseRed,
                             start = points[i],
                             end = points[i + 1],
                             strokeWidth = 4f,
@@ -275,7 +271,7 @@ private fun CombinedLineChartCard(
                         )
                     }
                     points.forEach { pt ->
-                        drawCircle(color = ExpenseRed, radius = 6f, center = pt)
+                        drawCircle(color = FinancialColors.ExpenseRed, radius = 6f, center = pt)
                     }
                 }
 
@@ -300,12 +296,12 @@ private fun CombinedLineChartCard(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(modifier = Modifier.size(12.dp).background(IncomeGreen, CircleShape))
-                Spacer(modifier = Modifier.width(4.dp))
+                Box(modifier = Modifier.size(12.dp).background(FinancialColors.IncomeGreen, CircleShape))
+                Spacer(modifier = Modifier.width(SpacingTokens.xs))
                 Text("درآمد", style = MaterialTheme.typography.labelSmall)
-                Spacer(modifier = Modifier.width(16.dp))
-                Box(modifier = Modifier.size(12.dp).background(ExpenseRed, CircleShape))
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.lg))
+                Box(modifier = Modifier.size(12.dp).background(FinancialColors.ExpenseRed, CircleShape))
+                Spacer(modifier = Modifier.width(SpacingTokens.xs))
                 Text("هزینه", style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -356,14 +352,11 @@ private fun BarChart(
 
 @Composable
 private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Text(
                 text = "🍩 توزیع هزینه‌ها بر اساس دسته‌بندی",
@@ -377,7 +370,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
                     text = "هزینه‌ای ثبت نشده",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(SpacingTokens.xl),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -396,13 +389,13 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = SpacingTokens.xs),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -467,14 +460,11 @@ private fun DebtCreditSummaryCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     emptyMessage: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -483,13 +473,13 @@ private fun DebtCreditSummaryCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.IconSmall)
                     )
                     Text(
                         text = title,
@@ -502,7 +492,7 @@ private fun DebtCreditSummaryCard(
                     text = formatToman(totalAmount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else ExpenseRed
+                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else FinancialColors.ExpenseRed
                 )
             }
 
@@ -511,7 +501,7 @@ private fun DebtCreditSummaryCard(
                     text = emptyMessage,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(SpacingTokens.lg),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -521,10 +511,10 @@ private fun DebtCreditSummaryCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(ShapeTokens.Medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(SpacingTokens.md),
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -539,7 +529,7 @@ private fun DebtCreditSummaryCard(
                             Text(
                                 text = formatToman(item.remainingAmount),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = ExpenseRed
+                                color = FinancialColors.ExpenseRed
                             )
                         }
 
@@ -548,8 +538,8 @@ private fun DebtCreditSummaryCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = IncomeGreen,
+                                .clip(ShapeTokens.Small),
+                            color = FinancialColors.IncomeGreen,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
 
@@ -577,14 +567,11 @@ private fun DebtCreditSummaryCard(
 
 @Composable
 private fun LoanStatusCard(loans: List<Loan>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Text(
                 text = "📊 وضعیت وام‌ها",
@@ -598,7 +585,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                     text = "وام فعالی ثبت نشده",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(SpacingTokens.lg),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -612,10 +599,10 @@ private fun LoanStatusCard(loans: List<Loan>) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(ShapeTokens.Medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(SpacingTokens.md),
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -630,7 +617,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                             Text(
                                 text = if (loan.type == "DEBTOR") "بدهکار" else "طلبکار",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (loan.type == "DEBTOR") ExpenseRed else IncomeGreen
+                                color = if (loan.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
                             )
                         }
 
@@ -639,8 +626,8 @@ private fun LoanStatusCard(loans: List<Loan>) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = if (loan.type == "DEBTOR") ExpenseRed else IncomeGreen,
+                                .clip(ShapeTokens.Small),
+                            color = if (loan.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
 
@@ -672,14 +659,11 @@ private fun InstallmentProgressCard(
     paid: Int,
     installments: List<InstallmentProgress>
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    HesabyarCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Text(
                 text = "✅ پیشرفت اقساط",
@@ -693,7 +677,7 @@ private fun InstallmentProgressCard(
                     text = "قسطی ثبت نشده",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(SpacingTokens.lg),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -711,7 +695,7 @@ private fun InstallmentProgressCard(
                     )
 
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                     ) {
                         Text(
                             text = "$paid از $total قسط پرداخت شده",
@@ -721,7 +705,7 @@ private fun InstallmentProgressCard(
                         Text(
                             text = "${if (total > 0) (paid * 100 / total) else 0}٪ تکمیل شده",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IncomeGreen
+                            color = FinancialColors.IncomeGreen
                         )
                     }
                 }
@@ -739,9 +723,9 @@ private fun InstallmentProgressCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(ShapeTokens.Small)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                .padding(8.dp),
+                                .padding(SpacingTokens.sm),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -752,7 +736,7 @@ private fun InstallmentProgressCard(
                             Text(
                                 text = formatToman(inst.amount),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = ExpenseRed
+                                color = FinancialColors.ExpenseRed
                             )
                         }
                     }
@@ -766,7 +750,7 @@ private fun InstallmentProgressCard(
 private fun CircularProgress(
     progress: Float,
     modifier: Modifier = Modifier,
-    color: Color = IncomeGreen,
+    color: Color = FinancialColors.IncomeGreen,
     strokeWidth: Float = 12f
 ) {
     val animatedProgress by animateFloatAsState(

@@ -9,8 +9,12 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,20 +97,20 @@ fun CustomTimePickerDialog(
     }
 
     Dialog(onDismissRequest = onDismissRequest) {
-        Card(
+        HesabyarCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 350.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+            shape = ShapeTokens.XLarge,
+            elevation = SpacingTokens.md,
+            contentPadding = PaddingValues(0.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(SpacingTokens.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 // Header (Persian title)
                 Text(
@@ -114,7 +118,7 @@ fun CustomTimePickerDialog(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = SpacingTokens.xs)
                 )
 
                 // Swap Hour & Minute Box to correctly align as HH : MM (Left to Right)
@@ -124,9 +128,9 @@ fun CustomTimePickerDialog(
                             .fillMaxWidth()
                             .background(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = ShapeTokens.Large
                             )
-                            .padding(8.dp),
+                            .padding(SpacingTokens.sm),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -136,7 +140,7 @@ fun CustomTimePickerDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(ShapeTokens.Medium)
                                 .background(
                                     if (isHourActive) MaterialTheme.colorScheme.primaryContainer
                                     else Color.Transparent
@@ -165,7 +169,7 @@ fun CustomTimePickerDialog(
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.padding(horizontal = SpacingTokens.md)
                         )
 
                         // 2. Separate minute indicator Box (on the right in LTR)
@@ -174,7 +178,7 @@ fun CustomTimePickerDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(ShapeTokens.Medium)
                                 .background(
                                     if (isMinuteActive) MaterialTheme.colorScheme.primaryContainer
                                     else Color.Transparent
@@ -213,7 +217,7 @@ fun CustomTimePickerDialog(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                             shape = CircleShape
                         )
-                        .padding(12.dp),
+                        .padding(SpacingTokens.md),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(
@@ -364,32 +368,30 @@ fun CustomTimePickerDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    modifier = Modifier.padding(horizontal = SpacingTokens.sm)
                 )
 
                 // Navigation switches bottom shortcuts
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(top = SpacingTokens.xs),
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
-                    OutlinedButton(
+                    HesabyarButton(
                         onClick = onDismissRequest,
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("انصراف", style = MaterialTheme.typography.bodyMedium)
-                    }
+                        modifier = Modifier.weight(1f),
+                        text = "انصراف",
+                        variant = ButtonVariant.Outlined
+                    )
 
-                    Button(
+                    HesabyarButton(
                         onClick = {
                             onTimeSelected(selectedHour, selectedMinute)
                             onDismissRequest()
                         },
-                        modifier = Modifier.weight(1.3f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("تایید", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    }
+                        modifier = Modifier.weight(1.3f),
+                        text = "تایید",
+                        variant = ButtonVariant.Filled
+                    )
                 }
             }
         }

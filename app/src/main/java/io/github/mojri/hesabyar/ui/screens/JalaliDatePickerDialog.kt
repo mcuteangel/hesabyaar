@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -29,6 +28,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import java.util.Calendar
 
 @Composable
@@ -38,11 +41,11 @@ fun JalaliDatePickerDialog(
     onDateSelected: (Long) -> Unit
 ) {
     val jalaliToday = remember(initialTimestamp) { JalaliCalendarHelper.gregorianToJalali(initialTimestamp) }
-    
+
     // View state tracks what year/month is currently shown in the calendar grid
     var viewYear by remember { mutableStateOf(jalaliToday.year) }
     var viewMonth by remember { mutableStateOf(jalaliToday.month) }
-    
+
     // Selection state tracks the currently chosen date
     var selectedYear by remember { mutableStateOf(jalaliToday.year) }
     var selectedMonth by remember { mutableStateOf(jalaliToday.month) }
@@ -92,20 +95,20 @@ fun JalaliDatePickerDialog(
     }
 
     Dialog(onDismissRequest = onDismissRequest) {
-        Card(
+        HesabyarCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 380.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+            shape = ShapeTokens.XLarge,
+            elevation = SpacingTokens.md,
+            contentPadding = PaddingValues(0.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(SpacingTokens.md),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
             ) {
                 // Minimalist selected date indicator
                 Text(
@@ -113,7 +116,7 @@ fun JalaliDatePickerDialog(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(vertical = SpacingTokens.xs)
                 )
 
                 // Animated switches between Calendar Grid and Month/Year selectors
@@ -128,7 +131,7 @@ fun JalaliDatePickerDialog(
                         // STANDARD CALENDAR VIEW MODE WITH ARROW NAVIGATION
                         var dragAmountOffset by remember { mutableStateOf(0f) }
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .pointerInput(Unit) {
@@ -189,10 +192,10 @@ fun JalaliDatePickerDialog(
                                 // Interactive Label for Switching to Quick Selector
                                 Row(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(ShapeTokens.Medium)
                                         .clickable { showQuickSelector = true }
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                                        .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
@@ -206,7 +209,7 @@ fun JalaliDatePickerDialog(
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = "انتخاب سریع",
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(Dimens.IconSmall),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -235,9 +238,9 @@ fun JalaliDatePickerDialog(
                                     .fillMaxWidth()
                                     .background(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = ShapeTokens.Small
                                     )
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = SpacingTokens.xs),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 weekdayNames.forEachIndexed { idx, dayName ->
@@ -256,12 +259,12 @@ fun JalaliDatePickerDialog(
                             // Beautiful, non-scrollable, responsive Week-Rows Column
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                             ) {
                                 for (week in 0 until 6) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                                     ) {
                                         for (dayOfWeek in 0 until 7) {
                                             val index = week * 7 + dayOfWeek
@@ -305,7 +308,7 @@ fun JalaliDatePickerDialog(
                                                     val isSelected = selectedYear == viewYear &&
                                                             selectedMonth == viewMonth &&
                                                             selectedDay == dayNum
-                                                    
+
                                                     val isWeekend = (index % 7) == 6 // Saturday starts at 0, Friday is 6
 
                                                     Box(
@@ -380,7 +383,7 @@ fun JalaliDatePickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(280.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                         ) {
                             Text(
                                 text = "انتخاب سریع دوره:",
@@ -394,17 +397,17 @@ fun JalaliDatePickerDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                             ) {
                                 // Left pane: Large list of months
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(2),
                                     modifier = Modifier
                                         .weight(1.2f)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                                        .padding(4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), ShapeTokens.Medium)
+                                        .padding(SpacingTokens.xs),
+                                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+                                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                                 ) {
                                     items(monthsList.zip(1..12)) { (name, monthVal) ->
                                         val isCurrent = tempMonth == monthVal
@@ -412,7 +415,7 @@ fun JalaliDatePickerDialog(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
                                                 .height(34.dp)
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .clip(ShapeTokens.Small)
                                                 .background(
                                                     if (isCurrent) MaterialTheme.colorScheme.primaryContainer
                                                     else Color.Transparent
@@ -434,16 +437,16 @@ fun JalaliDatePickerDialog(
                                 val yearsGridState = rememberLazyGridState(
                                     initialFirstVisibleItemIndex = (selectableYears.indexOf(tempYear) - 4).coerceAtLeast(0)
                                 )
-                                
+
                                 LazyVerticalGrid(
                                     state = yearsGridState,
                                     columns = GridCells.Fixed(2),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                                        .padding(4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), ShapeTokens.Medium)
+                                        .padding(SpacingTokens.xs),
+                                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+                                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                                 ) {
                                     items(selectableYears) { yr ->
                                         val isCurrent = tempYear == yr
@@ -451,7 +454,7 @@ fun JalaliDatePickerDialog(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
                                                 .height(34.dp)
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .clip(ShapeTokens.Small)
                                                 .background(
                                                     if (isCurrent) MaterialTheme.colorScheme.primaryContainer
                                                     else Color.Transparent
@@ -471,13 +474,13 @@ fun JalaliDatePickerDialog(
 
                             // Secondary view Confirmation row
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.fillMaxWidth().padding(top = SpacingTokens.xs),
+                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                             ) {
                                 OutlinedButton(
                                     onClick = { showQuickSelector = false },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = ShapeTokens.Small
                                 ) {
                                     Text("بازگشت", style = MaterialTheme.typography.bodyMedium)
                                 }
@@ -492,7 +495,7 @@ fun JalaliDatePickerDialog(
                                         showQuickSelector = false
                                     },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = ShapeTokens.Small
                                 ) {
                                     Text("تایید دوره", style = MaterialTheme.typography.bodyMedium)
                                 }
@@ -504,13 +507,13 @@ fun JalaliDatePickerDialog(
                 // Overall Dialog Buttons
                 if (!showQuickSelector) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = SpacingTokens.sm),
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         OutlinedButton(
                             onClick = onDismissRequest,
                             modifier = Modifier.weight(1f).height(46.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = ShapeTokens.Medium
                         ) {
                             Text("انصراف", style = MaterialTheme.typography.labelLarge)
                         }
@@ -526,7 +529,7 @@ fun JalaliDatePickerDialog(
                                 onDismissRequest()
                             },
                             modifier = Modifier.weight(1.3f).height(46.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = ShapeTokens.Medium
                         ) {
                             Text("تایید نهایی", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
