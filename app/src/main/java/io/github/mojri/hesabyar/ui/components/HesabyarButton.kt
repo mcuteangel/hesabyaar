@@ -7,6 +7,7 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -77,7 +78,8 @@ private fun ButtonContent(
     if (loading) {
         CircularProgressIndicator(
             modifier = Modifier.size(Dimens.IconSmall),
-            strokeWidth = Dimens.DividerThickness
+            strokeWidth = Dimens.DividerThickness,
+            color = LocalContentColor.current
         )
     } else {
         icon?.let {
