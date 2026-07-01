@@ -903,7 +903,9 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
     val icon = CATEGORY_ICONS_MAP[category?.icon] ?: Icons.Filled.Paid
 
     HesabyarCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = ShapeTokens.Medium,
         cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
         contentPadding = PaddingValues(SpacingTokens.md)
@@ -915,15 +917,13 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable(onClick = onClick)
+                modifier = Modifier.weight(1f)
             ) {
                 Box(
                     modifier = Modifier
                         .size(Dimens.AvatarSmall)
                         .background(
-                            if (isIncome) FinancialColors.IncomeGreen.copy(alpha = 0.15f) else FinancialColors.ExpenseRed.copy(alpha = 0.15f),
+                            categoryColor.copy(alpha = 0.15f),
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -931,7 +931,7 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed,
+                        tint = categoryColor,
                         modifier = Modifier.size(18.dp)
                     )
                 }

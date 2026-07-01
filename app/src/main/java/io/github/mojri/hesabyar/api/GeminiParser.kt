@@ -127,7 +127,7 @@ object GeminiParser {
                 confidence = confidence,
                 notes = notes
             )
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse JSON result", e)
             null
         }

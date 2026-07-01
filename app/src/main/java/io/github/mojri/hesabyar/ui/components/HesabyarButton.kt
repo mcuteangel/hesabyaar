@@ -31,94 +31,64 @@ fun HesabyarButton(
     variant: ButtonVariant = ButtonVariant.Filled,
     enabled: Boolean = true,
     loading: Boolean = false,
-    colors: ButtonColors = ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.primary
-    )
+    colors: ButtonColors? = null
 ) {
     val buttonModifier = modifier.height(Dimens.ButtonHeight)
+    val resolvedColors = colors ?: when (variant) {
+        ButtonVariant.Filled -> ButtonDefaults.buttonColors()
+        ButtonVariant.Outlined -> ButtonDefaults.outlinedButtonColors()
+        ButtonVariant.Text -> ButtonDefaults.textButtonColors()
+    }
 
     when (variant) {
-        ButtonVariant.Filled -> {
-            Button(
-                onClick = onClick,
-                modifier = buttonModifier,
-                enabled = enabled && !loading,
-                shape = ShapeTokens.Small,
-                colors = colors
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(Dimens.IconSmall),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = Dimens.DividerThickness
-                    )
-                } else {
-                    icon?.let {
-                        Icon(
-                            imageVector = it,
-                            contentDescription = iconContentDescription,
-                            modifier = Modifier.size(Dimens.IconMedium)
-                        )
-                    }
-                    text?.let {
-                        Text(text = it)
-                    }
-                }
-            }
+        ButtonVariant.Filled -> Button(
+            onClick = onClick,
+            modifier = buttonModifier,
+            enabled = enabled && !loading,
+            shape = ShapeTokens.Small,
+            colors = resolvedColors
+        ) { ButtonContent(loading, icon, iconContentDescription, text) }
+
+        ButtonVariant.Outlined -> OutlinedButton(
+            onClick = onClick,
+            modifier = buttonModifier,
+            enabled = enabled && !loading,
+            shape = ShapeTokens.Small,
+            colors = resolvedColors
+        ) { ButtonContent(loading, icon, iconContentDescription, text) }
+
+        ButtonVariant.Text -> TextButton(
+            onClick = onClick,
+            modifier = buttonModifier,
+            enabled = enabled && !loading,
+            shape = ShapeTokens.Small,
+            colors = resolvedColors
+        ) { ButtonContent(loading, icon, iconContentDescription, text) }
+    }
+}
+
+@Composable
+private fun ButtonContent(
+    loading: Boolean,
+    icon: ImageVector?,
+    iconContentDescription: String?,
+    text: String?
+) {
+    if (loading) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(Dimens.IconSmall),
+            strokeWidth = Dimens.DividerThickness
+        )
+    } else {
+        icon?.let {
+            Icon(
+                imageVector = it,
+                contentDescription = iconContentDescription,
+                modifier = Modifier.size(Dimens.IconMedium)
+            )
         }
-        ButtonVariant.Outlined -> {
-            OutlinedButton(
-                onClick = onClick,
-                modifier = buttonModifier,
-                enabled = enabled && !loading,
-                shape = ShapeTokens.Small,
-                colors = colors
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(Dimens.IconSmall),
-                        strokeWidth = Dimens.DividerThickness
-                    )
-                } else {
-                    icon?.let {
-                        Icon(
-                            imageVector = it,
-                            contentDescription = iconContentDescription,
-                            modifier = Modifier.size(Dimens.IconMedium)
-                        )
-                    }
-                    text?.let {
-                        Text(text = it)
-                    }
-                }
-            }
-        }
-        ButtonVariant.Text -> {
-            TextButton(
-                onClick = onClick,
-                modifier = buttonModifier,
-                enabled = enabled && !loading,
-                shape = ShapeTokens.Small,
-                colors = colors
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(Dimens.IconSmall),
-                        strokeWidth = Dimens.DividerThickness
-                    )
-                } else {
-                    icon?.let {
-                        Icon(
-                            imageVector = it,
-                            contentDescription = iconContentDescription,
-                            modifier = Modifier.size(Dimens.IconMedium)
-                        )
-                    }
-                    text?.let {
-                        Text(text = it)
-                    }
-                }
-            }
+        text?.let {
+            Text(text = it)
         }
     }
 }

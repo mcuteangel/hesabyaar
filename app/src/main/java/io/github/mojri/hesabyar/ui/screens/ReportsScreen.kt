@@ -520,7 +520,7 @@ fun ReportsScreen(
                     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                     contentPadding = PaddingValues(vertical = SpacingTokens.xs)
                 ) {
-                    items(categoryFilterList) { (catId, catName) ->
+                    items(categoryFilterList) { (catId, _) ->
                         val isSelected = selectedCategoryFilter == catId
                         val cat = categories.find { it.id == catId }
 

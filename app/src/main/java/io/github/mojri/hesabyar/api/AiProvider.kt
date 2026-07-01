@@ -292,7 +292,7 @@ object AiProvider {
             }
         } catch (e: IOException) {
             AppLogger.e(TAG, "API call failed", e)
-            ApiResult.Failure("Network error: ${e.message}")
+            ApiResult.Failure("Network error: ${e.localizedMessage ?: "خطای شبکه"}")
         }
     }
 
@@ -315,7 +315,7 @@ object AiProvider {
             }
         } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse Gemini response", e)
-            ApiResult.Failure("Failed to parse response: ${e.message}")
+            ApiResult.Failure("Failed to parse response: ${e.localizedMessage ?: "خطای پردازش پاسخ"}")
         }
     }
 
@@ -332,7 +332,7 @@ object AiProvider {
             }
         } catch (e: JSONException) {
             AppLogger.e(TAG, "Failed to parse OpenAI response", e)
-            ApiResult.Failure("Failed to parse response: ${e.message}")
+            ApiResult.Failure("Failed to parse response: ${e.localizedMessage ?: "خطای پردازش پاسخ"}")
         }
     }
 }

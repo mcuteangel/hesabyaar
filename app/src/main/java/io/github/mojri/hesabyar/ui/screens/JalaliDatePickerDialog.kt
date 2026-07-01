@@ -30,6 +30,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import java.util.Calendar
@@ -100,7 +101,7 @@ fun JalaliDatePickerDialog(
                 .fillMaxWidth()
                 .widthIn(max = 380.dp),
             shape = ShapeTokens.XLarge,
-            elevation = SpacingTokens.md,
+            elevation = ElevationTokens.md,
             contentPadding = PaddingValues(0.dp)
         ) {
             Column(

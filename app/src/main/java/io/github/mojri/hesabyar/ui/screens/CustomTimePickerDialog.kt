@@ -15,6 +15,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +103,7 @@ fun CustomTimePickerDialog(
                 .fillMaxWidth()
                 .widthIn(max = 350.dp),
             shape = ShapeTokens.XLarge,
-            elevation = SpacingTokens.md,
+            elevation = ElevationTokens.md,
             contentPadding = PaddingValues(0.dp)
         ) {
             Column(

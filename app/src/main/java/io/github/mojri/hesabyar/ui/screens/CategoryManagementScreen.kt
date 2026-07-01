@@ -383,14 +383,12 @@ private fun CategoryDialog(
                     shape = ShapeTokens.Medium
                 )
 
-                OutlinedTextField(
+                HesabyarInputField(
                     value = key,
                     onValueChange = { key = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "کلید انگلیسی (اختیاری)",
+                    placeholder = "مثلاً: Transportation",
                     shape = ShapeTokens.Medium,
-                    label = { Text("کلید انگلیسی (اختیاری)") },
-                    placeholder = { Text("مثلاً: Transportation") },
-                    singleLine = true,
                     enabled = !isEditing || initialCategory?.isDefault != true
                 )
 

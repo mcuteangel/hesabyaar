@@ -27,6 +27,7 @@ import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
@@ -91,19 +92,12 @@ fun InstallmentScreen(
             )
 
             filterButtons.forEach { (filterMode, title) ->
-                Button(
+                HesabyarChip(
+                    selected = listFilterState == filterMode,
                     onClick = { listFilterState = filterMode },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (listFilterState == filterMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (listFilterState == filterMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = ShapeTokens.Small,
-                    elevation = null,
-                    contentPadding = PaddingValues(SpacingTokens.sm)
-                ) {
-                    Text(title, style = MaterialTheme.typography.labelSmall)
-                }
+                    label = title
+                )
             }
         }
 

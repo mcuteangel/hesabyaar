@@ -25,7 +25,8 @@ fun HesabyarInputField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = true,
-    shape: Shape = ShapeTokens.Large
+    shape: Shape = ShapeTokens.Large,
+    enabled: Boolean = true
 ) {
     OutlinedTextField(
         value = value,
@@ -39,6 +40,7 @@ fun HesabyarInputField(
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         singleLine = singleLine,
+        enabled = enabled,
         shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,

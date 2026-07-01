@@ -39,6 +39,42 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.*
 
+private const val CANCEL_LABEL = "انصراف"
+
+@Composable
+private fun LoanTypeSelector(
+    loanType: String,
+    onTypeChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(ShapeTokens.Small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(SpacingTokens.xs)
+    ) {
+        HesabyarButton(
+            onClick = { onTypeChange("DEBTOR") },
+            modifier = Modifier.weight(1f),
+            text = "من قرض دادم",
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
+                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
+            )
+        )
+        HesabyarButton(
+            onClick = { onTypeChange("CREDITOR") },
+            modifier = Modifier.weight(1f),
+            text = "من قرض گرفتم",
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
+                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
+            )
+        )
+    }
+}
+
 @Composable
 fun LoanManagementScreen(
     loanViewModel: LoanViewModel,
@@ -170,33 +206,7 @@ fun LoanManagementScreen(
                     horizontalAlignment = Alignment.End
                 ) {
                     // Type selector Inside Dialog
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(ShapeTokens.Small)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(SpacingTokens.xs)
-                    ) {
-                        HesabyarButton(
-                            onClick = { loanType = "DEBTOR" },
-                            modifier = Modifier.weight(1f),
-                            text = "من قرض دادم",
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
-                                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-
-                        HesabyarButton(
-                            onClick = { loanType = "CREDITOR" },
-                            modifier = Modifier.weight(1f),
-                            text = "من قرض گرفتم",
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
-                                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                    }
+                    LoanTypeSelector(loanType = loanType, onTypeChange = { loanType = it })
 
                     HesabyarInputField(
                         value = personName,
@@ -240,7 +250,7 @@ fun LoanManagementScreen(
             dismissButton = {
                 HesabyarButton(
                     onClick = { showAddDialog = false },
-                    text = "انصراف",
+                    text = CANCEL_LABEL,
                     variant = ButtonVariant.Text
                 )
             }
@@ -275,25 +285,7 @@ fun LoanManagementScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
-                        HesabyarButton(
-                            onClick = { loanType = "DEBTOR" },
-                            modifier = Modifier.weight(1f),
-                            text = "من قرض دادم",
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
-                                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-
-                        HesabyarButton(
-                            onClick = { loanType = "CREDITOR" },
-                            modifier = Modifier.weight(1f),
-                            text = "من قرض گرفتم",
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
-                                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        )
+                        LoanTypeSelector(loanType = loanType, onTypeChange = { loanType = it })
                     }
 
                     HesabyarInputField(
@@ -346,7 +338,7 @@ fun LoanManagementScreen(
             dismissButton = {
                 HesabyarButton(
                     onClick = { editingLoan = null },
-                    text = "انصراف",
+                    text = CANCEL_LABEL,
                     variant = ButtonVariant.Text
                 )
             }
@@ -617,7 +609,7 @@ fun LoanListItem(
             dismissButton = {
                 HesabyarButton(
                     onClick = { showRepayDialog = false },
-                    text = "انصراف",
+                    text = CANCEL_LABEL,
                     variant = ButtonVariant.Text
                 )
             }

@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -31,7 +32,7 @@ fun CategoryFilterChip(
 ) {
     val categoryColor = category?.let { Color(it.color) } ?: Color.Gray
     val categoryInitial = category?.name?.firstOrNull()?.toString() ?: ""
-    val textColor = if (0.299f * categoryColor.red + 0.587f * categoryColor.green + 0.114f * categoryColor.blue > 0.5f) Color.Black else Color.White
+    val textColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
 
     FilterChip(
         selected = selected,
@@ -64,7 +65,7 @@ fun CategoryFilterChip(
         shape = shape,
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = categoryColor.copy(alpha = 0.15f),
-            selectedLabelColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+            selectedLabelColor = if (lerp(MaterialTheme.colorScheme.surface, categoryColor, 0.15f).luminance() > 0.5f) Color.Black else Color.White
         )
     )
 }

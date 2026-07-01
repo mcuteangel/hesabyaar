@@ -20,6 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +68,8 @@ fun Context.findActivity(): FragmentActivity? {
     }
     return null
 }
+
+private const val CANCEL_LABEL = "انصراف"
 
 @Composable
 fun SettingsScreen(
@@ -218,7 +222,7 @@ Log.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تف
             dismissButton = {
                 HesabyarButton(
                     onClick = { backupViewModel.cancelPendingRestore() },
-                    text = "انصراف",
+                    text = CANCEL_LABEL,
                     variant = ButtonVariant.Text
                 )
             }
@@ -541,13 +545,17 @@ fun SecuritySection(
                         label = "رمز عبور جدید",
                         placeholder = "۶ رقم",
                         isError = pinError != null,
-                        supportingText = pinError
+                        supportingText = pinError,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
                     )
                     HesabyarInputField(
                         value = confirmPin,
                         onValueChange = { confirmPin = it },
                         label = "تکرار رمز عبور",
-                        placeholder = "۶ رقم"
+                        placeholder = "۶ رقم",
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
                     )
                 }
             },
@@ -575,7 +583,7 @@ fun SecuritySection(
             dismissButton = {
                 HesabyarButton(
                     onClick = { showSetPinDialog = false },
-                    text = "انصراف",
+                    text = CANCEL_LABEL,
                     variant = ButtonVariant.Text
                 )
             }
@@ -1261,7 +1269,7 @@ fun AiConfigDialog(
                     onClearModelFetchState()
                     onDismiss()
                 },
-                text = "انصراف",
+                text = CANCEL_LABEL,
                 variant = ButtonVariant.Text
             )
         }

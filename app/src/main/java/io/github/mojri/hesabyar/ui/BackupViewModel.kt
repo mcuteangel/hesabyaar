@@ -13,6 +13,7 @@ import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -50,7 +51,7 @@ class BackupViewModel @Inject constructor(
                 )
             } catch (e: JSONException) {
                 operationState.value = BackupOperationState.Error(
-                    "خطا در تجزیه فایل پشتیبان: ${e.message ?: "خطای ناشناخته"}"
+                    "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
             }
         }
@@ -151,9 +152,12 @@ class BackupViewModel @Inject constructor(
                 )
             } catch (e: JSONException) {
                 operationState.value = BackupOperationState.Error(
-                    "خطا در تجزیه فایل پشتیبان: ${e.message ?: "خطای ناشناخته"}"
+                    "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IllegalStateException) {
+                // Database constraint violations from Room
                 operationState.value = BackupOperationState.Error(
                     "خطا در وارد کردن پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )

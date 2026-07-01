@@ -28,6 +28,7 @@ fun LoanItem(
     val formatter = remember { DecimalFormat("#,###") }
     val statusColor = if (isSettled) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
     val statusText = if (isSettled) "تسویه شده" else "در انتظار"
+    val amountColor = if (isDebt) FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
 
     Row(
         modifier = modifier
@@ -63,7 +64,7 @@ fun LoanItem(
                 text = "${formatter.format(amount)} ریال",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = amountColor,
                 textAlign = TextAlign.End
             )
             Text(

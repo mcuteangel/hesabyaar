@@ -29,6 +29,14 @@ fun BalanceCard(
     onClick: (() -> Unit)? = null
 ) {
     val formatter = remember { DecimalFormat("#,###") }
+    val gradientBrush = remember(shape) {
+        Brush.verticalGradient(
+            colors = listOf(
+                FinancialColors.PurpleAccent.copy(alpha = 0.2f),
+                Color.Transparent
+            )
+        )
+    }
 
     Box(
         modifier = modifier
@@ -38,12 +46,7 @@ fun BalanceCard(
                 else Modifier
             )
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        FinancialColors.PurpleAccent.copy(alpha = 0.2f),
-                        Color.Transparent
-                    )
-                ),
+                brush = gradientBrush,
                 shape = shape
             )
             .padding(SpacingTokens.lg),
