@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,20 +18,62 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
-import io.github.mojri.hesabyar.ui.theme.ExpenseRed
-import io.github.mojri.hesabyar.ui.theme.IncomeGreen
-import io.github.mojri.hesabyar.ui.theme.WarningOrange
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.*
+
+@Composable
+private fun LoanTypeSelector(
+    loanType: String,
+    onTypeChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(ShapeTokens.Small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(SpacingTokens.xs)
+    ) {
+        HesabyarButton(
+            onClick = { onTypeChange("DEBTOR") },
+            modifier = Modifier.weight(1f),
+            text = stringResource(R.string.loan_type_debtor),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
+                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
+            )
+        )
+        HesabyarButton(
+            onClick = { onTypeChange("CREDITOR") },
+            modifier = Modifier.weight(1f),
+            text = stringResource(R.string.loan_type_creditor),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
+                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
+            )
+        )
+    }
+}
 
 @Composable
 fun LoanManagementScreen(
@@ -52,8 +93,8 @@ fun LoanManagementScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(SpacingTokens.lg),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
     ) {
         // Stats and trigger row
         Row(
@@ -68,51 +109,32 @@ fun LoanManagementScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Button(
+            HesabyarButton(
                 onClick = { showAddDialog = true },
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                text = "ثبت جدید",
+                icon = Icons.Filled.Add,
                 modifier = Modifier.testTag("add_loan_button")
-            ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("ثبت جدید", style = MaterialTheme.typography.labelMedium)
-            }
+            )
         }
 
         // Tab selection (Debtors vs Creditors)
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(4.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-            Button(
+            HesabyarChip(
+                selected = termState == "DEBTOR",
                 onClick = { termState = "DEBTOR" },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (termState == "DEBTOR") MaterialTheme.colorScheme.primary else Color.Transparent,
-                    contentColor = if (termState == "DEBTOR") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                ),
-                shape = RoundedCornerShape(8.dp),
-                elevation = null
-            ) {
-                Text("طلب‌های من (بدهکاران)", style = MaterialTheme.typography.labelLarge)
-            }
+                label = "طلب‌های من (بدهکاران)",
+                modifier = Modifier.weight(1f)
+            )
 
-            Button(
+            HesabyarChip(
+                selected = termState == "CREDITOR",
                 onClick = { termState = "CREDITOR" },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (termState == "CREDITOR") MaterialTheme.colorScheme.primary else Color.Transparent,
-                    contentColor = if (termState == "CREDITOR") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                ),
-                shape = RoundedCornerShape(8.dp),
-                elevation = null
-            ) {
-                Text("بدهی‌های من (طلبکاران)", style = MaterialTheme.typography.labelLarge)
-            }
+                label = "بدهی‌های من (طلبکاران)",
+                modifier = Modifier.weight(1f)
+            )
         }
 
         val activeList = if (termState == "DEBTOR") debtors else creditors
@@ -126,7 +148,7 @@ fun LoanManagementScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Icon(
                         imageVector = if (termState == "DEBTOR") Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
@@ -144,7 +166,7 @@ fun LoanManagementScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 items(activeList) { loan ->
                     LoanListItem(
@@ -180,61 +202,28 @@ fun LoanManagementScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
                     horizontalAlignment = Alignment.End
                 ) {
                     // Type selector Inside Dialog
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(2.dp)
-                    ) {
-                        Button(
-                            onClick = { loanType = "DEBTOR" },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "DEBTOR") IncomeGreen else Color.Transparent,
-                                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            ),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text("من قرض دادم", style = MaterialTheme.typography.labelSmall)
-                        }
+                    LoanTypeSelector(loanType = loanType, onTypeChange = { loanType = it })
 
-                        Button(
-                            onClick = { loanType = "CREDITOR" },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "CREDITOR") ExpenseRed else Color.Transparent,
-                                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            ),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text("من قرض گرفتم", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = personName,
                         onValueChange = { personName = it },
-                        label = { Text("نام شخص طرف حساب") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "نام شخص طرف حساب"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = { Text("مبلغ قرض (تومان)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "مبلغ قرض (تومان)"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text("توضیحات و بابت چی...") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "توضیحات و بابت چی..."
                     )
 
                     JalaliDateTimePicker(
@@ -244,7 +233,7 @@ fun LoanManagementScreen(
                 }
             },
             confirmButton = {
-                Button(
+                HesabyarButton(
                     onClick = {
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
@@ -254,15 +243,16 @@ fun LoanManagementScreen(
                         } else {
                             settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
                         }
-                    }
-                ) {
-                    Text("ثبت و ذخیره")
-                }
+                    },
+                    text = "ثبت و ذخیره"
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("انصراف")
-                }
+                HesabyarButton(
+                    onClick = { showAddDialog = false },
+                    text = stringResource(R.string.cancel_label),
+                    variant = ButtonVariant.Text
+                )
             }
         )
     }
@@ -289,56 +279,31 @@ fun LoanManagementScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
-                        Button(
-                            onClick = { loanType = "DEBTOR" },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "DEBTOR") IncomeGreen else Color.Transparent,
-                                contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            ),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text("من قرض دادم", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        Button(
-                            onClick = { loanType = "CREDITOR" },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (loanType == "CREDITOR") ExpenseRed else Color.Transparent,
-                                contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
-                            ),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text("من قرض گرفتم", style = MaterialTheme.typography.labelSmall)
-                        }
+                        LoanTypeSelector(loanType = loanType, onTypeChange = { loanType = it })
                     }
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = personName,
                         onValueChange = { personName = it },
-                        label = { Text("نام شخص طرف حساب") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "نام شخص طرف حساب"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = { Text("مبلغ قرض (تومان)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "مبلغ قرض (تومان)"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text("توضیحات و بابت چی...") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "توضیحات و بابت چی..."
                     )
 
                     JalaliDateTimePicker(
@@ -348,7 +313,7 @@ fun LoanManagementScreen(
                 }
             },
             confirmButton = {
-                Button(
+                HesabyarButton(
                     onClick = {
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
@@ -366,15 +331,16 @@ fun LoanManagementScreen(
                         } else {
                             settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
                         }
-                    }
-                ) {
-                    Text("ذخیره تغییرات")
-                }
+                    },
+                    text = "ذخیره تغییرات"
+                )
             },
             dismissButton = {
-                TextButton(onClick = { editingLoan = null }) {
-                    Text("انصراف")
-                }
+                HesabyarButton(
+                    onClick = { editingLoan = null },
+                    text = stringResource(R.string.cancel_label),
+                    variant = ButtonVariant.Text
+                )
             }
         )
     }
@@ -392,21 +358,20 @@ fun LoanListItem(
     var showRepayDialog by remember { mutableStateOf(false) }
     val paymentHistory by loanViewModel.getPaymentHistory(loan.id).collectAsState(initial = emptyList())
 
-    val statusColor = if (loan.isSettled) MaterialTheme.colorScheme.primary else if (loan.type == "DEBTOR") IncomeGreen else ExpenseRed
+    val statusColor = if (loan.isSettled) MaterialTheme.colorScheme.primary else if (loan.type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
     val statusText = if (loan.isSettled) "تسویه شده" else if (loan.type == "DEBTOR") "طلب وصول‌نشده" else "جای بازپرداخت باقی‌مانده"
 
-    Card(
+    HesabyarCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (loan.isSettled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
+        shape = ShapeTokens.Large,
+        cardColors = CardDefaults.cardColors(
+            containerColor = if (loan.isSettled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -427,7 +392,7 @@ fun LoanListItem(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(SpacingTokens.md))
                     Column {
                         Text(
                             text = loan.personName,
@@ -472,9 +437,9 @@ fun LoanListItem(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(ShapeTokens.Small)
                         .background(statusColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .padding(horizontal = SpacingTokens.sm, vertical = SpacingTokens.xs)
                 ) {
                     Text(
                         text = statusText,
@@ -494,8 +459,8 @@ fun LoanListItem(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(top = SpacingTokens.md),
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
@@ -517,9 +482,9 @@ fun LoanListItem(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(ShapeTokens.Small)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .padding(8.dp),
+                                    .padding(SpacingTokens.sm),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -548,41 +513,38 @@ fun LoanListItem(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(SpacingTokens.xs))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         IconButton(
                             onClick = onDelete,
                             modifier = Modifier
-                                .background(ExpenseRed.copy(alpha = 0.1f), CircleShape)
-                                .size(40.dp)
+                                .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
+                                .size(Dimens.AvatarMedium)
                         ) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قرض", tint = ExpenseRed)
+                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قرض", tint = FinancialColors.ExpenseRed)
                         }
 
                         IconButton(
                             onClick = onEdit,
                             modifier = Modifier
                                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape)
-                                .size(40.dp)
+                                .size(Dimens.AvatarMedium)
                         ) {
                             Icon(imageVector = Icons.Filled.Edit, contentDescription = "ویرایش قرض", tint = MaterialTheme.colorScheme.primary)
                         }
 
                         if (!loan.isSettled) {
-                            Button(
+                            HesabyarButton(
                                 onClick = { showRepayDialog = true },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
+                                text = "ثبت بازپرداخت جديد",
+                                icon = Icons.Filled.Payments,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
-                            ) {
-                                Icon(imageVector = Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("ثبت بازپرداخت جديد")
-                            }
+                            )
                         }
                     }
                 }
@@ -609,20 +571,18 @@ fun LoanListItem(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = repayAmount,
                         onValueChange = { repayAmount = it },
-                        label = { Text("مبلغ پرداختی (تومان)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "مبلغ پرداختی (تومان)"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = repayNotes,
                         onValueChange = { repayNotes = it },
-                        label = { Text("توضیحات (مثلا نقدی یا کارت به کارت)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "توضیحات (مثلا نقدی یا کارت به کارت)"
                     )
 
                     JalaliDateTimePicker(
@@ -632,7 +592,7 @@ fun LoanListItem(
                 }
             },
             confirmButton = {
-                Button(
+                HesabyarButton(
                     onClick = {
                         val amountToman = repayAmount.toLongOrNull() ?: 0L
                         if (amountToman > 0L) {
@@ -642,15 +602,16 @@ fun LoanListItem(
                         } else {
                             settingsViewModel.showMessage("لطفا مبلغ صحیح وارد کنید")
                         }
-                    }
-                ) {
-                    Text("پرداخت شد")
-                }
+                    },
+                    text = "پرداخت شد"
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showRepayDialog = false }) {
-                    Text("انصراف")
-                }
+                HesabyarButton(
+                    onClick = { showRepayDialog = false },
+                    text = stringResource(R.string.cancel_label),
+                    variant = ButtonVariant.Text
+                )
             }
         )
     }

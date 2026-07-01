@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -25,9 +24,15 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
-import io.github.mojri.hesabyar.ui.theme.ExpenseRed
-import io.github.mojri.hesabyar.ui.theme.IncomeGreen
-import io.github.mojri.hesabyar.ui.theme.WarningOrange
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import java.util.*
 
 @Composable
@@ -47,8 +52,8 @@ fun InstallmentScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(SpacingTokens.lg),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
     ) {
         // Title and add trigger row
         Row(
@@ -63,26 +68,22 @@ fun InstallmentScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Button(
+            HesabyarButton(
                 onClick = { showAddDialog = true },
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                icon = Icons.Filled.Add,
+                text = "ثبت قسط",
                 modifier = Modifier.testTag("add_installment_button")
-            ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("ثبت قسط", style = MaterialTheme.typography.labelMedium)
-            }
+            )
         }
 
         // Horizontal filter bar (Unpaid / Paid / All)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(ShapeTokens.Medium)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(SpacingTokens.xs),
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
         ) {
             val filterButtons = listOf(
                 "UNPAID" to "پرداخت‌نشده",
@@ -91,19 +92,12 @@ fun InstallmentScreen(
             )
 
             filterButtons.forEach { (filterMode, title) ->
-                Button(
+                HesabyarChip(
+                    selected = listFilterState == filterMode,
                     onClick = { listFilterState = filterMode },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (listFilterState == filterMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (listFilterState == filterMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = null,
-                    contentPadding = PaddingValues(10.dp)
-                ) {
-                    Text(title, style = MaterialTheme.typography.labelSmall)
-                }
+                    label = title
+                )
             }
         }
 
@@ -122,13 +116,13 @@ fun InstallmentScreen(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.CreditCard,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(Dimens.IconLarge)
                     )
                     Text(
                         text = when (listFilterState) {
@@ -144,7 +138,7 @@ fun InstallmentScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 items(displayList) { installment ->
                     InstallmentListItem(
@@ -177,20 +171,18 @@ fun InstallmentScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text("عنوان قسط (مثلا قسط ماشین)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "عنوان قسط (مثلا قسط ماشین)"
                     )
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = { Text("مبلغ قسط (تومان)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "مبلغ قسط (تومان)"
                     )
 
                     JalaliDateTimePicker(
@@ -214,16 +206,15 @@ fun InstallmentScreen(
                         )
                     }
 
-                    OutlinedTextField(
+                    HesabyarInputField(
                         value = notes,
                         onValueChange = { notes = it },
-                        label = { Text("شرح و یادداشت اضافی") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "شرح و یادداشت اضافی"
                     )
                 }
             },
             confirmButton = {
-                Button(
+                HesabyarButton(
                     onClick = {
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (title.isNotBlank() && amountToman > 0L) {
@@ -233,15 +224,16 @@ fun InstallmentScreen(
                         } else {
                             settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
                         }
-                    }
-                ) {
-                    Text("ذخیره قسط")
-                }
+                    },
+                    text = "ذخیره قسط"
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("انصراف")
-                }
+                HesabyarButton(
+                    onClick = { showAddDialog = false },
+                    text = "انصراف",
+                    variant = ButtonVariant.Text
+                )
             }
         )
     }
@@ -253,20 +245,19 @@ fun InstallmentListItem(
     installmentViewModel: InstallmentViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val colorAccent = if (installment.isPaid) IncomeGreen else WarningOrange
+    val colorAccent = if (installment.isPaid) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
 
-    Card(
+    HesabyarCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
+        shape = ShapeTokens.Large,
+        cardColors = CardDefaults.cardColors(
+            containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -276,7 +267,7 @@ fun InstallmentListItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(Dimens.AvatarSmall)
                             .background(colorAccent.copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -284,10 +275,10 @@ fun InstallmentListItem(
                             imageVector = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
                             contentDescription = null,
                             tint = colorAccent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(SpacingTokens.md))
                     Column {
                         Text(
                             text = installment.title,
@@ -319,14 +310,14 @@ fun InstallmentListItem(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
                     if (installment.reminderEnabled && !installment.isPaid) {
                         Icon(
                             imageVector = Icons.Filled.NotificationsActive,
                             contentDescription = "زنگ فعال",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.IconSmall)
                         )
                         Text(
                             "زنگ سررسید فعال",
@@ -342,8 +333,8 @@ fun InstallmentListItem(
                         containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
                         contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+                    shape = ShapeTokens.Small,
+                    contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),
                     elevation = null
                 ) {
                     Text(
@@ -360,10 +351,8 @@ fun InstallmentListItem(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
@@ -383,10 +372,10 @@ fun InstallmentListItem(
                         IconButton(
                             onClick = { installmentViewModel.deleteInstallment(installment) },
                             modifier = Modifier
-                                .background(ExpenseRed.copy(alpha = 0.1f), CircleShape)
-                                .size(36.dp)
+                                .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
+                                .size(Dimens.AvatarSmall)
                         ) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قسط", modifier = Modifier.size(18.dp), tint = ExpenseRed)
+                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قسط", modifier = Modifier.size(18.dp), tint = FinancialColors.ExpenseRed)
                         }
                     }
                 }

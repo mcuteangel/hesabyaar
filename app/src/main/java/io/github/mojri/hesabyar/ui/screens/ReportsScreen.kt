@@ -3,12 +3,10 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -29,9 +27,15 @@ import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.AdvisorUIState
-import io.github.mojri.hesabyar.ui.theme.ExpenseRed
-import io.github.mojri.hesabyar.ui.theme.IncomeGreen
-import io.github.mojri.hesabyar.ui.theme.WarningOrange
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import java.util.*
 
 @Composable
@@ -97,18 +101,13 @@ fun ReportsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+            .padding(horizontal = SpacingTokens.lg),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
+        contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = SpacingTokens.xl)
     ) {
         // Title
         item {
-            Text(
-                text = "کیف پول و گزارش‌های تحلیلی",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            SectionHeader(title = "کیف پول و گزارش‌های تحلیلی")
         }
 
         // Date range filter
@@ -116,15 +115,15 @@ fun ReportsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(ShapeTokens.Medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(SpacingTokens.sm),
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
             ) {
                 // Preset buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
                     val presets = listOf(
                         "امروز" to { Pair(now - (now % (24L * 60 * 60 * 1000)), now) },
@@ -135,7 +134,7 @@ fun ReportsScreen(
 
                     presets.forEach { (label, rangeFn) ->
                         val isSelected = selectedPreset == label
-                        Button(
+                        HesabyarButton(
                             onClick = {
                                 val (s, e) = rangeFn()
                                 startDate = s
@@ -143,91 +142,48 @@ fun ReportsScreen(
                                 selectedPreset = label
                             },
                             modifier = Modifier.weight(1f),
+                            text = label,
+                            variant = ButtonVariant.Filled,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                 contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            elevation = null,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-                        ) {
-                            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        }
+                            )
+                        )
                     }
                 }
 
                 // Jalali date picker buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
-                    OutlinedButton(
+                    HesabyarButton(
                         onClick = { showStartPicker = true },
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column {
-                            Text(
-                                text = "از تاریخ",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                            Text(
-                                text = formatPersianDate(startDate),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                        modifier = Modifier.weight(1f),
+                        text = "از تاریخ",
+                        icon = Icons.Default.DateRange,
+                        variant = ButtonVariant.Outlined
+                    )
 
-                    OutlinedButton(
+                    HesabyarButton(
                         onClick = { showEndPicker = true },
-                        modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column {
-                            Text(
-                                text = "تا تاریخ",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                            Text(
-                                text = formatPersianDate(endDate),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                        modifier = Modifier.weight(1f),
+                        text = "تا تاریخ",
+                        icon = Icons.Default.DateRange,
+                        variant = ButtonVariant.Outlined
+                    )
                 }
             }
         }
 
         // Balance Card
         item {
-            Card(
+            HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = ShapeTokens.XLarge
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Text(
                         text = "📈 تراز عملکرد سود و زیان دوره",
@@ -242,7 +198,7 @@ fun ReportsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("مجموع کل دریافتی‌ها (درآمد):", style = MaterialTheme.typography.bodyMedium)
-                        Text(formatToman(totalIncome), color = IncomeGreen, fontWeight = FontWeight.Bold)
+                        Text(formatToman(totalIncome), color = FinancialColors.IncomeGreen, fontWeight = FontWeight.Bold)
                     }
 
                     Row(
@@ -251,7 +207,7 @@ fun ReportsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("مجموع کل پرداختی‌ها (مخارج):", style = MaterialTheme.typography.bodyMedium)
-                        Text(formatToman(totalExpense), color = ExpenseRed, fontWeight = FontWeight.Bold)
+                        Text(formatToman(totalExpense), color = FinancialColors.ExpenseRed, fontWeight = FontWeight.Bold)
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -264,7 +220,7 @@ fun ReportsScreen(
                         Text("پس‌انداز خالص دوره:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(
                             text = (if (balance >= 0) "+" else "") + formatToman(balance),
-                            color = if (balance >= 0) IncomeGreen else ExpenseRed,
+                            color = if (balance >= 0) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -278,20 +234,15 @@ fun ReportsScreen(
             val budgetState by aiAssistantViewModel.advisorState.collectAsState()
             val providerStatus = aiAssistantViewModel.getProviderStatusText()
 
-            Card(
+            HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
+                shape = ShapeTokens.XLarge,
+                cardColors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -300,7 +251,7 @@ fun ReportsScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -339,7 +290,7 @@ fun ReportsScreen(
                                     imageVector = Icons.Filled.Close,
                                     contentDescription = "بستن",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
                         }
@@ -348,7 +299,7 @@ fun ReportsScreen(
                     when (val state = budgetState) {
                         is AdvisorUIState.Idle -> {
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                                 horizontalAlignment = Alignment.Start
                             ) {
                                 Text(
@@ -357,35 +308,22 @@ fun ReportsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 18.sp
                                 )
-                                Button(
+                                HesabyarButton(
                                     onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, false) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.AutoAwesome,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "تحلیل هوشمند و دریافت توصیه",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                    text = "تحلیل هوشمند و دریافت توصیه",
+                                    icon = Icons.Filled.AutoAwesome,
+                                    variant = ButtonVariant.Filled
+                                )
                             }
                         }
                         is AdvisorUIState.Loading -> {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 12.dp),
+                                    .padding(vertical = SpacingTokens.md),
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
@@ -402,7 +340,7 @@ fun ReportsScreen(
                         is AdvisorUIState.Success -> {
                             val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                             ) {
                                 MarkdownText(
                                     text = state.advice,
@@ -419,40 +357,33 @@ fun ReportsScreen(
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                                 ) {
-                                    OutlinedButton(
+                                    HesabyarButton(
                                         onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, true) },
                                         modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Refresh,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("بروزرسانی تحلیل", style = MaterialTheme.typography.labelSmall)
-                                    }
+                                        text = "بروزرسانی تحلیل",
+                                        icon = Icons.Filled.Refresh,
+                                        variant = ButtonVariant.Outlined
+                                    )
 
-                                    OutlinedButton(
+                                    HesabyarButton(
                                         onClick = { aiAssistantViewModel.clearAdvisorState() },
                                         modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("بستن", style = MaterialTheme.typography.labelSmall)
-                                    }
+                                        text = "بستن",
+                                        variant = ButtonVariant.Outlined
+                                    )
                                 }
                             }
                         }
                         is AdvisorUIState.Error -> {
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.ErrorOutline,
@@ -466,15 +397,14 @@ fun ReportsScreen(
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
-                                Button(
+                                HesabyarButton(
                                     onClick = { aiAssistantViewModel.fetchBudgetAdvice(dashboardViewModel.transactions.value, dashboardViewModel.categories.value, aiAssistantViewModel.isOnlineMode.value, true) },
-                                    shape = RoundedCornerShape(10.dp),
+                                    text = "تلاش مجدد",
+                                    variant = ButtonVariant.Filled,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error
                                     )
-                                ) {
-                                    Text("تلاش مجدد", style = MaterialTheme.typography.labelSmall, color = Color.White)
-                                }
+                                )
                             }
                         }
                     }
@@ -484,27 +414,23 @@ fun ReportsScreen(
 
         // Category breakdown header
         item {
-            Text(
-                text = "📊 سهم دسته‌بندی‌ها از کل هزینه‌ها",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 8.dp)
+            SectionHeader(
+                title = "📊 سهم دسته‌بندی‌ها از کل هزینه‌ها",
+                modifier = Modifier.padding(top = SpacingTokens.sm)
             )
         }
 
         if (categoryTotals.isEmpty()) {
             item {
-                Card(
+                HesabyarCard(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    shape = ShapeTokens.Medium,
+                    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                    contentPadding = PaddingValues(SpacingTokens.xl)
                 ) {
                     Text(
                         text = "در این بازه هزینه ثبت شده‌ای یافت نشد.",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -521,19 +447,17 @@ fun ReportsScreen(
 
                 val categoryColor = Color(category?.color ?: 0xFF757575)
 
-                Card(
+                HesabyarCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { selectedCategoryFilter = if (isSelected) null else categoryId },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
-                    ),
-                    border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -542,7 +466,7 @@ fun ReportsScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -567,8 +491,8 @@ fun ReportsScreen(
                             progress = { ratio },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
+                                .height(SpacingTokens.xs)
+                                .clip(ShapeTokens.Small),
                             color = categoryColor,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
@@ -582,35 +506,28 @@ fun ReportsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(top = SpacingTokens.sm),
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
-                Text(
-                    text = "📜 تمامی تراکنش‌های ثبت شده (${displayList.size} مورد)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                SectionHeader(title = "📜 تمامی تراکنش‌های ثبت شده (${displayList.size} مورد)")
 
                 // Horizontal category filter chips row
-                val categoryFilterList = listOf<Pair<Long?, String>>(null to "همه") + 
+                val categoryFilterList = listOf<Pair<Long?, String>>(null to "همه") +
                     categories.map { it.id to it.name }
 
                 androidx.compose.foundation.lazy.LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+                    contentPadding = PaddingValues(vertical = SpacingTokens.xs)
                 ) {
-                    items(categoryFilterList) { (catId, catName) ->
+                    items(categoryFilterList) { (catId, _) ->
                         val isSelected = selectedCategoryFilter == catId
                         val cat = categories.find { it.id == catId }
-                        val chipColor = if (catId != null) Color(cat?.color ?: 0xFF2196F3) else MaterialTheme.colorScheme.primary
 
                         CategoryFilterChip(
-                            text = catName,
-                            isSelected = isSelected,
-                            onClick = { selectedCategoryFilter = catId },
-                            activeColor = chipColor
+                            category = cat,
+                            selected = isSelected,
+                            onClick = { selectedCategoryFilter = catId }
                         )
                     }
                 }
@@ -623,7 +540,7 @@ fun ReportsScreen(
                     text = if (selectedCategoryFilter != null) "هیچ تراکنشی با این دسته‌بندی یافت نشد." else "تراکنشی یافت نشد.",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(SpacingTokens.xl),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -634,9 +551,9 @@ fun ReportsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ShapeTokens.Medium)
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(12.dp)
+                        .padding(SpacingTokens.md)
                         .clickable { showDetailTransaction = transaction },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -659,13 +576,13 @@ fun ReportsScreen(
                             text = (if (transaction.type == "INCOME") "+" else "-") + formatToman(transaction.amount),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (transaction.type == "INCOME") IncomeGreen else ExpenseRed
+                            color = if (transaction.type == "INCOME") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                         )
                         IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
                                 contentDescription = "حذف تراکنش",
-                                tint = ExpenseRed.copy(alpha = 0.7f),
+                                tint = FinancialColors.ExpenseRed.copy(alpha = 0.7f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -709,39 +626,6 @@ fun ReportsScreen(
                 deletingTransaction = null
             },
             onDismiss = { deletingTransaction = null }
-        )
-    }
-}
-
-@Composable
-fun CategoryFilterChip(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    activeColor: Color
-) {
-    val bgColor = if (isSelected) activeColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    val borderStrokeModifier = if (isSelected) Modifier else Modifier.border(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant,
-        shape = RoundedCornerShape(12.dp)
-    )
-
-    Box(
-        modifier = Modifier
-            .then(borderStrokeModifier)
-            .clip(RoundedCornerShape(12.dp))
-            .background(bgColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            color = textColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }

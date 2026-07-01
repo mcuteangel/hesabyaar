@@ -10,9 +10,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,11 +22,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.CategoryViewModel
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 private val CATEGORY_ICONS = mapOf(
     "Restaurant" to Icons.Filled.Restaurant,
@@ -138,7 +144,7 @@ fun CategoryManagementScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
                 contentPadding = PaddingValues(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
             ) {
                 if (defaultCategories.isNotEmpty()) {
                     item {
@@ -169,7 +175,7 @@ fun CategoryManagementScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(SpacingTokens.lg))
                 }
             }
         }
@@ -220,36 +226,27 @@ fun CategoryManagementScreen(
                 )
             },
             confirmButton = {
-                Button(
+                HesabyarButton(
                     onClick = {
                         categoryViewModel.deleteCategory(showDeleteConfirmation!!)
                         showDeleteConfirmation = null
                     },
+                    text = "حذف",
+                    variant = ButtonVariant.Filled,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
-                ) {
-                    Text("حذف", color = Color.White)
-                }
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = null }) {
-                    Text("انصراف")
-                }
+                HesabyarButton(
+                    onClick = { showDeleteConfirmation = null },
+                    text = "انصراف",
+                    variant = ButtonVariant.Text
+                )
             }
         )
     }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
 }
 
 @Composable
@@ -262,25 +259,21 @@ private fun CategoryItem(
     val icon = CATEGORY_ICONS[category.icon] ?: Icons.Filled.Paid
     val categoryColor = Color(category.color)
 
-    Card(
+    HesabyarCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .padding(horizontal = SpacingTokens.lg),
+        shape = ShapeTokens.Medium,
+        contentPadding = PaddingValues(SpacingTokens.md)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(Dimens.AvatarMedium)
                     .background(categoryColor.copy(alpha = 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -380,30 +373,26 @@ private fun CategoryDialog(
                     .fillMaxWidth()
                     .heightIn(max = 400.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
-                OutlinedTextField(
+                HesabyarInputField(
                     value = name,
                     onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    label = { Text("نام فارسی") },
-                    placeholder = { Text("مثلاً: حمل و نقل") },
-                    singleLine = true
+                    label = "نام فارسی",
+                    placeholder = "مثلاً: حمل و نقل",
+                    shape = ShapeTokens.Medium
                 )
 
-                OutlinedTextField(
+                HesabyarInputField(
                     value = key,
                     onValueChange = { key = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    label = { Text("کلید انگلیسی (اختیاری)") },
-                    placeholder = { Text("مثلاً: Transportation") },
-                    singleLine = true,
+                    label = "کلید انگلیسی (اختیاری)",
+                    placeholder = "مثلاً: Transportation",
+                    shape = ShapeTokens.Medium,
                     enabled = !isEditing || initialCategory?.isDefault != true
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
                     Text(
                         text = "نوع:",
                         style = MaterialTheme.typography.labelMedium,
@@ -422,7 +411,7 @@ private fun CategoryDialog(
                             onValueChange = {},
                             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             readOnly = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = ShapeTokens.Medium,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) }
                         )
                         ExposedDropdownMenu(
@@ -454,7 +443,7 @@ private fun CategoryDialog(
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
                     Text(
                         text = "رنگ:",
                         style = MaterialTheme.typography.labelMedium,
@@ -463,8 +452,8 @@ private fun CategoryDialog(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(8),
                         modifier = Modifier.height(60.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                     ) {
                         items(CATEGORY_COLORS) { color ->
                             Box(
@@ -480,7 +469,7 @@ private fun CategoryDialog(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(Dimens.IconSmall)
                                     )
                                 }
                             }
@@ -488,7 +477,7 @@ private fun CategoryDialog(
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
                     Text(
                         text = "آیکون:",
                         style = MaterialTheme.typography.labelMedium,
@@ -497,15 +486,15 @@ private fun CategoryDialog(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(7),
                         modifier = Modifier.height(180.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                     ) {
                         items(CATEGORY_ICONS.entries.toList()) { (iconName, iconVector) ->
                             val isSelected = selectedIcon == iconName
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(ShapeTokens.Small)
                                     .background(
                                         if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -528,17 +517,17 @@ private fun CategoryDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ShapeTokens.Medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                        .padding(12.dp),
+                        .padding(SpacingTokens.md),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     val previewIcon = CATEGORY_ICONS[selectedIcon] ?: Icons.Filled.Paid
                     val previewColor = Color(selectedColor)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(Dimens.AvatarMedium)
                             .background(previewColor.copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -569,23 +558,24 @@ private fun CategoryDialog(
             }
         },
         confirmButton = {
-            Button(
+            HesabyarButton(
                 onClick = {
                     val finalKey = key.trim().ifBlank {
                         name.trim().replace("\\s+".toRegex(), "")
                     }
                     onSave(name.trim(), finalKey, selectedIcon, selectedColor, selectedType)
                 },
-                shape = RoundedCornerShape(12.dp),
+                text = "ذخیره",
+                variant = ButtonVariant.Filled,
                 enabled = name.isNotBlank()
-            ) {
-                Text("ذخیره", fontWeight = FontWeight.Bold)
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("انصراف")
-            }
+            HesabyarButton(
+                onClick = onDismiss,
+                text = "انصراف",
+                variant = ButtonVariant.Text
+            )
         }
     )
 }

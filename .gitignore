@@ -30,8 +30,12 @@ google-services.json
 .kotlin
 keystore-backups/my-upload-key.jks.bak
 
+# Claude Code
+.claude/
+
 # AI Agents Skills & Prompts
 **/skill.md
 .agents/
 skills-lock.json
 .mimocode/
+docs/uiplan.md

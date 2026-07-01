@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -52,9 +51,18 @@ import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
-import io.github.mojri.hesabyar.ui.theme.ExpenseRed
-import io.github.mojri.hesabyar.ui.theme.IncomeGreen
-import io.github.mojri.hesabyar.ui.theme.WarningOrange
+import io.github.mojri.hesabyar.ui.components.BalanceCard
+import io.github.mojri.hesabyar.ui.components.EmptyState
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.InstallmentItem
+import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.components.TransactionItem
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -139,22 +147,22 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
+                .padding(horizontal = SpacingTokens.lg),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
+            contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
         ) {
         // Welcome and Custom Header with Logo from Design Spec
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = SpacingTokens.md),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Box(
                         modifier = Modifier
@@ -166,7 +174,7 @@ fun DashboardScreen(
                             imageVector = Icons.Filled.AccountBalanceWallet,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimens.IconMedium)
                         )
                     }
                     Column {
@@ -188,7 +196,7 @@ fun DashboardScreen(
                     onClick = { settingsViewModel.toggleDarkMode() },
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), CircleShape)
-                        .size(40.dp)
+                        .size(Dimens.ButtonHeight)
                 ) {
                     Icon(
                         imageVector = if (settingsViewModel.isDarkMode.value) Icons.Filled.LightMode else Icons.Filled.DarkMode,
@@ -202,118 +210,37 @@ fun DashboardScreen(
 
         // Wallet Balance Card
         item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("balance_card"),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
-                                )
-                            )
-                        )
-                        .fillMaxWidth()
-                ) {
-                    // Modern decorative abstract bubbles for premium "atmospheric" design
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset(x = (-30).dp, y = (-30).dp)
-                            .size(140.dp)
-                            .background(Color.White.copy(alpha = 0.08f), CircleShape)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = (15).dp, y = (15).dp)
-                            .size(90.dp)
-                            .background(Color.White.copy(alpha = 0.05f), CircleShape)
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .padding(24.dp)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(Color.White.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AccountBalanceWallet,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "موجودی کل حساب‌ها",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Text(
-                                    text = "دستیار مالی هوشمند شما",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = formatToman(dashboardData.currentBalance),
-                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
+            BalanceCard(
+                balance = dashboardData.currentBalance,
+                income = dashboardData.monthlyIncome,
+                expense = dashboardData.monthlyExpenses,
+                modifier = Modifier.testTag("balance_card")
+            )
         }
 
         // Smart Forecast Alert Card (Compact)
         item {
-            Card(
+            HesabyarCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("budget_forecast_alert_card")
                     .clickable {
                         showFullForecast = true
                     },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
+                shape = ShapeTokens.Large,
+                cardColors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                 )
             ) {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
+                        .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(Dimens.AvatarSmall)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -339,7 +266,7 @@ fun DashboardScreen(
                                         strokeWidth = 1.5.dp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(SpacingTokens.sm))
                                     Text(
                                         text = "در حال تحلیل...",
                                         style = MaterialTheme.typography.bodySmall,
@@ -357,7 +284,7 @@ fun DashboardScreen(
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(SpacingTokens.xs))
                                     Text(
                                         text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(lastForecastFetchTime)}",
                                         style = MaterialTheme.typography.labelSmall,
@@ -391,11 +318,11 @@ fun DashboardScreen(
                 Button(
                     onClick = { showFullForecast = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = ShapeTokens.Medium,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Icon(imageVector = Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(imageVector = Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(Dimens.IconSmall))
+                    Spacer(modifier = Modifier.width(SpacingTokens.sm))
                     Text("مشاهده گزارش کامل", fontWeight = FontWeight.Bold)
                 }
             }
@@ -405,33 +332,32 @@ fun DashboardScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 // Monthly Income
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(IncomeGreen.copy(alpha = 0.15f), CircleShape),
+                                    .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.TrendingUp,
                                     contentDescription = null,
-                                    tint = IncomeGreen,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = FinancialColors.IncomeGreen,
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(SpacingTokens.sm))
                             Text(
                                 text = "درآمد ۳۰ روزه",
                                 style = MaterialTheme.typography.titleSmall,
@@ -442,7 +368,7 @@ fun DashboardScreen(
                             text = formatToman(dashboardData.monthlyIncome),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = IncomeGreen,
+                            color = FinancialColors.IncomeGreen,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -450,30 +376,29 @@ fun DashboardScreen(
                 }
 
                 // Monthly Expenses
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(ExpenseRed.copy(alpha = 0.15f), CircleShape),
+                                    .background(FinancialColors.ExpenseRed.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.TrendingDown,
                                     contentDescription = null,
-                                    tint = ExpenseRed,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = FinancialColors.ExpenseRed,
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(SpacingTokens.sm))
                             Text(
                                 text = "مخارج ۳۰ روزه",
                                 style = MaterialTheme.typography.titleSmall,
@@ -484,7 +409,7 @@ fun DashboardScreen(
                             text = formatToman(dashboardData.monthlyExpenses),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseRed,
+                            color = FinancialColors.ExpenseRed,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -497,35 +422,33 @@ fun DashboardScreen(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
-                val isDarkTheme = settingsViewModel.isDarkMode.value
-                val kpiBg = if (isDarkTheme) Color(0xFF1E2A3A) else Color(0xFFE8F0FE)
-
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = kpiBg)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(Color(0xFF4CAF50).copy(alpha = 0.15f), CircleShape),
+                                    .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Savings,
                                     contentDescription = null,
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = FinancialColors.IncomeGreen,
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(SpacingTokens.sm))
                             Text(
                                 text = "نرخ پس‌انداز",
                                 style = MaterialTheme.typography.titleSmall,
@@ -538,38 +461,39 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = when {
-                                savingsPct >= 20 -> Color(0xFF4CAF50)
-                                savingsPct >= 0 -> Color(0xFFFF9800)
-                                else -> ExpenseRed
+                                savingsPct >= 20 -> FinancialColors.IncomeGreen
+                                savingsPct >= 0 -> FinancialColors.WarningOrange
+                                else -> FinancialColors.ExpenseRed
                             }
                         )
                     }
                 }
 
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = kpiBg)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(Color(0xFF2196F3).copy(alpha = 0.15f), CircleShape),
+                                    .background(FinancialColors.InfoBlue.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AccountBalance,
                                     contentDescription = null,
-                                    tint = Color(0xFF2196F3),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = FinancialColors.InfoBlue,
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(SpacingTokens.sm))
                             Text(
                                 text = "نسبت بدهی",
                                 style = MaterialTheme.typography.titleSmall,
@@ -582,9 +506,9 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = when {
-                                debtPct > 40 -> ExpenseRed
-                                debtPct > 20 -> Color(0xFFFF9800)
-                                else -> Color(0xFF2196F3)
+                                debtPct > 40 -> FinancialColors.ExpenseRed
+                                debtPct > 20 -> FinancialColors.WarningOrange
+                                else -> FinancialColors.InfoBlue
                             }
                         )
                     }
@@ -594,27 +518,20 @@ fun DashboardScreen(
 
         // Debtors and Creditors summary Row
         item {
-            val isDarkTheme = settingsViewModel.isDarkMode.value
-            val debtorsBg = if (isDarkTheme) Color(0xFF232530) else Color(0xFFE1E2EC)
-            val debtorsOnBg = if (isDarkTheme) Color(0xFFD1E4FF) else Color(0xFF1B1B1F)
-
-            val creditorsBg = if (isDarkTheme) Color(0xFF4C3E1A) else Color(0xFFFFE088)
-            val creditorsOnBg = if (isDarkTheme) Color(0xFFFFECC1) else Color(0xFF1B1B1F)
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 // Debtors (Other people owe me)
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = debtorsBg)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    )
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
@@ -625,28 +542,28 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = Icons.Filled.Group,
                                 contentDescription = null,
-                                tint = debtorsOnBg,
-                                modifier = Modifier.size(24.dp)
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(Dimens.IconMedium)
                             )
                             Box(
                                 modifier = Modifier
-                                    .background(debtorsOnBg.copy(alpha = 0.12f), CircleShape)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
+                                    .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "بدهکاران",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = debtorsOnBg,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(SpacingTokens.lg))
                         Text(
                             text = formatToman(dashboardData.debtorsTotal),
                             style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.ExtraBold,
-                            color = debtorsOnBg,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -654,15 +571,15 @@ fun DashboardScreen(
                 }
 
                 // Creditors (I owe other people)
-                Card(
+                HesabyarCard(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = creditorsBg)
+                    shape = ShapeTokens.Large,
+                    cardColors = CardDefaults.cardColors(
+                        containerColor = FinancialColors.WarningOrange.copy(alpha = 0.15f)
+                    )
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
@@ -673,28 +590,28 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = Icons.Filled.Payments,
                                 contentDescription = null,
-                                tint = creditorsOnBg,
-                                modifier = Modifier.size(24.dp)
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(Dimens.IconMedium)
                             )
                             Box(
                                 modifier = Modifier
-                                    .background(creditorsOnBg.copy(alpha = 0.12f), CircleShape)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
+                                    .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "طلبکاران",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = creditorsOnBg,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(SpacingTokens.lg))
                         Text(
                             text = formatToman(dashboardData.creditorsTotal),
                             style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.ExtraBold,
-                            color = creditorsOnBg,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -705,19 +622,17 @@ fun DashboardScreen(
 
         // Quick Smart Parsing Trigger Banner
         item {
-            Card(
+            HesabyarCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onNavigateToAssistant() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
+                shape = ShapeTokens.Large,
+                cardColors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                 )
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -738,7 +653,7 @@ fun DashboardScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(SpacingTokens.md))
                         Column {
                             Text(
                                 text = "تحلیل هوشمند تراکنش",
@@ -764,47 +679,28 @@ fun DashboardScreen(
 
         // Upcoming Installments Header
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "اقساط پیش‌رو",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                if (dashboardData.upcomingInstallments.isNotEmpty()) {
-                    Text(
-                        text = "باقی مانده: ${dashboardData.upcomingInstallments.size} مورد",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WarningOrange
-                    )
+            SectionHeader(
+                title = "اقساط پیش‌رو",
+                modifier = Modifier.padding(top = SpacingTokens.sm),
+                action = {
+                    if (dashboardData.upcomingInstallments.isNotEmpty()) {
+                        Text(
+                            text = "باقی مانده: ${dashboardData.upcomingInstallments.size} مورد",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FinancialColors.WarningOrange
+                        )
+                    }
                 }
-            }
+            )
         }
 
         // List of Upcoming Installments
         if (dashboardData.upcomingInstallments.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text = "هیچ قسط پرداخت‌نشده پیش‌رویی ثبت نشده است.",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
+                EmptyState(
+                    icon = Icons.Filled.DateRange,
+                    title = "هیچ قسط پرداخت‌نشده پیش‌رویی ثبت نشده است."
+                )
             }
         } else {
             items(dashboardData.upcomingInstallments.take(3)) { installment ->
@@ -817,32 +713,18 @@ fun DashboardScreen(
 
         // Recent Activity Banner
         item {
-            Text(
-                text = "آخرین فعالیت‌ها",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 8.dp)
+            SectionHeader(
+                title = "آخرین فعالیت‌ها",
+                modifier = Modifier.padding(top = SpacingTokens.sm)
             )
         }
 
         if (transactions.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                ) {
-                    Text(
-                        text = "هنوز هیچ تراکنشی ثبت نشده است.",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
+                EmptyState(
+                    icon = Icons.Filled.ReceiptLong,
+                    title = "هنوز هیچ تراکنشی ثبت نشده است."
+                )
             }
         } else {
             items(transactions.take(5)) { transaction ->
@@ -860,7 +742,7 @@ fun DashboardScreen(
         onClick = { showManualAddDialog = true },
         modifier = Modifier
             .align(Alignment.BottomEnd)
-            .padding(16.dp)
+            .padding(SpacingTokens.lg)
             .testTag("add_transaction_fab"),
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -955,15 +837,13 @@ fun InstallmentMiniItem(
     installment: Installment,
     onTogglePaid: () -> Unit
 ) {
-    Card(
+    HesabyarCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = ShapeTokens.Large,
+        cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -973,18 +853,18 @@ fun InstallmentMiniItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .background(WarningOrange.copy(alpha = 0.15f), CircleShape),
+                        .size(Dimens.AvatarSmall)
+                        .background(FinancialColors.WarningOrange.copy(alpha = 0.15f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.DateRange,
                         contentDescription = null,
-                        tint = WarningOrange,
+                        tint = FinancialColors.WarningOrange,
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.md))
                 Column {
                     Text(
                         text = installment.title,
@@ -1006,8 +886,8 @@ fun InstallmentMiniItem(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)
+                shape = ShapeTokens.Small,
+                contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
             ) {
                 Text("پرداخت", style = MaterialTheme.typography.labelSmall)
             }
@@ -1019,19 +899,19 @@ fun InstallmentMiniItem(
 fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = emptyList(), onClick: () -> Unit = {}, onDelete: () -> Unit = {}) {
     val isIncome = transaction.type == "INCOME"
     val category = categories.find { it.id == transaction.categoryId }
-    val categoryColor = category?.let { Color(it.color) } ?: if (isIncome) IncomeGreen else ExpenseRed
+    val categoryColor = category?.let { Color(it.color) } ?: if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
     val icon = CATEGORY_ICONS_MAP[category?.icon] ?: Icons.Filled.Paid
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
-        onClick = onClick
+    HesabyarCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = ShapeTokens.Medium,
+        cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+        contentPadding = PaddingValues(SpacingTokens.md)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1041,9 +921,9 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(Dimens.AvatarSmall)
                         .background(
-                            if (isIncome) IncomeGreen.copy(alpha = 0.15f) else ExpenseRed.copy(alpha = 0.15f),
+                            categoryColor.copy(alpha = 0.15f),
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -1051,11 +931,11 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isIncome) IncomeGreen else ExpenseRed,
+                        tint = categoryColor,
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.md))
                 Column {
                     Text(
                         text = transaction.description,
@@ -1078,13 +958,13 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
                     text = (if (isIncome) "+" else "-") + formatToman(transaction.amount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isIncome) IncomeGreen else ExpenseRed
+                    color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                 )
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = "حذف تراکنش",
-                        tint = ExpenseRed.copy(alpha = 0.7f),
+                        tint = FinancialColors.ExpenseRed.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1107,14 +987,14 @@ fun ForecastDetailDialog(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.85f),
-            shape = RoundedCornerShape(24.dp),
+            shape = ShapeTokens.XLarge,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = ElevationTokens.lg
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp)
+                    .padding(SpacingTokens.xl)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1123,7 +1003,7 @@ fun ForecastDetailDialog(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.AutoAwesome,
@@ -1145,7 +1025,7 @@ fun ForecastDetailDialog(
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = SpacingTokens.sm))
 
                 when (val state = forecastState) {
                     is ForecastUIState.Loading -> {
@@ -1155,10 +1035,10 @@ fun ForecastDetailDialog(
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(Dimens.IconLarge),
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
@@ -1180,13 +1060,13 @@ fun ForecastDetailDialog(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(SpacingTokens.sm))
                             Text(
                                 text = state.message,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(SpacingTokens.lg))
                             Button(onClick = onRefresh) {
                                 Text("تلاش مجدد")
                             }
@@ -1201,18 +1081,18 @@ fun ForecastDetailDialog(
                             ) {
                                 MarkdownText(text = state.forecast)
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(SpacingTokens.md))
                             Button(
                                 onClick = onRefresh,
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = ShapeTokens.Medium
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Refresh,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(Dimens.IconSmall)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(SpacingTokens.sm))
                                 Text("بروزرسانی پیش‌بینی", fontWeight = FontWeight.Bold)
                             }
                         }
@@ -1222,9 +1102,7 @@ fun ForecastDetailDialog(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Button(onClick = onRefresh) {
-                                Text("دریافت پیش‌بینی")
-                            }
+                            HesabyarButton(onClick = onRefresh, text = "دریافت پیش‌بینی")
                         }
                     }
                 }
@@ -1257,7 +1135,7 @@ fun TransactionDetailDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1273,7 +1151,7 @@ fun TransactionDetailDialog(
                         text = if (isIncome) "درآمد" else "هزینه",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (isIncome) IncomeGreen else ExpenseRed
+                        color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                     )
                 }
 
@@ -1293,7 +1171,7 @@ fun TransactionDetailDialog(
                         text = formatToman(transaction.amount),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (isIncome) IncomeGreen else ExpenseRed
+                        color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                     )
                 }
 
@@ -1358,25 +1236,25 @@ fun TransactionDetailDialog(
         confirmButton = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
             ) {
                 Button(
                     onClick = onEdit,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = ShapeTokens.Small
                 ) {
-                    Icon(imageVector = Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(imageVector = Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(Dimens.IconSmall))
+                    Spacer(modifier = Modifier.width(SpacingTokens.xs))
                     Text("ویرایش")
                 }
                 Button(
                     onClick = onDelete,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                    shape = ShapeTokens.Small,
+                    colors = ButtonDefaults.buttonColors(containerColor = FinancialColors.ExpenseRed)
                 ) {
-                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(Dimens.IconSmall))
+                    Spacer(modifier = Modifier.width(SpacingTokens.xs))
                     Text("حذف")
                 }
             }
@@ -1400,7 +1278,7 @@ fun DeleteConfirmationDialog(
         text = { Text("آیا از حذف این تراکنش اطمینان دارید؟") },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("حذف", color = ExpenseRed)
+                Text("حذف", color = FinancialColors.ExpenseRed)
             }
         },
         dismissButton = {
@@ -1440,9 +1318,9 @@ fun ManualTransactionDialog(
     }
 
     val typeColor = when (selectedType) {
-        "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-        "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
-        else -> WarningOrange
+        "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
+        "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
+        else -> FinancialColors.WarningOrange
     }
 
     Dialog(
@@ -1453,16 +1331,16 @@ fun ManualTransactionDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight()
-                .padding(vertical = 24.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(vertical = SpacingTokens.xl),
+            shape = ShapeTokens.XLarge,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = ElevationTokens.lg
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(SpacingTokens.xl),
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
             ) {
                 // Header
                 Row(
@@ -1478,7 +1356,7 @@ fun ManualTransactionDialog(
                     )
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(Dimens.IconLarge)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Close,
@@ -1496,10 +1374,10 @@ fun ManualTransactionDialog(
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
                 ) {
                     // Type selector
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                         Text(
                             text = "نوع تراکنش / تعهد مالی:",
                             style = MaterialTheme.typography.labelMedium,
@@ -1509,7 +1387,7 @@ fun ManualTransactionDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                         ) {
                             val types = listOf(
                                 Pair("EXPENSE", "هزینه"),
@@ -1521,13 +1399,13 @@ fun ManualTransactionDialog(
                             types.forEach { (typeKey, typeLabel) ->
                                 val isSelected = selectedType == typeKey
                                 val chipColor = when (typeKey) {
-                                    "INCOME", "LOAN_DEBTOR" -> IncomeGreen
-                                    "EXPENSE", "LOAN_CREDITOR" -> ExpenseRed
-                                    else -> WarningOrange
+                                    "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
+                                    "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
+                                    else -> FinancialColors.WarningOrange
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(ShapeTokens.Medium)
                                         .background(
                                             if (isSelected) chipColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                         )
@@ -1540,11 +1418,11 @@ fun ManualTransactionDialog(
                                                 else -> selectedCategoryId
                                             }
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                        .padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
                                 ) {
                                     Text(
                                         text = typeLabel,
-                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1554,7 +1432,7 @@ fun ManualTransactionDialog(
                     }
 
                     // Amount input
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                         Text(
                             text = "مبلغ (تومان):",
                             style = MaterialTheme.typography.labelMedium,
@@ -1566,7 +1444,7 @@ fun ManualTransactionDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("manual_amount_input"),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = ShapeTokens.Medium,
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.Paid,
@@ -1593,14 +1471,14 @@ fun ManualTransactionDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = typeColor,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                                modifier = Modifier.padding(horizontal = SpacingTokens.xs)
                             )
                         }
                     }
 
                     // Category Selector
                     if (selectedType == "EXPENSE" || selectedType == "INCOME") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                             Text(
                                 text = "دسته‌بندی مربوطه:",
                                 style = MaterialTheme.typography.labelMedium,
@@ -1610,22 +1488,22 @@ fun ManualTransactionDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                             ) {
                                 filteredCategories.forEach { cat ->
                                     val isSelected = selectedCategoryId == cat.id
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .clip(ShapeTokens.Medium)
                                             .background(
                                                 if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                             )
                                             .clickable { selectedCategoryId = cat.id }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                                            .padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
                                     ) {
                                         Text(
                                             text = cat.name,
-                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -1637,7 +1515,7 @@ fun ManualTransactionDialog(
 
                     // Conditional Person Name for loans
                     if (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                             Text(
                                 text = "طرف حساب (شخص مربوطه):",
                                 style = MaterialTheme.typography.labelMedium,
@@ -1649,7 +1527,7 @@ fun ManualTransactionDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .testTag("manual_person_input"),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = ShapeTokens.Medium,
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Person,
@@ -1665,8 +1543,8 @@ fun ManualTransactionDialog(
 
                     // Conditional Installment fields
                     if (selectedType == "INSTALLMENT") {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                                 Text(
                                     text = "عنوان قسط:",
                                     style = MaterialTheme.typography.labelMedium,
@@ -1678,12 +1556,12 @@ fun ManualTransactionDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("manual_title_input"),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = ShapeTokens.Medium,
                                     placeholder = { Text("مثلا: قسط بانک مسکن", style = MaterialTheme.typography.bodyMedium) },
                                     singleLine = true
                                 )
                             }
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                                 Text(
                                     text = "فاصله تا موعد پرداخت (روز):",
                                     style = MaterialTheme.typography.labelMedium,
@@ -1695,7 +1573,7 @@ fun ManualTransactionDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("manual_days_input"),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = ShapeTokens.Medium,
                                     placeholder = { Text("مثلا: ۳۰", style = MaterialTheme.typography.bodyMedium) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     singleLine = true
@@ -1711,7 +1589,7 @@ fun ManualTransactionDialog(
                     )
 
                     // Description text field
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                         Text(
                             text = "شرح یا توضیح تراکنش:",
                             style = MaterialTheme.typography.labelMedium,
@@ -1723,7 +1601,7 @@ fun ManualTransactionDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("manual_description_input"),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = ShapeTokens.Medium,
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.Description,
@@ -1736,17 +1614,17 @@ fun ManualTransactionDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(SpacingTokens.sm))
 
                 // Actions block
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = ShapeTokens.Medium
                     ) {
                         Text("انصراف")
                     }
@@ -1822,10 +1700,10 @@ fun ManualTransactionDialog(
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = ShapeTokens.Medium,
                         colors = ButtonDefaults.buttonColors(containerColor = typeColor)
                     ) {
-                        Text(if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش", color = Color.White)
+                        Text(if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -1878,10 +1756,10 @@ fun JalaliDateTimePicker(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(ShapeTokens.Large)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(SpacingTokens.md),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
         Text(
             text = "📅 تنظیم تاریخ و ساعت (شمسی):",
@@ -1892,24 +1770,24 @@ fun JalaliDateTimePicker(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
             // Date picker button
             OutlinedButton(
                 onClick = { showJalaliDatePicker = true },
                 modifier = Modifier
                     .weight(1.3f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
+                    .height(Dimens.ButtonHeight),
+                shape = ShapeTokens.Medium,
+                contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
             ) {
                 Icon(
                     imageVector = Icons.Default.DateRange,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(Dimens.IconSmall),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.sm))
                 Text(
                     text = jalaliDate.toString(),
                     style = MaterialTheme.typography.bodyMedium,
@@ -1922,17 +1800,17 @@ fun JalaliDateTimePicker(
                 onClick = { showCustomTimePicker = true },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
+                    .height(Dimens.ButtonHeight),
+                shape = ShapeTokens.Medium,
+                contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
             ) {
                 Icon(
                     imageVector = Icons.Default.AccessTime,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(Dimens.IconSmall),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.sm))
                 Text(
                     text = String.format("%02d:%02d", hour, minute),
                     style = MaterialTheme.typography.bodyMedium,

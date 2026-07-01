@@ -25,7 +25,24 @@ private val DarkColorScheme = darkColorScheme(
     onBackground = DarkOnBackground,
     onSurface = DarkOnSurface,
     surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkOnSurfaceVariant
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceBright = DarkSurfaceBright,
+    surfaceDim = DarkSurfaceDim,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+    inversePrimary = DarkInversePrimary,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = DarkScrim
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -42,15 +59,40 @@ private val LightColorScheme = lightColorScheme(
     onBackground = LightOnBackground,
     onSurface = LightOnSurface,
     surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = LightOnSurfaceVariant
+    onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceBright = LightSurfaceBright,
+    surfaceDim = LightSurfaceDim,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest,
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = LightInverseOnSurface,
+    inversePrimary = LightInversePrimary,
+    error = LightError,
+    onError = LightOnError,
+    errorContainer = LightErrorContainer,
+    onErrorContainer = LightOnErrorContainer,
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    scrim = LightScrim
 )
 
 @Composable
 fun HesabyarTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,
