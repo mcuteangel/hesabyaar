@@ -21,7 +21,6 @@ import java.text.DecimalFormat
 @Composable
 fun InstallmentItem(
     title: String,
-    totalAmount: Long,
     paidAmount: Long,
     remainingAmount: Long,
     dueDate: String,

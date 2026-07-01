@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -63,7 +64,7 @@ fun CategoryFilterChip(
         shape = shape,
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = categoryColor.copy(alpha = 0.15f),
-            selectedLabelColor = categoryColor
+            selectedLabelColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
         )
     )
 }

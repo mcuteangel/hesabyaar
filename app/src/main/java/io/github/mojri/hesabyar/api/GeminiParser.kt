@@ -101,7 +101,7 @@ object GeminiParser {
         return try {
             val json = JSONObject(jsonStr)
             val type = json.optString("type", TYPE_EXPENSE)
-            val amount = json.optDouble("amount", 0.0).toLong()
+            val amount = json.optLong("amount", 0L)
             val category = json.optString("category", CATEGORY_OTHER)
             val personName = json.optString("personName", null)
             val description = json.optString("description", "")

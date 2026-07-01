@@ -134,6 +134,7 @@ class BackupViewModel @Inject constructor(
 
     fun importBackupFromFile(inputStream: InputStream) {
         viewModelScope.launch {
+            operationState.value = BackupOperationState.Importing
             try {
                 val text = inputStream.bufferedReader().use { it.readText() }
                 val backup = manageBackupUseCase.parseBackupJson(text)
@@ -143,7 +144,19 @@ class BackupViewModel @Inject constructor(
                     backup.installments,
                     backup.paymentHistories
                 )
-            } catch (_: Exception) {
+                operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
+            } catch (e: IOException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
+            } catch (e: JSONException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در تجزیه فایل پشتیبان: ${e.message ?: "خطای ناشناخته"}"
+                )
+            } catch (e: Exception) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در وارد کردن پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
             }
         }
     }
