@@ -90,7 +90,6 @@ class BackupViewModelTest {
     @Test
     fun `importBackupFromFile JSONException sets Error`() = runTest {
         val badJson = "this is not json"
-        fakeRepo.importShouldThrow = IllegalStateException("won't get that far")
 
         viewModel.importBackupFromFile(ByteArrayInputStream(badJson.toByteArray()))
         testDispatcher.scheduler.advanceUntilIdle()

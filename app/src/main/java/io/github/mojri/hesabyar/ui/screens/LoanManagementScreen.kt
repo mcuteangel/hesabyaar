@@ -18,11 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.ui.LoanViewModel
@@ -38,8 +40,6 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.*
-
-private const val CANCEL_LABEL = "انصراف"
 
 @Composable
 private fun LoanTypeSelector(
@@ -57,7 +57,7 @@ private fun LoanTypeSelector(
         HesabyarButton(
             onClick = { onTypeChange("DEBTOR") },
             modifier = Modifier.weight(1f),
-            text = "من قرض دادم",
+            text = stringResource(R.string.loan_type_debtor),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
                 contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
@@ -66,7 +66,7 @@ private fun LoanTypeSelector(
         HesabyarButton(
             onClick = { onTypeChange("CREDITOR") },
             modifier = Modifier.weight(1f),
-            text = "من قرض گرفتم",
+            text = stringResource(R.string.loan_type_creditor),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
                 contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
@@ -250,7 +250,7 @@ fun LoanManagementScreen(
             dismissButton = {
                 HesabyarButton(
                     onClick = { showAddDialog = false },
-                    text = CANCEL_LABEL,
+                    text = stringResource(R.string.cancel_label),
                     variant = ButtonVariant.Text
                 )
             }
@@ -338,7 +338,7 @@ fun LoanManagementScreen(
             dismissButton = {
                 HesabyarButton(
                     onClick = { editingLoan = null },
-                    text = CANCEL_LABEL,
+                    text = stringResource(R.string.cancel_label),
                     variant = ButtonVariant.Text
                 )
             }
@@ -609,7 +609,7 @@ fun LoanListItem(
             dismissButton = {
                 HesabyarButton(
                     onClick = { showRepayDialog = false },
-                    text = CANCEL_LABEL,
+                    text = stringResource(R.string.cancel_label),
                     variant = ButtonVariant.Text
                 )
             }

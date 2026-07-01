@@ -32,7 +32,7 @@ fun CategoryFilterChip(
 ) {
     val categoryColor = category?.let { Color(it.color) } ?: Color.Gray
     val categoryInitial = category?.name?.firstOrNull()?.toString() ?: ""
-    val textColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+    val textColor = if (categoryColor.luminance() > 0.179f) Color.Black else Color.White
 
     FilterChip(
         selected = selected,

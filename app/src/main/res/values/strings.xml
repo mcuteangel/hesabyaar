@@ -2,4 +2,7 @@
     <string name="app_name">حسابیار هوشمند</string>
     <string name="expense_description_with_subject">%1$s (%2$s)</string>
     <string name="expense_description_miscellaneous">هزینه متفرقه (%1$s)</string>
+    <string name="cancel_label">انصراف</string>
+    <string name="loan_type_debtor">من قرض دادم</string>
+    <string name="loan_type_creditor">من قرض گرفتم</string>
 </resources>
