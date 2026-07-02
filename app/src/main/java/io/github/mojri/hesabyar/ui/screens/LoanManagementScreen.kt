@@ -223,7 +223,8 @@ fun LoanManagementScreen(
                     HesabyarInputField(
                         value = description,
                         onValueChange = { description = it },
-                        label = "توضیحات و بابت چی..."
+                        label = "توضیحات و بابت چی...",
+                        singleLine = false
                     )
 
                     JalaliDateTimePicker(
@@ -303,7 +304,8 @@ fun LoanManagementScreen(
                     HesabyarInputField(
                         value = description,
                         onValueChange = { description = it },
-                        label = "توضیحات و بابت چی..."
+                        label = "توضیحات و بابت چی...",
+                        singleLine = false
                     )
 
                     JalaliDateTimePicker(
@@ -582,7 +584,8 @@ fun LoanListItem(
                     HesabyarInputField(
                         value = repayNotes,
                         onValueChange = { repayNotes = it },
-                        label = "توضیحات (مثلا نقدی یا کارت به کارت)"
+                        label = "توضیحات (مثلا نقدی یا کارت به کارت)",
+                        singleLine = false
                     )
 
                     JalaliDateTimePicker(

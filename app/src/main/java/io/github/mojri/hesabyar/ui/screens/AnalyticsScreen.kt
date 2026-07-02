@@ -492,7 +492,7 @@ private fun DebtCreditSummaryCard(
                     text = formatToman(totalAmount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else FinancialColors.ExpenseRed
+                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else if (items.first().type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
                 )
             }
 
@@ -529,7 +529,7 @@ private fun DebtCreditSummaryCard(
                             Text(
                                 text = formatToman(item.remainingAmount),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = FinancialColors.ExpenseRed
+                                color = if (item.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
                             )
                         }
 

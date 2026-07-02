@@ -1,7 +1,9 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 enum class ButtonVariant {
     Filled, Outlined, Text
@@ -90,6 +93,9 @@ private fun ButtonContent(
             )
         }
         text?.let {
+            if (icon != null) {
+                Spacer(modifier = Modifier.width(SpacingTokens.xs))
+            }
             Text(text = it)
         }
     }

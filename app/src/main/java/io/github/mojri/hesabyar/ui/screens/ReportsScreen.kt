@@ -32,6 +32,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
@@ -160,7 +161,7 @@ fun ReportsScreen(
                     HesabyarButton(
                         onClick = { showStartPicker = true },
                         modifier = Modifier.weight(1f),
-                        text = "از تاریخ",
+                        text = "از ${JalaliCalendarHelper.gregorianToJalali(startDate)}",
                         icon = Icons.Default.DateRange,
                         variant = ButtonVariant.Outlined
                     )
@@ -168,7 +169,7 @@ fun ReportsScreen(
                     HesabyarButton(
                         onClick = { showEndPicker = true },
                         modifier = Modifier.weight(1f),
-                        text = "تا تاریخ",
+                        text = "تا ${JalaliCalendarHelper.gregorianToJalali(endDate)}",
                         icon = Icons.Default.DateRange,
                         variant = ButtonVariant.Outlined
                     )

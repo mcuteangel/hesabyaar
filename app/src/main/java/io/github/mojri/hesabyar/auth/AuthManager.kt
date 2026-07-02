@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.auth
 
 import android.content.Context
+import io.github.mojri.hesabyar.core.AppLogger
 import android.os.Handler
 import android.os.Looper
 import androidx.fragment.app.FragmentActivity
@@ -29,11 +30,11 @@ class AuthManager @Inject constructor() {
             activity = activity,
             onSuccess = { unlock() },
             onError = { errorMsg ->
-                android.util.Log.e("AuthManager", "Biometric authentication error: $errorMsg")
+                AppLogger.e("AuthManager", "Biometric authentication error: $errorMsg")
                 onError?.invoke(errorMsg)
             },
             onFailed = {
-                android.util.Log.w("AuthManager", "Biometric authentication failed")
+                AppLogger.w("AuthManager", "Biometric authentication failed")
                 onFailed?.invoke()
             }
         )

@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -100,6 +101,8 @@ class MainActivity : FragmentActivity() {
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
+                        var showMoreMenu by remember { mutableStateOf(false) }
+
                         Scaffold(
                             modifier = Modifier.fillMaxSize(),
                             bottomBar = {
@@ -111,10 +114,7 @@ class MainActivity : FragmentActivity() {
                                         Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
                                         Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
                                         Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
-                                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
-                                        Triple("ANALYTICS", "تحلیل و آمار", Icons.Filled.BarChart),
-                                        Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
-                                        Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
+                                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard)
                                     )
 
                                     tabs.forEach { (tabId, label, icon) ->
@@ -130,6 +130,19 @@ class MainActivity : FragmentActivity() {
                                             )
                                         )
                                     }
+
+                                    // More menu for less frequent actions
+                                    NavigationBarItem(
+                                        selected = showMoreMenu,
+                                        onClick = { showMoreMenu = true },
+                                        icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = "بیشتر") },
+                                        label = { Text("بیشتر", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        )
+                                    )
                                 }
                             }
                         ) { innerPadding ->
@@ -182,6 +195,40 @@ class MainActivity : FragmentActivity() {
                                     onNavigateToCategories = { showCategoryManagement = true },
                                     modifier = modifier
                                 )
+                            }
+
+                            // More options bottom sheet
+                            if (showMoreMenu) {
+                                @OptIn(ExperimentalMaterial3Api::class)
+                                ModalBottomSheet(
+                                    onDismissRequest = { showMoreMenu = false }
+                                ) {
+                                    ListItem(
+                                        headlineContent = { Text("تحلیل و آمار") },
+                                        leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                                        modifier = Modifier.clickable {
+                                            showMoreMenu = false
+                                            currentTab = "ANALYTICS"
+                                        }
+                                    )
+                                    ListItem(
+                                        headlineContent = { Text("گزارش‌ها") },
+                                        leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
+                                        modifier = Modifier.clickable {
+                                            showMoreMenu = false
+                                            currentTab = "REPORTS"
+                                        }
+                                    )
+                                    ListItem(
+                                        headlineContent = { Text("تنظیمات") },
+                                        leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                                        modifier = Modifier.clickable {
+                                            showMoreMenu = false
+                                            currentTab = "SETTINGS"
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.height(32.dp))
+                                }
                             }
                         }
                         }

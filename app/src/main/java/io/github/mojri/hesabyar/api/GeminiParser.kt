@@ -97,15 +97,16 @@ object GeminiParser {
         }
     }
 
-    private fun parseJsonResultOffline(jsonStr: String): ParsedResult? {
+    internal fun parseJsonResultOffline(jsonStr: String): ParsedResult? {
         return try {
             val json = JSONObject(jsonStr)
             val type = json.optString("type", TYPE_EXPENSE)
             val amount = json.optLong("amount", 0L)
+            if (amount <= 0L) return null
             val category = json.optString("category", CATEGORY_OTHER)
             val personName = json.optString("personName", null)
             val description = json.optString("description", "")
-            val daysFromNow = json.optInt("daysFromNow", 0).let { if (json.has("daysFromNow")) it else null }
+            val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) json.optInt("daysFromNow", 30) else null
             val title = json.optString("title", null)
             val dateOffsetDays = json.optInt("dateOffsetDays", 0)
             val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }

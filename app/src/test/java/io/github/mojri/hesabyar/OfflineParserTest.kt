@@ -629,4 +629,133 @@ class OfflineParserTest {
         assertEquals("Food", result.category)
         assertTrue("Description should include subject in parentheses", result.description.contains("(") && result.description.contains(")"))
     }
+
+    // ============================================================
+    // parseJsonResultOffline tests
+    // ============================================================
+
+    @Test
+    fun `parseJsonResultOffline - valid expense JSON`() {
+        val json = """{"type":"EXPENSE","amount":5000000,"category":"Food","description":"مرغ","personName":null,"dateOffsetDays":0}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals("EXPENSE", result!!.type)
+        assertEquals(5_000_000L, result.amount)
+        assertEquals("Food", result.category)
+        assertEquals("مرغ", result.description)
+        assertNull(result.personName)
+        assertEquals(0, result.dateOffsetDays)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - valid income JSON`() {
+        val json = """{"type":"INCOME","amount":20000000,"category":"Income","description":"حقوق","personName":null,"dateOffsetDays":0}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals("INCOME", result!!.type)
+        assertEquals(20_000_000L, result.amount)
+        assertEquals("Income", result.category)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - valid loan with personName`() {
+        val json = """{"type":"LOAN_CREDITOR","amount":10000000,"category":"Loans","description":"قرض به علی","personName":"علی","dateOffsetDays":0}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals("LOAN_CREDITOR", result!!.type)
+        assertEquals("علی", result.personName)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - valid installment`() {
+        val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط ماشین","personName":null,"dateOffsetDays":0,"daysFromNow":30,"title":"قسط ماشین","notes":"قسط در انتظار پرداخت"}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals("INSTALLMENT", result!!.type)
+        assertEquals(3_000_000L, result.amount)
+        assertEquals("قسط ماشین", result.title)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - valid with confidence`() {
+        val json = """{"type":"EXPENSE","amount":1000000,"category":"Food","description":"نان","confidence":0.95}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals(0.95f, result!!.confidence, 0.01f)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - valid with categoryAlias`() {
+        val json = """{"type":"EXPENSE","amount":500000,"category":"Other","description":"test","categoryAlias":"تست"}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals("تست", result!!.categoryAlias)
+    }
+
+    @Test
+    fun `parseJsonResultOffline - null input returns null`() {
+        assertNull(GeminiParser.parseJsonResultOffline("null"))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - empty string returns null`() {
+        assertNull(GeminiParser.parseJsonResultOffline(""))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - malformed JSON returns null`() {
+        assertNull(GeminiParser.parseJsonResultOffline("{invalid json"))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - missing required fields returns null`() {
+        assertNull(GeminiParser.parseJsonResultOffline("""{"type":"EXPENSE"}"""))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - random text returns null`() {
+        assertNull(GeminiParser.parseJsonResultOffline("just some text"))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - zero amount returns null`() {
+        val json = """{"type":"EXPENSE","amount":0,"category":"Food","description":"test"}"""
+        assertNull(GeminiParser.parseJsonResultOffline(json))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - negative amount returns null`() {
+        val json = """{"type":"EXPENSE","amount":-5000,"category":"Food","description":"test"}"""
+        assertNull(GeminiParser.parseJsonResultOffline(json))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - missing amount returns null`() {
+        val json = """{"type":"EXPENSE","category":"Food","description":"test"}"""
+        assertNull(GeminiParser.parseJsonResultOffline(json))
+    }
+
+    @Test
+    fun `parseJsonResultOffline - null daysFromNow returns null`() {
+        val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":null}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertNull(result!!.daysFromNow, "Null JSON null should be null, not 0")
+    }
+
+    @Test
+    fun `parseJsonResultOffline - missing daysFromNow returns null`() {
+        val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط"}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertNull(result!!.daysFromNow, "Missing key should be null")
+    }
+
+    @Test
+    fun `parseJsonResultOffline - daysFromNow zero is preserved`() {
+        val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":0}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertEquals(0, result!!.daysFromNow)
+    }
 }

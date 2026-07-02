@@ -122,7 +122,7 @@ fun InstallmentScreen(
                         imageVector = Icons.Filled.CreditCard,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                        modifier = Modifier.size(Dimens.IconLarge)
+                        modifier = Modifier.size(Dimens.AvatarLarge)
                     )
                     Text(
                         text = when (listFilterState) {
@@ -209,7 +209,8 @@ fun InstallmentScreen(
                     HesabyarInputField(
                         value = notes,
                         onValueChange = { notes = it },
-                        label = "شرح و یادداشت اضافی"
+                        label = "شرح و یادداشت اضافی",
+                        singleLine = false
                     )
                 }
             },

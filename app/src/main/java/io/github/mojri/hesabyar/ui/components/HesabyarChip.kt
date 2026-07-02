@@ -13,8 +13,8 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 fun HesabyarChip(
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
     label: String,
+    modifier: Modifier = Modifier,
     leadingIcon: @Composable (() -> Unit)? = null,
     enabled: Boolean = true,
     shape: Shape = ShapeTokens.Medium

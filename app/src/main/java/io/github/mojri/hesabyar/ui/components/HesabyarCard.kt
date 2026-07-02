@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -19,7 +19,7 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 fun HesabyarCard(
     modifier: Modifier = Modifier,
     shape: Shape = ShapeTokens.Large,
-    elevation: Dp = SpacingTokens.xs,
+    elevation: Dp = ElevationTokens.lg,
     cardColors: androidx.compose.material3.CardColors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     ),
