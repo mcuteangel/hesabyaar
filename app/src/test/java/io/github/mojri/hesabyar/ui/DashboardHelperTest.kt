@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
+import io.github.mojri.hesabyar.ui.screens.extractForecastPreview
 import io.github.mojri.hesabyar.ui.screens.formatToman
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,29 +12,6 @@ import org.junit.Test
  * - extractForecastPreview: extracts preview text from markdown forecast
  */
 class DashboardHelperTest {
-
-    // Replicate extractForecastPreview logic from DashboardScreen
-    private fun extractForecastPreview(forecast: String): String {
-        val lines = forecast.lines()
-        val contentLines = lines.filter { line ->
-            val trimmed = line.trim()
-            trimmed.isNotEmpty() && !trimmed.startsWith("#")
-        }.map { line ->
-            line.trim().removePrefix("-").removePrefix("*").trim()
-        }.filter { it.isNotEmpty() }
-
-        if (contentLines.isEmpty()) return "گزارش آماده است"
-
-        val preview = contentLines.take(3).joinToString(" | ") { line ->
-            if (line.length > 60) line.substring(0, 60).substringBeforeLast(" ") + "..." else line
-        }
-
-        return if (preview.length > 150) {
-            preview.substring(0, 150).substringBeforeLast(" ") + "..."
-        } else {
-            preview
-        }
-    }
 
     // --- formatToman tests ---
 

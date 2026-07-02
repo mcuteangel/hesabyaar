@@ -810,7 +810,7 @@ if (showFullForecast) {
 }
 }
 
-private fun extractForecastPreview(forecast: String): String {
+internal fun extractForecastPreview(forecast: String): String {
     val lines = forecast.lines()
     val contentLines = lines.filter { line ->
         val trimmed = line.trim()
