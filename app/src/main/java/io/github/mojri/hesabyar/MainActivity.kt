@@ -178,6 +178,7 @@ class MainActivity : FragmentActivity() {
                                 )
                                 "ANALYTICS" -> AnalyticsScreen(
                                     analyticsViewModel = analyticsViewModel,
+                                    settingsViewModel = settingsViewModel,
                                     modifier = modifier
                                 )
                                 "REPORTS" -> ReportsScreen(
@@ -186,6 +187,7 @@ class MainActivity : FragmentActivity() {
                                     loanViewModel = loanViewModel,
                                     installmentViewModel = installmentViewModel,
                                     aiAssistantViewModel = aiAssistantViewModel,
+                                    settingsViewModel = settingsViewModel,
                                     modifier = modifier
                                 )
                                 "SETTINGS" -> SettingsScreen(

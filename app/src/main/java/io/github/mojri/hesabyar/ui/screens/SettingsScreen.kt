@@ -340,6 +340,33 @@ AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروج�
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
+                // Currency unit selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+                    ) {
+                        Icon(imageVector = Icons.Filled.AttachMoney, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text("واحد پول", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+                        val currentUnit = settingsViewModel.currencyUnit.value
+                        listOf("تومان", "ریال").forEach { unit ->
+                            FilterChip(
+                                selected = currentUnit == unit,
+                                onClick = { settingsViewModel.setCurrencyUnit(unit) },
+                                label = { Text(unit) }
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
                 ReminderSettingsSection(settingsViewModel = settingsViewModel)
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)

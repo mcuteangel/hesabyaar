@@ -28,6 +28,7 @@ import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.ui.LoanViewModel
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
@@ -82,6 +83,7 @@ fun LoanManagementScreen(
     modifier: Modifier = Modifier
 ) {
     val loans by loanViewModel.loans.collectAsState()
+
     var showAddDialog by remember { mutableStateOf(false) }
     var editingLoan by remember { mutableStateOf<Loan?>(null) }
     var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
@@ -238,7 +240,7 @@ fun LoanManagementScreen(
                     onClick = {
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
-                            val amountRial = amountToman * 1000L
+                            val amountRial = CurrencyFormatter.toRial(amountToman)
                             loanViewModel.addLoan(personName, loanType, amountRial, description, customDate)
                             showAddDialog = false
                         } else {
@@ -263,7 +265,7 @@ fun LoanManagementScreen(
         val loan = editingLoan!!
         var personName by remember { mutableStateOf(loan.personName) }
         var loanType by remember { mutableStateOf(loan.type) }
-        var amountText by remember { mutableStateOf((loan.originalAmount / 1000).toString()) }
+        var amountText by remember { mutableStateOf(CurrencyFormatter.fromRial(loan.originalAmount).toString()) }
         var description by remember { mutableStateOf(loan.description) }
         var customDate by remember { mutableStateOf(loan.date) }
 
@@ -319,7 +321,7 @@ fun LoanManagementScreen(
                     onClick = {
                         val amountToman = amountText.toLongOrNull() ?: 0L
                         if (personName.isNotBlank() && amountToman > 0L) {
-                            val amountRial = amountToman * 1000L
+                            val amountRial = CurrencyFormatter.toRial(amountToman)
                             loanViewModel.updateLoan(
                                 loan.copy(
                                     personName = personName,
@@ -412,13 +414,13 @@ fun LoanListItem(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "مانده: " + formatToman(loan.remainingAmount),
+                        text = "مانده: " + CurrencyFormatter.format(loan.remainingAmount),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = statusColor
                     )
                     Text(
-                        text = "کل: " + formatToman(loan.originalAmount),
+                        text = "کل: " + CurrencyFormatter.format(loan.originalAmount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -492,7 +494,7 @@ fun LoanListItem(
                             ) {
                                 Column {
                                     Text(
-                                        text = formatToman(pm.amount),
+                                        text = CurrencyFormatter.format(pm.amount),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = statusColor
@@ -599,7 +601,7 @@ fun LoanListItem(
                     onClick = {
                         val amountToman = repayAmount.toLongOrNull() ?: 0L
                         if (amountToman > 0L) {
-                            val amountRial = amountToman * 1000L
+                            val amountRial = CurrencyFormatter.toRial(amountToman)
                             loanViewModel.makeRepayment(loan.id, amountRial, repayNotes, repayDate)
                             showRepayDialog = false
                         } else {

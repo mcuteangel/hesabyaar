@@ -36,6 +36,7 @@ import io.github.mojri.hesabyar.data.Category
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
@@ -62,6 +63,7 @@ fun SmartAssistantScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
     var activeTab by remember { mutableStateOf(0) } // 0 = Smart Registration, 1 = Budget Advice
     var inputText by remember { mutableStateOf("") }
     val parserState by aiAssistantViewModel.parserState.collectAsState()
@@ -102,7 +104,7 @@ fun SmartAssistantScreen(
         val confirmingState = parserState as ParserUIState.Confirming
         ConfirmationDialog(
             result = confirmingState.result,
-            onConfirm = { 
+            onConfirm = {
                 aiAssistantViewModel.confirmParsedResult(confirmingState.result)
             },
             onCancel = { aiAssistantViewModel.clearParserState() }
@@ -689,10 +691,10 @@ fun ParsedResultCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    
+
     // States for interactive editing
     var amountValue by remember(result) {
-        val text = (result.amount / 1000).toString()
+        val text = CurrencyFormatter.fromRial(result.amount).toString()
         mutableStateOf(TextFieldValue(text = text, selection = TextRange(text.length)))
     }
     var descriptionText by remember(result) { mutableStateOf(result.description) }
@@ -701,7 +703,7 @@ fun ParsedResultCard(
     var personNameText by remember(result) { mutableStateOf(result.personName.orEmpty()) }
     var titleText by remember(result) { mutableStateOf(result.title.orEmpty()) }
     var daysFromNowText by remember(result) { mutableStateOf(result.daysFromNow?.toString() ?: "30") }
-    
+
     var customDate by remember(result) {
         val finalCal = Calendar.getInstance()
         val offsetDays = if (result.daysFromNow != null && result.daysFromNow != 0) {
@@ -718,7 +720,7 @@ fun ParsedResultCard(
         }
         mutableStateOf(finalCal.timeInMillis)
     }
-    
+
     val filteredCategories = categories.filter { cat ->
         when (selectedType) {
             "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
@@ -726,7 +728,7 @@ fun ParsedResultCard(
             else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
         }
     }
-    
+
     val typeColor = when (selectedType) {
         "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
         "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
@@ -755,7 +757,7 @@ fun ParsedResultCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
+
                 IconButton(
                     onClick = onCancel,
                     modifier = Modifier.size(Dimens.IconLarge)
@@ -797,7 +799,7 @@ fun ParsedResultCard(
                     )
                 }
             }
-            
+
             // Notes Display (if exists)
             if (!result.notes.isNullOrBlank()) {
                 HesabyarCard(
@@ -897,9 +899,9 @@ fun ParsedResultCard(
                 // Formatted Amount preview in Persian words
                 val amtToman = amountValue.text.toLongOrNull() ?: 0L
                 if (amtToman > 0L) {
-                    val amtRial = amtToman * 1000L
+                    val amtRial = CurrencyFormatter.toRial(amtToman)
                     Text(
-                        text = "معادل: ${formatToman(amtRial)}",
+                        text = "معادل: ${CurrencyFormatter.format(amtRial)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = typeColor,
                         fontWeight = FontWeight.Bold,
@@ -1030,21 +1032,21 @@ fun ParsedResultCard(
                             android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                             return@HesabyarButton
                         }
-                        
+
                         val finalDaysFromNow = if (selectedType == "INSTALLMENT") daysFromNowText.toIntOrNull() else null
                         val finalPersonName = if (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") personNameText.trim() else null
                         val finalTitle = if (selectedType == "INSTALLMENT") titleText.trim() else null
 
                         val updatedResult = ParsedResult(
                             type = selectedType,
-                            amount = finalAmountToman * 1000L,
+                            amount = CurrencyFormatter.toRial(finalAmountToman),
                             category = selectedCategoryKey,
                             personName = if (finalPersonName.isNullOrBlank()) null else finalPersonName,
                             description = descriptionText.ifBlank { "ثبت دستیار هوشمند" },
                             daysFromNow = finalDaysFromNow,
                             title = if (finalTitle.isNullOrBlank()) null else finalTitle
                         )
-                        
+
                         onApprove(updatedResult, customDate)
                     },
                     modifier = Modifier.weight(1.3f),
@@ -1069,7 +1071,7 @@ fun ConfirmationDialog(
         result.confidence >= 0.7f -> FinancialColors.WarningOrange
         else -> FinancialColors.ExpenseRed
     }
-    
+
     val typeLabel = when (result.type) {
         "EXPENSE" -> "هزینه"
         "INCOME" -> "درآمد"
@@ -1078,7 +1080,7 @@ fun ConfirmationDialog(
         "INSTALLMENT" -> "قسط"
         else -> result.type
     }
-    
+
     AlertDialog(
         onDismissRequest = onCancel,
         title = {
@@ -1117,7 +1119,7 @@ fun ConfirmationDialog(
                         )
                     }
                 }
-                
+
                 // Transaction Type
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1126,7 +1128,7 @@ fun ConfirmationDialog(
                     Text("نوع:", style = MaterialTheme.typography.bodyMedium)
                     Text(typeLabel, fontWeight = FontWeight.Bold)
                 }
-                
+
                 // Amount
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1134,12 +1136,12 @@ fun ConfirmationDialog(
                 ) {
                     Text("مبلغ:", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = formatToman(result.amount),
+                        text = CurrencyFormatter.format(result.amount),
                         fontWeight = FontWeight.Bold,
                         color = if (result.type == "INCOME") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                     )
                 }
-                
+
                 // Category
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1148,7 +1150,7 @@ fun ConfirmationDialog(
                     Text("دسته:", style = MaterialTheme.typography.bodyMedium)
                     Text(result.category, fontWeight = FontWeight.Bold)
                 }
-                
+
                 // Description
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1157,7 +1159,7 @@ fun ConfirmationDialog(
                     Text("شرح:", style = MaterialTheme.typography.bodyMedium)
                     Text(result.description, fontWeight = FontWeight.Bold)
                 }
-                
+
                 // Person Name (if exists)
                 if (!result.personName.isNullOrBlank()) {
                     Row(
@@ -1168,7 +1170,7 @@ fun ConfirmationDialog(
                         Text(result.personName, fontWeight = FontWeight.Bold)
                     }
                 }
-                
+
                 // Notes (if exists)
                 if (!result.notes.isNullOrBlank()) {
                     HesabyarCard(
@@ -1182,7 +1184,7 @@ fun ConfirmationDialog(
                         )
                     }
                 }
-                
+
                 // Warning for low confidence
                 if (result.confidence < 0.7f) {
                     HesabyarCard(

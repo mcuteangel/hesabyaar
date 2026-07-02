@@ -35,9 +35,11 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 @Composable
 fun AnalyticsScreen(
     analyticsViewModel: AnalyticsViewModel,
+    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
     val analyticsData by analyticsViewModel.analyticsData.collectAsState()
+
 
     LazyColumn(
         modifier = modifier
@@ -178,7 +180,7 @@ private fun MonthlyTrendCard(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = formatToman(getValue(item)),
+                                text = CurrencyFormatter.format(getValue(item)),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = color
@@ -408,7 +410,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
                             )
                         }
                         Text(
-                            text = "${(item.percentage * 100).toInt()}٪ | ${formatToman(item.total)}",
+                            text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -489,7 +491,7 @@ private fun DebtCreditSummaryCard(
                     )
                 }
                 Text(
-                    text = formatToman(totalAmount),
+                    text = CurrencyFormatter.format(totalAmount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else if (items.first().type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
@@ -527,7 +529,7 @@ private fun DebtCreditSummaryCard(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = formatToman(item.remainingAmount),
+                                text = CurrencyFormatter.format(item.remainingAmount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (item.type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                             )
@@ -553,7 +555,7 @@ private fun DebtCreditSummaryCard(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                             Text(
-                                text = "اصل: ${formatToman(item.originalAmount)}",
+                                text = "اصل: ${CurrencyFormatter.format(item.originalAmount)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -636,12 +638,12 @@ private fun LoanStatusCard(loans: List<Loan>) {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "باقیمانده: ${formatToman(loan.remainingAmount)}",
+                                text = "باقیمانده: ${CurrencyFormatter.format(loan.remainingAmount)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                             Text(
-                                text = "اصل: ${formatToman(loan.originalAmount)}",
+                                text = "اصل: ${CurrencyFormatter.format(loan.originalAmount)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -734,7 +736,7 @@ private fun InstallmentProgressCard(
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = formatToman(inst.amount),
+                                text = CurrencyFormatter.format(inst.amount),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = FinancialColors.ExpenseRed
                             )

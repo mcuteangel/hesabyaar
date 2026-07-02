@@ -369,7 +369,12 @@ ${allRows.joinToString("\n")}
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-    private fun formatAmount(value: Long): String = "${value / 1000} تومان"
+    private fun formatAmount(value: Long): String {
+        val unit = context.getSharedPreferences("hesabyar_prefs", android.content.Context.MODE_PRIVATE)
+            .getString("currency_unit", "تومان") ?: "تومان"
+        val displayValue = if (unit == "ریال") value else value / 1000
+        return "$displayValue $unit"
+    }
 
     private fun formatDate(timestamp: Long): String =
         SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.US).format(Date(timestamp))

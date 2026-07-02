@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import io.github.mojri.hesabyar.ui.ForecastUIState
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,12 +101,6 @@ private val CATEGORY_ICONS_MAP = mapOf(
     "CleaningServices" to Icons.Filled.CleaningServices
 )
 
-fun formatToman(value: Long): String {
-    val tomanValue = value / 1000
-    val formatter = DecimalFormat("#,###")
-    return "${formatter.format(tomanValue)} تومان"
-}
-
 fun formatPersianDate(timestamp: Long): String {
     val jalali = JalaliCalendarHelper.gregorianToJalali(timestamp)
     val cal = Calendar.getInstance()
@@ -133,6 +128,7 @@ fun DashboardScreen(
     val categories by dashboardViewModel.categories.collectAsState()
     val forecastState by aiAssistantViewModel.forecastState.collectAsState()
     val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
+
     var showManualAddDialog by remember { mutableStateOf(false) }
     var showFullForecast by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -365,7 +361,7 @@ fun DashboardScreen(
                             )
                         }
                         Text(
-                            text = formatToman(dashboardData.monthlyIncome),
+                            text = CurrencyFormatter.format(dashboardData.monthlyIncome),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = FinancialColors.IncomeGreen,
@@ -406,7 +402,7 @@ fun DashboardScreen(
                             )
                         }
                         Text(
-                            text = formatToman(dashboardData.monthlyExpenses),
+                            text = CurrencyFormatter.format(dashboardData.monthlyExpenses),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = FinancialColors.ExpenseRed,
@@ -560,7 +556,7 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.height(SpacingTokens.lg))
                         Text(
-                            text = formatToman(dashboardData.debtorsTotal),
+                            text = CurrencyFormatter.format(dashboardData.debtorsTotal),
                             style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -608,7 +604,7 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.height(SpacingTokens.lg))
                         Text(
-                            text = formatToman(dashboardData.creditorsTotal),
+                            text = CurrencyFormatter.format(dashboardData.creditorsTotal),
                             style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -873,7 +869,7 @@ fun InstallmentMiniItem(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "سررسید: ${formatPersianDate(installment.dueDate)} | ${formatToman(installment.amount)}",
+                        text = "سررسید: ${formatPersianDate(installment.dueDate)} | ${CurrencyFormatter.format(installment.amount)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -955,7 +951,7 @@ fun TransactionMiniItem(transaction: Transaction, categories: List<Category> = e
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = (if (isIncome) "+" else "-") + formatToman(transaction.amount),
+                    text = (if (isIncome) "+" else "-") + CurrencyFormatter.format(transaction.amount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
@@ -1168,7 +1164,7 @@ fun TransactionDetailDialog(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Text(
-                        text = formatToman(transaction.amount),
+                        text = CurrencyFormatter.format(transaction.amount),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
@@ -1301,7 +1297,7 @@ fun ManualTransactionDialog(
     val context = LocalContext.current
     val isEditMode = transactionToEdit != null
     var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
-    var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) (transactionToEdit!!.amount / 1000).toString() else "")) }
+    var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit!!.amount).toString() else "")) }
     var descriptionText by remember { mutableStateOf(transactionToEdit?.description.orEmpty()) }
     var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
     var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
@@ -1463,11 +1459,11 @@ fun ManualTransactionDialog(
                             amountValue = amountValue,
                             onValueChanged = { amountValue = it }
                         )
-                        val amtToman = amountValue.text.toLongOrNull() ?: 0L
-                        if (amtToman > 0L) {
-                            val amtRial = amtToman * 1000L
+                        val amtDisplay = amountValue.text.toLongOrNull() ?: 0L
+                        if (amtDisplay > 0L) {
+                            val amtRial = CurrencyFormatter.toRial(amtDisplay)
                             Text(
-                                text = "معادل: ${formatToman(amtRial)}",
+                                text = "معادل: ${CurrencyFormatter.format(amtRial)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = typeColor,
                                 fontWeight = FontWeight.Bold,
@@ -1631,12 +1627,12 @@ fun ManualTransactionDialog(
 
                     Button(
                         onClick = {
-                            val finalAmountToman = amountValue.text.toLongOrNull() ?: 0L
-                            if (finalAmountToman <= 0L) {
+                            val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
+                            if (finalAmountDisplay <= 0L) {
                                 android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            val finalAmountRial = finalAmountToman * 1000L
+                            val finalAmountRial = CurrencyFormatter.toRial(finalAmountDisplay)
 
                             if ((selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L) {
                                 android.widget.Toast.makeText(context, "لطفا دسته‌بندی را انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()

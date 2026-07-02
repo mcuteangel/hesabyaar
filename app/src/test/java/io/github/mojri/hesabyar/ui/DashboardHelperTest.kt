@@ -1,44 +1,61 @@
 package io.github.mojri.hesabyar.ui
 
 import io.github.mojri.hesabyar.ui.screens.extractForecastPreview
-import io.github.mojri.hesabyar.ui.screens.formatToman
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Tests the free helper functions extracted from DashboardScreen:
- * - formatToman: converts rial to toman (÷1000) with formatting
+ * - CurrencyFormatter.format: converts rial to display unit
  * - extractForecastPreview: extracts preview text from markdown forecast
  */
 class DashboardHelperTest {
 
-    // --- formatToman tests ---
+    // --- CurrencyFormatter.format tests (default: تومان) ---
 
     @Test
-    fun `formatToman converts rial to toman`() {
-        assertEquals("100 تومان", formatToman(100_000L))
+    fun `format converts rial to toman`() {
+        CurrencyFormatter.setUnit("تومان")
+        assertEquals("100 تومان", CurrencyFormatter.format(100_000L))
     }
 
     @Test
-    fun `formatToman large amount`() {
-        assertEquals("5,000 تومان", formatToman(5_000_000L))
+    fun `format large amount toman`() {
+        CurrencyFormatter.setUnit("تومان")
+        assertEquals("5,000 تومان", CurrencyFormatter.format(5_000_000L))
     }
 
     @Test
-    fun `formatToman zero`() {
-        assertEquals("0 تومان", formatToman(0L))
+    fun `format zero toman`() {
+        CurrencyFormatter.setUnit("تومان")
+        assertEquals("0 تومان", CurrencyFormatter.format(0L))
     }
 
     @Test
-    fun `formatToman small amount rounds down`() {
-        // 500 rial / 1000 = 0.5 → integer truncation = 0
-        assertEquals("0 تومان", formatToman(500L))
+    fun `format small amount toman rounds down`() {
+        CurrencyFormatter.setUnit("تومان")
+        assertEquals("0 تومان", CurrencyFormatter.format(500L))
     }
 
     @Test
-    fun `formatToman very large amount`() {
-        assertEquals("1,234,567 تومان", formatToman(1_234_567_890L))
+    fun `format very large amount toman`() {
+        CurrencyFormatter.setUnit("تومان")
+        assertEquals("1,234,567 تومان", CurrencyFormatter.format(1_234_567_890L))
+    }
+
+    // --- CurrencyFormatter.format tests (ریال) ---
+
+    @Test
+    fun `format keeps rial value unchanged`() {
+        CurrencyFormatter.setUnit("ریال")
+        assertEquals("100,000 ریال", CurrencyFormatter.format(100_000L))
+    }
+
+    @Test
+    fun `format large amount rial`() {
+        CurrencyFormatter.setUnit("ریال")
+        assertEquals("5,000,000 ریال", CurrencyFormatter.format(5_000_000L))
     }
 
     // --- extractForecastPreview tests ---
@@ -88,11 +105,9 @@ class DashboardHelperTest {
 
     @Test
     fun `extractForecastPreview truncates total preview at 150 chars`() {
-        // 3 lines each ~55 chars, joined by " | " → ~170 total, exceeding 150-char limit
-        val line1 = "a".repeat(55) // 55 chars
-        val line2 = "b".repeat(55) // 55 chars
-        val line3 = "c".repeat(55) // 55 chars
-        // total before truncation: 55 + 3 + 55 + 3 + 55 = 171
+        val line1 = "a".repeat(55)
+        val line2 = "b".repeat(55)
+        val line3 = "c".repeat(55)
         val forecast = "$line1\n$line2\n$line3"
         val preview = extractForecastPreview(forecast)
         assertTrue("Total preview <= 153 (150 + ...)", preview.length <= 153)
