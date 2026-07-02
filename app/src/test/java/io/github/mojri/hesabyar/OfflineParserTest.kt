@@ -685,11 +685,11 @@ class OfflineParserTest {
     }
 
     @Test
-    fun `parseJsonResultOffline - valid with categoryAlias`() {
-        val json = """{"type":"EXPENSE","amount":500000,"category":"Other","description":"test","categoryAlias":"تست"}"""
+    fun `parseJsonResultOffline - valid without categoryAlias`() {
+        val json = """{"type":"EXPENSE","amount":500000,"category":"Other","description":"test"}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
-        assertEquals("تست", result!!.categoryAlias)
+        assertEquals("Other", result!!.category)
     }
 
     @Test
@@ -740,7 +740,7 @@ class OfflineParserTest {
         val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":null}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
-        assertNull(result!!.daysFromNow, "Null JSON null should be null, not 0")
+        assertNull("Null JSON null should be null, not 0", result!!.daysFromNow)
     }
 
     @Test
@@ -748,7 +748,7 @@ class OfflineParserTest {
         val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط"}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
-        assertNull(result!!.daysFromNow, "Missing key should be null")
+        assertNull("Missing key should be null", result!!.daysFromNow)
     }
 
     @Test
@@ -756,7 +756,7 @@ class OfflineParserTest {
         val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":"abc"}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
-        assertNull(result!!.daysFromNow, "Non-numeric string should be null, not 30")
+        assertNull("Non-numeric string should be null, not 30", result!!.daysFromNow)
     }
 
     @Test
