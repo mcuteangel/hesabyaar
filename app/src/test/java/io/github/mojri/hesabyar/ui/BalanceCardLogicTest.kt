@@ -39,16 +39,6 @@ class BalanceCardLogicTest {
     }
 
     @Test
-    fun `income shown in green`() {
-        assertEquals(FinancialColors.IncomeGreen, FinancialColors.IncomeGreen)
-    }
-
-    @Test
-    fun `expense shown in red`() {
-        assertEquals(FinancialColors.ExpenseRed, FinancialColors.ExpenseRed)
-    }
-
-    @Test
     fun `gradient starts with PurpleAccent at 0_2 alpha`() {
         val gradientStart = FinancialColors.PurpleAccent.copy(alpha = 0.2f)
         assertEquals(0.2f, gradientStart.alpha, 0.001f)
@@ -75,17 +65,4 @@ class BalanceCardLogicTest {
         assertEquals(false, onClick != null)
     }
 
-    @Test
-    fun `income and expense labels exist`() {
-        val incomeLabel = "درآمد"
-        val expenseLabel = "هزینه"
-        assertEquals("درآمد", incomeLabel)
-        assertEquals("هزینه", expenseLabel)
-    }
-
-    @Test
-    fun `balance label exists`() {
-        val balanceLabel = "موجودی"
-        assertEquals("موجودی", balanceLabel)
-    }
 }

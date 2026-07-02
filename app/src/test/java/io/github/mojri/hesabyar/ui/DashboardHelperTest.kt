@@ -117,8 +117,12 @@ class DashboardHelperTest {
 
     @Test
     fun `extractForecastPreview truncates total preview at 150 chars`() {
-        val line = "a very long word ".repeat(10) // > 150 chars total after join
-        val forecast = line
+        // 3 lines each ~55 chars, joined by " | " → ~170 total, exceeding 150-char limit
+        val line1 = "a".repeat(55) // 55 chars
+        val line2 = "b".repeat(55) // 55 chars
+        val line3 = "c".repeat(55) // 55 chars
+        // total before truncation: 55 + 3 + 55 + 3 + 55 = 171
+        val forecast = "$line1\n$line2\n$line3"
         val preview = extractForecastPreview(forecast)
         assertTrue("Total preview <= 153 (150 + ...)", preview.length <= 153)
         assertTrue("Should end with ...", preview.endsWith("..."))
