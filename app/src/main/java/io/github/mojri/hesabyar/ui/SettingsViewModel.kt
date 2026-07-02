@@ -22,10 +22,6 @@ class SettingsViewModel @Inject constructor(
     var currencyUnit = mutableStateOf(CurrencyUnit.fromKey(getSettingsUseCase.getCurrencyUnit()))
         private set
 
-    init {
-        CurrencyFormatter.setUnit(currencyUnit.value)
-    }
-
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
         getSettingsUseCase.setDarkMode(isDarkMode.value)

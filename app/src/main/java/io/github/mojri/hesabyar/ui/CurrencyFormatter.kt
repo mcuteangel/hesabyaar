@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 
 enum class CurrencyUnit(val key: String, val label: String) {
     RIAL("rial", "ریال"),
@@ -11,7 +13,9 @@ enum class CurrencyUnit(val key: String, val label: String) {
 
     companion object {
         fun fromKey(key: String): CurrencyUnit =
-            entries.firstOrNull { it.key == key } ?: TOMAN
+            entries.firstOrNull { it.key == key }
+                ?: entries.firstOrNull { it.label == key }
+                ?: TOMAN
     }
 }
 
@@ -35,15 +39,18 @@ object CurrencyFormatter {
      * In Iran, 1 Toman = 10 Rials. (e.g., 100 Rials / 10 = 10 Tomans).
      * NEVER use 1000 or any other factor.
      */
-    private val numFmt = DecimalFormat("#,###")
+    private val numFmt = ThreadLocal.withInitial {
+        DecimalFormat("#,###", DecimalFormatSymbols(Locale("fa", "IR")))
+    }
 
     /** Format number only (no unit) — for components that show their own label. */
-    fun formatNumber(value: Long): String = numFmt.format(value)
+    fun formatNumber(value: Long): String = numFmt.get()!!.format(value)
 
     fun format(rial: Long): String {
+        val fmt = numFmt.get()!!
         return when (currentUnit) {
-            CurrencyUnit.RIAL -> "${numFmt.format(rial)} ریال"
-            CurrencyUnit.TOMAN -> "${numFmt.format(rial / 10)} تومان"
+            CurrencyUnit.RIAL -> "${fmt.format(rial)} ریال"
+            CurrencyUnit.TOMAN -> "${fmt.format(rial / 10)} تومان"
         }
     }
 

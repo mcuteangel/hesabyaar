@@ -108,12 +108,12 @@ class ExcelExporterTest {
 
     @Test
     fun `formatAmount rial to toman`() {
-        assertEquals("5000 تومان", formatAmount(5_000_000L))
+        assertEquals("500000 تومان", formatAmount(5_000_000L))
     }
 
     @Test
     fun `formatAmount small amount`() {
-        assertEquals("1 تومان", formatAmount(1000L))
+        assertEquals("100 تومان", formatAmount(1000L))
     }
 
     @Test
@@ -123,12 +123,12 @@ class ExcelExporterTest {
 
     @Test
     fun `formatAmount truncates remainder`() {
-        assertEquals("5 تومان", formatAmount(5500L))
+        assertEquals("550 تومان", formatAmount(5500L))
     }
 
     @Test
     fun `formatAmount large amount`() {
-        assertEquals("1000000 تومان", formatAmount(1_000_000_000L))
+        assertEquals("100000000 تومان", formatAmount(1_000_000_000L))
     }
 
     @Test

@@ -97,14 +97,14 @@ class CurrencyFormatterTest {
     fun `format includes rial unit`() {
         CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
         val result = CurrencyFormatter.format(1_000_000L)
-        assert(result.endsWith("ریال"))
+        assertTrue(result.endsWith("ریال"))
     }
 
     @Test
     fun `format includes toman unit`() {
         CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
         val result = CurrencyFormatter.format(10_000_000L)
-        assert(result.endsWith("تومان"))
+        assertTrue(result.endsWith("تومان"))
     }
 
     // --- fromKey ---

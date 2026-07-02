@@ -61,19 +61,15 @@ abstract class AppDatabase : RoomDatabase() {
          * Fixes amounts inflated by MIGRATION_1_2 which used *1000 (1T=1000R).
          * Correct: 1 Toman = 10 Rials → stored values were 100x too big.
          * Divides all amounts by 100 to restore correct values.
+         * Room guarantees this runs exactly once per DB file via _room_master_table.
          * ponytail: one-shot data fix. Remove after all users migrated to v4+.
          */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                val prefs = appContext.getSharedPreferences("migration_flags", Context.MODE_PRIVATE)
-                if (prefs.getBoolean("migration_3_4_done", false)) {
-                    return
-                }
                 db.execSQL("UPDATE transactions SET amount = amount / 100")
                 db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100, remainingAmount = remainingAmount / 100")
                 db.execSQL("UPDATE installments SET amount = amount / 100")
                 db.execSQL("UPDATE payment_history SET amount = amount / 100")
-                prefs.edit().putBoolean("migration_3_4_done", true).apply()
             }
         }
 
