@@ -24,7 +24,7 @@ class ExcelExporterTest {
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-    private fun formatAmount(value: Long): String = "${value / 1000} تومان"
+    private fun formatAmount(value: Long): String = "${value / 10} تومان"
 
     @Test
     fun `columnLetter A`() {
@@ -135,7 +135,7 @@ class ExcelExporterTest {
     fun `amounts use Long not Double`() {
         val amount: Long = 5_500_000L
         assertTrue(amount is Long)
-        assertEquals(5500L, amount / 1000)
+        assertEquals(550000L, amount / 10)
     }
 
     @Test

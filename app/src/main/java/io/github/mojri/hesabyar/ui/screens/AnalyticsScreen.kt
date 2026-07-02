@@ -35,7 +35,6 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 @Composable
 fun AnalyticsScreen(
     analyticsViewModel: AnalyticsViewModel,
-    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
     val analyticsData by analyticsViewModel.analyticsData.collectAsState()
