@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.IOException
 import retrofit2.HttpException
 import android.database.sqlite.SQLiteException
+import org.json.JSONException
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -287,7 +288,7 @@ class AiAssistantViewModel @Inject constructor(
             } catch (e: retrofit2.HttpException) {
                 AppLogger.e("AiAssistantViewModel", "HTTP error in fetchBudgetAdvice", e)
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ارتباط با سرور")
-            } catch (e: kotlinx.serialization.SerializationException) {
+            } catch (e: JSONException) {
                 AppLogger.e("AiAssistantViewModel", "Data parsing error in fetchBudgetAdvice", e)
                 _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
             } catch (e: android.database.sqlite.SQLiteException) {

@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui
 import android.content.Context
 import java.io.IOException
 import org.json.JSONException
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +13,7 @@ import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -47,7 +49,7 @@ class BackupViewModel @Inject constructor(
                 operationState.value = BackupOperationState.Error(
                     "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
-            } catch (e: JsonSyntaxException) {
+            } catch (e: JSONException) {
                 operationState.value = BackupOperationState.Error(
                     "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
                 )
@@ -68,6 +70,7 @@ class BackupViewModel @Inject constructor(
                     when (mode) {
                         RestoreMode.REPLACE -> "بازیابی کامل با موفقیت انجام شد. ${manageBackupUseCase.buildBackupSummary(backup)}"
                         RestoreMode.MERGE -> "ادغام پشتیبان با موفقیت انجام شد."
+                        else -> "عملیات با موفقیت انجام شد."
                     }
                 )
                 pendingRestoreBackup.value = null
@@ -132,6 +135,7 @@ class BackupViewModel @Inject constructor(
 
     fun importBackupFromFile(inputStream: InputStream) {
         viewModelScope.launch {
+            operationState.value = BackupOperationState.Importing
             try {
                 val text = inputStream.bufferedReader().use { it.readText() }
                 val backup = manageBackupUseCase.parseBackupJson(text)
@@ -141,7 +145,22 @@ class BackupViewModel @Inject constructor(
                     backup.installments,
                     backup.paymentHistories
                 )
-            } catch (_: Exception) {
+                operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
+            } catch (e: IOException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
+            } catch (e: JSONException) {
+                operationState.value = BackupOperationState.Error(
+                    "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IllegalStateException) {
+                // Database constraint violations from Room
+                operationState.value = BackupOperationState.Error(
+                    "خطا در وارد کردن پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+                )
             }
         }
     }

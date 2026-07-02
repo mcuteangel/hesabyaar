@@ -88,7 +88,7 @@ object GeminiParser {
         )) {
             is AiProvider.ApiResult.Success -> {
                 AppLogger.i(TAG, "AI parsed output: ${result.text}")
-                parseJsonResult(result.text) ?: parseSentenceOffline(sentence)
+                parseJsonResultOffline(result.text) ?: parseSentenceOffline(sentence)
             }
             is AiProvider.ApiResult.Failure -> {
                 AppLogger.e(TAG, "AI parse failed: ${result.error}, falling back to offline")
@@ -97,7 +97,44 @@ object GeminiParser {
         }
     }
 
-    ```json").removePrefix("
+    internal fun parseJsonResultOffline(jsonStr: String): ParsedResult? {
+        return try {
+            val json = JSONObject(jsonStr)
+            val type = json.optString("type", TYPE_EXPENSE)
+            val amount = json.optLong("amount", 0L)
+            if (amount <= 0L) return null
+            val category = json.optString("category", CATEGORY_OTHER)
+            val personName = json.optString("personName", null)
+            val description = json.optString("description", "")
+            val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
+                try { json.getInt("daysFromNow") } catch (_: Exception) { null }
+            } else null
+            val title = json.optString("title", null)
+            val dateOffsetDays = json.optInt("dateOffsetDays", 0)
+            val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }
+            val minute = json.optInt("minute", -1).let { if (it >= 0) it else null }
+            val confidence = json.optDouble("confidence", 0.8).toFloat()
+            val notes = json.optString("notes", null)
+
+            ParsedResult(
+                type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
+                amount = amount,
+                category = category,
+                personName = personName,
+                description = description,
+                daysFromNow = daysFromNow,
+                title = title,
+                dateOffsetDays = dateOffsetDays,
+                hour = hour,
+                minute = minute,
+                confidence = confidence,
+                notes = notes
+            )
+        } catch (e: JSONException) {
+            AppLogger.e(TAG, "Failed to parse JSON result", e)
+            null
+        }
+    }
 
     private fun inferExpenseCategory(sentence: String): Pair<String, String> {
         return when {
