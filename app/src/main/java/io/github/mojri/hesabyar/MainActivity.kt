@@ -1,10 +1,26 @@
+package io.github.mojri.hesabyar
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -15,6 +31,8 @@ import io.github.mojri.hesabyar.auth.AuthManager
 import io.github.mojri.hesabyar.auth.LockScreen
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -83,6 +101,8 @@ class MainActivity : FragmentActivity() {
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
+                        var showMoreMenu by remember { mutableStateOf(false) }
+
                         Scaffold(
                             modifier = Modifier.fillMaxSize(),
                             bottomBar = {
@@ -94,10 +114,7 @@ class MainActivity : FragmentActivity() {
                                         Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
                                         Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
                                         Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
-                                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
-                                        Triple("ANALYTICS", "تحلیل و آمار", Icons.Filled.BarChart),
-                                        Triple("REPORTS", "گزارش‌ها", Icons.Filled.Analytics),
-                                        Triple("SETTINGS", "تنظیمات", Icons.Filled.Settings)
+                                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard)
                                     )
 
                                     tabs.forEach { (tabId, label, icon) ->
@@ -105,7 +122,7 @@ class MainActivity : FragmentActivity() {
                                             selected = currentTab == tabId,
                                             onClick = { currentTab = tabId },
                                             icon = { Icon(imageVector = icon, contentDescription = label) },
-                                            label = { Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold) },
+                                            label = { Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -113,6 +130,20 @@ class MainActivity : FragmentActivity() {
                                             )
                                         )
                                     }
+
+                                    // More menu for less frequent actions
+                                    val moreTabs = listOf("ANALYTICS", "REPORTS", "SETTINGS")
+                                    NavigationBarItem(
+                                        selected = showMoreMenu || currentTab in moreTabs,
+                                        onClick = { showMoreMenu = true },
+                                        icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = "بیشتر") },
+                                        label = { Text("بیشتر", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        )
+                                    )
                                 }
                             }
                         ) { innerPadding ->
@@ -165,6 +196,42 @@ class MainActivity : FragmentActivity() {
                                     onNavigateToCategories = { showCategoryManagement = true },
                                     modifier = modifier
                                 )
+                            }
+
+                            // More options bottom sheet
+                            if (showMoreMenu) {
+                                @OptIn(ExperimentalMaterial3Api::class)
+                                val sheetState = rememberModalBottomSheetState()
+                                val sheetScope = rememberCoroutineScope()
+                                @OptIn(ExperimentalMaterial3Api::class)
+                                ModalBottomSheet(
+                                    onDismissRequest = { showMoreMenu = false },
+                                    sheetState = sheetState
+                                ) {
+                                    fun onItemSelected(tab: String) {
+                                        currentTab = tab
+                                        sheetScope.launch {
+                                            sheetState.hide()
+                                            showMoreMenu = false
+                                        }
+                                    }
+                                    ListItem(
+                                        headlineContent = { Text("تحلیل و آمار") },
+                                        leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                                        modifier = Modifier.clickable { onItemSelected("ANALYTICS") }
+                                    )
+                                    ListItem(
+                                        headlineContent = { Text("گزارش‌ها") },
+                                        leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
+                                        modifier = Modifier.clickable { onItemSelected("REPORTS") }
+                                    )
+                                    ListItem(
+                                        headlineContent = { Text("تنظیمات") },
+                                        leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                                        modifier = Modifier.clickable { onItemSelected("SETTINGS") }
+                                    )
+                                    Spacer(modifier = Modifier.height(32.dp))
+                                }
                             }
                         }
                         }

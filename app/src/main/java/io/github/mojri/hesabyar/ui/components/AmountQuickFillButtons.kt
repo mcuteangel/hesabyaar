@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,8 +14,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
-import io.github.mojri.hesabyar.ui.theme.WarningOrange
+import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
+import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 private const val MAX_AMOUNT_TOMAN = 999_999_999_999L
 
@@ -38,7 +38,7 @@ fun AmountQuickFillButtons(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         options.forEach { option ->
@@ -48,9 +48,9 @@ fun AmountQuickFillButtons(
             Text(
                 text = option.label,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(ShapeTokens.Small)
                     .background(
-                        if (isEnabled) WarningOrange.copy(alpha = 0.15f)
+                        if (isEnabled) FinancialColors.WarningOrange.copy(alpha = 0.15f)
                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     )
                     .clickable(enabled = isEnabled) {
@@ -62,10 +62,10 @@ fun AmountQuickFillButtons(
                             )
                         )
                     }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = if (isEnabled) WarningOrange
+                color = if (isEnabled) FinancialColors.WarningOrange
                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
         }
