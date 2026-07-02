@@ -17,7 +17,7 @@ import java.io.File
 
 @Database(
     entities = [Transaction::class, Loan::class, Installment::class, PaymentHistory::class, Category::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
         private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private lateinit var appContext: Context
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -53,6 +54,26 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history")
                 db.execSQL("DROP TABLE payment_history")
                 db.execSQL("ALTER TABLE payment_history_new RENAME TO payment_history")
+            }
+        }
+
+        /**
+         * Fixes amounts inflated by MIGRATION_1_2 which used *1000 (1T=1000R).
+         * Correct: 1 Toman = 10 Rials → stored values were 100x too big.
+         * Divides all amounts by 100 to restore correct values.
+         * ponytail: one-shot data fix. Remove after all users migrated to v4+.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val prefs = appContext.getSharedPreferences("migration_flags", Context.MODE_PRIVATE)
+                if (prefs.getBoolean("migration_3_4_done", false)) {
+                    return
+                }
+                db.execSQL("UPDATE transactions SET amount = amount / 100")
+                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100, remainingAmount = remainingAmount / 100")
+                db.execSQL("UPDATE installments SET amount = amount / 100")
+                db.execSQL("UPDATE payment_history SET amount = amount / 100")
+                prefs.edit().putBoolean("migration_3_4_done", true).apply()
             }
         }
 
@@ -99,6 +120,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         fun getDatabase(context: Context): AppDatabase {
+        appContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
                 val appContext = context.applicationContext
                 System.loadLibrary("sqlcipher")
@@ -116,7 +138,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "hesabyar_database"
                 )
                 .openHelperFactory(factory)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance
@@ -148,7 +170,7 @@ abstract class AppDatabase : RoomDatabase() {
                 .forEach { it.copyTo(context.getDatabasePath("$tempName${it.name.removePrefix("hesabyar_database")}"), overwrite = true) }
 
             val plaintextDb = Room.databaseBuilder(context, AppDatabase::class.java, tempName)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
             val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -168,7 +190,7 @@ try {
     val factory = SupportOpenHelperFactory(passphrase)
     val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
         .openHelperFactory(factory)
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
 
     encryptedDb.runInTransaction {
