@@ -71,12 +71,12 @@ fun InstallmentItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "پرداخت شده: ${CurrencyFormatter.formatNumber(paidAmount)}",
+                text = "پرداخت شده: ${CurrencyFormatter.format(paidAmount)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = FinancialColors.IncomeGreen
             )
             Text(
-                text = "باقیمانده: ${CurrencyFormatter.formatNumber(remainingAmount)}",
+                text = "باقیمانده: ${CurrencyFormatter.format(remainingAmount)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = FinancialColors.ExpenseRed
             )

@@ -87,7 +87,7 @@ fun TransactionItem(
         }
 
         Text(
-            text = "$prefix${CurrencyFormatter.formatNumber(amount)}",
+            text = "$prefix${CurrencyFormatter.format(amount)}",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
             color = amountColor,

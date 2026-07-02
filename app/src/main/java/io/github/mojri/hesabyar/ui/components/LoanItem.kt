@@ -62,7 +62,7 @@ fun LoanItem(
             horizontalAlignment = Alignment.End
         ) {
             Text(
-                text = CurrencyFormatter.formatNumber(amount),
+                text = CurrencyFormatter.format(amount),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = amountColor,

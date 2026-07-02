@@ -39,3 +39,5 @@ keystore-backups/my-upload-key.jks.bak
 skills-lock.json
 .mimocode/
 docs/uiplan.md
+.superpowers/
+docs/superpowers/

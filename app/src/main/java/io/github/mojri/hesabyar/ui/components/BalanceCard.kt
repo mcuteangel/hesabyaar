@@ -63,7 +63,7 @@ fun BalanceCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = CurrencyFormatter.formatNumber(balance),
+                text = CurrencyFormatter.format(balance),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -78,7 +78,7 @@ fun BalanceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${CurrencyFormatter.formatNumber(income)}",
+                        text = CurrencyFormatter.format(income),
                         style = MaterialTheme.typography.bodyMedium,
                         color = FinancialColors.IncomeGreen
                     )
@@ -90,7 +90,7 @@ fun BalanceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${CurrencyFormatter.formatNumber(expense)}",
+                        text = CurrencyFormatter.format(expense),
                         style = MaterialTheme.typography.bodyMedium,
                         color = FinancialColors.ExpenseRed
                     )
