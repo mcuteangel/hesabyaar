@@ -132,8 +132,9 @@ class MainActivity : FragmentActivity() {
                                     }
 
                                     // More menu for less frequent actions
+                                    val moreTabs = listOf("ANALYTICS", "REPORTS", "SETTINGS")
                                     NavigationBarItem(
-                                        selected = showMoreMenu,
+                                        selected = showMoreMenu || currentTab in moreTabs,
                                         onClick = { showMoreMenu = true },
                                         icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = "بیشتر") },
                                         label = { Text("بیشتر", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
@@ -200,32 +201,34 @@ class MainActivity : FragmentActivity() {
                             // More options bottom sheet
                             if (showMoreMenu) {
                                 @OptIn(ExperimentalMaterial3Api::class)
+                                val sheetState = rememberModalBottomSheetState()
+                                val sheetScope = rememberCoroutineScope()
+                                @OptIn(ExperimentalMaterial3Api::class)
                                 ModalBottomSheet(
-                                    onDismissRequest = { showMoreMenu = false }
+                                    onDismissRequest = { showMoreMenu = false },
+                                    sheetState = sheetState
                                 ) {
+                                    fun onItemSelected(tab: String) {
+                                        currentTab = tab
+                                        sheetScope.launch {
+                                            sheetState.hide()
+                                            showMoreMenu = false
+                                        }
+                                    }
                                     ListItem(
                                         headlineContent = { Text("تحلیل و آمار") },
                                         leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
-                                        modifier = Modifier.clickable {
-                                            showMoreMenu = false
-                                            currentTab = "ANALYTICS"
-                                        }
+                                        modifier = Modifier.clickable { onItemSelected("ANALYTICS") }
                                     )
                                     ListItem(
                                         headlineContent = { Text("گزارش‌ها") },
                                         leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-                                        modifier = Modifier.clickable {
-                                            showMoreMenu = false
-                                            currentTab = "REPORTS"
-                                        }
+                                        modifier = Modifier.clickable { onItemSelected("REPORTS") }
                                     )
                                     ListItem(
                                         headlineContent = { Text("تنظیمات") },
                                         leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                                        modifier = Modifier.clickable {
-                                            showMoreMenu = false
-                                            currentTab = "SETTINGS"
-                                        }
+                                        modifier = Modifier.clickable { onItemSelected("SETTINGS") }
                                     )
                                     Spacer(modifier = Modifier.height(32.dp))
                                 }

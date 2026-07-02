@@ -106,7 +106,9 @@ object GeminiParser {
             val category = json.optString("category", CATEGORY_OTHER)
             val personName = json.optString("personName", null)
             val description = json.optString("description", "")
-            val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) json.optInt("daysFromNow", 30) else null
+            val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
+                try { json.getInt("daysFromNow") } catch (_: Exception) { null }
+            } else null
             val title = json.optString("title", null)
             val dateOffsetDays = json.optInt("dateOffsetDays", 0)
             val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }

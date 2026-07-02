@@ -736,7 +736,7 @@ class OfflineParserTest {
     }
 
     @Test
-    fun `parseJsonResultOffline - null daysFromNow returns null`() {
+    fun `parseJsonResultOffline - null daysFromNow preserved as null`() {
         val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":null}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
@@ -744,11 +744,19 @@ class OfflineParserTest {
     }
 
     @Test
-    fun `parseJsonResultOffline - missing daysFromNow returns null`() {
+    fun `parseJsonResultOffline - missing daysFromNow preserved as null`() {
         val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط"}"""
         val result = GeminiParser.parseJsonResultOffline(json)
         assertNotNull(result)
         assertNull(result!!.daysFromNow, "Missing key should be null")
+    }
+
+    @Test
+    fun `parseJsonResultOffline - non-numeric daysFromNow preserved as null`() {
+        val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط","daysFromNow":"abc"}"""
+        val result = GeminiParser.parseJsonResultOffline(json)
+        assertNotNull(result)
+        assertNull(result!!.daysFromNow, "Non-numeric string should be null, not 30")
     }
 
     @Test

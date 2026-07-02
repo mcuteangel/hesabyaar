@@ -492,7 +492,7 @@ private fun DebtCreditSummaryCard(
                     text = formatToman(totalAmount),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else if (items.first().type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
+                    color = if (items.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else if (items.first().type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                 )
             }
 
@@ -529,7 +529,7 @@ private fun DebtCreditSummaryCard(
                             Text(
                                 text = formatToman(item.remainingAmount),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (item.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
+                                color = if (item.type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                             )
                         }
 
@@ -617,7 +617,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                             Text(
                                 text = if (loan.type == "DEBTOR") "بدهکار" else "طلبکار",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (loan.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
+                                color = if (loan.type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
                             )
                         }
 
@@ -627,7 +627,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(ShapeTokens.Small),
-                            color = if (loan.type == "DEBTOR") FinancialColors.ExpenseRed else FinancialColors.IncomeGreen,
+                            color = if (loan.type == "DEBTOR") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
 

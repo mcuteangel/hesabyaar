@@ -27,7 +27,8 @@ fun SectionHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = if (action != null) Modifier.weight(1f) else Modifier
         )
         action?.invoke()
     }
