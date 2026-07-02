@@ -1,9 +1,9 @@
 package io.github.mojri.hesabyar.ui
 
+import io.github.mojri.hesabyar.ui.screens.formatToman
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.text.DecimalFormat
 
 /**
  * Tests the free helper functions extracted from DashboardScreen:
@@ -11,13 +11,6 @@ import java.text.DecimalFormat
  * - extractForecastPreview: extracts preview text from markdown forecast
  */
 class DashboardHelperTest {
-
-    // Replicate formatToman logic from DashboardScreen
-    private fun formatToman(value: Long): String {
-        val tomanValue = value / 1000
-        val formatter = DecimalFormat("#,###")
-        return "${formatter.format(tomanValue)} تومان"
-    }
 
     // Replicate extractForecastPreview logic from DashboardScreen
     private fun extractForecastPreview(forecast: String): String {

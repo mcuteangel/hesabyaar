@@ -1,7 +1,8 @@
 package io.github.mojri.hesabyar.ui
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import io.github.mojri.hesabyar.ui.components.selectedLabelColor
+import io.github.mojri.hesabyar.ui.components.textColorForBackground
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,23 +10,11 @@ import org.junit.Test
 /**
  * Tests the text color contrast logic used in CategoryFilterChip.
  *
- * The chip determines text color based on the category color's luminance:
- *   textColor = if (luminance > 0.179f) Color.Black else Color.White
- *
- * This ensures readable text on both bright and dark category backgrounds.
- * Also tests the selected container color alpha (0.15f) and selected label
- * color logic based on lerp + luminance threshold (0.5f).
+ * Uses the shared textColorForBackground / selectedLabelColor helpers
+ * (which call Compose's luminance()), so these tests stay in sync with
+ * the production composable.
  */
 class CategoryChipTest {
-
-    private fun textColorForBackground(bg: Color): Color {
-        return if (bg.wcagLuminance() > 0.179f) Color.Black else Color.White
-    }
-
-    private fun selectedLabelColor(surface: Color, categoryColor: Color): Color {
-        val lerped = lerp(surface, categoryColor, 0.15f)
-        return if (lerped.wcagLuminance() > 0.5f) Color.Black else Color.White
-    }
 
     @Test
     fun `dark background yields white text`() {
@@ -40,18 +29,14 @@ class CategoryChipTest {
     }
 
     @Test
-    fun `IncomeGreen luminance is above threshold`() {
+    fun `IncomeGreen yields black text`() {
         val incomeGreen = Color(0xFF2ECC71)
-        val lum = incomeGreen.wcagLuminance()
-        assertTrue("IncomeGreen luminance $lum should be > 0.179", lum > 0.179f)
         assertEquals("IncomeGreen → black text", Color.Black, textColorForBackground(incomeGreen))
     }
 
     @Test
-    fun `ExpenseRed luminance is above threshold`() {
+    fun `ExpenseRed yields black text`() {
         val expenseRed = Color(0xFFE74C3C)
-        val lum = expenseRed.wcagLuminance()
-        assertTrue("ExpenseRed luminance $lum should be > 0.179", lum > 0.179f)
         assertEquals("ExpenseRed → black text", Color.Black, textColorForBackground(expenseRed))
     }
 
@@ -88,8 +73,6 @@ class CategoryChipTest {
 
     @Test
     fun `null category uses Gray`() {
-        val grayLum = Color.Gray.wcagLuminance()
-        assertTrue("Gray luminance $grayLum should be > 0.179", grayLum > 0.179f)
         assertEquals("Null category → Gray → black text", Color.Black, textColorForBackground(Color.Gray))
     }
 }

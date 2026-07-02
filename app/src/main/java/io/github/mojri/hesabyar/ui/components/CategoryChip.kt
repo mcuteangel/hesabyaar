@@ -22,6 +22,16 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
+/** Text color for a category chip initial on [bg] background. */
+internal fun textColorForBackground(bg: Color): Color =
+    if (bg.luminance() > 0.179f) Color.Black else Color.White
+
+/** Selected-label color for [categoryColor] on [surface]. */
+internal fun selectedLabelColor(surface: Color, categoryColor: Color): Color {
+    val lerped = lerp(surface, categoryColor, 0.15f)
+    return if (lerped.luminance() > 0.5f) Color.Black else Color.White
+}
+
 @Composable
 fun CategoryFilterChip(
     category: Category?,
@@ -32,7 +42,7 @@ fun CategoryFilterChip(
 ) {
     val categoryColor = category?.let { Color(it.color) } ?: Color.Gray
     val categoryInitial = category?.name?.firstOrNull()?.toString() ?: ""
-    val textColor = if (categoryColor.luminance() > 0.179f) Color.Black else Color.White
+    val textColor = textColorForBackground(categoryColor)
 
     FilterChip(
         selected = selected,
@@ -65,7 +75,7 @@ fun CategoryFilterChip(
         shape = shape,
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = categoryColor.copy(alpha = 0.15f),
-            selectedLabelColor = if (lerp(MaterialTheme.colorScheme.surface, categoryColor, 0.15f).luminance() > 0.5f) Color.Black else Color.White
+            selectedLabelColor = selectedLabelColor(MaterialTheme.colorScheme.surface, categoryColor)
         )
     )
 }
