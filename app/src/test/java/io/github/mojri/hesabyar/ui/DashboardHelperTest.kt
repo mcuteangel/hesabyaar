@@ -17,13 +17,13 @@ class DashboardHelperTest {
     @Test
     fun `format converts rial to toman`() {
         CurrencyFormatter.setUnit("تومان")
-        assertEquals("100 تومان", CurrencyFormatter.format(100_000L))
+        assertEquals("10,000 تومان", CurrencyFormatter.format(100_000L))
     }
 
     @Test
     fun `format large amount toman`() {
         CurrencyFormatter.setUnit("تومان")
-        assertEquals("5,000 تومان", CurrencyFormatter.format(5_000_000L))
+        assertEquals("500,000 تومان", CurrencyFormatter.format(5_000_000L))
     }
 
     @Test
@@ -35,13 +35,13 @@ class DashboardHelperTest {
     @Test
     fun `format small amount toman rounds down`() {
         CurrencyFormatter.setUnit("تومان")
-        assertEquals("0 تومان", CurrencyFormatter.format(500L))
+        assertEquals("50 تومان", CurrencyFormatter.format(500L))
     }
 
     @Test
     fun `format very large amount toman`() {
         CurrencyFormatter.setUnit("تومان")
-        assertEquals("1,234,567 تومان", CurrencyFormatter.format(1_234_567_890L))
+        assertEquals("123,456,789 تومان", CurrencyFormatter.format(1_234_567_890L))
     }
 
     // --- CurrencyFormatter.format tests (ریال) ---

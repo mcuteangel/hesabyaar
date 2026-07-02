@@ -867,7 +867,7 @@ fun ParsedResultCard(
             // 2. Amount Input Field
             Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                 Text(
-                    text = "مبلغ استخراج شده (تومان):",
+                    text = "مبلغ استخراج شده (${CurrencyFormatter.unitLabel}):",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

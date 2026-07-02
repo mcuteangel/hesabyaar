@@ -64,7 +64,7 @@ import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
+
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -1430,7 +1430,7 @@ fun ManualTransactionDialog(
                     // Amount input
                     Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                         Text(
-                            text = "مبلغ (تومان):",
+                            text = "مبلغ (${CurrencyFormatter.unitLabel}):",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )

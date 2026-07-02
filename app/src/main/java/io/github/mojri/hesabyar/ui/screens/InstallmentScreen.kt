@@ -184,7 +184,7 @@ fun InstallmentScreen(
                     HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = "مبلغ قسط (تومان)"
+                        label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
                     )
 
                     JalaliDateTimePicker(
@@ -219,9 +219,9 @@ fun InstallmentScreen(
             confirmButton = {
                 HesabyarButton(
                     onClick = {
-                        val amountToman = amountText.toLongOrNull() ?: 0L
-                        if (title.isNotBlank() && amountToman > 0L) {
-                            val amountRial = CurrencyFormatter.toRial(amountToman)
+                        val amountDisplay = amountText.toLongOrNull() ?: 0L
+                        if (title.isNotBlank() && amountDisplay > 0L) {
+                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
                             installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
                             showAddDialog = false
                         } else {

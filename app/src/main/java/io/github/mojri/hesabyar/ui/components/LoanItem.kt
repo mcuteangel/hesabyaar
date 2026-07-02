@@ -13,9 +13,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
 
 @Composable
 fun LoanItem(
@@ -27,7 +27,6 @@ fun LoanItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val formatter = remember { DecimalFormat("#,###") }
     val statusColor = if (isSettled) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
     val statusText = if (isSettled) "تسویه شده" else "در انتظار"
     val amountColor = if (isDebt) FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
@@ -63,7 +62,7 @@ fun LoanItem(
             horizontalAlignment = Alignment.End
         ) {
             Text(
-                text = "${formatter.format(amount)} ${stringResource(R.string.currency_unit)}",
+                text = CurrencyFormatter.formatNumber(amount),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = amountColor,

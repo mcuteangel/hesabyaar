@@ -219,7 +219,7 @@ fun LoanManagementScreen(
                     HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = "مبلغ قرض (تومان)"
+                        label = "مبلغ قرض (${CurrencyFormatter.unitLabel})"
                     )
 
                     HesabyarInputField(
@@ -238,9 +238,9 @@ fun LoanManagementScreen(
             confirmButton = {
                 HesabyarButton(
                     onClick = {
-                        val amountToman = amountText.toLongOrNull() ?: 0L
-                        if (personName.isNotBlank() && amountToman > 0L) {
-                            val amountRial = CurrencyFormatter.toRial(amountToman)
+                        val amountDisplay = amountText.toLongOrNull() ?: 0L
+                        if (personName.isNotBlank() && amountDisplay > 0L) {
+                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
                             loanViewModel.addLoan(personName, loanType, amountRial, description, customDate)
                             showAddDialog = false
                         } else {
@@ -300,7 +300,7 @@ fun LoanManagementScreen(
                     HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = "مبلغ قرض (تومان)"
+                        label = "مبلغ قرض (${CurrencyFormatter.unitLabel})"
                     )
 
                     HesabyarInputField(
@@ -319,9 +319,9 @@ fun LoanManagementScreen(
             confirmButton = {
                 HesabyarButton(
                     onClick = {
-                        val amountToman = amountText.toLongOrNull() ?: 0L
-                        if (personName.isNotBlank() && amountToman > 0L) {
-                            val amountRial = CurrencyFormatter.toRial(amountToman)
+                        val amountDisplay = amountText.toLongOrNull() ?: 0L
+                        if (personName.isNotBlank() && amountDisplay > 0L) {
+                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
                             loanViewModel.updateLoan(
                                 loan.copy(
                                     personName = personName,
@@ -580,7 +580,7 @@ fun LoanListItem(
                     HesabyarInputField(
                         value = repayAmount,
                         onValueChange = { repayAmount = it },
-                        label = "مبلغ پرداختی (تومان)"
+                        label = "مبلغ پرداختی (${CurrencyFormatter.unitLabel})"
                     )
 
                     HesabyarInputField(
@@ -599,9 +599,9 @@ fun LoanListItem(
             confirmButton = {
                 HesabyarButton(
                     onClick = {
-                        val amountToman = repayAmount.toLongOrNull() ?: 0L
-                        if (amountToman > 0L) {
-                            val amountRial = CurrencyFormatter.toRial(amountToman)
+                        val amountDisplay = repayAmount.toLongOrNull() ?: 0L
+                        if (amountDisplay > 0L) {
+                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
                             loanViewModel.makeRepayment(loan.id, amountRial, repayNotes, repayDate)
                             showRepayDialog = false
                         } else {

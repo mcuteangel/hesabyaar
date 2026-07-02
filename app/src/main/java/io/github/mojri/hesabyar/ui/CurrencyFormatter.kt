@@ -3,8 +3,17 @@ package io.github.mojri.hesabyar.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import java.text.NumberFormat
-import java.util.Locale
+import java.text.DecimalFormat
+
+enum class CurrencyUnit(val key: String, val label: String) {
+    RIAL("rial", "ریال"),
+    TOMAN("toman", "تومان");
+
+    companion object {
+        fun fromKey(key: String): CurrencyUnit =
+            entries.firstOrNull { it.key == key } ?: TOMAN
+    }
+}
 
 /**
  * Centralized currency formatting.
@@ -12,10 +21,12 @@ import java.util.Locale
  * Holds current unit as mutable state — SettingsViewModel updates it.
  */
 object CurrencyFormatter {
-    var currentUnit by mutableStateOf("تومان")
+    var currentUnit by mutableStateOf(CurrencyUnit.TOMAN)
         private set
 
-    fun setUnit(unit: String) {
+    val unitLabel: String get() = currentUnit.label
+
+    fun setUnit(unit: CurrencyUnit) {
         currentUnit = unit
     }
 
@@ -24,11 +35,15 @@ object CurrencyFormatter {
      * In Iran, 1 Toman = 10 Rials. (e.g., 100 Rials / 10 = 10 Tomans).
      * NEVER use 1000 or any other factor.
      */
+    private val numFmt = DecimalFormat("#,###")
+
+    /** Format number only (no unit) — for components that show their own label. */
+    fun formatNumber(value: Long): String = numFmt.format(value)
+
     fun format(rial: Long): String {
-        val formatter = NumberFormat.getNumberInstance(Locale("fa", "IR"))
         return when (currentUnit) {
-            "ریال" -> "${formatter.format(rial)} ریال"
-            else -> "${formatter.format(rial / 10)} تومان"
+            CurrencyUnit.RIAL -> "${numFmt.format(rial)} ریال"
+            CurrencyUnit.TOMAN -> "${numFmt.format(rial / 10)} تومان"
         }
     }
 
@@ -39,8 +54,8 @@ object CurrencyFormatter {
      */
     fun toRial(displayValue: Long): Long {
         return when (currentUnit) {
-            "ریال" -> displayValue
-            else -> displayValue * 10L
+            CurrencyUnit.RIAL -> displayValue
+            CurrencyUnit.TOMAN -> displayValue * 10L
         }
     }
 
@@ -51,8 +66,8 @@ object CurrencyFormatter {
      */
     fun fromRial(rial: Long): Long {
         return when (currentUnit) {
-            "ریال" -> rial
-            else -> rial / 10
+            CurrencyUnit.RIAL -> rial
+            CurrencyUnit.TOMAN -> rial / 10
         }
     }
 }

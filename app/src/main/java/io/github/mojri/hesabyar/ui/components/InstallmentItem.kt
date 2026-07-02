@@ -13,10 +13,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
 
 @Composable
 fun InstallmentItem(
@@ -28,8 +28,6 @@ fun InstallmentItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val formatter = remember { DecimalFormat("#,###") }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -73,12 +71,12 @@ fun InstallmentItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "پرداخت شده: ${formatter.format(paidAmount)}",
+                text = "پرداخت شده: ${CurrencyFormatter.formatNumber(paidAmount)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = FinancialColors.IncomeGreen
             )
             Text(
-                text = "باقیمانده: ${formatter.format(remainingAmount)}",
+                text = "باقیمانده: ${CurrencyFormatter.formatNumber(remainingAmount)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = FinancialColors.ExpenseRed
             )

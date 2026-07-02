@@ -24,7 +24,6 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
-import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
@@ -48,7 +47,6 @@ fun ReportsScreen(
     loanViewModel: LoanViewModel,
     installmentViewModel: InstallmentViewModel,
     aiAssistantViewModel: AiAssistantViewModel,
-    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
     val transactions by dashboardViewModel.transactions.collectAsState()

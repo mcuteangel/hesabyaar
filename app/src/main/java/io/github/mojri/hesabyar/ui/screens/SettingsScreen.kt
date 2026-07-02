@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.ui.BackupOperationState
 import io.github.mojri.hesabyar.ui.BackupViewModel
+import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.ui.ExportViewModel
 import io.github.mojri.hesabyar.ui.ExportState
@@ -355,11 +356,11 @@ AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروج�
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
                         val currentUnit = settingsViewModel.currencyUnit.value
-                        listOf("تومان", "ریال").forEach { unit ->
+                        CurrencyUnit.entries.forEach { unit ->
                             FilterChip(
                                 selected = currentUnit == unit,
                                 onClick = { settingsViewModel.setCurrencyUnit(unit) },
-                                label = { Text(unit) }
+                                label = { Text(unit.label) }
                             )
                         }
                     }

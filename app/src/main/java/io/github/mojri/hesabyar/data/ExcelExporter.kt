@@ -6,6 +6,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -369,12 +370,7 @@ ${allRows.joinToString("\n")}
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-    private fun formatAmount(value: Long): String {
-        val unit = context.getSharedPreferences("hesabyar_prefs", android.content.Context.MODE_PRIVATE)
-            .getString("currency_unit", "تومان") ?: "تومان"
-        val displayValue = if (unit == "ریال") value else value / 1000
-        return "$displayValue $unit"
-    }
+    private fun formatAmount(value: Long): String = CurrencyFormatter.format(value)
 
     private fun formatDate(timestamp: Long): String =
         SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.US).format(Date(timestamp))
