@@ -17,18 +17,20 @@ import java.text.DecimalFormat
 class BalanceCardLogicTest {
 
     private val formatter = DecimalFormat("#,###")
+    // Mirrors R.string.currency_unit; update here if unit changes in production
+    private val currencyUnit = "ریال"
 
     @Test
     fun `balance formatted with separators and rial suffix`() {
         val balance = 5000000L
-        val display = "${formatter.format(balance)} ریال"
-        assertEquals("5,000,000 ریال", display)
+        val display = "${formatter.format(balance)} $currencyUnit"
+        assertEquals("5,000,000 $currencyUnit", display)
     }
 
     @Test
     fun `zero balance displays correctly`() {
-        val display = "${formatter.format(0L)} ریال"
-        assertEquals("0 ریال", display)
+        val display = "${formatter.format(0L)} $currencyUnit"
+        assertEquals("0 $currencyUnit", display)
     }
 
     @Test

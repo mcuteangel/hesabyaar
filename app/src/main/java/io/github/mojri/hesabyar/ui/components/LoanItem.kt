@@ -10,7 +10,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import java.text.DecimalFormat
@@ -61,7 +63,7 @@ fun LoanItem(
             horizontalAlignment = Alignment.End
         ) {
             Text(
-                text = "${formatter.format(amount)} ریال",
+                text = "${formatter.format(amount)} ${stringResource(R.string.currency_unit)}",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = amountColor,

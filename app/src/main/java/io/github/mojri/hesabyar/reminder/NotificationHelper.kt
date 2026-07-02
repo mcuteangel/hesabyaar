@@ -62,25 +62,26 @@ object NotificationHelper {
         )
 
         val formattedAmount = formatAmount(amount)
+        val currencyUnit = context.getString(R.string.currency_unit)
         val titleText: String
         val bodyText: String
 
         when {
             daysUntilDue < 0 -> {
                 titleText = "قسط سررسید گذشته"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال ${-daysUntilDue} روز پیش سررسید شده است."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount $currencyUnit ${-daysUntilDue} روز پیش سررسید شده است."
             }
             daysUntilDue == 0 -> {
                 titleText = "قسط امروز سررسید است"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال امروز سررسید شده است."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount $currencyUnit امروز سررسید شده است."
             }
             daysUntilDue == 1 -> {
                 titleText = "قسط فردا سررسید است"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال فردا سررسید می‌شود."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount $currencyUnit فردا سررسید می‌شود."
             }
             else -> {
                 titleText = "یادآوری قسط"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال ${daysUntilDue} روز دیگر سررسید می‌شود."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount $currencyUnit ${daysUntilDue} روز دیگر سررسید می‌شود."
             }
         }
 
@@ -117,9 +118,10 @@ object NotificationHelper {
         )
 
         val formattedAmount = formatAmount(remainingAmount)
+        val currencyUnit = context.getString(R.string.currency_unit)
         val typeLabel = if (loanType == "CREDITOR") "بدهی" else "طلب"
         val titleText = "یادآوری $typeLabel"
-        val bodyText = "شما $typeLabel به مبلغ $formattedAmount ریال به «$personName» دارید."
+        val bodyText = "شما $typeLabel به مبلغ $formattedAmount $currencyUnit به «$personName» دارید."
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_LOAN)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
