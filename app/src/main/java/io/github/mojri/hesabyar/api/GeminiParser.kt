@@ -109,12 +109,12 @@ object GeminiParser {
             val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
                 try { json.getInt("daysFromNow") } catch (_: Exception) { null }
             } else null
-            val title = json.optString("title", "")
+            val title = if (json.isNull("title")) null else json.optString("title", "")
             val dateOffsetDays = json.optInt("dateOffsetDays", 0)
             val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }
             val minute = json.optInt("minute", -1).let { if (it >= 0) it else null }
             val confidence = json.optDouble("confidence", 0.8).toFloat()
-            val notes = json.optString("notes", "")
+            val notes = if (json.isNull("notes")) null else json.optString("notes", "")
 
             ParsedResult(
                 type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
