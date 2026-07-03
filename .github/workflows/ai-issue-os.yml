@@ -191,7 +191,106 @@ jobs:
           done
 
   # ==========================================
-  # JOB 2: MANUAL ISSUE FROM REPLY CONTEXT
+  # JOB 2: AUTO-CLOSE RESOLVED ISSUES
+  # ==========================================
+  auto_close_resolved:
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Find and close resolved issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "=== Auto-Close Resolved Issues ==="
+
+          # Get open issues (skip PRs — they use `#43` style, skip issues without # prefix)
+          ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 200)
+
+          CLOSED=0
+
+          for ROW in $(echo "$ISSUES" | jq -c '.[]'); do
+            NUM=$(echo "$ROW" | jq -r '.number')
+            TITLE=$(echo "$ROW" | jq -r '.title')
+
+            # Skip issues that look like PRs (title starts with PR-like patterns)
+            # or issues that are clearly codeant/sourcery auto-generated
+            if echo "$TITLE" | grep -qiE '^\<sub\>|^hesabyaar-.*\.kt:'; then
+              echo "⏭️ #${NUM}: auto-generated issue, skipping"
+              continue
+            fi
+
+            # Search git log for explicit references to this issue number
+            # Matches: #40, fixes #40, close #40, resolves #40, issue #40, closes #40
+            MATCHES=$(git log --all --oneline --grep="#${NUM}" -n 5 2>/dev/null || true)
+
+            if [ -z "$MATCHES" ]; then
+              echo "⏭️ #${NUM}: no commit references"
+              continue
+            fi
+
+            echo "🔍 #${NUM} (${TITLE:0:50}): found references"
+            echo "$MATCHES" | head -3
+
+            # Take the most recent matching commit
+            COMMIT_LINE=$(echo "$MATCHES" | head -1)
+            COMMIT_SHA=$(echo "$COMMIT_LINE" | awk '{print $1}')
+            COMMIT_MSG=$(echo "$COMMIT_LINE" | cut -d' ' -f2-)
+
+            # Get files changed in that commit
+            COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT_SHA" 2>/dev/null || true)
+
+            # Check commit message for fix/resolve/close keywords
+            MSG_LOWER=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
+            HAS_FIX_KEYWORD=false
+            for word in fix fixes resolved resolved closed patched corrected solved reworked updated improved; do
+              if echo "$MSG_LOWER" | grep -qw "$word"; then
+                HAS_FIX_KEYWORD=true
+                break
+              fi
+            done
+
+            # Build the comment using heredoc (reliable multiline)
+            COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT_SHA}"
+            SHORT_SHA="${COMMIT_SHA:0:7}"
+
+            COMMENT=$(cat <<EOF
+          ✅ **Issue resolved automatically**
+
+          **Commit:** [\`${SHORT_SHA}\`](${COMMIT_URL})
+          **Message:** ${COMMIT_MSG}
+
+          **Changed files:**
+          $(echo "$COMMIT_FILES" | head -8 | sed 's/^/- `/' | sed 's/$/`/')
+
+          ---
+          🤖 *Auto-closed by AI Issue OS — commit references issue #${NUM}. If incorrect, reopen.*
+          EOF
+          )
+
+            echo "✅ Closing #${NUM}"
+            gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"
+            gh issue close "$NUM" --repo "$REPO"
+            CLOSED=$((CLOSED + 1))
+          done
+
+          echo "=== Done: closed ${CLOSED} issues ==="
+
+  # ==========================================
+  # JOB 3: MANUAL ISSUE FROM REPLY CONTEXT (was JOB 2)
   # ==========================================
   manual_issue_from_pr:
     if: contains(github.event.comment.body, '/ai-fix') && ((github.event_name == 'issue_comment' && github.event.issue.pull_request) || github.event_name == 'pull_request_review_comment') && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER')
