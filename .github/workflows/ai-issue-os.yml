@@ -256,7 +256,7 @@ jobs:
             # Check commit message for fix/resolve/close keywords
             MSG_LOWER=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
             HAS_FIX_KEYWORD=false
-            for word in fix fixes resolved closed patched corrected solved reworked updated improved; do
+            for word in fix fixes fixed resolved resolves closed closes patched corrected solved reworked updated improved; do
               if echo "$MSG_LOWER" | grep -qw "$word"; then
                 HAS_FIX_KEYWORD=true
                 break
