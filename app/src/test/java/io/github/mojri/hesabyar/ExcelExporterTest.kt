@@ -24,7 +24,7 @@ class ExcelExporterTest {
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-    private fun formatAmount(value: Long): String = "${value / 1000} تومان"
+    private fun formatAmount(value: Long): String = "${value / 10} تومان"
 
     @Test
     fun `columnLetter A`() {
@@ -108,12 +108,12 @@ class ExcelExporterTest {
 
     @Test
     fun `formatAmount rial to toman`() {
-        assertEquals("5000 تومان", formatAmount(5_000_000L))
+        assertEquals("500000 تومان", formatAmount(5_000_000L))
     }
 
     @Test
     fun `formatAmount small amount`() {
-        assertEquals("1 تومان", formatAmount(1000L))
+        assertEquals("100 تومان", formatAmount(1000L))
     }
 
     @Test
@@ -123,19 +123,19 @@ class ExcelExporterTest {
 
     @Test
     fun `formatAmount truncates remainder`() {
-        assertEquals("5 تومان", formatAmount(5500L))
+        assertEquals("550 تومان", formatAmount(5500L))
     }
 
     @Test
     fun `formatAmount large amount`() {
-        assertEquals("1000000 تومان", formatAmount(1_000_000_000L))
+        assertEquals("100000000 تومان", formatAmount(1_000_000_000L))
     }
 
     @Test
     fun `amounts use Long not Double`() {
         val amount: Long = 5_500_000L
         assertTrue(amount is Long)
-        assertEquals(5500L, amount / 1000)
+        assertEquals(550000L, amount / 10)
     }
 
     @Test

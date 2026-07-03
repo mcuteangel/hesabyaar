@@ -81,7 +81,7 @@ class LoanInstallmentTest {
     @Test
     fun `rial to toman display`() {
         val rial = 5_500_000L
-        val toman = rial / 1000
-        assertEquals(5500L, toman)
+        val toman = rial / 10
+        assertEquals(550_000L, toman)
     }
 }

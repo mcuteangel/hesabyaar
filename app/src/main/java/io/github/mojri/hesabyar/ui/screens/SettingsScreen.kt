@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.ui.BackupOperationState
 import io.github.mojri.hesabyar.ui.BackupViewModel
+import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.ui.ExportViewModel
 import io.github.mojri.hesabyar.ui.ExportState
@@ -336,6 +337,33 @@ AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروج�
                         onCheckedChange = { settingsViewModel.toggleDarkMode() },
                         modifier = Modifier.testTag("dark_mode_switch")
                     )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+                // Currency unit selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+                    ) {
+                        Icon(imageVector = Icons.Filled.AttachMoney, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text("واحد پول", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+                        val currentUnit = settingsViewModel.currencyUnit.value
+                        CurrencyUnit.entries.forEach { unit ->
+                            FilterChip(
+                                selected = currentUnit == unit,
+                                onClick = { settingsViewModel.setCurrencyUnit(unit) },
+                                label = { Text(unit.label) }
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
