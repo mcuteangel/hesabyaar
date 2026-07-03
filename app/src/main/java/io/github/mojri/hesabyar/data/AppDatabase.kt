@@ -31,8 +31,6 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
         private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        private lateinit var appContext: Context
-
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)")
@@ -58,18 +56,21 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
-         * Fixes amounts inflated by MIGRATION_1_2 which used *1000 (1T=1000R).
-         * Correct: 1 Toman = 10 Rials → stored values were 100x too big.
-         * Divides all amounts by 100 to restore correct values.
+         * Corrects amounts inflated by MIGRATION_1_2 (*1000).
+         * Correct factor: 1 Toman = 10 Rials → values were 100x too big.
+         * Only divides rows with amounts exceeding realistic thresholds to avoid
+         * corrupting data that was never inflated by MIGRATION_1_2.
          * Room guarantees this runs exactly once per DB file via _room_master_table.
          * ponytail: one-shot data fix. Remove after all users migrated to v4+.
          */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("UPDATE transactions SET amount = amount / 100")
-                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100, remainingAmount = remainingAmount / 100")
-                db.execSQL("UPDATE installments SET amount = amount / 100")
-                db.execSQL("UPDATE payment_history SET amount = amount / 100")
+                // Only divide rows where amounts exceed thresholds that indicate
+                // they were inflated by MIGRATION_1_2 (1000x factor, not 10x).
+                db.execSQL("UPDATE transactions SET amount = amount / 100 WHERE amount > 1000000000")
+                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100, remainingAmount = remainingAmount / 100 WHERE originalAmount > 10000000 OR remainingAmount > 10000000")
+                db.execSQL("UPDATE installments SET amount = amount / 100 WHERE amount > 1000000000")
+                db.execSQL("UPDATE payment_history SET amount = amount / 100 WHERE amount > 1000000000")
             }
         }
 
@@ -116,7 +117,6 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         fun getDatabase(context: Context): AppDatabase {
-        appContext = context.applicationContext
             return INSTANCE ?: synchronized(this) {
                 val appContext = context.applicationContext
                 System.loadLibrary("sqlcipher")

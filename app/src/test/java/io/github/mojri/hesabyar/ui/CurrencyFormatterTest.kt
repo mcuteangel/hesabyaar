@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Test
 

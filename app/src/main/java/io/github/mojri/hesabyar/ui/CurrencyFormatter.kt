@@ -1,8 +1,5 @@
 package io.github.mojri.hesabyar.ui
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
@@ -25,7 +22,7 @@ enum class CurrencyUnit(val key: String, val label: String) {
  * Holds current unit as mutable state — SettingsViewModel updates it.
  */
 object CurrencyFormatter {
-    var currentUnit by mutableStateOf(CurrencyUnit.TOMAN)
+    var currentUnit = CurrencyUnit.TOMAN
         private set
 
     val unitLabel: String get() = currentUnit.label
@@ -49,8 +46,8 @@ object CurrencyFormatter {
     fun format(rial: Long): String {
         val fmt = numFmt.get()!!
         return when (currentUnit) {
-            CurrencyUnit.RIAL -> "${fmt.format(rial)} ریال"
-            CurrencyUnit.TOMAN -> "${fmt.format(rial / 10)} تومان"
+            CurrencyUnit.RIAL -> "${fmt.format(rial)} ${CurrencyUnit.RIAL.label}"
+            CurrencyUnit.TOMAN -> "${fmt.format(rial / 10)} ${CurrencyUnit.TOMAN.label}"
         }
     }
 

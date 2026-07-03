@@ -16,46 +16,46 @@ class DashboardHelperTest {
 
     @Test
     fun `format converts rial to toman`() {
-        CurrencyFormatter.setUnit("تومان")
-        assertEquals("10,000 تومان", CurrencyFormatter.format(100_000L))
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+        assertEquals("۱۰٬۰۰۰ تومان", CurrencyFormatter.format(100_000L))
     }
 
     @Test
     fun `format large amount toman`() {
-        CurrencyFormatter.setUnit("تومان")
-        assertEquals("500,000 تومان", CurrencyFormatter.format(5_000_000L))
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+        assertEquals("۵۰۰٬۰۰۰ تومان", CurrencyFormatter.format(5_000_000L))
     }
 
     @Test
     fun `format zero toman`() {
-        CurrencyFormatter.setUnit("تومان")
-        assertEquals("0 تومان", CurrencyFormatter.format(0L))
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+        assertEquals("۰ تومان", CurrencyFormatter.format(0L))
     }
 
     @Test
     fun `format small amount toman rounds down`() {
-        CurrencyFormatter.setUnit("تومان")
-        assertEquals("50 تومان", CurrencyFormatter.format(500L))
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+        assertEquals("۵۰ تومان", CurrencyFormatter.format(500L))
     }
 
     @Test
     fun `format very large amount toman`() {
-        CurrencyFormatter.setUnit("تومان")
-        assertEquals("123,456,789 تومان", CurrencyFormatter.format(1_234_567_890L))
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+        assertEquals("۱۲۳٬۴۵۶٬۷۸۹ تومان", CurrencyFormatter.format(1_234_567_890L))
     }
 
     // --- CurrencyFormatter.format tests (ریال) ---
 
     @Test
     fun `format keeps rial value unchanged`() {
-        CurrencyFormatter.setUnit("ریال")
-        assertEquals("100,000 ریال", CurrencyFormatter.format(100_000L))
+        CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
+        assertEquals("۱۰۰٬۰۰۰ ریال", CurrencyFormatter.format(100_000L))
     }
 
     @Test
     fun `format large amount rial`() {
-        CurrencyFormatter.setUnit("ریال")
-        assertEquals("5,000,000 ریال", CurrencyFormatter.format(5_000_000L))
+        CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
+        assertEquals("۵٬۰۰۰٬۰۰۰ ریال", CurrencyFormatter.format(5_000_000L))
     }
 
     // --- extractForecastPreview tests ---

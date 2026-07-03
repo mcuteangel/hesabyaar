@@ -1,7 +1,7 @@
 package io.github.mojri.hesabyar
 
 import android.app.Application
-import androidx.preference.PreferenceManager
+import android.content.Context
 import dagger.hilt.android.HiltAndroidApp
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
@@ -10,7 +10,7 @@ import io.github.mojri.hesabyar.ui.CurrencyUnit
 class HesabyarApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
         val unit = CurrencyUnit.fromKey(prefs.getString("currency_unit", "تومان") ?: "تومان")
         CurrencyFormatter.setUnit(unit)
     }
