@@ -42,7 +42,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     @Inject
-    private lateinit var authManager: AuthManager
+    lateinit var authManager: AuthManager
 
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val dashboardViewModel: DashboardViewModel by viewModels()
