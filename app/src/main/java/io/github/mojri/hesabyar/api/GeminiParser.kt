@@ -743,13 +743,16 @@ object GeminiParser {
         val activeLoans = loans.filter { !it.isSettled }
         val activeInstallments = installments.filter { !it.isPaid }
 
+        val LOAN_ADVICE = "🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای %d مورد تسویه نشده هستید. تسویه به موقع دیون و پیگیری منظم طلب‌ها از اشخاص به پایداری روابط کاری و شخصی شما یاری می‌رساند.\n\n"
+        val INSTALLMENT_ADVICE = "📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو %d قسط پرداخت‌نشده به ارزش مجموع %d تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود."
+
         if (activeLoans.isNotEmpty()) {
-            sb.append("🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای ${activeLoans.size} مورد تسویه نشده هستید. تسویه به موقع دیون و پیگیری منظم طلب‌ها از اشخاص به پایداری روابط کاری و شخصی شما یاری می‌رساند.\n\n")
+            sb.append(LOAN_ADVICE.format(activeLoans.size))
         }
 
         if (activeInstallments.isNotEmpty()) {
             val totalInstAmt = activeInstallments.sumOf { it.amount }
-            sb.append("📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو ${activeInstallments.size} قسط پرداخت‌نشده به ارزش مجموع ${totalInstAmt} تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود.")
+            sb.append(INSTALLMENT_ADVICE.format(activeInstallments.size, totalInstAmt))
         }
 
         return sb.toString()
