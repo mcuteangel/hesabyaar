@@ -8,7 +8,7 @@
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/screens/CustomTimePickerDialog.kt"
-            line="149"
+            line="154"
             column="44"/>
     </issue>
 
@@ -19,7 +19,7 @@
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/screens/CustomTimePickerDialog.kt"
-            line="187"
+            line="192"
             column="44"/>
     </issue>
 
@@ -30,7 +30,7 @@
         errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt"
-            line="107"
+            line="112"
             column="12"/>
     </issue>
 
@@ -41,7 +41,7 @@
         errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt"
-            line="1841"
+            line="1833"
             column="28"/>
     </issue>
 
@@ -52,7 +52,7 @@
         errorLine2="                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="623"
+            line="719"
             column="112"/>
     </issue>
 
@@ -63,7 +63,7 @@
         errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="625"
+            line="721"
             column="66"/>
     </issue>
 
@@ -74,19 +74,8 @@
         errorLine2="                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="627"
+            line="723"
             column="89"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            return String.format(&quot;%04d/%02d/%02d&quot;, year, month, day)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/ui/JalaliCalendarHelper.kt"
-            line="8"
-            column="20"/>
     </issue>
 
     <issue
@@ -96,239 +85,19 @@
         errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt"
-            line="1328"
+            line="1442"
             column="28"/>
     </issue>
 
     <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.LocalDate#now`"
-        errorLine1="              &quot;daysFromNow&quot;: integer (calculate actual days from today to the Jalali date specified. Today&apos;s date is ${java.time.LocalDate.now()}. If text says &apos;25 تیر&apos;, convert that Jalali date to Gregorian and compute days from today),"
-        errorLine2="                                                                                                                                           ~~~">
+        id="PropertyEscape"
+        message="Windows file separators (`\`) and drive letter separators (&apos;:&apos;) must be escaped (`\\`) in property files; use C\\:\\\\Users\\\\mojtaba\\\\AppData\\\\Local\\\\Android\\\\Sdk\\r"
+        errorLine1="sdk.dir=C:\\Users\\mojtaba\\AppData\\Local\\Android\\Sdk"
+        errorLine2="         ~">
         <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="34"
-            column="140"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.Instant#atZone`"
-        errorLine1="            val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                                ~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="237"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.ZoneId#systemDefault`"
-        errorLine1="            val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                                                        ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="237"
-            column="73"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.ZonedDateTime#toLocalDate`"
-        errorLine1="            val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                                                                         ~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="237"
-            column="90"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Calendar#toInstant`"
-        errorLine1="            val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                    ~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="237"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.Instant#ofEpochMilli`"
-        errorLine1="            val todayDate = java.time.Instant.ofEpochMilli(System.currentTimeMillis())"
-        errorLine2="                                              ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="238"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.Instant#atZone`"
-        errorLine1="                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                 ~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="239"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.ZoneId#systemDefault`"
-        errorLine1="                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                         ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="239"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.ZonedDateTime#toLocalDate`"
-        errorLine1="                .atZone(java.time.ZoneId.systemDefault()).toLocalDate()"
-        errorLine2="                                                          ~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="239"
-            column="59"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26, or core library desugaring (current min is 24): `java.time.temporal.ChronoUnit#between`"
-        errorLine1="            val days = java.time.temporal.ChronoUnit.DAYS.between(todayDate, targetDate)"
-        errorLine2="                                                          ~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="240"
-            column="59"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Field requires API level 26, or core library desugaring (current min is 24): `java.time.temporal.ChronoUnit#DAYS`"
-        errorLine1="            val days = java.time.temporal.ChronoUnit.DAYS.between(todayDate, targetDate)"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="240"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Implicit cast from `LocalDate` to `Temporal` requires API level 26, or core library desugaring (current min is 24)"
-        errorLine1="            val days = java.time.temporal.ChronoUnit.DAYS.between(todayDate, targetDate)"
-        errorLine2="                                                                  ~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="240"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Implicit cast from `LocalDate` to `Temporal` requires API level 26, or core library desugaring (current min is 24)"
-        errorLine1="            val days = java.time.temporal.ChronoUnit.DAYS.between(todayDate, targetDate)"
-        errorLine2="                                                                             ~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/api/GeminiParser.kt"
-            line="240"
-            column="78"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel()`"
-        errorLine1="        val installmentChannel = NotificationChannel("
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="21"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel#setDescription`"
-        errorLine1="            description = &quot;یادآوری سررسید اقساط&quot;"
-        errorLine2="            ~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="26"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel#setDescription`"
-        errorLine1="            description = &quot;یادآوری سررسید اقساط&quot;"
-        errorLine2="                        ~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="26"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel()`"
-        errorLine1="        val loanChannel = NotificationChannel("
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="29"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel#setDescription`"
-        errorLine1="            description = &quot;یادآوری بازپرداخت وام‌ها&quot;"
-        errorLine2="            ~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="34"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationChannel#setDescription`"
-        errorLine1="            description = &quot;یادآوری بازپرداخت وام‌ها&quot;"
-        errorLine2="                        ~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="34"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationManager#createNotificationChannel`"
-        errorLine1="        manager.createNotificationChannel(installmentChannel)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="37"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 24): `android.app.NotificationManager#createNotificationChannel`"
-        errorLine1="        manager.createNotificationChannel(loanChannel)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt"
-            line="38"
-            column="17"/>
+            file="../local.properties"
+            line="8"
+            column="10"/>
     </issue>
 
     <issue
@@ -338,13 +107,13 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="25"
+            line="27"
             column="13"/>
     </issue>
 
     <issue
         id="AndroidGradlePluginVersion"
-        message="A newer version of Gradle than 9.3.1 is available: 9.6.0"
+        message="A newer version of Gradle than 9.3.1 is available: 9.6.1"
         errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-bin.zip"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -362,17 +131,6 @@
             file="../gradle/libs.versions.toml"
             line="2"
             column="7"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.18.0 is available: 1.19.0"
-        errorLine1="coreKtx = &quot;1.18.0&quot;"
-        errorLine2="          ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="3"
-            column="11"/>
     </issue>
 
     <issue
@@ -421,13 +179,13 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose:compose-bom than 2024.09.00 is available: 2026.06.00"
-        errorLine1="composeBom = &quot;2024.09.00&quot;"
-        errorLine2="             ~~~~~~~~~~~~">
+        message="A newer version of androidx.navigation:navigation-compose than 2.8.9 is available: 2.9.8"
+        errorLine1="navigationCompose = &quot;2.8.9&quot;"
+        errorLine2="                    ~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="12"
-            column="14"/>
+            line="14"
+            column="21"/>
     </issue>
 
     <issue
@@ -542,39 +300,6 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.datastore:datastore-preferences than 1.1.7 is available: 1.2.1"
-        errorLine1="datastorePreferences = &quot;1.1.7&quot;"
-        errorLine2="                       ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="36"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.security:security-crypto than 1.1.0-alpha06 is available: 1.1.0"
-        errorLine1="securityCrypto = &quot;1.1.0-alpha06&quot;"
-        errorLine2="                 ~~~~~~~~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="37"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.firebase:firebase-bom than 34.12.0 is available: 34.15.0"
-        errorLine1="firebaseBom = &quot;34.12.0&quot;"
-        errorLine2="              ~~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="40"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of androidx.work:work-runtime-ktx than 2.10.1 is available: 2.11.2"
         errorLine1="workManager = &quot;2.10.1&quot;"
         errorLine2="              ~~~~~~~~">
@@ -582,6 +307,17 @@
             file="../gradle/libs.versions.toml"
             line="42"
             column="15"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.hilt:hilt-navigation-compose than 1.2.0 is available: 1.4.0"
+        errorLine1="hiltNavigationCompose = &quot;1.2.0&quot;"
+        errorLine2="                        ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="45"
+            column="25"/>
     </issue>
 
     <issue
@@ -608,17 +344,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of com.squareup.retrofit2:retrofit than 2.12.0 is available: 3.0.0"
-        errorLine1="retrofit = &quot;2.12.0&quot;"
-        errorLine2="           ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="22"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.squareup.retrofit2:converter-moshi than 2.12.0 is available: 3.0.0"
         errorLine1="converterMoshi = &quot;2.12.0&quot;"
         errorLine2="                 ~~~~~~~~">
@@ -630,13 +355,13 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.10.2 is available: 1.11.0"
-        errorLine1="kotlinxCoroutinesAndroid = &quot;1.10.2&quot;"
-        errorLine2="                           ~~~~~~~~">
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-core than 1.10.2 is available: 1.11.0"
+        errorLine1="kotlinxCoroutinesCore = &quot;1.10.2&quot;"
+        errorLine2="                        ~~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
-            line="24"
-            column="28"/>
+            line="25"
+            column="25"/>
     </issue>
 
     <issue
@@ -648,6 +373,17 @@
             file="../gradle/libs.versions.toml"
             line="32"
             column="22"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.github.takahirom.roborazzi than 1.59.0 is available: 1.64.0"
+        errorLine1="roborazzi = &quot;1.59.0&quot;"
+        errorLine2="            ~~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="39"
+            column="13"/>
     </issue>
 
     <issue
@@ -684,6 +420,17 @@
     </issue>
 
     <issue
+        id="NewerVersionAvailable"
+        message="A newer version of net.zetetic:sqlcipher-android than 4.6.1 is available: 4.16.0"
+        errorLine1="sqlcipher = &quot;4.6.1&quot;"
+        errorLine2="            ~~~~~~~">
+        <location
+            file="../gradle/libs.versions.toml"
+            line="46"
+            column="13"/>
+    </issue>
+
+    <issue
         id="Typos"
         message="Did you mean &quot;DQEBCwUAMIGIMQswCQYDVQQGEwJVUzETMBEGA!&quot; instead of &quot;DQEBCwUAMIGIMQswCQYDVQQGEwJVUzETMBEGA1&quot;?"
         errorLine1="        &lt;item>MIIEqDCCA5CgAwIBAgIJANbU9FUX5gVMA0GCSqGSIb3DQEBCwUAMIGIMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzEQMA4GA1UECgwHR29vZ2xlMRQwEgYDVQQLDAtBbmRyb2lkIENlcnQxGjAYBgNVBAMMEWFuZHJvaWQtc2lnbmVkLWtleTAeFw0wODA4MjEyMzEzNTlaFw0zNzA0MTgyMzEzNTlaMIGIMQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNTW91bnRhaW4gVmlldzEQMA4GA1UECgwHR29vZ2xlMRQwEgYDVQQLDAtBbmRyb2lkIENlcnQxGjAYBgNVBAMMEWFuZHJvaWQtc2lnbmVkLWtleTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAKbeQz59w9eKx3T+0Hw2SjY0V/uVv6x4O+J2/G/T9P0y7vQ6B6U1C+x/Vn6p1/i4PzR4U6/J1bK4Xk/tU+zYj4Z5r6zIeZ45R2F3I/u+k+j7z5R2F3I/u+k+j7z5R2F3I/u+k+j7z5R2F3I/u+k+j7z5R2F3I/u+k+j7z5R2F3I/0&lt;/item>"
@@ -813,6 +560,13 @@
             file="src/main/res/values/font_certs.xml"
             line="5"
             column="329"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
     </issue>
 
     <issue
@@ -893,6 +647,39 @@
     </issue>
 
     <issue
+        id="UnusedResources"
+        message="The resource `R.string.expense_description_with_subject` appears to be unused"
+        errorLine1="    &lt;string name=&quot;expense_description_with_subject&quot;>%1$s (%2$s)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.expense_description_miscellaneous` appears to be unused"
+        errorLine1="    &lt;string name=&quot;expense_description_miscellaneous&quot;>هزینه متفرقه (%1$s)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.currency_unit` appears to be unused"
+        errorLine1="    &lt;string name=&quot;currency_unit&quot;>تومان&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
         id="IconDipSize"
         message="The image `ic_launcher.webp` varies significantly in its density-independent (dip) size across the various density versions: mipmap-hdpi/ic_launcher.webp: 48x48 dp (72x72 px), mipmap-xhdpi/ic_launcher.webp: 48x48 dp (96x96 px), mipmap-xxhdpi/ic_launcher.webp: 12268x3140438 dp (36803x9421313 px)">
         <location
@@ -923,7 +710,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/AiAssistantViewModel.kt"
-            line="135"
+            line="123"
             column="9"/>
     </issue>
 
@@ -934,7 +721,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/AiAssistantViewModel.kt"
-            line="143"
+            line="131"
             column="9"/>
     </issue>
 
@@ -945,7 +732,7 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="95"
+            line="119"
             column="17"/>
     </issue>
 
@@ -956,7 +743,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="121"
+            line="145"
             column="13"/>
     </issue>
 
@@ -967,7 +754,18 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="127"
+            line="151"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="                encryptedPrefs.edit().clear().apply()"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
+            line="156"
             column="17"/>
     </issue>
 
@@ -978,7 +776,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="171"
+            line="200"
             column="9"/>
     </issue>
 
@@ -989,7 +787,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="178"
+            line="207"
             column="9"/>
     </issue>
 
@@ -1000,7 +798,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="198"
+            line="227"
             column="9"/>
     </issue>
 
@@ -1011,7 +809,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt"
-            line="262"
+            line="294"
             column="9"/>
     </issue>
 
@@ -1022,7 +820,51 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/io/github/mojri/hesabyar/ui/BackupViewModel.kt"
-            line="235"
+            line="94"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        sharedPrefs.edit().putBoolean(&quot;dark_mode&quot;, enabled).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/mojri/hesabyar/domain/usecase/GetSettingsUseCase.kt"
+            line="12"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        sharedPrefs.edit().putString(&quot;currency_unit&quot;, unit).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/mojri/hesabyar/domain/usecase/GetSettingsUseCase.kt"
+            line="18"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        getPrefs(context).edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/mojri/hesabyar/auth/PinStorage.kt"
+            line="33"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        getPrefs(context).edit().clear().apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/mojri/hesabyar/auth/PinStorage.kt"
+            line="64"
             column="9"/>
     </issue>
 
@@ -1100,17 +942,6 @@
         <location
             file="src/main/java/io/github/mojri/hesabyar/reminder/ReminderSettingsManager.kt"
             line="68"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        sharedPrefs.edit().putBoolean(&quot;dark_mode&quot;, isDarkMode.value).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/io/github/mojri/hesabyar/ui/SettingsViewModel.kt"
-            line="19"
             column="9"/>
     </issue>
 
