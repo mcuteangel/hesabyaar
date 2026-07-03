@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.mojri.hesabyar.auth.PinStorage
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.annotation.Resetter
 
 @Implements(PinStorage::class)
 class ShadowPinStorage {
@@ -31,6 +32,7 @@ class ShadowPinStorage {
 
     private fun key(context: Context) = System.identityHashCode(context).toString()
 
+    @Resetter
     fun reset() {
         store.clear()
     }
