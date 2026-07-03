@@ -89,16 +89,7 @@
             column="28"/>
     </issue>
 
-    <issue
-        id="PropertyEscape"
-        message="Windows file separators (`\`) and drive letter separators (&apos;:&apos;) must be escaped (`\\`) in property files; use C\\:\\\\Users\\\\mojtaba\\\\AppData\\\\Local\\\\Android\\\\Sdk\\r"
-        errorLine1="sdk.dir=C:\\Users\\mojtaba\\AppData\\Local\\Android\\Sdk"
-        errorLine2="         ~">
-        <location
-            file="../local.properties"
-            line="8"
-            column="10"/>
-    </issue>
+
 
     <issue
         id="RedundantLabel"
@@ -562,12 +553,6 @@
             column="329"/>
     </issue>
 
-    <issue
-        id="ObsoleteSdkInt"
-        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
-        <location
-            file="src/main/res/mipmap-anydpi-v26"/>
-    </issue>
 
     <issue
         id="UnusedResources"
