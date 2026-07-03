@@ -14,17 +14,24 @@ data class AmountResolutionResult(
 
 object TransactionAmountResolver {
 
+    private const val MAX_SAFE_DISPLAY_AMOUNT = Long.MAX_VALUE / 10
+
+    private fun safeToRial(displayedAmount: Long): Long {
+        val clampedAmount = displayedAmount.coerceAtMost(MAX_SAFE_DISPLAY_AMOUNT)
+        return CurrencyFormatter.toRial(clampedAmount)
+    }
+
     fun resolveAmount(input: AmountResolutionInput): AmountResolutionResult {
         if (!input.isEditMode) {
             return AmountResolutionResult(
-                rialAmount = CurrencyFormatter.toRial(input.displayedAmount),
+                rialAmount = safeToRial(input.displayedAmount),
                 preservedOriginal = false
             )
         }
 
         return if (input.userModifiedAmount) {
             AmountResolutionResult(
-                rialAmount = CurrencyFormatter.toRial(input.displayedAmount),
+                rialAmount = safeToRial(input.displayedAmount),
                 preservedOriginal = false
             )
         } else {

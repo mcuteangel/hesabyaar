@@ -1439,10 +1439,10 @@ fun ManualTransactionDialog(
                         OutlinedTextField(
                             value = amountValue,
                             onValueChange = {
-                                amountValue = it
-                                if (isEditMode) {
+                                if (isEditMode && it.text != amountValue.text) {
                                     amountModified = true
                                 }
+                                amountValue = it
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
