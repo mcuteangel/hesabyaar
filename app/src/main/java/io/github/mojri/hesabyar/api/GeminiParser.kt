@@ -118,7 +118,7 @@ object GeminiParser {
 
             ParsedResult(
                 type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
-                amount = amount * 10, // AI returns Toman; store as Rial per DB convention
+                amount = amount,
                 category = category,
                 personName = personName,
                 description = description,

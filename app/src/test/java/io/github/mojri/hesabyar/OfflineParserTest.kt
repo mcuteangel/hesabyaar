@@ -159,7 +159,7 @@ class OfflineParserTest {
 
     @Test
     fun `installment with persian numerals in date`() {
-        val result = GeminiParser.parseSentenceOffline("قسط ماشین ۱۰ تیر ۸ میلیون")
+        val result = GeminiParser.parseSentenceOffline("قسط ماشین ۲۰ مهر ۸ میلیون")
         assertEquals("INSTALLMENT", result.type)
         assertNotNull(result.daysFromNow)
         assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
