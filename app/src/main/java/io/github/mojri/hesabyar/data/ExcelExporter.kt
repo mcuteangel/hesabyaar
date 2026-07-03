@@ -6,6 +6,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -369,7 +370,7 @@ ${allRows.joinToString("\n")}
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-    private fun formatAmount(value: Long): String = "${value / 1000} تومان"
+    private fun formatAmount(value: Long): String = CurrencyFormatter.format(value)
 
     private fun formatDate(timestamp: Long): String =
         SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.US).format(Date(timestamp))

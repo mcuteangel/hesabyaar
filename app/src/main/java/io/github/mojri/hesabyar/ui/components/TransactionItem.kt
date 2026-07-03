@@ -19,11 +19,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
 
 @Composable
 fun TransactionItem(
@@ -36,7 +38,6 @@ fun TransactionItem(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val formatter = remember { DecimalFormat("#,###") }
     val amountColor = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
     val prefix = if (isIncome) "+" else "-"
 
@@ -86,7 +87,7 @@ fun TransactionItem(
         }
 
         Text(
-            text = "$prefix${formatter.format(amount)} ریال",
+            text = "$prefix${CurrencyFormatter.format(amount)}",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
             color = amountColor,

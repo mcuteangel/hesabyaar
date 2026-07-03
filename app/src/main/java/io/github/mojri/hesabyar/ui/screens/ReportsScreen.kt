@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.LoanViewModel
@@ -50,6 +51,7 @@ fun ReportsScreen(
 ) {
     val transactions by dashboardViewModel.transactions.collectAsState()
     val categories by dashboardViewModel.categories.collectAsState()
+
     var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
     var selectedPreset by remember { mutableStateOf<String?>(null) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -199,7 +201,7 @@ fun ReportsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("مجموع کل دریافتی‌ها (درآمد):", style = MaterialTheme.typography.bodyMedium)
-                        Text(formatToman(totalIncome), color = FinancialColors.IncomeGreen, fontWeight = FontWeight.Bold)
+                        Text(CurrencyFormatter.format(totalIncome), color = FinancialColors.IncomeGreen, fontWeight = FontWeight.Bold)
                     }
 
                     Row(
@@ -208,7 +210,7 @@ fun ReportsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("مجموع کل پرداختی‌ها (مخارج):", style = MaterialTheme.typography.bodyMedium)
-                        Text(formatToman(totalExpense), color = FinancialColors.ExpenseRed, fontWeight = FontWeight.Bold)
+                        Text(CurrencyFormatter.format(totalExpense), color = FinancialColors.ExpenseRed, fontWeight = FontWeight.Bold)
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -220,7 +222,7 @@ fun ReportsScreen(
                     ) {
                         Text("پس‌انداز خالص دوره:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(
-                            text = (if (balance >= 0) "+" else "") + formatToman(balance),
+                            text = (if (balance >= 0) "+" else "") + CurrencyFormatter.format(balance),
                             color = if (balance >= 0) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -482,7 +484,7 @@ fun ReportsScreen(
                             }
 
                             Text(
-                                text = "$percent٪ | " + formatToman(total),
+                                text = "$percent٪ | " + CurrencyFormatter.format(total),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
@@ -574,7 +576,7 @@ fun ReportsScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = (if (transaction.type == "INCOME") "+" else "-") + formatToman(transaction.amount),
+                            text = (if (transaction.type == "INCOME") "+" else "-") + CurrencyFormatter.format(transaction.amount),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (transaction.type == "INCOME") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed

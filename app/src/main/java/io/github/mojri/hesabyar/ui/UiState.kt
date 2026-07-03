@@ -3,8 +3,6 @@ package io.github.mojri.hesabyar.ui
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
-import java.text.NumberFormat
-import java.util.Locale
 
 data class DashboardData(
     val currentBalance: Long = 0L,
@@ -44,12 +42,6 @@ sealed interface ModelFetchState {
     object Loading : ModelFetchState
     data class Success(val models: List<String>) : ModelFetchState
     data class Error(val message: String) : ModelFetchState
-}
-
-fun formatToman(value: Long): String {
-    val tomanValue = value / 10
-    val formatter = NumberFormat.getNumberInstance(Locale("fa", "IR"))
-    return "${formatter.format(tomanValue)} تومان"
 }
 
 data class MonthlyData(

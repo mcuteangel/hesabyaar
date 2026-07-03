@@ -14,10 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import java.text.DecimalFormat
 
 @Composable
 fun BalanceCard(
@@ -28,7 +28,6 @@ fun BalanceCard(
     shape: Shape = ShapeTokens.XLarge,
     onClick: (() -> Unit)? = null
 ) {
-    val formatter = remember { DecimalFormat("#,###") }
     val gradientBrush = remember(shape) {
         Brush.verticalGradient(
             colors = listOf(
@@ -62,7 +61,7 @@ fun BalanceCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "${formatter.format(balance)} ریال",
+                text = CurrencyFormatter.format(balance),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -77,7 +76,7 @@ fun BalanceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${formatter.format(income)}",
+                        text = CurrencyFormatter.format(income),
                         style = MaterialTheme.typography.bodyMedium,
                         color = FinancialColors.IncomeGreen
                     )
@@ -89,7 +88,7 @@ fun BalanceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${formatter.format(expense)}",
+                        text = CurrencyFormatter.format(expense),
                         style = MaterialTheme.typography.bodyMedium,
                         color = FinancialColors.ExpenseRed
                     )

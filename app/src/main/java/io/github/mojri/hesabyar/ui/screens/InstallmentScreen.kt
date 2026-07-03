@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
@@ -42,6 +43,7 @@ fun InstallmentScreen(
     modifier: Modifier = Modifier
 ) {
     val installments by installmentViewModel.installments.collectAsState()
+
     var showAddDialog by remember { mutableStateOf(false) }
     var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
 
@@ -182,7 +184,7 @@ fun InstallmentScreen(
                     HesabyarInputField(
                         value = amountText,
                         onValueChange = { amountText = it },
-                        label = "مبلغ قسط (تومان)"
+                        label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
                     )
 
                     JalaliDateTimePicker(
@@ -217,9 +219,9 @@ fun InstallmentScreen(
             confirmButton = {
                 HesabyarButton(
                     onClick = {
-                        val amountToman = amountText.toLongOrNull() ?: 0L
-                        if (title.isNotBlank() && amountToman > 0L) {
-                            val amountRial = amountToman * 1000L
+                        val amountDisplay = amountText.toLongOrNull() ?: 0L
+                        if (title.isNotBlank() && amountDisplay > 0L) {
+                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
                             installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
                             showAddDialog = false
                         } else {
@@ -296,7 +298,7 @@ fun InstallmentListItem(
                 }
 
                 Text(
-                    text = formatToman(installment.amount),
+                    text = CurrencyFormatter.format(installment.amount),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = colorAccent

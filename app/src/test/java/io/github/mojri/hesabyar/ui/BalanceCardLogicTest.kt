@@ -1,9 +1,12 @@
 package io.github.mojri.hesabyar.ui
 
 import androidx.compose.ui.graphics.Color
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.text.DecimalFormat
 
@@ -16,19 +19,30 @@ import java.text.DecimalFormat
  */
 class BalanceCardLogicTest {
 
+    @Before
+    fun setUp() {
+        CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    }
+
     private val formatter = DecimalFormat("#,###")
+    // Use CurrencyUnit enum label as authoritative — CurrencyFormatter.format() uses this too
+    private val expectedSuffix = CurrencyUnit.TOMAN.label
 
     @Test
-    fun `balance formatted with separators and rial suffix`() {
-        val balance = 5000000L
-        val display = "${formatter.format(balance)} ریال"
-        assertEquals("5,000,000 ریال", display)
+    fun `balance formatted with separators and currency suffix`() {
+        val balance = 5000000L // 5M rial
+        val display = CurrencyFormatter.format(balance)
+        assertEquals("۵۰۰٬۰۰۰", display.substringBeforeLast(" ")) // 5M rial = 500k TOMAN
+        assertTrue("Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",
+            display.endsWith(expectedSuffix))
     }
 
     @Test
     fun `zero balance displays correctly`() {
-        val display = "${formatter.format(0L)} ریال"
-        assertEquals("0 ریال", display)
+        val display = CurrencyFormatter.format(0L)
+        assertEquals("۰", display.substringBeforeLast(" "))
+        assertTrue("Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",
+            display.endsWith(expectedSuffix))
     }
 
     @Test

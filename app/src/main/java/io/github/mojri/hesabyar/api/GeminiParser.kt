@@ -118,7 +118,7 @@ object GeminiParser {
 
             ParsedResult(
                 type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
-                amount = amount,
+                amount = amount * 10, // AI returns Toman; store as Rial per DB convention
                 category = category,
                 personName = personName,
                 description = description,
@@ -338,7 +338,7 @@ object GeminiParser {
 
         val parsed = ParsedResult(
             type = classification.type,
-            amount = amountToman * 1000,
+            amount = amountToman * 10,
             category = classification.category,
             personName = personName,
             description = classification.description,
@@ -359,7 +359,7 @@ object GeminiParser {
         return parsed.copy(
             type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
             category = parsed.category.ifBlank { CATEGORY_OTHER },
-            amount = (amountToman * 1000).coerceAtLeast(1),
+            amount = (amountToman * 10).coerceAtLeast(1),
             hour = parsed.hour?.coerceIn(0, 23),
             minute = parsed.minute?.coerceIn(0, 59)
         )

@@ -19,9 +19,19 @@ class SettingsViewModel @Inject constructor(
     var isDarkMode = mutableStateOf(getSettingsUseCase.isDarkMode())
         private set
 
+    var currencyUnit = mutableStateOf(CurrencyUnit.fromKey(getSettingsUseCase.getCurrencyUnit()))
+        private set
+
     fun toggleDarkMode() {
         isDarkMode.value = !isDarkMode.value
         getSettingsUseCase.setDarkMode(isDarkMode.value)
+    }
+
+    fun setCurrencyUnit(unit: CurrencyUnit) {
+        if (currencyUnit.value == unit) return
+        currencyUnit.value = unit
+        getSettingsUseCase.setCurrencyUnit(unit.key)
+        CurrencyFormatter.setUnit(unit)
     }
 
     private val _uiMessage = MutableSharedFlow<String>()
