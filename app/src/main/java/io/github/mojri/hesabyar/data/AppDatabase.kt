@@ -17,7 +17,7 @@ import java.io.File
 
 @Database(
     entities = [Transaction::class, Loan::class, Installment::class, PaymentHistory::class, Category::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,7 +31,6 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
         private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)")
@@ -53,6 +52,26 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history")
                 db.execSQL("DROP TABLE payment_history")
                 db.execSQL("ALTER TABLE payment_history_new RENAME TO payment_history")
+            }
+        }
+
+        /**
+         * Corrects amounts inflated by MIGRATION_1_2 (*1000).
+         * Correct factor: 1 Toman = 10 Rials → values were 100x too big.
+         * Only divides rows with amounts exceeding realistic thresholds to avoid
+         * corrupting data that was never inflated by MIGRATION_1_2.
+         * Room guarantees this runs exactly once per DB file via _room_master_table.
+         * ponytail: one-shot data fix. Remove after all users migrated to v4+.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Only divide rows where amounts exceed thresholds that indicate
+                // they were inflated by MIGRATION_1_2 (1000x factor, not 10x).
+                db.execSQL("UPDATE transactions SET amount = amount / 100 WHERE amount > 1000000000")
+                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100 WHERE originalAmount > 1000000000")
+                db.execSQL("UPDATE loans SET remainingAmount = remainingAmount / 100 WHERE remainingAmount > 1000000000")
+                db.execSQL("UPDATE installments SET amount = amount / 100 WHERE amount > 1000000000")
+                db.execSQL("UPDATE payment_history SET amount = amount / 100 WHERE amount > 1000000000")
             }
         }
 
@@ -116,7 +135,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "hesabyar_database"
                 )
                 .openHelperFactory(factory)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance
@@ -148,7 +167,7 @@ abstract class AppDatabase : RoomDatabase() {
                 .forEach { it.copyTo(context.getDatabasePath("$tempName${it.name.removePrefix("hesabyar_database")}"), overwrite = true) }
 
             val plaintextDb = Room.databaseBuilder(context, AppDatabase::class.java, tempName)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
             val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -168,7 +187,7 @@ try {
     val factory = SupportOpenHelperFactory(passphrase)
     val encryptedDb = Room.databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
         .openHelperFactory(factory)
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
 
     encryptedDb.runInTransaction {

@@ -12,6 +12,12 @@ class GetSettingsUseCase(
         sharedPrefs.edit().putBoolean("dark_mode", enabled).apply()
     }
 
+    fun getCurrencyUnit(): String = sharedPrefs.getString("currency_unit", "تومان") ?: "تومان"
+
+    fun setCurrencyUnit(unit: String) {
+        sharedPrefs.edit().putString("currency_unit", unit).apply()
+    }
+
     fun getAiLogs(): List<AppLogger.LogEntry> = AppLogger.getAiLogs()
 
     fun clearLogs() = AppLogger.clear()

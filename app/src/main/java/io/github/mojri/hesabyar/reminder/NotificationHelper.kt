@@ -8,8 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import io.github.mojri.hesabyar.MainActivity
 import io.github.mojri.hesabyar.R
-import java.text.NumberFormat
-import java.util.Locale
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 
 object NotificationHelper {
     private const val CHANNEL_ID_INSTALLMENT = "installment_reminders"
@@ -61,26 +60,26 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val formattedAmount = formatAmount(amount)
+        val formattedAmount = CurrencyFormatter.format(amount)
         val titleText: String
         val bodyText: String
 
         when {
             daysUntilDue < 0 -> {
                 titleText = "قسط سررسید گذشته"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال ${-daysUntilDue} روز پیش سررسید شده است."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount ${-daysUntilDue} روز پیش سررسید شده است."
             }
             daysUntilDue == 0 -> {
                 titleText = "قسط امروز سررسید است"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال امروز سررسید شده است."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount امروز سررسید شده است."
             }
             daysUntilDue == 1 -> {
                 titleText = "قسط فردا سررسید است"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال فردا سررسید می‌شود."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount فردا سررسید می‌شود."
             }
             else -> {
                 titleText = "یادآوری قسط"
-                bodyText = "قسط «$title» به مبلغ $formattedAmount ریال ${daysUntilDue} روز دیگر سررسید می‌شود."
+                bodyText = "قسط «$title» به مبلغ $formattedAmount ${daysUntilDue} روز دیگر سررسید می‌شود."
             }
         }
 
@@ -116,10 +115,10 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val formattedAmount = formatAmount(remainingAmount)
+        val formattedAmount = CurrencyFormatter.format(remainingAmount)
         val typeLabel = if (loanType == "CREDITOR") "بدهی" else "طلب"
         val titleText = "یادآوری $typeLabel"
-        val bodyText = "شما $typeLabel به مبلغ $formattedAmount ریال به «$personName» دارید."
+        val bodyText = "شما $typeLabel به مبلغ $formattedAmount به «$personName» دارید."
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID_LOAN)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -133,10 +132,5 @@ object NotificationHelper {
             .build()
 
         manager.notify((loanId + 10000).toInt(), notification)
-    }
-
-    private fun formatAmount(amount: Long): String {
-        val formatter = NumberFormat.getNumberInstance(Locale("fa", "IR"))
-        return formatter.format(amount)
     }
 }

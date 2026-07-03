@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
@@ -37,13 +38,13 @@ object BudgetAdvisor {
 
         val categoryReport = categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
             val cat = categories.find { it.id == catId }
-            "- ${cat?.name ?: "سایر"}: ${formatTomanClean(sum)} تومان"
+            "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
         }
 
         val transactionListPrompt = transactions.take(30).joinToString("\n") { tx ->
             val typeStr = if (tx.type == "INCOME") "درآمد" else "هزینه"
             val cat = categories.find { it.id == tx.categoryId }
-            "- ${cat?.name ?: "سایر"} | $typeStr | ${formatTomanClean(tx.amount)} تومان | شرح: ${tx.description}"
+            "- ${cat?.name ?: "سایر"} | $typeStr | ${formatAmountClean(tx.amount)} | شرح: ${tx.description}"
         }
 
         val prompt = """
@@ -51,9 +52,9 @@ object BudgetAdvisor {
             لطفاً تراکنش‌های مالی اخیر مرا بررسی کرده و توصیه‌های هوشمند، کاربردی و روان به زبان فارسی برای مدیریت بهتر بودجه، کاهش هزینه‌ها و افزایش پس‌انداز به من ارائه بده.
 
             آمارهای کلی من:
-            - کل درآمد ثبت شده: ${formatTomanClean(totalIncome)} تومان
-            - کل هزینه‌های ثبت شده: ${formatTomanClean(totalExpense)} تومان
-            - تراز باقیمانده: ${formatTomanClean(totalIncome - totalExpense)} تومان
+            - کل درآمد ثبت شده: ${formatAmountClean(totalIncome)}
+            - کل هزینه‌های ثبت شده: ${formatAmountClean(totalExpense)}
+            - تراز باقیمانده: ${formatAmountClean(totalIncome - totalExpense)}
 
             هزینه‌ها به تفکیک دسته‌بندی:
             $categoryReport
@@ -95,16 +96,8 @@ object BudgetAdvisor {
         }
     }
 
-    private fun formatTomanClean(amount: Long): String {
-        val tomanValue = amount / 1000
-        return try {
-            val formatter = NumberFormat.getNumberInstance(Locale.US)
-            formatter.maximumFractionDigits = 0
-            formatter.format(tomanValue)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            tomanValue.toString()
-        }
+    private fun formatAmountClean(amount: Long): String {
+        return CurrencyFormatter.format(amount)
     }
 
     // High quality local rules budget advisor for offline mode
@@ -142,7 +135,7 @@ object BudgetAdvisor {
             val catNameFarsi = highestCategory.name
             val catExpense = categoryTotals[highestCategoryId] ?: 0L
             sb.append("📊 ** تمرکز روی پرهزینه‌ترین بخش مخارج:**\n")
-            sb.append("بزرگترین کانون مخارج شما مربوط به دسته‌بندی **$catNameFarsi** با مجموع مبلغ **${formatTomanClean(catExpense)}** تومان است.\n\n")
+            sb.append("بزرگترین کانون مخارج شما مربوط به دسته‌بندی **$catNameFarsi** با مجموع مبلغ **${formatAmountClean(catExpense)}** است.\n\n")
             sb.append("💡 **پیشنهاد تخصصی مشاور:** ")
             when (highestCategory.key) {
                 "Food" -> sb.append("تدارک مواد غذایی خانگی به جای رستوران‌ها و کافه‌های غیرضروری و نوشتن لیست خریدهای خواربار قبل از مراجعه به فروشگاه، می‌تواند تا ۳۰ درصد هزینه‌های این دسته را کاهش دهد.")
@@ -193,11 +186,11 @@ object BudgetAdvisor {
             .mapValues { it.value.sumOf { tx -> tx.amount } }
             .entries.joinToString("\n") { (catId, sum) ->
                 val cat = categories.find { it.id == catId }
-                "- ${cat?.name ?: "سایر"}: ${formatTomanClean(sum)} تومان"
+                "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
             }
 
         val installmentListPrompt = upcomingInstallments.take(15).joinToString("\n") { inst ->
-            "- قسط: ${inst.title} | مبلغ: ${formatTomanClean(inst.amount)} تومان"
+            "- قسط: ${inst.title} | مبلغ: ${formatAmountClean(inst.amount)}"
         }
 
         val promptText = """
@@ -205,9 +198,9 @@ object BudgetAdvisor {
             لطفاً تراکنش‌های مالی اخیر و تعهدات مالی پیش‌روی مرا تحلیل کرده و پیش‌بینی وضعیت بودجه و تراز مالی ماه آینده مرا به همراه یک هشدار هوشمند (Smart Alert) صمیمی و روان به زبان فارسی ارائه دهی.
 
             داده‌های کلی من:
-            - پایش درآمد کل جاری: ${formatTomanClean(totalIncome)} تومان
-            - پایش مخارج کل جاری: ${formatTomanClean(totalExpense)} تومان
-            - اقساط پرداخت نشده در آینده نزدیک: ${upcomingInstallments.size} مورد با مبلغ کل تعهد ${formatTomanClean(totalUpcomingAmount)} تومان
+            - پایش درآمد کل جاری: ${formatAmountClean(totalIncome)}
+            - پایش مخارج کل جاری: ${formatAmountClean(totalExpense)}
+            - اقساط پرداخت نشده در آینده نزدیک: ${upcomingInstallments.size} مورد با مبلغ کل تعهد ${formatAmountClean(totalUpcomingAmount)}
             - تعداد وام‌های فعال: $activeLoansCount مورد
 
             خلاصه دسته‌بندی مخارج من:
@@ -268,20 +261,20 @@ object BudgetAdvisor {
         sb.append("بررسی روندهای آماری تراکنش‌های ثبت شده شما و مطابقت آن با اقساط سررسید آینده، خروجی‌های زیر را ترسیم می‌کند:\n\n")
         
         sb.append("📋 **برآورد جریان نقدی ۳۰ روز پیش‌رو:**\n")
-        sb.append("- 💵 **درآمد تخمینی:** ${formatTomanClean(averageIncome)} تومان\n")
-        sb.append("- 💸 **مخارج تخمینی:** ${formatTomanClean(averageExpense)} تومان\n")
-        sb.append("- 🗓️ **تعهد اقساط در شرف سررسید:** ${formatTomanClean(upcomingInstallmentsSum)} تومان\n")
+        sb.append("- 💵 **درآمد تخمینی:** ${formatAmountClean(averageIncome)}\n")
+        sb.append("- 💸 **مخارج تخمینی:** ${formatAmountClean(averageExpense)}\n")
+        sb.append("- 🗓️ **تعهد اقساط در شرف سررسید:** ${formatAmountClean(upcomingInstallmentsSum)}\n")
         
-        val formattedEstimatedBalance = formatTomanClean(kotlin.math.abs(estimatedBalance))
+        val formattedEstimatedBalance = formatAmountClean(kotlin.math.abs(estimatedBalance))
         if (estimatedBalance < 0) {
             sb.append("\n### 🚨 هشدار هوشمند: ریسک کسری بودجه در ماه بعد!\n")
-            sb.append("با نگرانی خفیف به استحضار می‌رساند مخارج متوسط شما به همراه اقساط پیش رو، احتمالاً تراز نقدی شما در ماه آینده را با **کسری حدودی $formattedEstimatedBalance تومان** روبرو خواهد کرد.\n\n")
+            sb.append("با نگرانی خفیف به استحضار می‌رساند مخارج متوسط شما به همراه اقساط پیش رو، احتمالاً تراز نقدی شما در ماه آینده را با **کسری حدودی $formattedEstimatedBalance** روبرو خواهد کرد.\n\n")
             sb.append("💡 **اقدامات اصلاحی فوری:**\n")
             sb.append("۱. **کنترل هزینه‌های غیرضروری:** برخی خریدهای چند روز اخیر مانند دسته‌بندی خرید یا تفریح را مسدود کنید.\n")
             sb.append("۲. **اولویت بازپرداخت:** در اوایل ماه جدید، مبلغ اقساط آینده را سریعاً اولویت‌بندی کرده و کنار بگذارید تا با تاخیر و جریمه مواجه نشوید.")
         } else {
             sb.append("\n### 🟢 هشدار هوشمند: وضعیت مالی پایدار و سبز\n")
-            sb.append("خوشبختانه بررسی الگوی دخل و خرج نشان می‌دهد جریان درآمدی شما برای پوشش مخارج جاری و تصفیه اقساط کاملاً کافی است و پیش‌بینی می‌شود ماه آینده را با **مازاد بودجه حدودی $formattedEstimatedBalance تومان** پشت سر بگذارید.\n\n")
+            sb.append("خوشبختانه بررسی الگوی دخل و خرج نشان می‌دهد جریان درآمدی شما برای پوشش مخارج جاری و تصفیه اقساط کاملاً کافی است و پیش‌بینی می‌شود ماه آینده را با **مازاد بودجه حدودی $formattedEstimatedBalance** پشت سر بگذارید.\n\n")
             sb.append("💡 **اقدامات توصیه‌ای مشاور:**\n")
             sb.append("۱. **پس‌انداز هدفمند:** پیشنهاد می‌شود بلافاصله پس از واریز درآمد جدید، حداقل ۱۵ درصد آن را به عنوان پس‌انداز طلایی به حساب مجزا انتقال دهید.\n")
             sb.append("۲. **خاکریز امن سرمایه‌گذاری:** با انباشت مازاد نقدی، به تدریج اقدام به ساخت سبد دارایی پایدار نمایید.")
@@ -361,9 +354,9 @@ object BudgetAdvisor {
         if (upcomingInstallments.isNotEmpty()) {
             val totalUpcoming = upcomingInstallments.sumOf { it.amount }
             sb.appendLine()
-            sb.appendLine("📅 **اقساط در انتظار پرداخت:** ${upcomingInstallments.size} مورد (${formatTomanClean(totalUpcoming)} تومان)")
+            sb.appendLine("📅 **اقساط در انتظار پرداخت:** ${upcomingInstallments.size} مورد (${formatAmountClean(totalUpcoming)})")
             upcomingInstallments.take(3).forEach { inst ->
-                sb.appendLine("- ${inst.title}: ${formatTomanClean(inst.amount)} تومان")
+                sb.appendLine("- ${inst.title}: ${formatAmountClean(inst.amount)}")
             }
         }
 

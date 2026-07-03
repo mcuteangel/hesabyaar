@@ -126,11 +126,11 @@ class TransactionTest {
     @Test
     fun `no floating point in monetary values`() {
         val amount: Long = 5_500_000
-        val toman = amount / 1000
-        assertEquals(5500L, toman)
+        val toman = amount / 10
+        assertEquals(550_000L, toman)
 
         val amount2: Long = 1_234_567
-        val toman2 = amount2 / 1000
-        assertEquals(1234L, toman2)
+        val toman2 = amount2 / 10
+        assertEquals(123_456L, toman2)
     }
 }
