@@ -68,7 +68,8 @@ abstract class AppDatabase : RoomDatabase() {
                 // Only divide rows where amounts exceed thresholds that indicate
                 // they were inflated by MIGRATION_1_2 (1000x factor, not 10x).
                 db.execSQL("UPDATE transactions SET amount = amount / 100 WHERE amount > 1000000000")
-                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100, remainingAmount = remainingAmount / 100 WHERE originalAmount > 10000000 OR remainingAmount > 10000000")
+                db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100 WHERE originalAmount > 1000000000")
+                db.execSQL("UPDATE loans SET remainingAmount = remainingAmount / 100 WHERE remainingAmount > 1000000000")
                 db.execSQL("UPDATE installments SET amount = amount / 100 WHERE amount > 1000000000")
                 db.execSQL("UPDATE payment_history SET amount = amount / 100 WHERE amount > 1000000000")
             }
