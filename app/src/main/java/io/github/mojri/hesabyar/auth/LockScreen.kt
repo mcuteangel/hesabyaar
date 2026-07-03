@@ -21,7 +21,7 @@ fun LockScreen(
     var showPinInput by remember { mutableStateOf(false) }
 
     val hasBiometric = authManager.hasBiometric(context)
-    val hasPin = authManager.needsBiometricOrPin(context)
+    val hasPin = authManager.isAuthEnabled(context)
 
     LaunchedEffect(Unit) {
         if (hasBiometric && activity != null && hasPin) {
