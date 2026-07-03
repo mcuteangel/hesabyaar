@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch issues
         id: issues
@@ -206,6 +207,7 @@ jobs:
         uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Find and close resolved issues
         env:
@@ -222,20 +224,18 @@ jobs:
 
           CLOSED=0
 
-          for ROW in $(echo "$ISSUES" | jq -c '.[]'); do
+          while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
             TITLE=$(echo "$ROW" | jq -r '.title')
 
-            # Skip issues that look like PRs (title starts with PR-like patterns)
-            # or issues that are clearly codeant/sourcery auto-generated
-            if echo "$TITLE" | grep -qiE '^\<sub\>|^hesabyaar-.*\.kt:'; then
+            if echo "$TITLE" | grep -qiE '^<sub>|^hesabyaar-.*\.kt:'; then
               echo "⏭️ #${NUM}: auto-generated issue, skipping"
               continue
             fi
 
             # Search git log for explicit references to this issue number
             # Matches: #40, fixes #40, close #40, resolves #40, issue #40, closes #40
-            MATCHES=$(git log --all --oneline --grep="#${NUM}" -n 5 2>/dev/null || true)
+            MATCHES=$(git log --all --oneline -E --grep="#${NUM}([^0-9]|$)" -n 5 2>/dev/null || true)
 
             if [ -z "$MATCHES" ]; then
               echo "⏭️ #${NUM}: no commit references"
@@ -256,12 +256,17 @@ jobs:
             # Check commit message for fix/resolve/close keywords
             MSG_LOWER=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
             HAS_FIX_KEYWORD=false
-            for word in fix fixes resolved resolved closed patched corrected solved reworked updated improved; do
+            for word in fix fixes resolved closed patched corrected solved reworked updated improved; do
               if echo "$MSG_LOWER" | grep -qw "$word"; then
                 HAS_FIX_KEYWORD=true
                 break
               fi
             done
+
+            if [ "$HAS_FIX_KEYWORD" != "true" ]; then
+              echo "⏭️ #${NUM}: reference found but no fix keyword, skipping"
+              continue
+            fi
 
             # Build the comment using heredoc (reliable multiline)
             COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT_SHA}"
@@ -285,7 +290,7 @@ jobs:
             gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"
             gh issue close "$NUM" --repo "$REPO"
             CLOSED=$((CLOSED + 1))
-          done
+          done <<< "$(echo "$ISSUES" | jq -c '.[]')"
 
           echo "=== Done: closed ${CLOSED} issues ==="
 
