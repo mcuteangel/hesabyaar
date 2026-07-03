@@ -43,6 +43,9 @@ object GeminiParser {
     private const val KEYWORD_TOMAN = "تومان"
     private const val KEYWORD_HAZAR = "هزار"
 
+    private const val LOAN_ADVICE = "🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای %d مورد تسویه نشده هستید. تسویه به موقع دیون و پیگیری منظم طلب‌ها از اشخاص به پایداری روابط کاری و شخصی شما یاری می‌رساند.\n\n"
+    private const val INSTALLMENT_ADVICE = "📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو %d قسط پرداخت‌نشده به ارزش مجموع %d تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود."
+
     suspend fun parseSentence(
         sentence: String,
         config: AiProviderConfig? = null
@@ -104,17 +107,17 @@ object GeminiParser {
             val amount = json.optLong("amount", 0L)
             if (amount <= 0L) return null
             val category = json.optString("category", CATEGORY_OTHER)
-            val personName = if (json.isNull("personName")) null else json.optString("personName", "")
-            val description = json.optString("description", "")
+            val personName = json.optString("personName").takeIf { it.isNotEmpty() }
+            val description = json.optString("description").takeIf { it.isNotEmpty() } ?: ""
             val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
                 try { json.getInt("daysFromNow") } catch (_: Exception) { null }
             } else null
-            val title = if (json.isNull("title")) null else json.optString("title", "")
+            val title = json.optString("title").takeIf { it.isNotEmpty() }
             val dateOffsetDays = json.optInt("dateOffsetDays", 0)
             val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }
             val minute = json.optInt("minute", -1).let { if (it >= 0) it else null }
             val confidence = json.optDouble("confidence", 0.8).toFloat()
-            val notes = if (json.isNull("notes")) null else json.optString("notes", "")
+            val notes = json.optString("notes").takeIf { it.isNotEmpty() }
 
             ParsedResult(
                 type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
@@ -742,9 +745,6 @@ object GeminiParser {
         // 3. Loans and Installments advice
         val activeLoans = loans.filter { !it.isSettled }
         val activeInstallments = installments.filter { !it.isPaid }
-
-        val LOAN_ADVICE = "🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای %d مورد تسویه نشده هستید. تسویه به موقع دیون و پیگیری منظم طلب‌ها از اشخاص به پایداری روابط کاری و شخصی شما یاری می‌رساند.\n\n"
-        val INSTALLMENT_ADVICE = "📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو %d قسط پرداخت‌نشده به ارزش مجموع %d تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود."
 
         if (activeLoans.isNotEmpty()) {
             sb.append(LOAN_ADVICE.format(activeLoans.size))
