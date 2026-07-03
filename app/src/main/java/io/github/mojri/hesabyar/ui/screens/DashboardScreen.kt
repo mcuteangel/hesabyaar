@@ -1297,7 +1297,7 @@ fun ManualTransactionDialog(
     val context = LocalContext.current
     val isEditMode = transactionToEdit != null
     var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
-    var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit!!.amount).toString() else "")) }
+    var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit?.amount ?: 0L).toString() else "")) }
     var descriptionText by remember { mutableStateOf(transactionToEdit?.description.orEmpty()) }
     var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
     var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
