@@ -1297,9 +1297,9 @@ fun ManualTransactionDialog(
     val context = LocalContext.current
     val isEditMode = transactionToEdit != null
     var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
-    // Store the original Rial amount to avoid precision loss through fromRial/toRial conversion
     val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
     var amountValue by remember { mutableStateOf(TextFieldValue(if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit?.amount ?: 0L).toString() else "")) }
+    var amountModified by remember { mutableStateOf(false) }
     var descriptionText by remember { mutableStateOf(transactionToEdit?.description.orEmpty()) }
     var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
     var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
@@ -1438,7 +1438,12 @@ fun ManualTransactionDialog(
                         )
                         OutlinedTextField(
                             value = amountValue,
-                            onValueChange = { amountValue = it },
+                            onValueChange = {
+                                amountValue = it
+                                if (isEditMode) {
+                                    amountModified = true
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("manual_amount_input"),
@@ -1459,7 +1464,12 @@ fun ManualTransactionDialog(
                         )
                         AmountQuickFillButtons(
                             amountValue = amountValue,
-                            onValueChanged = { amountValue = it }
+                            onValueChanged = {
+                                amountValue = it
+                                if (isEditMode) {
+                                    amountModified = true
+                                }
+                            }
                         )
                         val amtDisplay = amountValue.text.toLongOrNull() ?: 0L
                         if (amtDisplay > 0L) {
@@ -1634,15 +1644,15 @@ fun ManualTransactionDialog(
                                 android.widget.Toast.makeText(context, "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید", android.widget.Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            // Use original Rial amount if in edit mode and user hasn't changed the displayed value
-                            val initialDisplayValue = if (isEditMode) CurrencyFormatter.fromRial(originalAmountRial) else 0L
-                            val finalAmountRial = if (isEditMode && finalAmountDisplay == initialDisplayValue) {
-                                // User didn't change the amount, preserve the exact original Rial value
-                                originalAmountRial
-                            } else {
-                                // User changed the amount, convert from display unit to Rial
-                                CurrencyFormatter.toRial(finalAmountDisplay)
-                            }
+                            val resolutionResult = TransactionAmountResolver.resolveAmount(
+                                AmountResolutionInput(
+                                    displayedAmount = finalAmountDisplay,
+                                    isEditMode = isEditMode,
+                                    originalRialAmount = originalAmountRial,
+                                    userModifiedAmount = amountModified
+                                )
+                            )
+                            val finalAmountRial = resolutionResult.rialAmount
 
                             if ((selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L) {
                                 android.widget.Toast.makeText(context, "لطفا دسته‌بندی را انتخاب کنید", android.widget.Toast.LENGTH_SHORT).show()
