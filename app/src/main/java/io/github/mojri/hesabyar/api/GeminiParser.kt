@@ -104,17 +104,17 @@ object GeminiParser {
             val amount = json.optLong("amount", 0L)
             if (amount <= 0L) return null
             val category = json.optString("category", CATEGORY_OTHER)
-            val personName = json.optString("personName", null)
+            val personName = if (json.isNull("personName")) null else json.optString("personName", "")
             val description = json.optString("description", "")
             val daysFromNow = if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
                 try { json.getInt("daysFromNow") } catch (_: Exception) { null }
             } else null
-            val title = json.optString("title", null)
+            val title = json.optString("title", "")
             val dateOffsetDays = json.optInt("dateOffsetDays", 0)
             val hour = json.optInt("hour", -1).let { if (it >= 0) it else null }
             val minute = json.optInt("minute", -1).let { if (it >= 0) it else null }
             val confidence = json.optDouble("confidence", 0.8).toFloat()
-            val notes = json.optString("notes", null)
+            val notes = json.optString("notes", "")
 
             ParsedResult(
                 type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
@@ -749,7 +749,7 @@ object GeminiParser {
 
         if (activeInstallments.isNotEmpty()) {
             val totalInstAmt = activeInstallments.sumOf { it.amount }
-            sb.append("📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو ${activeInstallments.size} قسط پرداخت‌نشده به ارزش مجموع ${totalInstAmt.toLong()} تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود.")
+            sb.append("📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو ${activeInstallments.size} قسط پرداخت‌نشده به ارزش مجموع ${totalInstAmt} تومان دارید. توصیه می‌شود مبلغ اقساط را زودتر کنار بگذارید تا سررسید آن‌ها باعث جریمه یا فشار مالی نشود.")
         }
 
         return sb.toString()

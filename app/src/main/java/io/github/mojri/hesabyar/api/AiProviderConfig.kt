@@ -260,7 +260,8 @@ class AiConfigManager(context: Context) {
         val json = prefs.getString(KEY_MODEL_CACHE, null) ?: return null
         return try {
             val obj = JSONObject(json)
-            val providerJson = obj.optString(providerType.name, null) ?: return null
+            val providerJson = obj.optString(providerType.name, "")
+            if (providerJson.isBlank()) return null
             val entry = JSONObject(providerJson)
             val modelsArr = entry.getJSONArray("models")
             val models = (0 until modelsArr.length()).map { modelsArr.getString(it) }
