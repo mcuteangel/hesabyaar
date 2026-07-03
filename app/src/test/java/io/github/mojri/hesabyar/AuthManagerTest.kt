@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.auth.AuthManager
 import io.github.mojri.hesabyar.auth.PinStorage
+import io.github.mojri.hesabyar.shadows.ShadowPinStorage
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,8 +12,10 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(shadows = [ShadowPinStorage::class])
 class AuthManagerTest {
 
     private lateinit var authManager: AuthManager
