@@ -83,7 +83,5 @@ class AuthManager @Inject constructor() {
 
     fun shouldShowAuth(context: Context): Boolean = isAuthEnabled(context)
 
-    fun needsBiometricOrPin(context: Context): Boolean = isAuthEnabled(context)
-
     fun hasBiometric(context: Context): Boolean = BiometricHelper.isBiometricAvailable(context)
 }
