@@ -65,6 +65,7 @@ class AuthManager @Inject constructor() {
         }
     }
 
+    /** Returns true only if a PIN has been configured. (Biometric availability alone does not enable auth.) */
     fun isAuthEnabled(context: Context): Boolean = PinStorage.isPinSet(context)
 
     fun setLockTimeout(minutes: Int) {
