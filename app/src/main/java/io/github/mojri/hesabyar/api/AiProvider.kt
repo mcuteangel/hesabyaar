@@ -382,6 +382,7 @@ object AiProvider {
       client.newCall(request).execute().use { response ->
         val bodyStr = response.body?.string()
         if (bodyStr == null) {
+          AppLogger.e(TAG, "Null response body for URL ${url.substringBefore("?")} (HTTP ${response.code})")
           return ApiResult.Failure("Null response body")
         }
         if (!response.isSuccessful) {

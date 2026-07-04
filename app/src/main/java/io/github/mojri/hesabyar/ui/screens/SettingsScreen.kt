@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.auth.BiometricHelper
@@ -502,7 +504,9 @@ fun SettingsScreen(
       }
     }
 
-    // Debug Logs Section (removed in production for security; logs are only stored in debug builds)
+    if (BuildConfig.DEBUG) {
+      DebugLogsSection()
+    }
   }
 }
 
@@ -515,6 +519,7 @@ fun SecuritySection(
   var hasBiometric by remember { mutableStateOf(BiometricHelper.isBiometricAvailable(context)) }
   var showSetPinDialog by remember { mutableStateOf(false) }
   var showVerifyPinDialog by remember { mutableStateOf(false) }
+  var pendingDisable by remember { mutableStateOf(false) }
 
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -535,12 +540,18 @@ fun SecuritySection(
       )
     }
     Switch(
-      checked = isPinSet,
-      onCheckedChange = {
-        if (isPinSet) {
-          showVerifyPinDialog = true
+      checked = isPinSet && !pendingDisable,
+      onCheckedChange = { checked ->
+        if (checked) {
+          pendingDisable = false
+          if (!isPinSet) {
+            showSetPinDialog = true
+          }
         } else {
-          showSetPinDialog = true
+          if (isPinSet) {
+            pendingDisable = true
+            showVerifyPinDialog = true
+          }
         }
       }
     )
@@ -593,11 +604,14 @@ fun SecuritySection(
   }
 
   if (showVerifyPinDialog) {
-    var currentPin by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf<String?>(null) }
+    var currentPin by rememberSaveable { mutableStateOf("") }
+    var pinError by rememberSaveable { mutableStateOf<String?>(null) }
 
     AlertDialog(
-      onDismissRequest = { showVerifyPinDialog = false },
+      onDismissRequest = {
+        showVerifyPinDialog = false
+        pendingDisable = false
+      },
       title = { Text("تأیید رمز عبور", fontWeight = FontWeight.Bold) },
       text = {
         HesabyarInputField(
@@ -620,6 +634,7 @@ fun SecuritySection(
             if (PinStorage.verifyPin(context, currentPin)) {
               PinStorage.clearPin(context)
               isPinSet = false
+              pendingDisable = false
               showVerifyPinDialog = false
               settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
             } else {
@@ -631,7 +646,10 @@ fun SecuritySection(
       },
       dismissButton = {
         HesabyarButton(
-          onClick = { showVerifyPinDialog = false },
+          onClick = {
+            showVerifyPinDialog = false
+            pendingDisable = false
+          },
           text = CANCEL_LABEL,
           variant = ButtonVariant.Text
         )
