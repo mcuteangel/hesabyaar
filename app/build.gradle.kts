@@ -1,3 +1,5 @@
+val appId = "io.github.mojri.hesabyar"
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -10,17 +12,17 @@ plugins {
 }
 
 android {
-  namespace = "io.github.mojri.hesabyar"
+  namespace = appId
   compileSdk = 37
 
   defaultConfig {
-    applicationId = "io.github.mojri.hesabyar"
+    applicationId = appId
     minSdk = 26
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
 
-    testInstrumentationRunner = "io.github.mojri.hesabyar.AndroidJUnitRunner"
+    testInstrumentationRunner = "$appId.AndroidJUnitRunner"
   }
 
   signingConfigs {
