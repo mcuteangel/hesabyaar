@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.auth.PinStorage
-import io.github.mojri.hesabyar.shadows.ShadowPinStorage
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,7 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(shadows = [ShadowPinStorage::class], sdk = [34])
+@Config(sdk = [34])
 class PinVerificationTest {
   private lateinit var app: Application
 
