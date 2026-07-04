@@ -16,22 +16,20 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
-
-    @Provides
-    @Singleton
-    fun provideRepository(
-        transactionDao: TransactionDao,
-        loanDao: LoanDao,
-        installmentDao: InstallmentDao,
-        paymentHistoryDao: PaymentHistoryDao,
-        categoryDao: CategoryDao
-    ): HesabyarRepositoryInterface {
-        return HesabyarRepository(
-            transactionDao,
-            loanDao,
-            installmentDao,
-            paymentHistoryDao,
-            categoryDao
-        )
-    }
+  @Provides
+  @Singleton
+  fun provideRepository(
+    transactionDao: TransactionDao,
+    loanDao: LoanDao,
+    installmentDao: InstallmentDao,
+    paymentHistoryDao: PaymentHistoryDao,
+    categoryDao: CategoryDao
+  ): HesabyarRepositoryInterface =
+    HesabyarRepository(
+      transactionDao,
+      loanDao,
+      installmentDao,
+      paymentHistoryDao,
+      categoryDao
+    )
 }

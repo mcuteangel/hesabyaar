@@ -12,37 +12,39 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel
+  @Inject
+  constructor(
     private val getSettingsUseCase: GetSettingsUseCase
-) : ViewModel() {
-
+  ) : ViewModel() {
     var isDarkMode = mutableStateOf(getSettingsUseCase.isDarkMode())
-        private set
+      private set
 
     var currencyUnit = mutableStateOf(CurrencyUnit.fromKey(getSettingsUseCase.getCurrencyUnit()))
-        private set
+      private set
 
     fun toggleDarkMode() {
-        isDarkMode.value = !isDarkMode.value
-        getSettingsUseCase.setDarkMode(isDarkMode.value)
+      isDarkMode.value = !isDarkMode.value
+      getSettingsUseCase.setDarkMode(isDarkMode.value)
     }
 
     fun setCurrencyUnit(unit: CurrencyUnit) {
-        if (currencyUnit.value == unit) return
-        currencyUnit.value = unit
-        getSettingsUseCase.setCurrencyUnit(unit.key)
-        CurrencyFormatter.setUnit(unit)
+      if (currencyUnit.value == unit) return
+      currencyUnit.value = unit
+      getSettingsUseCase.setCurrencyUnit(unit.key)
+      CurrencyFormatter.setUnit(unit)
     }
 
     private val _uiMessage = MutableSharedFlow<String>()
     val uiMessage = _uiMessage.asSharedFlow()
 
     fun showMessage(message: String) {
-        viewModelScope.launch {
-            _uiMessage.emit(message)
-        }
+      viewModelScope.launch {
+        _uiMessage.emit(message)
+      }
     }
 
     fun getAiLogs(): List<AppLogger.LogEntry> = getSettingsUseCase.getAiLogs()
+
     fun clearLogs() = getSettingsUseCase.clearLogs()
-}
+  }

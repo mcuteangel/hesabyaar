@@ -13,13 +13,14 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AiModule {
+  @Provides
+  @Singleton
+  fun provideAiConfigManager(
+    @ApplicationContext context: Context
+  ): AiConfigManager = AiConfigManager(context)
 
-    @Provides
-    @Singleton
-    fun provideAiConfigManager(@ApplicationContext context: Context): AiConfigManager = AiConfigManager(context)
-
-    @Provides
-    @Singleton
-    fun provideManageAiConfigUseCase(aiConfigManager: AiConfigManager): ManageAiConfigUseCase =
-        ManageAiConfigUseCase(aiConfigManager)
+  @Provides
+  @Singleton
+  fun provideManageAiConfigUseCase(aiConfigManager: AiConfigManager): ManageAiConfigUseCase =
+    ManageAiConfigUseCase(aiConfigManager)
 }

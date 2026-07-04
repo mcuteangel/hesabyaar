@@ -16,81 +16,87 @@ import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
-class ExportViewModel @Inject constructor(
+class ExportViewModel
+  @Inject
+  constructor(
     @ApplicationContext private val application: Context,
     private val exportExcelUseCase: ExportExcelUseCase
-) : ViewModel() {
-
+  ) : ViewModel() {
     private val appContext = application
 
     val exportState = mutableStateOf<ExportState>(ExportState.Idle)
 
     fun exportExcel() {
-        viewModelScope.launch {
-            exportState.value = ExportState.Exporting
-            try {
-                val result = exportExcelUseCase.export()
+      viewModelScope.launch {
+        exportState.value = ExportState.Exporting
+        try {
+          val result = exportExcelUseCase.export()
 
-                val savedPath = saveToDownloads(result.file)
-                result.file.delete()
+          val savedPath = saveToDownloads(result.file)
+          result.file.delete()
 
-                val summary = buildString {
-                    append("فایل اکسل در پوشه Downloads ذخیره شد:\n")
-                    append(savedPath)
-                    append("\n\n")
-                    append("${result.transactionCount} تراکنش")
-                    if (result.incomeCount > 0) append(" (${result.incomeCount} دریافتی)")
-                    if (result.expenseCount > 0) append(" (${result.expenseCount} پرداختی)")
-                    append(", ${result.loanCount} وام, ${result.installmentCount} قسط")
-                }
-
-                exportState.value = ExportState.Success(summary)
-            } catch (e: java.io.IOException) {
-                exportState.value = ExportState.Error(
-                    "خطا در ایجاد یا ذخیره فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
-                )
-            } catch (e: SecurityException) {
-                exportState.value = ExportState.Error(
-                    "دسترسی به پوشه Downloads امکان‌پذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
-                )
+          val summary =
+            buildString {
+              append("فایل اکسل در پوشه Downloads ذخیره شد:\n")
+              append(savedPath)
+              append("\n\n")
+              append("${result.transactionCount} تراکنش")
+              if (result.incomeCount > 0) append(" (${result.incomeCount} دریافتی)")
+              if (result.expenseCount > 0) append(" (${result.expenseCount} پرداختی)")
+              append(", ${result.loanCount} وام, ${result.installmentCount} قسط")
             }
+
+          exportState.value = ExportState.Success(summary)
+        } catch (e: java.io.IOException) {
+          exportState.value =
+            ExportState.Error(
+              "خطا در ایجاد یا ذخیره فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+            )
+        } catch (e: SecurityException) {
+          exportState.value =
+            ExportState.Error(
+              "دسترسی به پوشه Downloads امکان‌پذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
+            )
         }
+      }
     }
 
     private fun saveToDownloads(tempFile: File): String {
-        val fileName = tempFile.name
+      val fileName = tempFile.name
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val contentValues =
+          ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+          }
 
-            val resolver = appContext.contentResolver
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
+        val resolver = appContext.contentResolver
+        val uri =
+          resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
 
-            resolver.openOutputStream(uri)?.use { output ->
-                tempFile.inputStream().use { input ->
-                    input.copyTo(output)
-                }
-            } ?: throw Exception("نوشتن فایل ناموفق بود")
+        resolver.openOutputStream(uri)?.use { output ->
+          tempFile.inputStream().use { input ->
+            input.copyTo(output)
+          }
+        } ?: throw Exception("نوشتن فایل ناموفق بود")
 
-            return "Downloads/$fileName"
-        } else {
-            @Suppress("DEPRECATION")
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+        return "Downloads/$fileName"
+      } else {
+        @Suppress("DEPRECATION")
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-            val destFile = File(downloadsDir, fileName)
-            tempFile.copyTo(destFile, overwrite = true)
+        val destFile = File(downloadsDir, fileName)
+        tempFile.copyTo(destFile, overwrite = true)
 
-            return destFile.absolutePath
-        }
+        return destFile.absolutePath
+      }
     }
 
     fun clearState() {
-        exportState.value = ExportState.Idle
+      exportState.value = ExportState.Idle
     }
-}
+  }

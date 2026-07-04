@@ -22,52 +22,62 @@ private const val MAX_AMOUNT_TOMAN = 999_999_999_999L
 
 @Composable
 fun AmountQuickFillButtons(
-    amountValue: TextFieldValue,
-    onValueChanged: (TextFieldValue) -> Unit,
-    modifier: Modifier = Modifier
+  amountValue: TextFieldValue,
+  onValueChanged: (TextFieldValue) -> Unit,
+  modifier: Modifier = Modifier
 ) {
-    val currentAmount = amountValue.text.toLongOrNull() ?: 0L
+  val currentAmount = amountValue.text.toLongOrNull() ?: 0L
 
-    data class QuickFillOption(val label: String, val factor: Long)
+  data class QuickFillOption(
+    val label: String,
+    val factor: Long
+  )
 
-    val options = listOf(
-        QuickFillOption("هزار", 1_000L),
-        QuickFillOption("میلیون", 1_000_000L),
-        QuickFillOption("میلیارد", 1_000_000_000L)
+  val options =
+    listOf(
+      QuickFillOption("هزار", 1_000L),
+      QuickFillOption("میلیون", 1_000_000L),
+      QuickFillOption("میلیارد", 1_000_000_000L)
     )
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        options.forEach { option ->
-            val newValue = (currentAmount * option.factor).coerceAtMost(MAX_AMOUNT_TOMAN)
-            val isEnabled = currentAmount > 0 && newValue <= MAX_AMOUNT_TOMAN
+  Row(
+    modifier = modifier,
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    options.forEach { option ->
+      val newValue = (currentAmount * option.factor).coerceAtMost(MAX_AMOUNT_TOMAN)
+      val isEnabled = currentAmount > 0 && newValue <= MAX_AMOUNT_TOMAN
 
-            Text(
-                text = option.label,
-                modifier = Modifier
-                    .clip(ShapeTokens.Small)
-                    .background(
-                        if (isEnabled) FinancialColors.WarningOrange.copy(alpha = 0.15f)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                    .clickable(enabled = isEnabled) {
-                        val newText = newValue.toString()
-                        onValueChanged(
-                            TextFieldValue(
-                                text = newText,
-                                selection = TextRange(newText.length)
-                            )
-                        )
-                    }
-                    .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium,
-                color = if (isEnabled) FinancialColors.WarningOrange
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-            )
-        }
+      Text(
+        text = option.label,
+        modifier =
+          Modifier
+            .clip(ShapeTokens.Small)
+            .background(
+              if (isEnabled) {
+                FinancialColors.WarningOrange.copy(alpha = 0.15f)
+              } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+              }
+            ).clickable(enabled = isEnabled) {
+              val newText = newValue.toString()
+              onValueChanged(
+                TextFieldValue(
+                  text = newText,
+                  selection = TextRange(newText.length)
+                )
+              )
+            }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Medium,
+        color =
+          if (isEnabled) {
+            FinancialColors.WarningOrange
+          } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+          }
+      )
     }
+  }
 }

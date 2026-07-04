@@ -10,28 +10,37 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class TransactionViewModel @Inject constructor(
+class TransactionViewModel
+  @Inject
+  constructor(
     private val manageTransactionUseCase: ManageTransactionUseCase
-) : ViewModel() {
-
-    val transactions: StateFlow<List<Transaction>> = manageTransactionUseCase.allTransactions
+  ) : ViewModel() {
+    val transactions: StateFlow<List<Transaction>> =
+      manageTransactionUseCase.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addTransaction(type: String, categoryId: Long, amount: Long, description: String, personName: String? = null, customDate: Long? = null) {
-        viewModelScope.launch {
-            manageTransactionUseCase.addTransaction(type, categoryId, amount, description, personName, customDate)
-        }
+    fun addTransaction(
+      type: String,
+      categoryId: Long,
+      amount: Long,
+      description: String,
+      personName: String? = null,
+      customDate: Long? = null
+    ) {
+      viewModelScope.launch {
+        manageTransactionUseCase.addTransaction(type, categoryId, amount, description, personName, customDate)
+      }
     }
 
     fun updateTransaction(transaction: Transaction) {
-        viewModelScope.launch {
-            manageTransactionUseCase.updateTransaction(transaction)
-        }
+      viewModelScope.launch {
+        manageTransactionUseCase.updateTransaction(transaction)
+      }
     }
 
     fun deleteTransaction(transaction: Transaction) {
-        viewModelScope.launch {
-            manageTransactionUseCase.deleteTransaction(transaction)
-        }
+      viewModelScope.launch {
+        manageTransactionUseCase.deleteTransaction(transaction)
+      }
     }
-}
+  }

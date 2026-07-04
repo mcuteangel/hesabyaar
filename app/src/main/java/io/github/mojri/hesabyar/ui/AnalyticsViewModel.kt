@@ -15,35 +15,47 @@ import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @HiltViewModel
-class AnalyticsViewModel @Inject constructor(
+class AnalyticsViewModel
+  @Inject
+  constructor(
     private val repository: HesabyarRepositoryInterface,
     private val getAnalyticsUseCase: GetAnalyticsUseCase,
     private val manageLoanUseCase: ManageLoanUseCase,
     private val manageInstallmentUseCase: ManageInstallmentUseCase
-) : ViewModel() {
-
+  ) : ViewModel() {
     private val _selectedJalaliMonth = MutableStateFlow<Pair<Int, Int>?>(null)
     val selectedJalaliMonth: StateFlow<Pair<Int, Int>?> = _selectedJalaliMonth.asStateFlow()
 
-    val transactions: StateFlow<List<Transaction>> = repository.allTransactions
+    val transactions: StateFlow<List<Transaction>> =
+      repository.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val loans: StateFlow<List<Loan>> = manageLoanUseCase.allLoans
+    val loans: StateFlow<List<Loan>> =
+      manageLoanUseCase.allLoans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val installments: StateFlow<List<Installment>> = manageInstallmentUseCase.allInstallments
+    val installments: StateFlow<List<Installment>> =
+      manageInstallmentUseCase.allInstallments
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val categories: StateFlow<List<Category>> = repository.allCategories
+    val categories: StateFlow<List<Category>> =
+      repository.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val analyticsData: StateFlow<AnalyticsData> = combine(
-        transactions, loans, installments, categories
-    ) { trans, loanList, instList, catList ->
+    val analyticsData: StateFlow<AnalyticsData> =
+      combine(
+        transactions,
+        loans,
+        installments,
+        categories
+      ) { trans, loanList, instList, catList ->
         getAnalyticsUseCase.computeAnalytics(trans, loanList, instList, catList)
-    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
+      }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
 
-    fun setSelectedJalaliMonth(year: Int?, month: Int?) {
-        _selectedJalaliMonth.value = if (year != null && month != null) year to month else null
+    fun setSelectedJalaliMonth(
+      year: Int?,
+      month: Int?
+    ) {
+      _selectedJalaliMonth.value = if (year != null && month != null) year to month else null
     }
-}
+  }

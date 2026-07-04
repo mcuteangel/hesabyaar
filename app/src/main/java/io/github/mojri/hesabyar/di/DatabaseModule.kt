@@ -17,23 +17,24 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+  @Provides
+  @Singleton
+  fun provideDatabase(
+    @ApplicationContext context: Context
+  ): AppDatabase = AppDatabase.getDatabase(context)
 
-    @Provides
-    @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase = AppDatabase.getDatabase(context)
+  @Provides
+  fun provideTransactionDao(database: AppDatabase): TransactionDao = database.transactionDao()
 
-    @Provides
-    fun provideTransactionDao(database: AppDatabase): TransactionDao = database.transactionDao()
+  @Provides
+  fun provideLoanDao(database: AppDatabase): LoanDao = database.loanDao()
 
-    @Provides
-    fun provideLoanDao(database: AppDatabase): LoanDao = database.loanDao()
+  @Provides
+  fun provideInstallmentDao(database: AppDatabase): InstallmentDao = database.installmentDao()
 
-    @Provides
-    fun provideInstallmentDao(database: AppDatabase): InstallmentDao = database.installmentDao()
+  @Provides
+  fun providePaymentHistoryDao(database: AppDatabase): PaymentHistoryDao = database.paymentHistoryDao()
 
-    @Provides
-    fun providePaymentHistoryDao(database: AppDatabase): PaymentHistoryDao = database.paymentHistoryDao()
-
-    @Provides
-    fun provideCategoryDao(database: AppDatabase): CategoryDao = database.categoryDao()
+  @Provides
+  fun provideCategoryDao(database: AppDatabase): CategoryDao = database.categoryDao()
 }

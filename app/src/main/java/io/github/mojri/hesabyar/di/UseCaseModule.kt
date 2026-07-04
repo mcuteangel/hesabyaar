@@ -25,55 +25,58 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object UseCaseModule {
+  @Provides
+  fun provideGetDashboardDataUseCase(repository: HesabyarRepositoryInterface): GetDashboardDataUseCase =
+    GetDashboardDataUseCase(repository)
 
-    @Provides
-    fun provideGetDashboardDataUseCase(repository: HesabyarRepositoryInterface): GetDashboardDataUseCase = GetDashboardDataUseCase(repository)
+  @Provides
+  fun provideManageTransactionUseCase(repository: HesabyarRepositoryInterface): ManageTransactionUseCase =
+    ManageTransactionUseCase(repository)
 
-    @Provides
-    fun provideManageTransactionUseCase(repository: HesabyarRepositoryInterface): ManageTransactionUseCase =
-        ManageTransactionUseCase(repository)
+  @Provides
+  fun provideManageLoanUseCase(repository: HesabyarRepositoryInterface): ManageLoanUseCase =
+    ManageLoanUseCase(repository)
 
-    @Provides
-    fun provideManageLoanUseCase(repository: HesabyarRepositoryInterface): ManageLoanUseCase =
-        ManageLoanUseCase(repository)
+  @Provides
+  fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase =
+    ManageInstallmentUseCase(repository)
 
-    @Provides
-    fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase =
-        ManageInstallmentUseCase(repository)
+  @Provides
+  fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase =
+    ManageCategoryUseCase(repository)
 
-    @Provides
-    fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase =
-        ManageCategoryUseCase(repository)
+  @Provides
+  fun provideParseTransactionUseCase(repository: HesabyarRepositoryInterface): ParseTransactionUseCase =
+    ParseTransactionUseCase(repository)
 
-    @Provides
-    fun provideParseTransactionUseCase(repository: HesabyarRepositoryInterface): ParseTransactionUseCase =
-        ParseTransactionUseCase(repository)
+  @Provides
+  fun provideGetBudgetAdviceUseCase(): GetBudgetAdviceUseCase = GetBudgetAdviceUseCase()
 
-    @Provides
-    fun provideGetBudgetAdviceUseCase(): GetBudgetAdviceUseCase = GetBudgetAdviceUseCase()
+  @Provides
+  fun provideGetForecastUseCase(): GetForecastUseCase = GetForecastUseCase()
 
-    @Provides
-    fun provideGetForecastUseCase(): GetForecastUseCase = GetForecastUseCase()
+  @Provides
+  fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase = GetAnalyticsUseCase()
 
-    @Provides
-    fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase = GetAnalyticsUseCase()
+  @Provides
+  fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase =
+    ManageBackupUseCase(repository)
 
-    @Provides
-    fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase = ManageBackupUseCase(repository)
+  @Provides
+  fun provideExportExcelUseCase(
+    repository: HesabyarRepositoryInterface,
+    excelExporter: ExcelExporter
+  ): ExportExcelUseCase = ExportExcelUseCase(repository, excelExporter)
 
-    @Provides
-    fun provideExportExcelUseCase(
-        repository: HesabyarRepositoryInterface,
-        excelExporter: ExcelExporter
-    ): ExportExcelUseCase =
-        ExportExcelUseCase(repository, excelExporter)
+  @Provides
+  @Singleton
+  fun provideGetSettingsUseCase(
+    @ApplicationContext context: Context
+  ): GetSettingsUseCase = GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
 
-    @Provides
-    @Singleton
-    fun provideGetSettingsUseCase(@ApplicationContext context: Context): GetSettingsUseCase =
-        GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
-
-    @Provides
-    @Singleton
-    fun provideExcelExporter(@ApplicationContext context: Context): ExcelExporter = ExcelExporter(context)
+  @Provides
+  @Singleton
+  fun provideExcelExporter(
+    @ApplicationContext context: Context
+  ): ExcelExporter = ExcelExporter(context)
 }

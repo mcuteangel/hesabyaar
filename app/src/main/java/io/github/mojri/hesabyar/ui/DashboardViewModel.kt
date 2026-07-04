@@ -9,23 +9,29 @@ import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @HiltViewModel
-class DashboardViewModel @Inject constructor(
+class DashboardViewModel
+  @Inject
+  constructor(
     private val getDashboardDataUseCase: GetDashboardDataUseCase
-) : ViewModel() {
-
-    val transactions = getDashboardDataUseCase.transactions
+  ) : ViewModel() {
+    val transactions =
+      getDashboardDataUseCase.transactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val loans = getDashboardDataUseCase.loans
+    val loans =
+      getDashboardDataUseCase.loans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val installments = getDashboardDataUseCase.installments
+    val installments =
+      getDashboardDataUseCase.installments
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val categories: StateFlow<List<Category>> = getDashboardDataUseCase.categories
+    val categories: StateFlow<List<Category>> =
+      getDashboardDataUseCase.categories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val dashboardState: StateFlow<DashboardData> = combine(transactions, loans, installments) { trans, loanList, instList ->
+    val dashboardState: StateFlow<DashboardData> =
+      combine(transactions, loans, installments) { trans, loanList, instList ->
         getDashboardDataUseCase.computeDashboardData(trans, loanList, instList)
-    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
-}
+      }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
+  }
