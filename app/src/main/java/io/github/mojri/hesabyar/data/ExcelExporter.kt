@@ -375,65 +375,83 @@ ${allRows.joinToString("\n")}
 
   private fun buildColsXml(sheet: SheetDef): String {
     val colCount = sheet.headers.size
-    return (0 until colCount).map { colIdx ->
-      val width = maxOf(
-        sheet.headers[colIdx].length,
-        sheet.dataRows.maxOfOrNull { row -> row.getOrNull(colIdx)?.length ?: 0 } ?: 0,
-        sheet.summaryRow?.getOrNull(colIdx)?.length ?: 0,
-        8
-      ) + 4
-      "    <col min=\"${colIdx + 1}\" max=\"${colIdx + 1}\" width=\"$width\" customWidth=\"1\"/>"
-    }.joinToString("\n")
+    return (0 until colCount)
+      .map { colIdx ->
+        val width =
+          maxOf(
+            sheet.headers[colIdx].length,
+            sheet.dataRows.maxOfOrNull { row -> row.getOrNull(colIdx)?.length ?: 0 } ?: 0,
+            sheet.summaryRow?.getOrNull(colIdx)?.length ?: 0,
+            8
+          ) + 4
+        "    <col min=\"${colIdx + 1}\" max=\"${colIdx + 1}\" width=\"$width\" customWidth=\"1\"/>"
+      }.joinToString("\n")
   }
 
-  private fun buildHeaderRow(sheet: SheetDef, sharedStrings: List<String>): String {
-    val cells = sheet.headers.mapIndexed { colIdx, header ->
-      val ref = "${columnLetter(colIdx)}1"
-      val si = sharedStrings.indexOf(header)
-      "<c r=\"$ref\" t=\"s\" s=\"1\"><v>$si</v></c>"
-    }.joinToString("")
+  private fun buildHeaderRow(
+    sheet: SheetDef,
+    sharedStrings: List<String>
+  ): String {
+    val cells =
+      sheet.headers
+        .mapIndexed { colIdx, header ->
+          val ref = "${columnLetter(colIdx)}1"
+          val si = sharedStrings.indexOf(header)
+          "<c r=\"$ref\" t=\"s\" s=\"1\"><v>$si</v></c>"
+        }.joinToString("")
     return "    <row r=\"1\" ht=\"22\" customHeight=\"1\">$cells</row>"
   }
 
-  private fun buildDataRows(sheet: SheetDef, sharedStrings: List<String>): List<String> {
-    return sheet.dataRows.mapIndexed { index, row ->
+  private fun buildDataRows(
+    sheet: SheetDef,
+    sharedStrings: List<String>
+  ): List<String> =
+    sheet.dataRows.mapIndexed { index, row ->
       val rowIdx = index + 2
       val cells = buildRowCells(row, rowIdx, sharedStrings)
       "    <row r=\"$rowIdx\">$cells</row>"
     }
-  }
 
-  private fun buildRowCells(row: List<String>, rowIdx: Int, sharedStrings: List<String>): String {
-    return row.mapIndexed { colIdx, value ->
-      val ref = "${columnLetter(colIdx)}$rowIdx"
-      if (colIdx == 0) {
-        "<c r=\"$ref\" t=\"n\" s=\"2\"><v>${rowIdx - 1}</v></c>"
-      } else {
-        val si = sharedStrings.indexOf(value)
-        if (si >= 0) {
-          "<c r=\"$ref\" t=\"s\" s=\"2\"><v>$si</v></c>"
+  private fun buildRowCells(
+    row: List<String>,
+    rowIdx: Int,
+    sharedStrings: List<String>
+  ): String =
+    row
+      .mapIndexed { colIdx, value ->
+        val ref = "${columnLetter(colIdx)}$rowIdx"
+        if (colIdx == 0) {
+          "<c r=\"$ref\" t=\"n\" s=\"2\"><v>${rowIdx - 1}</v></c>"
         } else {
-          "<c r=\"$ref\" s=\"2\"/>"
-        }
-      }
-    }.joinToString("")
-  }
-
-  private fun buildSummaryRow(sheet: SheetDef, sharedStrings: List<String>, rowNum: Int): String? {
-    return sheet.summaryRow?.let { summary ->
-      val cells = summary.mapIndexed { colIdx, value ->
-        val ref = "${columnLetter(colIdx)}$rowNum"
-        val si = sharedStrings.indexOf(value)
-        val style = if (colIdx == 1 || colIdx == 2) "3" else "2"
-        if (si >= 0) {
-          "<c r=\"$ref\" t=\"s\" s=\"$style\"><v>$si</v></c>"
-        } else {
-          "<c r=\"$ref\" s=\"$style\"/>"
+          val si = sharedStrings.indexOf(value)
+          if (si >= 0) {
+            "<c r=\"$ref\" t=\"s\" s=\"2\"><v>$si</v></c>"
+          } else {
+            "<c r=\"$ref\" s=\"2\"/>"
+          }
         }
       }.joinToString("")
+
+  private fun buildSummaryRow(
+    sheet: SheetDef,
+    sharedStrings: List<String>,
+    rowNum: Int
+  ): String? =
+    sheet.summaryRow?.let { summary ->
+      val cells =
+        summary
+          .mapIndexed { colIdx, value ->
+            val ref = "${columnLetter(colIdx)}$rowNum"
+            val si = sharedStrings.indexOf(value)
+            val style = if (colIdx == 1 || colIdx == 2) "3" else "2"
+            if (si >= 0) {
+              "<c r=\"$ref\" t=\"s\" s=\"$style\"><v>$si</v></c>"
+            } else {
+              "<c r=\"$ref\" s=\"$style\"/>"
+            }
+          }.joinToString("")
       "    <row r=\"$rowNum\">$cells</row>"
     }
-  }
 
   // ─── Helpers ─────────────────────────────────────────────────────
 

@@ -76,5 +76,10 @@ class GetDashboardDataUseCase(
     return debtorsTotal to creditorsTotal
   }
 
-  private data class Quadruple(val a: Long, val b: Long, val c: Long, val d: Long)
+  private data class Quadruple(
+    val a: Long,
+    val b: Long,
+    val c: Long,
+    val d: Long
+  )
 }

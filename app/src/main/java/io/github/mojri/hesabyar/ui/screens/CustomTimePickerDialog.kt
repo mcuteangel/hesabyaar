@@ -44,8 +44,8 @@ enum class TimePickerTab {
   MINUTE
 }
 
-  @Composable
-  fun CustomTimePickerDialog(
+@Composable
+fun CustomTimePickerDialog(
   initialHour: Int,
   initialMinute: Int,
   onDismissRequest: () -> Unit,
@@ -60,12 +60,19 @@ enum class TimePickerTab {
   val innerLabelRadiusPx = remember(density) { with(density) { 64.dp.toPx() } }
   val thresholdPx = remember(density) { with(density) { 80.dp.toPx() } }
 
-  fun computeAngleDegrees(dx: Double, dy: Double): Double {
+  fun computeAngleDegrees(
+    dx: Double,
+    dy: Double
+  ): Double {
     val angle = Math.toDegrees(atan2(dy, dx)) + 90.0
     return if (angle < 0) angle + 360.0 else angle
   }
 
-  fun resolveHour(angle: Double, distance: Float, thresholdPx: Float): Int {
+  fun resolveHour(
+    angle: Double,
+    distance: Float,
+    thresholdPx: Float
+  ): Int {
     var hour12 = Math.round(angle / 30.0).toInt()
     if (hour12 == 0 || hour12 == 12) hour12 = 12
     return if (distance < thresholdPx) {
