@@ -103,20 +103,22 @@ class HesabyarRepository(
   override suspend fun insertInstallment(installment: Installment): Long = installmentDao.insertInstallment(installment)
 
   override suspend fun updateInstallment(installment: Installment) {
-    val existing = installmentDao.getInstallmentById(installment.id)
-    installmentDao.updateInstallment(installment)
-    val justPaid = installment.isPaid && (existing == null || !existing.isPaid)
-    if (justPaid) {
-      val installmentsCategory = getCategoryByKey("Installments")
-      if (installmentsCategory != null) {
-        insertTransaction(
-          Transaction(
-            type = "EXPENSE",
-            categoryId = installmentsCategory.id,
-            amount = installment.amount,
-            description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
+    database.withTransaction {
+      val existing = installmentDao.getInstallmentById(installment.id)
+      installmentDao.updateInstallment(installment)
+      val justPaid = installment.isPaid && (existing == null || !existing.isPaid)
+      if (justPaid) {
+        val installmentsCategory = getCategoryByKey("Installments")
+        if (installmentsCategory != null) {
+          transactionDao.insertTransaction(
+            Transaction(
+              type = "EXPENSE",
+              categoryId = installmentsCategory.id,
+              amount = installment.amount,
+              description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
+            )
           )
-        )
+        }
       }
     }
   }
@@ -162,6 +164,7 @@ class HesabyarRepository(
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val keyToId = mutableMapOf<String, Long>()
+      val idToKey = mutableMapOf<Long, String>()
       for (category in backup.categories) {
         val existing = categoryDao.getCategoryByKey(category.key)
         val savedId =
@@ -172,11 +175,12 @@ class HesabyarRepository(
             categoryDao.insertCategory(category)
           }
         keyToId[category.key] = savedId
+        idToKey[category.id] = category.key
       }
 
       for (transaction in backup.transactions) {
         val mappedId =
-          keyToId[backup.categories.find { it.id == transaction.categoryId }?.key]
+          idToKey[transaction.categoryId]?.let { keyToId[it] }
             ?: categoryDao.getCategoryByKey("Other")?.id
             ?: transaction.categoryId
         transactionDao.insertTransaction(transaction.copy(categoryId = mappedId))

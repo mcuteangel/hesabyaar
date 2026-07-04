@@ -80,7 +80,7 @@ class ExcelExporter(
     )}${cal.get(Calendar.MINUTE).toString().padStart(2, '0')}${cal.get(Calendar.SECOND).toString().padStart(2, '0')}"
     val file = File(exportDir, "hesabyar_report_$timestamp.xlsx")
 
-    writeXlsx(file, sheets, internString, sharedStrings, sharedStringRefCount)
+    writeXlsx(file, sheets, internString, sharedStrings) { sharedStringRefCount }
 
     return ExportResult(
       file = file,
@@ -212,7 +212,7 @@ class ExcelExporter(
     sheets: List<SheetDef>,
     internString: (String) -> Int,
     sharedStrings: List<String>,
-    sharedStringRefCount: Int
+    sharedStringRefCount: () -> Int
   ) {
     sheets.forEach { sheet ->
       sheet.headers.forEach { internString(it) }
@@ -226,7 +226,7 @@ class ExcelExporter(
       writeEntry(zip, "xl/workbook.xml", workbookXml(sheets))
       writeEntry(zip, "xl/_rels/workbook.xml.rels", workbookRelsXml(sheets.size))
       writeEntry(zip, "xl/styles.xml", stylesXml())
-      writeEntry(zip, "xl/sharedStrings.xml", sharedStringsXml(sharedStrings, sharedStringRefCount))
+      writeEntry(zip, "xl/sharedStrings.xml", sharedStringsXml(sharedStrings, sharedStringRefCount()))
 
       sheets.forEachIndexed { index, sheet ->
         writeEntry(zip, "xl/worksheets/sheet${index + 1}.xml", worksheetXml(sheet, index, sharedStrings))

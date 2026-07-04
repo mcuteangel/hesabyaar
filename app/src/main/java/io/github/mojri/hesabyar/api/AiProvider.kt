@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.core.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -99,6 +100,8 @@ object AiProvider {
             AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
           }
         )
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: IOException) {
         AppLogger.e(TAG, "Failed to fetch models for $providerType due to I/O error", e)
         Result.failure(e)

@@ -3,7 +3,7 @@ package io.github.mojri.hesabyar.api
 object PersianAmountParser {
   sealed class Token {
     data class Number(
-      val value: Long
+      val value: Double
     ) : Token()
 
     data class Unit(
@@ -97,22 +97,18 @@ object PersianAmountParser {
         val start = i
         while (i < text.length && text[i].isDigit()) i++
 
-        // Check for decimal point - reject fractional amounts
+        // Consume optional decimal fraction as part of the same Number token
         if (i < text.length && text[i] == '.') {
-          val decimalStart = i
           i++
-          if (i < text.length && text[i].isDigit()) {
-            // Skip past any decimal digits
-            while (i < text.length && text[i].isDigit()) i++
-            // Skip this entire fractional number token
-            continue
-          } else {
-            // Just a period with no following digits, rewind
-            i = decimalStart
+          val fracStart = i
+          while (i < text.length && text[i].isDigit()) i++
+          if (i == fracStart) {
+            // Period with no following digits — rewind past the dot
+            i = fracStart
           }
         }
 
-        val num = text.substring(start, i).toLongOrNull()
+        val num = text.substring(start, i).toDoubleOrNull()
         if (num != null) {
           tokens.add(Token.Number(num))
         }
@@ -134,8 +130,8 @@ object PersianAmountParser {
   }
 
   private fun interpretWithUnits(tokens: List<Token>): Long {
-    var total = 0L
-    var currentNum = 0L
+    var total = 0.0
+    var currentNum = 0.0
     var lastUnit: UnitType? = null
 
     for (token in tokens) {
@@ -146,7 +142,7 @@ object PersianAmountParser {
             total += currentNum * token.type.multiplier
           }
           lastUnit = token.type
-          currentNum = 0L
+          currentNum = 0.0
         }
       }
     }
@@ -156,7 +152,7 @@ object PersianAmountParser {
       total += currentNum * multiplier
     }
 
-    return total
+    return total.toLong()
   }
 
   private fun interpretShorthand(tokens: List<Token>): Long {
@@ -164,26 +160,26 @@ object PersianAmountParser {
     if (numbers.isEmpty()) return 0L
 
     val count = numbers.size
-    if (count == 1) return numbers[0].value
+    if (count == 1) return numbers[0].value.toLong()
 
     val unitSteps =
       listOf(
-        UnitType.BILLION.multiplier,
-        UnitType.MILLION.multiplier,
-        UnitType.THOUSAND.multiplier
+        UnitType.BILLION.multiplier.toDouble(),
+        UnitType.MILLION.multiplier.toDouble(),
+        UnitType.THOUSAND.multiplier.toDouble()
       )
     val startIdx = (3 - count).coerceAtLeast(0)
 
-    var total = 0L
+    var total = 0.0
     for ((i, num) in numbers.withIndex()) {
       val idx = (startIdx + i).coerceAtMost(unitSteps.size - 1)
       total += num.value * unitSteps[idx]
     }
-    return total
+    return total.toLong()
   }
 
   private fun interpretBareLast(tokens: List<Token>): Long {
     val lastNum = tokens.filterIsInstance<Token.Number>().lastOrNull()
-    return lastNum?.value ?: 0L
+    return lastNum?.value?.toLong() ?: 0L
   }
 }

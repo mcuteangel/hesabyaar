@@ -338,8 +338,9 @@ object BudgetAdvisor {
     val recentIncome = recentTransactions.filter { it.type == "INCOME" }.sumOf { it.amount }
     val recentExpense = recentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
 
-    val averageIncome = if (recentTransactions.any { it.type == "INCOME" }) recentIncome else 0L
-    val averageExpense = if (recentTransactions.any { it.type == "EXPENSE" }) recentExpense else 0L
+    // Normalize 90-day sums to monthly (÷3) so the 30-day forecast uses monthly figures
+    val averageIncome = if (recentTransactions.any { it.type == "INCOME" }) recentIncome / 3 else 0L
+    val averageExpense = if (recentTransactions.any { it.type == "EXPENSE" }) recentExpense / 3 else 0L
 
     val estimatedBalance = averageIncome - averageExpense - upcomingInstallmentsSum
 
