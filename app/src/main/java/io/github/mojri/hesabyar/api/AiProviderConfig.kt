@@ -174,16 +174,21 @@ class AiConfigManager(
   }
 
   private fun parseProviderType(obj: JSONObject): AiProviderType {
-    val name = obj.optString("providerType", null)
-    if (name != null) {
-      return try {
-        AiProviderType.valueOf(name)
-      } catch (e: IllegalArgumentException) {
-        AiProviderType.GEMINI
+    val raw = obj.opt("providerType")
+    return when (raw) {
+      is String -> {
+        try {
+          AiProviderType.valueOf(raw)
+        } catch (e: IllegalArgumentException) {
+          AiProviderType.GEMINI
+        }
       }
+      is Number -> {
+        val ordinal = raw.toInt()
+        AiProviderType.entries.getOrElse(ordinal) { AiProviderType.GEMINI }
+      }
+      else -> AiProviderType.GEMINI
     }
-    val ordinal = obj.optInt("providerType", -1)
-    return AiProviderType.entries.getOrElse(ordinal) { AiProviderType.GEMINI }
   }
 
   fun loadConfigs(): List<AiProviderConfig> {

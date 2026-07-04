@@ -96,6 +96,22 @@ object PersianAmountParser {
       if (text[i].isDigit()) {
         val start = i
         while (i < text.length && text[i].isDigit()) i++
+
+        // Check for decimal point - reject fractional amounts
+        if (i < text.length && text[i] == '.') {
+          val decimalStart = i
+          i++
+          if (i < text.length && text[i].isDigit()) {
+            // Skip past any decimal digits
+            while (i < text.length && text[i].isDigit()) i++
+            // Skip this entire fractional number token
+            continue
+          } else {
+            // Just a period with no following digits, rewind
+            i = decimalStart
+          }
+        }
+
         val num = text.substring(start, i).toLongOrNull()
         if (num != null) {
           tokens.add(Token.Number(num))
