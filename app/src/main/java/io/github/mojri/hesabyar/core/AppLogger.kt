@@ -26,7 +26,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.d(tag, message)
+    if (BuildConfig.DEBUG) Log.d(tag, message)
     addLog(tag, "D", message)
   }
 
@@ -34,7 +34,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.i(tag, message)
+    if (BuildConfig.DEBUG) Log.i(tag, message)
     addLog(tag, "I", message)
   }
 
@@ -42,7 +42,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.w(tag, message)
+    if (BuildConfig.DEBUG) Log.w(tag, message)
     addLog(tag, "W", message)
   }
 

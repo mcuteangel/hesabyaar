@@ -55,6 +55,9 @@ import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -520,6 +523,7 @@ fun SecuritySection(
   var showSetPinDialog by remember { mutableStateOf(false) }
   var showVerifyPinDialog by remember { mutableStateOf(false) }
   var pendingDisable by remember { mutableStateOf(false) }
+  val scope = rememberCoroutineScope()
 
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -617,7 +621,7 @@ fun SecuritySection(
         HesabyarInputField(
           value = currentPin,
           onValueChange = {
-            currentPin = it
+            currentPin = it.filter { c -> c.isDigit() }.take(6)
             pinError = null
           },
           label = "رمز عبور فعلی",
@@ -631,17 +635,26 @@ fun SecuritySection(
       confirmButton = {
         HesabyarButton(
           onClick = {
-            if (PinStorage.verifyPin(context, currentPin)) {
-              PinStorage.clearPin(context)
-              isPinSet = false
-              pendingDisable = false
-              showVerifyPinDialog = false
-              settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
-            } else {
-              pinError = "رمز عبور اشتباه است"
+            scope.launch {
+              val verified =
+                withContext(Dispatchers.IO) {
+                  PinStorage.verifyPin(context, currentPin)
+                }
+              if (verified) {
+                withContext(Dispatchers.IO) {
+                  PinStorage.clearPin(context)
+                }
+                isPinSet = false
+                pendingDisable = false
+                showVerifyPinDialog = false
+                settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+              } else {
+                pinError = "رمز عبور اشتباه است"
+              }
             }
           },
-          text = "تأیید و غیرفعال‌سازی"
+          text = "تأیید و غیرفعال‌سازی",
+          enabled = currentPin.length == 6
         )
       },
       dismissButton = {
@@ -669,7 +682,7 @@ fun SecuritySection(
         Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
           HesabyarInputField(
             value = newPin,
-            onValueChange = { newPin = it },
+            onValueChange = { newPin = it.filter { c -> c.isDigit() }.take(6) },
             label = "رمز عبور جدید",
             placeholder = "۶ رقم",
             isError = pinError != null,
@@ -679,7 +692,7 @@ fun SecuritySection(
           )
           HesabyarInputField(
             value = confirmPin,
-            onValueChange = { confirmPin = it },
+            onValueChange = { confirmPin = it.filter { c -> c.isDigit() }.take(6) },
             label = "تکرار رمز عبور",
             placeholder = "۶ رقم",
             visualTransformation = PasswordVisualTransformation(),
@@ -705,7 +718,8 @@ fun SecuritySection(
               }
             }
           },
-          text = "ذخیره"
+          text = "ذخیره",
+          enabled = newPin.length == 6 && confirmPin.length == 6
         )
       },
       dismissButton = {
