@@ -380,7 +380,10 @@ object AiProvider {
 
     return try {
       client.newCall(request).execute().use { response ->
-        val bodyStr = response.body?.string().orEmpty()
+        val bodyStr = response.body?.string()
+        if (bodyStr == null) {
+          return ApiResult.Failure("Null response body")
+        }
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: $bodyStr")
           ApiResult.Failure("API error ${response.code}: $bodyStr")

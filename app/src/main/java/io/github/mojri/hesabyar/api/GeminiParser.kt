@@ -113,7 +113,7 @@ object GeminiParser {
           )
       ) {
         is AiProvider.ApiResult.Success -> {
-          AppLogger.i(TAG, "AI parsed output: ${result.text}")
+          AppLogger.d(TAG, "AI parsed output received")
           parseJsonResultOffline(result.text) ?: parseSentenceOffline(sentence)
         }
         is AiProvider.ApiResult.Failure -> {
@@ -571,7 +571,7 @@ object GeminiParser {
   private fun toArabicDigitsRegex(): String = "[۰-۹]+"
 
   fun parseSentenceOffline(rawSentence: String): ParsedResult {
-    AppLogger.i(TAG, "Using offline natural parser heuristics")
+    AppLogger.d(TAG, "Using offline natural parser heuristics")
     val sentence = PersianTextPreprocessor.preprocessPersianText(rawSentence)
     val amountToman = PersianAmountParser.parseAmount(sentence)
     val dateOffsetDays = extractDateOffset(sentence)
@@ -1214,7 +1214,7 @@ object GeminiParser {
           )
       ) {
         is AiProvider.ApiResult.Success -> {
-          AppLogger.i(TAG, "AI advice outcome: ${result.text}")
+          AppLogger.d(TAG, "AI advice outcome received")
           result.text
         }
         is AiProvider.ApiResult.Failure -> {

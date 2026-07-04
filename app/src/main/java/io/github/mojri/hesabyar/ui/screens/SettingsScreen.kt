@@ -502,8 +502,7 @@ fun SettingsScreen(
       }
     }
 
-    // Debug Logs Section
-    DebugLogsSection()
+    // Debug Logs Section (removed in production for security; logs are only stored in debug builds)
   }
 }
 
@@ -539,9 +538,7 @@ fun SecuritySection(
       checked = isPinSet,
       onCheckedChange = {
         if (isPinSet) {
-          PinStorage.clearPin(context)
-          isPinSet = false
-          settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+          showVerifyPinDialog = true
         } else {
           showSetPinDialog = true
         }
@@ -593,6 +590,53 @@ fun SecuritySection(
         )
       }
     }
+  }
+
+  if (showVerifyPinDialog) {
+    var currentPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+      onDismissRequest = { showVerifyPinDialog = false },
+      title = { Text("تأیید رمز عبور", fontWeight = FontWeight.Bold) },
+      text = {
+        HesabyarInputField(
+          value = currentPin,
+          onValueChange = {
+            currentPin = it
+            pinError = null
+          },
+          label = "رمز عبور فعلی",
+          placeholder = "۶ رقم",
+          isError = pinError != null,
+          supportingText = pinError,
+          visualTransformation = PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+        )
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = {
+            if (PinStorage.verifyPin(context, currentPin)) {
+              PinStorage.clearPin(context)
+              isPinSet = false
+              showVerifyPinDialog = false
+              settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+            } else {
+              pinError = "رمز عبور اشتباه است"
+            }
+          },
+          text = "تأیید و غیرفعال‌سازی"
+        )
+      },
+      dismissButton = {
+        HesabyarButton(
+          onClick = { showVerifyPinDialog = false },
+          text = CANCEL_LABEL,
+          variant = ButtonVariant.Text
+        )
+      }
+    )
   }
 
   if (showSetPinDialog) {
