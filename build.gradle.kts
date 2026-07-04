@@ -8,3 +8,29 @@ plugins {
   alias(libs.plugins.ktlint) apply false
   alias(libs.plugins.hilt) apply false
 }
+
+tasks.register("copyGitHooks") {
+  description = "Copies pre-commit hook from scripts/ to .git/hooks/"
+  doLast {
+    val hook = file("${rootDir}/scripts/pre-commit")
+    val hooksDir = file("${rootDir}/.git/hooks")
+    if (hook.exists()) {
+      copy {
+        from(hook)
+        into(hooksDir)
+      }
+      file("${hooksDir}/pre-commit").setExecutable(true)
+      logger.lifecycle("✓ pre-commit hook installed")
+    } else {
+      logger.warn("⚠ scripts/pre-commit not found, skipping hook installation")
+    }
+  }
+}
+
+afterEvaluate {
+  tasks.matching {
+    it.name.contains("prepare", ignoreCase = true) || it.name == "preBuild"
+  }.configureEach {
+    dependsOn("copyGitHooks")
+  }
+}

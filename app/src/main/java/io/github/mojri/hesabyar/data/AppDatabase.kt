@@ -161,7 +161,7 @@ abstract class AppDatabase : RoomDatabase() {
         val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
         val factory = SupportOpenHelperFactory(passphrase)
 
-        val instance =
+        val db =
           Room
             .databaseBuilder(
               appContext,
@@ -170,8 +170,8 @@ abstract class AppDatabase : RoomDatabase() {
             ).openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
-        instance = instance
-        instance
+        instance = db
+        db
       }
 
     private fun isPlaintextDb(dbFile: File): Boolean {

@@ -31,9 +31,10 @@ object BudgetAdvisor {
       }
 
       if (transactions.isEmpty()) {
-        return@withContext
-        "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
-          "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
+        val message =
+          "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
+            "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
+        return@withContext message
       }
 
       val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -236,9 +237,10 @@ object BudgetAdvisor {
       }
 
       if (transactions.isEmpty() && installments.isEmpty()) {
-        return@withContext
-        "تراکنش یا قسطی در سیستم ثبت نشده است. برای پیش‌بینی دقیق بودجه ماه آینده، لازم است " +
-          "تراکنش‌ها یا تعهدات مالی خود را در حسابیار وارد کنید."
+        val message =
+          "تراکنش یا قسطی در سیستم ثبت نشده است. برای پیش‌بینی دقیق بودجه ماه آینده، لازم است " +
+            "تراکنش‌ها یا تعهدات مالی خود را در حسابیار وارد کنید."
+        return@withContext message
       }
 
       val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -326,9 +328,10 @@ object BudgetAdvisor {
     // Estimate next month income and expense
     // If system is empty, return static tip
     if (transactions.isEmpty() && unpaidInstallments.isEmpty()) {
-      return
-      "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود " +
-        "را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
+      val message =
+        "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود " +
+          "را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
+      return message
     }
 
     val averageIncome = if (transactions.any { it.type == "INCOME" }) totalIncome else 0L

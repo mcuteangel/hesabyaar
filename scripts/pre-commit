@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "============================================"
+echo "  Hesabyar — Pre-Commit Hook"
+echo "============================================"
+
+# Run ktlintFormat first to auto-fix formatting
+echo ""
+echo "[1/3] Running ktlintFormat (auto-fix)..."
+if ! ./gradlew ktlintFormat --quiet; then
+  echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
+  echo "   Run ./gradlew ktlintFormat manually to see details."
+  exit 1
+fi
+echo "  ✓ ktlintFormat passed"
+
+# Run ktlintCheck to verify no style violations remain
+echo ""
+echo "[2/3] Running ktlintCheck..."
+if ! ./gradlew ktlintCheck --quiet; then
+  echo "❌ ktlintCheck failed — Kotlin style violations detected."
+  exit 1
+fi
+echo "  ✓ ktlintCheck passed"
+
+# Run Android Lint
+echo ""
+echo "[3/3] Running Android Lint..."
+if ! ./gradlew lint --quiet; then
+  echo "❌ Lint failed — Android Lint violations detected."
+  exit 1
+fi
+echo "  ✓ Lint passed"
+
+echo ""
+echo "============================================"
+echo "  All checks passed! Proceeding with commit."
+echo "============================================"
