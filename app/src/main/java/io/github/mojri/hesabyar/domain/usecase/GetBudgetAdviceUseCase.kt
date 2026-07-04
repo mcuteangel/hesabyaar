@@ -6,9 +6,9 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 
 class GetBudgetAdviceUseCase {
-    suspend fun getAdvice(
-        transactions: List<Transaction>,
-        categories: List<Category>,
-        config: AiProviderConfig?
-    ): String = BudgetAdvisor.getBudgetAdvice(transactions, categories, config)
+  suspend fun getAdvice(
+    transactions: List<Transaction>,
+    categories: List<Category>,
+    config: AiProviderConfig?
+  ): String = BudgetAdvisor.getBudgetAdvice(transactions, categories, config)
 }

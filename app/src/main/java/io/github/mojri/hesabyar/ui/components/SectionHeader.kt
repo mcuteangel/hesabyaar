@@ -10,26 +10,27 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
 fun SectionHeader(
-    title: String,
-    modifier: Modifier = Modifier,
-    action: @Composable (() -> Unit)? = null
+  title: String,
+  modifier: Modifier = Modifier,
+  action: @Composable (() -> Unit)? = null
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = SpacingTokens.lg,
-                vertical = SpacingTokens.md
-            ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = if (action != null) Modifier.weight(1f) else Modifier
-        )
-        action?.invoke()
-    }
+  Row(
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .padding(
+          horizontal = SpacingTokens.lg,
+          vertical = SpacingTokens.md
+        ),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Text(
+      text = title,
+      style = MaterialTheme.typography.titleMedium,
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = if (action != null) Modifier.weight(1f) else Modifier
+    )
+    action?.invoke()
+  }
 }

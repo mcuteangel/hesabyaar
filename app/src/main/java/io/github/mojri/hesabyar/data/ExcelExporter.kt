@@ -1,197 +1,257 @@
 package io.github.mojri.hesabyar.data
 
 import android.content.Context
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import java.util.Calendar
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class ExcelExporter(private val context: Context) {
+class ExcelExporter(
+  private val context: Context
+) {
+  data class ExportResult(
+    val file: File,
+    val transactionCount: Int,
+    val incomeCount: Int,
+    val expenseCount: Int,
+    val loanCount: Int,
+    val installmentCount: Int
+  )
 
-    data class ExportResult(
-        val file: File,
-        val transactionCount: Int,
-        val incomeCount: Int,
-        val expenseCount: Int,
-        val loanCount: Int,
-        val installmentCount: Int
-    )
-
-    private val categoryMap = mutableMapOf<Long, Category>()
-    private val sharedStrings = mutableListOf<String>()
-
-    private fun internString(s: String): Int {
-        val idx = sharedStrings.indexOf(s)
-        if (idx >= 0) return idx
+  suspend fun export(
+    transactions: List<Transaction>,
+    loans: List<Loan>,
+    installments: List<Installment>,
+    categories: List<Category>,
+    getPaymentsForLoan: suspend (Long) -> List<PaymentHistory>
+  ): ExportResult {
+    val categoryMap = categories.associateBy { it.id }
+    val sharedStrings = mutableListOf<String>()
+    var sharedStringRefCount = 0
+    val internString: (String) -> Int = { s ->
+      val idx = sharedStrings.indexOf(s)
+      sharedStringRefCount++
+      if (idx >= 0) {
+        idx
+      } else {
         sharedStrings.add(s)
-        return sharedStrings.size - 1
+        sharedStrings.size - 1
+      }
     }
 
-    suspend fun export(
-        transactions: List<Transaction>,
-        loans: List<Loan>,
-        installments: List<Installment>,
-        categories: List<Category>,
-        getPaymentsForLoan: suspend (Long) -> List<PaymentHistory>
-    ): ExportResult {
-        categoryMap.clear()
-        categoryMap.putAll(categories.associateBy { it.id })
-        sharedStrings.clear()
+    val incomeTransactions = transactions.filter { it.type == "INCOME" }
+    val expenseTransactions = transactions.filter { it.type == "EXPENSE" }
 
-        val incomeTransactions = transactions.filter { it.type == "INCOME" }
-        val expenseTransactions = transactions.filter { it.type == "EXPENSE" }
+    val sheets =
+      listOf(
+        createTransactionsSheet(transactions, categoryMap, ::formatDate),
+        createIncomeSheet(incomeTransactions, categoryMap, ::formatDate),
+        createExpensesSheet(expenseTransactions, categoryMap, ::formatDate),
+        createLoansSheet(loans, ::formatDate),
+        createInstallmentsSheet(installments, ::formatDate)
+      )
 
-        val sheets = listOf(
-            createTransactionsSheet(transactions),
-            createIncomeSheet(incomeTransactions),
-            createExpensesSheet(expenseTransactions),
-            createLoansSheet(loans),
-            createInstallmentsSheet(installments)
+    val exportDir = File(context.cacheDir, "exports")
+    if (!exportDir.exists()) exportDir.mkdirs()
+
+    val cal = Calendar.getInstance()
+    val timestamp = "${cal.get(
+      Calendar.YEAR
+    )}${(
+      cal.get(
+        Calendar.MONTH
+      ) + 1
+    ).toString().padStart(
+      2,
+      '0'
+    )}${cal.get(
+      Calendar.DAY_OF_MONTH
+    ).toString().padStart(
+      2,
+      '0'
+    )}_${cal.get(
+      Calendar.HOUR_OF_DAY
+    ).toString().padStart(
+      2,
+      '0'
+    )}${cal.get(Calendar.MINUTE).toString().padStart(2, '0')}${cal.get(Calendar.SECOND).toString().padStart(2, '0')}"
+    val file = File(exportDir, "hesabyar_report_$timestamp.xlsx")
+
+    writeXlsx(file, sheets, internString, sharedStrings) { sharedStringRefCount }
+
+    return ExportResult(
+      file = file,
+      transactionCount = transactions.size,
+      incomeCount = incomeTransactions.size,
+      expenseCount = expenseTransactions.size,
+      loanCount = loans.size,
+      installmentCount = installments.size
+    )
+  }
+
+  // ─── Sheet data classes ──────────────────────────────────────────
+
+  private data class SheetDef(
+    val name: String,
+    val headers: List<String>,
+    val dataRows: List<List<String>>,
+    val summaryRow: List<String>?
+  )
+
+  // ─── Sheet builders ──────────────────────────────────────────────
+
+  private fun createTransactionsSheet(
+    transactions: List<Transaction>,
+    categoryMap: Map<Long, Category>,
+    formatDate: (Long) -> String
+  ): SheetDef {
+    val headers = listOf("ردیف", "نوع", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
+    val rows =
+      transactions.map { tx ->
+        listOf(
+          "",
+          if (tx.type == "INCOME") "دریافتی" else "پرداختی",
+          categoryMap[tx.categoryId]?.name ?: "سایر",
+          formatAmount(tx.amount),
+          tx.description,
+          formatDate(tx.date)
         )
+      }
+    return SheetDef("همه تراکنش‌ها", headers, rows, null)
+  }
 
-        val exportDir = File(context.cacheDir, "exports")
-        if (!exportDir.exists()) exportDir.mkdirs()
-
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val file = File(exportDir, "hesabyar_report_$timestamp.xlsx")
-
-        writeXlsx(file, sheets)
-
-        return ExportResult(
-            file = file,
-            transactionCount = transactions.size,
-            incomeCount = incomeTransactions.size,
-            expenseCount = expenseTransactions.size,
-            loanCount = loans.size,
-            installmentCount = installments.size
+  private fun createIncomeSheet(
+    incomeTransactions: List<Transaction>,
+    categoryMap: Map<Long, Category>,
+    formatDate: (Long) -> String
+  ): SheetDef {
+    val headers = listOf("ردیف", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
+    val rows =
+      incomeTransactions.map { tx ->
+        listOf(
+          "",
+          categoryMap[tx.categoryId]?.name ?: "سایر",
+          formatAmount(tx.amount),
+          tx.description,
+          formatDate(tx.date)
         )
+      }
+    val total = incomeTransactions.sumOf { it.amount }
+    val summary = listOf("", "مجموع:", formatAmount(total), "", "")
+    return SheetDef("دریافتی‌ها", headers, rows, summary)
+  }
+
+  private fun createExpensesSheet(
+    expenseTransactions: List<Transaction>,
+    categoryMap: Map<Long, Category>,
+    formatDate: (Long) -> String
+  ): SheetDef {
+    val headers = listOf("ردیف", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
+    val rows =
+      expenseTransactions.map { tx ->
+        listOf(
+          "",
+          categoryMap[tx.categoryId]?.name ?: "سایر",
+          formatAmount(tx.amount),
+          tx.description,
+          formatDate(tx.date)
+        )
+      }
+    val total = expenseTransactions.sumOf { it.amount }
+    val summary = listOf("", "مجموع:", formatAmount(total), "", "")
+    return SheetDef("پرداختی‌ها", headers, rows, summary)
+  }
+
+  private fun createLoansSheet(
+    loans: List<Loan>,
+    formatDate: (Long) -> String
+  ): SheetDef {
+    val headers = listOf("ردیف", "نام شخص", "نوع", "مبلغ اولیه", "مبلغ باقیمانده", "توضیحات", "تاریخ", "وضعیت")
+    val rows =
+      loans.map { loan ->
+        listOf(
+          "",
+          loan.personName,
+          if (loan.type == "DEBTOR") "طلبکار" else "بدهکار",
+          formatAmount(loan.originalAmount),
+          formatAmount(loan.remainingAmount),
+          loan.description,
+          formatDate(loan.date),
+          if (loan.isSettled) "تسویه شده" else "باز"
+        )
+      }
+    return SheetDef("وام‌ها و قرض‌ها", headers, rows, null)
+  }
+
+  private fun createInstallmentsSheet(
+    installments: List<Installment>,
+    formatDate: (Long) -> String
+  ): SheetDef {
+    val headers = listOf("ردیف", "عنوان", "مبلغ", "تاریخ سررسید", "وضعیت", "یادداشت")
+    val rows =
+      installments.map { inst ->
+        listOf(
+          "",
+          inst.title,
+          formatAmount(inst.amount),
+          formatDate(inst.dueDate),
+          if (inst.isPaid) "پرداخت شده" else "پرداخت نشده",
+          inst.notes
+        )
+      }
+    return SheetDef("اقساط", headers, rows, null)
+  }
+
+  // ─── XLSX zip writer ─────────────────────────────────────────────
+
+  private fun writeXlsx(
+    file: File,
+    sheets: List<SheetDef>,
+    internString: (String) -> Int,
+    sharedStrings: List<String>,
+    sharedStringRefCount: () -> Int
+  ) {
+    sheets.forEach { sheet ->
+      sheet.headers.forEach { internString(it) }
+      sheet.dataRows.forEach { row -> row.forEach { internString(it) } }
+      sheet.summaryRow?.forEach { internString(it) }
     }
 
-    // ─── Sheet data classes ──────────────────────────────────────────
+    ZipOutputStream(FileOutputStream(file)).use { zip ->
+      writeEntry(zip, "[Content_Types].xml", contentTypesXml(sheets.size))
+      writeEntry(zip, "_rels/.rels", relsXml())
+      writeEntry(zip, "xl/workbook.xml", workbookXml(sheets))
+      writeEntry(zip, "xl/_rels/workbook.xml.rels", workbookRelsXml(sheets.size))
+      writeEntry(zip, "xl/styles.xml", stylesXml())
+      writeEntry(zip, "xl/sharedStrings.xml", sharedStringsXml(sharedStrings, sharedStringRefCount()))
 
-    private data class SheetDef(val name: String, val headers: List<String>, val dataRows: List<List<String>>, val summaryRow: List<String>?)
-
-    // ─── Sheet builders ──────────────────────────────────────────────
-
-    private fun createTransactionsSheet(transactions: List<Transaction>): SheetDef {
-        val headers = listOf("ردیف", "نوع", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
-        val rows = transactions.map { tx ->
-            listOf(
-                "",
-                if (tx.type == "INCOME") "دریافتی" else "پرداختی",
-                categoryMap[tx.categoryId]?.name ?: "سایر",
-                formatAmount(tx.amount),
-                tx.description,
-                formatDate(tx.date)
-            )
-        }
-        return SheetDef("همه تراکنش‌ها", headers, rows, null)
+      sheets.forEachIndexed { index, sheet ->
+        writeEntry(zip, "xl/worksheets/sheet${index + 1}.xml", worksheetXml(sheet, index, sharedStrings))
+      }
     }
+  }
 
-    private fun createIncomeSheet(incomeTransactions: List<Transaction>): SheetDef {
-        val headers = listOf("ردیف", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
-        val rows = incomeTransactions.map { tx ->
-            listOf(
-                "",
-                categoryMap[tx.categoryId]?.name ?: "سایر",
-                formatAmount(tx.amount),
-                tx.description,
-                formatDate(tx.date)
-            )
-        }
-        val total = incomeTransactions.sumOf { it.amount }
-        val summary = listOf("", "مجموع:", formatAmount(total), "", "")
-        return SheetDef("دریافتی‌ها", headers, rows, summary)
-    }
+  private fun writeEntry(
+    zip: ZipOutputStream,
+    path: String,
+    content: String
+  ) {
+    zip.putNextEntry(ZipEntry(path))
+    zip.write(content.toByteArray(Charsets.UTF_8))
+    zip.closeEntry()
+  }
 
-    private fun createExpensesSheet(expenseTransactions: List<Transaction>): SheetDef {
-        val headers = listOf("ردیف", "دسته‌بندی", "مبلغ", "توضیحات", "تاریخ")
-        val rows = expenseTransactions.map { tx ->
-            listOf(
-                "",
-                categoryMap[tx.categoryId]?.name ?: "سایر",
-                formatAmount(tx.amount),
-                tx.description,
-                formatDate(tx.date)
-            )
-        }
-        val total = expenseTransactions.sumOf { it.amount }
-        val summary = listOf("", "مجموع:", formatAmount(total), "", "")
-        return SheetDef("پرداختی‌ها", headers, rows, summary)
-    }
+  // ─── XML generators ──────────────────────────────────────────────
 
-    private fun createLoansSheet(loans: List<Loan>): SheetDef {
-        val headers = listOf("ردیف", "نام شخص", "نوع", "مبلغ اولیه", "مبلغ باقیمانده", "توضیحات", "تاریخ", "وضعیت")
-        val rows = loans.map { loan ->
-            listOf(
-                "",
-                loan.personName,
-                if (loan.type == "DEBTOR") "طلبکار" else "بدهکار",
-                formatAmount(loan.originalAmount),
-                formatAmount(loan.remainingAmount),
-                loan.description,
-                formatDate(loan.date),
-                if (loan.isSettled) "تسویه شده" else "باز"
-            )
-        }
-        return SheetDef("وام‌ها و قرض‌ها", headers, rows, null)
-    }
-
-    private fun createInstallmentsSheet(installments: List<Installment>): SheetDef {
-        val headers = listOf("ردیف", "عنوان", "مبلغ", "تاریخ سررسید", "وضعیت", "یادداشت")
-        val rows = installments.map { inst ->
-            listOf(
-                "",
-                inst.title,
-                formatAmount(inst.amount),
-                formatDate(inst.dueDate),
-                if (inst.isPaid) "پرداخت شده" else "پرداخت نشده",
-                inst.notes
-            )
-        }
-        return SheetDef("اقساط", headers, rows, null)
-    }
-
-    // ─── XLSX zip writer ─────────────────────────────────────────────
-
-    private fun writeXlsx(file: File, sheets: List<SheetDef>) {
-        sheets.forEach { sheet ->
-            sheet.headers.forEach { internString(it) }
-            sheet.dataRows.forEach { row -> row.forEach { internString(it) } }
-            sheet.summaryRow?.forEach { internString(it) }
-        }
-
-        ZipOutputStream(FileOutputStream(file)).use { zip ->
-            writeEntry(zip, "[Content_Types].xml", contentTypesXml(sheets.size))
-            writeEntry(zip, "_rels/.rels", relsXml())
-            writeEntry(zip, "xl/workbook.xml", workbookXml(sheets))
-            writeEntry(zip, "xl/_rels/workbook.xml.rels", workbookRelsXml(sheets.size))
-            writeEntry(zip, "xl/styles.xml", stylesXml())
-            writeEntry(zip, "xl/sharedStrings.xml", sharedStringsXml())
-
-            sheets.forEachIndexed { index, sheet ->
-                writeEntry(zip, "xl/worksheets/sheet${index + 1}.xml", worksheetXml(sheet, index))
-            }
-        }
-    }
-
-    private fun writeEntry(zip: ZipOutputStream, path: String, content: String) {
-        zip.putNextEntry(ZipEntry(path))
-        zip.write(content.toByteArray(Charsets.UTF_8))
-        zip.closeEntry()
-    }
-
-    // ─── XML generators ──────────────────────────────────────────────
-
-    private fun contentTypesXml(sheetCount: Int): String {
-        val overrides = (1..sheetCount).joinToString("\n") {
-            "  <Override PartName=\"/xl/worksheets/sheet$it.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
-        }
-        return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  private fun contentTypesXml(sheetCount: Int): String {
+    val overrides =
+      (1..sheetCount).joinToString("\n") {
+        "  <Override PartName=\"/xl/worksheets/sheet$it.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
+      }
+    return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
@@ -200,39 +260,45 @@ class ExcelExporter(private val context: Context) {
   <Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
 $overrides
 </Types>"""
-    }
+  }
 
-    private fun relsXml(): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  private fun relsXml(): String =
+    """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>"""
 
-    private fun workbookXml(sheets: List<SheetDef>): String {
-        val refs = sheets.mapIndexed { i, sheet ->
-            "    <sheet name=\"${esc(sheet.name)}\" sheetId=\"${i + 1}\" r:id=\"rId${i + 1}\"/>"
+  private fun workbookXml(sheets: List<SheetDef>): String {
+    val refs =
+      sheets
+        .mapIndexed { i, sheet ->
+          "    <sheet name=\"${esc(sheet.name)}\" sheetId=\"${i + 1}\" r:id=\"rId${i + 1}\"/>"
         }.joinToString("\n")
-        return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
 $refs
   </sheets>
 </workbook>"""
-    }
+  }
 
-    private fun workbookRelsXml(sheetCount: Int): String {
-        val rels = (0 until sheetCount).map { i ->
-            "  <Relationship Id=\"rId${i + 1}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet${i + 1}.xml\"/>"
+  private fun workbookRelsXml(sheetCount: Int): String {
+    val rels =
+      (0 until sheetCount)
+        .map { i ->
+          "  <Relationship Id=\"rId${i + 1}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet${i + 1}.xml\"/>"
         }.joinToString("\n")
-        return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 $rels
   <Relationship Id="rId${sheetCount + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
   <Relationship Id="rId${sheetCount + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
 </Relationships>"""
-    }
+  }
 
-    private fun stylesXml(): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  private fun stylesXml(): String =
+    """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="3">
     <font><sz val="11"/></font>
@@ -268,73 +334,29 @@ $rels
   </cellXfs>
 </styleSheet>"""
 
-    private fun sharedStringsXml(): String {
-        val items = sharedStrings.joinToString("\n") { "  <si><t>${esc(it)}</t></si>" }
-        return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sharedStrings.size}" uniqueCount="${sharedStrings.size}">
+  private fun sharedStringsXml(
+    sharedStrings: List<String>,
+    totalRefCount: Int
+  ): String {
+    val items = sharedStrings.joinToString("\n") { "  <si><t>${esc(it)}</t></si>" }
+    return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="$totalRefCount" uniqueCount="${sharedStrings.size}">
 $items
 </sst>"""
-    }
+  }
 
-    private fun worksheetXml(sheet: SheetDef, sheetIndex: Int): String {
-        val colCount = sheet.headers.size
+  private fun worksheetXml(
+    sheet: SheetDef,
+    sheetIndex: Int,
+    sharedStrings: List<String>
+  ): String {
+    val colsXml = buildColsXml(sheet)
+    val headerRow = buildHeaderRow(sheet, sharedStrings)
+    val dataRows = buildDataRows(sheet, sharedStrings)
+    val summaryRowXml = buildSummaryRow(sheet, sharedStrings, 2 + sheet.dataRows.size)
+    val allRows = listOf(headerRow) + dataRows + listOfNotNull(summaryRowXml)
 
-        val colWidths = (0 until colCount).map { colIdx ->
-            val headerLen = sheet.headers[colIdx].length
-            val dataMax = sheet.dataRows.maxOfOrNull { row -> row.getOrNull(colIdx)?.length ?: 0 } ?: 0
-            val summaryMax = sheet.summaryRow?.getOrNull(colIdx)?.length ?: 0
-            maxOf(headerLen, dataMax, summaryMax, 8) + 4
-        }
-        val colsXml = colWidths.mapIndexed { idx, width ->
-            "    <col min=\"${idx + 1}\" max=\"${idx + 1}\" width=\"$width\" customWidth=\"1\"/>"
-        }.joinToString("\n")
-
-        val headerCells = sheet.headers.mapIndexed { colIdx, header ->
-            val ref = "${columnLetter(colIdx)}1"
-            val si = sharedStrings.indexOf(header)
-            "<c r=\"$ref\" t=\"s\" s=\"1\"><v>$si</v></c>"
-        }.joinToString("")
-        val headerRow = "    <row r=\"1\" ht=\"22\" customHeight=\"1\">$headerCells</row>"
-
-        var rowNum = 2
-        val dataRows = sheet.dataRows.map { row ->
-            val rowIdx = rowNum
-            val cells = row.mapIndexed { colIdx, value ->
-                val ref = "${columnLetter(colIdx)}$rowIdx"
-                if (colIdx == 0) {
-                    val rowNumberValue = rowIdx - 1
-                    "<c r=\"$ref\" t=\"n\" s=\"2\"><v>$rowNumberValue</v></c>"
-                } else {
-                    val si = sharedStrings.indexOf(value)
-                    if (si >= 0) {
-                        "<c r=\"$ref\" t=\"s\" s=\"2\"><v>$si</v></c>"
-                    } else {
-                        "<c r=\"$ref\" s=\"2\"/>"
-                    }
-                }
-            }.joinToString("")
-            val xml = "    <row r=\"$rowIdx\">$cells</row>"
-            rowNum++
-            xml
-        }
-
-        val summaryRowXml = sheet.summaryRow?.let { summary ->
-            val cells = summary.mapIndexed { colIdx, value ->
-                val ref = "${columnLetter(colIdx)}$rowNum"
-                val si = sharedStrings.indexOf(value)
-                val style = if (colIdx == 1 || colIdx == 2) "3" else "2"
-                if (si >= 0) {
-                    "<c r=\"$ref\" t=\"s\" s=\"$style\"><v>$si</v></c>"
-                } else {
-                    "<c r=\"$ref\" s=\"$style\"/>"
-                }
-            }.joinToString("")
-            "    <row r=\"$rowNum\">$cells</row>"
-        }
-
-        val allRows = listOf(headerRow) + dataRows + listOfNotNull(summaryRowXml)
-
-        return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetViews>
@@ -349,29 +371,121 @@ $colsXml
 ${allRows.joinToString("\n")}
   </sheetData>
 </worksheet>"""
+  }
+
+  private fun buildColsXml(sheet: SheetDef): String {
+    val colCount = sheet.headers.size
+    return (0 until colCount)
+      .map { colIdx ->
+        val width =
+          maxOf(
+            sheet.headers[colIdx].length,
+            sheet.dataRows.maxOfOrNull { row -> row.getOrNull(colIdx)?.length ?: 0 } ?: 0,
+            sheet.summaryRow?.getOrNull(colIdx)?.length ?: 0,
+            8
+          ) + 4
+        "    <col min=\"${colIdx + 1}\" max=\"${colIdx + 1}\" width=\"$width\" customWidth=\"1\"/>"
+      }.joinToString("\n")
+  }
+
+  private fun buildHeaderRow(
+    sheet: SheetDef,
+    sharedStrings: List<String>
+  ): String {
+    val cells =
+      sheet.headers
+        .mapIndexed { colIdx, header ->
+          val ref = "${columnLetter(colIdx)}1"
+          val si = sharedStrings.indexOf(header)
+          "<c r=\"$ref\" t=\"s\" s=\"1\"><v>$si</v></c>"
+        }.joinToString("")
+    return "    <row r=\"1\" ht=\"22\" customHeight=\"1\">$cells</row>"
+  }
+
+  private fun buildDataRows(
+    sheet: SheetDef,
+    sharedStrings: List<String>
+  ): List<String> =
+    sheet.dataRows.mapIndexed { index, row ->
+      val rowIdx = index + 2
+      val cells = buildRowCells(row, rowIdx, sharedStrings)
+      "    <row r=\"$rowIdx\">$cells</row>"
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────
-
-    private fun columnLetter(index: Int): String {
-        val sb = StringBuilder()
-        var i = index
-        while (i >= 0) {
-            sb.append('A' + (i % 26))
-            i = i / 26 - 1
+  private fun buildRowCells(
+    row: List<String>,
+    rowIdx: Int,
+    sharedStrings: List<String>
+  ): String =
+    row
+      .mapIndexed { colIdx, value ->
+        val ref = "${columnLetter(colIdx)}$rowIdx"
+        if (colIdx == 0) {
+          "<c r=\"$ref\" t=\"n\" s=\"2\"><v>${rowIdx - 1}</v></c>"
+        } else {
+          val si = sharedStrings.indexOf(value)
+          if (si >= 0) {
+            "<c r=\"$ref\" t=\"s\" s=\"2\"><v>$si</v></c>"
+          } else {
+            "<c r=\"$ref\" s=\"2\"/>"
+          }
         }
-        return sb.reverse().toString()
+      }.joinToString("")
+
+  private fun buildSummaryRow(
+    sheet: SheetDef,
+    sharedStrings: List<String>,
+    rowNum: Int
+  ): String? =
+    sheet.summaryRow?.let { summary ->
+      val cells =
+        summary
+          .mapIndexed { colIdx, value ->
+            val ref = "${columnLetter(colIdx)}$rowNum"
+            val si = sharedStrings.indexOf(value)
+            val style = if (colIdx == 1 || colIdx == 2) "3" else "2"
+            if (si >= 0) {
+              "<c r=\"$ref\" t=\"s\" s=\"$style\"><v>$si</v></c>"
+            } else {
+              "<c r=\"$ref\" s=\"$style\"/>"
+            }
+          }.joinToString("")
+      "    <row r=\"$rowNum\">$cells</row>"
     }
 
-    private fun esc(text: String): String = text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&apos;")
+  // ─── Helpers ─────────────────────────────────────────────────────
 
-    private fun formatAmount(value: Long): String = CurrencyFormatter.format(value)
+  private fun columnLetter(index: Int): String {
+    val sb = StringBuilder()
+    var i = index
+    while (i >= 0) {
+      sb.append('A' + (i % 26))
+      i = i / 26 - 1
+    }
+    return sb.reverse().toString()
+  }
 
-    private fun formatDate(timestamp: Long): String =
-        SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.US).format(Date(timestamp))
+  private fun esc(text: String): String =
+    text
+      .replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
+      .replace("\"", "&quot;")
+      .replace("'", "&apos;")
+
+  private fun formatAmount(value: Long): String = CurrencyFormatter.format(value)
+
+  private fun formatDate(timestamp: Long): String {
+    val jDate = JalaliCalendarHelper.gregorianToJalali(timestamp)
+    val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val hour = cal.get(Calendar.HOUR_OF_DAY)
+    val minute = cal.get(Calendar.MINUTE)
+    return "${jDate.year}/${jDate.month.toString().padStart(
+      2,
+      '0'
+    )}/${jDate.day.toString().padStart(
+      2,
+      '0'
+    )} - ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+  }
 }

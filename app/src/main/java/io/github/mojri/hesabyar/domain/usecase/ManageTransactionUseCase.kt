@@ -5,34 +5,35 @@ import io.github.mojri.hesabyar.data.Transaction
 import kotlinx.coroutines.flow.Flow
 
 class ManageTransactionUseCase(
-    private val repository: HesabyarRepositoryInterface
+  private val repository: HesabyarRepositoryInterface
 ) {
-    val allTransactions: Flow<List<Transaction>> = repository.allTransactions
+  val allTransactions: Flow<List<Transaction>> = repository.allTransactions
 
-    fun getTransactionsInRange(start: Long, end: Long): Flow<List<Transaction>> =
-        repository.getTransactionsInRange(start, end)
+  fun getTransactionsInRange(
+    start: Long,
+    end: Long
+  ): Flow<List<Transaction>> = repository.getTransactionsInRange(start, end)
 
-    suspend fun addTransaction(
-        type: String,
-        categoryId: Long,
-        amount: Long,
-        description: String,
-        personName: String? = null,
-        customDate: Long? = null
-    ): Long = repository.insertTransaction(
-        Transaction(
-            type = type,
-            categoryId = categoryId,
-            amount = amount,
-            description = description,
-            personName = personName,
-            date = customDate ?: System.currentTimeMillis()
-        )
+  suspend fun addTransaction(
+    type: String,
+    categoryId: Long,
+    amount: Long,
+    description: String,
+    personName: String? = null,
+    customDate: Long? = null
+  ): Long =
+    repository.insertTransaction(
+      Transaction(
+        type = type,
+        categoryId = categoryId,
+        amount = amount,
+        description = description,
+        personName = personName,
+        date = customDate ?: System.currentTimeMillis()
+      )
     )
 
-    suspend fun updateTransaction(transaction: Transaction) =
-        repository.updateTransaction(transaction)
+  suspend fun updateTransaction(transaction: Transaction) = repository.updateTransaction(transaction)
 
-    suspend fun deleteTransaction(transaction: Transaction) =
-        repository.deleteTransaction(transaction)
+  suspend fun deleteTransaction(transaction: Transaction) = repository.deleteTransaction(transaction)
 }

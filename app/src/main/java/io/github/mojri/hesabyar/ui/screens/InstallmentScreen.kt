@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,351 +37,374 @@ import java.util.*
 
 @Composable
 fun InstallmentScreen(
-    installmentViewModel: InstallmentViewModel,
-    settingsViewModel: SettingsViewModel,
-    modifier: Modifier = Modifier
+  installmentViewModel: InstallmentViewModel,
+  settingsViewModel: SettingsViewModel,
+  modifier: Modifier = Modifier
 ) {
-    val installments by installmentViewModel.installments.collectAsState()
+  val installments by installmentViewModel.installments.collectAsState()
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
+  var showAddDialog by remember { mutableStateOf(false) }
+  var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
 
-    // Process lists
-    val unpaid = installments.filter { !it.isPaid }
-    val paid = installments.filter { it.isPaid }
+  // Process lists
+  val unpaid = installments.filter { !it.isPaid }
+  val paid = installments.filter { it.isPaid }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(SpacingTokens.lg),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+  Column(
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(SpacingTokens.lg),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+  ) {
+    // Title and add trigger row
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
     ) {
-        // Title and add trigger row
-        Row(
+      Text(
+        text = "دفتر مدیریت اقساط من",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onBackground
+      )
+
+      HesabyarButton(
+        onClick = { showAddDialog = true },
+        icon = Icons.Filled.Add,
+        text = "ثبت قسط",
+        modifier = Modifier.testTag("add_installment_button")
+      )
+    }
+
+    // Horizontal filter bar (Unpaid / Paid / All)
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .clip(ShapeTokens.Medium)
+          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+          .padding(SpacingTokens.xs),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+    ) {
+      val filterButtons =
+        listOf(
+          "UNPAID" to "پرداخت‌نشده",
+          "PAID" to "پرداخت شده",
+          "ALL" to "همه اقساط"
+        )
+
+      filterButtons.forEach { (filterMode, title) ->
+        HesabyarChip(
+          selected = listFilterState == filterMode,
+          onClick = { listFilterState = filterMode },
+          modifier = Modifier.weight(1f),
+          label = title
+        )
+      }
+    }
+
+    val displayList =
+      when (listFilterState) {
+        "UNPAID" -> unpaid
+        "PAID" -> paid
+        else -> installments
+      }
+
+    if (displayList.isEmpty()) {
+      Box(
+        modifier =
+          Modifier
+            .weight(1f)
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
+      ) {
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+        ) {
+          Icon(
+            imageVector = Icons.Filled.CreditCard,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+            modifier = Modifier.size(Dimens.AvatarLarge)
+          )
+          Text(
+            text =
+              when (listFilterState) {
+                "UNPAID" -> "هیچ قسط پرداخت‌نشده پیش‌رویی وجود ندارد."
+                "PAID" -> "هنوز قسطی پرداخت نشده است."
+                else -> "هیچ قسطی ثبت نشده است."
+              },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          )
+        }
+      }
+    } else {
+      LazyColumn(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+      ) {
+        items(displayList) { installment ->
+          InstallmentListItem(
+            installment = installment,
+            installmentViewModel = installmentViewModel
+          )
+        }
+      }
+    }
+  }
+
+  // Add Installment Dialog
+  if (showAddDialog) {
+    var title by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("") }
+    var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var reminderEnabled by remember { mutableStateOf(true) }
+    var notes by remember { mutableStateOf("") }
+
+    AlertDialog(
+      onDismissRequest = { showAddDialog = false },
+      title = {
+        Text(
+          "ثبت قسط جدید",
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.fillMaxWidth(),
+          textAlign = TextAlign.Right
+        )
+      },
+      text = {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+        ) {
+          HesabyarInputField(
+            value = title,
+            onValueChange = { title = it },
+            label = "عنوان قسط (مثلا قسط ماشین)"
+          )
+
+          HesabyarInputField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
+          )
+
+          JalaliDateTimePicker(
+            initialTimestamp = dateInMillis,
+            onTimestampChanged = { dateInMillis = it }
+          )
+
+          Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
-        ) {
+          ) {
             Text(
-                text = "دفتر مدیریت اقساط من",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+              "اعلام و هشدار سررسید",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurface
             )
-
-            HesabyarButton(
-                onClick = { showAddDialog = true },
-                icon = Icons.Filled.Add,
-                text = "ثبت قسط",
-                modifier = Modifier.testTag("add_installment_button")
+            Switch(
+              checked = reminderEnabled,
+              onCheckedChange = { reminderEnabled = it }
             )
+          }
+
+          HesabyarInputField(
+            value = notes,
+            onValueChange = { notes = it },
+            label = "شرح و یادداشت اضافی",
+            singleLine = false
+          )
         }
-
-        // Horizontal filter bar (Unpaid / Paid / All)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(SpacingTokens.xs),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-        ) {
-            val filterButtons = listOf(
-                "UNPAID" to "پرداخت‌نشده",
-                "PAID" to "پرداخت شده",
-                "ALL" to "همه اقساط"
-            )
-
-            filterButtons.forEach { (filterMode, title) ->
-                HesabyarChip(
-                    selected = listFilterState == filterMode,
-                    onClick = { listFilterState = filterMode },
-                    modifier = Modifier.weight(1f),
-                    label = title
-                )
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = {
+            val amountDisplay = amountText.toLongOrNull() ?: 0L
+            if (title.isNotBlank() && amountDisplay > 0L) {
+              val amountRial = CurrencyFormatter.toRial(amountDisplay)
+              installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+              showAddDialog = false
+            } else {
+              settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
             }
-        }
-
-        val displayList = when (listFilterState) {
-            "UNPAID" -> unpaid
-            "PAID" -> paid
-            else -> installments
-        }
-
-        if (displayList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CreditCard,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                        modifier = Modifier.size(Dimens.AvatarLarge)
-                    )
-                    Text(
-                        text = when (listFilterState) {
-                            "UNPAID" -> "هیچ قسط پرداخت‌نشده پیش‌رویی وجود ندارد."
-                            "PAID" -> "هنوز قسطی پرداخت نشده است."
-                            else -> "هیچ قسطی ثبت نشده است."
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-            ) {
-                items(displayList) { installment ->
-                    InstallmentListItem(
-                        installment = installment,
-                        installmentViewModel = installmentViewModel
-                    )
-                }
-            }
-        }
-    }
-
-    // Add Installment Dialog
-    if (showAddDialog) {
-        var title by remember { mutableStateOf("") }
-        var amountText by remember { mutableStateOf("") }
-        var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-        var reminderEnabled by remember { mutableStateOf(true) }
-        var notes by remember { mutableStateOf("") }
-
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = {
-                Text(
-                    "ثبت قسط جدید",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Right
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-                ) {
-                    HesabyarInputField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = "عنوان قسط (مثلا قسط ماشین)"
-                    )
-
-                    HesabyarInputField(
-                        value = amountText,
-                        onValueChange = { amountText = it },
-                        label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
-                    )
-
-                    JalaliDateTimePicker(
-                        initialTimestamp = dateInMillis,
-                        onTimestampChanged = { dateInMillis = it }
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "اعلام و هشدار سررسید",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Switch(
-                            checked = reminderEnabled,
-                            onCheckedChange = { reminderEnabled = it }
-                        )
-                    }
-
-                    HesabyarInputField(
-                        value = notes,
-                        onValueChange = { notes = it },
-                        label = "شرح و یادداشت اضافی",
-                        singleLine = false
-                    )
-                }
-            },
-            confirmButton = {
-                HesabyarButton(
-                    onClick = {
-                        val amountDisplay = amountText.toLongOrNull() ?: 0L
-                        if (title.isNotBlank() && amountDisplay > 0L) {
-                            val amountRial = CurrencyFormatter.toRial(amountDisplay)
-                            installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
-                            showAddDialog = false
-                        } else {
-                            settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
-                        }
-                    },
-                    text = "ذخیره قسط"
-                )
-            },
-            dismissButton = {
-                HesabyarButton(
-                    onClick = { showAddDialog = false },
-                    text = "انصراف",
-                    variant = ButtonVariant.Text
-                )
-            }
+          },
+          text = "ذخیره قسط"
         )
-    }
+      },
+      dismissButton = {
+        HesabyarButton(
+          onClick = { showAddDialog = false },
+          text = "انصراف",
+          variant = ButtonVariant.Text
+        )
+      }
+    )
+  }
 }
 
 @Composable
 fun InstallmentListItem(
-    installment: Installment,
-    installmentViewModel: InstallmentViewModel
+  installment: Installment,
+  installmentViewModel: InstallmentViewModel
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val colorAccent = if (installment.isPaid) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
+  var expanded by remember { mutableStateOf(false) }
+  val colorAccent = if (installment.isPaid) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
 
-    HesabyarCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
-        shape = ShapeTokens.Large,
-        cardColors = CardDefaults.cardColors(
-            containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+  HesabyarCard(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .clickable { expanded = !expanded },
+    shape = ShapeTokens.Large,
+    cardColors =
+      CardDefaults.cardColors(
+        containerColor =
+          if (installment.isPaid) {
+            MaterialTheme.colorScheme.surfaceVariant.copy(
+              alpha = 0.4f
+            )
+          } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+          }
+      )
+  ) {
+    Column(
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(Dimens.AvatarSmall)
-                            .background(colorAccent.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
-                            contentDescription = null,
-                            tint = colorAccent,
-                            modifier = Modifier.size(Dimens.IconSmall)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(SpacingTokens.md))
-                    Column {
-                        Text(
-                            text = installment.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "سررسید: ${formatPersianDate(installment.dueDate)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-
-                Text(
-                    text = CurrencyFormatter.format(installment.amount),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = colorAccent
-                )
-            }
-
-            // Quick payment toggle button and status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-                ) {
-                    if (installment.reminderEnabled && !installment.isPaid) {
-                        Icon(
-                            imageVector = Icons.Filled.NotificationsActive,
-                            contentDescription = "زنگ فعال",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(Dimens.IconSmall)
-                        )
-                        Text(
-                            "زنگ سررسید فعال",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
-                        contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
-                    ),
-                    shape = ShapeTokens.Small,
-                    contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),
-                    elevation = null
-                ) {
-                    Text(
-                        text = if (installment.isPaid) "پرداخت شده" else "علامت پرداخت",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-                ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                    if (installment.notes.isNotBlank()) {
-                        Text(
-                            text = "📝 یادداشت: ${installment.notes}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            lineHeight = 16.sp
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(
-                            onClick = { installmentViewModel.deleteInstallment(installment) },
-                            modifier = Modifier
-                                .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
-                                .size(Dimens.AvatarSmall)
-                        ) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "حذف قسط", modifier = Modifier.size(18.dp), tint = FinancialColors.ExpenseRed)
-                        }
-                    }
-                }
-            }
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Box(
+            modifier =
+              Modifier
+                .size(Dimens.AvatarSmall)
+                .background(colorAccent.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
+              contentDescription = null,
+              tint = colorAccent,
+              modifier = Modifier.size(Dimens.IconSmall)
+            )
+          }
+          Spacer(modifier = Modifier.width(SpacingTokens.md))
+          Column {
+            Text(
+              text = installment.title,
+              style = MaterialTheme.typography.bodyLarge,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+              text = "سررسید: ${formatPersianDate(installment.dueDate)}",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+          }
         }
+
+        Text(
+          text = CurrencyFormatter.format(installment.amount),
+          style = MaterialTheme.typography.bodyLarge,
+          fontWeight = FontWeight.Bold,
+          color = colorAccent
+        )
+      }
+
+      // Quick payment toggle button and status
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+        ) {
+          if (installment.reminderEnabled && !installment.isPaid) {
+            Icon(
+              imageVector = Icons.Filled.NotificationsActive,
+              contentDescription = "زنگ فعال",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(Dimens.IconSmall)
+            )
+            Text(
+              "زنگ سررسید فعال",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.primary
+            )
+          }
+        }
+
+        Button(
+          onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
+          colors =
+            ButtonDefaults.buttonColors(
+              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
+              contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
+            ),
+          shape = ShapeTokens.Small,
+          contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),
+          elevation = null
+        ) {
+          Text(
+            text = if (installment.isPaid) "پرداخت شده" else "علامت پرداخت",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
+          )
+        }
+      }
+
+      AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
+      ) {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+        ) {
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+          if (installment.notes.isNotBlank()) {
+            Text(
+              text = "📝 یادداشت: ${installment.notes}",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+              lineHeight = 16.sp
+            )
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            IconButton(
+              onClick = { installmentViewModel.deleteInstallment(installment) },
+              modifier =
+                Modifier
+                  .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
+                  .size(Dimens.AvatarSmall)
+            ) {
+              Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = "حذف قسط",
+                modifier = Modifier.size(18.dp),
+                tint = FinancialColors.ExpenseRed
+              )
+            }
+          }
+        }
+      }
     }
+  }
 }
