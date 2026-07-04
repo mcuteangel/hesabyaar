@@ -3,6 +3,16 @@ package io.github.mojri.hesabyar.ui
 import java.util.Calendar
 
 object JalaliCalendarHelper {
+    // Lookup tables shared across all conversions. Hoisting these out of the
+    // per-call bodies avoids re-allocating (and zero-initialising) two int
+    // arrays on every gregorianToJalali call, which runs on every transaction,
+    // reminder and report render. The arrays are read-only, so sharing them is
+    // safe across threads.
+    private val G_MONTH_DAY_OFFSETS =
+        intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+    private val J_MONTH_DAYS =
+        intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
+
     data class JalaliDate(val year: Int, val month: Int, val day: Int) {
         override fun toString(): String =
             String.format(java.util.Locale.US, "%04d/%02d/%02d", year, month, day)
@@ -30,7 +40,7 @@ object JalaliCalendarHelper {
     }
 
     fun gregorianToJalali(gYear: Int, gMonth: Int, gDay: Int): JalaliDate {
-        val gDaysInMonth = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+        val gDaysInMonth = G_MONTH_DAY_OFFSETS
         val gy = gYear - 1600
         val gm = gMonth - 1
         val gd = gDay - 1
@@ -49,7 +59,7 @@ object JalaliCalendarHelper {
             jy += (jDayNo - 1) / 365
             jDayNo = (jDayNo - 1) % 365
         }
-        val jMonthsDays = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
+        val jMonthsDays = J_MONTH_DAYS
         var i = 0
         while (i < 12 && jDayNo >= jMonthsDays[i]) {
             jDayNo -= jMonthsDays[i]
@@ -65,7 +75,7 @@ object JalaliCalendarHelper {
         val jm = jMonth - 1
         val jd = jDay - 1
         var jDayNo = 365 * jy + (jy / 33) * 8 + (jy % 33 + 3) / 4
-        val jDaysInMonth = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
+        val jDaysInMonth = J_MONTH_DAYS
         for (i in 0 until jm) {
             jDayNo += jDaysInMonth[i]
         }
