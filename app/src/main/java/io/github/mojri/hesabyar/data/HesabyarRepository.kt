@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 
 class HesabyarRepository(
@@ -7,7 +8,8 @@ class HesabyarRepository(
   private val loanDao: LoanDao,
   private val installmentDao: InstallmentDao,
   private val paymentHistoryDao: PaymentHistoryDao,
-  private val categoryDao: CategoryDao
+  private val categoryDao: CategoryDao,
+  private val database: AppDatabase
 ) : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
@@ -66,46 +68,34 @@ class HesabyarRepository(
     customDate: Long?
   ): Boolean {
     val loan = loanDao.getLoanById(loanId) ?: return false
+    val loansCategory = getCategoryByKey("Loans") ?: return false
     val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
     val isSettled = newRemaining <= 0L
     val date = customDate ?: System.currentTimeMillis()
 
-    updateLoan(
-      loan.copy(
-        remainingAmount = newRemaining,
-        isSettled = isSettled
-      )
-    )
-
-    paymentHistoryDao.insertPayment(
-      PaymentHistory(
-        loanId = loanId,
-        amount = amount,
-        notes = notes,
-        date = date
-      )
-    )
-
-    // Create an associated transaction matching this repayment
-    val loansCategory = getCategoryByKey("Loans")
+    val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
     val desc =
       if (loan.type == "CREDITOR") {
         "بازپرداخت بدهی به ${loan.personName} - $notes"
       } else {
         "دریافت بازپرداخت از ${loan.personName} - $notes"
       }
-
-    insertTransaction(
+    val tx =
       Transaction(
         type = if (loan.type == "CREDITOR") "EXPENSE" else "INCOME",
-        categoryId = loansCategory?.id ?: 1L,
+        categoryId = loansCategory.id,
         amount = amount,
         description = desc,
         personName = loan.personName,
         date = date
       )
-    )
+    val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
 
+    database.withTransaction {
+      loanDao.updateLoan(updatedLoan)
+      paymentHistoryDao.insertPayment(payment)
+      transactionDao.insertTransaction(tx)
+    }
     return true
   }
 
@@ -113,18 +103,21 @@ class HesabyarRepository(
   override suspend fun insertInstallment(installment: Installment): Long = installmentDao.insertInstallment(installment)
 
   override suspend fun updateInstallment(installment: Installment) {
+    val existing = installmentDao.getInstallmentById(installment.id)
     installmentDao.updateInstallment(installment)
-    // If paid, create an associated transaction!
-    if (installment.isPaid) {
+    val justPaid = installment.isPaid && (existing == null || !existing.isPaid)
+    if (justPaid) {
       val installmentsCategory = getCategoryByKey("Installments")
-      insertTransaction(
-        Transaction(
-          type = "EXPENSE",
-          categoryId = installmentsCategory?.id ?: 1L,
-          amount = installment.amount,
-          description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
+      if (installmentsCategory != null) {
+        insertTransaction(
+          Transaction(
+            type = "EXPENSE",
+            categoryId = installmentsCategory.id,
+            amount = installment.amount,
+            description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
+          )
         )
-      )
+      }
     }
   }
 
@@ -138,7 +131,7 @@ class HesabyarRepository(
     loans: List<Loan>,
     installments: List<Installment>,
     paymentHistories: List<PaymentHistory>
-  ) {
+  ) = database.withTransaction {
     transactionDao.deleteAllTransactions()
     loanDao.deleteAllLoans()
     installmentDao.deleteAllInstallments()
@@ -152,43 +145,53 @@ class HesabyarRepository(
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
 
-  override suspend fun replaceAllFromBackup(backup: BackupPayload) {
-    transactionDao.deleteAllTransactions()
-    loanDao.deleteAllLoans()
-    installmentDao.deleteAllInstallments()
-    paymentHistoryDao.deleteAllPaymentHistory()
+  override suspend fun replaceAllFromBackup(backup: BackupPayload) =
+    database.withTransaction {
+      transactionDao.deleteAllTransactions()
+      loanDao.deleteAllLoans()
+      installmentDao.deleteAllInstallments()
+      paymentHistoryDao.deleteAllPaymentHistory()
 
-    backup.categories.forEach { categoryDao.insertCategory(it) }
-    backup.transactions.forEach { transactionDao.insertTransaction(it) }
-    backup.loans.forEach { loanDao.insertLoan(it) }
-    backup.installments.forEach { installmentDao.insertInstallment(it) }
-    backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
-  }
+      backup.categories.forEach { categoryDao.insertCategory(it) }
+      backup.transactions.forEach { transactionDao.insertTransaction(it) }
+      backup.loans.forEach { loanDao.insertLoan(it) }
+      backup.installments.forEach { installmentDao.insertInstallment(it) }
+      backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
+    }
 
-  override suspend fun mergeFromBackup(backup: BackupPayload) {
-    for (category in backup.categories) {
-      val existing = categoryDao.getCategoryByKey(category.key)
-      if (existing != null) {
-        categoryDao.updateCategory(category.copy(id = existing.id))
-      } else {
-        categoryDao.insertCategory(category)
+  override suspend fun mergeFromBackup(backup: BackupPayload) =
+    database.withTransaction {
+      val keyToId = mutableMapOf<String, Long>()
+      for (category in backup.categories) {
+        val existing = categoryDao.getCategoryByKey(category.key)
+        val savedId =
+          if (existing != null) {
+            categoryDao.updateCategory(category.copy(id = existing.id))
+            existing.id
+          } else {
+            categoryDao.insertCategory(category)
+          }
+        keyToId[category.key] = savedId
+      }
+
+      for (transaction in backup.transactions) {
+        val mappedId =
+          keyToId[backup.categories.find { it.id == transaction.categoryId }?.key]
+            ?: categoryDao.getCategoryByKey("Other")?.id
+            ?: transaction.categoryId
+        transactionDao.insertTransaction(transaction.copy(categoryId = mappedId))
+      }
+
+      for (loan in backup.loans) {
+        loanDao.insertLoan(loan)
+      }
+
+      for (installment in backup.installments) {
+        installmentDao.insertInstallment(installment)
+      }
+
+      for (payment in backup.paymentHistories) {
+        paymentHistoryDao.insertPayment(payment)
       }
     }
-
-    for (transaction in backup.transactions) {
-      transactionDao.insertTransaction(transaction)
-    }
-
-    for (loan in backup.loans) {
-      loanDao.insertLoan(loan)
-    }
-
-    for (installment in backup.installments) {
-      installmentDao.insertInstallment(installment)
-    }
-
-    for (payment in backup.paymentHistories) {
-      paymentHistoryDao.insertPayment(payment)
-    }
-  }
 }

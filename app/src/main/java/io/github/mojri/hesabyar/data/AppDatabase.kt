@@ -10,7 +10,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
 import java.io.IOException
@@ -149,17 +148,17 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    fun getDatabase(context: Context): AppDatabase =
-      instance ?: synchronized(this) {
+    fun getDatabase(context: Context): AppDatabase {
+      instance?.let { return it }
+      return synchronized(this) {
+        instance?.let { return it }
         val appContext = context.applicationContext
         System.loadLibrary("sqlcipher")
 
-        migrationScope.launch {
-          migratePlaintextToEncryptedIfNeeded(appContext)
-        }
-
         val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
         val factory = SupportOpenHelperFactory(passphrase)
+
+        migratePlaintextToEncryptedIfNeeded(appContext)
 
         val db =
           Room
@@ -173,6 +172,7 @@ abstract class AppDatabase : RoomDatabase() {
         instance = db
         db
       }
+    }
 
     private fun isPlaintextDb(dbFile: File): Boolean {
       if (!dbFile.exists()) return false

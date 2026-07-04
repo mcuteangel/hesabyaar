@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -160,7 +161,7 @@ fun CustomTimePickerDialog(
             ) {
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                  text = String.format("%02d", selectedHour),
+                  text = String.format(Locale("fa", "IR"), "%02d", selectedHour),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
                   color =
@@ -214,7 +215,7 @@ fun CustomTimePickerDialog(
             ) {
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                  text = String.format("%02d", selectedMinute),
+                  text = String.format(Locale("fa", "IR"), "%02d", selectedMinute),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
                   color =

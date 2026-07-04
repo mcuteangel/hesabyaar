@@ -12,7 +12,9 @@ import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONException
 import java.io.IOException
 import java.io.InputStream
@@ -35,7 +37,7 @@ class BackupViewModel
     fun validateAndStageImport(inputStream: InputStream) {
       viewModelScope.launch {
         try {
-          val text = inputStream.bufferedReader().use { it.readText() }
+          val text = withContext(Dispatchers.IO) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
 
           when (val result = manageBackupUseCase.validateBackup(backup)) {
@@ -117,8 +119,10 @@ class BackupViewModel
         try {
           val rootJson = manageBackupUseCase.exportBackupJson()
 
-          outputStream.use { os ->
-            os.write(rootJson.toString(2).toByteArray())
+          withContext(Dispatchers.IO) {
+            outputStream.use { os ->
+              os.write(rootJson.toString(2).toByteArray())
+            }
           }
 
           val summary =
@@ -154,7 +158,7 @@ class BackupViewModel
       viewModelScope.launch {
         operationState.value = BackupOperationState.Importing
         try {
-          val text = inputStream.bufferedReader().use { it.readText() }
+          val text = withContext(Dispatchers.IO) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
           manageBackupUseCase.importBackupFromFile(
             backup.transactions,

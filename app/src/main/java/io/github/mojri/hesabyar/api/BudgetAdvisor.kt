@@ -320,12 +320,9 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>
   ): String {
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
     val unpaidInstallments = installments.filter { !it.isPaid }
     val upcomingInstallmentsSum = unpaidInstallments.sumOf { it.amount }
 
-    // Estimate next month income and expense
     // If system is empty, return static tip
     if (transactions.isEmpty() && unpaidInstallments.isEmpty()) {
       val message =
@@ -334,8 +331,15 @@ object BudgetAdvisor {
       return message
     }
 
-    val averageIncome = if (transactions.any { it.type == "INCOME" }) totalIncome else 0L
-    val averageExpense = if (transactions.any { it.type == "EXPENSE" }) totalExpense else 0L
+    // Use a bounded window (last 90 days) to compute averages, avoiding all-time drift
+    val now = System.currentTimeMillis()
+    val windowStart = now - 90L * 24 * 60 * 60 * 1000
+    val recentTransactions = transactions.filter { it.date >= windowStart }
+    val recentIncome = recentTransactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+    val recentExpense = recentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+
+    val averageIncome = if (recentTransactions.any { it.type == "INCOME" }) recentIncome else 0L
+    val averageExpense = if (recentTransactions.any { it.type == "EXPENSE" }) recentExpense else 0L
 
     val estimatedBalance = averageIncome - averageExpense - upcomingInstallmentsSum
 

@@ -46,8 +46,14 @@ fun AmountQuickFillButtons(
     verticalAlignment = Alignment.CenterVertically
   ) {
     options.forEach { option ->
-      val newValue = (currentAmount * option.factor).coerceAtMost(MAX_AMOUNT_TOMAN)
-      val isEnabled = currentAmount > 0 && newValue <= MAX_AMOUNT_TOMAN
+      val safeProduct =
+        if (currentAmount <= Long.MAX_VALUE / option.factor) {
+          (currentAmount * option.factor).coerceAtMost(MAX_AMOUNT_TOMAN)
+        } else {
+          MAX_AMOUNT_TOMAN
+        }
+      val newValue = safeProduct
+      val isEnabled = currentAmount > 0 && safeProduct <= MAX_AMOUNT_TOMAN
 
       Text(
         text = option.label,

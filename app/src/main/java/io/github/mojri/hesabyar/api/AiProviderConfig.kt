@@ -173,6 +173,19 @@ class AiConfigManager(
     }
   }
 
+  private fun parseProviderType(obj: JSONObject): AiProviderType {
+    val name = obj.optString("providerType", null)
+    if (name != null) {
+      return try {
+        AiProviderType.valueOf(name)
+      } catch (e: IllegalArgumentException) {
+        AiProviderType.GEMINI
+      }
+    }
+    val ordinal = obj.optInt("providerType", -1)
+    return AiProviderType.entries.getOrElse(ordinal) { AiProviderType.GEMINI }
+  }
+
   fun loadConfigs(): List<AiProviderConfig> {
     val json = prefs.getString(KEY_CONFIGS_JSON, null)
     AppLogger.d(TAG, "loadConfigs: json ${if (json != null) "found (${json.length} chars)" else "is null"}")
@@ -185,10 +198,7 @@ class AiConfigManager(
             val obj = arr.getJSONObject(i)
             AiProviderConfig(
               id = obj.optString("id", ""),
-              providerType =
-                AiProviderType.entries.getOrElse(
-                  obj.optInt("providerType", 0)
-                ) { AiProviderType.GEMINI },
+              providerType = parseProviderType(obj),
               apiKey = obj.optString("apiKey", ""),
               model = obj.optString("model", ""),
               baseUrl = obj.optString("baseUrl", ""),
@@ -209,7 +219,7 @@ class AiConfigManager(
       arr.put(
         JSONObject().apply {
           put("id", c.id)
-          put("providerType", c.providerType.ordinal)
+          put("providerType", c.providerType.name)
           put("apiKey", c.apiKey)
           put("model", c.model)
           put("baseUrl", c.baseUrl)
@@ -281,11 +291,16 @@ class AiConfigManager(
     }
   }
 
-  fun getCachedModels(providerType: AiProviderType): ModelCacheEntry? {
+  fun getCachedModels(
+    providerType: AiProviderType,
+    apiKey: String = "",
+    baseUrl: String = ""
+  ): ModelCacheEntry? {
+    val cacheKey = "${providerType.name}|$apiKey|$baseUrl"
     val json = prefs.getString(KEY_MODEL_CACHE, null) ?: return null
     return try {
       val obj = JSONObject(json)
-      val providerJson = obj.optString(providerType.name, "")
+      val providerJson = obj.optString(cacheKey, "")
       if (providerJson.isBlank()) return null
       val entry = JSONObject(providerJson)
       val modelsArr = entry.getJSONArray("models")
@@ -295,7 +310,7 @@ class AiConfigManager(
         fetchedAt = entry.getLong("fetchedAt")
       )
     } catch (e: Exception) {
-      println("Error retrieving cached models for $providerType: ${e.message}")
+      println("Error retrieving cached models for $cacheKey: ${e.message}")
       e.printStackTrace()
       null
     }
@@ -303,8 +318,11 @@ class AiConfigManager(
 
   fun cacheModels(
     providerType: AiProviderType,
-    models: List<String>
+    models: List<String>,
+    apiKey: String = "",
+    baseUrl: String = ""
   ) {
+    val cacheKey = "${providerType.name}|$apiKey|$baseUrl"
     val existing =
       try {
         val json = prefs.getString(KEY_MODEL_CACHE, null)
@@ -315,7 +333,7 @@ class AiConfigManager(
       }
 
     existing.put(
-      providerType.name,
+      cacheKey,
       JSONObject().apply {
         val arr = JSONArray()
         models.forEach { arr.put(it) }

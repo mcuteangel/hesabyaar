@@ -110,6 +110,9 @@ interface InstallmentDao {
   @Delete
   suspend fun deleteInstallment(installment: Installment)
 
+  @Query("SELECT * FROM installments WHERE id = :id LIMIT 1")
+  suspend fun getInstallmentById(id: Long): Installment?
+
   @Query("SELECT * FROM installments ORDER BY dueDate ASC")
   suspend fun getAllInstallmentsSync(): List<Installment>
 

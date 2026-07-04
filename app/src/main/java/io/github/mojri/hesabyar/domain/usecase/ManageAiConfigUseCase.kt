@@ -40,19 +40,18 @@ class ManageAiConfigUseCase(
     providerType: AiProviderType,
     apiKey: String,
     baseUrl: String? = null
-  ): List<String> {
-    val cached = aiConfigManager.getCachedModels(providerType)
+  ): Result<List<String>> {
+    val resolvedBaseUrl = baseUrl.orEmpty()
+    val cached = aiConfigManager.getCachedModels(providerType, apiKey, resolvedBaseUrl)
     if (cached != null && !cached.isExpired) {
-      return cached.models
+      return Result.success(cached.models)
     }
-    val models =
-      io.github.mojri.hesabyar.api.AiProvider
-        .fetchModels(providerType, apiKey, baseUrl)
-    if (models.isNotEmpty()) {
-      val modelIds = models.map { it.id }
-      aiConfigManager.cacheModels(providerType, modelIds)
-      return modelIds
-    }
-    return emptyList()
+    return io.github.mojri.hesabyar.api.AiProvider
+      .fetchModels(providerType, apiKey, baseUrl)
+      .map { models ->
+        val modelIds = models.map { it.id }
+        aiConfigManager.cacheModels(providerType, modelIds, apiKey, resolvedBaseUrl)
+        modelIds
+      }
   }
 }

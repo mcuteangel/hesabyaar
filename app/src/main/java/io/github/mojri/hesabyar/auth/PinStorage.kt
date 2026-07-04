@@ -11,20 +11,26 @@ object PinStorage {
   private const val PIN_HASH_KEY = "pin_hash"
   private const val PIN_SALT_KEY = "pin_salt"
 
+  @Volatile
+  private var cachedPrefs: SharedPreferences? = null
+
   private fun getPrefs(context: Context): SharedPreferences {
+    val existing = cachedPrefs
+    if (existing != null) return existing
     val masterKey =
       MasterKey
         .Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    return EncryptedSharedPreferences.create(
-      context,
-      PREFS_NAME,
-      masterKey,
-      EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-      EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    return EncryptedSharedPreferences
+      .create(
+        context,
+        PREFS_NAME,
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+      ).also { cachedPrefs = it }
   }
 
   fun isPinSet(context: Context): Boolean = getPrefs(context).contains(PIN_HASH_KEY)
@@ -50,8 +56,14 @@ object PinStorage {
     val storedHash = prefs.getString(PIN_HASH_KEY, null) ?: return false
     val salt = prefs.getString(PIN_SALT_KEY, null) ?: return false
 
-    // Try new PBKDF2 format first
+    // Try current PBKDF2 format first
     if (hashPin(pin, salt) == storedHash) {
+      return true
+    }
+
+    // Rehash if stored with old iteration count
+    if (hashPin(pin, salt, PBKDF2_ITERATIONS_OLD) == storedHash) {
+      setPin(context, pin)
       return true
     }
 
@@ -81,11 +93,15 @@ object PinStorage {
     return bytes.joinToString("") { "%02x".format(it) }
   }
 
+  private const val PBKDF2_ITERATIONS = 600_000
+  private const val PBKDF2_ITERATIONS_OLD = 10_000
+
   private fun hashPin(
     pin: String,
-    salt: String
+    salt: String,
+    iterations: Int = PBKDF2_ITERATIONS
   ): String {
-    val spec = javax.crypto.spec.PBEKeySpec(pin.toCharArray(), salt.toByteArray(Charsets.UTF_8), 10000, 256)
+    val spec = javax.crypto.spec.PBEKeySpec(pin.toCharArray(), salt.toByteArray(Charsets.UTF_8), iterations, 256)
     val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
     val hash = factory.generateSecret(spec).encoded
     return hash.joinToString("") { "%02x".format(it) }

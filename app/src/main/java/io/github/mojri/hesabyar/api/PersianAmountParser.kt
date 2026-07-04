@@ -3,7 +3,7 @@ package io.github.mojri.hesabyar.api
 object PersianAmountParser {
   sealed class Token {
     data class Number(
-      val value: Double
+      val value: Long
     ) : Token()
 
     data class Unit(
@@ -95,8 +95,11 @@ object PersianAmountParser {
 
       if (text[i].isDigit()) {
         val start = i
-        while (i < text.length && (text[i].isDigit() || text[i] == '.')) i++
-        tokens.add(Token.Number(text.substring(start, i).toDouble()))
+        while (i < text.length && text[i].isDigit()) i++
+        val num = text.substring(start, i).toLongOrNull()
+        if (num != null) {
+          tokens.add(Token.Number(num))
+        }
         continue
       }
 
@@ -116,7 +119,7 @@ object PersianAmountParser {
 
   private fun interpretWithUnits(tokens: List<Token>): Long {
     var total = 0L
-    var currentNum = 0.0
+    var currentNum = 0L
     var lastUnit: UnitType? = null
 
     for (token in tokens) {
@@ -124,17 +127,17 @@ object PersianAmountParser {
         is Token.Number -> currentNum = token.value
         is Token.Unit -> {
           if (currentNum > 0) {
-            total += (currentNum * token.type.multiplier).toLong()
+            total += currentNum * token.type.multiplier
           }
           lastUnit = token.type
-          currentNum = 0.0
+          currentNum = 0L
         }
       }
     }
 
     if (currentNum > 0) {
       val multiplier = lastUnit?.lower()?.multiplier ?: 1L
-      total += (currentNum * multiplier).toLong()
+      total += currentNum * multiplier
     }
 
     return total
@@ -145,7 +148,7 @@ object PersianAmountParser {
     if (numbers.isEmpty()) return 0L
 
     val count = numbers.size
-    if (count == 1) return numbers[0].value.toLong()
+    if (count == 1) return numbers[0].value
 
     val unitSteps =
       listOf(
@@ -158,13 +161,13 @@ object PersianAmountParser {
     var total = 0L
     for ((i, num) in numbers.withIndex()) {
       val idx = (startIdx + i).coerceAtMost(unitSteps.size - 1)
-      total += (num.value * unitSteps[idx]).toLong()
+      total += num.value * unitSteps[idx]
     }
     return total
   }
 
   private fun interpretBareLast(tokens: List<Token>): Long {
     val lastNum = tokens.filterIsInstance<Token.Number>().lastOrNull()
-    return lastNum?.value?.toLong() ?: 0L
+    return lastNum?.value ?: 0L
   }
 }

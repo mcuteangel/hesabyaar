@@ -48,6 +48,7 @@ class AiAssistantViewModel
     fun toggleOnlineMode() {
       isOnlineMode.value = !isOnlineMode.value
       manageAiConfigUseCase.setOnlineMode(isOnlineMode.value)
+      invalidateCaches()
     }
 
     fun getActiveConfig() = manageAiConfigUseCase.getActiveConfig()
@@ -75,6 +76,7 @@ class AiAssistantViewModel
     fun setActiveConfig(id: String) {
       activeConfigId.value = id
       manageAiConfigUseCase.setActiveConfigId(id)
+      invalidateCaches()
     }
 
     fun isAiConfigured(): Boolean = manageAiConfigUseCase.isAiConfigured()
@@ -91,16 +93,20 @@ class AiAssistantViewModel
     ) {
       viewModelScope.launch {
         _modelFetchState.value = ModelFetchState.Loading
-        try {
-          val models = manageAiConfigUseCase.fetchModels(providerType, apiKey, baseUrl)
-          if (models.isNotEmpty()) {
-            _modelFetchState.value = ModelFetchState.Success(models)
-          } else {
-            _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
+        manageAiConfigUseCase
+          .fetchModels(providerType, apiKey, baseUrl)
+          .onSuccess { models ->
+            if (models.isNotEmpty()) {
+              _modelFetchState.value = ModelFetchState.Success(models)
+            } else {
+              _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
+            }
+          }.onFailure { e ->
+            _modelFetchState.value =
+              ModelFetchState.Error(
+                (e as? java.io.IOException)?.localizedMessage ?: "خطا در دریافت مدل‌ها"
+              )
           }
-        } catch (e: java.io.IOException) {
-          _modelFetchState.value = ModelFetchState.Error(e.localizedMessage ?: "خطا در دریافت مدل‌ها")
-        }
       }
     }
 
@@ -142,6 +148,12 @@ class AiAssistantViewModel
         .apply()
     }
 
+    internal fun configSignature(): String {
+      val config = manageAiConfigUseCase.getActiveConfig()
+      val cfg = config
+      return "${cfg?.providerType?.name ?: "none"}|${cfg?.model ?: ""}|${cfg?.baseUrl ?: ""}|${isOnlineMode.value}"
+    }
+
     internal fun computeDataSignature(
       transactions: List<Transaction>,
       loans: List<Loan>,
@@ -153,7 +165,7 @@ class AiAssistantViewModel
       val loanCount = loans.size
       val instCount = installments.size
       val catCount = categories.size
-      return "$txCount|$txTotal|$loanCount|$instCount|$catCount"
+      return "$txCount|$txTotal|$loanCount|$instCount|$catCount|${configSignature()}"
     }
 
     internal fun computeAdviceSignature(
@@ -163,7 +175,18 @@ class AiAssistantViewModel
       val txCount = transactions.size
       val txTotal = transactions.sumOf { it.amount }
       val catCount = categories.size
-      return "$txCount|$txTotal|$catCount"
+      return "$txCount|$txTotal|$catCount|${configSignature()}"
+    }
+
+    private fun invalidateCaches() {
+      cachedAdvice = null
+      cachedForecast = null
+      lastKnownAdviceSignature = ""
+      lastKnownForecastSignature = ""
+      lastAdviceFetchTimeMs = 0L
+      lastForecastFetchTimeMs = 0L
+      persistAdviceCache()
+      persistForecastCache()
     }
 
     fun getCachedForecast(): String? = cachedForecast

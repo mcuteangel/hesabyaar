@@ -10,7 +10,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import retrofit2.HttpException
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -90,20 +89,22 @@ object AiProvider {
     providerType: AiProviderType,
     apiKey: String,
     baseUrl: String? = null
-  ): List<FetchedModel> =
+  ): Result<List<FetchedModel>> =
     withContext(Dispatchers.IO) {
       try {
-        when (providerType) {
-          AiProviderType.GEMINI -> fetchGeminiModels(apiKey)
-          AiProviderType.OPENROUTER -> fetchOpenRouterModels(apiKey)
-          AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
-        }
+        Result.success(
+          when (providerType) {
+            AiProviderType.GEMINI -> fetchGeminiModels(apiKey)
+            AiProviderType.OPENROUTER -> fetchOpenRouterModels(apiKey)
+            AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
+          }
+        )
       } catch (e: IOException) {
         AppLogger.e(TAG, "Failed to fetch models for $providerType due to I/O error", e)
-        emptyList()
-      } catch (e: HttpException) {
-        AppLogger.e(TAG, "Failed to fetch models for $providerType due to HTTP error", e)
-        emptyList()
+        Result.failure(e)
+      } catch (e: Exception) {
+        AppLogger.e(TAG, "Failed to fetch models for $providerType", e)
+        Result.failure(e)
       }
     }
 
@@ -117,8 +118,11 @@ object AiProvider {
         .build()
 
     client.newCall(request).execute().use { response ->
-      if (!response.isSuccessful) return emptyList()
-      val body = response.body?.string() ?: return emptyList()
+      if (!response.isSuccessful) {
+        val body = response.body?.string().orEmpty()
+        throw IOException("HTTP ${response.code}: $body")
+      }
+      val body = response.body?.string() ?: throw IOException("Empty response body")
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("models")
 
@@ -163,8 +167,11 @@ object AiProvider {
         .build()
 
     client.newCall(request).execute().use { response ->
-      if (!response.isSuccessful) return emptyList()
-      val body = response.body?.string() ?: return emptyList()
+      if (!response.isSuccessful) {
+        val body = response.body?.string().orEmpty()
+        throw IOException("HTTP ${response.code}: $body")
+      }
+      val body = response.body?.string() ?: throw IOException("Empty response body")
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("data")
 
@@ -202,10 +209,13 @@ object AiProvider {
         .build()
 
     client.newCall(request).execute().use { response ->
-      if (!response.isSuccessful) return emptyList()
-      val body = response.body?.string() ?: return emptyList()
+      if (!response.isSuccessful) {
+        val body = response.body?.string().orEmpty()
+        throw IOException("HTTP ${response.code}: $body")
+      }
+      val body = response.body?.string() ?: throw IOException("Empty response body")
       val json = JSONObject(body)
-      val modelsArray = json.optJSONArray("data") ?: return emptyList()
+      val modelsArray = json.optJSONArray("data") ?: throw IOException("No 'data' array in response")
 
       return (0 until modelsArray.length())
         .map { i ->
@@ -365,7 +375,7 @@ object AiProvider {
       client.newCall(request).execute().use { response ->
         val bodyStr = response.body?.string().orEmpty()
         if (!response.isSuccessful) {
-          AppLogger.e(TAG, "API error ${response.code} for URL $url: $bodyStr")
+          AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: $bodyStr")
           ApiResult.Failure("API error ${response.code}: $bodyStr")
         } else {
           responseParser(bodyStr)

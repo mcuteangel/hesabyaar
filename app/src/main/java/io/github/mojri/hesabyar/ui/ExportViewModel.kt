@@ -11,7 +11,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.mojri.hesabyar.domain.usecase.ExportExcelUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -61,40 +63,41 @@ class ExportViewModel
       }
     }
 
-    private fun saveToDownloads(tempFile: File): String {
-      val fileName = tempFile.name
+    private suspend fun saveToDownloads(tempFile: File): String =
+      withContext(Dispatchers.IO) {
+        val fileName = tempFile.name
 
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val contentValues =
-          ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-          }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          val contentValues =
+            ContentValues().apply {
+              put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+              put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+              put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
 
-        val resolver = appContext.contentResolver
-        val uri =
-          resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
+          val resolver = appContext.contentResolver
+          val uri =
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+              ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
 
-        resolver.openOutputStream(uri)?.use { output ->
-          tempFile.inputStream().use { input ->
-            input.copyTo(output)
-          }
-        } ?: throw Exception("نوشتن فایل ناموفق بود")
+          resolver.openOutputStream(uri)?.use { output ->
+            tempFile.inputStream().use { input ->
+              input.copyTo(output)
+            }
+          } ?: throw Exception("نوشتن فایل ناموفق بود")
 
-        return "Downloads/$fileName"
-      } else {
-        @Suppress("DEPRECATION")
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        if (!downloadsDir.exists()) downloadsDir.mkdirs()
+          "Downloads/$fileName"
+        } else {
+          @Suppress("DEPRECATION")
+          val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+          if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-        val destFile = File(downloadsDir, fileName)
-        tempFile.copyTo(destFile, overwrite = true)
+          val destFile = File(downloadsDir, fileName)
+          tempFile.copyTo(destFile, overwrite = true)
 
-        return destFile.absolutePath
+          destFile.absolutePath
+        }
       }
-    }
 
     fun clearState() {
       exportState.value = ExportState.Idle
