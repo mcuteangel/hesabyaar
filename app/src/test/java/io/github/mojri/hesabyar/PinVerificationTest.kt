@@ -13,7 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(shadows = [ShadowPinStorage::class], sdk = [34])
 class PinVerificationTest {
   private lateinit var app: Application
 
