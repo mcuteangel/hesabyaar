@@ -1524,7 +1524,12 @@ fun ManualTransactionDialog(
                 ) {
                   Text(
                     text = typeLabel,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color =
+                      if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimary
+                      } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                      },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                   )
@@ -1625,7 +1630,12 @@ fun ManualTransactionDialog(
                   ) {
                     Text(
                       text = cat.name,
-                      color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                      color =
+                        if (isSelected) {
+                          MaterialTheme.colorScheme.onPrimary
+                        } else {
+                          MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                       style = MaterialTheme.typography.labelMedium,
                       fontWeight = FontWeight.Medium
                     )

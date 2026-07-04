@@ -18,10 +18,12 @@ max_line_length = 120
 # Keep imports that ktlint would otherwise flag. The codebase uses wildcard
 # imports in places (e.g. material3.*); we relax the rule to avoid churning
 # the whole UI layer in Phase 0. Revisit in a later phase.
-ktlint_standard_no_wildcard-imports = disabled
+ktlint_standard_no-wildcard-imports = disabled
 # Allow experimental/trailing-comma freedom until a cleanup pass.
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
+# Composable functions conventionally start with uppercase; suppress naming rule.
+ktlint_function_naming_ignore_when_annotated_with = Composable
 
 # Gradle / config
 [*.{gradle,kts,btf}]

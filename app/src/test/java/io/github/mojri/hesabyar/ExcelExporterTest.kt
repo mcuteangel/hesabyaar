@@ -1,8 +1,6 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.data.Category
-import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

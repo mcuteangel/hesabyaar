@@ -166,7 +166,12 @@ fun ReportsScreen(
               colors =
                 ButtonDefaults.buttonColors(
                   containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                  contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                  contentColor =
+                    if (isSelected) {
+                      MaterialTheme.colorScheme.onPrimary
+                    } else {
+                      MaterialTheme.colorScheme.onSurface
+                    }
                 )
             )
           }
@@ -337,7 +342,9 @@ fun ReportsScreen(
                 horizontalAlignment = Alignment.Start
               ) {
                 Text(
-                  text = "با تحلیل عمیق تراکنش‌ها، قسط‌ها و امور مالی ثبت شده، توصیه‌های اختصاصی جهت بهبود وضعیت بودجه خود را از هوش مصنوعی دریافت کنید.",
+                  text =
+                    "با تحلیل عمیق تراکنش‌ها، قسط‌ها و امور مالی ثبت شده، توصیه‌های" +
+                      " اختصاصی جهت بهبود وضعیت بودجه خود را از هوش مصنوعی دریافت کنید.",
                   style = MaterialTheme.typography.bodySmall,
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
                   lineHeight = 18.sp

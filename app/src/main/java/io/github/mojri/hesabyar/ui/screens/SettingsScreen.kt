@@ -172,7 +172,9 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodyMedium
           )
           Text(
-            text = "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} | اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
+            text =
+              "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} |" +
+                " اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
           )
@@ -427,7 +429,9 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
       ) {
         Text(
-          text = "جهت جلوگیری از دست رفتن امور مالی خود، به صورت دوره‌ای اقدام به تهیه‌ی پشتیبان بفرمایید. فایل خروجی به شکل استاندارد JSON در حافظه ذخیره می‌شود.",
+          text =
+            "جهت جلوگیری از دست رفتن امور مالی خود، به صورت دوره‌ای اقدام به" +
+              " تهیه‌ی پشتیبان بفرمایید. فایل خروجی به شکل استاندارد JSON در حافظه ذخیره می‌شود.",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
           lineHeight = 18.sp
@@ -479,7 +483,9 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
       ) {
         Text(
-          text = "گزارش کامل مالی شامل تراکنش‌ها، دریافتی‌ها، پرداختی‌ها، وام‌ها و اقساط در قالب فایل اکسل (.xlsx) خروجی گرفته شود.",
+          text =
+            "گزارش کامل مالی شامل تراکنش‌ها، دریافتی‌ها، پرداختی‌ها، وام‌ها و" +
+              " اقساط در قالب فایل اکسل (.xlsx) خروجی گرفته شود.",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
           lineHeight = 18.sp

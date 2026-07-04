@@ -108,7 +108,7 @@ class AiAssistantViewModel
       _modelFetchState.value = ModelFetchState.Idle
     }
 
-    private val AI_CACHE_DURATION_MS = 10 * 60 * 1000L
+    private val aiCacheDurationMs = 10 * 60 * 1000L
     private var cachedForecast: String? = sharedPrefs.getString(KEY_CACHED_FORECAST, null)
     private var cachedAdvice: String? = sharedPrefs.getString(KEY_CACHED_ADVICE, null)
     private var lastForecastFetchTimeMs = sharedPrefs.getLong(KEY_FORECAST_FETCH_TIME, 0L)
@@ -206,7 +206,7 @@ class AiAssistantViewModel
       } else {
         forecastDebounceJob =
           viewModelScope.launch {
-            delay(AI_CACHE_DURATION_MS)
+            delay(aiCacheDurationMs)
             fetchBudgetForecast(transactions, loans, installments, categories, isOnlineMode.value)
           }
       }

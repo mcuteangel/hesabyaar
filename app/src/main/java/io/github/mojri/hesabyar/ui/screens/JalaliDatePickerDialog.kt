@@ -266,7 +266,12 @@ fun JalaliDatePickerDialog(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isWeekend) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    color =
+                      if (isWeekend) {
+                        MaterialTheme.colorScheme.error
+                      } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                      }
                   )
                 }
               }
@@ -357,7 +362,11 @@ fun JalaliDatePickerDialog(
                                 if (isSelected) {
                                   MaterialTheme.colorScheme.onPrimary
                                 } else {
-                                  if (isWeekend) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                  if (isWeekend) {
+                                    MaterialTheme.colorScheme.error
+                                  } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                  }
                                 }
                             )
                           }
@@ -459,7 +468,12 @@ fun JalaliDatePickerDialog(
                         text = name,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        color =
+                          if (isCurrent) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                          } else {
+                            MaterialTheme.colorScheme.onSurface
+                          }
                       )
                     }
                   }
@@ -510,7 +524,12 @@ fun JalaliDatePickerDialog(
                         text = yr.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                        color =
+                          if (isCurrent) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                          } else {
+                            MaterialTheme.colorScheme.onSurface
+                          }
                       )
                     }
                   }

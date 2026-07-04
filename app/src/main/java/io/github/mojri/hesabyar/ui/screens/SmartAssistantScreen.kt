@@ -455,7 +455,12 @@ fun SmartAssistantScreen(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                  text = if (isApiKeyReady) "طراحی شده با مدل هوش مصنوعی ابری (${aiAssistantViewModel.getProviderStatusText()})" else "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)",
+                  text =
+                    if (isApiKeyReady) {
+                      "طراحی شده با مدل هوش مصنوعی ابری (${aiAssistantViewModel.getProviderStatusText()})"
+                    } else {
+                      "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
+                    },
                   style = MaterialTheme.typography.bodySmall,
                   color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -498,7 +503,10 @@ fun SmartAssistantScreen(
                   )
 
                   Text(
-                    text = "دستیار مالی حسابیار با پایش ریز تراکنش‌ها، مبالغ اقساط و روند تراز دریافتی و پرداختی‌های شما، بهترین نکات کلیدی کاهش مخارج و بهبود نرخ ثروت‌آفرینی را ارزیابی می‌کند.",
+                    text =
+                      "دستیار مالی حسابیار با پایش ریز تراکنش‌ها، مبالغ اقساط و روند" +
+                        " تراز دریافتی و پرداختی‌های شما، بهترین نکات کلیدی کاهش مخارج و" +
+                        " بهبود نرخ ثروت‌آفرینی را ارزیابی می‌کند.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -542,7 +550,9 @@ fun SmartAssistantScreen(
                     color = MaterialTheme.colorScheme.primary
                   )
                   Text(
-                    text = "در حال تجمیع اطلاعات حساب‌ها، مخارج جاری، تراز اقساط و کشف الگوهای مخارج پنهان شما برای نگارش گزارش مشورتی شخصی...",
+                    text =
+                      "در حال تجمیع اطلاعات حساب‌ها، مخارج جاری، تراز اقساط و کشف" +
+                        " الگوهای مخارج پنهان شما برای نگارش گزارش مشورتی شخصی...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

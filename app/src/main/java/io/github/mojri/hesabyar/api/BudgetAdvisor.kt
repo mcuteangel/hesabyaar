@@ -31,7 +31,9 @@ object BudgetAdvisor {
       }
 
       if (transactions.isEmpty()) {
-        return@withContext "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا هوش مصنوعی بتواند بودجه شما را تحلیل کند."
+        return@withContext
+        "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
+          "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
       }
 
       val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -76,7 +78,10 @@ object BudgetAdvisor {
         از قالب‌بندی زیبای Markdown (بولد کردن، ایموجی‌ها، لیست‌های نشانه‌دار) استفاده کن تا خواندن آن راحت باشد.
         """.trimIndent()
 
-      val systemInstruction = "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions carefully and provide smart, structured financial recommendations in beautiful Persian. Be friendly, polite, action-oriented, and encouraging."
+      val systemInstruction =
+        "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions " +
+          "carefully and provide smart, structured financial recommendations in beautiful Persian. " +
+          "Be friendly, polite, action-oriented, and encouraging."
 
       when (
         val result =
@@ -231,7 +236,9 @@ object BudgetAdvisor {
       }
 
       if (transactions.isEmpty() && installments.isEmpty()) {
-        return@withContext "تراکنش یا قسطی در سیستم ثبت نشده است. برای پیش‌بینی دقیق بودجه ماه آینده، لازم است تراکنش‌ها یا تعهدات مالی خود را در حسابیار وارد کنید."
+        return@withContext
+        "تراکنش یا قسطی در سیستم ثبت نشده است. برای پیش‌بینی دقیق بودجه ماه آینده، لازم است " +
+          "تراکنش‌ها یا تعهدات مالی خود را در حسابیار وارد کنید."
       }
 
       val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -282,7 +289,10 @@ object BudgetAdvisor {
             از ساختار مارک‌داون روان با ایموجی‌های مناسب استفاده کن. در متن نهایی از کلمه‌های انگلیسی استفاده نکن و همه چیز کاملاً فارسی و روان باشد.
         """.trimIndent()
 
-      val systemInstruction = "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions carefully and provide smart, structured financial recommendations in beautiful Persian. Be friendly, polite, action-oriented, and encouraging."
+      val systemInstruction =
+        "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions " +
+          "carefully and provide smart, structured financial recommendations in beautiful Persian. " +
+          "Be friendly, polite, action-oriented, and encouraging."
 
       when (
         val result =
@@ -316,7 +326,9 @@ object BudgetAdvisor {
     // Estimate next month income and expense
     // If system is empty, return static tip
     if (transactions.isEmpty() && unpaidInstallments.isEmpty()) {
-      return "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
+      return
+      "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود " +
+        "را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
     }
 
     val averageIncome = if (transactions.any { it.type == "INCOME" }) totalIncome else 0L

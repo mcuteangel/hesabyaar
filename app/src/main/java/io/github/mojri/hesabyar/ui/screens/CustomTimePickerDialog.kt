@@ -163,7 +163,12 @@ fun CustomTimePickerDialog(
                   text = String.format("%02d", selectedHour),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
-                  color = if (isHourActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                  color =
+                    if (isHourActive) {
+                      MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                      MaterialTheme.colorScheme.onSurface
+                    }
                 )
                 Text(
                   text = "ساعت",
@@ -212,7 +217,12 @@ fun CustomTimePickerDialog(
                   text = String.format("%02d", selectedMinute),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
-                  color = if (isMinuteActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                  color =
+                    if (isMinuteActive) {
+                      MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                      MaterialTheme.colorScheme.onSurface
+                    }
                 )
                 Text(
                   text = "دقیقه",

@@ -33,7 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
 
   companion object {
     @Volatile
-    private var INSTANCE: AppDatabase? = null
+    private var instance: AppDatabase? = null
     private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val MIGRATION_1_2 =
       object : Migration(1, 2) {
@@ -150,7 +150,7 @@ abstract class AppDatabase : RoomDatabase() {
       }
 
     fun getDatabase(context: Context): AppDatabase =
-      INSTANCE ?: synchronized(this) {
+      instance ?: synchronized(this) {
         val appContext = context.applicationContext
         System.loadLibrary("sqlcipher")
 
@@ -170,7 +170,7 @@ abstract class AppDatabase : RoomDatabase() {
             ).openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
-        INSTANCE = instance
+        instance = instance
         instance
       }
 
