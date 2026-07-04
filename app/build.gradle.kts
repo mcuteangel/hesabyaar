@@ -11,7 +11,7 @@ plugins {
 
 android {
   namespace = "io.github.mojri.hesabyar"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "io.github.mojri.hesabyar"
@@ -221,15 +221,25 @@ tasks.register("generateKeystore") {
       println("Generating release keystore...")
       val pb =
         ProcessBuilder(
-          "keytool", "-genkey", "-noprompt",
-          "-alias", keyAlias,
-          "-dname", "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
-          "-keystore", keystoreFile.absolutePath,
-          "-storepass", storePassword,
-          "-keypass", keyPassword,
-          "-keyalg", "RSA",
-          "-keysize", "2048",
-          "-validity", "10000"
+          "keytool",
+          "-genkey",
+          "-noprompt",
+          "-alias",
+          keyAlias,
+          "-dname",
+          "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
+          "-keystore",
+          keystoreFile.absolutePath,
+          "-storepass",
+          storePassword,
+          "-keypass",
+          keyPassword,
+          "-keyalg",
+          "RSA",
+          "-keysize",
+          "2048",
+          "-validity",
+          "10000"
         )
       val proc = pb.start()
       proc.waitFor()
