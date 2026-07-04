@@ -75,12 +75,12 @@ object PinStorage {
         return true
       }
     } else {
-      // Legacy unversioned format: check old SHA-1 PBKDF2, then plain SHA-256, migrate on match
-      if (hashPinSha1(pin, salt) == storedHash) {
+      // Legacy unversioned format: check old SHA-1 PBKDF2 (strip version prefix), then plain SHA-256, migrate on match
+      if (hashPinSha1(pin, salt).removePrefix("1:") == storedHash) {
         setPin(context, pin)
         return true
       }
-      if (hashPinSha1(pin, salt, PBKDF2_ITERATIONS_OLD) == storedHash) {
+      if (hashPinSha1(pin, salt, PBKDF2_ITERATIONS_OLD).removePrefix("1:") == storedHash) {
         setPin(context, pin)
         return true
       }
