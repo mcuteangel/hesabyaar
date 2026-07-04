@@ -45,6 +45,7 @@ class BackupViewModelTest {
     fakeRepo = FakeRepository()
     val useCase = ManageBackupUseCase(fakeRepo)
     viewModel = BackupViewModel(context, useCase)
+    viewModel.ioDispatcher = testDispatcher
   }
 
   @After

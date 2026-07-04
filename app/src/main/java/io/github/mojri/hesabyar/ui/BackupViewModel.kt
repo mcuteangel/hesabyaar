@@ -11,7 +11,9 @@ import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,6 +30,9 @@ class BackupViewModel
     @ApplicationContext private val application: Context,
     private val manageBackupUseCase: ManageBackupUseCase
   ) : ViewModel() {
+    @VisibleForTesting
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
 
     val operationState = mutableStateOf<BackupOperationState>(BackupOperationState.Idle)
@@ -37,7 +42,7 @@ class BackupViewModel
     fun validateAndStageImport(inputStream: InputStream) {
       viewModelScope.launch {
         try {
-          val text = withContext(Dispatchers.IO) { inputStream.bufferedReader().use { it.readText() } }
+          val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
 
           when (val result = manageBackupUseCase.validateBackup(backup)) {
@@ -119,7 +124,7 @@ class BackupViewModel
         try {
           val rootJson = manageBackupUseCase.exportBackupJson()
 
-          withContext(Dispatchers.IO) {
+          withContext(ioDispatcher) {
             outputStream.use { os ->
               os.write(rootJson.toString(2).toByteArray())
             }
@@ -158,7 +163,7 @@ class BackupViewModel
       viewModelScope.launch {
         operationState.value = BackupOperationState.Importing
         try {
-          val text = withContext(Dispatchers.IO) { inputStream.bufferedReader().use { it.readText() } }
+          val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
           manageBackupUseCase.importBackupFromFile(
             backup.transactions,

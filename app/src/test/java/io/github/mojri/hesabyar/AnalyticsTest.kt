@@ -4,6 +4,8 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.ui.CategoryBreakdown
+import io.github.mojri.hesabyar.ui.DebtSummary
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Test
