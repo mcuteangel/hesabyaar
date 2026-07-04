@@ -105,6 +105,9 @@ object AiProvider {
       } catch (e: IOException) {
         AppLogger.e(TAG, "Failed to fetch models for $providerType due to I/O error", e)
         Result.failure(e)
+      } catch (e: JSONException) {
+        AppLogger.e(TAG, "Failed to parse model list response for $providerType", e)
+        Result.failure(e)
       } catch (e: Exception) {
         AppLogger.e(TAG, "Failed to fetch models for $providerType", e)
         Result.failure(e)
