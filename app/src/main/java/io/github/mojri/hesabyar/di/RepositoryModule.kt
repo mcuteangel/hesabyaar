@@ -4,6 +4,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.CategoryDao
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -16,22 +17,22 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
-
-    @Provides
-    @Singleton
-    fun provideRepository(
-        transactionDao: TransactionDao,
-        loanDao: LoanDao,
-        installmentDao: InstallmentDao,
-        paymentHistoryDao: PaymentHistoryDao,
-        categoryDao: CategoryDao
-    ): HesabyarRepositoryInterface {
-        return HesabyarRepository(
-            transactionDao,
-            loanDao,
-            installmentDao,
-            paymentHistoryDao,
-            categoryDao
-        )
-    }
+  @Provides
+  @Singleton
+  fun provideRepository(
+    transactionDao: TransactionDao,
+    loanDao: LoanDao,
+    installmentDao: InstallmentDao,
+    paymentHistoryDao: PaymentHistoryDao,
+    categoryDao: CategoryDao,
+    database: AppDatabase
+  ): HesabyarRepositoryInterface =
+    HesabyarRepository(
+      transactionDao,
+      loanDao,
+      installmentDao,
+      paymentHistoryDao,
+      categoryDao,
+      database
+    )
 }

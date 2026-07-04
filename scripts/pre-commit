@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "==========================================="
+echo "  Hesabyar — Pre-Commit Hook"
+echo "==========================================="
+
+# Function to run ktlint checks and format
+try_commit() {
+  # Run ktlintFormat first to auto-fix formatting
+  echo ""
+  echo "[1/2] Running ktlintFormat (auto-fix)..."
+  if ! ./gradlew ktlintFormat --quiet; then
+    echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
+    echo "   Run ./gradlew ktlintFormat manually to see details."
+    return 1
+  fi
+  echo "  ✓ ktlintFormat passed"
+
+  # Run ktlintCheck to verify no style violations remain
+  echo ""
+  echo "[2/2] Running ktlintCheck..."
+  if ! ./gradlew ktlintCheck --quiet; then
+    echo "❌ ktlintCheck failed — Kotlin style violations detected."
+    echo "   Fix the issues manually or re-stage the files and try again."
+    return 1
+  fi
+  echo "  ✓ ktlintCheck passed"
+  return 0
+}
+
+# Loop until all checks pass
+while true; do
+  if try_commit; then
+    break
+  fi
+  
+  # Ask user to fix issues and re-stage files
+  echo ""
+  read -p "Fix issues and stage files? (y/n): " choice
+  case "$choice" in
+    y|Y)
+      echo "Continuing..."
+      ;;
+    n|N)
+      echo "Aborting commit."
+      exit 1
+      ;;
+    *)
+      echo "Invalid input. Please answer y or n."
+      ;;
+  esac
+done
+
+echo ""
+echo "==========================================="
+echo "  All checks passed! Proceeding with commit."
+echo "==========================================="

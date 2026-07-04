@@ -11,25 +11,26 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 
 @Composable
 fun HesabyarChip(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    leadingIcon: @Composable (() -> Unit)? = null,
-    enabled: Boolean = true,
-    shape: Shape = ShapeTokens.Medium
+  selected: Boolean,
+  onClick: () -> Unit,
+  label: String,
+  modifier: Modifier = Modifier,
+  leadingIcon: @Composable (() -> Unit)? = null,
+  enabled: Boolean = true,
+  shape: Shape = ShapeTokens.Medium
 ) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        modifier = modifier,
-        label = { Text(label) },
-        leadingIcon = leadingIcon,
-        enabled = enabled,
-        shape = shape,
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-    )
+  FilterChip(
+    selected = selected,
+    onClick = onClick,
+    modifier = modifier,
+    label = { Text(label) },
+    leadingIcon = leadingIcon,
+    enabled = enabled,
+    shape = shape,
+    colors =
+      FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+      )
+  )
 }

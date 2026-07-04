@@ -17,24 +17,25 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
 fun HesabyarCard(
-    modifier: Modifier = Modifier,
-    shape: Shape = ShapeTokens.Large,
-    elevation: Dp = ElevationTokens.lg,
-    cardColors: androidx.compose.material3.CardColors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+  modifier: Modifier = Modifier,
+  shape: Shape = ShapeTokens.Large,
+  elevation: Dp = ElevationTokens.lg,
+  cardColors: androidx.compose.material3.CardColors =
+    CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     ),
-    contentPadding: PaddingValues = PaddingValues(SpacingTokens.lg),
-    content: @Composable ColumnScope.() -> Unit
+  contentPadding: PaddingValues = PaddingValues(SpacingTokens.lg),
+  content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = shape,
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-        colors = cardColors
-    ) {
-        Column(
-            modifier = Modifier.padding(contentPadding),
-            content = content
-        )
-    }
+  Card(
+    modifier = modifier,
+    shape = shape,
+    elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+    colors = cardColors
+  ) {
+    Column(
+      modifier = Modifier.padding(contentPadding),
+      content = content
+    )
+  }
 }

@@ -8,11 +8,11 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 
 class GetForecastUseCase {
-    suspend fun getForecast(
-        transactions: List<Transaction>,
-        loans: List<Loan>,
-        installments: List<Installment>,
-        categories: List<Category>,
-        config: AiProviderConfig?
-    ): String = BudgetAdvisor.getBudgetForecast(transactions, loans, installments, categories, config)
+  suspend fun getForecast(
+    transactions: List<Transaction>,
+    loans: List<Loan>,
+    installments: List<Installment>,
+    categories: List<Category>,
+    config: AiProviderConfig?
+  ): String = BudgetAdvisor.getBudgetForecast(transactions, loans, installments, categories, config)
 }
