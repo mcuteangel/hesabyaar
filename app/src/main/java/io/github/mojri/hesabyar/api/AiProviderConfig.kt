@@ -162,13 +162,15 @@ class AiConfigManager(
       AppLogger.e(TAG, "Failed to migrate from legacy SharedPreferences", e)
       try {
         encryptedPrefs.edit().clear().apply()
-      } catch (ignored: SecurityException) {
+      } catch (e: SecurityException) {
+        AppLogger.e(TAG, "Failed to clear encrypted prefs after migration failure", e)
       }
     } catch (e: IllegalStateException) {
       AppLogger.e(TAG, "Failed to migrate from legacy SharedPreferences", e)
       try {
         encryptedPrefs.edit().clear().apply()
-      } catch (ignored: IllegalStateException) {
+      } catch (e2: IllegalStateException) {
+        AppLogger.e(TAG, "Failed to clear encrypted prefs after migration failure", e2)
       }
     }
   }

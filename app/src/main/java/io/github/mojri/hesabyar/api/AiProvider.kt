@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 
 object AiProvider {
   private const val TAG = "AiProvider"
+  private const val ERR_EMPTY_RESPONSE = "Empty response body"
 
   private val client =
     OkHttpClient
@@ -128,7 +129,7 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException("Empty response body")
+      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("models")
 
@@ -177,7 +178,7 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException("Empty response body")
+      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("data")
 
@@ -219,7 +220,7 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException("Empty response body")
+      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.optJSONArray("data") ?: throw IOException("No 'data' array in response")
 

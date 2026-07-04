@@ -1376,7 +1376,7 @@ fun ManualTransactionDialog(
         if (isEditMode) {
           CurrencyFormatter
             .fromRial(
-              transactionToEdit?.amount ?: 0L
+              transactionToEdit.amount
             ).toString()
         } else {
           ""
@@ -1810,13 +1810,13 @@ fun ManualTransactionDialog(
                   val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
                   if (isEditMode) {
                     val updatedTransaction =
-                      transactionToEdit?.copy(
+                      transactionToEdit.copy(
                         type = selectedType,
                         categoryId = selectedCategoryId,
                         amount = finalAmountRial,
                         description = desc,
                         date = customDate
-                      ) ?: return@Button
+                      )
                     transactionViewModel.updateTransaction(updatedTransaction)
                   } else {
                     transactionViewModel.addTransaction(

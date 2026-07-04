@@ -44,8 +44,8 @@ enum class TimePickerTab {
   MINUTE
 }
 
-@Composable
-fun CustomTimePickerDialog(
+  @Composable
+  fun CustomTimePickerDialog(
   initialHour: Int,
   initialMinute: Int,
   onDismissRequest: () -> Unit,
@@ -60,45 +60,36 @@ fun CustomTimePickerDialog(
   val innerLabelRadiusPx = remember(density) { with(density) { 64.dp.toPx() } }
   val thresholdPx = remember(density) { with(density) { 80.dp.toPx() } }
 
+  fun computeAngleDegrees(dx: Double, dy: Double): Double {
+    val angle = Math.toDegrees(atan2(dy, dx)) + 90.0
+    return if (angle < 0) angle + 360.0 else angle
+  }
+
+  fun resolveHour(angle: Double, distance: Float, thresholdPx: Float): Int {
+    var hour12 = Math.round(angle / 30.0).toInt()
+    if (hour12 == 0 || hour12 == 12) hour12 = 12
+    return if (distance < thresholdPx) {
+      if (hour12 == 12) 0 else hour12 + 12
+    } else {
+      hour12
+    }
+  }
+
   // Interactive event handler for tap & drag calculations
   fun handleTouchEvent(
     offset: Offset,
     width: Float,
     height: Float
   ) {
-    val cx = width / 2f
-    val cy = height / 2f
-    val dx = offset.x - cx
-    val dy = offset.y - cy
+    val (dx, dy) = offset.x - width / 2f to offset.y - height / 2f
     val distance = sqrt(dx * dx + dy * dy)
+    if (distance <= 10f) return
 
-    if (distance > 10f) { // ignore close to center core
-      // Calculate angle in degrees relative to the top (12/00 mark)
-      var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
-      angle += 90.0
-      if (angle < 0) {
-        angle += 360.0
-      }
-
-      if (activeTab == TimePickerTab.HOUR) {
-        // 12 sectors
-        var hour12 = Math.round(angle / 30.0).toInt()
-        if (hour12 == 0 || hour12 == 12) {
-          hour12 = 12
-        }
-
-        if (distance < thresholdPx) {
-          // Inner ring: 00, 13..23
-          selectedHour = if (hour12 == 12) 0 else hour12 + 12
-        } else {
-          // Outer ring: 1..12
-          selectedHour = hour12
-        }
-      } else {
-        // 60 minutes
-        val minuteVal = Math.round(angle / 6.0).toInt() % 60
-        selectedMinute = minuteVal
-      }
+    val angle = computeAngleDegrees(dx.toDouble(), dy.toDouble())
+    if (activeTab == TimePickerTab.HOUR) {
+      selectedHour = resolveHour(angle, distance, thresholdPx)
+    } else {
+      selectedMinute = (Math.round(angle / 6.0).toInt() % 60)
     }
   }
 
@@ -161,7 +152,7 @@ fun CustomTimePickerDialog(
             ) {
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                  text = String.format(Locale("fa", "IR"), "%02d", selectedHour),
+                  text = String.format(Locale.forLanguageTag("fa-IR"), "%02d", selectedHour),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
                   color =
@@ -215,7 +206,7 @@ fun CustomTimePickerDialog(
             ) {
               Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                  text = String.format(Locale("fa", "IR"), "%02d", selectedMinute),
+                  text = String.format(Locale.forLanguageTag("fa-IR"), "%02d", selectedMinute),
                   style = MaterialTheme.typography.headlineLarge,
                   fontWeight = FontWeight.Bold,
                   color =

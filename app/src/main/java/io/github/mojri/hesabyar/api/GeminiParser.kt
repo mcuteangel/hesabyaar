@@ -18,6 +18,15 @@ object GeminiParser {
 
   private const val TYPE_EXPENSE = "EXPENSE"
   private const val TYPE_INCOME = "INCOME"
+
+  private const val KEYWORD_PARKING = "پارکینگ"
+  private const val KEYWORD_OT = "اضافه کار"
+  private const val KEYWORD_INVESTMENT = "سرمایه گذاری"
+  private const val KEYWORD_PAYMENT = "پرداخت"
+  private const val KEYWORD_DID_PAY = "پرداخت کردم"
+  private const val KEYWORD_HAVE_CLAIM = "طلب دارم"
+  private const val KEYWORD_CREDITOR = "طلبکار"
+  private const val KEYWORD_DEBTOR = "بدهکار"
   private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
   private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
   private const val TYPE_INSTALLMENT = "INSTALLMENT"
@@ -230,7 +239,7 @@ object GeminiParser {
         sentence.contains("مترو") ||
         sentence.contains("اتوبوس") ||
         sentence.contains("بلیط") ||
-        sentence.contains("پارکینگ") ||
+        sentence.contains(KEYWORD_PARKING) ||
         sentence.contains("عوارض") ||
         sentence.contains("لنت") ||
         sentence.contains("لاستیک") ||
@@ -355,7 +364,7 @@ object GeminiParser {
         sentence.contains("اقامتگاه") ||
         sentence.contains("هتل") ||
         sentence.contains("مهمانخانه") ||
-        sentence.contains("پارکینگ") ||
+        sentence.contains(KEYWORD_PARKING) ||
         sentence.contains("انبار") ||
         sentence.contains("دفتر کار") ||
         sentence.contains("مغازه") ||
@@ -428,7 +437,7 @@ object GeminiParser {
       sentence.contains("درآمد") ||
         sentence.contains("حقوق") ||
         sentence.contains("واریز") ||
-        sentence.contains("اضافه کار") ||
+        sentence.contains(KEYWORD_OT) ||
         sentence.contains("پاداش") ||
         sentence.contains("بونوس") ||
         sentence.contains("سود") ||
@@ -476,7 +485,7 @@ object GeminiParser {
         sentence.contains(" donate") ||
         sentence.contains("charity") ||
         sentence.contains("philanthropy") -> Pair("Charity", "خیریه و کمک مالی")
-      sentence.contains("سرمایه گذاری") ||
+      sentence.contains(KEYWORD_INVESTMENT) ||
         sentence.contains("خرید سهام") ||
         sentence.contains("صندوق سرمایه") ||
         sentence.contains("طلا") ||
@@ -493,7 +502,7 @@ object GeminiParser {
         sentence.contains("بیمه آتش سوزی") ||
         sentence.contains("بیمه زلزله") ||
         sentence.contains("بیمه سرقت") ||
-        sentence.contains("بیمه مسئولیت") -> Pair("Investment", "سرمایه گذاری")
+        sentence.contains("بیمه مسئولیت") -> Pair("Investment", KEYWORD_INVESTMENT)
       else -> Pair("Other", "سایر هزینه‌ها")
     }
 
@@ -574,7 +583,7 @@ object GeminiParser {
         "حقوق",
         "درآمد",
         "واریز",
-        "اضافه کار",
+        KEYWORD_OT,
         "اضافه‌کار",
         "دستمزد",
         "پاداش",
@@ -604,18 +613,18 @@ object GeminiParser {
     val expenseKeywords =
       listOf(
         "خریدم",
-        "پرداخت",
+        KEYWORD_PAYMENT,
         "هزینه",
         "قبض",
         " اجاره",
         "خرید",
         "پول دادم",
         "خرج",
-        "پرداخت کردم",
+        KEYWORD_DID_PAY,
         "دادم",
         "رفت",
         "گذاشتم",
-        "پرداخت کردم",
+        KEYWORD_DID_PAY,
         "اصلاح",
         "سالن",
         "آرایشگاه",
@@ -684,7 +693,7 @@ object GeminiParser {
         "کلبه",
         "اقامتگاه",
         "مهمانخانه",
-        "پارکینگ",
+        KEYWORD_PARKING,
         "انبار",
         "دفتر کار",
         "مغازه",
@@ -750,7 +759,7 @@ object GeminiParser {
         "خیریه",
         "صدقه",
         " کمک",
-        "سرمایه گذاری",
+        KEYWORD_INVESTMENT,
         "خرید سهام",
         "صندوق سرمایه",
         "طلا",
@@ -764,9 +773,9 @@ object GeminiParser {
         "بیمه زلزله",
         "بیمه سرقت",
         "بیمه مسئولیت",
-        "طلب دارم",
-        "طلبکار",
-        "بدهکار"
+        KEYWORD_HAVE_CLAIM,
+        KEYWORD_CREDITOR,
+        KEYWORD_DEBTOR
       )
     val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
     val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
@@ -873,9 +882,9 @@ object GeminiParser {
         .replace("میلیون", "")
         .replace("ملیون", "")
         .replace("میلیارد", "")
-        .replace("طلب دارم", "")
-        .replace("طلبکار", "")
-        .replace("بدهکار", "")
+        .replace(KEYWORD_HAVE_CLAIM, "")
+        .replace(KEYWORD_CREDITOR, "")
+        .replace(KEYWORD_DEBTOR, "")
         .trim()
         .replace("\\s+".toRegex(), " ")
     return cleaned.ifBlank { sentence }
@@ -906,8 +915,8 @@ object GeminiParser {
         "گرفت",
         "دادم",
         "داد",
-        "پرداخت",
-        "پرداخت کردم",
+        KEYWORD_PAYMENT,
+        KEYWORD_DID_PAY,
         "هزینه",
         "خرج",
         "واریز",
@@ -979,16 +988,16 @@ object GeminiParser {
       return TypeClassification(
         type = TYPE_LOAN_CREDITOR,
         category = CATEGORY_LOANS,
-        description = "قرض گرفتن از ${personName ?: "طلبکار"}",
+        description = "قرض گرفتن از ${personName ?: KEYWORD_CREDITOR}",
         notes = "قرض جدید ثبت شده"
       )
     }
-    val loanGiven = listOf("قرض دادم", "طلبکار شدم", "دادم به", "طلب دارم")
+    val loanGiven = listOf("قرض دادم", "طلبکار شدم", "دادم به", KEYWORD_HAVE_CLAIM)
     if (loanGiven.any { sentence.contains(it) }) {
       return TypeClassification(
         type = TYPE_LOAN_DEBTOR,
         category = CATEGORY_LOANS,
-        description = "قرض دادن به ${personName ?: "بدهکار"}",
+        description = "قرض دادن به ${personName ?: KEYWORD_DEBTOR}",
         notes = "طلب جدید ثبت شده"
       )
     }
@@ -1007,7 +1016,7 @@ object GeminiParser {
       }
 
     val isPaid =
-      listOf("پرداخت", "دادم", "تسویه")
+      listOf(KEYWORD_PAYMENT, "دادم", "تسویه")
         .any { sentence.contains(it) }
 
     return if (isPaid) {
@@ -1035,7 +1044,7 @@ object GeminiParser {
     val subject = extractSubject(sentence)
     val description =
       when {
-        sentence.contains("اضافه کار") || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
+        sentence.contains(KEYWORD_OT) || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
         sentence.contains("پاداش") -> "دریافت پاداش"
         sentence.contains("دستمزد") -> "دریافت دستمزد"
         sentence.contains("فروش") -> "درآمد از فروش ($subject)"
