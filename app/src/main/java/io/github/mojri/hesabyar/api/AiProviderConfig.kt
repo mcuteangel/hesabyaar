@@ -315,8 +315,7 @@ class AiConfigManager(
         fetchedAt = entry.getLong("fetchedAt")
       )
     } catch (e: Exception) {
-      println("Error retrieving cached models for $cacheKey: ${e.message}")
-      e.printStackTrace()
+      AppLogger.e(TAG, "Failed to retrieve cached models for $providerType", e)
       null
     }
   }
@@ -333,7 +332,7 @@ class AiConfigManager(
         val json = prefs.getString(KEY_MODEL_CACHE, null)
         if (json != null) JSONObject(json) else JSONObject()
       } catch (e: Exception) {
-        e.printStackTrace()
+        AppLogger.e(TAG, "Failed to parse cached model JSON", e)
         JSONObject()
       }
 
