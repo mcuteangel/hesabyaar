@@ -608,8 +608,9 @@ fun SecuritySection(
   }
 
   if (showVerifyPinDialog) {
-    var currentPin by rememberSaveable { mutableStateOf("") }
-    var pinError by rememberSaveable { mutableStateOf<String?>(null) }
+    var currentPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var verifying by remember { mutableStateOf(false) }
 
     AlertDialog(
       onDismissRequest = {
@@ -636,25 +637,30 @@ fun SecuritySection(
         HesabyarButton(
           onClick = {
             scope.launch {
-              val verified =
-                withContext(Dispatchers.IO) {
-                  PinStorage.verifyPin(context, currentPin)
+              verifying = true
+              try {
+                val verified =
+                  withContext(Dispatchers.IO) {
+                    PinStorage.verifyPin(context, currentPin)
+                  }
+                if (verified) {
+                  withContext(Dispatchers.IO) {
+                    PinStorage.clearPin(context)
+                  }
+                  isPinSet = false
+                  pendingDisable = false
+                  showVerifyPinDialog = false
+                  settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+                } else {
+                  pinError = "رمز عبور اشتباه است"
                 }
-              if (verified) {
-                withContext(Dispatchers.IO) {
-                  PinStorage.clearPin(context)
-                }
-                isPinSet = false
-                pendingDisable = false
-                showVerifyPinDialog = false
-                settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
-              } else {
-                pinError = "رمز عبور اشتباه است"
+              } finally {
+                verifying = false
               }
             }
           },
           text = "تأیید و غیرفعال‌سازی",
-          enabled = currentPin.length == 6
+          enabled = currentPin.length == 6 && !verifying
         )
       },
       dismissButton = {

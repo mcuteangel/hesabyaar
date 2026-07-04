@@ -387,11 +387,10 @@ object AiProvider {
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")
           ApiResult.Failure("API error ${response.code}: ${bodyStr ?: "null body"}")
+        } else if (bodyStr.isNullOrBlank()) {
+          AppLogger.e(TAG, "Null/empty response body for URL ${url.substringBefore("?")} (HTTP ${response.code})")
+          ApiResult.Failure(ERR_EMPTY_RESPONSE)
         } else {
-          if (bodyStr.isNullOrBlank()) {
-            AppLogger.e(TAG, "Null/empty response body for URL ${url.substringBefore("?")} (HTTP ${response.code})")
-            return ApiResult.Failure(ERR_EMPTY_RESPONSE)
-          }
           responseParser(bodyStr)
         }
       }
