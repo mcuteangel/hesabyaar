@@ -15,7 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(shadows = [ShadowPinStorage::class])
+@Config(shadows = [ShadowPinStorage::class], sdk = [34])
 class AuthManagerTest {
   private lateinit var authManager: AuthManager
   private lateinit var app: Application
