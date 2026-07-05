@@ -44,8 +44,12 @@ if [ -z "$GEMINI_API_KEY" ]; then
   exit 0
 fi
 
-# Escape prompt for JSON using jq
-escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
+# Escape prompt for JSON using jq, fallback to sed
+if command -v jq >/dev/null 2>&1; then
+  escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
+else
+  escaped_prompt=$(printf '%s' "$prompt" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')
+fi
 
 # Call Gemini API (use x-goog-api-key header instead of URL parameter)
 response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 \
