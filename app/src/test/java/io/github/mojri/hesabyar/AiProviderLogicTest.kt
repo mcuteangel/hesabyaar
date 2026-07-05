@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -67,7 +68,7 @@ class AiProviderLogicTest {
 
       AiProvider.generateContent(config, "test prompt")
 
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       assertEquals("Bearer valid-key-123", request.getHeader("Authorization"))
     }
 
@@ -88,7 +89,7 @@ class AiProviderLogicTest {
 
       AiProvider.generateContent(config, "test prompt")
 
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       assertNull("Authorization header should be null for key with newlines", request.getHeader("Authorization"))
     }
 
@@ -149,7 +150,7 @@ class AiProviderLogicTest {
 
       AiProvider.generateContent(config, "hello world")
 
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       val body = JSONObject(request.body.readUtf8())
       assertEquals("gpt-test", body.getString("model"))
       assertTrue(body.has("messages"))
@@ -178,7 +179,7 @@ class AiProviderLogicTest {
 
       AiProvider.generateContent(config, "hello", systemInstruction = "Be helpful")
 
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       val body = JSONObject(request.body.readUtf8())
       val messages = body.getJSONArray("messages")
       assertEquals(2, messages.length())
@@ -199,7 +200,7 @@ class AiProviderLogicTest {
       val result = AiProvider.fetchModels(AiProviderType.CUSTOM, "", baseUrl)
 
       assertTrue("Expected success with empty models list for blank key", result.isSuccess)
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       assertNull("Authorization header should be null for blank key", request.getHeader("Authorization"))
     }
 
@@ -213,7 +214,7 @@ class AiProviderLogicTest {
       val result = AiProvider.fetchModels(AiProviderType.CUSTOM, "valid-key", baseUrl)
 
       assertTrue(result.isSuccess)
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       assertEquals("Bearer valid-key", request.getHeader("Authorization"))
     }
 
@@ -227,7 +228,7 @@ class AiProviderLogicTest {
       val result = AiProvider.fetchModels(AiProviderType.CUSTOM, "key\nwith\rnewline", baseUrl)
 
       assertTrue("Expected success with empty models list for key with newlines", result.isSuccess)
-      val request = mockServer.takeRequest()
+      val request = mockServer.takeRequest(2, TimeUnit.SECONDS)!!
       assertNull("Authorization header should be null for key with newlines", request.getHeader("Authorization"))
     }
 
