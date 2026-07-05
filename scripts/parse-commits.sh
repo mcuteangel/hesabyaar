@@ -10,8 +10,6 @@ set -euo pipefail
 BASE_REF="${1:?Usage: parse-commits.sh <base_ref> <head_ref>}"
 HEAD_REF="${2:-HEAD}"
 
-BUMP_LEVEL=0  # 0=none, 1=patch, 2=minor, 3=major
-
 # Read commits from base to head (try both range syntaxes)
 commits=$(git log --pretty=format:"%s|||%h" "$BASE_REF".."$HEAD_REF" 2>/dev/null || \
           git log --pretty=format:"%s|||%h" "$BASE_REF"..."$HEAD_REF" 2>/dev/null || echo "")
