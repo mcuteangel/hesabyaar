@@ -42,15 +42,15 @@ while IFS= read -r line; do
 
   # Check for feat (minor)
   case "$subject" in
-    feat(*|feat:*) has_feat=true ;;
+    'feat('*|'feat:'*) has_feat=true ;;
   esac
 
   # Check for fix, perf, security, refactor (patch)
   case "$subject" in
-    fix(*|fix:*) has_fix=true ;;
-    perf(*|perf:*) has_fix=true ;;
-    security(*|security:*) has_fix=true ;;
-    refactor(*|refactor:*) has_fix=true ;;
+    'fix('*|'fix:'*) has_fix=true ;;
+    'perf('*|'perf:'*) has_fix=true ;;
+    'security('*|'security:'*) has_fix=true ;;
+    'refactor('*|'refactor:'*) has_fix=true ;;
   esac
 done <<< "$commits"
 
