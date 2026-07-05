@@ -17,6 +17,7 @@ try_commit() {
     return 1
   fi
   echo "  ✓ ktlintFormat passed"
+  git add -u  # Stage modified files immediately after formatting
 
   # Run ktlintCheck to verify no style violations remain
   echo ""
