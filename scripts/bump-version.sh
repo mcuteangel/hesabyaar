@@ -60,7 +60,7 @@ fi
 # Create changelog entry
 entry="## [${new_version}] - ${DATE}
 
-### Changes
+### Changed
 - Release version ${new_version}
 "
 

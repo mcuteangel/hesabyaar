@@ -47,7 +47,7 @@ fi
 escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
 
 # Call Gemini API (use x-goog-api-key header instead of URL parameter)
-response=$(curl -s -w "\n%{http_code}" \
+response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 \
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
   -H "Content-Type: application/json" \
   -H "x-goog-api-key: $GEMINI_API_KEY" \

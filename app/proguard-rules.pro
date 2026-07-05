@@ -45,11 +45,9 @@
 -keep interface okhttp3.** { *; }
 
 # --- Hilt / Dagger ---
--keep class dagger.** { *; }
--keep class javax.inject.** { *; }
+-keep class dagger.hilt.** { *; }
 -keep class * extends dagger.hilt.android.lifecycle.HiltViewModel
 -keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
--keep class * extends androidx.lifecycle.ViewModel
 -keepclassmembers class * {
     @javax.inject.* <fields>;
     @dagger.hilt.* <fields>;
@@ -62,10 +60,6 @@
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
-
-# --- Firebase AI ---
--keep class com.google.firebase.ai.** { *; }
--dontwarn com.google.firebase.ai.**
 
 # --- SQLCipher ---
 -keep class net.zetetic.** { *; }
