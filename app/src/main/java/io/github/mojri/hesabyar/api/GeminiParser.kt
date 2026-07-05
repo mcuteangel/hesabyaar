@@ -137,7 +137,7 @@ object GeminiParser {
       val daysFromNow =
         if (json.has(KEY_DAYS_FROM_NOW) && !json.isNull(KEY_DAYS_FROM_NOW)) {
           try {
-            json.getInt("daysFromNow")
+            json.getInt(KEY_DAYS_FROM_NOW)
           } catch (_: Exception) {
             null
           }
@@ -302,7 +302,6 @@ object GeminiParser {
         sentence.contains("قلیان") ||
         sentence.contains("قهوه خانه") ||
         sentence.contains("چایخانه") ||
-        sentence.contains(KEYWORD_ICE_CREAM) ||
         sentence.contains("هتل") ||
         sentence.contains("اقامت") ||
         sentence.contains("بلیط هواپیما") ||

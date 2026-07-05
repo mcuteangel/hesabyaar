@@ -170,13 +170,14 @@ object AiProvider {
 
   private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
     val url = "https://openrouter.ai/api/v1/models"
-    val request =
+    val requestBuilder =
       Request
         .Builder()
         .url(url)
-        .addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
-        .get()
-        .build()
+    if (apiKey.isNotBlank()) {
+      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
+    }
+    val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
@@ -213,13 +214,14 @@ object AiProvider {
   ): List<FetchedModel> {
     if (baseUrl.isBlank()) return emptyList()
     val url = "${baseUrl.trimEnd('/')}/models"
-    val request =
+    val requestBuilder =
       Request
         .Builder()
         .url(url)
-        .addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
-        .get()
-        .build()
+    if (apiKey.isNotBlank()) {
+      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
+    }
+    val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
@@ -375,7 +377,7 @@ object AiProvider {
         .url(url)
         .post(requestBody)
 
-    apiKey?.takeIf { it.isNotBlank() }?.let { key ->
+    apiKey?.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
       requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
     }
     if (isOpenRouter) {
