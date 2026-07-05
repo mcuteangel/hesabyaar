@@ -8,6 +8,10 @@ echo "==========================================="
 
 # Function to run ktlint checks and format
 try_commit() {
+  # Record originally staged files using null-delimited output for safe filename handling
+  local staged_files
+  mapfile -d '' -t staged_files < <(git diff --cached --name-only -z)
+
   # Run ktlintFormat first to auto-fix formatting
   echo ""
   echo "[1/2] Running ktlintFormat (auto-fix)..."
@@ -17,7 +21,11 @@ try_commit() {
     return 1
   fi
   echo "  ✓ ktlintFormat passed"
-  git add -u  # Stage modified files immediately after formatting
+
+  # Only re-stage the files that were originally staged
+  if [[ ${#staged_files[@]} -gt 0 ]]; then
+    git add "${staged_files[@]}"
+  fi
 
   # Run ktlintCheck to verify no style violations remain
   echo ""
@@ -36,7 +44,7 @@ while true; do
   if try_commit; then
     break
   fi
-  
+
   # Ask user to fix issues and re-stage files
   echo ""
   read -p "Fix issues and stage files? (y/n): " choice
