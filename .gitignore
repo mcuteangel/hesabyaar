@@ -41,3 +41,7 @@ skills-lock.json
 docs/uiplan.md
 .superpowers/
 docs/superpowers/
+
+# Rust
+/rust/target/
+**/target/

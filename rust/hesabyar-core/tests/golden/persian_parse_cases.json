@@ -1,0 +1,32 @@
+﻿[
+  {
+    "input": "\u{0655}\u{06F0}\u{06F0}\u{06F0} \u{0647}\u{0632}\u{0627}\u{0631} \u{062A}\u{0648}\u{0645}\u{0646} \u{0628}\u{0627}\u{0628}\u{062A} \u{0628}\u{0631}\u{0642}",
+    "expected_type": "EXPENSE",
+    "expected_amount_rial": 5000000,
+    "expected_category": "Bills"
+  },
+  {
+    "input": "\u{0627}\u{0645}\u{0631}\u{0648}\u{0632} \u{062D}\u{0642}\u{0648}\u{0642} \u{06AF}\u{0631}\u{0641}\u{062A}\u{0645} \u{06F2}\u{06F0} \u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646}",
+    "expected_type": "INCOME",
+    "expected_amount_rial": 200000000,
+    "expected_category": "Income"
+  },
+  {
+    "input": "\u{0628}\u{0647} \u{0639}\u{0644}\u{06CC} \u{06F2} \u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646} \u{0642}\u{0631}\u{0636} \u{062F}\u{0627}\u{062F}\u{0645}",
+    "expected_type": "EXPENSE",
+    "expected_amount_rial": 20000000,
+    "expected_category": "Loans & Debt"
+  },
+  {
+    "input": "\u{0635}\u{0628}\u{062D}\u{0627}\u{0646}\u{0647} \u{0642}\u{0647}\u{0648}\u{0647} \u{062E}\u{0648}\u{0631}\u{062F}\u{0645}",
+    "expected_type": "EXPENSE",
+    "expected_amount_rial": 0,
+    "expected_category": "Food"
+  },
+  {
+    "input": "\u{0628}\u{0646}\u{0632}\u{06CC}\u{0646} \u{0632}\u{062F}\u{0645}",
+    "expected_type": "EXPENSE",
+    "expected_amount_rial": 0,
+    "expected_category": "Transportation"
+  }
+]

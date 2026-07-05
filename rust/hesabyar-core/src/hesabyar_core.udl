@@ -1,0 +1,203 @@
+namespace hesabyar_core;
+
+ dictionary JalaliDate {
+     i32 year;
+     i32 month;
+     i32 day;
+ };
+
+ enum CurrencyUnit {
+     "rial",
+     "toman"
+ };
+
+ enum TransactionType {
+     "expense",
+     "income",
+     "loan_debtor",
+     "loan_creditor",
+     "installment"
+ };
+
+ dictionary Transaction {
+     i64 id;
+     TransactionType type;
+     i64 category_id;
+     i64 amount;
+     string description;
+     string? person_name;
+     i64 date;
+     i64? due_date;
+     i64? installment_id;
+ };
+
+ dictionary Loan {
+     i64 id;
+     string person_name;
+     string loan_type;
+     i64 original_amount;
+     i64 remaining_amount;
+     string description;
+     i64 date;
+     boolean is_settled;
+ };
+
+ dictionary Installment {
+     i64 id;
+     string title;
+     i64 amount;
+     i64 due_date;
+     boolean is_paid;
+     boolean reminder_enabled;
+     string notes;
+ };
+
+ dictionary Category {
+     i64 id;
+     string name;
+     string key;
+     string icon;
+     i64 color;
+     string category_type;
+     boolean is_default;
+ };
+
+ dictionary ParsedResult {
+     TransactionType type;
+     i64 amount;
+     string category;
+     string? person_name;
+     string description;
+     i32? days_from_now;
+     string? title;
+     i32? date_offset_days;
+     i32? hour;
+     i32? minute;
+     f32 confidence;
+     string? notes;
+ };
+
+ dictionary DashboardData {
+     i64 current_balance;
+     i64 monthly_expenses;
+     i64 monthly_income;
+     i64 debtors_total;
+     i64 creditors_total;
+     f64 savings_rate;
+     f64 debt_to_income_ratio;
+ };
+
+ dictionary MonthlyData {
+     i32 jalali_year;
+     i32 jalali_month;
+     string label;
+     i64 income;
+     i64 expense;
+ };
+
+ dictionary CategoryBreakdown {
+     i64 category_id;
+     string category_name;
+     i64 color;
+     i64 total;
+     f32 percentage;
+ };
+
+ dictionary DebtSummary {
+     string person_name;
+     i64 original_amount;
+     i64 remaining_amount;
+     string type;
+     f32 progress;
+ };
+
+ dictionary InstallmentProgress {
+     i64 id;
+     string title;
+     i64 amount;
+     i64 due_date;
+     boolean is_paid;
+ };
+
+ dictionary AnalyticsData {
+     sequence<MonthlyData> monthly_spending;
+     sequence<MonthlyData> monthly_income;
+     sequence<CategoryBreakdown> category_breakdown;
+     sequence<DebtSummary> debtors;
+     sequence<DebtSummary> creditors;
+     i64 total_debt;
+     i64 total_credit;
+     i32 total_installments;
+     i32 paid_installments;
+ };
+
+ [Throws=HesabyarError]
+ dictionary BackupPayload {
+     i32 version;
+     i64 timestamp;
+     string app_version;
+     sequence<Transaction> transactions;
+     sequence<Loan> loans;
+     sequence<Installment> installments;
+     sequence<Category> categories;
+ };
+
+ enum HesabyarError {
+     "parse_error",
+     "invalid_amount",
+     "invalid_date",
+     "backup_validation",
+     "calendar_error"
+ };
+
+ i64 gregorian_to_jalali(i64 timestamp_ms);
+ i64 jalali_to_gregorian(i32 year, i32 month, i32 day);
+ i32 get_jalali_days_in_month(i32 year, i32 month);
+ boolean is_jalali_leap_year(i32 year);
+
+ i64 parse_persian_amount(string sentence);
+ boolean contains_money(string sentence);
+ string preprocess_persian_text(string text);
+ string normalize_money_text(string text);
+
+ ParsedResult parse_sentence_offline(string sentence);
+ tuple<string, string> infer_expense_category(string sentence);
+
+ string format_currency(i64 rial, CurrencyUnit unit);
+ i64 to_rial(i64 display_value, CurrencyUnit unit);
+ i64 from_rial(i64 rial, CurrencyUnit unit);
+ string format_number(i64 value);
+
+ string get_offline_budget_advice(
+     sequence<Transaction> transactions,
+     sequence<Category> categories
+ );
+ string get_offline_forecast(
+     sequence<Transaction> transactions,
+     sequence<Loan> loans,
+     sequence<Installment> installments
+ );
+ i32 calculate_financial_health_score(
+     sequence<Transaction> transactions,
+     sequence<Loan> loans,
+     sequence<Installment> installments,
+     sequence<Category> categories
+ );
+ f64 calculate_debt_to_income_ratio(
+     sequence<Loan> loans,
+     sequence<Installment> installments,
+     i64 monthly_income
+ );
+ i64 predict_time_to_goal(i64 current_savings, i64 monthly_savings, i64 goal_amount);
+
+ AnalyticsData compute_analytics(
+     sequence<Transaction> transactions,
+     sequence<Loan> loans,
+     sequence<Installment> installments,
+     sequence<Category> categories
+ );
+ DashboardData compute_dashboard_data(
+     sequence<Transaction> transactions,
+     sequence<Loan> loans,
+     sequence<Installment> installments
+ );
