@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.auth.BiometricHelper
@@ -53,6 +54,9 @@ import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -502,8 +506,9 @@ fun SettingsScreen(
       }
     }
 
-    // Debug Logs Section
-    DebugLogsSection()
+    if (BuildConfig.DEBUG) {
+      DebugLogsSection()
+    }
   }
 }
 
@@ -516,6 +521,8 @@ fun SecuritySection(
   var hasBiometric by remember { mutableStateOf(BiometricHelper.isBiometricAvailable(context)) }
   var showSetPinDialog by remember { mutableStateOf(false) }
   var showVerifyPinDialog by remember { mutableStateOf(false) }
+  var pendingDisable by remember { mutableStateOf(false) }
+  val scope = rememberCoroutineScope()
 
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -536,14 +543,18 @@ fun SecuritySection(
       )
     }
     Switch(
-      checked = isPinSet,
-      onCheckedChange = {
-        if (isPinSet) {
-          PinStorage.clearPin(context)
-          isPinSet = false
-          settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+      checked = isPinSet && !pendingDisable,
+      onCheckedChange = { checked ->
+        if (checked) {
+          pendingDisable = false
+          if (!isPinSet) {
+            showSetPinDialog = true
+          }
         } else {
-          showSetPinDialog = true
+          if (isPinSet) {
+            pendingDisable = true
+            showVerifyPinDialog = true
+          }
         }
       }
     )
@@ -595,6 +606,75 @@ fun SecuritySection(
     }
   }
 
+  if (showVerifyPinDialog) {
+    var currentPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+    var verifying by remember { mutableStateOf(false) }
+
+    AlertDialog(
+      onDismissRequest = {
+        showVerifyPinDialog = false
+        pendingDisable = false
+      },
+      title = { Text("تأیید رمز عبور", fontWeight = FontWeight.Bold) },
+      text = {
+        HesabyarInputField(
+          value = currentPin,
+          onValueChange = {
+            currentPin = it.filter { c -> c.isDigit() }.take(6)
+            pinError = null
+          },
+          label = "رمز عبور فعلی",
+          placeholder = "۶ رقم",
+          isError = pinError != null,
+          supportingText = pinError,
+          visualTransformation = PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+        )
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = {
+            scope.launch {
+              verifying = true
+              try {
+                val verified =
+                  withContext(Dispatchers.IO) {
+                    PinStorage.verifyPin(context, currentPin)
+                  }
+                if (verified) {
+                  withContext(Dispatchers.IO) {
+                    PinStorage.clearPin(context)
+                  }
+                  isPinSet = false
+                  pendingDisable = false
+                  showVerifyPinDialog = false
+                  settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+                } else {
+                  pinError = "رمز عبور اشتباه است"
+                }
+              } finally {
+                verifying = false
+              }
+            }
+          },
+          text = "تأیید و غیرفعال‌سازی",
+          enabled = currentPin.length == 6 && !verifying
+        )
+      },
+      dismissButton = {
+        HesabyarButton(
+          onClick = {
+            showVerifyPinDialog = false
+            pendingDisable = false
+          },
+          text = CANCEL_LABEL,
+          variant = ButtonVariant.Text
+        )
+      }
+    )
+  }
+
   if (showSetPinDialog) {
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -607,7 +687,7 @@ fun SecuritySection(
         Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
           HesabyarInputField(
             value = newPin,
-            onValueChange = { newPin = it },
+            onValueChange = { newPin = it.filter { c -> c.isDigit() }.take(6) },
             label = "رمز عبور جدید",
             placeholder = "۶ رقم",
             isError = pinError != null,
@@ -617,7 +697,7 @@ fun SecuritySection(
           )
           HesabyarInputField(
             value = confirmPin,
-            onValueChange = { confirmPin = it },
+            onValueChange = { confirmPin = it.filter { c -> c.isDigit() }.take(6) },
             label = "تکرار رمز عبور",
             placeholder = "۶ رقم",
             visualTransformation = PasswordVisualTransformation(),
@@ -643,7 +723,8 @@ fun SecuritySection(
               }
             }
           },
-          text = "ذخیره"
+          text = "ذخیره",
+          enabled = newPin.length == 6 && confirmPin.length == 6
         )
       },
       dismissButton = {
@@ -1084,7 +1165,7 @@ fun AiConfigDialog(
             OutlinedTextField(
               value = selectedProvider.displayName,
               onValueChange = {},
-              modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+              modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
               readOnly = true,
               shape = ShapeTokens.Large,
               trailingIcon = {
@@ -1202,7 +1283,7 @@ fun AiConfigDialog(
               OutlinedTextField(
                 value = model,
                 onValueChange = { model = it },
-                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                 shape = ShapeTokens.Large,
                 placeholder = { Text("نام مدل را تایپ یا انتخاب کنید") },
                 trailingIcon = {

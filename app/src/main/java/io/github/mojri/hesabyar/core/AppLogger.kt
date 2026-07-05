@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.core
 
 import android.util.Log
+import io.github.mojri.hesabyar.BuildConfig
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,7 +26,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.d(tag, message)
+    if (BuildConfig.DEBUG) Log.d(tag, message)
     addLog(tag, "D", message)
   }
 
@@ -33,7 +34,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.i(tag, message)
+    if (BuildConfig.DEBUG) Log.i(tag, message)
     addLog(tag, "I", message)
   }
 
@@ -41,7 +42,7 @@ object AppLogger {
     tag: String,
     message: String
   ) {
-    Log.w(tag, message)
+    if (BuildConfig.DEBUG) Log.w(tag, message)
     addLog(tag, "W", message)
   }
 
@@ -61,6 +62,7 @@ object AppLogger {
     level: String,
     message: String
   ) {
+    if (!BuildConfig.DEBUG) return
     logs.addLast(LogEntry(tag = tag, level = level, message = message))
     while (logs.size > MAX_LOGS) {
       logs.removeFirst()
