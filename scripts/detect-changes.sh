@@ -20,40 +20,6 @@ if [ -z "$changed_files" ]; then
   exit 1
 fi
 
-# Function to check if a file matches a glob pattern (simple matcher)
-matches_pattern() {
-  local file="$1"
-  local pattern="$2"
-
-  # Handle ** pattern (match across directories)
-  if [[ "$pattern" == ** ]]; then
-    local prefix="${pattern%%\*\*}"
-    local suffix="${pattern##\*\*}"
-    if [[ -z "$prefix" ]] && [[ -z "$suffix" ]]; then
-      return 0  # ** matches everything
-    fi
-    if [[ -n "$prefix" ]] && [[ "$file" == ${prefix}* ]]; then
-      return 0
-    fi
-    if [[ -n "$suffix" ]] && [[ "$file" == *${suffix} ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
-  # Handle * pattern (match within directory)
-  if [[ "$pattern" == * ]]; then
-    local prefix="${pattern%%\*}"
-    if [[ -z "$prefix" ]] || [[ "$file" == ${prefix}* ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
-  # Exact match
-  [[ "$file" == "$pattern" ]]
-}
-
 # Check if any application files changed
 has_app_changes=false
 while IFS= read -r file; do
@@ -61,7 +27,7 @@ while IFS= read -r file; do
 
   # Check if this file matches any include pattern
   case "$file" in
-    app/*|src/*|*.kt|*.java|*.xml|*.toml)
+    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml)
       has_app_changes=true
       break
       ;;

@@ -65,8 +65,7 @@ entry="## [${new_version}] - ${DATE}
 "
 
 # Prepend new entry after header
-if echo "$existing" | grep -q "^# Changelog"; then
-  header="# Changelog
+header="# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -74,17 +73,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 "
-  body=$(echo "$existing" | sed '1,/^# Changelog/d' | sed '1,/^$/d')
+
+if echo "$existing" | grep -q "^# Changelog"; then
+  # Extract body: skip the 7-line header block
+  body=$(echo "$existing" | tail -n +8)
   echo "${header}${entry}${body}" > "$CHANGELOG_FILE"
 else
-  header="# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-"
   echo "${header}${entry}${existing}" > "$CHANGELOG_FILE"
 fi
 
