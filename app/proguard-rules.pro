@@ -1,21 +1,72 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard rules for Hesabyar
+# Keep line number information for debugging stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Room ---
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-keep @androidx.room.Dao class *
+-dontwarn androidx.room.paging.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Moshi ---
+-keep @com.squareup.moshi.JsonClass class *
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+-keep @com.squareup.moshi.JsonAdapter class *
+-dontwarn javax.annotation.**
+-keepattributes *Annotation*
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Moshi Codegen (KSP) ---
+-keep class **JsonAdapter { *; }
+-keepclassmembers @com.squareup.moshi.JsonClass class * {
+    static <fields>;
+    *** Companion;
+}
+-keepclasseswithmembers @com.squareup.moshi.JsonClass class * {
+    *** Companion;
+}
+
+# --- Retrofit ---
+-keepattributes Signature
+-keepattributes Exceptions
+-keep class retrofit2.** { *; }
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn retrofit2.**
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+# --- OkHttp ---
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keep class org.conscrypt.** { *; }
+-keep class org.bouncycastle.** { *; }
+
+# --- Hilt / Dagger ---
+-keep class * extends dagger.hilt.android.lifecycle.HiltViewModel
+-keepclassmembers class * {
+    @javax.inject.Inject <fields>;
+    @javax.inject.Inject <init>(...);
+    @dagger.hilt.android.lifecycle.HiltViewModel <fields>;
+}
+-dontwarn dagger.hilt.**
+
+# --- Kotlin Coroutines ---
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+
+# --- SQLCipher ---
+-keep class net.zetetic.** { *; }
+-dontwarn net.zetetic.**
+
+# --- WorkManager ---
+-keep class * extends androidx.work.Worker
+-keep class * extends androidx.work.ListenableWorker
+-keepclassmembers class * {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
