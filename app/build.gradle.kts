@@ -8,6 +8,14 @@ fun resolveCredential(key: String) =
     ?: providers.environmentVariable(key).orNull
     ?: ""
 
+val versionFile = file("$rootDir/VERSION")
+val versionContent = versionFile.readText().trim().split(".")
+val versionMajor = versionContent[0].toInt()
+val versionMinor = versionContent[1].toInt()
+val versionPatch = versionContent[2].toInt()
+val versionName = "$versionMajor.$versionMinor.$versionPatch"
+val versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -27,8 +35,8 @@ android {
     applicationId = appId
     minSdk = 26
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    this.versionCode = versionCode
+    this.versionName = versionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -45,7 +53,8 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       isDebuggable = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")

@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bump-version.sh - Reads VERSION, applies semver bump, writes new VERSION.
+# Also appends to CHANGELOG.md.
+#
+# Usage: ./scripts/bump-version.sh <bump_type>
+# Example: ./scripts/bump-version.sh minor
+
+BUMP_TYPE="${1:?Usage: bump-version.sh <major|minor|patch>}"
+VERSION_FILE="${VERSION_FILE:-VERSION}"
+CHANGELOG_FILE="${CHANGELOG_FILE:-CHANGELOG.md}"
+DATE=$(date +%Y-%m-%d)
+
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "ERROR: $VERSION_FILE not found"
+  exit 1
+fi
+
+current=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+IFS='.' read -r major minor patch <<< "$current"
+
+case "$BUMP_TYPE" in
+  major)
+    major=$((major + 1))
+    minor=0
+    patch=0
+    ;;
+  minor)
+    minor=$((minor + 1))
+    patch=0
+    ;;
+  patch)
+    patch=$((patch + 1))
+    ;;
+  *)
+    echo "ERROR: Invalid bump type: $BUMP_TYPE (must be major, minor, or patch)"
+    exit 1
+    ;;
+esac
+
+new_version="${major}.${minor}.${patch}"
+echo "$new_version" > "$VERSION_FILE"
+echo "Version bumped: $current -> $new_version"
+
+# Generate changelog entry
+if [ -f "$CHANGELOG_FILE" ]; then
+  existing=$(cat "$CHANGELOG_FILE")
+else
+  existing=""
+fi
+
+# Create changelog entry
+entry="## [${new_version}] - ${DATE}
+
+### Changes
+- Release version ${new_version}
+"
+
+# Prepend new entry after header
+if echo "$existing" | grep -q "^# Changelog"; then
+  header="# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"
+  body=$(echo "$existing" | sed '1,/^# Changelog/d' | sed '1,/^$/d')
+  echo "${header}${entry}${body}" > "$CHANGELOG_FILE"
+else
+  header="# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"
+  echo "${header}${entry}${existing}" > "$CHANGELOG_FILE"
+fi
+
+echo "CHANGELOG.md updated"
+echo "$new_version"
