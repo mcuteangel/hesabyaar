@@ -48,7 +48,7 @@ fi
 if command -v jq >/dev/null 2>&1; then
   escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
 else
-  escaped_prompt=$(printf '%s' "$prompt" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')
+  escaped_prompt=$(printf '%s' "$prompt" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/ $//' | sed 's/^/"/;s/$/"/')
 fi
 
 # Call Gemini API (use x-goog-api-key header instead of URL parameter)
