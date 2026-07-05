@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.core.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -107,6 +108,8 @@ object AiProvider {
             AiProviderType.CUSTOM -> fetchCustomModels(apiKey, baseUrl.orEmpty())
           }
         )
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: IOException) {
         AppLogger.e(TAG, "Failed to fetch models for $providerType due to I/O error", e)
         Result.failure(e)
@@ -174,8 +177,8 @@ object AiProvider {
       Request
         .Builder()
         .url(url)
-    if (apiKey.isNotBlank()) {
-      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
+    apiKey.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
+      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
     }
     val request = requestBuilder.get().build()
 
@@ -218,8 +221,8 @@ object AiProvider {
       Request
         .Builder()
         .url(url)
-    if (apiKey.isNotBlank()) {
-      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$apiKey")
+    apiKey.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
+      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
     }
     val request = requestBuilder.get().build()
 
