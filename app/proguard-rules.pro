@@ -41,16 +41,15 @@
 # --- OkHttp ---
 -dontwarn okhttp3.**
 -dontwarn okio.**
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
+-keep class org.conscrypt.** { *; }
+-keep class org.bouncycastle.** { *; }
 
 # --- Hilt / Dagger ---
--keep class dagger.hilt.** { *; }
 -keep class * extends dagger.hilt.android.lifecycle.HiltViewModel
--keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
 -keepclassmembers class * {
-    @javax.inject.* <fields>;
-    @dagger.hilt.* <fields>;
+    @javax.inject.Inject <fields>;
+    @javax.inject.Inject <init>(...);
+    @dagger.hilt.android.lifecycle.HiltViewModel <fields>;
 }
 -dontwarn dagger.hilt.**
 
