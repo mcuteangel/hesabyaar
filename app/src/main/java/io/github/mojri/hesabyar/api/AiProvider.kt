@@ -25,6 +25,12 @@ object AiProvider {
   private const val KEY_CONTENT = "content"
   private const val ERR_HTTP_FORMAT = "HTTP %d: %s"
 
+  private fun Request.Builder.addBearerAuthorization(apiKey: String?) {
+    apiKey?.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
+      addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
+    }
+  }
+
   private val client =
     OkHttpClient
       .Builder()
@@ -177,9 +183,7 @@ object AiProvider {
       Request
         .Builder()
         .url(url)
-    apiKey.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
-      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
-    }
+    requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
@@ -221,9 +225,7 @@ object AiProvider {
       Request
         .Builder()
         .url(url)
-    apiKey.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
-      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
-    }
+    requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
@@ -380,9 +382,7 @@ object AiProvider {
         .url(url)
         .post(requestBody)
 
-    apiKey?.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
-      requestBuilder.addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
-    }
+    requestBuilder.addBearerAuthorization(apiKey)
     if (isOpenRouter) {
       requestBuilder.addHeader("HTTP-Referer", "https://github.com/mojri/hesabyar")
       requestBuilder.addHeader("X-Title", "Hesabyar")
