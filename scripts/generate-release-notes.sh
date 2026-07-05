@@ -43,16 +43,17 @@ if [ -z "$GEMINI_API_KEY" ]; then
   exit 0
 fi
 
-# Escape prompt for JSON
-escaped_prompt=$(printf '%s' "$prompt" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')
+# Escape prompt for JSON using jq
+escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
 
-# Call Gemini API
+# Call Gemini API (use x-goog-api-key header instead of URL parameter)
 response=$(curl -s -w "\n%{http_code}" \
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_API_KEY" \
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
   -H "Content-Type: application/json" \
+  -H "x-goog-api-key: $GEMINI_API_KEY" \
   -d "{
     \"contents\": [{
-      \"parts\": [{\"text\": \"${escaped_prompt}\"}]
+      \"parts\": [{\"text\": ${escaped_prompt}}]
     }],
     \"generationConfig\": {
       \"temperature\": 0.3,
@@ -69,10 +70,10 @@ if [ "$http_code" != "200" ] || [ -z "$body" ]; then
   exit 0
 fi
 
-# Extract text from Gemini response (without jq)
-notes=$(echo "$body" | grep -o '"text":"[^"]*"' | head -1 | sed 's/"text":"//;s/"$//' 2>/dev/null || echo "")
+# Extract text from Gemini response - try robust parsers first
+notes=""
 
-# If that fails, try multiline text extraction
+# Try python3 first (most robust)
 if [ -z "$notes" ]; then
   notes=$(echo "$body" | python3 -c "
 import sys, json
@@ -84,7 +85,7 @@ except:
 " 2>/dev/null || echo "")
 fi
 
-# If that also fails, try with python (fallback)
+# Try python (fallback)
 if [ -z "$notes" ]; then
   notes=$(echo "$body" | python -c "
 import sys, json
@@ -94,6 +95,11 @@ try:
 except:
     pass
 " 2>/dev/null || echo "")
+fi
+
+# Last resort: grep-based extraction
+if [ -z "$notes" ]; then
+  notes=$(echo "$body" | grep -o '"text":"[^"]*"' | head -1 | sed 's/"text":"//;s/"$//' 2>/dev/null || echo "")
 fi
 
 if [ -z "$notes" ]; then

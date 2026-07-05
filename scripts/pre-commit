@@ -8,9 +8,9 @@ echo "==========================================="
 
 # Function to run ktlint checks and format
 try_commit() {
-  # Record originally staged files to avoid silently including unrelated changes
+  # Record originally staged files using null-delimited output for safe filename handling
   local staged_files
-  staged_files=$(git diff --cached --name-only)
+  staged_files=$(git diff --cached --name-only -z)
 
   # Run ktlintFormat first to auto-fix formatting
   echo ""
@@ -22,9 +22,9 @@ try_commit() {
   fi
   echo "  ✓ ktlintFormat passed"
 
-  # Only re-stage the files that were originally staged
+  # Only re-stage the files that were originally staged (null-safe)
   if [[ -n "$staged_files" ]]; then
-    echo "$staged_files" | xargs -r git add
+    xargs -0 -r git add <<< "$staged_files"
   fi
 
   # Run ktlintCheck to verify no style violations remain
@@ -44,7 +44,7 @@ while true; do
   if try_commit; then
     break
   fi
-  
+
   # Ask user to fix issues and re-stage files
   echo ""
   read -p "Fix issues and stage files? (y/n): " choice

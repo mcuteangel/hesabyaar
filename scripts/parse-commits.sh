@@ -89,6 +89,7 @@ done <<< "$commits"
 # Trim trailing newline
 summary_lines=$(echo "$summary_lines" | sed '/^$/d' | head -20)
 
-# Output JSON without jq dependency
-escaped_summary=$(echo "$summary_lines" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ' | sed 's/ $//')
-echo "{\"bump_type\":\"${BUMP_TYPE}\",\"summary\":\"${escaped_summary}\"}"
+# Output JSON using jq
+summary_flat=$(echo "$summary_lines" | tr '\n' ' ' | sed 's/ $//')
+jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_flat" \
+  '{bump_type: $bump_type, summary: $summary}'

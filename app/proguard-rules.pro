@@ -20,11 +20,11 @@
 
 # --- Moshi Codegen (KSP) ---
 -keep class **JsonAdapter { *; }
--keepclassmembers class * {
+-keepclassmembers @com.squareup.moshi.JsonClass class * {
     static <fields>;
     *** Companion;
 }
--keepclasseswithmembers class * {
+-keepclasseswithmembers @com.squareup.moshi.JsonClass class * {
     *** Companion;
 }
 
