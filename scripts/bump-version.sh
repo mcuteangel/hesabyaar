@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # bump-version.sh - Reads VERSION, applies semver bump, writes new VERSION.
-# Also appends to CHANGELOG.md.
+# Also prepends to CHANGELOG.md (newest entries first).
 #
 # Usage: ./scripts/bump-version.sh <bump_type>
 # Example: ./scripts/bump-version.sh minor
@@ -48,7 +48,7 @@ esac
 
 new_version="${major}.${minor}.${patch}"
 echo "$new_version" > "$VERSION_FILE"
-echo "Version bumped: $current -> $new_version"
+echo "Version bumped: $current -> $new_version" >&2
 
 # Generate changelog entry
 if [ -f "$CHANGELOG_FILE" ]; then
@@ -82,5 +82,5 @@ else
   echo "${header}${entry}${existing}" > "$CHANGELOG_FILE"
 fi
 
-echo "CHANGELOG.md updated"
+echo "CHANGELOG.md updated" >&2
 echo "$new_version"

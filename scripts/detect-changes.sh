@@ -10,6 +10,12 @@ set -euo pipefail
 BASE_REF="${1:?Usage: detect-changes.sh <base_ref> <head_ref>}"
 HEAD_REF="${2:-HEAD}"
 
+# Handle zero SHA (initial push) - treat as all files changed
+if echo "$BASE_REF" | grep -qE '^0+$'; then
+  echo "RELEASE_NEEDED: Initial push detected (zero SHA base)"
+  exit 0
+fi
+
 changed_files=$(git diff --name-only "$BASE_REF"..."$HEAD_REF" 2>/dev/null || \
                 git diff --name-only "$BASE_REF".."$HEAD_REF" 2>/dev/null || \
                 git diff --name-only "$BASE_REF" "$HEAD_REF" 2>/dev/null || \
