@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.auth.PinStorage
+import io.github.mojri.hesabyar.shadows.ShadowPinStorage
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

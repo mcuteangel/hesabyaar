@@ -1165,7 +1165,7 @@ fun AiConfigDialog(
             OutlinedTextField(
               value = selectedProvider.displayName,
               onValueChange = {},
-              modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+              modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
               readOnly = true,
               shape = ShapeTokens.Large,
               trailingIcon = {
@@ -1283,7 +1283,7 @@ fun AiConfigDialog(
               OutlinedTextField(
                 value = model,
                 onValueChange = { model = it },
-                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                 shape = ShapeTokens.Large,
                 placeholder = { Text("نام مدل را تایپ یا انتخاب کنید") },
                 trailingIcon = {
