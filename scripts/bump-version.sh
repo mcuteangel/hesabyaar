@@ -17,7 +17,7 @@ if [ ! -f "$VERSION_FILE" ]; then
   exit 1
 fi
 
-current=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+current=$(tr -d '[:space:]' < "$VERSION_FILE")
 
 # Validate VERSION format
 if ! echo "$current" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then

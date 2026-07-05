@@ -100,6 +100,7 @@ fi
 # Try jq (if available)
 if [ -z "$notes" ]; then
   notes=$(echo "$body" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "")
+  [ "$notes" = "null" ] && notes=""
 fi
 
 # Last resort: grep-based extraction
