@@ -1,4 +1,7 @@
 val appId = "io.github.mojri.hesabyar"
+val keystorePasswordKey = "KEYSTORE_PASSWORD"
+val keyAliasKey = "KEY_ALIAS"
+val keyPasswordKey = "KEY_PASSWORD"
 
 plugins {
   alias(libs.plugins.android.application)
@@ -28,14 +31,14 @@ android {
   signingConfigs {
     create("release") {
       storeFile = file("$rootDir/my-upload-key.jks")
-      storePassword = providers.gradleProperty("KEYSTORE_PASSWORD").orNull
-        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+      storePassword = providers.gradleProperty(keystorePasswordKey).orNull
+        ?: providers.environmentVariable(keystorePasswordKey).orNull
         ?: ""
-      keyAlias = providers.gradleProperty("KEY_ALIAS").orNull
-        ?: providers.environmentVariable("KEY_ALIAS").orNull
+      keyAlias = providers.gradleProperty(keyAliasKey).orNull
+        ?: providers.environmentVariable(keyAliasKey).orNull
         ?: ""
-      keyPassword = providers.gradleProperty("KEY_PASSWORD").orNull
-        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+      keyPassword = providers.gradleProperty(keyPasswordKey).orNull
+        ?: providers.environmentVariable(keyPasswordKey).orNull
         ?: ""
     }
   }
@@ -83,23 +86,23 @@ tasks.register("checkSigningConfig") {
   description = "Validates that release signing credentials are configured"
   doFirst {
     val storePassword =
-      providers.gradleProperty("KEYSTORE_PASSWORD").orNull
-        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+      providers.gradleProperty(keystorePasswordKey).orNull
+        ?: providers.environmentVariable(keystorePasswordKey).orNull
         ?: ""
     val keyAlias =
-      providers.gradleProperty("KEY_ALIAS").orNull
-        ?: providers.environmentVariable("KEY_ALIAS").orNull
+      providers.gradleProperty(keyAliasKey).orNull
+        ?: providers.environmentVariable(keyAliasKey).orNull
         ?: ""
     val keyPassword =
-      providers.gradleProperty("KEY_PASSWORD").orNull
-        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+      providers.gradleProperty(keyPasswordKey).orNull
+        ?: providers.environmentVariable(keyPasswordKey).orNull
         ?: ""
     val keystoreFile = file("$rootDir/my-upload-key.jks")
 
     val issues = mutableListOf<String>()
-    if (storePassword.isBlank()) issues.add("KEYSTORE_PASSWORD is not set")
-    if (keyAlias.isBlank()) issues.add("KEY_ALIAS is not set")
-    if (keyPassword.isBlank()) issues.add("KEY_PASSWORD is not set")
+    if (storePassword.isBlank()) issues.add("$keystorePasswordKey is not set")
+    if (keyAlias.isBlank()) issues.add("$keyAliasKey is not set")
+    if (keyPassword.isBlank()) issues.add("$keyPasswordKey is not set")
     if (!keystoreFile.exists()) issues.add("Keystore file not found: my-upload-key.jks")
 
     if (issues.isNotEmpty()) {
@@ -201,20 +204,20 @@ tasks.register("generateKeystore") {
   description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
   doFirst {
     val storePassword =
-      providers.gradleProperty("KEYSTORE_PASSWORD").orNull
-        ?: providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+      providers.gradleProperty(keystorePasswordKey).orNull
+        ?: providers.environmentVariable(keystorePasswordKey).orNull
         ?: ""
     val keyPassword =
-      providers.gradleProperty("KEY_PASSWORD").orNull
-        ?: providers.environmentVariable("KEY_PASSWORD").orNull
+      providers.gradleProperty(keyPasswordKey).orNull
+        ?: providers.environmentVariable(keyPasswordKey).orNull
         ?: ""
     val keyAlias =
-      providers.gradleProperty("KEY_ALIAS").orNull
-        ?: providers.environmentVariable("KEY_ALIAS").orNull
+      providers.gradleProperty(keyAliasKey).orNull
+        ?: providers.environmentVariable(keyAliasKey).orNull
         ?: "mojrico"
     if (storePassword.isBlank() || keyPassword.isBlank()) {
       throw GradleException(
-        "KEYSTORE_PASSWORD and KEY_PASSWORD must be set.\n" +
+        "$keystorePasswordKey and $keyPasswordKey must be set.\n" +
           "Add them to your local .env file or set as environment variables.\n" +
           "See .env.example for reference."
       )
