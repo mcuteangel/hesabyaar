@@ -1,3 +1,5 @@
+val appId = "io.github.mojri.hesabyar"
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -10,17 +12,17 @@ plugins {
 }
 
 android {
-  namespace = "io.github.mojri.hesabyar"
+  namespace = appId
   compileSdk = 37
 
   defaultConfig {
-    applicationId = "io.github.mojri.hesabyar"
+    applicationId = appId
     minSdk = 26
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
 
-    testInstrumentationRunner = "io.github.mojri.hesabyar.AndroidJUnitRunner"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
@@ -177,6 +179,7 @@ dependencies {
   testImplementation(libs.roborazzi)
   testImplementation(libs.roborazzi.compose)
   testImplementation(libs.roborazzi.junit.rule)
+  testImplementation(libs.mockwebserver)
   testImplementation("org.json:json:20231013")
   androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)

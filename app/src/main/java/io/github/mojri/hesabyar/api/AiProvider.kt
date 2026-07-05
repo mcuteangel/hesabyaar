@@ -129,7 +129,8 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
+      val body = response.body?.string()
+      if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("models")
 
@@ -178,7 +179,8 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
+      val body = response.body?.string()
+      if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("data")
 
@@ -220,7 +222,8 @@ object AiProvider {
         val body = response.body?.string().orEmpty()
         throw IOException("HTTP ${response.code}: $body")
       }
-      val body = response.body?.string() ?: throw IOException(ERR_EMPTY_RESPONSE)
+      val body = response.body?.string()
+      if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
       val modelsArray = json.optJSONArray("data") ?: throw IOException("No 'data' array in response")
 
@@ -380,10 +383,13 @@ object AiProvider {
 
     return try {
       client.newCall(request).execute().use { response ->
-        val bodyStr = response.body?.string().orEmpty()
+        val bodyStr = response.body?.string()
         if (!response.isSuccessful) {
-          AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: $bodyStr")
-          ApiResult.Failure("API error ${response.code}: $bodyStr")
+          AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")
+          ApiResult.Failure("API error ${response.code}: ${bodyStr ?: "null body"}")
+        } else if (bodyStr.isNullOrBlank()) {
+          AppLogger.e(TAG, "Null/empty response body for URL ${url.substringBefore("?")} (HTTP ${response.code})")
+          ApiResult.Failure(ERR_EMPTY_RESPONSE)
         } else {
           responseParser(bodyStr)
         }
