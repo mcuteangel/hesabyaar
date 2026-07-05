@@ -18,6 +18,13 @@ if [ ! -f "$VERSION_FILE" ]; then
 fi
 
 current=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+
+# Validate VERSION format
+if ! echo "$current" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: $VERSION_FILE contains invalid format: '$current' (expected MAJOR.MINOR.PATCH)"
+  exit 1
+fi
+
 IFS='.' read -r major minor patch <<< "$current"
 
 case "$BUMP_TYPE" in

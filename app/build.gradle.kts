@@ -8,13 +8,40 @@ fun resolveCredential(key: String) =
     ?: providers.environmentVariable(key).orNull
     ?: ""
 
-val versionFile = file("$rootDir/VERSION")
-val versionContent = versionFile.readText().trim().split(".")
-val versionMajor = versionContent[0].toInt()
-val versionMinor = versionContent[1].toInt()
-val versionPatch = versionContent[2].toInt()
+val versionMaxSegment = 99
+val versionMajorMultiplier = 10000
+val versionMinorMultiplier = 100
+
+val versionText =
+  providers
+    .fileContents(
+      rootProject.layout.projectDirectory.file("VERSION")
+    ).asText
+    .get()
+    .trim()
+val versionContent = versionText.split(".")
+require(versionContent.size == 3) {
+  "VERSION file must contain exactly 3 dot-separated segments (MAJOR.MINOR.PATCH), got: '$versionText'"
+}
+val versionMajor =
+  versionContent[0].toIntOrNull()
+    ?: throw GradleException("VERSION major segment is not a number: '${versionContent[0]}'")
+val versionMinor =
+  versionContent[1].toIntOrNull()
+    ?: throw GradleException("VERSION minor segment is not a number: '${versionContent[1]}'")
+val versionPatch =
+  versionContent[2].toIntOrNull()
+    ?: throw GradleException("VERSION patch segment is not a number: '${versionContent[2]}'")
+require(versionMajor >= 0) { "VERSION major must be >= 0, got: $versionMajor" }
+require(versionMinor in 0..versionMaxSegment) {
+  "VERSION minor must be 0-$versionMaxSegment, got: $versionMinor"
+}
+require(versionPatch in 0..versionMaxSegment) {
+  "VERSION patch must be 0-$versionMaxSegment, got: $versionPatch"
+}
 val versionName = "$versionMajor.$versionMinor.$versionPatch"
-val versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+val versionCode =
+  versionMajor * versionMajorMultiplier + versionMinor * versionMinorMultiplier + versionPatch
 
 plugins {
   alias(libs.plugins.android.application)
