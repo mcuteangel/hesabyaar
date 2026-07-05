@@ -10,6 +10,7 @@ VERSION="${1:?Usage: generate-release-notes.sh <version> <base_ref> <head_ref>}"
 BASE_REF="${2:?Usage: generate-release-notes.sh <version> <base_ref> <head_ref>}"
 HEAD_REF="${3:-HEAD}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}"
 
 # Collect commit messages
 commits=$(git log --pretty=format:"- %s (%h)" "$BASE_REF".."$HEAD_REF" 2>/dev/null || \
@@ -48,7 +49,7 @@ escaped_prompt=$(printf '%s' "$prompt" | jq -Rs .)
 
 # Call Gemini API (use x-goog-api-key header instead of URL parameter)
 response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 \
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+  "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent" \
   -H "Content-Type: application/json" \
   -H "x-goog-api-key: $GEMINI_API_KEY" \
   -d "{

@@ -137,6 +137,7 @@ jobs:
         id: notes
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.0-flash' }}
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BASE_REF: ${{ github.event.before }}
         run: |
