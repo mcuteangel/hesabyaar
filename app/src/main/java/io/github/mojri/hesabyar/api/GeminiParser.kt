@@ -30,6 +30,8 @@ object GeminiParser {
   private const val TYPE_LOAN_DEBTOR = "LOAN_DEBTOR"
   private const val TYPE_LOAN_CREDITOR = "LOAN_CREDITOR"
   private const val TYPE_INSTALLMENT = "INSTALLMENT"
+  private const val KEY_DAYS_FROM_NOW = "daysFromNow"
+  private const val KEYWORD_ICE_CREAM = "بستنی"
 
   private const val CATEGORY_FOOD = "Food"
   private const val CATEGORY_TRANSPORTATION = "Transportation"
@@ -133,9 +135,9 @@ object GeminiParser {
       val personName = json.optString("personName").takeIf { it.isNotEmpty() }
       val description = json.optString("description").takeIf { it.isNotEmpty() } ?: ""
       val daysFromNow =
-        if (json.has("daysFromNow") && !json.isNull("daysFromNow")) {
+        if (json.has(KEY_DAYS_FROM_NOW) && !json.isNull(KEY_DAYS_FROM_NOW)) {
           try {
-            json.getInt("daysFromNow")
+            json.getInt(KEY_DAYS_FROM_NOW)
           } catch (_: Exception) {
             null
           }
@@ -185,7 +187,7 @@ object GeminiParser {
         sentence.contains("چای") ||
         sentence.contains("قهوه") ||
         sentence.contains("اسنک") ||
-        sentence.contains("بستنی") ||
+        sentence.contains(KEYWORD_ICE_CREAM) ||
         sentence.contains("سالاد") ||
         sentence.contains("ماهی") ||
         sentence.contains("میگو") ||
@@ -300,7 +302,6 @@ object GeminiParser {
         sentence.contains("قلیان") ||
         sentence.contains("قهوه خانه") ||
         sentence.contains("چایخانه") ||
-        sentence.contains("بستنی") ||
         sentence.contains("هتل") ||
         sentence.contains("اقامت") ||
         sentence.contains("بلیط هواپیما") ||

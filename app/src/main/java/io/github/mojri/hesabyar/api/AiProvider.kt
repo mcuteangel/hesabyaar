@@ -17,6 +17,19 @@ import java.util.concurrent.TimeUnit
 object AiProvider {
   private const val TAG = "AiProvider"
   private const val ERR_EMPTY_RESPONSE = "Empty response body"
+  private const val HEADER_AUTHORIZATION = "Authorization"
+  private const val BEARER_PREFIX = "Bearer "
+  private const val KEY_PARTS = "parts"
+  private const val KEY_TEXT = "text"
+  private const val KEY_ROLE = "role"
+  private const val KEY_CONTENT = "content"
+  private const val ERR_HTTP_FORMAT = "HTTP %d: %s"
+
+  private fun Request.Builder.addBearerAuthorization(apiKey: String?) {
+    apiKey?.takeIf { it.isNotBlank() && it.none { c -> c == '\n' || c == '\r' } }?.let { key ->
+      addHeader(HEADER_AUTHORIZATION, "$BEARER_PREFIX$key")
+    }
+  }
 
   private val client =
     OkHttpClient
@@ -127,7 +140,7 @@ object AiProvider {
     client.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
-        throw IOException("HTTP ${response.code}: $body")
+        throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
       }
       val body = response.body?.string()
       if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
@@ -166,18 +179,17 @@ object AiProvider {
 
   private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
     val url = "https://openrouter.ai/api/v1/models"
-    val request =
+    val requestBuilder =
       Request
         .Builder()
         .url(url)
-        .addHeader("Authorization", "Bearer $apiKey")
-        .get()
-        .build()
+    requestBuilder.addBearerAuthorization(apiKey)
+    val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
-        throw IOException("HTTP ${response.code}: $body")
+        throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
       }
       val body = response.body?.string()
       if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
@@ -209,18 +221,17 @@ object AiProvider {
   ): List<FetchedModel> {
     if (baseUrl.isBlank()) return emptyList()
     val url = "${baseUrl.trimEnd('/')}/models"
-    val request =
+    val requestBuilder =
       Request
         .Builder()
         .url(url)
-        .addHeader("Authorization", "Bearer $apiKey")
-        .get()
-        .build()
+    requestBuilder.addBearerAuthorization(apiKey)
+    val request = requestBuilder.get().build()
 
     client.newCall(request).execute().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
-        throw IOException("HTTP ${response.code}: $body")
+        throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
       }
       val body = response.body?.string()
       if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
@@ -259,10 +270,10 @@ object AiProvider {
           JSONArray().put(
             JSONObject().apply {
               put(
-                "parts",
+                KEY_PARTS,
                 JSONArray().put(
                   JSONObject().apply {
-                    put("text", prompt)
+                    put(KEY_TEXT, prompt)
                   }
                 )
               )
@@ -274,10 +285,10 @@ object AiProvider {
             "systemInstruction",
             JSONObject().apply {
               put(
-                "parts",
+                KEY_PARTS,
                 JSONArray().put(
                   JSONObject().apply {
-                    put("text", systemInstruction)
+                    put(KEY_TEXT, systemInstruction)
                   }
                 )
               )
@@ -324,15 +335,15 @@ object AiProvider {
     if (systemInstruction != null) {
       messages.put(
         JSONObject().apply {
-          put("role", "system")
-          put("content", systemInstruction)
+          put(KEY_ROLE, "system")
+          put(KEY_CONTENT, systemInstruction)
         }
       )
     }
     messages.put(
       JSONObject().apply {
-        put("role", "user")
-        put("content", prompt)
+        put(KEY_ROLE, "user")
+        put(KEY_CONTENT, prompt)
       }
     )
 
@@ -371,9 +382,7 @@ object AiProvider {
         .url(url)
         .post(requestBody)
 
-    if (!apiKey.isNullOrBlank()) {
-      requestBuilder.addHeader("Authorization", "Bearer $apiKey")
-    }
+    requestBuilder.addBearerAuthorization(apiKey)
     if (isOpenRouter) {
       requestBuilder.addHeader("HTTP-Referer", "https://github.com/mojri/hesabyar")
       requestBuilder.addHeader("X-Title", "Hesabyar")
