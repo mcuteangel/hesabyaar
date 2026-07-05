@@ -10,7 +10,7 @@ echo "==========================================="
 try_commit() {
   # Record originally staged files using null-delimited output for safe filename handling
   local staged_files
-  staged_files=$(git diff --cached --name-only -z)
+  mapfile -d '' -t staged_files < <(git diff --cached --name-only -z)
 
   # Run ktlintFormat first to auto-fix formatting
   echo ""
@@ -22,9 +22,9 @@ try_commit() {
   fi
   echo "  ✓ ktlintFormat passed"
 
-  # Only re-stage the files that were originally staged (null-safe)
-  if [[ -n "$staged_files" ]]; then
-    xargs -0 -r git add <<< "$staged_files"
+  # Only re-stage the files that were originally staged
+  if [[ ${#staged_files[@]} -gt 0 ]]; then
+    git add "${staged_files[@]}"
   fi
 
   # Run ktlintCheck to verify no style violations remain
