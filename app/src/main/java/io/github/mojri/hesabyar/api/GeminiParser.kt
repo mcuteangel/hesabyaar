@@ -13,9 +13,6 @@ import org.json.JSONObject
 object GeminiParser {
   private const val TAG = "GeminiParser"
 
-  private const val EXPENSE_DESCRIPTION_FORMAT = "%s (%s)"
-  private const val EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT = "هزینه متفرقه (%s)"
-
   private const val TYPE_EXPENSE = "EXPENSE"
   private const val TYPE_INCOME = "INCOME"
 
@@ -126,6 +123,34 @@ object GeminiParser {
     }
 
   internal fun parseJsonResultOffline(jsonStr: String): ParsedResult? {
+    val aiResult =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .parseAiTransactionJsonSync(jsonStr)
+    if (aiResult != null) {
+      if (aiResult.wasRepaired) {
+        AppLogger.w(TAG, "AI result repaired by Rust: ${aiResult.repairNotes.joinToString()}")
+      }
+      val r = aiResult.result
+      return ParsedResult(
+        type = r.txType.name,
+        amount = r.amount,
+        category = r.category,
+        personName = r.personName,
+        description = r.description,
+        daysFromNow = r.daysFromNow,
+        title = r.title,
+        dateOffsetDays = r.dateOffsetDays,
+        hour = r.hour,
+        minute = r.minute,
+        confidence = r.confidence,
+        notes = r.notes
+      )
+    }
+    // Fallback: parse manually if Rust unavailable
+    return parseJsonResultFallback(jsonStr)
+  }
+
+  private fun parseJsonResultFallback(jsonStr: String): ParsedResult? {
     return try {
       val json = JSONObject(jsonStr)
       val type = json.optString("type", TYPE_EXPENSE)
@@ -153,7 +178,7 @@ object GeminiParser {
 
       ParsedResult(
         type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
-        amount = amount, // AI returns Toman; store as Toman per DB convention
+        amount = amount,
         category = category,
         personName = personName,
         description = description,
@@ -171,947 +196,51 @@ object GeminiParser {
     }
   }
 
-  private fun inferExpenseCategory(sentence: String): Pair<String, String> =
-    when {
-      sentence.contains("مرغ") ||
-        sentence.contains("گوشت") ||
-        sentence.contains("غذا") ||
-        sentence.contains("میوه") ||
-        sentence.contains("رستوران") ||
-        sentence.contains("نان") ||
-        sentence.contains("شیر") ||
-        sentence.contains("پنیر") ||
-        sentence.contains("شام") ||
-        sentence.contains("ناهار") ||
-        sentence.contains("صبحانه") ||
-        sentence.contains("چای") ||
-        sentence.contains("قهوه") ||
-        sentence.contains("اسنک") ||
-        sentence.contains(KEYWORD_ICE_CREAM) ||
-        sentence.contains("سالاد") ||
-        sentence.contains("ماهی") ||
-        sentence.contains("میگو") ||
-        sentence.contains("سبزی") ||
-        sentence.contains("مربا") ||
-        sentence.contains("روغن") ||
-        sentence.contains("برنج") ||
-        sentence.contains("ماکارونی") ||
-        sentence.contains("رب") ||
-        sentence.contains("ادویه") ||
-        sentence.contains("نوشابه") ||
-        sentence.contains("آب معدنی") ||
-        sentence.contains("آب") ||
-        sentence.contains("دوغ") ||
-        sentence.contains("دلستر") ||
-        sentence.contains("چیپس") ||
-        sentence.contains("شکلات") ||
-        sentence.contains("کیک") ||
-        sentence.contains("بیسکوییت") ||
-        sentence.contains("موز") ||
-        sentence.contains("سیب") ||
-        sentence.contains("پرتقال") ||
-        sentence.contains("هندوانه") ||
-        sentence.contains("خربزه") ||
-        sentence.contains("انگور") ||
-        sentence.contains("توت") ||
-        sentence.contains("تمشک") ||
-        sentence.contains("کدو") ||
-        sentence.contains("خیار") ||
-        sentence.contains("گوجه") ||
-        sentence.contains("کلم") ||
-        sentence.contains("اسفناج") ||
-        sentence.contains("لوبیا") ||
-        sentence.contains("نخود") ||
-        sentence.contains("عدس") ||
-        sentence.contains("لپه") ||
-        sentence.contains("سوپ") ||
-        sentence.contains("آش") ||
-        sentence.contains("حلیم") ||
-        sentence.contains("کباب") ||
-        sentence.contains("استیک") ||
-        sentence.contains("سوسیس") ||
-        sentence.contains("کالباس") ||
-        sentence.contains("همبرگر") ||
-        sentence.contains("پیتزا") ||
-        sentence.contains("ساندویچ") -> Pair("Food", "خرید مواد غذایی")
-      sentence.contains("بنزین") ||
-        sentence.contains("اسنپ") ||
-        sentence.contains("کرایه") ||
-        sentence.contains("تاکسی") ||
-        sentence.contains("مترو") ||
-        sentence.contains("اتوبوس") ||
-        sentence.contains("بلیط") ||
-        sentence.contains(KEYWORD_PARKING) ||
-        sentence.contains("عوارض") ||
-        sentence.contains("لنت") ||
-        sentence.contains("لاستیک") ||
-        sentence.contains("تعویض روغن") ||
-        sentence.contains("مکانیک") ||
-        sentence.contains("تعمیرگاه") -> Pair("Transportation", "هزینه حمل و نقل")
-      sentence.contains("لباس") ||
-        sentence.contains("کفش") ||
-        sentence.contains("پوشاک") ||
-        sentence.contains("کیف") ||
-        sentence.contains("کلاه") ||
-        sentence.contains("عینک") ||
-        sentence.contains("ساعت مچی") ||
-        sentence.contains("جواهرات") ||
-        sentence.contains("زیورآلات") ||
-        sentence.contains("کت") ||
-        sentence.contains("شلوار") ||
-        sentence.contains("پیراهن") ||
-        sentence.contains("مانتو") ||
-        sentence.contains("چادر") -> Pair("Shopping", "خرید پوشاک و اکسسوری")
-      sentence.contains("قبض") ||
-        sentence.contains("برق") ||
-        sentence.contains("آب") ||
-        sentence.contains("گاز") ||
-        sentence.contains("تلفن") ||
-        sentence.contains("اینترنت") ||
-        sentence.contains("شارژ") ||
-        sentence.contains("فیبر") ||
-        sentence.contains("موبایل") ||
-        sentence.contains("tv") ||
-        sentence.contains("tv اشتراک") -> Pair("Bills", "پرداخت قبوض و شارژ")
-      sentence.contains("اصلاح") ||
-        sentence.contains("سالن") ||
-        sentence.contains("آرایشگاه") ||
-        sentence.contains("کوتاهی") ||
-        sentence.contains("رنگ مو") ||
-        sentence.contains("واکس") ||
-        sentence.contains("پدیکور") ||
-        sentence.contains("مانیکور") ||
-        sentence.contains("ماساژ") ||
-        sentence.contains("اسپا") ||
-        sentence.contains("فیشال") ||
-        sentence.contains("لیزر") ||
-        sentence.contains("کرم") ||
-        sentence.contains("شامپو") ||
-        sentence.contains("عطر") ||
-        sentence.contains("ادکلن") ||
-        sentence.contains("لوازم آرایش") ||
-        sentence.contains("آرایش") ||
-        sentence.contains("پیرایش") ||
-        sentence.contains("ابرو") ||
-        sentence.contains("ریمل") ||
-        sentence.contains("رژ لب") ||
-        sentence.contains("پودر") ||
-        sentence.contains("کانسیلر") ||
-        sentence.contains("بنز") ||
-        sentence.contains("سیگار") ||
-        sentence.contains("قلیان") ||
-        sentence.contains("قهوه خانه") ||
-        sentence.contains("چایخانه") ||
-        sentence.contains("هتل") ||
-        sentence.contains("اقامت") ||
-        sentence.contains("بلیط هواپیما") ||
-        sentence.contains("بلیط قطار") ||
-        sentence.contains("سفر") ||
-        sentence.contains("گردشگری") ||
-        sentence.contains("تفریح") ||
-        sentence.contains("سینما") ||
-        sentence.contains("تئاتر") ||
-        sentence.contains("کنسرت") ||
-        sentence.contains("بازی") ||
-        sentence.contains("ورزش") ||
-        sentence.contains("باشگاه") ||
-        sentence.contains("fitness") ||
-        sentence.contains("Gym") ||
-        sentence.contains("دارو") ||
-        sentence.contains("داروخانه") ||
-        sentence.contains("ویتامین") ||
-        sentence.contains("درمان") ||
-        sentence.contains("دندانپزشکی") ||
-        sentence.contains("چشم پزشکی") ||
-        sentence.contains("آزمایش") ||
-        sentence.contains("رادیولوژی") ||
-        sentence.contains("سونوگرافی") ||
-        sentence.contains("MRI") ||
-        sentence.contains("CT") ||
-        sentence.contains("تست") -> Pair("Personal Care", "هزینه شخصی، آرایشی و بهداشتی")
-      sentence.contains("کتاب") ||
-        sentence.contains("مجله") ||
-        sentence.contains("روزنامه") ||
-        sentence.contains("دوره آموزشی") ||
-        sentence.contains("کلاس") ||
-        sentence.contains("آموزش") ||
-        sentence.contains("مدرسه") ||
-        sentence.contains("دانشگاه") ||
-        sentence.contains("شهریه") ||
-        sentence.contains("سرویس مدرسه") ||
-        sentence.contains("لوازم تحریر") ||
-        sentence.contains("مداد") ||
-        sentence.contains("خودکار") ||
-        sentence.contains("دفتر") ||
-        sentence.contains("کاغذ") ||
-        sentence.contains("Printer") ||
-        sentence.contains("پرینتر") ||
-        sentence.contains("کارتریج") ||
-        sentence.contains("نرم افزار") ||
-        sentence.contains("اپلیکیشن") ||
-        sentence.contains("اشتراک") ||
-        sentence.contains("سرویس") ||
-        sentence.contains("service") ||
-        sentence.contains("membership") -> Pair("Education", "هزینه آموزش و تحصیل")
-      sentence.contains("اجاره") ||
-        sentence.contains("رهن") ||
-        sentence.contains("آپارتمان") ||
-        sentence.contains("خانه") ||
-        sentence.contains("ملک") ||
-        sentence.contains("زمین") ||
-        sentence.contains("ویلا") ||
-        sentence.contains("باغ") ||
-        sentence.contains("کلبه") ||
-        sentence.contains("اقامتگاه") ||
-        sentence.contains("هتل") ||
-        sentence.contains("مهمانخانه") ||
-        sentence.contains(KEYWORD_PARKING) ||
-        sentence.contains("انبار") ||
-        sentence.contains("دفتر کار") ||
-        sentence.contains("مغازه") ||
-        sentence.contains("فروشگاه") ||
-        sentence.contains("بازرگانی") ||
-        sentence.contains("شرکت") ||
-        sentence.contains("کارخانه") ||
-        sentence.contains("کارگاه") ||
-        sentence.contains("بیمه") ||
-        sentence.contains("مالیات") ||
-        sentence.contains(" عوارض شهرداری") ||
-        sentence.contains("شارژ آپارتمان") ||
-        sentence.contains("تعمیرات ساختمان") ||
-        sentence.contains("نقاشی ساختمان") ||
-        sentence.contains("لوله کشی") ||
-        sentence.contains("برقکاری") ||
-        sentence.contains("بنایی") ||
-        sentence.contains("سنگ") ||
-        sentence.contains("سیمان") ||
-        sentence.contains("آجر") ||
-        sentence.contains("چوب") ||
-        sentence.contains("MDF") ||
-        sentence.contains("لمینت") ||
-        sentence.contains("سرامیک") ||
-        sentence.contains("کاشی") ||
-        sentence.contains("شیرآلات") ||
-        sentence.contains("شوفاژ") ||
-        sentence.contains("کولر") ||
-        sentence.contains("بخاری") ||
-        sentence.contains("شومینه") ||
-        sentence.contains("پکیج") ||
-        sentence.contains("رادیاتور") ||
-        sentence.contains("لوله") -> Pair("Rent & Utilities", "هزینه اجاره، رهن و نگهداری ملک")
-      sentence.contains("قرض") ||
-        sentence.contains("وام") ||
-        sentence.contains("بدهی") ||
-        sentence.contains("قسط") ||
-        sentence.contains("چک") ||
-        sentence.contains("سفته") ||
-        sentence.contains("ضمانت") ||
-        sentence.contains("سود وام") ||
-        sentence.contains("جریمه") ||
-        sentence.contains("کارمزد") ||
-        sentence.contains("سود بانکی") ||
-        sentence.contains("بهره") ||
-        sentence.contains("سود مرکب") ||
-        sentence.contains("وام مسکن") ||
-        sentence.contains("وام خودرو") ||
-        sentence.contains("وام ازدواج") ||
-        sentence.contains("وام تحصیلی") ||
-        sentence.contains("وام ضربت") ||
-        sentence.contains("وام فوری") ||
-        sentence.contains("وام بازنشستگی") ||
-        sentence.contains("وام کارمندی") ||
-        sentence.contains("وام دولتی") ||
-        sentence.contains("وام خصوصی") ||
-        sentence.contains("وام بانکی") ||
-        sentence.contains("وام بدون بهره") ||
-        sentence.contains("وام با بهره") ||
-        sentence.contains("وام با سود") ||
-        sentence.contains("وام بدون سود") ||
-        sentence.contains("وام با کارمزد") ||
-        sentence.contains("وام بدون کارمزد") ||
-        sentence.contains("وام با ضمانت") ||
-        sentence.contains("وام بدون ضمانت") ||
-        sentence.contains("وام با چک") ||
-        sentence.contains("وام با سفته") ||
-        sentence.contains("وام با ضامن") ||
-        sentence.contains("وام بدون ضامن") -> Pair("Loans & Debt", "بدهی و وام")
-      sentence.contains("درآمد") ||
-        sentence.contains("حقوق") ||
-        sentence.contains("واریز") ||
-        sentence.contains(KEYWORD_OT) ||
-        sentence.contains("پاداش") ||
-        sentence.contains("بونوس") ||
-        sentence.contains("سود") ||
-        sentence.contains("دریافتی") ||
-        sentence.contains("واریزی") ||
-        sentence.contains("حقوقی") ||
-        sentence.contains("کارانه") ||
-        sentence.contains("فروش") ||
-        sentence.contains("درآمدزایی") ||
-        sentence.contains("حق بیمه") ||
-        sentence.contains("عیدی") ||
-        sentence.contains(" سنوات") ||
-        sentence.contains("پرداختی") ||
-        sentence.contains("حقوق ماه") ||
-        sentence.contains("حقوق اداره") ||
-        sentence.contains("حقوق شرکت") ||
-        sentence.contains("حقوقم") ||
-        sentence.contains("حقوقم رو") ||
-        sentence.contains("دریافت کردم") ||
-        sentence.contains("واریز شد") ||
-        sentence.contains("رسید") ||
-        sentence.contains("واریز کرد") ||
-        sentence.contains("فروش رفت") ||
-        sentence.contains("درآمد داشتم") ||
-        sentence.contains("پول درآوردم") ||
-        sentence.contains("سود کردم") ||
-        sentence.contains("بازدهی") ||
-        sentence.contains("return") ||
-        sentence.contains("profit") -> Pair("Income", "درآمد")
-      sentence.contains("هدیه") ||
-        sentence.contains("جشن") ||
-        sentence.contains("تولد") ||
-        sentence.contains("عروسی") ||
-        sentence.contains("نامزدی") ||
-        sentence.contains("سالگرد") ||
-        sentence.contains("مراسم") ||
-        sentence.contains("مهمانی") ||
-        sentence.contains("party") ||
-        sentence.contains("celebration") ||
-        sentence.contains("event") ||
-        sentence.contains("wedding") -> Pair("Events & Gifts", "جشن و هدیه")
-      sentence.contains("خیریه") ||
-        sentence.contains("صدقه") ||
-        sentence.contains("کمک") ||
-        sentence.contains(" donate") ||
-        sentence.contains("charity") ||
-        sentence.contains("philanthropy") -> Pair("Charity", "خیریه و کمک مالی")
-      sentence.contains(KEYWORD_INVESTMENT) ||
-        sentence.contains("خرید سهام") ||
-        sentence.contains("صندوق سرمایه") ||
-        sentence.contains("طلا") ||
-        sentence.contains("سکه") ||
-        sentence.contains("دلار") ||
-        sentence.contains("ارز") ||
-        sentence.contains("نفت") ||
-        sentence.contains("گاز") ||
-        sentence.contains("مسکن") ||
-        sentence.contains("زمین") ||
-        sentence.contains("باغ") ||
-        sentence.contains("بیمه عمر") ||
-        sentence.contains("بیمه تصادف") ||
-        sentence.contains("بیمه آتش سوزی") ||
-        sentence.contains("بیمه زلزله") ||
-        sentence.contains("بیمه سرقت") ||
-        sentence.contains("بیمه مسئولیت") -> Pair("Investment", KEYWORD_INVESTMENT)
-      else -> Pair("Other", "سایر هزینه‌ها")
-    }
+  // parseSentenceOffline now delegates to Rust — see below
 
-  private fun toArabicDigits(s: String): String =
-    s
-      .replace("۰", "0")
-      .replace("۱", "1")
-      .replace("۲", "2")
-      .replace("۳", "3")
-      .replace("۴", "4")
-      .replace("۵", "5")
-      .replace("۶", "6")
-      .replace("۷", "7")
-      .replace("۸", "8")
-      .replace("۹", "9")
-
-  private fun extractJalaliDaysFromNow(sentence: String): Int {
-    val jalaliMonths =
-      mapOf(
-        "فروردین" to 1,
-        "اردیبهشت" to 2,
-        "خرداد" to 3,
-        "تیر" to 4,
-        "مرداد" to 5,
-        "شهریور" to 6,
-        "مهر" to 7,
-        "آبان" to 8,
-        "آذر" to 9,
-        "دی" to 10,
-        "بهمن" to 11,
-        "اسفند" to 12
-      )
-
-    val today =
-      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-        .gregorianToJalali(System.currentTimeMillis())
-    val currentJalaliYear = today.year
-
-    for ((monthName, monthNum) in jalaliMonths) {
-      if (!sentence.contains(monthName)) continue
-      val dayPattern = "(\\d+|${toArabicDigitsRegex()})\\s*$monthName".toRegex()
-      val match = dayPattern.find(sentence)
-      val dayStr = match?.groupValues?.get(1) ?: continue
-      val day = toArabicDigits(dayStr).toIntOrNull() ?: continue
-      if (day < 1 || day > 31) continue
-      val target =
-        io.github.mojri.hesabyar.ui.JalaliCalendarHelper.jalaliToGregorian(
-          currentJalaliYear,
-          monthNum,
-          day
-        )
-      val targetDate = target.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-      val todayDate =
-        java.time.Instant
-          .ofEpochMilli(System.currentTimeMillis())
-          .atZone(java.time.ZoneId.systemDefault())
-          .toLocalDate()
-      val days =
-        java.time.temporal.ChronoUnit.DAYS
-          .between(todayDate, targetDate)
-      return days.toInt()
-    }
-    return 30
-  }
-
-  private fun toArabicDigitsRegex(): String = "[۰-۹]+"
-
+  /**
+   * Parse a sentence offline using the Rust core.
+   *
+   * Maps from Rust's [io.github.mojri.hesabyar.rust.ParsedResult] (which uses
+   * [TransactionType] enum) to the Kotlin [ParsedResult] (which uses a String type).
+   */
   fun parseSentenceOffline(rawSentence: String): ParsedResult {
-    AppLogger.d(TAG, "Using offline natural parser heuristics")
-    val sentence = PersianTextPreprocessor.preprocessPersianText(rawSentence)
-    val amountToman = PersianAmountParser.parseAmount(sentence)
-    val dateOffsetDays = extractDateOffset(sentence)
-    val (hour, minute) = extractTime(sentence)
-    val personName = extractPersonName(sentence)
-
-    val incomeKeywords =
-      listOf(
-        "حقوق",
-        "درآمد",
-        "واریز",
-        KEYWORD_OT,
-        "اضافه‌کار",
-        "دستمزد",
-        "پاداش",
-        "بونوس",
-        "bonus",
-        "سود",
-        "دریافتی",
-        "واریزی",
-        "حقوقی",
-        "کارانه",
-        "فروش",
-        "درآمدزایی",
-        "حق بیمه",
-        "عیدی",
-        " سنوات",
-        "پرداختی",
-        "حقوق ماه",
-        "حقوق اداره",
-        "حقوق شرکت",
-        "حقوقم",
-        "حقوقم رو",
-        "دریافت کردم",
-        "واریز شد",
-        "رسید",
-        "واریز کرد"
-      )
-    val expenseKeywords =
-      listOf(
-        "خریدم",
-        KEYWORD_PAYMENT,
-        "هزینه",
-        "قبض",
-        " اجاره",
-        "خرید",
-        "پول دادم",
-        "خرج",
-        KEYWORD_DID_PAY,
-        "دادم",
-        "رفت",
-        "گذاشتم",
-        KEYWORD_DID_PAY,
-        "اصلاح",
-        "سالن",
-        "آرایشگاه",
-        "کوتاهی مو",
-        "رنگ مو",
-        "واکس",
-        "پدیکور",
-        "مانیکور",
-        "ماساژ",
-        "اسپا",
-        "فیشال",
-        "لیزر",
-        "کرم",
-        "شامپو",
-        "عطر",
-        "ادکلن",
-        "لوازم آرایش",
-        "آرایش",
-        "پیرایش",
-        "ابرو",
-        "ریمل",
-        "رژ لب",
-        "پودر",
-        "کانسیلر",
-        "بنز",
-        "سیگار",
-        "قلیان",
-        "قهوه خانه",
-        "چایخانه",
-        "بستنی",
-        "هتل",
-        "اقامت",
-        "بلیط هواپیما",
-        "بلیط قطار",
-        "سفر",
-        "گردشگری",
-        "تفریح",
-        "سینما",
-        "تئاتر",
-        "کنسرت",
-        "بازی",
-        "ورزش",
-        "باشگاه",
-        "fitness",
-        "Gym",
-        "دارو",
-        "داروخانه",
-        "ویتامین",
-        "درمان",
-        "دندانپزشکی",
-        "چشم پزشکی",
-        "آزمایش",
-        "رادیولوژی",
-        "سونوگرافی",
-        "MRI",
-        "CT",
-        "تست",
-        "اجاره",
-        "رهن",
-        "آپارتمان",
-        "خانه",
-        "ملک",
-        "زمین",
-        "ویلا",
-        "باغ",
-        "کلبه",
-        "اقامتگاه",
-        "مهمانخانه",
-        KEYWORD_PARKING,
-        "انبار",
-        "دفتر کار",
-        "مغازه",
-        "فروشگاه",
-        "بازرگانی",
-        "شرکت",
-        "کارخانه",
-        "کارگاه",
-        "بیمه",
-        "مالیات",
-        " عوارض شهرداری",
-        "شارژ آپارتمان",
-        "تعمیرات ساختمان",
-        "نقاشی ساختمان",
-        "لوله کشی",
-        "برقکاری",
-        "بنایی",
-        "سنگ",
-        "سیمان",
-        "آجر",
-        "چوب",
-        "MDF",
-        "لمینت",
-        "سرامیک",
-        "کاشی",
-        "شیرآلات",
-        "شوفاژ",
-        "کولر",
-        "بخاری",
-        "شومینه",
-        "پکیج",
-        "رادیاتور",
-        "لوله",
-        "قرض",
-        "وام",
-        "بدهی",
-        "قسط",
-        "چک",
-        "سفته",
-        "ضمانت",
-        "سود وام",
-        "جریمه",
-        "کارمزد",
-        "سود بانکی",
-        "بهره",
-        "سود مرکب",
-        "وام مسکن",
-        "وام خودرو",
-        "وام ازدواج",
-        "وام تحصیلی",
-        "وام ضربت",
-        "وام فوری",
-        "وام بازنشستگی",
-        "وام کارمندی",
-        "هدیه",
-        "جشن",
-        "تولد",
-        "عروسی",
-        "نامزدی",
-        "سالگرد",
-        "مراسم",
-        "مهمانی",
-        "خیریه",
-        "صدقه",
-        " کمک",
-        KEYWORD_INVESTMENT,
-        "خرید سهام",
-        "صندوق سرمایه",
-        "طلا",
-        "سکه",
-        "دلار",
-        "ارز",
-        "نفت",
-        "بیمه عمر",
-        "بیمه تصادف",
-        "بیمه آتش سوزی",
-        "بیمه زلزله",
-        "بیمه سرقت",
-        "بیمه مسئولیت",
-        KEYWORD_HAVE_CLAIM,
-        KEYWORD_CREDITOR,
-        KEYWORD_DEBTOR
-      )
-    val isIncome = incomeKeywords.any { sentence.contains(it, ignoreCase = true) }
-    val isExpense = expenseKeywords.any { sentence.contains(it, ignoreCase = true) }
-
-    val classification = classifyType(sentence, isIncome, personName)
-    val confidence =
-      calculateConfidence(amountToman, isIncome, isExpense, personName, hour, classification.daysFromNow)
-
-    val parsed =
-      ParsedResult(
-        type = classification.type,
-        amount = amountToman * 10,
-        category = classification.category,
-        personName = personName,
-        description = classification.description,
-        daysFromNow = classification.daysFromNow,
-        title = classification.installmentTitle,
-        dateOffsetDays = dateOffsetDays,
-        hour = hour,
-        minute = minute,
-        confidence = confidence,
-        notes = classification.notes
-      )
-    if (PersianTextPreprocessor.validateParsedResult(parsed)) return parsed
-
-    return repairInvalidParsedResult(parsed, amountToman)
-  }
-
-  private fun repairInvalidParsedResult(
-    parsed: ParsedResult,
-    amountToman: Long
-  ): ParsedResult =
-    parsed.copy(
-      type = if (parsed.type in VALID_TYPES) parsed.type else TYPE_EXPENSE,
-      category = parsed.category.ifBlank { CATEGORY_OTHER },
-      amount = (amountToman * 10).coerceAtLeast(1),
-      hour = parsed.hour?.coerceIn(0, 23),
-      minute = parsed.minute?.coerceIn(0, 59)
-    )
-
-  private fun extractDateOffset(sentence: String): Int =
-    when {
-      sentence.contains("پریروز") -> -2
-      sentence.contains("دیروز") -> -1
-      sentence.contains(Regex("پسر?\\s*فردا")) -> 2
-      sentence.contains("فردا") -> 1
-      sentence.contains("امروز") -> 0
-      else -> 0
-    }
-
-  private fun extractTime(sentence: String): Pair<Int?, Int?> {
-    val hourRegex = "(ساعت|ساعتِ)\\s*([0-9۰-۹]+)".toRegex()
-    val hourMatch = hourRegex.find(sentence) ?: return Pair(null, null)
-    var hour = toArabicDigits(hourMatch.groupValues[2]).toIntOrNull() ?: return Pair(null, null)
-
-    // Detect Persian day-part modifiers and adjust hour
-    when {
-      sentence.contains("شب") && hour in 1..11 -> hour += 12
-      sentence.contains("عصر") && hour in 1..11 -> hour += 12
-      sentence.contains("بعدازظهر") && hour in 1..11 -> hour += 12
-      sentence.contains("بعد از ظهر") && hour in 1..11 -> hour += 12
-    }
-
-    if (sentence.contains("نیم")) {
-      return Pair(hour, 30)
-    }
-    val minRegex = "و\\s*([0-9۰-۹]+)\\s*(دقیقه)?".toRegex()
-    val minMatch = minRegex.find(sentence, hourMatch.range.last + 1)
-    val minute = minMatch?.let { toArabicDigits(it.groupValues[1]).toIntOrNull() }
-    return Pair(hour, minute)
-  }
-
-  private fun extractPersonName(sentence: String): String? {
-    val personRegex = "(به|از)\\s+([^\\s]+)".toRegex()
-    val personMatch = personRegex.find(sentence) ?: return null
-    val nameCandidate =
-      personMatch.groupValues[2]
-        .replace(KEYWORD_TOMAN, "")
-        .replace(KEYWORD_HAZAR, "")
-        .replace("قرض", "")
-        .trim()
-    return if (nameCandidate.length > 2 && nameCandidate != "من" && nameCandidate != "خودم") {
-      nameCandidate
-    } else {
-      null
-    }
-  }
-
-  private fun extractDescription(sentence: String): String {
-    val cleaned =
-      sentence
-        .replace("امروز", "")
-        .replace("دیروز", "")
-        .replace("پریروز", "")
-        .replace("فردا", "")
-        .replace("پسفردا", "")
-        .replace("پس فردا", "")
-        .replace("ساعت", "")
-        .replace("نیم", "")
-        .replace("دقیقه", "")
-        .replace(KEYWORD_HAZAR, "")
-        .replace(KEYWORD_TOMAN, "")
-        .replace("تومن", "")
-        .replace("میلیون", "")
-        .replace("ملیون", "")
-        .replace("میلیارد", "")
-        .replace(KEYWORD_HAVE_CLAIM, "")
-        .replace(KEYWORD_CREDITOR, "")
-        .replace(KEYWORD_DEBTOR, "")
-        .trim()
-        .replace("\\s+".toRegex(), " ")
-    return cleaned.ifBlank { sentence }
-  }
-
-  private fun extractSubject(sentence: String): String {
-    val fillerWords =
-      setOf(
-        "امروز",
-        "دیروز",
-        "پریروز",
-        "فردا",
-        "پسفردا",
-        "پس فردا",
-        "دیشب",
-        "شب",
-        "صبح",
-        "عصر",
-        "ظهر",
-        "شب قبل",
-        "ساعت",
-        "نیم",
-        "دقیقه",
-        "روز",
-        "خریدم",
-        "خرید",
-        "گرفتم",
-        "گرفت",
-        "دادم",
-        "داد",
-        KEYWORD_PAYMENT,
-        KEYWORD_DID_PAY,
-        "هزینه",
-        "خرج",
-        "واریز",
-        "واریز کردم",
-        "فروش",
-        "فروختم",
-        "فروش رفت",
-        "بابت",
-        "برای",
-        "از",
-        "به",
-        "تومان",
-        "تومن",
-        "هزار",
-        "میلیون",
-        "ملیون",
-        "میلیارد",
-        "قرض",
-        "وام",
-        "قسط"
-      )
-    val words = sentence.split("\\s+".toRegex()).filter { it.isNotEmpty() }
-    val meaningful =
-      words.filter { word ->
-        word.none { it.isDigit() } && word !in fillerWords
-      }
-    return meaningful.joinToString(" ").ifEmpty { sentence }
-  }
-
-  private fun categoryToDescription(
-    category: String,
-    subject: String,
-    sentence: String
-  ): String =
-    when (category) {
-      CATEGORY_FOOD -> "خرید مواد غذایی"
-      CATEGORY_TRANSPORTATION -> "هزینه حمل و نقل"
-      CATEGORY_SHOPPING -> "خرید پوشاک و اکسسوری"
-      CATEGORY_BILLS -> "پرداخت قبوض و شارژ"
-      CATEGORY_PERSONAL_CARE -> "هزینه شخصی"
-      CATEGORY_EDUCATION -> "هزینه آموزش"
-      CATEGORY_RENT_UTILITIES -> "هزینه ملک"
-      CATEGORY_LOANS_DEBT -> "بدهی و وام"
-      CATEGORY_INCOME -> "درآمد"
-      CATEGORY_EVENTS_GIFTS -> "جشن و هدیه"
-      CATEGORY_CHARITY -> "خیریه"
-      CATEGORY_INVESTMENT -> "سرمایه‌گذاری"
-      CATEGORY_OTHER -> subject
-      else -> extractDescription(sentence)
-    }
-
-  private fun classifyType(
-    sentence: String,
-    isIncome: Boolean,
-    personName: String?
-  ): TypeClassification {
-    classifyInstallment(sentence)?.let { return it }
-    classifyLoan(sentence, personName)?.let { return it }
-    if (isIncome) return classifyIncome(sentence)
-    return classifyExpense(sentence)
-  }
-
-  private fun classifyLoan(
-    sentence: String,
-    personName: String?
-  ): TypeClassification? {
-    val loanReceived = listOf("قرض گرفتم", "بدهکار شدم", "گرفتم از")
-    if (loanReceived.any { sentence.contains(it) }) {
-      return TypeClassification(
-        type = TYPE_LOAN_CREDITOR,
-        category = CATEGORY_LOANS,
-        description = "قرض گرفتن از ${personName ?: KEYWORD_CREDITOR}",
-        notes = "قرض جدید ثبت شده"
+    AppLogger.d(TAG, "Using offline Rust parser")
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .parseSentenceOfflineSync(rawSentence)
+    if (rustResult != null) {
+      return ParsedResult(
+        type = rustResult.txType.name,
+        amount = rustResult.amount,
+        category = rustResult.category,
+        personName = rustResult.personName,
+        description = rustResult.description,
+        daysFromNow = rustResult.daysFromNow,
+        title = rustResult.title,
+        dateOffsetDays = rustResult.dateOffsetDays,
+        hour = rustResult.hour,
+        minute = rustResult.minute,
+        confidence = rustResult.confidence,
+        notes = rustResult.notes
       )
     }
-    val loanGiven = listOf("قرض دادم", "طلبکار شدم", "دادم به", KEYWORD_HAVE_CLAIM)
-    if (loanGiven.any { sentence.contains(it) }) {
-      return TypeClassification(
-        type = TYPE_LOAN_DEBTOR,
-        category = CATEGORY_LOANS,
-        description = "قرض دادن به ${personName ?: KEYWORD_DEBTOR}",
-        notes = "طلب جدید ثبت شده"
-      )
-    }
-    return null
-  }
-
-  private fun classifyInstallment(sentence: String): TypeClassification? {
-    if (!sentence.contains("قسط")) return null
-
-    val installmentTitle =
-      when {
-        sentence.contains("ماشین") -> "قسط ماشین"
-        sentence.contains("خانه") || sentence.contains("مسکن") -> "قسط وام مسکن"
-        sentence.contains("وام") -> "قسط وام"
-        else -> "قسط جدید"
-      }
-
-    val isPaid =
-      listOf(KEYWORD_PAYMENT, "دادم", "تسویه")
-        .any { sentence.contains(it) }
-
-    return if (isPaid) {
-      TypeClassification(
-        type = TYPE_EXPENSE,
-        category = CATEGORY_INSTALLMENTS,
-        description = "پرداخت $installmentTitle",
-        installmentTitle = null,
-        daysFromNow = null,
-        notes = null
-      )
-    } else {
-      TypeClassification(
-        type = TYPE_INSTALLMENT,
-        category = CATEGORY_INSTALLMENTS,
-        description = "قسط آینده",
-        installmentTitle = installmentTitle,
-        daysFromNow = extractJalaliDaysFromNow(sentence),
-        notes = "قسط در انتظار پرداخت"
-      )
-    }
-  }
-
-  private fun classifyIncome(sentence: String): TypeClassification {
-    val subject = extractSubject(sentence)
-    val description =
-      when {
-        sentence.contains(KEYWORD_OT) || sentence.contains("اضافه‌کار") -> "دریافت اضافه کار"
-        sentence.contains("پاداش") -> "دریافت پاداش"
-        sentence.contains("دستمزد") -> "دریافت دستمزد"
-        sentence.contains("فروش") -> "درآمد از فروش ($subject)"
-        sentence.contains("سود") -> "دریافت سود"
-        sentence.contains("حقوق") -> "دریافت حقوق"
-        else -> "دریافت درآمد ($subject)"
-      }
-    return TypeClassification(
-      type = TYPE_INCOME,
-      category = CATEGORY_INCOME,
-      description = description
-    )
-  }
-
-  private fun classifyExpense(sentence: String): TypeClassification {
-    val (inferredCategory, _) = inferExpenseCategory(sentence)
-    val subject = extractSubject(sentence)
-    val normalizedCategory = normalizeCategory(inferredCategory)
-    val description =
-      if (normalizedCategory != inferredCategory) {
-        String.format(EXPENSE_DESCRIPTION_MISCELLANEOUS_FORMAT, subject)
-      } else {
-        val baseDescription = categoryToDescription(normalizedCategory, subject, sentence)
-        if (normalizedCategory == CATEGORY_OTHER) {
-          baseDescription
-        } else {
-          String.format(EXPENSE_DESCRIPTION_FORMAT, baseDescription, subject)
-        }
-      }
-    return TypeClassification(
+    // Ultimate fallback: empty result
+    AppLogger.w(TAG, "Rust parser returned null, returning minimal fallback")
+    return ParsedResult(
       type = TYPE_EXPENSE,
-      category = normalizedCategory,
-      description = description
+      amount = 0L,
+      category = CATEGORY_OTHER,
+      personName = null,
+      description = rawSentence,
+      daysFromNow = null,
+      title = null,
+      dateOffsetDays = 0,
+      hour = null,
+      minute = null,
+      confidence = 0f,
+      notes = null
     )
-  }
-
-  private fun normalizeCategory(category: String): String =
-    when (category) {
-      CATEGORY_FOOD, CATEGORY_TRANSPORTATION, CATEGORY_SHOPPING, CATEGORY_BILLS, CATEGORY_INSTALLMENTS,
-      CATEGORY_LOANS, CATEGORY_INCOME, CATEGORY_OTHER -> category
-      CATEGORY_LOANS_DEBT, CATEGORY_PERSONAL_CARE, CATEGORY_EDUCATION,
-      CATEGORY_RENT_UTILITIES, CATEGORY_EVENTS_GIFTS, CATEGORY_CHARITY, CATEGORY_INVESTMENT -> CATEGORY_OTHER
-      else -> CATEGORY_OTHER
-    }
-
-  private fun calculateConfidence(
-    amountToman: Long,
-    isIncome: Boolean,
-    isExpense: Boolean,
-    personName: String?,
-    hour: Int?,
-    daysFromNow: Int?
-  ): Float {
-    var factors = 0
-    if (amountToman > 0) factors++
-    if (isIncome || isExpense) factors++
-    if (personName != null) factors++
-    if (hour != null) factors++
-    if (daysFromNow != null) factors++
-    return when {
-      factors >= 4 -> 0.95f
-      factors >= 3 -> 0.90f
-      factors >= 2 -> 0.85f
-      factors >= 1 -> 0.75f
-      else -> 0.60f
-    }
   }
 
   suspend fun getBudgetAdvice(
@@ -1216,7 +345,17 @@ object GeminiParser {
       ) {
         is AiProvider.ApiResult.Success -> {
           AppLogger.d(TAG, "AI advice outcome received")
-          result.text
+          val validation =
+            io.github.mojri.hesabyar.rust.RustBridge
+              .validateAiAdvice(result.text)
+          if (!validation.isValid) {
+            AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
+            return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
+          }
+          if (validation.wasTruncated) {
+            AppLogger.d(TAG, "AI advice truncated: ${validation.warnings}")
+          }
+          validation.sanitizedText
         }
         is AiProvider.ApiResult.Failure -> {
           AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
@@ -1311,15 +450,6 @@ object GeminiParser {
     return sb.toString()
   }
 }
-
-private data class TypeClassification(
-  val type: String,
-  val category: String,
-  val description: String,
-  val installmentTitle: String? = null,
-  val daysFromNow: Int? = null,
-  val notes: String? = null
-)
 
 data class ParsedResult(
   val type: String,

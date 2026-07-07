@@ -31,6 +31,7 @@ const CONTEXT_KEYWORDS: &[&str] = &[
 ];
 
 /// Check if a sentence contains money-related keywords.
+#[uniffi::export]
 pub fn contains_money(sentence: &str) -> bool {
     let normalized = sentence.trim();
     UNIT_WORDS.iter().any(|&w| normalized.contains(w))

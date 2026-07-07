@@ -45,6 +45,14 @@ class BackupViewModel
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
 
+          if (backup == null) {
+            operationState.value =
+              BackupOperationState.Error(
+                "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
+              )
+            return@launch
+          }
+
           when (val result = manageBackupUseCase.validateBackup(backup)) {
             is BackupValidationResult.Invalid -> {
               operationState.value = BackupOperationState.ValidationFailed(result.errors)
@@ -165,6 +173,13 @@ class BackupViewModel
         try {
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
+          if (backup == null) {
+            operationState.value =
+              BackupOperationState.Error(
+                "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
+              )
+            return@launch
+          }
           manageBackupUseCase.importBackupFromFile(
             backup.transactions,
             backup.loans,

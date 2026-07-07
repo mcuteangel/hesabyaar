@@ -1,4 +1,5 @@
 ﻿/// Normalize Persian and Arabic characters to standard digits and clean text.
+#[uniffi::export]
 pub fn preprocess_persian_text(text: &str) -> String {
     text.replace("\u{060C}", ",")
         .replace("\u{066B}", ".")
@@ -31,6 +32,7 @@ pub fn preprocess_persian_text(text: &str) -> String {
 }
 
 /// Normalize money text by removing thousands separators and fixing spacing.
+#[uniffi::export]
 pub fn normalize_money_text(text: &str) -> String {
     let result = text.replace("\u{066C}", "").replace(',', "");
     // Replace " و " with single space
@@ -69,7 +71,8 @@ mod tests {
     #[test]
     fn test_preprocess_persian_text() {
         assert_eq!(preprocess_persian_text("۵۰۰ هزار"), "500 هزار");
-        assert_eq!(preprocess_persian_text("سلام  ،  خوبی"), "سلام ، خوبی");
+        // Persian comma (U+060C) is normalized to ASCII comma
+        assert_eq!(preprocess_persian_text("سلام  ،  خوبی"), "سلام , خوبی");
     }
 
     #[test]
@@ -81,7 +84,11 @@ mod tests {
 
     #[test]
     fn test_normalize_money_text() {
-        assert_eq!(normalize_money_text("۱٬۰۰۰"), "1000");
-        assert_eq!(normalize_money_text("۱,۰۰۰"), "1000");
+        // normalize_money_text only removes thousands separators; it does NOT convert digits.
+        // Digit conversion is handled separately by to_ascii_digits().
+        assert_eq!(normalize_money_text("۱٬۰۰۰"), "۱۰۰۰");
+        assert_eq!(normalize_money_text("۱,۰۰۰"), "۱۰۰۰");
+        assert_eq!(normalize_money_text("1,000"), "1000");
+        assert_eq!(normalize_money_text("۱۲۳٬۴۵۶"), "۱۲۳۴۵۶");
     }
 }

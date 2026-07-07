@@ -171,6 +171,14 @@ pub struct AnalyticsData {
     pub paid_installments: i32,
 }
 
+/// Backup payload for JSON export/import.
+///
+/// Serde's default behavior silently ignores unknown fields during
+/// deserialization. This means Kotlin can pass a JSON containing extra keys
+/// (e.g. `paymentHistories`, `budgets`, or any future field) and Rust will
+/// parse it without error — the extra fields are simply discarded.
+///
+/// Missing fields default to empty collections via `#[serde(default)]`.
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 pub struct BackupPayload {
     pub version: i32,
@@ -186,25 +194,131 @@ pub struct BackupPayload {
     pub categories: Vec<Category>,
 }
 
+impl Default for BackupPayload {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            timestamp: 0,
+            app_version: "1.0".to_string(),
+            transactions: Vec::new(),
+            loans: Vec::new(),
+            installments: Vec::new(),
+            categories: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum HesabyarError {
-    ParseError { message: String },
+    ParseError { detail: String },
     InvalidAmount { amount: String },
-    InvalidDate { message: String },
-    BackupValidation { message: String },
-    CalendarError { message: String },
+    InvalidDate { detail: String },
+    BackupValidation { detail: String },
+    CalendarError { detail: String },
+    CryptoError { detail: String },
+    ValidationError { detail: String },
 }
 
 impl std::fmt::Display for HesabyarError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ParseError { message } => write!(f, "Parse error: {}", message),
+            Self::ParseError { detail } => write!(f, "Parse error: {}", detail),
             Self::InvalidAmount { amount } => write!(f, "Invalid amount: {}", amount),
-            Self::InvalidDate { message } => write!(f, "Invalid date: {}", message),
-            Self::BackupValidation { message } => write!(f, "Backup validation: {}", message),
-            Self::CalendarError { message } => write!(f, "Calendar error: {}", message),
+            Self::InvalidDate { detail } => write!(f, "Invalid date: {}", detail),
+            Self::BackupValidation { detail } => write!(f, "Backup validation: {}", detail),
+            Self::CalendarError { detail } => write!(f, "Calendar error: {}", detail),
+            Self::CryptoError { detail } => write!(f, "Crypto error: {}", detail),
+            Self::ValidationError { detail } => write!(f, "Validation error: {}", detail),
         }
     }
 }
 
 impl std::error::Error for HesabyarError {}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct CategoryGuess {
+    pub category: String,
+    pub subcategory: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_backup_payload_ignores_unknown_fields() {
+        // Kotlin may include `paymentHistories` or other future fields.
+        // Rust must parse without error — extra fields are silently discarded.
+        let json = r#"{
+            "version": 1,
+            "timestamp": 1710000000000,
+            "app_version": "1.0.0",
+            "transactions": [],
+            "loans": [],
+            "installments": [],
+            "categories": [],
+            "paymentHistories": [{"id": 1, "amount": 50000}],
+            "budgets": [{"monthly_limit": 1000000}],
+            "futureField": "hello"
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.version, 1);
+        assert_eq!(payload.app_version, "1.0.0");
+        assert!(payload.transactions.is_empty());
+    }
+
+    #[test]
+    fn test_backup_payload_defaults_missing_collections() {
+        // If Kotlin omits collection fields entirely, they default to empty Vecs.
+        let json = r#"{
+            "version": 2,
+            "timestamp": 1710000000000,
+            "app_version": "2.0.0"
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.version, 2);
+        assert!(payload.transactions.is_empty());
+        assert!(payload.loans.is_empty());
+        assert!(payload.installments.is_empty());
+        assert!(payload.categories.is_empty());
+    }
+
+    #[test]
+    fn test_backup_payload_valid_round_trip() {
+        let original = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 10,
+                amount: 50000,
+                description: "Test".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+            }],
+            loans: vec![],
+            installments: vec![],
+            categories: vec![],
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.version, original.version);
+        assert_eq!(restored.transactions.len(), 1);
+        assert_eq!(restored.transactions[0].amount, 50000);
+    }
+
+    #[test]
+    fn test_backup_payload_rejects_invalid_version() {
+        let json = r#"{
+            "version": 0,
+            "timestamp": 0,
+            "app_version": "0.0.1"
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(crate::validate_backup(&payload).unwrap_err().to_string(), "Backup validation: Invalid backup version");
+    }
+}

@@ -3,6 +3,8 @@
 /.idea/
 /.vscode/
 .DS_Store
+*.hprof
+hs_err_pid*
 
 # Gradle
 .gradle/
@@ -45,3 +47,21 @@ docs/superpowers/
 # Rust
 /rust/target/
 **/target/
+
+# Rust build artifacts (cargo-ndk prebuilt libraries)
+app/src/main/jniLibs/
+
+# Native binary extensions (safety net for artifacts outside target/)
+*.so
+*.dll
+*.dylib
+*.a
+*.o
+*.pdb
+
+# Generated UniFFI intermediate files
+rust/uniffi/
+
+# Generated UniFFI bindings (run ./gradlew :app:generateAndFixBindings to regenerate)
+app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
+.serena/

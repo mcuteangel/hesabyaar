@@ -5,11 +5,6 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AnalyticsData
-import io.github.mojri.hesabyar.ui.CategoryBreakdown
-import io.github.mojri.hesabyar.ui.DebtSummary
-import io.github.mojri.hesabyar.ui.InstallmentProgress
-import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-import io.github.mojri.hesabyar.ui.MonthlyData
 
 class GetAnalyticsUseCase {
   fun computeAnalytics(
@@ -18,127 +13,61 @@ class GetAnalyticsUseCase {
     installments: List<Installment>,
     categories: List<Category>
   ): AnalyticsData {
-    val monthlyIncomeMap = mutableMapOf<String, Long>()
-    val monthlyExpenseMap = mutableMapOf<String, Long>()
-    val monthlyDataMap = mutableMapOf<String, MonthlyData>()
-
-    transactions.forEach { t ->
-      val jd = JalaliCalendarHelper.gregorianToJalali(t.date)
-      val key = "${jd.year}_${jd.month}"
-      val label = "${getJalaliMonthName(jd.month)} ${jd.year}"
-
-      val existing =
-        monthlyDataMap.getOrPut(key) {
-          MonthlyData(jd.year, jd.month, label, 0L, 0L)
-        }
-
-      if (t.type == "INCOME") {
-        monthlyIncomeMap[key] = (monthlyIncomeMap[key] ?: 0L) + t.amount
-        monthlyDataMap[key] = existing.copy(income = existing.income + t.amount)
-      } else {
-        monthlyExpenseMap[key] = (monthlyExpenseMap[key] ?: 0L) + t.amount
-        monthlyDataMap[key] = existing.copy(expense = existing.expense + t.amount)
-      }
-    }
-
-    val sortedMonthlyData = monthlyDataMap.values.sortedBy { it.jalaliYear * 100 + it.jalaliMonth }
-    val last6Months = sortedMonthlyData.takeLast(6)
-
-    val categoryTotals = mutableMapOf<Long, Long>()
-    transactions.filter { it.type == "EXPENSE" }.forEach { t ->
-      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] ?: 0L) + t.amount
-    }
-    val totalExpense = categoryTotals.values.sum()
-    val categoryBreakdown =
-      categoryTotals
-        .map { (catId, total) ->
-          val cat = categories.find { it.id == catId }
-          CategoryBreakdown(
-            categoryId = catId,
-            categoryName = cat?.name ?: "سایر",
-            color = cat?.color ?: 0xFF757575L,
-            total = total,
-            percentage = if (totalExpense > 0) total.toFloat() / totalExpense else 0f
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
+        transactions.map {
+          io.github.mojri.hesabyar.rust.Transaction(
+            id = it.id,
+            txType =
+              io.github.mojri.hesabyar.rust.TransactionType
+                .valueOf(it.type),
+            categoryId = it.categoryId,
+            amount = it.amount,
+            description = it.description,
+            personName = it.personName,
+            date = it.date,
+            dueDate = it.dueDate,
+            installmentId = it.installmentId
           )
-        }.sortedByDescending { it.total }
+        },
+        loans.map {
+          io.github.mojri.hesabyar.rust.Loan(
+            id = it.id,
+            personName = it.personName,
+            loanType = it.type,
+            originalAmount = it.originalAmount,
+            remainingAmount = it.remainingAmount,
+            description = it.description,
+            date = it.date,
+            isSettled = it.isSettled
+          )
+        },
+        installments.map {
+          io.github.mojri.hesabyar.rust.Installment(
+            id = it.id,
+            title = it.title,
+            amount = it.amount,
+            dueDate = it.dueDate,
+            isPaid = it.isPaid,
+            reminderEnabled = it.reminderEnabled,
+            notes = it.notes
+          )
+        },
+        categories.map {
+          io.github.mojri.hesabyar.rust.Category(
+            id = it.id,
+            name = it.name,
+            key = it.key,
+            icon = it.icon,
+            color = it.color,
+            categoryType = it.type,
+            isDefault = it.isDefault
+          )
+        }
+      )
 
-    val unsettledLoans = loans.filter { !it.isSettled }
-    val debtors =
-      unsettledLoans.filter { it.type == "DEBTOR" }.map { loan ->
-        DebtSummary(
-          personName = loan.personName,
-          originalAmount = loan.originalAmount,
-          remainingAmount = loan.remainingAmount,
-          type = loan.type,
-          progress =
-            if (loan.originalAmount > 0) {
-              (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
-        )
-      }
-    val creditors =
-      unsettledLoans.filter { it.type == "CREDITOR" }.map { loan ->
-        DebtSummary(
-          personName = loan.personName,
-          originalAmount = loan.originalAmount,
-          remainingAmount = loan.remainingAmount,
-          type = loan.type,
-          progress =
-            if (loan.originalAmount > 0) {
-              (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
-        )
-      }
-
-    val installmentProgress =
-      installments.map { inst ->
-        InstallmentProgress(
-          id = inst.id,
-          title = inst.title,
-          amount = inst.amount,
-          dueDate = inst.dueDate,
-          isPaid = inst.isPaid
-        )
-      }
-    val paidCount = installments.count { it.isPaid }
-    val totalCount = installments.size
-
-    val totalDebt = debtors.sumOf { it.remainingAmount }
-    val totalCredit = creditors.sumOf { it.remainingAmount }
-
-    return AnalyticsData(
-      monthlySpending = last6Months,
-      monthlyIncome = last6Months,
-      categoryBreakdown = categoryBreakdown,
-      debtors = debtors,
-      creditors = creditors,
-      activeLoans = unsettledLoans,
-      installmentProgress = installmentProgress,
-      totalInstallments = totalCount,
-      paidInstallments = paidCount,
-      totalDebt = totalDebt,
-      totalCredit = totalCredit
-    )
+    if (rustResult == null) return AnalyticsData()
+    return io.github.mojri.hesabyar.rust.RustMappers
+      .mapAnalyticsData(rustResult, loans, installments)
   }
-
-  private fun getJalaliMonthName(month: Int): String =
-    when (month) {
-      1 -> "فروردین"
-      2 -> "اردیبهشت"
-      3 -> "خرداد"
-      4 -> "تیر"
-      5 -> "مرداد"
-      6 -> "شهریور"
-      7 -> "مهر"
-      8 -> "آبان"
-      9 -> "آذر"
-      10 -> "دی"
-      11 -> "بهمن"
-      12 -> "اسفند"
-      else -> ""
-    }
 }

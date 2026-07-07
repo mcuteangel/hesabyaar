@@ -93,7 +93,19 @@ object BudgetAdvisor {
             temperature = 0.7
           )
       ) {
-        is AiProvider.ApiResult.Success -> result.text
+        is AiProvider.ApiResult.Success -> {
+          val validation =
+            io.github.mojri.hesabyar.rust.RustBridge
+              .validateAiAdvice(result.text)
+          if (!validation.isValid) {
+            AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
+            return@withContext getOfflineAdvice(transactions, categories)
+          }
+          if (validation.wasTruncated) {
+            AppLogger.d(TAG, "AI advice truncated: ${validation.warnings}")
+          }
+          validation.sanitizedText
+        }
         is AiProvider.ApiResult.Failure -> {
           AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
           getOfflineAdvice(transactions, categories)
@@ -120,100 +132,39 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     categories: List<Category>
   ): String {
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-
-    val categoryTotals =
-      transactions
-        .filter { it.type == "EXPENSE" }
-        .groupBy { it.categoryId }
-        .mapValues { entry -> entry.value.sumOf { it.amount } }
-
-    val highestCategoryId = categoryTotals.maxByOrNull { it.value }?.key
-    val highestCategory = categories.find { it.id == highestCategoryId }
-
-    val sb = java.lang.StringBuilder()
-    sb.append("### 💡 توصیه‌های هوشمند بودجه (تحلیل هوش مصنوعی محلی)\n\n")
-
-    if (transactions.isEmpty()) {
-      sb.append(
-        "شما هنوز هیچ تراکنشی ثبت نکرده‌اید. برای دریافت تحلیل وضعیت بودجه، ابتدا چند تراکنش در بخش‌های دیگر برنامه ثبت کنید تا دستیار شما شروع به کار کند."
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.getOfflineBudgetAdviceSync(
+        transactions.map {
+          io.github.mojri.hesabyar.rust.Transaction(
+            id = it.id,
+            txType =
+              io.github.mojri.hesabyar.rust.TransactionType
+                .valueOf(it.type),
+            categoryId = it.categoryId,
+            amount = it.amount,
+            description = it.description,
+            personName = it.personName,
+            date = it.date,
+            dueDate = it.dueDate,
+            installmentId = it.installmentId
+          )
+        },
+        categories.map {
+          io.github.mojri.hesabyar.rust.Category(
+            id = it.id,
+            name = it.name,
+            key = it.key,
+            icon = it.icon,
+            color = it.color,
+            categoryType = it.type,
+            isDefault = it.isDefault
+          )
+        }
       )
-      return sb.toString()
-    }
+    if (rustResult.isNotEmpty()) return rustResult
 
-    sb.append("بر اساس تحلیل تراکنش‌های ثبت شده شما در حسابیار، گزارش زیر آماده شده است:\n\n")
-
-    val ratio = if (totalIncome > 0) (totalExpense.toDouble() / totalIncome.toDouble()) else 2.0
-    if (ratio > 0.9) {
-      sb.append(
-        "⚠️ **ناترازی و زنگ خطر مالی:** میزان هزینه‌های شما بسیار نزدیک به درآمد یا فراتر از آن است (**${(ratio * 100).toInt()}%** از درآمد شما خرج شده است!). توصیه اکید داریم که با کنترل فوری خریدهای غیرضروری، جلوی کسری بودجه یا کشیده شدن به سمت بدهی بیشتر را بگیرید.\n\n"
-      )
-    } else if (ratio < 0.3 && totalIncome > 0) {
-      sb.append(
-        "✅ **وضعیت فوق‌العاده پس‌انداز:** شما موفق شده‌اید بیش از ۷۰٪ از کل درآمد خود را حفظ و پس‌انداز کنید! این یک دستاورد مالی استثنایی است. پیشنهاد مشاور شما این است که این سرمایه انباشته شده را راکد نگذاشته و بخشی از آن را در بازارهای سودده مثل طلا، بورس یا صندوق‌های درآمد ثابت سرمایه‌گذاری کنید.\n\n"
-      )
-    } else {
-      sb.append(
-        "⚖️ **تعادل نسبی بودجه:** وضعیت دخل و خرج شما نسبتاً متعادل است و حدود **${(100 - ratio * 100).toInt()}%** از درآمدتان را پس‌انداز کرده‌اید. تلاش کنید با چالش‌های کوچک مالی (مثل کاهش ۱۰ درصدی هزینه‌های تفریحی) این نرخ طلایی پس‌انداز را افزایش دهید.\n\n"
-      )
-    }
-
-    if (highestCategory != null) {
-      val catNameFarsi = highestCategory.name
-      val catExpense = categoryTotals[highestCategoryId] ?: 0L
-      sb.append("📊 ** تمرکز روی پرهزینه‌ترین بخش مخارج:**\n")
-      sb.append(
-        "بزرگترین کانون مخارج شما مربوط به دسته‌بندی **$catNameFarsi** با مجموع مبلغ **${formatAmountClean(
-          catExpense
-        )}** است.\n\n"
-      )
-      sb.append("💡 **پیشنهاد تخصصی مشاور:** ")
-      when (highestCategory.key) {
-        "Food" ->
-          sb.append(
-            "تدارک مواد غذایی خانگی به جای رستوران‌ها و کافه‌های غیرضروری و نوشتن لیست خریدهای خواربار قبل از مراجعه به فروشگاه، می‌تواند تا ۳۰ درصد هزینه‌های این دسته را کاهش دهد."
-          )
-        "Shopping" ->
-          sb.append(
-            "بسیاری از خریدهای پوشاک یا وسایل شخصی جنبه احساسی دارند. قانون ۲۴ ساعت را اجرا کنید: برای هر خرید غیرضروری، ۲۴ ساعت صبر کنید. اگر پس از آن همچنان مایل بودید، اقدام کنید."
-          )
-        "Transportation" ->
-          sb.append(
-            "هزینه‌های تردد خود را با استفاده ترکیبی از تاکسی‌های اشتراکی، مترو یا اتوبوس بهینه‌سازی کنید و تا حد امکان ترددهای انفرادی اتومبیل را محدود سازید."
-          )
-        "Bills" ->
-          sb.append(
-            "سرویس‌ها و اشتراک‌های آنلاین غیرضروری که کمتر استفاده می‌شوند را لغو کنید. همچنین رعایت الگوهای بهینه مصرف انرژی می‌تواند هزینه‌های ثابت قبوض را کاهش دهد."
-          )
-        "Installments" ->
-          sb.append(
-            "شما تعهدات قسطی سنگینی دارید. تا پایان یافتن اقساط فعلی، به هیچ عنوان خرید اقساطی یا تعهد مالی جدیدی برای خود ثبت نکنید."
-          )
-        "Loans" ->
-          sb.append(
-            "بازپرداخت بدهی‌ها روند خوبی دارد. بدهی‌های دارای اولویت یا مبالغ بالاتر را زودتر تصفیه کنید تا ذهن شما آسوده‌تر شود."
-          )
-        else ->
-          sb.append(
-            "سعی کنید جزئیات این هزینه‌های فرعی را ثبت کنید؛ نقاط تاریک مالی و هزینه‌های از دست رفته معمولا در این دسته‌بندی متفرقه مخفی می‌شوند."
-          )
-      }
-      sb.append("\n\n")
-    }
-
-    sb.append("📌 **قوانین و راهکارهای جادویی مدیریت منابع مالی:**\n")
-    sb.append(
-      "- **استراتژی ۵۰-۳۰-۲۰:** نیمی از درآمد را به اجاره و نیازهای اساسی، ۳۰ درصد را به علایق و خواسته‌ها و ۲۰ درصد باقیمانده را مستقیماً به پس‌انداز یا تسویه بدهی تخصیص دهید.\n"
-    )
-    sb.append(
-      "- **پیشگیری از فرار مخارج:** کوچک‌ترین فاکتورها مانند خرید آب‌معدنی یا کرایه کوتاه را هم در حسابیار ثبت کنید. مجموع این مبالغ ناچیز در انتهای ماه چشمگیر خواهد شد.\n"
-    )
-    sb.append(
-      "- **ایجاد صندوق اضطراری:** همیشه معادل ۳ الی ۶ برابر مخارج ماهانه خود را در یک حساب مجزا برای بروز حوادث غیرمترقبه ذخیره کنید تا ثبات مالی شما هرگز به لرزه در نیاید."
-    )
-
-    return sb.toString()
+    // Fallback: return empty message
+    return "هنوز تراکنشی ثبت نشده است."
   }
 
   suspend fun getBudgetForecast(
@@ -305,7 +256,21 @@ object BudgetAdvisor {
             temperature = 0.7
           )
       ) {
-        is AiProvider.ApiResult.Success -> result.text
+        is AiProvider.ApiResult.Success -> {
+          val validation =
+            io.github.mojri.hesabyar.rust.RustBridge
+              .validateAiAdvice(result.text)
+          if (!validation.isValid) {
+            AppLogger.w(TAG, "AI forecast failed validation, using offline: ${validation.warnings}")
+            "⚠️ پیش‌بینی هوش مصنوعی نامعتبر بود. پیش‌بینی محلی شما:\n\n" +
+              getOfflineForecast(transactions, loans, installments)
+          } else {
+            if (validation.wasTruncated) {
+              AppLogger.d(TAG, "AI forecast truncated: ${validation.warnings}")
+            }
+            validation.sanitizedText
+          }
+        }
         is AiProvider.ApiResult.Failure -> {
           AppLogger.e(TAG, "AI forecast failed: ${result.error}")
           "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" +
@@ -320,100 +285,94 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>
   ): String {
-    val unpaidInstallments = installments.filter { !it.isPaid }
-    val upcomingInstallmentsSum = unpaidInstallments.sumOf { it.amount }
-
-    // If system is empty, return static tip
-    if (transactions.isEmpty() && unpaidInstallments.isEmpty()) {
-      val message =
-        "هنوز اطلاعات تراکنش یا قسطی در حسابیار ثبت نشده است. لطفاً دخل و خرج‌های روزانه خود " +
-          "را وارد کنید تا پیش‌بینی هوشمند ماه آینده صادر شود."
-      return message
-    }
-
-    // Use a bounded window (last 90 days) to compute averages, avoiding all-time drift
-    val now = System.currentTimeMillis()
-    val windowStart = now - 90L * 24 * 60 * 60 * 1000
-    val recentTransactions = transactions.filter { it.date >= windowStart }
-    val recentIncome = recentTransactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val recentExpense = recentTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-
-    // Normalize 90-day sums to monthly (÷3) so the 30-day forecast uses monthly figures
-    val averageIncome = if (recentTransactions.any { it.type == "INCOME" }) recentIncome / 3 else 0L
-    val averageExpense = if (recentTransactions.any { it.type == "EXPENSE" }) recentExpense / 3 else 0L
-
-    val estimatedBalance = averageIncome - averageExpense - upcomingInstallmentsSum
-
-    val sb = StringBuilder()
-    sb.append("### 🔮 پیش‌بینی هوشمند وضعیت بودجه ماه آینده\n\n")
-
-    sb.append(
-      "بررسی روندهای آماری تراکنش‌های ثبت شده شما و مطابقت آن با اقساط سررسید آینده، خروجی‌های زیر را ترسیم می‌کند:\n\n"
-    )
-
-    sb.append("📋 **برآورد جریان نقدی ۳۰ روز پیش‌رو:**\n")
-    sb.append("- 💵 **درآمد تخمینی:** ${formatAmountClean(averageIncome)}\n")
-    sb.append("- 💸 **مخارج تخمینی:** ${formatAmountClean(averageExpense)}\n")
-    sb.append("- 🗓️ **تعهد اقساط در شرف سررسید:** ${formatAmountClean(upcomingInstallmentsSum)}\n")
-
-    val formattedEstimatedBalance = formatAmountClean(kotlin.math.abs(estimatedBalance))
-    if (estimatedBalance < 0) {
-      sb.append("\n### 🚨 هشدار هوشمند: ریسک کسری بودجه در ماه بعد!\n")
-      sb.append(
-        "با نگرانی خفیف به استحضار می‌رساند مخارج متوسط شما به همراه اقساط پیش رو، احتمالاً تراز نقدی شما در ماه آینده را با **کسری حدودی $formattedEstimatedBalance** روبرو خواهد کرد.\n\n"
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.getOfflineForecastSync(
+        transactions.map {
+          io.github.mojri.hesabyar.rust.Transaction(
+            id = it.id,
+            txType =
+              io.github.mojri.hesabyar.rust.TransactionType
+                .valueOf(it.type),
+            categoryId = it.categoryId,
+            amount = it.amount,
+            description = it.description,
+            personName = it.personName,
+            date = it.date,
+            dueDate = it.dueDate,
+            installmentId = it.installmentId
+          )
+        },
+        loans.map {
+          io.github.mojri.hesabyar.rust.Loan(
+            id = it.id,
+            personName = it.personName,
+            loanType = it.type,
+            originalAmount = it.originalAmount,
+            remainingAmount = it.remainingAmount,
+            description = it.description,
+            date = it.date,
+            isSettled = it.isSettled
+          )
+        },
+        installments.map {
+          io.github.mojri.hesabyar.rust.Installment(
+            id = it.id,
+            title = it.title,
+            amount = it.amount,
+            dueDate = it.dueDate,
+            isPaid = it.isPaid,
+            reminderEnabled = it.reminderEnabled,
+            notes = it.notes
+          )
+        }
       )
-      sb.append("💡 **اقدامات اصلاحی فوری:**\n")
-      sb.append(
-        "۱. **کنترل هزینه‌های غیرضروری:** برخی خریدهای چند روز اخیر مانند دسته‌بندی خرید یا تفریح را مسدود کنید.\n"
-      )
-      sb.append(
-        "۲. **اولویت بازپرداخت:** در اوایل ماه جدید، مبلغ اقساط آینده را سریعاً اولویت‌بندی کرده و کنار بگذارید تا با تاخیر و جریمه مواجه نشوید."
-      )
-    } else {
-      sb.append("\n### 🟢 هشدار هوشمند: وضعیت مالی پایدار و سبز\n")
-      sb.append(
-        "خوشبختانه بررسی الگوی دخل و خرج نشان می‌دهد جریان درآمدی شما برای پوشش مخارج جاری و تصفیه اقساط کاملاً کافی است و پیش‌بینی می‌شود ماه آینده را با **مازاد بودجه حدودی $formattedEstimatedBalance** پشت سر بگذارید.\n\n"
-      )
-      sb.append("💡 **اقدامات توصیه‌ای مشاور:**\n")
-      sb.append(
-        "۱. **پس‌انداز هدفمند:** پیشنهاد می‌شود بلافاصله پس از واریز درآمد جدید، حداقل ۱۵ درصد آن را به عنوان پس‌انداز طلایی به حساب مجزا انتقال دهید.\n"
-      )
-      sb.append(
-        "۲. **خاکریز امن سرمایه‌گذاری:** با انباشت مازاد نقدی، به تدریج اقدام به ساخت سبد دارایی پایدار نمایید."
-      )
-    }
+    if (rustResult.isNotEmpty()) return rustResult
 
-    return sb.toString()
+    return "هنوز اطلاعات کافی برای پیش‌بینی ثبت نشده است."
   }
 
   fun calculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
     monthlyIncome: Long
-  ): Double {
-    val monthlyDebtPayments =
-      installments.filter { !it.isPaid }.sumOf { it.amount } +
-        loans.filter { !it.isSettled && it.type == "CREDITOR" }.sumOf {
-          it.remainingAmount / 12
-        }
-    if (monthlyIncome <= 0 && monthlyDebtPayments > 0) return 1.0
-    if (monthlyIncome <= 0) return 0.0
-    return monthlyDebtPayments.toDouble() / monthlyIncome.toDouble()
-  }
+  ): Double =
+    io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
+      loans.map {
+        io.github.mojri.hesabyar.rust.Loan(
+          id = it.id,
+          personName = it.personName,
+          loanType = it.type,
+          originalAmount = it.originalAmount,
+          remainingAmount = it.remainingAmount,
+          description = it.description,
+          date = it.date,
+          isSettled = it.isSettled
+        )
+      },
+      installments.map {
+        io.github.mojri.hesabyar.rust.Installment(
+          id = it.id,
+          title = it.title,
+          amount = it.amount,
+          dueDate = it.dueDate,
+          isPaid = it.isPaid,
+          reminderEnabled = it.reminderEnabled,
+          notes = it.notes
+        )
+      },
+      monthlyIncome
+    )
 
   fun predictTimeToGoal(
     currentSavings: Long,
     monthlySavings: Long,
     goalAmount: Long
-  ): Int {
-    if (monthlySavings <= 0) return -1
-    val remaining = goalAmount - currentSavings
-    return if (remaining > 0) {
-      ((remaining + monthlySavings - 1) / monthlySavings).toInt()
-    } else {
-      0
-    }
-  }
+  ): Int =
+    io.github.mojri.hesabyar.rust.RustBridge.predictTimeToGoalSync(
+      currentSavings,
+      monthlySavings,
+      goalAmount
+    )
 
   fun getPersonalizedAdvice(
     transactions: List<Transaction>,
@@ -476,53 +435,56 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>
-  ): Int {
-    if (transactions.isEmpty()) return 0
-
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-    val balance = totalIncome - totalExpense
-
-    var score = 50
-
-    // Savings rate (max +25)
-    if (totalIncome > 0) {
-      val savingsRate = balance.toDouble() / totalIncome.toDouble()
-      score +=
-        when {
-          savingsRate >= 0.3 -> 25
-          savingsRate >= 0.2 -> 20
-          savingsRate >= 0.1 -> 10
-          savingsRate >= 0 -> 0
-          else -> -15
-        }
-    }
-
-    // Debt-to-income (max +15)
-    val debtRatio = calculateDebtToIncomeRatio(loans, installments, totalIncome)
-    score +=
-      when {
-        debtRatio <= 0.1 -> 15
-        debtRatio <= 0.2 -> 10
-        debtRatio <= 0.3 -> 5
-        debtRatio <= 0.4 -> 0
-        else -> -10
+  ): Int =
+    io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
+      transactions.map {
+        io.github.mojri.hesabyar.rust.Transaction(
+          id = it.id,
+          txType =
+            io.github.mojri.hesabyar.rust.TransactionType
+              .valueOf(it.type),
+          categoryId = it.categoryId,
+          amount = it.amount,
+          description = it.description,
+          personName = it.personName,
+          date = it.date,
+          dueDate = it.dueDate,
+          installmentId = it.installmentId
+        )
+      },
+      loans.map {
+        io.github.mojri.hesabyar.rust.Loan(
+          id = it.id,
+          personName = it.personName,
+          loanType = it.type,
+          originalAmount = it.originalAmount,
+          remainingAmount = it.remainingAmount,
+          description = it.description,
+          date = it.date,
+          isSettled = it.isSettled
+        )
+      },
+      installments.map {
+        io.github.mojri.hesabyar.rust.Installment(
+          id = it.id,
+          title = it.title,
+          amount = it.amount,
+          dueDate = it.dueDate,
+          isPaid = it.isPaid,
+          reminderEnabled = it.reminderEnabled,
+          notes = it.notes
+        )
+      },
+      categories.map {
+        io.github.mojri.hesabyar.rust.Category(
+          id = it.id,
+          name = it.name,
+          key = it.key,
+          icon = it.icon,
+          color = it.color,
+          categoryType = it.type,
+          isDefault = it.isDefault
+        )
       }
-
-    // Category diversification (+10 if spending across 3+ categories)
-    val expenseCategories =
-      transactions
-        .filter { it.type == "EXPENSE" }
-        .map { it.categoryId }
-        .distinct()
-        .size
-    score +=
-      when {
-        expenseCategories >= 5 -> 10
-        expenseCategories >= 3 -> 5
-        else -> 0
-      }
-
-    return score.coerceIn(0, 100)
-  }
+    )
 }

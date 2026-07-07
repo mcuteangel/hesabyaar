@@ -76,7 +76,5 @@ object UseCaseModule {
 
   @Provides
   @Singleton
-  fun provideExcelExporter(
-    @ApplicationContext context: Context
-  ): ExcelExporter = ExcelExporter(context)
+  fun provideExcelExporter(): ExcelExporter = ExcelExporter()
 }

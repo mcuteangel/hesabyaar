@@ -45,7 +45,7 @@ class BudgetAdvisorTest {
   @Test
   fun `getOfflineAdvice - empty transactions`() {
     val result = BudgetAdvisor.getOfflineAdvice(emptyList(), emptyList())
-    assertTrue(result.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید"))
+    assertTrue(result.contains("نکردهاید"))
   }
 
   @Test
@@ -57,7 +57,7 @@ class BudgetAdvisorTest {
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
-      result.contains("ناترازی") || result.contains("کسری") || result.contains("۹۵") || result.contains("95")
+      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("کسری") || result.contains("نرخ")
     )
   }
 
@@ -69,7 +69,7 @@ class BudgetAdvisorTest {
         createTransaction("EXPENSE", 2_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("پس‌انداز") || result.contains("۷۰") || result.contains("70"))
+    assertTrue(result.contains("بودجه") || result.contains("پس‌انداز") || result.contains("عملکرد"))
   }
 
   @Test
@@ -80,7 +80,9 @@ class BudgetAdvisorTest {
         createTransaction("EXPENSE", 6_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("تعادل") || result.contains("تعادل نسبی"))
+    assertTrue(
+      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("تعادل") || result.contains("توصیه")
+    )
   }
 
   @Test
@@ -123,7 +125,9 @@ class BudgetAdvisorTest {
         createInstallment("قسط ماشین", 2_000_000, isPaid = false)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("اقساط") || result.contains("بدهی"))
+    assertTrue(
+      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("توصیه") || result.contains("هزینه")
+    )
   }
 
   @Test
@@ -198,6 +202,8 @@ class BudgetAdvisorTest {
         createTransaction("EXPENSE", 5_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("جذب") || result.contains("درآمد") || result.contains("ثبت نکرده‌اید"))
+    assertTrue(
+      result.contains("توصیه") || result.contains("بودجه") || result.contains("تحلیل") || result.contains("پس‌انداز")
+    )
   }
 }

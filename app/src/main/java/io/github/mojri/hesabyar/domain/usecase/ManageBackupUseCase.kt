@@ -17,149 +17,176 @@ import org.json.JSONObject
 class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface
 ) {
-  fun parseBackupJson(jsonString: String): BackupPayload {
-    val root = JSONObject(jsonString)
+  fun parseBackupJson(jsonString: String): BackupPayload? {
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .parseBackupJsonSync(jsonString) ?: return null
 
-    val transactions = ArrayList<Transaction>()
-    val transArray = root.optJSONArray("transactions") ?: JSONArray()
-    for (i in 0 until transArray.length()) {
-      val obj = transArray.getJSONObject(i)
-      transactions.add(
-        Transaction(
-          id = obj.optLong("id", 0),
-          type = obj.getString("type"),
-          categoryId = obj.optLong("categoryId", 1L),
-          amount = obj.getLong("amount"),
-          description = obj.optString("description", ""),
-          personName = obj.optString("personName").let { if (it.isBlank()) null else it },
-          date = obj.optLong("date", System.currentTimeMillis()),
-          dueDate = obj.optLong("dueDate", 0L).let { if (it == 0L) null else it },
-          installmentId = obj.optLong("installmentId", 0L).let { if (it == 0L) null else it }
-        )
-      )
-    }
+    // Parse paymentHistories from raw JSON (Rust ignores unknown fields)
+    val paymentHistories: List<PaymentHistory> =
+      try {
+        val json = JSONObject(jsonString)
+        val arr = json.optJSONArray("paymentHistories")
+        if (arr != null) {
+          (0 until arr.length()).map { i ->
+            val obj = arr.getJSONObject(i)
+            PaymentHistory(
+              id = obj.optLong("id", 0L),
+              loanId = obj.optLong("loanId", 0L),
+              amount = obj.optLong("amount", 0L),
+              date = obj.optLong("date", System.currentTimeMillis()),
+              notes = obj.optString("notes", "")
+            )
+          }
+        } else {
+          emptyList()
+        }
+      } catch (_: Exception) {
+        emptyList()
+      }
 
-    val loans = ArrayList<Loan>()
-    val loansArray = root.optJSONArray("loans") ?: JSONArray()
-    for (i in 0 until loansArray.length()) {
-      val obj = loansArray.getJSONObject(i)
-      loans.add(
-        Loan(
-          id = obj.optLong("id", 0),
-          personName = obj.getString("personName"),
-          type = obj.getString("type"),
-          originalAmount = obj.getLong("originalAmount"),
-          remainingAmount = obj.getLong("remainingAmount"),
-          description = obj.optString("description", ""),
-          date = obj.optLong("date", System.currentTimeMillis()),
-          isSettled = obj.optBoolean("isSettled", false)
-        )
-      )
-    }
-
-    val installments = ArrayList<Installment>()
-    val instArray = root.optJSONArray("installments") ?: JSONArray()
-    for (i in 0 until instArray.length()) {
-      val obj = instArray.getJSONObject(i)
-      installments.add(
-        Installment(
-          id = obj.optLong("id", 0),
-          title = obj.getString("title"),
-          amount = obj.getLong("amount"),
-          dueDate = obj.getLong("dueDate"),
-          isPaid = obj.optBoolean("isPaid", false),
-          reminderEnabled = obj.optBoolean("reminderEnabled", true),
-          notes = obj.optString("notes", "")
-        )
-      )
-    }
-
-    val paymentHistories = ArrayList<PaymentHistory>()
-    val paymentsArray = root.optJSONArray("paymentHistories") ?: JSONArray()
-    for (i in 0 until paymentsArray.length()) {
-      val obj = paymentsArray.getJSONObject(i)
-      paymentHistories.add(
-        PaymentHistory(
-          id = obj.optLong("id", 0),
-          loanId = obj.getLong("loanId"),
-          amount = obj.getLong("amount"),
-          date = obj.optLong("date", System.currentTimeMillis()),
-          notes = obj.optString("notes", "")
-        )
-      )
-    }
-
-    val categories = ArrayList<Category>()
-    val catArray = root.optJSONArray("categories") ?: JSONArray()
-    for (i in 0 until catArray.length()) {
-      val obj = catArray.getJSONObject(i)
-      categories.add(
-        Category(
-          id = obj.optLong("id", 0),
-          name = obj.getString("name"),
-          key = obj.getString("key"),
-          icon = obj.optString("icon", "Paid"),
-          color = obj.optLong("color", 0xFF757575L),
-          type = obj.optString("type", "BOTH"),
-          isDefault = obj.optBoolean("isDefault", false)
-        )
-      )
-    }
-
-    val settingsObj = root.optJSONObject("settings")
-    val settings =
-      BackupSettings(
-        darkMode = settingsObj?.optBoolean("darkMode", true) ?: true
-      )
+    // Parse settings from raw JSON
+    val settings: BackupSettings =
+      try {
+        val json = JSONObject(jsonString)
+        val settingsObj = json.optJSONObject("settings")
+        if (settingsObj != null) {
+          BackupSettings(darkMode = settingsObj.optBoolean("darkMode", true))
+        } else {
+          BackupSettings()
+        }
+      } catch (_: Exception) {
+        BackupSettings()
+      }
 
     return BackupPayload(
-      version = root.optInt("version", 1),
-      timestamp = root.optLong("timestamp", System.currentTimeMillis()),
-      appVersion = root.optString("appVersion", "1.0"),
-      transactions = transactions,
-      loans = loans,
-      installments = installments,
+      version = rustResult.version,
+      timestamp = rustResult.timestamp,
+      appVersion = rustResult.appVersion,
+      transactions =
+        rustResult.transactions.map { tx ->
+          Transaction(
+            id = tx.id,
+            type = tx.txType.name,
+            categoryId = tx.categoryId,
+            amount = tx.amount,
+            description = tx.description,
+            personName = tx.personName,
+            date = tx.date,
+            dueDate = tx.dueDate,
+            installmentId = tx.installmentId
+          )
+        },
+      loans =
+        rustResult.loans.map { loan ->
+          Loan(
+            id = loan.id,
+            personName = loan.personName,
+            type = loan.loanType,
+            originalAmount = loan.originalAmount,
+            remainingAmount = loan.remainingAmount,
+            description = loan.description,
+            date = loan.date,
+            isSettled = loan.isSettled
+          )
+        },
+      installments =
+        rustResult.installments.map { inst ->
+          Installment(
+            id = inst.id,
+            title = inst.title,
+            amount = inst.amount,
+            dueDate = inst.dueDate,
+            isPaid = inst.isPaid,
+            reminderEnabled = inst.reminderEnabled,
+            notes = inst.notes
+          )
+        },
       paymentHistories = paymentHistories,
-      categories = categories,
+      categories =
+        rustResult.categories.map { cat ->
+          Category(
+            id = cat.id,
+            name = cat.name,
+            key = cat.key,
+            icon = cat.icon,
+            color = cat.color,
+            type = cat.categoryType,
+            isDefault = cat.isDefault
+          )
+        },
       settings = settings
     )
   }
 
   fun validateBackup(backup: BackupPayload): BackupValidationResult {
-    val errors = ArrayList<String>()
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.validateBackupPayloadSync(
+        io.github.mojri.hesabyar.rust.BackupPayload(
+          version = backup.version,
+          timestamp = backup.timestamp,
+          appVersion = backup.appVersion,
+          transactions =
+            backup.transactions.map { tx ->
+              io.github.mojri.hesabyar.rust.Transaction(
+                id = tx.id,
+                txType =
+                  io.github.mojri.hesabyar.rust.TransactionType
+                    .valueOf(tx.type),
+                categoryId = tx.categoryId,
+                amount = tx.amount,
+                description = tx.description,
+                personName = tx.personName,
+                date = tx.date,
+                dueDate = tx.dueDate,
+                installmentId = tx.installmentId
+              )
+            },
+          loans =
+            backup.loans.map { loan ->
+              io.github.mojri.hesabyar.rust.Loan(
+                id = loan.id,
+                personName = loan.personName,
+                loanType = loan.type,
+                originalAmount = loan.originalAmount,
+                remainingAmount = loan.remainingAmount,
+                description = loan.description,
+                date = loan.date,
+                isSettled = loan.isSettled
+              )
+            },
+          installments =
+            backup.installments.map { inst ->
+              io.github.mojri.hesabyar.rust.Installment(
+                id = inst.id,
+                title = inst.title,
+                amount = inst.amount,
+                dueDate = inst.dueDate,
+                isPaid = inst.isPaid,
+                reminderEnabled = inst.reminderEnabled,
+                notes = inst.notes
+              )
+            },
+          categories =
+            backup.categories.map { cat ->
+              io.github.mojri.hesabyar.rust.Category(
+                id = cat.id,
+                name = cat.name,
+                key = cat.key,
+                icon = cat.icon,
+                color = cat.color,
+                categoryType = cat.type,
+                isDefault = cat.isDefault
+              )
+            }
+        )
+      )
 
-    if (backup.version < 1) {
-      errors.add("نسخه پشتیبان نامعتبر است")
+    return if (rustResult.isValid) {
+      BackupValidationResult.Valid
+    } else {
+      BackupValidationResult.Invalid(rustResult.errors)
     }
-
-    for (tx in backup.transactions) {
-      if (tx.amount <= 0) {
-        errors.add("مبلغ تراکنش نامعتبر: ${tx.description}")
-      }
-      if (tx.type !in listOf("EXPENSE", "INCOME")) {
-        errors.add("نوع تراکنش نامعتبر: ${tx.type}")
-      }
-    }
-
-    for (loan in backup.loans) {
-      if (loan.originalAmount <= 0) {
-        errors.add("مبلغ وام نامعتبر: ${loan.personName}")
-      }
-      if (loan.type !in listOf("DEBTOR", "CREDITOR")) {
-        errors.add("نوع وام نامعتبر: ${loan.type}")
-      }
-    }
-
-    for (inst in backup.installments) {
-      if (inst.amount <= 0) {
-        errors.add("مبلغ قسط نامعتبر: ${inst.title}")
-      }
-    }
-
-    if (errors.isNotEmpty()) {
-      return BackupValidationResult.Invalid(errors)
-    }
-    return BackupValidationResult.Valid
   }
 
   suspend fun executeRestore(

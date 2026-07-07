@@ -14,7 +14,6 @@ import io.github.mojri.hesabyar.domain.usecase.ExportExcelUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,8 +33,7 @@ class ExportViewModel
         try {
           val result = exportExcelUseCase.export()
 
-          val savedPath = saveToDownloads(result.file)
-          result.file.delete()
+          val savedPath = saveToDownloads(result.filename, result.bytes)
 
           val summary =
             buildString {
@@ -57,16 +55,17 @@ class ExportViewModel
         } catch (e: SecurityException) {
           exportState.value =
             ExportState.Error(
-              "دسترسی به پوشه Downloads امکان‌پذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
+              "دسترسی به پوشه Downloads امکان\u200Cپذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
             )
         }
       }
     }
 
-    private suspend fun saveToDownloads(tempFile: File): String =
+    private suspend fun saveToDownloads(
+      fileName: String,
+      bytes: ByteArray
+    ): String =
       withContext(Dispatchers.IO) {
-        val fileName = tempFile.name
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           val contentValues =
             ContentValues().apply {
@@ -81,9 +80,7 @@ class ExportViewModel
               ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
 
           resolver.openOutputStream(uri)?.use { output ->
-            tempFile.inputStream().use { input ->
-              input.copyTo(output)
-            }
+            output.write(bytes)
           } ?: throw Exception("نوشتن فایل ناموفق بود")
 
           "Downloads/$fileName"
@@ -92,8 +89,8 @@ class ExportViewModel
           val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
           if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-          val destFile = File(downloadsDir, fileName)
-          tempFile.copyTo(destFile, overwrite = true)
+          val destFile = java.io.File(downloadsDir, fileName)
+          destFile.writeBytes(bytes)
 
           destFile.absolutePath
         }

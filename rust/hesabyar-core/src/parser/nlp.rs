@@ -362,7 +362,8 @@ fn classify_expense(sentence: &str) -> TypeClassification {
 pub fn extract_date_offset(sentence: &str) -> i32 {
     if sentence.contains("پریروز") { return -2; }
     if sentence.contains("دیروز") { return -1; }
-    if sentence.contains("پسر فردا") || sentence.contains("پسفردا") { return 2; }
+    // Check compact "پسفردا" before "فردا" to avoid false partial match
+    if sentence.contains("پسفردا") || sentence.contains("پسر فردا") || sentence.contains("پس فردا") { return 2; }
     if sentence.contains("فردا") { return 1; }
     if sentence.contains("امروز") { return 0; }
     0

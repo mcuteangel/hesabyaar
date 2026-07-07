@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "hesabyar-core"
 version.workspace = true
 edition.workspace = true
@@ -13,9 +13,11 @@ uniffi = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+aes-gcm = "0.10"
+sha2 = "0.10"
+rand = "0.8"
+rust_xlsxwriter = "0.80"
 
-[build-dependencies]
-uniffi = { workspace = true, features = ["build"] }
 
 [dev-dependencies]
 proptest = "1"
