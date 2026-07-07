@@ -60,13 +60,12 @@ Uses the configured AI provider for:
 
 ### Offline Mode
 
-Falls back to local rule-based parsing:
+Falls back to local rule-based parsing (now powered by Rust core via UniFFI):
 
-- `PersianAmountParser` — Token-based amount extraction
-- `MoneyDetector` — Determines if text contains money
-- `GeminiParser.parseSentenceOffline()` — Category inference + type detection
-- `BudgetAdvisor.getOfflineAdvice()` — Rule-based financial advice
-- `BudgetAdvisor.getOfflineForecast()` — Rule-based forecast
+- **Rust NLP Module** — 200+ keyword Persian text analysis (replaces `PersianAmountParser`, `MoneyDetector`, `PersianTextPreprocessor`)
+- `GeminiParser.parseSentenceOffline()` — Delegates to Rust for category inference + type detection
+- `BudgetAdvisor.getOfflineAdvice()` — Rule-based financial advice (Rust-backed)
+- `BudgetAdvisor.getOfflineForecast()` — Rule-based forecast (Rust-backed)
 
 ---
 
@@ -86,22 +85,20 @@ User Text → GeminiParser.parseSentence()
 
 ```
 User Text → GeminiParser.parseSentenceOffline()
-         → MoneyDetector.containsMoney() [gate check]
-         → PersianAmountParser.parseAmount() [tokenize + interpret]
-         → Category inference (keyword matching)
-         → Type detection (income/expense/loan/installment)
-         → Description generation
+         → RustBridge.parseSentenceOfflineSync() [Rust FFI call]
+         → Rust core: normalize → tokenize → infer category → detect type
          → ParsedResult returned
          → User confirms → Saved to Room
 ```
 
 ---
 
-## PersianAmountParser
+## Rust NLP Module (hesabyar-core)
 
-Token-based parser for extracting amounts from Persian text.
+The offline parsing pipeline was migrated from Kotlin to Rust for performance and accuracy.
+The Rust core handles: text preprocessing, amount parsing, category inference, and type detection.
 
-### Pipeline
+### Pipeline (Rust)
 
 1. **Normalize** — Convert Arabic/Persian digits to ASCII, remove separators
 2. **Tokenize** — Character-by-character scanner producing Number and Unit tokens
@@ -109,28 +106,7 @@ Token-based parser for extracting amounts from Persian text.
    - `interpretWithUnits` — Explicit units (میلیون, هزار, etc.)
    - `interpretShorthand` — Position-based ("5 و 400" = 5M + 400K)
    - `interpretBareLast` — Fallback to last number
-
-### Unit Cascade
-
-When a number appears after a unit, the next number without a unit inherits a lower unit:
-
-- `1 میلیارد 250 میلیون` → 1B + 250M
-- `5 میلیون 400 هزار` → 5M + 400K
-
----
-
-## MoneyDetector
-
-Gates amount parsing to prevent false positives.
-
-**Detects:**
-
-- Unit words: هزار, میلیون, میلیارد, تومان, تومن
-- Context keywords: خریدم, پرداخت, هزینه, حقوق, درآمد, قرض, وام, etc.
-
-Returns `false` for non-money sentences (time, PIN codes, etc.).
-
----
+4. **Classify** — 200+ keyword matching for category inference and type detection
 
 ## Caching Strategy
 

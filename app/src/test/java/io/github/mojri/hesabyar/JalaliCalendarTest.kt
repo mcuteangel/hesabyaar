@@ -54,7 +54,10 @@ class JalaliCalendarTest {
     for ((gYear, gMonth, gDay) in dates) {
       val jd = JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
       val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)
-      if (gc.timeInMillis == 0L) continue // jalaliToGregorian doesn't support this date range
+      assertTrue(
+        "jalaliToGregorian should return non-zero for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
+        gc.timeInMillis != 0L
+      )
       assertEquals("Year mismatch for $gYear/$gMonth/$gDay", gYear, gc.get(Calendar.YEAR))
       assertEquals("Month mismatch for $gYear/$gMonth/$gDay", gMonth - 1, gc.get(Calendar.MONTH))
       assertEquals("Day mismatch for $gYear/$gMonth/$gDay", gDay, gc.get(Calendar.DAY_OF_MONTH))

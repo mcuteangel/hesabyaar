@@ -17,7 +17,7 @@ fn bench_parse_amount(c: &mut Criterion) {
 
 fn bench_money_detector(c: &mut Criterion) {
     c.bench_function("contains_money", |b| {
-        b.iter(|| contains_money("\u{0655}\u{06F0}\u{06F0}\u{06F0} \u{0647}\u{0632}\u{0627}\u{0631} \u{062A}\u{0648}\u{0645}\u{0646}"))
+        b.iter(|| contains_money("\u{06F5}\u{06F0}\u{06F0}\u{06F0} \u{0647}\u{0632}\u{0627}\u{0631} \u{062A}\u{0648}\u{0645}\u{0646}"))
     });
 }
 

@@ -57,7 +57,7 @@ class BudgetAdvisorTest {
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
-      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("کسری") || result.contains("نرخ")
+      result.contains("کسری") || result.contains("مخارج") || result.contains("بیش از درآمد")
     )
   }
 
@@ -69,7 +69,7 @@ class BudgetAdvisorTest {
         createTransaction("EXPENSE", 2_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("بودجه") || result.contains("پس‌انداز") || result.contains("عملکرد"))
+    assertTrue(result.contains("عملکرد") || result.contains("فوق‌العاده") || result.contains("۸۰٪"))
   }
 
   @Test
@@ -81,7 +81,7 @@ class BudgetAdvisorTest {
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
-      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("تعادل") || result.contains("توصیه")
+      result.contains("پس‌انداز") || result.contains("۴۰٪")
     )
   }
 
@@ -124,9 +124,9 @@ class BudgetAdvisorTest {
       listOf(
         createInstallment("قسط ماشین", 2_000_000, isPaid = false)
       )
-    val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
+    val result = BudgetAdvisor.getOfflineAdvice(transactions, installments)
     assertTrue(
-      result.contains("پس‌انداز") || result.contains("بودجه") || result.contains("توصیه") || result.contains("هزینه")
+      result.contains("اقساط") || result.contains("قسط") || result.contains("سررسید")
     )
   }
 
@@ -203,7 +203,7 @@ class BudgetAdvisorTest {
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
-      result.contains("توصیه") || result.contains("بودجه") || result.contains("تحلیل") || result.contains("پس‌انداز")
+      result.contains("درآمد") || result.contains("ثبت نکرده") || result.contains("هزینه")
     )
   }
 }
