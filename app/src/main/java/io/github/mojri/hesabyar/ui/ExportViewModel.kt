@@ -57,6 +57,11 @@ class ExportViewModel
             ExportState.Error(
               "دسترسی به پوشه Downloads امکان\u200Cپذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
             )
+        } catch (e: Exception) {
+          exportState.value =
+            ExportState.Error(
+              "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+            )
         }
       }
     }

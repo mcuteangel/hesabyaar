@@ -46,6 +46,9 @@ pub fn validate_loan(loan: &Loan) -> Result<(), String> {
     if loan.person_name.is_empty() {
         return Err("Loan person_name must not be empty".into());
     }
+    if loan.date <= 0 {
+        return Err("Loan date must be positive".into());
+    }
     if loan.original_amount <= 0 {
         return Err("Loan original_amount must be positive".into());
     }

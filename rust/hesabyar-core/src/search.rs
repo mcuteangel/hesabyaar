@@ -75,6 +75,11 @@ fn text_similarity(query: &str, target: &str) -> f32 {
     let norm_query = normalize_for_search(query);
     let norm_target = normalize_for_search(target);
 
+    // Treat whitespace-only input as no match
+    if norm_query.is_empty() || norm_target.is_empty() {
+        return 0.0;
+    }
+
     if norm_query == norm_target {
         return 1.0;
     }
@@ -105,14 +110,16 @@ fn text_similarity(query: &str, target: &str) -> f32 {
     // Bonus for consecutive word matches
     let consecutive_bonus = if matched_words > 1 {
         let mut consecutive = 0;
+        let mut max_consecutive = 0;
         for qw in &query_words {
             if target_words.iter().any(|tw| tw.contains(*qw)) {
                 consecutive += 1;
+                max_consecutive = max_consecutive.max(consecutive);
             } else {
                 consecutive = 0;
             }
         }
-        (consecutive as f32 / query_words.len() as f32) * 0.1
+        (max_consecutive as f32 / query_words.len() as f32) * 0.1
     } else {
         0.0
     };

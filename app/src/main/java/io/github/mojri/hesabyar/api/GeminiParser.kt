@@ -204,7 +204,7 @@ object GeminiParser {
    * Maps from Rust's [io.github.mojri.hesabyar.rust.ParsedResult] (which uses
    * [TransactionType] enum) to the Kotlin [ParsedResult] (which uses a String type).
    */
-  fun parseSentenceOffline(rawSentence: String): ParsedResult {
+  fun parseSentenceOffline(rawSentence: String): ParsedResult? {
     AppLogger.d(TAG, "Using offline Rust parser")
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge
@@ -225,22 +225,9 @@ object GeminiParser {
         notes = rustResult.notes
       )
     }
-    // Ultimate fallback: empty result
-    AppLogger.w(TAG, "Rust parser returned null, returning minimal fallback")
-    return ParsedResult(
-      type = TYPE_EXPENSE,
-      amount = 0L,
-      category = CATEGORY_OTHER,
-      personName = null,
-      description = rawSentence,
-      daysFromNow = null,
-      title = null,
-      dateOffsetDays = 0,
-      hour = null,
-      minute = null,
-      confidence = 0f,
-      notes = null
-    )
+    // Return null to indicate parsing failure — callers should not create zero-amount transactions
+    AppLogger.w(TAG, "Rust parser returned null, returning null to indicate failure")
+    return null
   }
 
   suspend fun getBudgetAdvice(

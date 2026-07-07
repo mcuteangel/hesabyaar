@@ -104,13 +104,7 @@ object RustBridge {
   // ===========================================================================
 
   fun parseSentenceOfflineSync(rawSentence: String): ParsedResult? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.parseSentenceOffline(rawSentence)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.parseSentenceOffline(rawSentence) }
 
   fun inferExpenseCategorySync(sentence: String): CategoryGuess =
     rustCallSync(CategoryGuess(category = "Other", subcategory = "")) {
@@ -149,13 +143,7 @@ object RustBridge {
     ) { HesabyarCore.validateAiAdvice(text) }
 
   fun parseAiTransactionJsonSync(json: String): AiParsedTransaction? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.parseAiTransactionJson(json)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.parseAiTransactionJson(json) }
 
   // ===========================================================================
   // Validation (all throw on error)
@@ -163,42 +151,26 @@ object RustBridge {
 
   fun validateTransactionSync(transaction: Transaction): Boolean =
     rustCallSync(false) {
-      try {
-        HesabyarCore.validateTransaction(transaction)
-        true
-      } catch (_: Exception) {
-        false
-      }
+      HesabyarCore.validateTransaction(transaction)
+      true
     }
 
   fun validateLoanSync(loan: Loan): Boolean =
     rustCallSync(false) {
-      try {
-        HesabyarCore.validateLoan(loan)
-        true
-      } catch (_: Exception) {
-        false
-      }
+      HesabyarCore.validateLoan(loan)
+      true
     }
 
   fun validateInstallmentSync(installment: Installment): Boolean =
     rustCallSync(false) {
-      try {
-        HesabyarCore.validateInstallment(installment)
-        true
-      } catch (_: Exception) {
-        false
-      }
+      HesabyarCore.validateInstallment(installment)
+      true
     }
 
   fun validateParsedResultSync(result: ParsedResult): Boolean =
     rustCallSync(false) {
-      try {
-        HesabyarCore.validateParsedResult(result)
-        true
-      } catch (_: Exception) {
-        false
-      }
+      HesabyarCore.validateParsedResult(result)
+      true
     }
 
   // ===========================================================================
@@ -248,26 +220,14 @@ object RustBridge {
     installments: List<Installment>,
     categories: List<Category>
   ): AnalyticsData? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.computeAnalytics(transactions, loans, installments, categories)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.computeAnalytics(transactions, loans, installments, categories) }
 
   fun computeDashboardDataSync(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>
   ): DashboardData? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.computeDashboardData(transactions, loans, installments)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.computeDashboardData(transactions, loans, installments) }
 
   // ===========================================================================
   // Search
@@ -286,13 +246,7 @@ object RustBridge {
   // ===========================================================================
 
   fun parseBackupJsonSync(json: String): BackupPayload? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.parseBackupJson(json)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.parseBackupJson(json) }
 
   fun validateBackupPayloadSync(payload: BackupPayload): ValidationResult =
     rustCallSync(ValidationResult(isValid = false, errors = emptyList())) {
@@ -307,37 +261,19 @@ object RustBridge {
   }
 
   fun exportBackupJsonSync(payload: BackupPayload): String =
-    rustCallSync("") {
-      try {
-        HesabyarCore.exportBackupJson(payload)
-      } catch (_: Exception) {
-        ""
-      }
-    }
+    rustCallSync("") { HesabyarCore.exportBackupJson(payload) }
 
   fun buildEncryptedBackupFileSync(
     json: String,
     key: ByteArray
   ): ByteArray? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.buildEncryptedBackupFile(json, key)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.buildEncryptedBackupFile(json, key) }
 
   fun parseEncryptedBackupFileSync(
     data: ByteArray,
     key: ByteArray
   ): String? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.parseEncryptedBackupFile(data, key)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.parseEncryptedBackupFile(data, key) }
 
   // ===========================================================================
   // Checksums
@@ -355,11 +291,5 @@ object RustBridge {
   // ===========================================================================
 
   fun generateExcel(workbook: WorkbookData): ByteArray? =
-    rustCallSync(null) {
-      try {
-        HesabyarCore.generateExcel(workbook)
-      } catch (_: Exception) {
-        null
-      }
-    }
+    rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
 }

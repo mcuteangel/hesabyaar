@@ -39,9 +39,9 @@ class ExcelExporter {
       )
 
     val bytes = RustBridge.generateExcel(WorkbookData(sheets))
+      ?: throw IllegalStateException("Rust Excel generation failed or unavailable")
 
     return ExportResult(
-      bytes = bytes ?: ByteArray(0),
       filename = generateFilename(),
       transactionCount = transactions.size,
       incomeCount = incomeTransactions.size,
@@ -53,11 +53,16 @@ class ExcelExporter {
 
   // ─── Sheet builders ──────────────────────────────────────────────
 
+  private companion object {
+    const val HEADER_CATEGORY = "دسته\u200Cبندی"
+    const val HEADER_DESCRIPTION = "توضیحات"
+  }
+
   private fun buildTransactionsSheet(
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>
   ): SheetData {
-    val headers = listOf("ردیف", "نوع", "دسته\u200Cبندی", "مبلغ", "توضیحات", "تاریخ")
+    val headers = listOf("ردیف", "نوع", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
       transactions.map { tx ->
         listOf(
@@ -76,7 +81,7 @@ class ExcelExporter {
     incomeTransactions: List<Transaction>,
     categoryMap: Map<Long, Category>
   ): SheetData {
-    val headers = listOf("ردیف", "دسته\u200Cبندی", "مبلغ", "توضیحات", "تاریخ")
+    val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
       incomeTransactions.map { tx ->
         listOf(
@@ -103,7 +108,7 @@ class ExcelExporter {
     expenseTransactions: List<Transaction>,
     categoryMap: Map<Long, Category>
   ): SheetData {
-    val headers = listOf("ردیف", "دسته\u200Cبندی", "مبلغ", "توضیحات", "تاریخ")
+    val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
       expenseTransactions.map { tx ->
         listOf(

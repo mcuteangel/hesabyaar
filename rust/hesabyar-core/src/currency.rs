@@ -1,10 +1,11 @@
-﻿use crate::models::CurrencyUnit;
+use crate::models::CurrencyUnit;
 
 /// Format a Rial amount as a string with thousand separators.
 /// The output uses Persian locale formatting.
 #[uniffi::export]
 pub fn format_number(value: i64) -> String {
-    let s = value.to_string();
+    let negative = value < 0;
+    let s = if negative { (-value).to_string() } else { value.to_string() };
     let mut result = String::new();
     let len = s.len();
     for (i, c) in s.chars().enumerate() {
@@ -12,6 +13,9 @@ pub fn format_number(value: i64) -> String {
             result.push(',');
         }
         result.push(c);
+    }
+    if negative {
+        result.insert(0, '-');
     }
     result
 }
@@ -91,6 +95,13 @@ mod tests {
     #[test]
     fn test_format_number_billions() {
         assert_eq!(format_number(1234567890), "1,234,567,890");
+    }
+
+    #[test]
+    fn test_format_number_negative() {
+        assert_eq!(format_number(-100), "-100");
+        assert_eq!(format_number(-1000), "-1,000");
+        assert_eq!(format_number(-1234567), "-1,234,567");
     }
 
     // =====================================================================

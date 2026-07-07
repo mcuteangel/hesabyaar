@@ -1,4 +1,4 @@
-﻿use super::money_detector::contains_money;
+use super::money_detector::contains_money;
 use super::text_preprocessor::{normalize_money_text, to_ascii_digits};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,7 +143,7 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
         UnitType::Million.multiplier() as f64,
         UnitType::Thousand.multiplier() as f64,
     ];
-    let start_idx = (3 - numbers.len()).max(0);
+    let start_idx = (3_usize).saturating_sub(numbers.len());
 
     let mut total: f64 = 0.0;
     for (i, num) in numbers.iter().enumerate() {

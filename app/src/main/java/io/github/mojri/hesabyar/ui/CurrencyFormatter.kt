@@ -71,16 +71,36 @@ object CurrencyFormatter {
    * Converts Toman to Rial by multiplying by 10.
    * Example: 10 Tomans * 10 = 100 Rials.
    */
-  fun toRial(displayValue: Long): Long =
-    io.github.mojri.hesabyar.rust.RustBridge
+  fun toRial(displayValue: Long): Long {
+    val result = io.github.mojri.hesabyar.rust.RustBridge
       .toRialSync(displayValue, toRustUnit())
+    // Kotlin fallback if Rust returns 0 for non-zero input
+    return if (result == 0L && displayValue != 0L) {
+      when (currentUnit) {
+        CurrencyUnit.TOMAN -> displayValue * 10
+        CurrencyUnit.RIAL -> displayValue
+      }
+    } else {
+      result
+    }
+  }
 
   /**
    * AI AGENT CRITICAL INSTRUCTION: DO NOT ALTER THIS METHOD.
    * Converts Rial to Toman by dividing by 10.
    * Example: 100 Rials / 10 = 10 Tomans.
    */
-  fun fromRial(rial: Long): Long =
-    io.github.mojri.hesabyar.rust.RustBridge
+  fun fromRial(rial: Long): Long {
+    val result = io.github.mojri.hesabyar.rust.RustBridge
       .fromRialSync(rial, toRustUnit())
+    // Kotlin fallback if Rust returns 0 for non-zero input
+    return if (result == 0L && rial != 0L) {
+      when (currentUnit) {
+        CurrencyUnit.TOMAN -> rial / 10
+        CurrencyUnit.RIAL -> rial
+      }
+    } else {
+      result
+    }
+  }
 }

@@ -26,7 +26,7 @@ object JalaliCalendarHelper {
     val packed =
       io.github.mojri.hesabyar.rust.RustBridge
         .gregorianToJalaliSync(timestamp)
-    if (packed == 0L) return JalaliDate(0, 0, 0)
+    if (packed == 0L || packed == Long.MIN_VALUE) return JalaliDate(0, 0, 0)
     val year = (packed shr 16).toInt()
     val month = ((packed shr 8) and 0xFF).toInt()
     val day = (packed and 0xFF).toInt()
@@ -52,7 +52,12 @@ object JalaliCalendarHelper {
       io.github.mojri.hesabyar.rust.RustBridge
         .jalaliToGregorianSync(jYear, jMonth, jDay)
     val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-    cal.timeInMillis = timestampMs
+    if (timestampMs == Long.MIN_VALUE) {
+      // Fallback: use Java calendar for invalid conversions
+      cal.set(jYear, jMonth - 1, jDay)
+    } else {
+      cal.timeInMillis = timestampMs
+    }
     return cal
   }
 }

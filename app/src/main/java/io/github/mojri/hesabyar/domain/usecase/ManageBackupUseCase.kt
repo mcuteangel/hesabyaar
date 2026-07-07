@@ -28,15 +28,19 @@ class ManageBackupUseCase(
         val json = JSONObject(jsonString)
         val arr = json.optJSONArray("paymentHistories")
         if (arr != null) {
-          (0 until arr.length()).map { i ->
-            val obj = arr.getJSONObject(i)
-            PaymentHistory(
-              id = obj.optLong("id", 0L),
-              loanId = obj.optLong("loanId", 0L),
-              amount = obj.optLong("amount", 0L),
-              date = obj.optLong("date", System.currentTimeMillis()),
-              notes = obj.optString("notes", "")
-            )
+          (0 until arr.length()).mapNotNull { i ->
+            try {
+              val obj = arr.getJSONObject(i)
+              PaymentHistory(
+                id = obj.optLong("id", 0L),
+                loanId = obj.optLong("loanId", 0L),
+                amount = obj.optLong("amount", 0L),
+                date = obj.optLong("date", System.currentTimeMillis()),
+                notes = obj.optString("notes", "")
+              )
+            } catch (_: Exception) {
+              null
+            }
           }
         } else {
           emptyList()
@@ -127,12 +131,15 @@ class ManageBackupUseCase(
           timestamp = backup.timestamp,
           appVersion = backup.appVersion,
           transactions =
-            backup.transactions.map { tx ->
+            backup.transactions.mapNotNull { tx ->
+              val txType = try {
+                io.github.mojri.hesabyar.rust.TransactionType.valueOf(tx.type)
+              } catch (_: IllegalArgumentException) {
+                return@mapNotNull null
+              }
               io.github.mojri.hesabyar.rust.Transaction(
                 id = tx.id,
-                txType =
-                  io.github.mojri.hesabyar.rust.TransactionType
-                    .valueOf(tx.type),
+                txType = txType,
                 categoryId = tx.categoryId,
                 amount = tx.amount,
                 description = tx.description,

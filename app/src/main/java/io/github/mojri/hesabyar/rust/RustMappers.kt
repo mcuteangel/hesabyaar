@@ -36,36 +36,8 @@ object RustMappers {
     installments: List<Installment>
   ): KAnalyticsData {
     val unsettledLoans = loans.filter { !it.isSettled }
-    val debtors =
-      unsettledLoans.filter { it.type == "DEBTOR" }.map { loan ->
-        KDebtSummary(
-          personName = loan.personName,
-          originalAmount = loan.originalAmount,
-          remainingAmount = loan.remainingAmount,
-          type = loan.type,
-          progress =
-            if (loan.originalAmount > 0) {
-              (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
-        )
-      }
-    val creditors =
-      unsettledLoans.filter { it.type == "CREDITOR" }.map { loan ->
-        KDebtSummary(
-          personName = loan.personName,
-          originalAmount = loan.originalAmount,
-          remainingAmount = loan.remainingAmount,
-          type = loan.type,
-          progress =
-            if (loan.originalAmount > 0) {
-              (1f - (loan.remainingAmount.toFloat() / loan.originalAmount)).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
-        )
-      }
+    val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.map { mapDebtSummary(it) }
+    val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.map { mapDebtSummary(it) }
     val installmentProgress =
       installments.map { inst ->
         KInstallmentProgress(
@@ -88,6 +60,22 @@ object RustMappers {
       paidInstallments = rust.paidInstallments,
       totalDebt = rust.totalDebt,
       totalCredit = rust.totalCredit
+    )
+  }
+
+  private fun mapDebtSummary(loan: io.github.mojri.hesabyar.data.Loan): KDebtSummary {
+    val progress =
+      if (loan.originalAmount > 0) {
+        (1f - (loan.remainingAmount.toFloat() / loan.originalAmount.toFloat())).coerceIn(0f, 1f)
+      } else {
+        0f
+      }
+    return KDebtSummary(
+      personName = loan.personName,
+      originalAmount = loan.originalAmount,
+      remainingAmount = loan.remainingAmount,
+      type = loan.type,
+      progress = progress
     )
   }
 

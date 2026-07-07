@@ -184,6 +184,11 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     let amount = raw.amount.ok_or_else(|| HesabyarError::ValidationError {
         detail: "AI JSON missing 'amount' field".to_string(),
     })?;
+    if !amount.is_finite() || amount > i64::MAX as f64 || amount < i64::MIN as f64 {
+        return Err(HesabyarError::ValidationError {
+            detail: format!("AI amount out of range: {}", amount),
+        });
+    }
     let amount_i64 = amount as i64;
     if amount_i64 <= 0 {
         return Err(HesabyarError::ValidationError {
@@ -342,11 +347,25 @@ pub fn validate_ai_advice(text: &str) -> AdviceValidation {
     // Markdown safety: strip <script> and javascript: tags
     let dangerous_patterns = ["<script", "</script>", "javascript:"];
     for pattern in &dangerous_patterns {
-        if result.to_lowercase().contains(pattern) {
-            result = result
-                .chars()
-                .collect::<String>()
-                .replace(pattern, "");
+        let lower_result = result.to_lowercase();
+        if lower_result.contains(pattern) {
+            // Case-insensitive removal
+            let mut new_result = String::new();
+            let lower_chars: Vec<char> = lower_result.chars().collect();
+            let pattern_chars: Vec<char> = pattern.chars().collect();
+            let mut i = 0;
+            let result_chars: Vec<char> = result.chars().collect();
+            while i < result_chars.len() {
+                if i + pattern_chars.len() <= lower_chars.len()
+                    && lower_chars[i..i + pattern_chars.len()] == pattern_chars[..]
+                {
+                    i += pattern_chars.len();
+                } else {
+                    new_result.push(result_chars[i]);
+                    i += 1;
+                }
+            }
+            result = new_result;
             // Re-truncate if replacement made it longer (shouldn't happen)
             if result.len() > MAX_ADVICE_LENGTH {
                 result.truncate(MAX_ADVICE_LENGTH);

@@ -1,4 +1,4 @@
-﻿# Hesabyar Core (Rust)
+# Hesabyar Core (Rust)
 
 Shared native core for the Hesabyar Android application.
 
@@ -11,7 +11,12 @@ This crate contains platform-independent business logic extracted from the Kotli
 - **Currency Formatting** — Rial/Toman conversion and formatting
 - **Financial Advisory** — Offline budget advice, forecasting, health scoring
 - **Analytics** — Transaction aggregation, category breakdown
-- **Backup** — JSON backup parsing and validation
+- **Dashboard** — Dashboard data computation
+- **Backup** — JSON backup parsing, validation, and AES-256-GCM encryption
+- **Excel Export** — Excel report generation
+- **Search** — Full-text transaction search with relevance scoring
+- **Entity Validation** — Transaction, loan, installment validation
+- **AI Validation** — AI output validation and sanitization
 
 ## Building
 
@@ -63,7 +68,7 @@ hesabyar-core/
       mod.rs             — Advisory module re-exports
       budget.rs          — Budget advice + forecasting
     ffi/
-      mod.rs             — UniFFI bridge (future)
+      mod.rs             — UniFFI bridge with 20+ exported functions
   tests/
     golden/
       persian_parse_cases.json — Golden test data

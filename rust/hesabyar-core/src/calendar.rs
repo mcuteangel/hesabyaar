@@ -1,4 +1,4 @@
-﻿use crate::models::{HesabyarError, JalaliDate};
+use crate::models::{HesabyarError, JalaliDate};
 
 const G_MONTH_DAY_OFFSETS: [i32; 13] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0];
 const J_MONTH_DAYS: [i32; 12] = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
@@ -69,13 +69,24 @@ fn timestamp_to_gregorian(timestamp_ms: i64) -> Result<(i32, i32, i32), Hesabyar
     let mut year: i64 = 1970;
     let mut remaining = days;
 
-    loop {
-        let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
-        if remaining < days_in_year {
-            break;
+    // Handle negative timestamps (pre-epoch) by walking backward
+    if remaining < 0 {
+        year = 1969;
+        remaining += 1; // Dec 31, 1969 is day -1
+        while remaining < 0 {
+            year -= 1;
+            let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
+            remaining += days_in_year;
         }
-        remaining -= days_in_year;
-        year += 1;
+    } else {
+        loop {
+            let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
+            if remaining < days_in_year {
+                break;
+            }
+            remaining -= days_in_year;
+            year += 1;
+        }
     }
 
     let month_days: [i64; 12] = if is_leap_gregorian(year) {
@@ -133,9 +144,19 @@ pub fn gregorian_to_jalali_date(
 }
 
 pub fn jalali_to_gregorian(j_year: i32, j_month: i32, j_day: i32) -> Result<i64, HesabyarError> {
-    if j_year < 1 || j_month < 1 || j_month > 12 || j_day < 1 || j_day > 31 {
+    if j_year < 1 || j_month < 1 || j_month > 12 || j_day < 1 {
         return Err(HesabyarError::CalendarError {
             detail: format!("Invalid Jalali date: {}/{}/{}", j_year, j_month, j_day),
+        });
+    }
+    // Validate day against month-specific limits
+    let max_day = get_jalali_days_in_month(j_year, j_month);
+    if j_day > max_day {
+        return Err(HesabyarError::CalendarError {
+            detail: format!(
+                "Invalid Jalali day {} for month {} (max {})",
+                j_day, j_month, max_day
+            ),
         });
     }
     let jy = j_year - 979;
@@ -192,9 +213,9 @@ pub fn jalali_to_gregorian(j_year: i32, j_month: i32, j_day: i32) -> Result<i64,
 }
 
 /// FFI-safe wrapper: returns epoch milliseconds (i64).
-/// On error, returns 0.
+/// On error, returns i64::MIN (a value that cannot be a valid timestamp).
 pub fn jalali_to_gregorian_packed(j_year: i32, j_month: i32, j_day: i32) -> i64 {
-    jalali_to_gregorian(j_year, j_month, j_day).unwrap_or(0)
+    jalali_to_gregorian(j_year, j_month, j_day).unwrap_or(i64::MIN)
 }
 
 fn gregorian_to_timestamp(year: i32, month: i32, day: i32) -> Result<i64, HesabyarError> {
@@ -284,8 +305,8 @@ mod tests {
 
     #[test]
     fn test_jalali_to_gregorian_packed_invalid() {
-        // Invalid date should return 0 (no panic)
+        // Invalid date should return i64::MIN (no panic)
         let ts = jalali_to_gregorian_packed(0, 0, 0);
-        assert_eq!(ts, 0);
+        assert_eq!(ts, i64::MIN);
     }
 }

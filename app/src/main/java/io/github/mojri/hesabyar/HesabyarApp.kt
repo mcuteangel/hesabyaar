@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.ui.CurrencyUnit
 class HesabyarApp : Application() {
   companion object {
     private const val TAG = "HesabyarApp"
+    @Volatile
     private var rustInitialized = false
 
     @JvmStatic
