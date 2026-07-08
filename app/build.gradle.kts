@@ -365,72 +365,79 @@ tasks.register("generateAndFixBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
   doLast {
-    // Step 1: Build a host-native release library (not Android cross-compiled).
-    logger.lifecycle("Step 1/4: Building host-native Rust library...")
-    val cargoBuild = ProcessBuilder("cargo", "build", "--release")
-    cargoBuild.directory(rustDir)
-    cargoBuild.inheritIO()
-    if (cargoBuild.start().waitFor() != 0) {
-      throw GradleException("cargo build --release failed")
+    fun buildHostLibrary() {
+      logger.lifecycle("Step 1/4: Building host-native Rust library...")
+      val cargoBuild = ProcessBuilder("cargo", "build", "--release")
+      cargoBuild.directory(rustDir)
+      cargoBuild.inheritIO()
+      if (cargoBuild.start().waitFor() != 0) {
+        throw GradleException("cargo build --release failed")
+      }
     }
 
-    // Step 2: Determine the host library path.
-    val osName = System.getProperty("os.name").lowercase()
-    val hostLib =
-      when {
+    fun resolveHostArtifact(): File {
+      val osName = System.getProperty("os.name").lowercase()
+      return when {
         osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
         osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
         else -> rustTargetDir.resolve("release/libhesabyar_core.so")
+      }.also { hostLib ->
+        if (!hostLib.exists()) {
+          throw GradleException("Host library not found at: ${hostLib.absolutePath}")
+        }
+        logger.lifecycle("Step 2/4: Host library at ${hostLib.name}")
       }
-    if (!hostLib.exists()) {
-      throw GradleException("Host library not found at: ${hostLib.absolutePath}")
-    }
-    logger.lifecycle("Step 2/4: Host library at ${hostLib.name}")
-
-    // Step 3: Run uniffi-gen to produce Kotlin bindings in a temp directory.
-    logger.lifecycle("Step 3/4: Generating UniFFI Kotlin bindings...")
-    val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
-    if (tempDir.exists()) tempDir.deleteRecursively()
-    tempDir.mkdirs()
-    val genCmd =
-      listOf(
-        "cargo",
-        "run",
-        "--manifest-path",
-        file("$rustDir/Cargo.toml").absolutePath,
-        "--package",
-        "uniffi-gen",
-        "--",
-        hostLib.absolutePath,
-        tempDir.absolutePath,
-      )
-    val gen = ProcessBuilder(genCmd)
-    gen.directory(rustDir)
-    gen.inheritIO()
-    if (gen.start().waitFor() != 0) {
-      throw GradleException("UniFFI binding generation failed")
     }
 
-    // Step 4: Find the generated .kt file, patch the package, append
-    // the HesabyarCore compatibility object, and install.
-    logger.lifecycle("Step 4/4: Patching package and installing bindings...")
-    val generatedKt =
-      tempDir
-        .walkTopDown()
-        .firstOrNull { it.isFile && it.extension == "kt" }
-        ?: throw GradleException("No .kt file found in ${tempDir.absolutePath}")
+    fun generateBindings(
+      hostLib: File,
+      outDir: File
+    ) {
+      logger.lifecycle("Step 3/4: Generating UniFFI Kotlin bindings...")
+      if (outDir.exists()) outDir.deleteRecursively()
+      outDir.mkdirs()
+      val genCmd =
+        listOf(
+          "cargo",
+          "run",
+          "--manifest-path",
+          file("$rustDir/Cargo.toml").absolutePath,
+          "--package",
+          "uniffi-gen",
+          "--",
+          hostLib.absolutePath,
+          outDir.absolutePath,
+        )
+      val gen = ProcessBuilder(genCmd)
+      gen.directory(rustDir)
+      gen.inheritIO()
+      if (gen.start().waitFor() != 0) {
+        throw GradleException("UniFFI binding generation failed")
+      }
+    }
 
-    val content = generatedKt.readText(Charsets.UTF_8)
-    val patched =
-      content.replace(
-        Regex("^package uniffi\\.hesabyar_core$", RegexOption.MULTILINE),
-        "package $appId.rust"
-      )
+    fun patchAndInstallOutput(
+      tempDir: File,
+      dest: File
+    ) {
+      logger.lifecycle("Step 4/4: Patching package and installing bindings...")
+      val generatedKt =
+        tempDir
+          .walkTopDown()
+          .firstOrNull { it.isFile && it.extension == "kt" }
+          ?: throw GradleException("No .kt file found in ${tempDir.absolutePath}")
 
-    // Append HesabyarCore compatibility object that delegates to top-level functions.
-    // Uses fully-qualified calls to avoid self-recursion.
-    val pkg = "$appId.rust"
-    val compatObject = """
+      val content = generatedKt.readText(Charsets.UTF_8)
+      val patched =
+        content.replace(
+          Regex("^package uniffi\\.hesabyar_core$", RegexOption.MULTILINE),
+          "package $appId.rust"
+        )
+
+      // Append HesabyarCore compatibility object that delegates to top-level functions.
+      // Uses fully-qualified calls to avoid self-recursion.
+      val pkg = "$appId.rust"
+      val compatObject = """
 
 // ============================================================================
 // HesabyarCore — backward-compatible accessor object.
@@ -480,9 +487,16 @@ object HesabyarCore {
 }
 """
 
+      dest.parentFile.mkdirs()
+      dest.writeText(patched + compatObject, Charsets.UTF_8)
+    }
+
+    buildHostLibrary()
+    val hostLib = resolveHostArtifact()
+    val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
+    generateBindings(hostLib, tempDir)
     val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
-    dest.parentFile.mkdirs()
-    dest.writeText(patched + compatObject, Charsets.UTF_8)
+    patchAndInstallOutput(tempDir, dest)
 
     // Cleanup temp directory.
     tempDir.deleteRecursively()
