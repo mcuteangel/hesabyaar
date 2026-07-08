@@ -59,6 +59,14 @@ object RustBridge {
     }
   }
 
+  // Runs a Unit-returning Rust validator; returns true if it completes without
+  // throwing (i.e. valid), false if Rust is unavailable or validation fails.
+  private fun validateBoolean(block: () -> Unit): Boolean =
+    rustCallSync(false) {
+      block()
+      true
+    }
+
   // ===========================================================================
   // Calendar
   // ===========================================================================
@@ -150,28 +158,15 @@ object RustBridge {
   // ===========================================================================
 
   fun validateTransactionSync(transaction: Transaction): Boolean =
-    rustCallSync(false) {
-      HesabyarCore.validateTransaction(transaction)
-      true
-    }
+    validateBoolean { HesabyarCore.validateTransaction(transaction) }
 
-  fun validateLoanSync(loan: Loan): Boolean =
-    rustCallSync(false) {
-      HesabyarCore.validateLoan(loan)
-      true
-    }
+  fun validateLoanSync(loan: Loan): Boolean = validateBoolean { HesabyarCore.validateLoan(loan) }
 
   fun validateInstallmentSync(installment: Installment): Boolean =
-    rustCallSync(false) {
-      HesabyarCore.validateInstallment(installment)
-      true
-    }
+    validateBoolean { HesabyarCore.validateInstallment(installment) }
 
   fun validateParsedResultSync(result: ParsedResult): Boolean =
-    rustCallSync(false) {
-      HesabyarCore.validateParsedResult(result)
-      true
-    }
+    validateBoolean { HesabyarCore.validateParsedResult(result) }
 
   // ===========================================================================
   // Budget

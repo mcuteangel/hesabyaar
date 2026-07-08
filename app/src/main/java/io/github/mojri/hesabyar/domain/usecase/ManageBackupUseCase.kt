@@ -22,11 +22,19 @@ class ManageBackupUseCase(
       io.github.mojri.hesabyar.rust.RustBridge
         .parseBackupJsonSync(jsonString) ?: return null
 
+    // Parse the raw JSON once and reuse it for both extractions
+    // (Rust ignores these unknown fields, so we recover them from the raw string).
+    val rootJson: JSONObject? =
+      try {
+        JSONObject(jsonString)
+      } catch (_: Exception) {
+        null
+      }
+
     // Parse paymentHistories from raw JSON (Rust ignores unknown fields)
     val paymentHistories: List<PaymentHistory> =
       try {
-        val json = JSONObject(jsonString)
-        val arr = json.optJSONArray("paymentHistories")
+        val arr = rootJson?.optJSONArray("paymentHistories")
         if (arr != null) {
           (0 until arr.length()).mapNotNull { i ->
             try {
@@ -52,8 +60,7 @@ class ManageBackupUseCase(
     // Parse settings from raw JSON
     val settings: BackupSettings =
       try {
-        val json = JSONObject(jsonString)
-        val settingsObj = json.optJSONObject("settings")
+        val settingsObj = rootJson?.optJSONObject("settings")
         if (settingsObj != null) {
           BackupSettings(darkMode = settingsObj.optBoolean("darkMode", true))
         } else {
@@ -123,73 +130,75 @@ class ManageBackupUseCase(
     )
   }
 
+  private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
+    io.github.mojri.hesabyar.rust.BackupPayload(
+      version = version,
+      timestamp = timestamp,
+      appVersion = appVersion,
+      transactions =
+        transactions.mapNotNull { tx ->
+          val txType =
+            try {
+              io.github.mojri.hesabyar.rust.TransactionType
+                .valueOf(tx.type)
+            } catch (_: IllegalArgumentException) {
+              return@mapNotNull null
+            }
+          io.github.mojri.hesabyar.rust.Transaction(
+            id = tx.id,
+            txType = txType,
+            categoryId = tx.categoryId,
+            amount = tx.amount,
+            description = tx.description,
+            personName = tx.personName,
+            date = tx.date,
+            dueDate = tx.dueDate,
+            installmentId = tx.installmentId
+          )
+        },
+      loans =
+        loans.map { loan ->
+          io.github.mojri.hesabyar.rust.Loan(
+            id = loan.id,
+            personName = loan.personName,
+            loanType = loan.type,
+            originalAmount = loan.originalAmount,
+            remainingAmount = loan.remainingAmount,
+            description = loan.description,
+            date = loan.date,
+            isSettled = loan.isSettled
+          )
+        },
+      installments =
+        installments.map { inst ->
+          io.github.mojri.hesabyar.rust.Installment(
+            id = inst.id,
+            title = inst.title,
+            amount = inst.amount,
+            dueDate = inst.dueDate,
+            isPaid = inst.isPaid,
+            reminderEnabled = inst.reminderEnabled,
+            notes = inst.notes
+          )
+        },
+      categories =
+        categories.map { cat ->
+          io.github.mojri.hesabyar.rust.Category(
+            id = cat.id,
+            name = cat.name,
+            key = cat.key,
+            icon = cat.icon,
+            color = cat.color,
+            categoryType = cat.type,
+            isDefault = cat.isDefault
+          )
+        }
+    )
+
   fun validateBackup(backup: BackupPayload): BackupValidationResult {
     val rustResult =
-      io.github.mojri.hesabyar.rust.RustBridge.validateBackupPayloadSync(
-        io.github.mojri.hesabyar.rust.BackupPayload(
-          version = backup.version,
-          timestamp = backup.timestamp,
-          appVersion = backup.appVersion,
-          transactions =
-            backup.transactions.mapNotNull { tx ->
-              val txType =
-                try {
-                  io.github.mojri.hesabyar.rust.TransactionType
-                    .valueOf(tx.type)
-                } catch (_: IllegalArgumentException) {
-                  return@mapNotNull null
-                }
-              io.github.mojri.hesabyar.rust.Transaction(
-                id = tx.id,
-                txType = txType,
-                categoryId = tx.categoryId,
-                amount = tx.amount,
-                description = tx.description,
-                personName = tx.personName,
-                date = tx.date,
-                dueDate = tx.dueDate,
-                installmentId = tx.installmentId
-              )
-            },
-          loans =
-            backup.loans.map { loan ->
-              io.github.mojri.hesabyar.rust.Loan(
-                id = loan.id,
-                personName = loan.personName,
-                loanType = loan.type,
-                originalAmount = loan.originalAmount,
-                remainingAmount = loan.remainingAmount,
-                description = loan.description,
-                date = loan.date,
-                isSettled = loan.isSettled
-              )
-            },
-          installments =
-            backup.installments.map { inst ->
-              io.github.mojri.hesabyar.rust.Installment(
-                id = inst.id,
-                title = inst.title,
-                amount = inst.amount,
-                dueDate = inst.dueDate,
-                isPaid = inst.isPaid,
-                reminderEnabled = inst.reminderEnabled,
-                notes = inst.notes
-              )
-            },
-          categories =
-            backup.categories.map { cat ->
-              io.github.mojri.hesabyar.rust.Category(
-                id = cat.id,
-                name = cat.name,
-                key = cat.key,
-                icon = cat.icon,
-                color = cat.color,
-                categoryType = cat.type,
-                isDefault = cat.isDefault
-              )
-            }
-        )
-      )
+      io.github.mojri.hesabyar.rust.RustBridge
+        .validateBackupPayloadSync(backup.toRustPayload())
 
     return if (rustResult.isValid) {
       BackupValidationResult.Valid

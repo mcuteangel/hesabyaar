@@ -39,7 +39,7 @@ class HesabyarApp : Application() {
     } catch (e: UnsatisfiedLinkError) {
       Log.e(TAG, "Failed to load hesabyar_core native library", e)
       // App continues without Rust core — AI/offline parser features unavailable
-    } catch (e: Exception) {
+    } catch (e: RuntimeException) {
       Log.e(TAG, "Failed to initialize Rust core", e)
     }
   }

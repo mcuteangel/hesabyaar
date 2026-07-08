@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
+import java.math.RoundingMode
 import io.github.mojri.hesabyar.ui.AnalyticsData as KAnalyticsData
 import io.github.mojri.hesabyar.ui.CategoryBreakdown as KCategoryBreakdown
 import io.github.mojri.hesabyar.ui.DashboardData as KDashboardData
@@ -65,8 +66,12 @@ object RustMappers {
 
   private fun mapDebtSummary(loan: io.github.mojri.hesabyar.data.Loan): KDebtSummary {
     val progress =
-      if (loan.originalAmount > 0) {
-        (1f - (loan.remainingAmount.toFloat() / loan.originalAmount.toFloat())).coerceIn(0f, 1f)
+      if (loan.originalAmount > 0L) {
+        // Ratio of paid amount over original; divide with BigDecimal to avoid
+        // Float precision loss on large Rial values, then keep only the ratio as Float.
+        val paid = (loan.originalAmount - loan.remainingAmount).toBigDecimal()
+        val ratio = paid.divide(loan.originalAmount.toBigDecimal(), 6, RoundingMode.HALF_UP)
+        ratio.toFloat().coerceIn(0f, 1f)
       } else {
         0f
       }
