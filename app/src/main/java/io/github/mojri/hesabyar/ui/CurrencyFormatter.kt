@@ -72,8 +72,9 @@ object CurrencyFormatter {
    * Example: 10 Tomans * 10 = 100 Rials.
    */
   fun toRial(displayValue: Long): Long {
-    val result = io.github.mojri.hesabyar.rust.RustBridge
-      .toRialSync(displayValue, toRustUnit())
+    val result =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .toRialSync(displayValue, toRustUnit())
     // Kotlin fallback if Rust returns 0 for non-zero input
     return if (result == 0L && displayValue != 0L) {
       when (currentUnit) {
@@ -91,8 +92,9 @@ object CurrencyFormatter {
    * Example: 100 Rials / 10 = 10 Tomans.
    */
   fun fromRial(rial: Long): Long {
-    val result = io.github.mojri.hesabyar.rust.RustBridge
-      .fromRialSync(rial, toRustUnit())
+    val result =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .fromRialSync(rial, toRustUnit())
     // Kotlin fallback if Rust returns 0 for non-zero input
     return if (result == 0L && rial != 0L) {
       when (currentUnit) {

@@ -114,7 +114,7 @@ class BudgetAdvisorTest {
   }
 
   @Test
-  fun `getOfflineAdvice - mentions active installments`() {
+  fun `getOfflineForecast - mentions active installments`() {
     val transactions =
       listOf(
         createTransaction("INCOME", 10_000_000),
@@ -124,7 +124,7 @@ class BudgetAdvisorTest {
       listOf(
         createInstallment("قسط ماشین", 2_000_000, isPaid = false)
       )
-    val result = BudgetAdvisor.getOfflineAdvice(transactions, installments)
+    val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), installments)
     assertTrue(
       result.contains("اقساط") || result.contains("قسط") || result.contains("سررسید")
     )

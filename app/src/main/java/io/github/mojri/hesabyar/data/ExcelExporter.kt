@@ -38,10 +38,12 @@ class ExcelExporter {
         buildInstallmentsSheet(installments)
       )
 
-    val bytes = RustBridge.generateExcel(WorkbookData(sheets))
-      ?: throw IllegalStateException("Rust Excel generation failed or unavailable")
+    val bytes =
+      RustBridge.generateExcel(WorkbookData(sheets))
+        ?: throw IllegalStateException("Rust Excel generation failed or unavailable")
 
     return ExportResult(
+      bytes = bytes,
       filename = generateFilename(),
       transactionCount = transactions.size,
       incomeCount = incomeTransactions.size,

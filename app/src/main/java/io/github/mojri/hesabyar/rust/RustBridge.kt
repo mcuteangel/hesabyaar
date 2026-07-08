@@ -226,8 +226,7 @@ object RustBridge {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>
-  ): DashboardData? =
-    rustCallSync(null) { HesabyarCore.computeDashboardData(transactions, loans, installments) }
+  ): DashboardData? = rustCallSync(null) { HesabyarCore.computeDashboardData(transactions, loans, installments) }
 
   // ===========================================================================
   // Search
@@ -245,8 +244,7 @@ object RustBridge {
   // Backup
   // ===========================================================================
 
-  fun parseBackupJsonSync(json: String): BackupPayload? =
-    rustCallSync(null) { HesabyarCore.parseBackupJson(json) }
+  fun parseBackupJsonSync(json: String): BackupPayload? = rustCallSync(null) { HesabyarCore.parseBackupJson(json) }
 
   fun validateBackupPayloadSync(payload: BackupPayload): ValidationResult =
     rustCallSync(ValidationResult(isValid = false, errors = emptyList())) {
@@ -260,20 +258,7 @@ object RustBridge {
     }
   }
 
-  fun exportBackupJsonSync(payload: BackupPayload): String =
-    rustCallSync("") { HesabyarCore.exportBackupJson(payload) }
-
-  fun buildEncryptedBackupFileSync(
-    json: String,
-    key: ByteArray
-  ): ByteArray? =
-    rustCallSync(null) { HesabyarCore.buildEncryptedBackupFile(json, key) }
-
-  fun parseEncryptedBackupFileSync(
-    data: ByteArray,
-    key: ByteArray
-  ): String? =
-    rustCallSync(null) { HesabyarCore.parseEncryptedBackupFile(data, key) }
+  fun exportBackupJsonSync(payload: BackupPayload): String = rustCallSync("") { HesabyarCore.exportBackupJson(payload) }
 
   // ===========================================================================
   // Checksums
@@ -290,6 +275,5 @@ object RustBridge {
   // Excel export
   // ===========================================================================
 
-  fun generateExcel(workbook: WorkbookData): ByteArray? =
-    rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
+  fun generateExcel(workbook: WorkbookData): ByteArray? = rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
 }

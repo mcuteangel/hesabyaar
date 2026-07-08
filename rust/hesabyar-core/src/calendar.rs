@@ -131,7 +131,7 @@ pub fn gregorian_to_jalali_date(
     }
 
     let mut i = 0;
-    while i < 12 && j_day_no >= J_MONTH_DAYS[i] {
+    while i < 11 && j_day_no >= J_MONTH_DAYS[i] {
         j_day_no -= J_MONTH_DAYS[i];
         i += 1;
     }
@@ -256,6 +256,20 @@ mod tests {
         assert_eq!(result.0, 2024);
         assert_eq!(result.1, 3);
         assert_eq!(result.2, 20);
+    }
+
+    #[test]
+    fn test_gregorian_2025_nowruz_roundtrip() {
+        // 2025-03-20 = 1403/12/30 (day before Nowruz 1404). Leap-year boundary must not
+        // overflow to an invalid month 13.
+        let jd = gregorian_to_jalali_date(2025, 3, 20).unwrap();
+        assert_eq!(jd.year, 1403);
+        assert_eq!(jd.month, 12);
+        assert_eq!(jd.day, 30);
+        // Round-trips back to the same Gregorian date.
+        let ts = jalali_to_gregorian(1403, 12, 30).unwrap();
+        let g = timestamp_to_gregorian(ts).unwrap();
+        assert_eq!((g.0, g.1, g.2), (2025, 3, 20));
     }
 
     #[test]

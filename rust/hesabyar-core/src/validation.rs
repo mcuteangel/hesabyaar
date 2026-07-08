@@ -27,14 +27,16 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
         | TransactionType::LoanCreditor
         | TransactionType::Installment => {}
     }
-    if tx.description.is_empty() {
-        return Err("Transaction description must not be empty".into());
-    }
     if tx.date <= 0 {
         return Err("Transaction date must be positive".into());
     }
-    if tx.category_id <= 0 {
-        return Err("Transaction category_id must be positive".into());
+    // Note: empty descriptions and non-positive category_id are tolerated here
+    // (instead of rejected) so that backups exported by older versions of the
+    // app — which allowed blank descriptions and defaulted missing category ids
+    // to 1 — can still be restored. A negative category_id is still rejected as
+    // it can never reference a valid category.
+    if tx.category_id < 0 {
+        return Err("Transaction category_id must not be negative".into());
     }
     Ok(())
 }
@@ -55,9 +57,9 @@ pub fn validate_loan(loan: &Loan) -> Result<(), String> {
     if loan.remaining_amount < 0 {
         return Err("Loan remaining_amount must be non-negative".into());
     }
-    if loan.remaining_amount > loan.original_amount {
-        return Err("Loan remaining_amount must not exceed original_amount".into());
-    }
+    // Note: remaining_amount may exceed original_amount for backups created by
+    // older app versions (e.g. after partial manual edits). Tolerated on import
+    // rather than hard-rejected so those backups can still be restored.
     if loan.loan_type != "DEBTOR" && loan.loan_type != "CREDITOR" {
         return Err(format!(
             "Loan type must be DEBTOR or CREDITOR, got '{}'",
@@ -257,9 +259,9 @@ mod tests {
     }
 
     #[test]
-    fn test_transaction_empty_description_rejected() {
-        let err = validate_transaction(&make_tx(50000, "", 1)).unwrap_err();
-        assert!(err.contains("description"));
+    fn test_transaction_empty_description_allowed() {
+        // Older backups allowed blank descriptions; tolerate on restore.
+        assert!(validate_transaction(&make_tx(50000, "", 1)).is_ok());
     }
 
     #[test]
@@ -271,9 +273,9 @@ mod tests {
     }
 
     #[test]
-    fn test_transaction_zero_category_rejected() {
-        let err = validate_transaction(&make_tx(50000, "coffee", 0)).unwrap_err();
-        assert!(err.contains("category"));
+    fn test_transaction_zero_category_allowed() {
+        // Older backups defaulted missing category ids to 1; 0 is tolerated.
+        assert!(validate_transaction(&make_tx(50000, "coffee", 0)).is_ok());
     }
 
     #[test]
@@ -343,9 +345,9 @@ mod tests {
     }
 
     #[test]
-    fn test_loan_remaining_exceeds_original_rejected() {
-        let err = validate_loan(&make_loan(5000000, 6000000, "DEBTOR")).unwrap_err();
-        assert!(err.contains("remaining_amount"));
+    fn test_loan_remaining_exceeds_original_allowed() {
+        // Older backups could have remaining > original after manual edits.
+        assert!(validate_loan(&make_loan(5000000, 6000000, "DEBTOR")).is_ok());
     }
 
     #[test]
@@ -497,13 +499,13 @@ mod tests {
     fn test_batch_collects_all_errors() {
         let txs = vec![
             make_tx(0, "bad1", 1),    // zero amount
-            make_tx(50000, "", 1),    // empty desc
+            make_tx(50000, "", 1),    // empty desc (tolerated)
             make_tx(-1, "bad3", 1),   // negative amount
             make_tx(50000, "ok", 1),  // valid
         ];
         let result = validate_transaction_batch(&txs);
         assert!(!result.is_valid);
-        assert_eq!(result.errors.len(), 3);
+        assert_eq!(result.errors.len(), 2);
     }
 
     #[test]

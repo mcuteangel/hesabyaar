@@ -132,11 +132,13 @@ class ManageBackupUseCase(
           appVersion = backup.appVersion,
           transactions =
             backup.transactions.mapNotNull { tx ->
-              val txType = try {
-                io.github.mojri.hesabyar.rust.TransactionType.valueOf(tx.type)
-              } catch (_: IllegalArgumentException) {
-                return@mapNotNull null
-              }
+              val txType =
+                try {
+                  io.github.mojri.hesabyar.rust.TransactionType
+                    .valueOf(tx.type)
+                } catch (_: IllegalArgumentException) {
+                  return@mapNotNull null
+                }
               io.github.mojri.hesabyar.rust.Transaction(
                 id = tx.id,
                 txType = txType,

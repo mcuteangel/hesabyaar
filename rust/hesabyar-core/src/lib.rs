@@ -61,10 +61,10 @@ pub fn gregorian_to_jalali(timestamp_ms: i64) -> i64 {
 }
 
 /// Convert Jalali date to Gregorian timestamp (ms).
-/// Returns 0 on error (no panic).
+/// Returns i64::MIN on error (no panic) to match the Kotlin Long.MIN_VALUE sentinel.
 #[uniffi::export]
 pub fn jalali_to_gregorian(year: i32, month: i32, day: i32) -> i64 {
-    calendar::jalali_to_gregorian_packed(year, month, day)
+    calendar::jalali_to_gregorian(year, month, day).unwrap_or(i64::MIN)
 }
 
 /// Parse a Persian amount sentence and return the amount in Toman.

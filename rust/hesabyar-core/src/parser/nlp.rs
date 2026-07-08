@@ -162,6 +162,41 @@ fn contains_any(text: &str, keywords: &[&str]) -> bool {
     keywords.iter().any(|&kw| text.contains(kw))
 }
 
+/// Replace `word` with `rep` only at word boundaries.
+///
+/// Persian letters and the ZWNJ (U+200C) are treated as word characters, so a
+/// filler token that happens to be a substring of a larger word is NOT stripped
+/// (e.g. "به" must not be removed from "نوشابه"). Standalone occurrences and
+/// multi-word phrases (bounded by spaces) are still replaced.
+fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
+    if word.is_empty() {
+        return s.to_string();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let w: Vec<char> = word.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if i + w.len() <= chars.len() && chars[i..i + w.len()] == w[..] {
+            let prev_ok = i == 0 || !is_word_char(chars[i - 1]);
+            let next_ok = i + w.len() == chars.len() || !is_word_char(chars[i + w.len()]);
+            if prev_ok && next_ok {
+                out.push_str(rep);
+                i += w.len();
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// True for characters that bind words together (letters, digits, ZWNJ).
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '\u{200C}'
+}
+
 /// Convert Persian/Arabic digits (۰-۹) to ASCII digits (0-9)
 fn to_ascii_digits(s: &str) -> String {
     s.chars().map(|c| {
@@ -203,7 +238,7 @@ fn extract_subject(sentence: &str) -> String {
 
     let mut cleaned = sentence.to_string();
     for word in &filler_words {
-        cleaned = cleaned.replace(word, "");
+        cleaned = replace_word_bounded(&cleaned, word, "");
     }
     cleaned.split_whitespace().collect::<Vec<&str>>().join(" ")
 }
@@ -341,7 +376,11 @@ fn classify_expense(sentence: &str) -> TypeClassification {
             _ => "سایر هزینه\u{200C}ها",
         };
         if normalized == CATEGORY_OTHER {
-            base_description.to_string()
+            if subject.is_empty() {
+                base_description.to_string()
+            } else {
+                format!("{} {}", base_description, subject)
+            }
         } else {
             format!("{} ({})", base_description, subject)
         }
@@ -485,7 +524,7 @@ pub fn extract_description(sentence: &str) -> String {
 
     let mut cleaned = sentence.to_string();
     for word in &filler_words {
-        cleaned = cleaned.replace(word, "");
+        cleaned = replace_word_bounded(&cleaned, word, "");
     }
     cleaned = cleaned.split_whitespace().collect::<Vec<&str>>().join(" ");
     if cleaned.trim().is_empty() { sentence.to_string() } else { cleaned }
@@ -1399,7 +1438,14 @@ mod tests {
 
     #[test]
     fn test_subject_empty_after_cleaning() {
-        let subject = extract_subject("امروز");
+        let subject = extract_subject("خریدم");
         assert_eq!(subject, "");
+    }
+
+    #[test]
+    fn test_subject_preserves_word_containing_filler_substring() {
+        // "به" is a filler token but must not be stripped from inside "نوشابه".
+        let subject = extract_subject("نوشابه خریدم 85 هزار تومن");
+        assert_eq!(subject, "نوشابه 85");
     }
 }

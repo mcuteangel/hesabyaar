@@ -156,23 +156,6 @@ pub fn search_transactions(
 // These functions receive the key as a parameter.
 // ===========================================================================
 
-/// Encrypt a JSON backup string using AES-256-GCM.
-///
-/// Returns encrypted bytes: `[12-byte nonce][ciphertext + 16-byte auth tag]`
-#[uniffi::export]
-pub fn encrypt_backup(json: &str, key: &[u8]) -> Result<Vec<u8>, HesabyarError> {
-    crate::crypto::encrypt_backup(json, key)
-}
-
-/// Decrypt an encrypted backup using AES-256-GCM.
-///
-/// Input: `[12-byte nonce][ciphertext + auth tag]`
-/// Returns decrypted JSON string.
-#[uniffi::export]
-pub fn decrypt_backup(data: &[u8], key: &[u8]) -> Result<String, HesabyarError> {
-    crate::crypto::decrypt_backup(data, key)
-}
-
 /// Compute SHA-256 checksum of data.
 ///
 /// Returns a 64-character hexadecimal string.
@@ -187,27 +170,6 @@ pub fn compute_checksum(data: &[u8]) -> String {
 #[uniffi::export]
 pub fn verify_checksum(data: &[u8], expected: &str) -> bool {
     crate::crypto::verify_checksum(data, expected)
-}
-
-/// Build an encrypted backup file with header, checksum, and encrypted data.
-///
-/// File format:
-/// ```text
-/// HESABYAR_BACKUP_V1\n
-/// <64-char SHA-256 hex>\n
-/// <encrypted binary data>
-/// ```
-#[uniffi::export]
-pub fn build_encrypted_backup_file(json: &str, key: &[u8]) -> Result<Vec<u8>, HesabyarError> {
-    crate::crypto::build_encrypted_backup_file(json, key)
-}
-
-/// Parse an encrypted backup file, verifying checksum and decrypting.
-///
-/// Returns the decrypted JSON string.
-#[uniffi::export]
-pub fn parse_encrypted_backup_file(data: &[u8], key: &[u8]) -> Result<String, HesabyarError> {
-    crate::crypto::parse_encrypted_backup_file(data, key)
 }
 
 // ===========================================================================
