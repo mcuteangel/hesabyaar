@@ -1,5 +1,4 @@
 ﻿use crate::models::*;
-use crate::advisory::calculate_debt_to_income_ratio;
 use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
 
 /// Compute dashboard data from transactions, loans, and installments.
@@ -80,7 +79,19 @@ pub fn compute_dashboard_data(
         0.0
     };
 
-    let debt_to_income = calculate_debt_to_income_ratio(loans, installments, monthly_income);
+    // Filter installments to only those due in the current month (unpaid)
+    let mut current_month_installments: Vec<Installment> = Vec::new();
+    for inst in installments {
+        if !inst.is_paid && inst.due_date >= month_start_ms && inst.due_date < month_end_ms {
+            current_month_installments.push(inst.clone());
+        }
+    }
+
+    let debt_to_income = crate::advisory::calculate_debt_to_income_ratio(
+        loans, 
+        &current_month_installments, 
+        monthly_income
+    );
 
     // --- Installment summary ---
     let _upcoming_installments: Vec<&Installment> = installments

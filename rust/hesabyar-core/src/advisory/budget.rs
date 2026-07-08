@@ -81,7 +81,7 @@ pub fn get_offline_budget_advice(
 /// Get offline budget forecast.
 pub fn get_offline_forecast(
     transactions: &[Transaction],
-    loans: &[Loan],
+    _loans: &[Loan],
     installments: &[Installment],
 ) -> String {
     let unpaid_installments: Vec<&Installment> = installments.iter().filter(|i| !i.is_paid).collect();
@@ -91,7 +91,7 @@ pub fn get_offline_forecast(
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
-    let now_ms = std::time::SystemTime::now()
+let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64;
@@ -101,8 +101,16 @@ pub fn get_offline_forecast(
     let recent_income: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Income).map(|t| t.amount).sum();
     let recent_expense: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Expense).map(|t| t.amount).sum();
 
-    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { recent_income / 3 } else { 0 };
-    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { recent_expense / 3 } else { 0 };
+    let actual_days = if !recent.is_empty() {
+        let oldest_date = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
+        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).ceil() as i64
+    } else {
+        0
+    };
+    let months_elapsed = (actual_days as f64 / 30.0).max(1.0).ceil() as i64;
+
+    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { recent_income / months_elapsed } else { 0 };
+    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { recent_expense / months_elapsed } else { 0 };
     let est_balance = avg_income - avg_expense - upcoming_sum;
 
     let mut sb = String::new();

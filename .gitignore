@@ -65,3 +65,4 @@ rust/uniffi/
 # Generated UniFFI bindings (run ./gradlew :app:generateAndFixBindings to regenerate)
 app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
 .serena/
+.gh_review_state.json

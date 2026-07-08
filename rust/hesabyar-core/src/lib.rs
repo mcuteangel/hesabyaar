@@ -89,6 +89,80 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             detail: "Invalid backup version".to_string(),
         });
     }
+
+    // Full structural validation
+    if payload.transactions.is_empty() && payload.loans.is_empty() && payload.installments.is_empty() && payload.categories.is_empty() {
+        return Err(HesabyarError::BackupValidation {
+            detail: "Backup contains no data".to_string(),
+        });
+    }
+
+    // Validate transactions
+    for tx in &payload.transactions {
+        if tx.amount <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Transaction {} has invalid amount", tx.id),
+            });
+        }
+        if tx.date <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Transaction {} has invalid date", tx.id),
+            });
+        }
+        if tx.category_id <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Transaction {} has invalid category_id", tx.id),
+            });
+        }
+    }
+
+    // Validate loans
+    for loan in &payload.loans {
+        if loan.original_amount <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Loan {} has invalid original_amount", loan.id),
+            });
+        }
+        if loan.remaining_amount < 0 || loan.remaining_amount > loan.original_amount {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Loan {} has invalid remaining_amount", loan.id),
+            });
+        }
+        if loan.date <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Loan {} has invalid date", loan.id),
+            });
+        }
+    }
+
+    // Validate installments
+    for inst in &payload.installments {
+        if inst.amount <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Installment {} has invalid amount", inst.id),
+            });
+        }
+        if inst.due_date <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Installment {} has invalid due_date", inst.id),
+            });
+        }
+    }
+
+    // Validate categories
+    for cat in &payload.categories {
+        if cat.id <= 0 {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Category {} has invalid id", cat.id),
+            });
+        }
+        if cat.name.is_empty() {
+            return Err(HesabyarError::BackupValidation {
+                detail: format!("Category {} has empty name", cat.id),
+            });
+        }
+    }
+
     Ok(())
 }
 
