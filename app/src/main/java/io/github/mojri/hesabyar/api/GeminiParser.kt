@@ -130,25 +130,27 @@ object GeminiParser {
       if (aiResult.wasRepaired) {
         AppLogger.w(TAG, "AI result repaired by Rust: ${aiResult.repairNotes.joinToString()}")
       }
-      val r = aiResult.result
-      return ParsedResult(
-        type = r.txType.name,
-        amount = r.amount,
-        category = r.category,
-        personName = r.personName,
-        description = r.description,
-        daysFromNow = r.daysFromNow,
-        title = r.title,
-        dateOffsetDays = r.dateOffsetDays,
-        hour = r.hour,
-        minute = r.minute,
-        confidence = r.confidence,
-        notes = r.notes
-      )
+      return mapRustParsedResult(aiResult.result)
     }
     // Fallback: parse manually if Rust unavailable
     return parseJsonResultFallback(jsonStr)
   }
+
+  private fun mapRustParsedResult(r: io.github.mojri.hesabyar.rust.ParsedResult): ParsedResult =
+    ParsedResult(
+      type = r.txType.name,
+      amount = r.amount,
+      category = r.category,
+      personName = r.personName,
+      description = r.description,
+      daysFromNow = r.daysFromNow,
+      title = r.title,
+      dateOffsetDays = r.dateOffsetDays,
+      hour = r.hour,
+      minute = r.minute,
+      confidence = r.confidence,
+      notes = r.notes
+    )
 
   private fun parseJsonResultFallback(jsonStr: String): ParsedResult? {
     return try {
@@ -210,20 +212,7 @@ object GeminiParser {
       io.github.mojri.hesabyar.rust.RustBridge
         .parseSentenceOfflineSync(rawSentence)
     if (rustResult != null) {
-      return ParsedResult(
-        type = rustResult.txType.name,
-        amount = rustResult.amount,
-        category = rustResult.category,
-        personName = rustResult.personName,
-        description = rustResult.description,
-        daysFromNow = rustResult.daysFromNow,
-        title = rustResult.title,
-        dateOffsetDays = rustResult.dateOffsetDays,
-        hour = rustResult.hour,
-        minute = rustResult.minute,
-        confidence = rustResult.confidence,
-        notes = rustResult.notes
-      )
+      return mapRustParsedResult(rustResult)
     }
     // Return null to indicate parsing failure — callers should not create zero-amount transactions
     AppLogger.w(TAG, "Rust parser returned null, returning null to indicate failure")

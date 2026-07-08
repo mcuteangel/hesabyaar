@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.mojri.hesabyar.domain.usecase.ExportExcelUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,6 +58,8 @@ class ExportViewModel
             ExportState.Error(
               "دسترسی به پوشه Downloads امکان\u200Cپذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
             )
+        } catch (e: CancellationException) {
+          throw e
         } catch (e: RuntimeException) {
           exportState.value =
             ExportState.Error(

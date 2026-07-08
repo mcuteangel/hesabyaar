@@ -140,15 +140,26 @@ object RustBridge {
   // AI validation
   // ===========================================================================
 
-  suspend fun validateAiAdvice(text: String): AdviceValidation =
-    rustCall(
-      AdviceValidation(
+  suspend fun validateAiAdvice(text: String): AdviceValidation {
+    if (!available) {
+      return AdviceValidation(
         isValid = false,
         sanitizedText = text,
         warnings = listOf("Rust not available"),
         wasTruncated = false,
       )
-    ) { HesabyarCore.validateAiAdvice(text) }
+    }
+    return try {
+      withContext(Dispatchers.Default) { HesabyarCore.validateAiAdvice(text) }
+    } catch (_: Throwable) {
+      AdviceValidation(
+        isValid = false,
+        sanitizedText = text,
+        warnings = listOf("Rust validation failed"),
+        wasTruncated = false,
+      )
+    }
+  }
 
   fun parseAiTransactionJsonSync(json: String): AiParsedTransaction? =
     rustCallSync(null) { HesabyarCore.parseAiTransactionJson(json) }

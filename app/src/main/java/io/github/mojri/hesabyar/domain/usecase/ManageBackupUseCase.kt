@@ -136,62 +136,24 @@ class ManageBackupUseCase(
       timestamp = timestamp,
       appVersion = appVersion,
       transactions =
-        transactions.mapNotNull { tx ->
-          val txType =
-            try {
-              io.github.mojri.hesabyar.rust.TransactionType
-                .valueOf(tx.type)
-            } catch (_: IllegalArgumentException) {
-              return@mapNotNull null
-            }
-          io.github.mojri.hesabyar.rust.Transaction(
-            id = tx.id,
-            txType = txType,
-            categoryId = tx.categoryId,
-            amount = tx.amount,
-            description = tx.description,
-            personName = tx.personName,
-            date = tx.date,
-            dueDate = tx.dueDate,
-            installmentId = tx.installmentId
-          )
+        transactions.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapTransaction(it)
         },
       loans =
-        loans.map { loan ->
-          io.github.mojri.hesabyar.rust.Loan(
-            id = loan.id,
-            personName = loan.personName,
-            loanType = loan.type,
-            originalAmount = loan.originalAmount,
-            remainingAmount = loan.remainingAmount,
-            description = loan.description,
-            date = loan.date,
-            isSettled = loan.isSettled
-          )
+        loans.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapLoan(it)
         },
       installments =
-        installments.map { inst ->
-          io.github.mojri.hesabyar.rust.Installment(
-            id = inst.id,
-            title = inst.title,
-            amount = inst.amount,
-            dueDate = inst.dueDate,
-            isPaid = inst.isPaid,
-            reminderEnabled = inst.reminderEnabled,
-            notes = inst.notes
-          )
+        installments.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapInstallment(it)
         },
       categories =
-        categories.map { cat ->
-          io.github.mojri.hesabyar.rust.Category(
-            id = cat.id,
-            name = cat.name,
-            key = cat.key,
-            icon = cat.icon,
-            color = cat.color,
-            categoryType = cat.type,
-            isDefault = cat.isDefault
-          )
+        categories.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapCategory(it)
         }
     )
 
