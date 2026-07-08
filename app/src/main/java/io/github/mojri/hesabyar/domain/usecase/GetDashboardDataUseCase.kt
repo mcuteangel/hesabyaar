@@ -23,9 +23,12 @@ class GetDashboardDataUseCase(
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
-        io.github.mojri.hesabyar.rust.RustMappers.mapTransactions(transactions),
-        io.github.mojri.hesabyar.rust.RustMappers.mapLoans(loans),
-        io.github.mojri.hesabyar.rust.RustMappers.mapInstallments(installments)
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments)
       )
 
     if (rustResult != null) {
@@ -47,9 +50,10 @@ class GetDashboardDataUseCase(
 
     val currentBalance = monthlyIncome - monthlyExpenses
     val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
-    val monthlyDebt = unsettledLoans
-      .filter { it.type == "CREDITOR" }
-      .sumOf { it.remainingAmount / 12 }
+    val monthlyDebt =
+      unsettledLoans
+        .filter { it.type == "CREDITOR" }
+        .sumOf { it.remainingAmount / 12 }
     val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
 
     val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }

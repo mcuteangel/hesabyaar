@@ -57,10 +57,11 @@ object CurrencyFormatter {
   fun formatNumber(value: Long): String {
     val isNegative = value < 0
     val absValue = if (isNegative) -value else value
-    val formatted = toPersianDigits(
-      io.github.mojri.hesabyar.rust.RustBridge
-        .formatNumberSync(absValue)
-    )
+    val formatted =
+      toPersianDigits(
+        io.github.mojri.hesabyar.rust.RustBridge
+          .formatNumberSync(absValue)
+      )
     return if (isNegative) "-$formatted" else formatted
   }
 
@@ -69,10 +70,11 @@ object CurrencyFormatter {
     // Extract the sign, format the absolute value, then re-add the sign.
     val isNegative = rial < 0
     val absValue = if (isNegative) -rial else rial
-    val formatted = toPersianDigits(
-      io.github.mojri.hesabyar.rust.RustBridge
-        .formatCurrencySync(absValue, toRustUnit())
-    )
+    val formatted =
+      toPersianDigits(
+        io.github.mojri.hesabyar.rust.RustBridge
+          .formatCurrencySync(absValue, toRustUnit())
+      )
     return if (isNegative) "-$formatted" else formatted
   }
 

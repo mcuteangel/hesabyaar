@@ -311,14 +311,15 @@ tasks.register("assembleRust") {
         // cargo-ndk may place the .so directly in outDir or under a triple subdirectory.
         // Search both locations to handle varying cargo-ndk versions.
         val libDirect = File(outDir, target.jniLib)
-        val lib = if (libDirect.exists()) {
-          libDirect
-        } else {
-          outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
-            ?: throw GradleException(
-              "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
-            )
-        }
+        val lib =
+          if (libDirect.exists()) {
+            libDirect
+          } else {
+            outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
+              ?: throw GradleException(
+                "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
+              )
+          }
       }
     }
     dependsOn(taskName)

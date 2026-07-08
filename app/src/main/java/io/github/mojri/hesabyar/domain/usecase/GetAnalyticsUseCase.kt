@@ -15,10 +15,14 @@ class GetAnalyticsUseCase {
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
-        io.github.mojri.hesabyar.rust.RustMappers.mapTransactions(transactions),
-        io.github.mojri.hesabyar.rust.RustMappers.mapLoans(loans),
-        io.github.mojri.hesabyar.rust.RustMappers.mapInstallments(installments),
-        io.github.mojri.hesabyar.rust.RustMappers.mapCategories(categories)
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapCategories(categories)
       )
 
     if (rustResult != null) {
@@ -31,35 +35,46 @@ class GetAnalyticsUseCase {
     val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
     val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
 
-    val monthlySpending = io.github.mojri.hesabyar.ui.MonthlyData(
-      jalaliYear = 0, jalaliMonth = 0, label = "",
-      income = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount },
-      expense = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-    )
+    val monthlySpending =
+      io.github.mojri.hesabyar.ui.MonthlyData(
+        jalaliYear = 0,
+        jalaliMonth = 0,
+        label = "",
+        income = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount },
+        expense = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+      )
 
     val unsettledLoans = loans.filter { !it.isSettled }
-    val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.map {
-      io.github.mojri.hesabyar.ui.DebtSummary(
-        personName = it.personName,
-        originalAmount = it.originalAmount,
-        remainingAmount = it.remainingAmount,
-        type = it.type,
-        progress = if (it.originalAmount > 0) {
-          ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
-        } else 0f
-      )
-    }
-    val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.map {
-      io.github.mojri.hesabyar.ui.DebtSummary(
-        personName = it.personName,
-        originalAmount = it.originalAmount,
-        remainingAmount = it.remainingAmount,
-        type = it.type,
-        progress = if (it.originalAmount > 0) {
-          ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
-        } else 0f
-      )
-    }
+    val debtors =
+      unsettledLoans.filter { it.type == "DEBTOR" }.map {
+        io.github.mojri.hesabyar.ui.DebtSummary(
+          personName = it.personName,
+          originalAmount = it.originalAmount,
+          remainingAmount = it.remainingAmount,
+          type = it.type,
+          progress =
+            if (it.originalAmount > 0) {
+              ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
+            } else {
+              0f
+            }
+        )
+      }
+    val creditors =
+      unsettledLoans.filter { it.type == "CREDITOR" }.map {
+        io.github.mojri.hesabyar.ui.DebtSummary(
+          personName = it.personName,
+          originalAmount = it.originalAmount,
+          remainingAmount = it.remainingAmount,
+          type = it.type,
+          progress =
+            if (it.originalAmount > 0) {
+              ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
+            } else {
+              0f
+            }
+        )
+      }
 
     return AnalyticsData(
       monthlySpending = listOf(monthlySpending),

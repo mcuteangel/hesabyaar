@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
-import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -74,11 +73,27 @@ class ManageBackupUseCase(
       version = rustResult.version,
       timestamp = rustResult.timestamp,
       appVersion = rustResult.appVersion,
-      transactions = rustResult.transactions.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustTransaction(it) },
-      loans = rustResult.loans.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustLoan(it) },
-      installments = rustResult.installments.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustInstallment(it) },
+      transactions =
+        rustResult.transactions.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .fromRustTransaction(it)
+        },
+      loans =
+        rustResult.loans.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .fromRustLoan(it)
+        },
+      installments =
+        rustResult.installments.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .fromRustInstallment(it)
+        },
       paymentHistories = paymentHistories,
-      categories = rustResult.categories.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustCategory(it) },
+      categories =
+        rustResult.categories.map {
+          io.github.mojri.hesabyar.rust.RustMappers
+            .fromRustCategory(it)
+        },
       settings = settings
     )
   }
@@ -88,10 +103,18 @@ class ManageBackupUseCase(
       version = version,
       timestamp = timestamp,
       appVersion = appVersion,
-      transactions = io.github.mojri.hesabyar.rust.RustMappers.mapTransactions(transactions),
-      loans = io.github.mojri.hesabyar.rust.RustMappers.mapLoans(loans),
-      installments = io.github.mojri.hesabyar.rust.RustMappers.mapInstallments(installments),
-      categories = io.github.mojri.hesabyar.rust.RustMappers.mapCategories(categories)
+      transactions =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+      loans =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+      installments =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments),
+      categories =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapCategories(categories)
     )
 
   fun validateBackup(backup: BackupPayload): BackupValidationResult {

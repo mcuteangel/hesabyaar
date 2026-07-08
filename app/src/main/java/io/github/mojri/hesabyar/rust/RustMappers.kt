@@ -168,14 +168,12 @@ object RustMappers {
   fun mapTransactions(list: List<Transaction>): List<io.github.mojri.hesabyar.rust.Transaction> =
     list.map { mapTransaction(it) }
 
-  fun mapLoans(list: List<Loan>): List<io.github.mojri.hesabyar.rust.Loan> =
-    list.map { mapLoan(it) }
+  fun mapLoans(list: List<Loan>): List<io.github.mojri.hesabyar.rust.Loan> = list.map { mapLoan(it) }
 
   fun mapInstallments(list: List<Installment>): List<io.github.mojri.hesabyar.rust.Installment> =
     list.map { mapInstallment(it) }
 
-  fun mapCategories(list: List<Category>): List<io.github.mojri.hesabyar.rust.Category> =
-    list.map { mapCategory(it) }
+  fun mapCategories(list: List<Category>): List<io.github.mojri.hesabyar.rust.Category> = list.map { mapCategory(it) }
 
   // ===========================================================================
   // Reverse mappers: Rust → Kotlin domain types
