@@ -26,11 +26,18 @@ object JalaliCalendarHelper {
     io.github.mojri.hesabyar.rust.RustBridge
       .getJalaliDaysInMonthSync(year, month)
 
-  fun gregorianToJalali(timestamp: Long): JalaliDate =
-    unpackJalaliDate(
-      io.github.mojri.hesabyar.rust.RustBridge
-        .gregorianToJalaliSync(timestamp)
+  fun gregorianToJalali(timestamp: Long): JalaliDate {
+    // Extract device-local Gregorian date first, then convert to Jalali.
+    // Using the raw epoch timestamp directly would use UTC and can shift
+    // dates by one day for users ahead of UTC (e.g. Iran UTC+3:30).
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = timestamp
+    return gregorianToJalali(
+      cal.get(java.util.Calendar.YEAR),
+      cal.get(java.util.Calendar.MONTH) + 1,
+      cal.get(java.util.Calendar.DAY_OF_MONTH)
     )
+  }
 
   private fun unpackJalaliDate(packed: Long): JalaliDate {
     if (packed == PACKED_DATE_INVALID || packed == Long.MIN_VALUE) return JalaliDate(0, 0, 0)

@@ -60,7 +60,7 @@ class ExportViewModel
             )
         } catch (e: CancellationException) {
           throw e
-        } catch (e: RuntimeException) {
+        } catch (e: Exception) {
           exportState.value =
             ExportState.Error(
               "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"

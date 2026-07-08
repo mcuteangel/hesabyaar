@@ -308,11 +308,16 @@ tasks.register("assembleRust") {
         pb.inheritIO()
         val exitCode = pb.start().waitFor()
         if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
-        val lib = File(outDir, target.jniLib)
-        if (!lib.exists()) {
-          throw GradleException(
-            "Expected native library ${target.jniLib} not found for ${target.abi} at ${lib.absolutePath}"
-          )
+        // cargo-ndk may place the .so directly in outDir or under a triple subdirectory.
+        // Search both locations to handle varying cargo-ndk versions.
+        val libDirect = File(outDir, target.jniLib)
+        val lib = if (libDirect.exists()) {
+          libDirect
+        } else {
+          outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
+            ?: throw GradleException(
+              "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
+            )
         }
       }
     }

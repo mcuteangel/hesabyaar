@@ -23,22 +23,46 @@ class GetDashboardDataUseCase(
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
-        transactions.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapTransaction(it)
-        },
-        loans.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapLoan(it)
-        },
-        installments.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapInstallment(it)
-        }
+        io.github.mojri.hesabyar.rust.RustMappers.mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers.mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers.mapInstallments(installments)
       )
 
-    if (rustResult == null) return DashboardData()
-    return io.github.mojri.hesabyar.rust.RustMappers
-      .mapDashboardData(rustResult, installments)
+    if (rustResult != null) {
+      return io.github.mojri.hesabyar.rust.RustMappers
+        .mapDashboardData(rustResult, installments)
+    }
+
+    // Kotlin fallback when Rust FFI is unavailable or fails
+    val now = System.currentTimeMillis()
+    val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
+
+    val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
+    val monthlyIncome = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount }
+    val monthlyExpenses = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+
+    val unsettledLoans = loans.filter { !it.isSettled }
+    val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount }
+    val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount }
+
+    val currentBalance = monthlyIncome - monthlyExpenses
+    val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
+    val monthlyDebt = unsettledLoans
+      .filter { it.type == "CREDITOR" }
+      .sumOf { it.remainingAmount / 12 }
+    val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
+
+    val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
+
+    return DashboardData(
+      currentBalance = currentBalance,
+      monthlyExpenses = monthlyExpenses,
+      monthlyIncome = monthlyIncome,
+      debtorsTotal = debtors,
+      creditorsTotal = creditors,
+      upcomingInstallments = upcomingIns,
+      savingsRate = savingsRate,
+      debtToIncomeRatio = debtToIncome
+    )
   }
 }

@@ -114,6 +114,11 @@ pub fn gregorian_to_jalali_date(
     g_month: i32,
     g_day: i32,
 ) -> Result<JalaliDate, HesabyarError> {
+    if g_month < 1 || g_month > 12 || g_day < 1 || g_day > 31 {
+        return Err(HesabyarError::CalendarError {
+            detail: format!("Invalid Gregorian date: {}/{}/{}", g_year, g_month, g_day),
+        });
+    }
     let gy = g_year - 1600;
     let gm = g_month - 1;
     let gd = g_day - 1;

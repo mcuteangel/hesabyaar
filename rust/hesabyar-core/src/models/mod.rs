@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+/// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
+fn deserialize_zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let val = i64::deserialize(deserializer)?;
+    Ok(if val == 0 { None } else { Some(val) })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionType {
@@ -49,9 +58,9 @@ pub struct Transaction {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub person_name: Option<String>,
     pub date: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none")]
     pub due_date: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none")]
     pub installment_id: Option<i64>,
 }
 
@@ -339,7 +348,7 @@ mod tests {
                 {"id": 1, "type": "EXPENSE", "categoryId": 10, "amount": 50000, "description": "Lunch", "personName": "", "date": 1710000000000, "dueDate": 0, "installmentId": 0}
             ],
             "loans": [
-                {"id": 2, "personName": "Bob", "type": "LOAN_DEBTOR", "originalAmount": 100000, "remainingAmount": 40000, "description": "Loan", "date": 1710000000000, "isSettled": false}
+                {"id": 2, "personName": "Bob", "type": "DEBTOR", "originalAmount": 100000, "remainingAmount": 40000, "description": "Loan", "date": 1710000000000, "isSettled": false}
             ],
             "installments": [
                 {"id": 3, "title": "Rent", "amount": 2000000, "dueDate": 1710000000000, "isPaid": false, "reminderEnabled": true, "notes": ""}
@@ -348,7 +357,7 @@ mod tests {
         let payload: BackupPayload = serde_json::from_str(json).unwrap();
         assert_eq!(payload.categories[0].category_type, "EXPENSE");
         assert_eq!(payload.transactions[0].category_id, 10);
-        assert_eq!(payload.loans[0].loan_type, "LOAN_DEBTOR");
+        assert_eq!(payload.loans[0].loan_type, "DEBTOR");
         assert_eq!(payload.loans[0].original_amount, 100000);
         assert!(!payload.installments[0].is_paid);
     }

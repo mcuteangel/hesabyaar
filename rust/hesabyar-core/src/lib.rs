@@ -156,7 +156,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
                 detail: format!("Category {} has invalid id", cat.id),
             });
         }
-        if cat.name.is_empty() {
+        if cat.name.trim().is_empty() {
             return Err(HesabyarError::BackupValidation {
                 detail: format!("Category {} has empty name", cat.id),
             });

@@ -65,17 +65,7 @@ class ExcelExporter {
     categoryMap: Map<Long, Category>
   ): SheetData {
     val headers = listOf("ردیف", "نوع", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows =
-      transactions.mapIndexed { index, tx ->
-        listOf(
-          Cell(value = (index + 1).toString(), bold = false),
-          Cell(value = if (tx.type == "INCOME") "دریافتی" else "پرداختی", bold = false),
-          Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
-          Cell(value = formatAmount(tx.amount), bold = false),
-          Cell(value = tx.description, bold = false),
-          Cell(value = formatDate(tx.date), bold = false)
-        )
-      }
+    val rows = buildTxRows(transactions, categoryMap, includeType = true)
     return SheetData(name = "همه تراکنش\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
@@ -84,25 +74,9 @@ class ExcelExporter {
     categoryMap: Map<Long, Category>
   ): SheetData {
     val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows =
-      incomeTransactions.mapIndexed { index, tx ->
-        listOf(
-          Cell(value = (index + 1).toString(), bold = false),
-          Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
-          Cell(value = formatAmount(tx.amount), bold = false),
-          Cell(value = tx.description, bold = false),
-          Cell(value = formatDate(tx.date), bold = false)
-        )
-      }
+    val rows = buildTxRows(incomeTransactions, categoryMap, includeType = false)
     val total = incomeTransactions.sumOf { it.amount }
-    val summary =
-      listOf(
-        Cell(value = "", bold = false),
-        Cell(value = "مجموع:", bold = true),
-        Cell(value = formatAmount(total), bold = true),
-        Cell(value = "", bold = false),
-        Cell(value = "", bold = false)
-      )
+    val summary = buildTotalRow(total)
     return SheetData(name = "دریافتی\u200Cها", headers = headers, rows = rows, summaryRow = summary)
   }
 
@@ -111,27 +85,38 @@ class ExcelExporter {
     categoryMap: Map<Long, Category>
   ): SheetData {
     val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows =
-      expenseTransactions.mapIndexed { index, tx ->
-        listOf(
-          Cell(value = (index + 1).toString(), bold = false),
-          Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
-          Cell(value = formatAmount(tx.amount), bold = false),
-          Cell(value = tx.description, bold = false),
-          Cell(value = formatDate(tx.date), bold = false)
-        )
-      }
+    val rows = buildTxRows(expenseTransactions, categoryMap, includeType = false)
     val total = expenseTransactions.sumOf { it.amount }
-    val summary =
-      listOf(
-        Cell(value = "", bold = false),
-        Cell(value = "مجموع:", bold = true),
-        Cell(value = formatAmount(total), bold = true),
-        Cell(value = "", bold = false),
-        Cell(value = "", bold = false)
-      )
+    val summary = buildTotalRow(total)
     return SheetData(name = "پرداختی\u200Cها", headers = headers, rows = rows, summaryRow = summary)
   }
+
+  private fun buildTxRows(
+    transactions: List<Transaction>,
+    categoryMap: Map<Long, Category>,
+    includeType: Boolean
+  ): List<List<Cell>> =
+    transactions.mapIndexed { index, tx ->
+      buildList {
+        add(Cell(value = (index + 1).toString(), bold = false))
+        if (includeType) {
+          add(Cell(value = if (tx.type == "INCOME") "دریافتی" else "پرداختی", bold = false))
+        }
+        add(Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false))
+        add(Cell(value = formatAmount(tx.amount), bold = false))
+        add(Cell(value = tx.description, bold = false))
+        add(Cell(value = formatDate(tx.date), bold = false))
+      }
+    }
+
+  private fun buildTotalRow(total: Long): List<Cell> =
+    listOf(
+      Cell(value = "", bold = false),
+      Cell(value = "مجموع:", bold = true),
+      Cell(value = formatAmount(total), bold = true),
+      Cell(value = "", bold = false),
+      Cell(value = "", bold = false)
+    )
 
   private fun buildLoansSheet(loans: List<Loan>): SheetData {
     val headers = listOf("ردیف", "نام شخص", "نوع", "مبلغ اولیه", "مبلغ باقیمانده", "توضیحات", "تاریخ", "وضعیت")

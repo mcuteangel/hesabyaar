@@ -74,58 +74,11 @@ class ManageBackupUseCase(
       version = rustResult.version,
       timestamp = rustResult.timestamp,
       appVersion = rustResult.appVersion,
-      transactions =
-        rustResult.transactions.map { tx ->
-          Transaction(
-            id = tx.id,
-            type = tx.txType.name,
-            categoryId = tx.categoryId,
-            amount = tx.amount,
-            description = tx.description,
-            personName = tx.personName,
-            date = tx.date,
-            dueDate = tx.dueDate,
-            installmentId = tx.installmentId
-          )
-        },
-      loans =
-        rustResult.loans.map { loan ->
-          Loan(
-            id = loan.id,
-            personName = loan.personName,
-            type = loan.loanType,
-            originalAmount = loan.originalAmount,
-            remainingAmount = loan.remainingAmount,
-            description = loan.description,
-            date = loan.date,
-            isSettled = loan.isSettled
-          )
-        },
-      installments =
-        rustResult.installments.map { inst ->
-          Installment(
-            id = inst.id,
-            title = inst.title,
-            amount = inst.amount,
-            dueDate = inst.dueDate,
-            isPaid = inst.isPaid,
-            reminderEnabled = inst.reminderEnabled,
-            notes = inst.notes
-          )
-        },
+      transactions = rustResult.transactions.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustTransaction(it) },
+      loans = rustResult.loans.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustLoan(it) },
+      installments = rustResult.installments.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustInstallment(it) },
       paymentHistories = paymentHistories,
-      categories =
-        rustResult.categories.map { cat ->
-          Category(
-            id = cat.id,
-            name = cat.name,
-            key = cat.key,
-            icon = cat.icon,
-            color = cat.color,
-            type = cat.categoryType,
-            isDefault = cat.isDefault
-          )
-        },
+      categories = rustResult.categories.map { io.github.mojri.hesabyar.rust.RustMappers.fromRustCategory(it) },
       settings = settings
     )
   }
@@ -135,26 +88,10 @@ class ManageBackupUseCase(
       version = version,
       timestamp = timestamp,
       appVersion = appVersion,
-      transactions =
-        transactions.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapTransaction(it)
-        },
-      loans =
-        loans.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapLoan(it)
-        },
-      installments =
-        installments.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapInstallment(it)
-        },
-      categories =
-        categories.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .mapCategory(it)
-        }
+      transactions = io.github.mojri.hesabyar.rust.RustMappers.mapTransactions(transactions),
+      loans = io.github.mojri.hesabyar.rust.RustMappers.mapLoans(loans),
+      installments = io.github.mojri.hesabyar.rust.RustMappers.mapInstallments(installments),
+      categories = io.github.mojri.hesabyar.rust.RustMappers.mapCategories(categories)
     )
 
   fun validateBackup(backup: BackupPayload): BackupValidationResult {

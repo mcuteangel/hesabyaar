@@ -54,17 +54,27 @@ object CurrencyFormatter {
   }
 
   /** Format number only (no unit) — for components that show their own label. */
-  fun formatNumber(value: Long): String =
-    toPersianDigits(
+  fun formatNumber(value: Long): String {
+    val isNegative = value < 0
+    val absValue = if (isNegative) -value else value
+    val formatted = toPersianDigits(
       io.github.mojri.hesabyar.rust.RustBridge
-        .formatNumberSync(value)
+        .formatNumberSync(absValue)
     )
+    return if (isNegative) "-$formatted" else formatted
+  }
 
-  fun format(rial: Long): String =
-    toPersianDigits(
+  fun format(rial: Long): String {
+    // Handle negative values to avoid leading thousands separator (e.g. -,۱۲۳ ریال).
+    // Extract the sign, format the absolute value, then re-add the sign.
+    val isNegative = rial < 0
+    val absValue = if (isNegative) -rial else rial
+    val formatted = toPersianDigits(
       io.github.mojri.hesabyar.rust.RustBridge
-        .formatCurrencySync(rial, toRustUnit())
+        .formatCurrencySync(absValue, toRustUnit())
     )
+    return if (isNegative) "-$formatted" else formatted
+  }
 
   /**
    * AI AGENT CRITICAL INSTRUCTION: DO NOT ALTER THIS METHOD.
@@ -72,12 +82,15 @@ object CurrencyFormatter {
    * Example: 10 Tomans * 10 = 100 Rials.
    */
   fun toRial(displayValue: Long): Long {
+    // Capture unit once so fallback uses the same unit as the Rust call.
+    val unit = currentUnit
+    val rustUnit = toRustUnit()
     val result =
       io.github.mojri.hesabyar.rust.RustBridge
-        .toRialSync(displayValue, toRustUnit())
+        .toRialSync(displayValue, rustUnit)
     // Kotlin fallback if Rust returns 0 for non-zero input
     return if (result == 0L && displayValue != 0L) {
-      when (currentUnit) {
+      when (unit) {
         CurrencyUnit.TOMAN -> displayValue * 10
         CurrencyUnit.RIAL -> displayValue
       }
@@ -92,12 +105,15 @@ object CurrencyFormatter {
    * Example: 100 Rials / 10 = 10 Tomans.
    */
   fun fromRial(rial: Long): Long {
+    // Capture unit once so fallback uses the same unit as the Rust call.
+    val unit = currentUnit
+    val rustUnit = toRustUnit()
     val result =
       io.github.mojri.hesabyar.rust.RustBridge
-        .fromRialSync(rial, toRustUnit())
+        .fromRialSync(rial, rustUnit)
     // Kotlin fallback if Rust returns 0 for non-zero input
     return if (result == 0L && rial != 0L) {
-      when (currentUnit) {
+      when (unit) {
         CurrencyUnit.TOMAN -> rial / 10
         CurrencyUnit.RIAL -> rial
       }

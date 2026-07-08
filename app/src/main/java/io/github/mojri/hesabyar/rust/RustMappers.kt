@@ -160,4 +160,71 @@ object RustMappers {
       categoryType = cat.type,
       isDefault = cat.isDefault
     )
+
+  // ===========================================================================
+  // Batch mappers: lists of Kotlin domain → Rust types
+  // ===========================================================================
+
+  fun mapTransactions(list: List<Transaction>): List<io.github.mojri.hesabyar.rust.Transaction> =
+    list.map { mapTransaction(it) }
+
+  fun mapLoans(list: List<Loan>): List<io.github.mojri.hesabyar.rust.Loan> =
+    list.map { mapLoan(it) }
+
+  fun mapInstallments(list: List<Installment>): List<io.github.mojri.hesabyar.rust.Installment> =
+    list.map { mapInstallment(it) }
+
+  fun mapCategories(list: List<Category>): List<io.github.mojri.hesabyar.rust.Category> =
+    list.map { mapCategory(it) }
+
+  // ===========================================================================
+  // Reverse mappers: Rust → Kotlin domain types
+  // ===========================================================================
+
+  fun fromRustTransaction(tx: io.github.mojri.hesabyar.rust.Transaction): Transaction =
+    Transaction(
+      id = tx.id,
+      type = tx.txType.name,
+      categoryId = tx.categoryId,
+      amount = tx.amount,
+      description = tx.description,
+      personName = tx.personName,
+      date = tx.date,
+      dueDate = tx.dueDate,
+      installmentId = tx.installmentId
+    )
+
+  fun fromRustLoan(loan: io.github.mojri.hesabyar.rust.Loan): Loan =
+    Loan(
+      id = loan.id,
+      personName = loan.personName,
+      type = loan.loanType,
+      originalAmount = loan.originalAmount,
+      remainingAmount = loan.remainingAmount,
+      description = loan.description,
+      date = loan.date,
+      isSettled = loan.isSettled
+    )
+
+  fun fromRustInstallment(inst: io.github.mojri.hesabyar.rust.Installment): Installment =
+    Installment(
+      id = inst.id,
+      title = inst.title,
+      amount = inst.amount,
+      dueDate = inst.dueDate,
+      isPaid = inst.isPaid,
+      reminderEnabled = inst.reminderEnabled,
+      notes = inst.notes
+    )
+
+  fun fromRustCategory(cat: io.github.mojri.hesabyar.rust.Category): Category =
+    Category(
+      id = cat.id,
+      name = cat.name,
+      key = cat.key,
+      icon = cat.icon,
+      color = cat.color,
+      type = cat.categoryType,
+      isDefault = cat.isDefault
+    )
 }

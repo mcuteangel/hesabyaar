@@ -329,18 +329,18 @@ pub fn validate_ai_advice(text: &str) -> AdviceValidation {
 
     let mut result = trimmed.to_string();
 
-    // Length clamp
+    // Length clamp — find a safe char boundary before truncating
     if result.len() > MAX_ADVICE_LENGTH {
-        result.truncate(MAX_ADVICE_LENGTH);
-        // Don't split in the middle of a UTF-8 char
-        while !result.is_char_boundary(result.len()) {
-            result.pop();
+        let mut truncate_at = MAX_ADVICE_LENGTH;
+        while truncate_at > 0 && !result.is_char_boundary(truncate_at) {
+            truncate_at -= 1;
         }
+        result.truncate(truncate_at);
         was_truncated = true;
         warnings.push(format!(
             "Text truncated from {} to {} chars",
             trimmed.len(),
-            MAX_ADVICE_LENGTH
+            result.chars().count()
         ));
     }
 
@@ -349,15 +349,18 @@ pub fn validate_ai_advice(text: &str) -> AdviceValidation {
     for pattern in &dangerous_patterns {
         let lower_result = result.to_lowercase();
         if lower_result.contains(pattern) {
-            // Case-insensitive removal
-            let mut new_result = String::new();
-            let lower_chars: Vec<char> = lower_result.chars().collect();
+            // Case-insensitive removal — iterate chars from the original
+            // string and compare case-insensitively to keep positions aligned.
             let pattern_chars: Vec<char> = pattern.chars().collect();
-            let mut i = 0;
             let result_chars: Vec<char> = result.chars().collect();
+            let mut new_result = String::new();
+            let mut i = 0;
             while i < result_chars.len() {
-                if i + pattern_chars.len() <= lower_chars.len()
-                    && lower_chars[i..i + pattern_chars.len()] == pattern_chars[..]
+                if i + pattern_chars.len() <= result_chars.len()
+                    && result_chars[i..i + pattern_chars.len()]
+                        .iter()
+                        .zip(pattern_chars.iter())
+                        .all(|(a, b)| a.to_lowercase().eq(b.to_lowercase()))
                 {
                     i += pattern_chars.len();
                 } else {
@@ -368,10 +371,11 @@ pub fn validate_ai_advice(text: &str) -> AdviceValidation {
             result = new_result;
             // Re-truncate if replacement made it longer (shouldn't happen)
             if result.len() > MAX_ADVICE_LENGTH {
-                result.truncate(MAX_ADVICE_LENGTH);
-                while !result.is_char_boundary(result.len()) {
-                    result.pop();
+                let mut truncate_at = MAX_ADVICE_LENGTH;
+                while truncate_at > 0 && !result.is_char_boundary(truncate_at) {
+                    truncate_at -= 1;
                 }
+                result.truncate(truncate_at);
             }
             warnings.push(format!("Removed dangerous pattern: {}", pattern));
         }
