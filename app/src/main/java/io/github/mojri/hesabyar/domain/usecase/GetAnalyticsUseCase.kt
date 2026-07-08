@@ -16,53 +16,20 @@ class GetAnalyticsUseCase {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
         transactions.map {
-          io.github.mojri.hesabyar.rust.Transaction(
-            id = it.id,
-            txType =
-              io.github.mojri.hesabyar.rust.TransactionType
-                .valueOf(it.type),
-            categoryId = it.categoryId,
-            amount = it.amount,
-            description = it.description,
-            personName = it.personName,
-            date = it.date,
-            dueDate = it.dueDate,
-            installmentId = it.installmentId
-          )
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapTransaction(it)
         },
         loans.map {
-          io.github.mojri.hesabyar.rust.Loan(
-            id = it.id,
-            personName = it.personName,
-            loanType = it.type,
-            originalAmount = it.originalAmount,
-            remainingAmount = it.remainingAmount,
-            description = it.description,
-            date = it.date,
-            isSettled = it.isSettled
-          )
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapLoan(it)
         },
         installments.map {
-          io.github.mojri.hesabyar.rust.Installment(
-            id = it.id,
-            title = it.title,
-            amount = it.amount,
-            dueDate = it.dueDate,
-            isPaid = it.isPaid,
-            reminderEnabled = it.reminderEnabled,
-            notes = it.notes
-          )
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapInstallment(it)
         },
         categories.map {
-          io.github.mojri.hesabyar.rust.Category(
-            id = it.id,
-            name = it.name,
-            key = it.key,
-            icon = it.icon,
-            color = it.color,
-            categoryType = it.type,
-            isDefault = it.isDefault
-          )
+          io.github.mojri.hesabyar.rust.RustMappers
+            .mapCategory(it)
         }
       )
 

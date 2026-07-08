@@ -2,6 +2,8 @@ package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.Transaction
 import java.math.RoundingMode
 import io.github.mojri.hesabyar.ui.AnalyticsData as KAnalyticsData
 import io.github.mojri.hesabyar.ui.CategoryBreakdown as KCategoryBreakdown
@@ -103,4 +105,59 @@ object RustMappers {
     )
 
   fun mapCategoryMap(categories: List<Category>): Map<Long, Category> = categories.associateBy { it.id }
+
+  /**
+   * Map a free-form DB transaction type string to a valid Rust [TransactionType].
+   * Falls back to [TransactionType.EXPENSE] for unknown values instead of throwing,
+   * since [Transaction.type] is an unconstrained string.
+   */
+  fun mapTransactionType(type: String): TransactionType =
+    TransactionType.entries.firstOrNull { it.name == type } ?: TransactionType.EXPENSE
+
+  fun mapTransaction(tx: Transaction): io.github.mojri.hesabyar.rust.Transaction =
+    io.github.mojri.hesabyar.rust.Transaction(
+      id = tx.id,
+      txType = mapTransactionType(tx.type),
+      categoryId = tx.categoryId,
+      amount = tx.amount,
+      description = tx.description,
+      personName = tx.personName,
+      date = tx.date,
+      dueDate = tx.dueDate,
+      installmentId = tx.installmentId
+    )
+
+  fun mapLoan(loan: Loan): io.github.mojri.hesabyar.rust.Loan =
+    io.github.mojri.hesabyar.rust.Loan(
+      id = loan.id,
+      personName = loan.personName,
+      loanType = loan.type,
+      originalAmount = loan.originalAmount,
+      remainingAmount = loan.remainingAmount,
+      description = loan.description,
+      date = loan.date,
+      isSettled = loan.isSettled
+    )
+
+  fun mapInstallment(inst: Installment): io.github.mojri.hesabyar.rust.Installment =
+    io.github.mojri.hesabyar.rust.Installment(
+      id = inst.id,
+      title = inst.title,
+      amount = inst.amount,
+      dueDate = inst.dueDate,
+      isPaid = inst.isPaid,
+      reminderEnabled = inst.reminderEnabled,
+      notes = inst.notes
+    )
+
+  fun mapCategory(cat: Category): io.github.mojri.hesabyar.rust.Category =
+    io.github.mojri.hesabyar.rust.Category(
+      id = cat.id,
+      name = cat.name,
+      key = cat.key,
+      icon = cat.icon,
+      color = cat.color,
+      categoryType = cat.type,
+      isDefault = cat.isDefault
+    )
 }

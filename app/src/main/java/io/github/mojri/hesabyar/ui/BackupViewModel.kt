@@ -46,11 +46,7 @@ class BackupViewModel
           val backup = manageBackupUseCase.parseBackupJson(text)
 
           if (backup == null) {
-            pendingRestoreBackup.value = null
-            operationState.value =
-              BackupOperationState.Error(
-                "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
-              )
+            reportInvalidBackupParse()
             return@launch
           }
 
@@ -119,6 +115,14 @@ class BackupViewModel
       sharedPrefs.edit().putBoolean("dark_mode", settings.darkMode).apply()
     }
 
+    private fun reportInvalidBackupParse() {
+      pendingRestoreBackup.value = null
+      operationState.value =
+        BackupOperationState.Error(
+          "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
+        )
+    }
+
     fun cancelPendingRestore() {
       pendingRestoreBackup.value = null
     }
@@ -175,11 +179,7 @@ class BackupViewModel
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = manageBackupUseCase.parseBackupJson(text)
           if (backup == null) {
-            pendingRestoreBackup.value = null
-            operationState.value =
-              BackupOperationState.Error(
-                "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
-              )
+            reportInvalidBackupParse()
             return@launch
           }
           manageBackupUseCase.importBackupFromFile(

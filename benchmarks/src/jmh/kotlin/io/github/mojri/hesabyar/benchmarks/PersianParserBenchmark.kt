@@ -1,9 +1,7 @@
 package io.github.mojri.hesabyar.benchmarks
 
-import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.RustBridge.containsMoney
 import io.github.mojri.hesabyar.rust.RustBridge.parsePersianAmount
-import io.github.mojri.hesabyar.rust.RustBridge.parseSentenceOffline
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Mode

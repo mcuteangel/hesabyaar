@@ -66,9 +66,9 @@ class ExcelExporter {
   ): SheetData {
     val headers = listOf("ردیف", "نوع", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
-      transactions.map { tx ->
+      transactions.mapIndexed { index, tx ->
         listOf(
-          Cell(value = "", bold = false),
+          Cell(value = (index + 1).toString(), bold = false),
           Cell(value = if (tx.type == "INCOME") "دریافتی" else "پرداختی", bold = false),
           Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
           Cell(value = formatAmount(tx.amount), bold = false),
@@ -85,9 +85,9 @@ class ExcelExporter {
   ): SheetData {
     val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
-      incomeTransactions.map { tx ->
+      incomeTransactions.mapIndexed { index, tx ->
         listOf(
-          Cell(value = "", bold = false),
+          Cell(value = (index + 1).toString(), bold = false),
           Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
           Cell(value = formatAmount(tx.amount), bold = false),
           Cell(value = tx.description, bold = false),
@@ -112,9 +112,9 @@ class ExcelExporter {
   ): SheetData {
     val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
     val rows =
-      expenseTransactions.map { tx ->
+      expenseTransactions.mapIndexed { index, tx ->
         listOf(
-          Cell(value = "", bold = false),
+          Cell(value = (index + 1).toString(), bold = false),
           Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false),
           Cell(value = formatAmount(tx.amount), bold = false),
           Cell(value = tx.description, bold = false),
@@ -136,9 +136,9 @@ class ExcelExporter {
   private fun buildLoansSheet(loans: List<Loan>): SheetData {
     val headers = listOf("ردیف", "نام شخص", "نوع", "مبلغ اولیه", "مبلغ باقیمانده", "توضیحات", "تاریخ", "وضعیت")
     val rows =
-      loans.map { loan ->
+      loans.mapIndexed { index, loan ->
         listOf(
-          Cell(value = "", bold = false),
+          Cell(value = (index + 1).toString(), bold = false),
           Cell(value = loan.personName, bold = false),
           Cell(value = if (loan.type == "DEBTOR") "طلبکار" else "بدهکار", bold = false),
           Cell(value = formatAmount(loan.originalAmount), bold = false),
@@ -154,9 +154,9 @@ class ExcelExporter {
   private fun buildInstallmentsSheet(installments: List<Installment>): SheetData {
     val headers = listOf("ردیف", "عنوان", "مبلغ", "تاریخ سررسید", "وضعیت", "یادداشت")
     val rows =
-      installments.map { inst ->
+      installments.mapIndexed { index, inst ->
         listOf(
-          Cell(value = "", bold = false),
+          Cell(value = (index + 1).toString(), bold = false),
           Cell(value = inst.title, bold = false),
           Cell(value = formatAmount(inst.amount), bold = false),
           Cell(value = formatDate(inst.dueDate), bold = false),
