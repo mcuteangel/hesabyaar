@@ -308,6 +308,12 @@ tasks.register("assembleRust") {
         pb.inheritIO()
         val exitCode = pb.start().waitFor()
         if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
+        val lib = File(outDir, target.jniLib)
+        if (!lib.exists()) {
+          throw GradleException(
+            "Expected native library ${target.jniLib} not found for ${target.abi} at ${lib.absolutePath}"
+          )
+        }
       }
     }
     dependsOn(taskName)
