@@ -61,32 +61,37 @@ fn is_leap_gregorian(year: i64) -> bool {
 }
 
 fn timestamp_to_gregorian(timestamp_ms: i64) -> Result<(i32, i32, i32), HesabyarError> {
-    let secs = timestamp_ms / 1000;
-    let days = secs / 86400;
+    // Floor division so timestamps just before the epoch map to the previous
+    // calendar day (fixes pre-epoch date conversion — see R64).
+    let days = timestamp_ms.div_euclid(86_400_000);
 
     // Convert days-since-epoch to year/month/day by walking year-by-year.
-    // This is the exact inverse of gregorian_to_timestamp().
+    // `days` is the offset from 1970-01-01 (day 0) and may be negative.
     let mut year: i64 = 1970;
-    let mut remaining = days;
+    let mut day_of_year = days;
 
-    // Handle negative timestamps (pre-epoch) by walking backward
-    if remaining < 0 {
-        year = 1969;
-        remaining += 1; // Dec 31, 1969 is day -1
-        while remaining < 0 {
-            year -= 1;
-            let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
-            remaining += days_in_year;
-        }
-    } else {
+    if day_of_year >= 0 {
         loop {
             let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
-            if remaining < days_in_year {
+            if day_of_year < days_in_year {
                 break;
             }
-            remaining -= days_in_year;
+            day_of_year -= days_in_year;
             year += 1;
         }
+    } else {
+        year = 1969;
+        loop {
+            let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
+            // A day belongs to `year` when it lies within [-(days_in_year), 0].
+            if day_of_year >= -days_in_year {
+                break;
+            }
+            day_of_year += days_in_year;
+            year -= 1;
+        }
+        let days_in_year: i64 = if is_leap_gregorian(year) { 366 } else { 365 };
+        day_of_year += days_in_year;
     }
 
     let month_days: [i64; 12] = if is_leap_gregorian(year) {
@@ -96,12 +101,12 @@ fn timestamp_to_gregorian(timestamp_ms: i64) -> Result<(i32, i32, i32), Hesabyar
     };
 
     let mut month = 0usize;
-    while month < 12 && remaining >= month_days[month] {
-        remaining -= month_days[month];
+    while month < 12 && day_of_year >= month_days[month] {
+        day_of_year -= month_days[month];
         month += 1;
     }
 
-    Ok((year as i32, (month + 1) as i32, (remaining + 1) as i32))
+    Ok((year as i32, (month + 1) as i32, (day_of_year + 1) as i32))
 }
 
 pub fn gregorian_to_jalali_date(
@@ -208,7 +213,6 @@ pub fn jalali_to_gregorian(j_year: i32, j_month: i32, j_day: i32) -> Result<i64,
     let gm = (i + 1) as i32;
     let gd = (g_day_no + 1) as i32;
 
-    // Convert Gregorian date to epoch milliseconds
     gregorian_to_timestamp(gy, gm, gd)
 }
 

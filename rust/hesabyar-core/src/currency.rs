@@ -5,7 +5,11 @@ use crate::models::CurrencyUnit;
 #[uniffi::export]
 pub fn format_number(value: i64) -> String {
     let negative = value < 0;
-    let s = if negative { (-value).to_string() } else { value.to_string() };
+    // Use the unsigned magnitude so that i64::MIN (whose negation would
+    // overflow and panic in debug builds) formats correctly, and so the
+    // separator logic below never counts the sign character.
+    let magnitude = value.unsigned_abs();
+    let s = magnitude.to_string();
     let mut result = String::new();
     let len = s.len();
     for (i, c) in s.chars().enumerate() {

@@ -122,7 +122,9 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
         total += current_num * multiplier as f64;
     }
 
-    total as i64
+    // Round (not truncate) so float imprecision on large Rial totals does not
+    // silently drop a single unit.
+    total.round() as i64
 }
 
 fn interpret_shorthand(tokens: &[Token]) -> i64 {
@@ -143,6 +145,9 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
         UnitType::Million.multiplier() as f64,
         UnitType::Thousand.multiplier() as f64,
     ];
+    // `numbers.len() <= 3` is the supported shorthand shape: the first number
+    // maps to the largest remaining unit. For >3 numbers we clamp the unit
+    // index so we never index out of bounds (and never underflow `3 - len`).
     let start_idx = (3_usize).saturating_sub(numbers.len());
 
     let mut total: f64 = 0.0;
@@ -150,7 +155,8 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
         let idx = (start_idx + i).min(unit_steps.len() - 1);
         total += num * unit_steps[idx];
     }
-    total as i64
+    // Round (not truncate) so float imprecision does not drop a single unit.
+    total.round() as i64
 }
 
 fn interpret_bare_last(tokens: &[Token]) -> i64 {
