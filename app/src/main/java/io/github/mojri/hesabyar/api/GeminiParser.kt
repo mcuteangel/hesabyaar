@@ -297,6 +297,25 @@ object GeminiParser {
     return TYPE_EXPENSE
   }
 
+  private val categoryKeywords =
+    mapOf(
+      CATEGORY_TRANSPORTATION to listOf("پارکینگ", "بنزین", "تاکسی", "اتوبوس", "مترو"),
+      CATEGORY_BILLS to listOf("برق", "آب", "گاز", "تلفن", "قبض"),
+      CATEGORY_RENT_UTILITIES to listOf("اجاره", "رهن"),
+      CATEGORY_FOOD to listOf("غذا", "رستوران", "ناهار", "شام", "صبحانه", "بستنی"),
+      CATEGORY_SHOPPING to listOf("خرید", "فروشگاه"),
+      CATEGORY_EDUCATION to listOf("آموزش", "کلاس", "مدرسه", "دانشگاه"),
+      CATEGORY_PERSONAL_CARE to listOf("درمان", "دارو", "بیمارستان", "پزشک"),
+      CATEGORY_EVENTS_GIFTS to listOf("هدیه", "جشن", "مراسم"),
+      CATEGORY_CHARITY to listOf("خیریه", "صدقه"),
+      CATEGORY_INVESTMENT to listOf(KEYWORD_INVESTMENT, "صندوق", "سهام")
+    )
+
+  private fun containsAny(
+    text: String,
+    keywords: List<String>
+  ): Boolean = keywords.any { text.contains(it) }
+
   private fun detectCategory(
     text: String,
     type: String
@@ -304,53 +323,8 @@ object GeminiParser {
     if (type == TYPE_INCOME) return CATEGORY_INCOME
     if (type == TYPE_INSTALLMENT) return CATEGORY_INSTALLMENTS
     if (type == TYPE_LOAN_DEBTOR || type == TYPE_LOAN_CREDITOR) return CATEGORY_LOANS
-    if (text.contains("پارکینگ") ||
-      text.contains("بنزین") ||
-      text.contains("تاکسی") ||
-      text.contains("اتوبوس") ||
-      text.contains("مترو")
-    ) {
-      return CATEGORY_TRANSPORTATION
-    }
-    if (text.contains("برق") ||
-      text.contains("آب") ||
-      text.contains("گاز") ||
-      text.contains("تلفن") ||
-      text.contains("قبض")
-    ) {
-      return CATEGORY_BILLS
-    }
-    if (text.contains("اجاره") || text.contains("رهن")) return CATEGORY_RENT_UTILITIES
-    if (text.contains("غذا") ||
-      text.contains("رستوران") ||
-      text.contains("ناهار") ||
-      text.contains("شام") ||
-      text.contains("صبحانه") ||
-      text.contains("بستنی")
-    ) {
-      return CATEGORY_FOOD
-    }
-    if (text.contains("خرید") || text.contains("فروشگاه")) return CATEGORY_SHOPPING
-    if (text.contains("آموزش") ||
-      text.contains("کلاس") ||
-      text.contains("مدرسه") ||
-      text.contains("دانشگاه")
-    ) {
-      return CATEGORY_EDUCATION
-    }
-    if (text.contains("درمان") ||
-      text.contains("دارو") ||
-      text.contains("بیمارستان") ||
-      text.contains("پزشک")
-    ) {
-      return CATEGORY_PERSONAL_CARE
-    }
-    if (text.contains("هدیه") || text.contains("جشن") || text.contains("مراسم")) {
-      return CATEGORY_EVENTS_GIFTS
-    }
-    if (text.contains("خیریه") || text.contains("صدقه")) return CATEGORY_CHARITY
-    if (text.contains(KEYWORD_INVESTMENT) || text.contains("صندوق") || text.contains("سهام")) {
-      return CATEGORY_INVESTMENT
+    for ((category, keywords) in categoryKeywords) {
+      if (containsAny(text, keywords)) return category
     }
     return CATEGORY_OTHER
   }
@@ -375,8 +349,8 @@ object GeminiParser {
     when {
       text.contains("دیروز") -> -1
       text.contains("پریروز") -> -2
-      text.contains("فردا") -> 1
       text.contains("پس‌فردا") || text.contains("پسفردا") -> 2
+      text.contains("فردا") -> 1
       else -> 0
     }
 

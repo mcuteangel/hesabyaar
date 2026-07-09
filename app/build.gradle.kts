@@ -403,6 +403,10 @@ rustTargets.forEach { target ->
               "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
             )
         }
+      // Ensure the library is copied to the expected output location
+      if (foundLib != outputLib) {
+        foundLib.copyTo(outputLib, overwrite = true)
+      }
     }
   }
 }

@@ -79,12 +79,18 @@ class ManageBackupUseCase(
         root.optJSONArray("transactions")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val typeStr = o.optString("type", "")
+            val type =
+              if (typeStr.isEmpty()) {
+                io.github.mojri.hesabyar.data.TransactionType.EXPENSE
+              } else {
+                io.github.mojri.hesabyar.data.TransactionType.entries
+                  .firstOrNull { it.name == typeStr }
+                  ?: return@mapNotNull null
+              }
             Transaction(
               id = o.optLong("id", 0L),
-              type =
-                io.github.mojri.hesabyar.data.TransactionType.entries
-                  .firstOrNull { it.name == o.optString("type") }
-                  ?: io.github.mojri.hesabyar.data.TransactionType.EXPENSE,
+              type = type,
               categoryId = o.optLong("categoryId", 0L),
               amount = o.optLong("amount", 0L),
               description = o.optString("description", ""),
@@ -100,13 +106,19 @@ class ManageBackupUseCase(
         root.optJSONArray("loans")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val typeStr = o.optString("type", "")
+            val type =
+              if (typeStr.isEmpty()) {
+                io.github.mojri.hesabyar.data.LoanType.CREDITOR
+              } else {
+                io.github.mojri.hesabyar.data.LoanType.entries
+                  .firstOrNull { it.name == typeStr }
+                  ?: return@mapNotNull null
+              }
             Loan(
               id = o.optLong("id", 0L),
               personName = o.optString("personName", ""),
-              type =
-                io.github.mojri.hesabyar.data.LoanType.entries
-                  .firstOrNull { it.name == o.optString("type") }
-                  ?: io.github.mojri.hesabyar.data.LoanType.CREDITOR,
+              type = type,
               originalAmount = o.optLong("originalAmount", 0L),
               remainingAmount = o.optLong("remainingAmount", 0L),
               description = o.optString("description", ""),
@@ -136,16 +148,22 @@ class ManageBackupUseCase(
         root.optJSONArray("categories")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val typeStr = o.optString("type", "")
+            val type =
+              if (typeStr.isEmpty()) {
+                io.github.mojri.hesabyar.data.CategoryType.EXPENSE
+              } else {
+                io.github.mojri.hesabyar.data.CategoryType.entries
+                  .firstOrNull { it.name == typeStr }
+                  ?: return@mapNotNull null
+              }
             Category(
               id = o.optLong("id", 0L),
               name = o.optString("name", ""),
               key = o.optString("key", ""),
               icon = o.optString("icon", ""),
               color = o.optLong("color", 0L),
-              type =
-                io.github.mojri.hesabyar.data.CategoryType.entries
-                  .firstOrNull { it.name == o.optString("type") }
-                  ?: io.github.mojri.hesabyar.data.CategoryType.EXPENSE,
+              type = type,
               isDefault = o.optBoolean("isDefault", false)
             )
           }
@@ -169,19 +187,15 @@ class ManageBackupUseCase(
 
   private fun parsePaymentHistories(rootJson: JSONObject?): List<PaymentHistory> {
     val arr = rootJson?.optJSONArray("paymentHistories") ?: return emptyList()
-    return try {
-      (0 until arr.length()).mapNotNull { i ->
-        val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-        PaymentHistory(
-          id = obj.optLong("id", 0L),
-          loanId = obj.optLong("loanId", 0L),
-          amount = obj.optLong("amount", 0L),
-          date = obj.optLong("date", System.currentTimeMillis()),
-          notes = obj.optString("notes", "")
-        )
-      }
-    } catch (_: Exception) {
-      emptyList()
+    return (0 until arr.length()).mapNotNull { i ->
+      val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+      PaymentHistory(
+        id = obj.optLong("id", 0L),
+        loanId = obj.optLong("loanId", 0L),
+        amount = obj.optLong("amount", 0L),
+        date = obj.optLong("date", System.currentTimeMillis()),
+        notes = obj.optString("notes", "")
+      )
     }
   }
 
