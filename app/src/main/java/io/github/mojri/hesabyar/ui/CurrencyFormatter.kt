@@ -83,44 +83,36 @@ object CurrencyFormatter {
    * Converts Toman to Rial by multiplying by 10.
    * Example: 10 Tomans * 10 = 100 Rials.
    */
-  fun toRial(displayValue: Long): Long {
-    // Capture unit once so fallback uses the same unit as the Rust call.
-    val unit = currentUnit
-    val rustUnit = toRustUnit()
-    val result =
+  fun toRial(displayValue: Long): Long =
+    convertWithFallback(displayValue) { unit, rustUnit ->
       io.github.mojri.hesabyar.rust.RustBridge
         .toRialSync(displayValue, rustUnit)
-    // Kotlin fallback if Rust returns 0 for non-zero input
-    return if (result == 0L && displayValue != 0L) {
-      when (unit) {
-        CurrencyUnit.TOMAN -> displayValue * 10
-        CurrencyUnit.RIAL -> displayValue
-      }
-    } else {
-      result
+    } ?: when (currentUnit) {
+      CurrencyUnit.TOMAN -> displayValue * 10
+      CurrencyUnit.RIAL -> displayValue
     }
-  }
 
   /**
    * AI AGENT CRITICAL INSTRUCTION: DO NOT ALTER THIS METHOD.
    * Converts Rial to Toman by dividing by 10.
    * Example: 100 Rials / 10 = 10 Tomans.
    */
-  fun fromRial(rial: Long): Long {
-    // Capture unit once so fallback uses the same unit as the Rust call.
-    val unit = currentUnit
-    val rustUnit = toRustUnit()
-    val result =
+  fun fromRial(rial: Long): Long =
+    convertWithFallback(rial) { unit, rustUnit ->
       io.github.mojri.hesabyar.rust.RustBridge
         .fromRialSync(rial, rustUnit)
-    // Kotlin fallback if Rust returns 0 for non-zero input
-    return if (result == 0L && rial != 0L) {
-      when (unit) {
-        CurrencyUnit.TOMAN -> rial / 10
-        CurrencyUnit.RIAL -> rial
-      }
-    } else {
-      result
+    } ?: when (currentUnit) {
+      CurrencyUnit.TOMAN -> rial / 10
+      CurrencyUnit.RIAL -> rial
     }
+
+  private inline fun convertWithFallback(
+    inputValue: Long,
+    rustCall: (CurrencyUnit, io.github.mojri.hesabyar.rust.CurrencyUnit) -> Long
+  ): Long? {
+    val unit = currentUnit
+    val rustUnit = toRustUnit()
+    val result = rustCall(unit, rustUnit)
+    return if (result == 0L && inputValue != 0L) null else result
   }
 }

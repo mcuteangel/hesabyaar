@@ -97,7 +97,9 @@ object BudgetAdvisor {
           val validation =
             io.github.mojri.hesabyar.rust.RustBridge
               .validateAiAdvice(result.text)
-          if (!validation.isValid) {
+          // When the local Rust validator is uninitialized, trust the cloud
+          // advice instead of discarding it on an unavailable engine.
+          if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
             AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
             return@withContext getOfflineAdvice(transactions, categories)
           }
@@ -124,6 +126,19 @@ object BudgetAdvisor {
       "Income" -> "درآمد"
       else -> "سایر موارد"
     }
+
+  private class TxSummary(
+    val income: Long,
+    val expense: Long
+  ) {
+    val balance get() = income - expense
+  }
+
+  private fun summarizeTransactions(transactions: List<Transaction>): TxSummary {
+    val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+    val expense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+    return TxSummary(income, expense)
+  }
 
   private fun formatAmountClean(amount: Long): String = CurrencyFormatter.format(amount)
 
@@ -163,8 +178,51 @@ object BudgetAdvisor {
       )
     if (rustResult.isNotEmpty()) return rustResult
 
-    // Fallback: return empty message
-    return "هنوز تراکنشی ثبت نشده است."
+    // Rust unavailable: serve a local, data-driven fallback instead of a false empty-state.
+    return buildLocalOfflineAdvice(transactions, categories)
+  }
+
+  // Local, dependency-free budget advice used when the Rust core is unavailable.
+  private fun buildLocalOfflineAdvice(
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String {
+    if (transactions.isEmpty()) {
+      return "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا تحلیل بودجه انجام شود."
+    }
+    val summary = summarizeTransactions(transactions)
+    val categoriesGroup =
+      transactions
+        .filter { it.type == "EXPENSE" }
+        .groupBy { it.categoryId }
+        .mapValues { it.value.sumOf { tx -> tx.amount } }
+    val categoryReport =
+      categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
+        val cat = categories.find { it.id == catId }
+        "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
+      }
+
+    val sb = StringBuilder()
+    sb.appendLine("### 📊 تحلیل بودجه محلی (آفلاین)")
+    sb.appendLine()
+    sb.appendLine("**کل درآمد:** ${formatAmountClean(summary.income)}")
+    sb.appendLine("**کل هزینه‌ها:** ${formatAmountClean(summary.expense)}")
+    sb.appendLine("**تراز باقیمانده:** ${formatAmountClean(summary.balance)}")
+    if (categoryReport.isNotEmpty()) {
+      sb.appendLine()
+      sb.appendLine("**هزینه‌ها به تفکیک دسته‌بندی:**")
+      sb.appendLine(categoryReport)
+    }
+    sb.appendLine()
+    when {
+      summary.expense > summary.income ->
+        sb.appendLine("🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود.")
+      summary.income > 0 && summary.balance.toDouble() / summary.income.toDouble() > 0.2 ->
+        sb.appendLine("✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود.")
+      else ->
+        sb.appendLine("⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید.")
+    }
+    return sb.toString()
   }
 
   suspend fun getBudgetForecast(
@@ -260,7 +318,9 @@ object BudgetAdvisor {
           val validation =
             io.github.mojri.hesabyar.rust.RustBridge
               .validateAiAdvice(result.text)
-          if (!validation.isValid) {
+          // When the local Rust validator is uninitialized, trust the cloud
+          // forecast instead of discarding it on an unavailable engine.
+          if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
             AppLogger.w(TAG, "AI forecast failed validation, using offline: ${validation.warnings}")
             "⚠️ پیش‌بینی هوش مصنوعی نامعتبر بود. پیش‌بینی محلی شما:\n\n" +
               getOfflineForecast(transactions, loans, installments)
@@ -328,7 +388,44 @@ object BudgetAdvisor {
       )
     if (rustResult.isNotEmpty()) return rustResult
 
-    return "هنوز اطلاعات کافی برای پیش‌بینی ثبت نشده است."
+    // Rust unavailable: serve a baseline forecast from local data instead of a false "insufficient data" message.
+    return buildLocalOfflineForecast(transactions, loans, installments)
+  }
+
+  // Local, dependency-free baseline forecast used when the Rust core is unavailable.
+  private fun buildLocalOfflineForecast(
+    transactions: List<Transaction>,
+    loans: List<Loan>,
+    installments: List<Installment>
+  ): String {
+    val summary = summarizeTransactions(transactions)
+    val upcomingInstallments = installments.filter { !it.isPaid }
+    val totalUpcoming = upcomingInstallments.sumOf { it.amount }
+    val activeLoans = loans.filter { !it.isSettled }
+    val totalDebt = activeLoans.sumOf { it.remainingAmount }
+
+    if (transactions.isEmpty() && installments.isEmpty() && loans.isEmpty()) {
+      return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
+    }
+
+    val projectedBalance = summary.balance - totalUpcoming
+    val sb = StringBuilder()
+    sb.appendLine("### 🔮 پیش‌بینی بودجه محلی (آفلاین)")
+    sb.appendLine()
+    sb.appendLine("**تراز فعلی:** ${formatAmountClean(summary.balance)}")
+    sb.appendLine("**اقساط پیش‌رو:** ${upcomingInstallments.size} مورد به مبلغ ${formatAmountClean(totalUpcoming)}")
+    if (activeLoans.isNotEmpty()) {
+      sb.appendLine("**بدهی‌های فعال:** ${activeLoans.size} مورد به مبلغ ${formatAmountClean(totalDebt)}")
+    }
+    sb.appendLine()
+    sb.appendLine("**تراز پیش‌بینی‌شده (۳۰ روز آینده):** ${formatAmountClean(projectedBalance)}")
+    sb.appendLine()
+    if (projectedBalance < 0) {
+      sb.appendLine("⚠️ **هشدار هوشمند:** تراز پیش‌بینی منفی است. تعدیل هزینه‌ها یا مدیریت اقساط پیش‌رو ضروری است.")
+    } else {
+      sb.appendLine("✅ **وضعیت پایدار:** تراز پیش‌بینی مثبت است. ادامه روند فعلی توصیه می‌شود.")
+    }
+    return sb.toString()
   }
 
   fun calculateDebtToIncomeRatio(

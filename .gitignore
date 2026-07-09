@@ -66,3 +66,4 @@ rust/uniffi/
 app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
 .serena/
 .gh_review_state.json
+.kilocode/

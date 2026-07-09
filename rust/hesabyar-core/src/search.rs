@@ -322,6 +322,33 @@ mod tests {
     }
 
     #[test]
+    fn test_whitespace_only_query_returns_zero() {
+        assert_eq!(text_similarity("   ", "خرید نان"), 0.0);
+    }
+
+    #[test]
+    fn test_whitespace_only_target_returns_zero() {
+        assert_eq!(text_similarity("خرید", "   "), 0.0);
+    }
+
+    #[test]
+    fn test_zwnj_only_query_returns_zero() {
+        // ZWNJ gets normalized to space, then split_whitespace empties it
+        assert_eq!(text_similarity("\u{200C}\u{200C}\u{200C}", "test"), 0.0);
+    }
+
+    #[test]
+    fn test_consecutive_bonus_tracks_max_not_final_streak() {
+        // Query: "a b c d" → target: "a x b y c" → words a,b,c match but d doesn't
+        // Consecutive streaks: a(1), b(2), c(3), d(0) → max_consecutive = 3
+        // Without the fix, final streak would be 0 (last word doesn't match)
+        let score = text_similarity("a b c d", "a x b y c");
+        // word_score = 3/4 = 0.75, consecutive_bonus = (3/4)*0.1 = 0.075
+        // total = 0.75*0.7 + 0.075 = 0.6
+        assert!(score > 0.5, "Should benefit from max_consecutive=3, got {}", score);
+    }
+
+    #[test]
     fn test_word_match() {
         let score = text_similarity("نان", "خرید نان صبحانه");
         assert!(score > 0.5, "Word match should be moderate: {}", score);

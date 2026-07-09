@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 /// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
+/// Also accepts JSON null for compatibility with nullable exports.
 fn deserialize_zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let val = i64::deserialize(deserializer)?;
-    Ok(if val == 0 { None } else { Some(val) })
+    let val = Option::<i64>::deserialize(deserializer)?;
+    Ok(val.filter(|&v| v != 0))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum, Default)]

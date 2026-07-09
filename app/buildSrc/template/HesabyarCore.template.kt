@@ -1,0 +1,47 @@
+
+// ============================================================================
+// HesabyarCore — backward-compatible accessor object.
+//
+// UniFFI 0.28+ generates top-level functions. This object re-exports them so
+// that existing call sites (HesabyarCore.xxx()) continue to work.
+// Generated automatically by the generateAndFixBindings Gradle task.
+// DO NOT EDIT MANUALLY.
+// ============================================================================
+object HesabyarCore {
+    fun initialize() = __PKG__.initialize()
+    fun gregorianToJalali(timestampMs: Long): Long = __PKG__.gregorianToJalali(timestampMs)
+    fun jalaliToGregorian(year: Int, month: Int, day: Int): Long = __PKG__.jalaliToGregorian(year, month, day)
+    fun getJalaliDaysInMonth(year: Int, month: Int): Int = __PKG__.getJalaliDaysInMonth(year, month)
+    fun isJalaliLeapYear(year: Int): Boolean = __PKG__.isJalaliLeapYear(year)
+    fun formatCurrency(rial: Long, unit: CurrencyUnit): String = __PKG__.formatCurrency(rial, unit)
+    fun toRial(displayValue: Long, unit: CurrencyUnit): Long = __PKG__.toRial(displayValue, unit)
+    fun fromRial(rial: Long, unit: CurrencyUnit): Long = __PKG__.fromRial(rial, unit)
+    fun formatNumber(value: Long): String = __PKG__.formatNumber(value)
+    fun parseSentenceOffline(rawSentence: String): ParsedResult = __PKG__.parseSentenceOffline(rawSentence)
+    fun inferExpenseCategory(sentence: String): CategoryGuess = __PKG__.inferExpenseCategory(sentence)
+    fun parsePersianAmount(sentence: String): Long = __PKG__.parsePersianAmount(sentence)
+    fun containsMoney(sentence: String): Boolean = __PKG__.containsMoney(sentence)
+    fun preprocessPersianText(text: String): String = __PKG__.preprocessPersianText(text)
+    fun normalizeMoneyText(text: String): String = __PKG__.normalizeMoneyText(text)
+    fun getOfflineBudgetAdvice(transactions: List<Transaction>, categories: List<Category>): String = __PKG__.getOfflineBudgetAdvice(transactions, categories)
+    fun getOfflineForecast(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>): String = __PKG__.getOfflineForecast(transactions, loans, installments)
+    fun calculateDebtToIncomeRatio(loans: List<Loan>, installments: List<Installment>, monthlyIncome: Long): Double = __PKG__.calculateDebtToIncomeRatio(loans, installments, monthlyIncome)
+    fun predictTimeToGoal(currentSavings: Long, monthlySavings: Long, goalAmount: Long): Int = __PKG__.predictTimeToGoal(currentSavings, monthlySavings, goalAmount)
+    fun calculateFinancialHealthScore(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>): Int = __PKG__.calculateFinancialHealthScore(transactions, loans, installments, categories)
+    fun computeAnalytics(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>): AnalyticsData = __PKG__.computeAnalytics(transactions, loans, installments, categories)
+    fun computeDashboardData(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>): DashboardData = __PKG__.computeDashboardData(transactions, loans, installments)
+    fun parseBackupJson(json: String): BackupPayload = __PKG__.parseBackupJson(json)
+    @Throws(HesabyarException::class) fun validateBackup(payload: BackupPayload) = __PKG__.validateBackup(payload)
+    fun exportBackupJson(payload: BackupPayload): String = __PKG__.exportBackupJson(payload)
+    fun searchTransactions(transactions: List<Transaction>, query: SearchQuery): SearchResponse = __PKG__.searchTransactions(transactions, query)
+    fun computeChecksum(data: ByteArray): String = __PKG__.computeChecksum(data)
+    fun verifyChecksum(data: ByteArray, expected: String): Boolean = __PKG__.verifyChecksum(data, expected)
+    @Throws(HesabyarException::class) fun validateTransaction(transaction: Transaction) = __PKG__.validateTransaction(transaction)
+    @Throws(HesabyarException::class) fun validateLoan(loan: Loan) = __PKG__.validateLoan(loan)
+    @Throws(HesabyarException::class) fun validateInstallment(installment: Installment) = __PKG__.validateInstallment(installment)
+    @Throws(HesabyarException::class) fun validateParsedResult(result: ParsedResult) = __PKG__.validateParsedResult(result)
+    fun validateBackupPayload(payload: BackupPayload): ValidationResult = __PKG__.validateBackupPayload(payload)
+    @Throws(HesabyarException::class) fun generateExcel(workbook: WorkbookData): ByteArray = __PKG__.generateExcel(workbook)
+    @Throws(HesabyarException::class) fun parseAiTransactionJson(json: String): AiParsedTransaction = __PKG__.parseAiTransactionJson(json)
+    fun validateAiAdvice(text: String): AdviceValidation = __PKG__.validateAiAdvice(text)
+}

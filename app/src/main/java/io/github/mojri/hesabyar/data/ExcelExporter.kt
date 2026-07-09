@@ -69,27 +69,26 @@ class ExcelExporter {
     return SheetData(name = "همه تراکنش\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
-  private fun buildIncomeSheet(
-    incomeTransactions: List<Transaction>,
+  private fun buildSummaryTxSheet(
+    name: String,
+    transactions: List<Transaction>,
     categoryMap: Map<Long, Category>
   ): SheetData {
     val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows = buildTxRows(incomeTransactions, categoryMap, includeType = false)
-    val total = incomeTransactions.sumOf { it.amount }
-    val summary = buildTotalRow(total)
-    return SheetData(name = "دریافتی\u200Cها", headers = headers, rows = rows, summaryRow = summary)
+    val rows = buildTxRows(transactions, categoryMap, includeType = false)
+    val summary = buildTotalRow(transactions.sumOf { it.amount })
+    return SheetData(name = name, headers = headers, rows = rows, summaryRow = summary)
   }
+
+  private fun buildIncomeSheet(
+    incomeTransactions: List<Transaction>,
+    categoryMap: Map<Long, Category>
+  ) = buildSummaryTxSheet("دریافتی\u200Cها", incomeTransactions, categoryMap)
 
   private fun buildExpensesSheet(
     expenseTransactions: List<Transaction>,
     categoryMap: Map<Long, Category>
-  ): SheetData {
-    val headers = listOf("ردیف", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows = buildTxRows(expenseTransactions, categoryMap, includeType = false)
-    val total = expenseTransactions.sumOf { it.amount }
-    val summary = buildTotalRow(total)
-    return SheetData(name = "پرداختی\u200Cها", headers = headers, rows = rows, summaryRow = summary)
-  }
+  ) = buildSummaryTxSheet("پرداختی\u200Cها", expenseTransactions, categoryMap)
 
   private fun buildTxRows(
     transactions: List<Transaction>,

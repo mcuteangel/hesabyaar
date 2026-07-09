@@ -31,7 +31,7 @@ class JalaliCalendarTest {
     val gMonth = 6
     val gDay = 15
     val jd = JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
-    val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)
+    val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)!!
     assertEquals(gYear, gc.get(Calendar.YEAR))
     assertEquals(gMonth - 1, gc.get(Calendar.MONTH))
     assertEquals(gDay, gc.get(Calendar.DAY_OF_MONTH))
@@ -53,7 +53,7 @@ class JalaliCalendarTest {
       )
     for ((gYear, gMonth, gDay) in dates) {
       val jd = JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
-      val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)
+      val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)!!
       assertTrue(
         "jalaliToGregorian should return non-zero for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
         gc.timeInMillis != 0L
@@ -112,7 +112,7 @@ class JalaliCalendarTest {
 
   @Test
   fun `jalaliToGregorian - known conversion`() {
-    val gc = JalaliCalendarHelper.jalaliToGregorian(1403, 1, 1)
+    val gc = JalaliCalendarHelper.jalaliToGregorian(1403, 1, 1)!!
     assertEquals(2024, gc.get(Calendar.YEAR))
     assertEquals(Calendar.MARCH, gc.get(Calendar.MONTH))
     assertEquals(20, gc.get(Calendar.DAY_OF_MONTH))

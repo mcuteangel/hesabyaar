@@ -43,12 +43,7 @@ class BackupViewModel
       viewModelScope.launch {
         try {
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = manageBackupUseCase.parseBackupJson(text)
-
-          if (backup == null) {
-            reportInvalidBackupParse()
-            return@launch
-          }
+          val backup = parseBackupOrReportError(text) ?: return@launch
 
           when (val result = manageBackupUseCase.validateBackup(backup)) {
             is BackupValidationResult.Invalid -> {
@@ -123,6 +118,12 @@ class BackupViewModel
         )
     }
 
+    private fun parseBackupOrReportError(text: String): BackupPayload? {
+      val backup = manageBackupUseCase.parseBackupJson(text)
+      if (backup == null) reportInvalidBackupParse()
+      return backup
+    }
+
     fun cancelPendingRestore() {
       pendingRestoreBackup.value = null
     }
@@ -177,17 +178,8 @@ class BackupViewModel
         operationState.value = BackupOperationState.Importing
         try {
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = manageBackupUseCase.parseBackupJson(text)
-          if (backup == null) {
-            reportInvalidBackupParse()
-            return@launch
-          }
-          manageBackupUseCase.importBackupFromFile(
-            backup.transactions,
-            backup.loans,
-            backup.installments,
-            backup.paymentHistories
-          )
+          val backup = parseBackupOrReportError(text) ?: return@launch
+          manageBackupUseCase.importBackupFromFile(backup)
           operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
         } catch (e: IOException) {
           operationState.value =

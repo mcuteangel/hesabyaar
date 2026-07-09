@@ -39,8 +39,16 @@ object RustMappers {
     installments: List<Installment>
   ): KAnalyticsData {
     val unsettledLoans = loans.filter { !it.isSettled }
-    val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.map { mapDebtSummary(it) }
-    val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.map { mapDebtSummary(it) }
+    val debtors =
+      unsettledLoans
+        .filter {
+          it.type == io.github.mojri.hesabyar.data.LoanType.DEBTOR
+        }.map { mapDebtSummary(it) }
+    val creditors =
+      unsettledLoans
+        .filter {
+          it.type == io.github.mojri.hesabyar.data.LoanType.CREDITOR
+        }.map { mapDebtSummary(it) }
     val installmentProgress =
       installments.map { inst ->
         KInstallmentProgress(

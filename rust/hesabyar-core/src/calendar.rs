@@ -114,7 +114,24 @@ pub fn gregorian_to_jalali_date(
     g_month: i32,
     g_day: i32,
 ) -> Result<JalaliDate, HesabyarError> {
-    if g_month < 1 || g_month > 12 || g_day < 1 || g_day > 31 {
+    if g_month < 1 || g_month > 12 {
+        return Err(HesabyarError::CalendarError {
+            detail: format!("Invalid Gregorian date: {}/{}/{}", g_year, g_month, g_day),
+        });
+    }
+    let max_day = match g_month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if (g_year % 4 == 0 && g_year % 100 != 0) || (g_year % 400 == 0) {
+                29
+            } else {
+                28
+            }
+        }
+        _ => unreachable!(),
+    };
+    if g_day < 1 || g_day > max_day {
         return Err(HesabyarError::CalendarError {
             detail: format!("Invalid Gregorian date: {}/{}/{}", g_year, g_month, g_day),
         });
@@ -331,5 +348,125 @@ mod tests {
         // Invalid date should return i64::MIN (no panic)
         let ts = jalali_to_gregorian_packed(0, 0, 0);
         assert_eq!(ts, i64::MIN);
+    }
+
+    #[test]
+    fn test_pre_epoch_one_day_before() {
+        // 1969-12-31 00:00:00 UTC = -86400000 ms
+        let ts = -86_400_000i64;
+        let (y, m, d) = timestamp_to_gregorian(ts).unwrap();
+        assert_eq!((y, m, d), (1969, 12, 31));
+    }
+
+    #[test]
+    fn test_pre_epoch_january_1970() {
+        // 1969-01-01 00:00:00 UTC ≈ -31536000000 ms (365 days before epoch)
+        let ts = -31_536_000_000i64;
+        let (y, m, d) = timestamp_to_gregorian(ts).unwrap();
+        assert_eq!((y, m, d), (1969, 1, 1));
+    }
+
+    #[test]
+    fn test_pre_epoch_leap_year_boundary() {
+        // 1968 is a leap year. 1968-12-31 should be valid.
+        // 1968-12-31 00:00:00 UTC = -365 days * 86400000 = -31536000000 - 86400000
+        let ts = -31_622_400_000i64;
+        let (y, m, d) = timestamp_to_gregorian(ts).unwrap();
+        assert_eq!((y, m, d), (1968, 12, 31));
+    }
+
+    // =====================================================================
+    // gregorian_to_jalali_date invalid date validation
+    // =====================================================================
+
+    #[test]
+    fn test_gregorian_to_jalali_invalid_month_zero() {
+        let err = gregorian_to_jalali_date(2024, 0, 15).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_invalid_month_13() {
+        let err = gregorian_to_jalali_date(2024, 13, 15).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_invalid_day_zero() {
+        let err = gregorian_to_jalali_date(2024, 1, 0).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_feb_30_non_leap() {
+        // 2023 is not a leap year
+        let err = gregorian_to_jalali_date(2023, 2, 30).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_feb_29_non_leap() {
+        // 2023 is not a leap year
+        let err = gregorian_to_jalali_date(2023, 2, 29).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_feb_29_leap() {
+        // 2024 is a leap year - should be valid
+        let result = gregorian_to_jalali_date(2024, 2, 29);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_april_31() {
+        // April has 30 days
+        let err = gregorian_to_jalali_date(2024, 4, 31).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_june_31() {
+        let err = gregorian_to_jalali_date(2024, 6, 31).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_september_31() {
+        let err = gregorian_to_jalali_date(2024, 9, 31).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
+    }
+
+    #[test]
+    fn test_gregorian_to_jalali_november_31() {
+        let err = gregorian_to_jalali_date(2024, 11, 31).unwrap_err();
+        match err {
+            HesabyarError::CalendarError { detail } => assert!(detail.contains("Invalid Gregorian date")),
+            _ => panic!("Expected CalendarError"),
+        }
     }
 }

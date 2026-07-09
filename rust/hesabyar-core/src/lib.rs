@@ -33,14 +33,14 @@ uniffi::setup_scaffolding!();
 /// Safe to call multiple times (uses `Once` internally).
 #[uniffi::export]
 pub fn initialize() {
-    crate::ffi::catch_unwind_safe(|| ffi::ensure_initialized()).unwrap_or(())
+    crate::ffi::catch_unwind_safe(ffi::ensure_initialized).unwrap_or(())
 }
 
 /// Full offline sentence parser (ported from GeminiParser.parseSentenceOffline).
 #[uniffi::export]
-pub fn parse_sentence_offline(raw_sentence: &str) -> ParsedResult {
+pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, HesabyarError> {
     crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence))
-        .unwrap_or_default()
+        .map_err(|e| HesabyarError::ParseError { detail: format!("{:?}", e) })
 }
 
 /// Infer expense category from a Persian sentence (full 200+ keyword version).
@@ -113,6 +113,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
         }
 
         // Validate transactions
+        let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
         for tx in &payload.transactions {
             if tx.amount <= 0 {
                 return Err(HesabyarError::BackupValidation {
@@ -127,6 +128,11 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             if tx.category_id <= 0 {
                 return Err(HesabyarError::BackupValidation {
                     detail: format!("Transaction {} has invalid category_id", tx.id),
+                });
+            }
+            if !payload.categories.is_empty() && !category_ids.contains(&tx.category_id) {
+                return Err(HesabyarError::BackupValidation {
+                    detail: format!("Transaction {} references non-existent category {}", tx.id, tx.category_id),
                 });
             }
         }

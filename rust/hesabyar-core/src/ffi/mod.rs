@@ -209,11 +209,10 @@ pub fn verify_checksum(data: &[u8], expected: &str) -> bool {
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarError> {
-    let r = catch_unwind_safe(|| {
+    catch_unwind_safe(|| {
         crate::validation::validate_transaction(&transaction)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })?;
-    r
+    })
 }
 
 /// Validate a single loan.
@@ -221,11 +220,10 @@ pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarErro
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
-    let r = catch_unwind_safe(|| {
+    catch_unwind_safe(|| {
         crate::validation::validate_loan(&loan)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })?;
-    r
+    })
 }
 
 /// Validate a single installment.
@@ -233,11 +231,10 @@ pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_installment(installment: Installment) -> Result<(), HesabyarError> {
-    let r = catch_unwind_safe(|| {
+    catch_unwind_safe(|| {
         crate::validation::validate_installment(&installment)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })?;
-    r
+    })
 }
 
 /// Validate a ParsedResult (AI parser output).
@@ -245,11 +242,10 @@ pub fn validate_installment(installment: Installment) -> Result<(), HesabyarErro
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_parsed_result(result: ParsedResult) -> Result<(), HesabyarError> {
-    let r = catch_unwind_safe(|| {
+    catch_unwind_safe(|| {
         crate::validation::validate_parsed_result(&result)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })?;
-    r
+    })?
 }
 
 /// Validate an entire backup payload. Collects all errors from all entities.
@@ -270,8 +266,7 @@ pub fn validate_backup_payload(payload: BackupPayload) -> ValidationResult {
 /// Returns raw XLSX bytes (a valid .xlsx file).
 #[uniffi::export]
 pub fn generate_excel(workbook: WorkbookData) -> Result<Vec<u8>, HesabyarError> {
-    let r = catch_unwind_safe(|| crate::excel::generate_excel(&workbook))?;
-    r
+    catch_unwind_safe(|| crate::excel::generate_excel(&workbook))?
 }
 
 // ===========================================================================
@@ -284,8 +279,7 @@ pub fn generate_excel(workbook: WorkbookData) -> Result<Vec<u8>, HesabyarError> 
 /// out-of-range fields, and returns repair metadata.
 #[uniffi::export]
 pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, HesabyarError> {
-    let r = catch_unwind_safe(|| crate::ai_validation::parse_ai_transaction_json(json))?;
-    r
+    catch_unwind_safe(|| crate::ai_validation::parse_ai_transaction_json(json))?
 }
 
 /// Validate and sanitize free-form AI advice/forecast text.

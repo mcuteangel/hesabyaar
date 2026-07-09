@@ -26,5 +26,5 @@ open class JalaliCalendarBenchmark {
 
     @Benchmark
     fun jalaliToGregorian(): Calendar =
-        JalaliCalendarHelper.jalaliToGregorian(1403, 4, 6)
+        JalaliCalendarHelper.jalaliToGregorian(1403, 4, 6)!!
 }

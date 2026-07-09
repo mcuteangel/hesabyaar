@@ -126,7 +126,7 @@ class BudgetAdvisorTest {
       )
     val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), installments)
     assertTrue(
-      result.contains("اقساط") || result.contains("قسط") || result.contains("سررسید")
+      result.contains("اقساط") && result.contains("2,000,000")
     )
   }
 

@@ -78,11 +78,11 @@ jobs:
 
       - name: Install Rust toolchain
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@3b3071828a1cc309b4372e008b8b0e79be96f6e5
 
       - name: Cache Cargo dependencies
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: |
             ~/.cargo/registry
@@ -93,7 +93,7 @@ jobs:
 
       - name: Cache Gradle packages
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: |
             ~/.gradle/caches
@@ -111,6 +111,7 @@ jobs:
 
       - name: Run Rust tests
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        working-directory: rust
         run: cargo test -p hesabyar-core
 
       - name: Grant execute permission for gradlew

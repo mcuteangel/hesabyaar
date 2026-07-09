@@ -5,8 +5,39 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.ui.AnalyticsData
+import java.math.RoundingMode
 
 class GetAnalyticsUseCase {
+  private val jalaliMonthNames =
+    listOf(
+      "فروردین",
+      "اردیبهشت",
+      "خرداد",
+      "تیر",
+      "مرداد",
+      "شهریور",
+      "مهر",
+      "آبان",
+      "آذر",
+      "دی",
+      "بهمن",
+      "اسفند"
+    )
+
+  private fun computeDebtProgress(
+    original: Long,
+    remaining: Long
+  ): Float =
+    if (original > 0L) {
+      val paid = (original - remaining).toBigDecimal()
+      paid
+        .divide(original.toBigDecimal(), 6, RoundingMode.HALF_UP)
+        .toFloat()
+        .coerceIn(0f, 1f)
+    } else {
+      0f
+    }
+
   fun computeAnalytics(
     transactions: List<Transaction>,
     loans: List<Loan>,
@@ -41,11 +72,17 @@ class GetAnalyticsUseCase {
     val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
     val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
 
+    val jalaliDate =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .gregorianToJalali(now)
+    val monthLabel =
+      if (jalaliDate.month in 1..12) jalaliMonthNames[jalaliDate.month - 1] else ""
+
     val monthlySpending =
       io.github.mojri.hesabyar.ui.MonthlyData(
-        jalaliYear = 0,
-        jalaliMonth = 0,
-        label = "",
+        jalaliYear = jalaliDate.year,
+        jalaliMonth = jalaliDate.month,
+        label = monthLabel,
         income = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount },
         expense = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
       )
@@ -58,12 +95,7 @@ class GetAnalyticsUseCase {
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
           type = it.type,
-          progress =
-            if (it.originalAmount > 0) {
-              ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
+          progress = computeDebtProgress(it.originalAmount, it.remainingAmount)
         )
       }
     val creditors =
@@ -73,12 +105,7 @@ class GetAnalyticsUseCase {
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
           type = it.type,
-          progress =
-            if (it.originalAmount > 0) {
-              ((it.originalAmount - it.remainingAmount).toFloat() / it.originalAmount).coerceIn(0f, 1f)
-            } else {
-              0f
-            }
+          progress = computeDebtProgress(it.originalAmount, it.remainingAmount)
         )
       }
 
@@ -97,14 +124,12 @@ class GetAnalyticsUseCase {
 
   /** True when every collection/aggregate is empty/zero, i.e. the Rust result
    *  is a blank placeholder rather than a real computation. */
-  private fun AnalyticsData.isBlank(): Boolean =
+  private fun io.github.mojri.hesabyar.rust.AnalyticsData.isBlank(): Boolean =
     monthlySpending.isEmpty() &&
       monthlyIncome.isEmpty() &&
       categoryBreakdown.isEmpty() &&
       debtors.isEmpty() &&
       creditors.isEmpty() &&
-      activeLoans.isEmpty() &&
-      installmentProgress.isEmpty() &&
       totalDebt == 0L &&
       totalCredit == 0L &&
       totalInstallments == 0 &&

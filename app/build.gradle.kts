@@ -311,7 +311,7 @@ tasks.register("assembleRust") {
         // cargo-ndk may place the .so directly in outDir or under a triple subdirectory.
         // Search both locations to handle varying cargo-ndk versions.
         val libDirect = File(outDir, target.jniLib)
-        val lib =
+        val foundLib =
           if (libDirect.exists()) {
             libDirect
           } else {
@@ -370,6 +370,10 @@ tasks.register("generateRustBindings") {
 tasks.register("generateAndFixBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
+  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
+  outputs.file(dest)
   doLast {
     fun buildHostLibrary() {
       logger.lifecycle("Step 1/4: Building host-native Rust library...")
@@ -440,58 +444,11 @@ tasks.register("generateAndFixBindings") {
           "package $appId.rust"
         )
 
-      // Append HesabyarCore compatibility object that delegates to top-level functions.
-      // Uses fully-qualified calls to avoid self-recursion.
+      // Append HesabyarCore compatibility object from template.
+      // Template lives in app/buildSrc/template/HesabyarCore.template.kt — update it there.
+      val templateFile = file("buildSrc/template/HesabyarCore.template.kt")
       val pkg = "$appId.rust"
-      val compatObject = """
-
-// ============================================================================
-// HesabyarCore — backward-compatible accessor object.
-//
-// UniFFI 0.28+ generates top-level functions. This object re-exports them so
-// that existing call sites (HesabyarCore.xxx()) continue to work.
-// Generated automatically by the generateAndFixBindings Gradle task.
-// DO NOT EDIT MANUALLY.
-// ============================================================================
-object HesabyarCore {
-    fun initialize() = $pkg.initialize()
-    fun gregorianToJalali(timestampMs: Long): Long = $pkg.gregorianToJalali(timestampMs)
-    fun jalaliToGregorian(year: Int, month: Int, day: Int): Long = $pkg.jalaliToGregorian(year, month, day)
-    fun getJalaliDaysInMonth(year: Int, month: Int): Int = $pkg.getJalaliDaysInMonth(year, month)
-    fun isJalaliLeapYear(year: Int): Boolean = $pkg.isJalaliLeapYear(year)
-    fun formatCurrency(rial: Long, unit: CurrencyUnit): String = $pkg.formatCurrency(rial, unit)
-    fun toRial(displayValue: Long, unit: CurrencyUnit): Long = $pkg.toRial(displayValue, unit)
-    fun fromRial(rial: Long, unit: CurrencyUnit): Long = $pkg.fromRial(rial, unit)
-    fun formatNumber(value: Long): String = $pkg.formatNumber(value)
-    fun parseSentenceOffline(rawSentence: String): ParsedResult = $pkg.parseSentenceOffline(rawSentence)
-    fun inferExpenseCategory(sentence: String): CategoryGuess = $pkg.inferExpenseCategory(sentence)
-    fun parsePersianAmount(sentence: String): Long = $pkg.parsePersianAmount(sentence)
-    fun containsMoney(sentence: String): Boolean = $pkg.containsMoney(sentence)
-    fun preprocessPersianText(text: String): String = $pkg.preprocessPersianText(text)
-    fun normalizeMoneyText(text: String): String = $pkg.normalizeMoneyText(text)
-    fun getOfflineBudgetAdvice(transactions: List<Transaction>, categories: List<Category>): String = $pkg.getOfflineBudgetAdvice(transactions, categories)
-    fun getOfflineForecast(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>): String = $pkg.getOfflineForecast(transactions, loans, installments)
-    fun calculateDebtToIncomeRatio(loans: List<Loan>, installments: List<Installment>, monthlyIncome: Long): Double = $pkg.calculateDebtToIncomeRatio(loans, installments, monthlyIncome)
-    fun predictTimeToGoal(currentSavings: Long, monthlySavings: Long, goalAmount: Long): Int = $pkg.predictTimeToGoal(currentSavings, monthlySavings, goalAmount)
-    fun calculateFinancialHealthScore(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>): Int = $pkg.calculateFinancialHealthScore(transactions, loans, installments, categories)
-    fun computeAnalytics(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>): AnalyticsData = $pkg.computeAnalytics(transactions, loans, installments, categories)
-    fun computeDashboardData(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>): DashboardData = $pkg.computeDashboardData(transactions, loans, installments)
-    fun parseBackupJson(json: String): BackupPayload = $pkg.parseBackupJson(json)
-    @Throws(HesabyarException::class) fun validateBackup(payload: BackupPayload) = $pkg.validateBackup(payload)
-    fun exportBackupJson(payload: BackupPayload): String = $pkg.exportBackupJson(payload)
-    fun searchTransactions(transactions: List<Transaction>, query: SearchQuery): SearchResponse = $pkg.searchTransactions(transactions, query)
-    fun computeChecksum(data: ByteArray): String = $pkg.computeChecksum(data)
-    fun verifyChecksum(data: ByteArray, expected: String): Boolean = $pkg.verifyChecksum(data, expected)
-    @Throws(HesabyarException::class) fun validateTransaction(transaction: Transaction) = $pkg.validateTransaction(transaction)
-    @Throws(HesabyarException::class) fun validateLoan(loan: Loan) = $pkg.validateLoan(loan)
-    @Throws(HesabyarException::class) fun validateInstallment(installment: Installment) = $pkg.validateInstallment(installment)
-    @Throws(HesabyarException::class) fun validateParsedResult(result: ParsedResult) = $pkg.validateParsedResult(result)
-    fun validateBackupPayload(payload: BackupPayload): ValidationResult = $pkg.validateBackupPayload(payload)
-    @Throws(HesabyarException::class) fun generateExcel(workbook: WorkbookData): ByteArray = $pkg.generateExcel(workbook)
-    @Throws(HesabyarException::class) fun parseAiTransactionJson(json: String): AiParsedTransaction = $pkg.parseAiTransactionJson(json)
-    fun validateAiAdvice(text: String): AdviceValidation = $pkg.validateAiAdvice(text)
-}
-"""
+      val compatObject = "\n" + templateFile.readText(Charsets.UTF_8).replace("__PKG__", pkg)
 
       dest.parentFile.mkdirs()
       dest.writeText(patched + compatObject, Charsets.UTF_8)
@@ -501,7 +458,6 @@ object HesabyarCore {
     val hostLib = resolveHostArtifact()
     val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
     generateBindings(hostLib, tempDir)
-    val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
     patchAndInstallOutput(tempDir, dest)
 
     // Cleanup temp directory.

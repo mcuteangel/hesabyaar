@@ -74,7 +74,7 @@ fun JalaliDatePickerDialog(
   val firstDayOffset =
     remember(viewYear, viewMonth) {
       val firstDayGregorian = JalaliCalendarHelper.jalaliToGregorian(viewYear, viewMonth, 1)
-      val dayOfWeek = firstDayGregorian.get(Calendar.DAY_OF_WEEK)
+      val dayOfWeek = firstDayGregorian?.get(Calendar.DAY_OF_WEEK) ?: Calendar.SATURDAY
       // SATURDAY is the first column (index 0)
       when (dayOfWeek) {
         Calendar.SATURDAY -> 0
@@ -589,7 +589,7 @@ fun JalaliDatePickerDialog(
                     selectedYear,
                     selectedMonth,
                     selectedDay
-                  )
+                  ) ?: return@Button
                 // Preserve existing hour and minute of the timestamp
                 val prevCal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
                 javaCal.set(Calendar.HOUR_OF_DAY, prevCal.get(Calendar.HOUR_OF_DAY))

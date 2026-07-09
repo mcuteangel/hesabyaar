@@ -4,11 +4,8 @@ import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
-import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
-import io.github.mojri.hesabyar.data.Transaction
 import kotlinx.coroutines.flow.firstOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -104,8 +101,14 @@ class ManageBackupUseCase(
       timestamp = timestamp,
       appVersion = appVersion,
       transactions =
-        io.github.mojri.hesabyar.rust.RustMappers
-          .mapTransactions(transactions),
+        transactions
+          .filter { tx ->
+            io.github.mojri.hesabyar.rust.TransactionType.entries
+              .any { e -> e.name == tx.type }
+          }.let {
+            io.github.mojri.hesabyar.rust.RustMappers
+              .mapTransactions(it)
+          },
       loans =
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
@@ -242,13 +245,8 @@ class ManageBackupUseCase(
     return rootJson
   }
 
-  suspend fun importBackupFromFile(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
-  ) {
-    repository.importBackup(transactions, loans, installments, paymentHistories)
+  suspend fun importBackupFromFile(backup: BackupPayload) {
+    repository.importBackup(backup.transactions, backup.loans, backup.installments, backup.paymentHistories)
   }
 
   fun buildBackupSummary(backup: BackupPayload): String =

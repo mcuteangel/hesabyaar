@@ -168,6 +168,9 @@ fn contains_any(text: &str, keywords: &[&str]) -> bool {
 /// filler token that happens to be a substring of a larger word is NOT stripped
 /// (e.g. "به" must not be removed from "نوشابه"). Standalone occurrences and
 /// multi-word phrases (bounded by spaces) are still replaced.
+///
+/// Digit-to-letter transitions are treated as word boundaries so that
+/// attached amounts like `۵۰۰۰تومان` still have `تومان` removed.
 fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
     if word.is_empty() {
         return s.to_string();
@@ -178,8 +181,16 @@ fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
     let mut i = 0;
     while i < chars.len() {
         if i + w.len() <= chars.len() && chars[i..i + w.len()] == w[..] {
-            let prev_ok = i == 0 || !is_word_char(chars[i - 1]);
-            let next_ok = i + w.len() == chars.len() || !is_word_char(chars[i + w.len()]);
+            let prev_ok = i == 0 || {
+                let prev = chars[i - 1];
+                // Digit-to-letter transition counts as a boundary
+                !is_word_char(prev) || (is_digit(prev) && is_letter(w[0])) || (is_letter(prev) && is_digit(w[0]))
+            };
+            let next_ok = i + w.len() == chars.len() || {
+                let next = chars[i + w.len()];
+                // Letter-to-digit transition counts as a boundary
+                !is_word_char(next) || (is_digit(next) && is_letter(*w.last().unwrap())) || (is_letter(next) && is_digit(*w.last().unwrap()))
+            };
             if prev_ok && next_ok {
                 out.push_str(rep);
                 i += w.len();
@@ -195,6 +206,16 @@ fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
 /// True for characters that bind words together (letters, digits, ZWNJ).
 fn is_word_char(c: char) -> bool {
     c.is_alphanumeric() || c == '\u{200C}'
+}
+
+/// True for characters that are digits (Persian or ASCII).
+fn is_digit(c: char) -> bool {
+    c.is_ascii_digit() || ('\u{06F0}'..='\u{06F9}').contains(&c)
+}
+
+/// True for characters that are letters (non-digit word chars).
+fn is_letter(c: char) -> bool {
+    is_word_char(c) && !is_digit(c)
 }
 
 /// Convert Persian/Arabic digits (۰-۹) to ASCII digits (0-9)
@@ -1098,6 +1119,24 @@ mod tests {
         assert_eq!(result.category, "Other");
     }
 
+    #[test]
+    fn test_expense_other_empty_subject() {
+        // Sentence where all meaningful words are filler → empty subject
+        let result = classify_expense("خریدم");
+        assert_eq!(result.category, "Other");
+        // Empty subject → base description only
+        assert_eq!(result.description, "سایر هزینه\u{200C}ها");
+    }
+
+    #[test]
+    fn test_expense_other_nonempty_subject() {
+        // Sentence with a meaningful subject
+        let result = classify_expense("چیز عجیبی خریدم");
+        assert_eq!(result.category, "Other");
+        // Non-empty subject → base description + subject
+        assert!(result.description.contains("چیز عجیبی"));
+    }
+
     // =========================================================================
     // normalize_category tests
     // =========================================================================
@@ -1447,5 +1486,13 @@ mod tests {
         // "به" is a filler token but must not be stripped from inside "نوشابه".
         let subject = extract_subject("نوشابه خریدم 85 هزار تومن");
         assert_eq!(subject, "نوشابه 85");
+    }
+
+    #[test]
+    fn test_subject_removes_attached_currency_word() {
+        // When digits and تومان are attached without space, تومان should still be removed.
+        // خرید is also a filler word, so it gets removed too.
+        let subject = extract_subject("۵۰۰۰تومان خرید نان");
+        assert_eq!(subject, "۵۰۰۰ نان");
     }
 }

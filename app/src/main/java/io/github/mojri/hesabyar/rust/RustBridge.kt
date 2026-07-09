@@ -26,6 +26,10 @@ object RustBridge {
       return trySelfInit()
     }
 
+  /** Public view of [available] so callers can decide whether a local
+   *  validation result reflects a real check or merely an uninitialized engine. */
+  val isAvailable: Boolean get() = available
+
   private fun trySelfInit(): Boolean {
     synchronized(this) {
       if (selfInitialized) return true
@@ -33,7 +37,7 @@ object RustBridge {
         HesabyarCore.initialize()
         selfInitialized = true
         true
-      } catch (_: Throwable) {
+      } catch (_: Exception) {
         false
       }
     }
@@ -124,15 +128,6 @@ object RustBridge {
   fun normalizeMoneyTextSync(text: String): String = rustCallSync(text) { HesabyarCore.normalizeMoneyText(text) }
 
   fun parsePersianAmountSync(sentence: String): Long = rustCallSync(0L) { HesabyarCore.parsePersianAmount(sentence) }
-
-  fun parseAmountSync(
-    sentence: String,
-    shorthandMode: Boolean
-  ): Long =
-    rustCallSync(0L) {
-      io.github.mojri.hesabyar.rust
-        .parseAmount(sentence, shorthandMode)
-    }
 
   fun preprocessPersianTextSync(text: String): String = rustCallSync(text) { HesabyarCore.preprocessPersianText(text) }
 

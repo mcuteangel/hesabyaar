@@ -106,13 +106,18 @@ data class Transaction(
 data class Loan(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val personName: String,
-  val type: String, // "DEBTOR" (you are owed money), "CREDITOR" (you owe money)
+  val type: String, // LoanType.DEBTOR or LoanType.CREDITOR
   val originalAmount: Long, // Rial
   val remainingAmount: Long, // Rial
   val description: String,
   val date: Long = System.currentTimeMillis(),
   val isSettled: Boolean = false
 ) : Serializable
+
+object LoanType {
+  const val DEBTOR = "DEBTOR"
+  const val CREDITOR = "CREDITOR"
+}
 
 @Entity(tableName = "installments")
 data class Installment(

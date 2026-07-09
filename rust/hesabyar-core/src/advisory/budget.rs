@@ -81,13 +81,20 @@ pub fn get_offline_budget_advice(
 /// Get offline budget forecast.
 pub fn get_offline_forecast(
     transactions: &[Transaction],
-    _loans: &[Loan],
+    loans: &[Loan],
     installments: &[Installment],
 ) -> String {
     let unpaid_installments: Vec<&Installment> = installments.iter().filter(|i| !i.is_paid).collect();
     let upcoming_sum: i64 = unpaid_installments.iter().map(|i| i.amount).sum();
 
-    if transactions.is_empty() && unpaid_installments.is_empty() {
+    let unsettled_creditor_loan_monthly: i64 = loans
+        .iter()
+        .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
+        .map(|l| l.remaining_amount / 12)
+        .sum();
+    let total_obligations = upcoming_sum + unsettled_creditor_loan_monthly;
+
+    if transactions.is_empty() && total_obligations == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
@@ -106,7 +113,7 @@ let now_ms = std::time::SystemTime::now()
 
     let actual_days = if !recent.is_empty() {
         let oldest_date = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
-        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).ceil() as i64
+        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)) as i64
     } else {
         0
     };
@@ -114,13 +121,13 @@ let now_ms = std::time::SystemTime::now()
 
     let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { recent_income / months_elapsed } else { 0 };
     let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { recent_expense / months_elapsed } else { 0 };
-    let est_balance = avg_income - avg_expense - upcoming_sum;
+    let est_balance = avg_income - avg_expense - total_obligations;
 
     let mut sb = String::new();
     sb.push_str("### \u{1F52E} \u{067E}\u{06CC}\u{0634}\u{0628}\u{06CC}\u{0646}\u{06CC} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F} \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647}\n\n");
     sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_number(avg_income)));
     sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_number(avg_expense)));
-    sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_number(upcoming_sum)));
+    sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_number(total_obligations)));
 
     if est_balance < 0 {
         sb.push_str(&format!(
@@ -290,6 +297,13 @@ mod tests {
         assert_eq!(calculate_debt_to_income_ratio(&[], &[], 100000), 0.0);
     }
 
+    fn now_ms() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+    }
+
     fn sample_tx(id: i64, ttype: TransactionType, amount: i64, date: i64) -> Transaction {
         Transaction {
             id,
@@ -319,14 +333,190 @@ mod tests {
         assert!(monthly > 0 && monthly <= 1_000_000 + 2);
     }
 
+    // -- get_offline_budget_advice tests -----------------------------------------
+
+    #[test]
+    fn test_advice_empty_transactions_returns_empty_prompt() {
+        let result = get_offline_budget_advice(&[], &[]);
+        // Should contain the "no transactions yet" message
+        assert!(result.contains("\u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634}"));
+    }
+
+    #[test]
+    fn test_advice_negative_saving_rate_warns_deficit() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 1_000_000, 0),
+            sample_tx(2, TransactionType::Expense, 5_000_000, 0),
+        ];
+        let result = get_offline_budget_advice(&txs, &[]);
+        //saving_rate = (1M - 5M)/1M = -400% → deficit warning
+        assert!(result.contains("\u{0645}\u{062E}\u{0627}\u{0631}\u{062C}"));
+    }
+
+    #[test]
+    fn test_advice_low_saving_rate_below_10_percent() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, 0),
+            sample_tx(2, TransactionType::Expense, 9_500_000, 0),
+        ];
+        let result = get_offline_budget_advice(&txs, &[]);
+        // saving_rate = 5% → "near zero savings"
+        assert!(result.contains("\u{067E}\u{0633}\u{200C}\u{0627}\u{0646}\u{062F}\u{0627}\u{0632}"));
+    }
+
+    #[test]
+    fn test_advice_high_saving_rate_above_10_percent() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, 0),
+            sample_tx(2, TransactionType::Expense, 5_000_000, 0),
+        ];
+        let result = get_offline_budget_advice(&txs, &[]);
+        // saving_rate = 50% → "excellent savings"
+        assert!(result.contains("\u{0639}\u{0645}\u{0644}\u{06A9}\u{0631}\u{062F}"));
+    }
+
+    #[test]
+    fn test_advice_with_categories_mentions_highest_category() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Expense, 3_000_000, 0),
+            sample_tx(2, TransactionType::Expense, 1_000_000, 0),
+        ];
+        // category_id defaults to 1 in sample_tx
+        let cats = vec![Category {
+            id: 1,
+            name: "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}".into(), // "Groceries"
+            key: "groceries".into(),
+            icon: "".into(),
+            color: 0,
+            category_type: "EXPENSE".into(),
+            is_default: false,
+        }];
+        let result = get_offline_budget_advice(&txs, &cats);
+        assert!(result.contains("\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}"));
+    }
+
+    // -- get_offline_forecast tests ----------------------------------------------
+
+    #[test]
+    fn test_forecast_empty_returns_no_data_message() {
+        let result = get_offline_forecast(&[], &[], &[]);
+        assert!(result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
+    }
+
+    #[test]
+    fn test_forecast_negative_balance_warns() {
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 1_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(2, TransactionType::Expense, 5_000_000, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let result = get_offline_forecast(&txs, &[], &[]);
+        // est_balance negative → warning
+        assert!(result.contains("\u{0647}\u{0634}\u{062F}\u{0627}\u{0631}"));
+    }
+
+    #[test]
+    fn test_forecast_positive_balance_shows_surplus() {
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let result = get_offline_forecast(&txs, &[], &[]);
+        // est_balance positive → surplus
+        assert!(result.contains("\u{0648}\u{0636}\u{0639}\u{06CC}\u{062A}"));
+    }
+
+    #[test]
+    fn test_forecast_with_installments_subtracts_upcoming() {
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let installments = vec![Installment {
+            id: 1,
+            title: "rent".into(),
+            amount: 5_000_000,
+            due_date: now + 30 * 24 * 60 * 60 * 1000,
+            is_paid: false,
+            reminder_enabled: false,
+            notes: String::new(),
+        }];
+        let result = get_offline_forecast(&txs, &[], &installments);
+        // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
+        assert!(result.contains("\u{0627}\u{0642}\u{0633}\u{0627}\u{0637}"));
+    }
+
+    #[test]
+    fn test_forecast_only_installments_no_transactions() {
+        let now = now_ms();
+        let installments = vec![Installment {
+            id: 1,
+            title: "car".into(),
+            amount: 3_000_000,
+            due_date: now,
+            is_paid: false,
+            reminder_enabled: false,
+            notes: String::new(),
+        }];
+        let result = get_offline_forecast(&[], &[], &installments);
+        // Has unpaid installments → not empty, shows forecast
+        assert!(result.contains("\u{062A}\u{0639}\u{0647}\u{062F}"));
+    }
+
+    // -- calculate_financial_health_score tests -----------------------------------
+
     #[test]
     fn test_financial_health_score_uses_monthly_income_scoping() {
-        let now: i64 = 1_700_000_000_000;
+        let now = now_ms();
         let day: i64 = 24 * 60 * 60 * 1000;
-        // Large all-time income, but nothing in the trailing window.
-        let txs = vec![sample_tx(1, TransactionType::Income, 100_000_000, now - 330 * day)];
-        let score = calculate_financial_health_score(&txs, &[], &[], &[]);
-        // Function must remain well-defined (0..=100) with no recent income.
-        assert!((0..=100).contains(&score));
+
+        // Unpaid installment that creates a monthly debt obligation.
+        let installment = Installment {
+            id: 1,
+            title: "car".into(),
+            amount: 5_000_000,
+            due_date: now,
+            is_paid: false,
+            reminder_enabled: false,
+            notes: String::new(),
+        };
+
+        // --- Case A: recent income exists → low debt ratio → bonus ---
+        let txs_recent = vec![
+            sample_tx(1, TransactionType::Income, 50_000_000, now - 15 * day),
+            sample_tx(2, TransactionType::Income, 50_000_000, now - 330 * day),
+        ];
+        let score_recent = calculate_financial_health_score(
+            &txs_recent,
+            &[],
+            &[installment.clone()],
+            &[],
+        );
+
+        // --- Case B: only ancient income → monthly_income = 0 → debt ratio = 1.0 → penalty ---
+        let txs_ancient = vec![sample_tx(1, TransactionType::Income, 100_000_000, now - 330 * day)];
+        let score_ancient = calculate_financial_health_score(
+            &txs_ancient,
+            &[],
+            &[installment],
+            &[],
+        );
+
+        // With recent income the debt ratio is low (+15 bonus); with no recent
+        // income the ratio maxes out at 1.0 (−10 penalty).  The 25-point
+        // difference proves monthly-income scoping is actually used.
+        assert!(
+            score_recent > score_ancient,
+            "score_recent ({score_recent}) should exceed score_ancient ({score_ancient}) \
+             because monthly income scoping penalises the absence of recent income"
+        );
+        // Exact delta: +15 vs -10 = 25, but allow margin for other factors.
+        assert!(
+            score_recent - score_ancient >= 20,
+            "expected at least 20-point gap from debt-ratio scoping, got {}",
+            score_recent - score_ancient
+        );
     }
 }

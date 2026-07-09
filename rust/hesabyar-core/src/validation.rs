@@ -1,10 +1,16 @@
 use crate::models::*;
 
 /// Result of batch validation — collects all errors.
-#[derive(Debug, Clone, Default, uniffi::Record)]
+#[derive(Debug, Clone, uniffi::Record)]
 pub struct ValidationResult {
     pub is_valid: bool,
     pub errors: Vec<String>,
+}
+
+impl Default for ValidationResult {
+    fn default() -> Self {
+        Self { is_valid: true, errors: vec![] }
+    }
 }
 
 // ===========================================================================
@@ -167,6 +173,18 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
     if payload.version < 1 {
         errors.push("Invalid backup version".into());
+    }
+    // Category cross-reference check (mirrors FFI validate_backup)
+    if !payload.categories.is_empty() {
+        let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
+        for (i, tx) in payload.transactions.iter().enumerate() {
+            if !category_ids.contains(&tx.category_id) {
+                errors.push(format!(
+                    "Transaction[{}] references non-existent category {}",
+                    i, tx.category_id
+                ));
+            }
+        }
     }
     errors.extend(validate_transaction_batch(&payload.transactions).errors);
     errors.extend(validate_loan_batch(&payload.loans).errors);

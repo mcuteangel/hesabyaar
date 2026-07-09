@@ -43,48 +43,77 @@ class GetDashboardDataUseCase(
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    val now = System.currentTimeMillis()
-    val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
-
-    val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
-    val monthlyIncome = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val monthlyExpenses = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-
-    val unsettledLoans = loans.filter { !it.isSettled }
-    val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount }
-    val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount }
-
-    val currentBalance = monthlyIncome - monthlyExpenses
-    val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
-    val monthlyDebt =
-      unsettledLoans
-        .filter { it.type == "CREDITOR" }
-        .sumOf { it.remainingAmount / 12 }
-    val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
-
-    val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
-
-    return DashboardData(
-      currentBalance = currentBalance,
-      monthlyExpenses = monthlyExpenses,
-      monthlyIncome = monthlyIncome,
-      debtorsTotal = debtors,
-      creditorsTotal = creditors,
-      upcomingInstallments = upcomingIns,
-      savingsRate = savingsRate,
-      debtToIncomeRatio = debtToIncome
-    )
+    return computeFallbackDashboardData(transactions, loans, installments)
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
    *  blank placeholder rather than a real computation. */
-  private fun DashboardData.isBlank(): Boolean =
+  private fun io.github.mojri.hesabyar.rust.DashboardData.isBlank(): Boolean =
     currentBalance == 0L &&
       monthlyExpenses == 0L &&
       monthlyIncome == 0L &&
       debtorsTotal == 0L &&
       creditorsTotal == 0L &&
-      upcomingInstallments.isEmpty() &&
       savingsRate == 0.0 &&
       debtToIncomeRatio == 0.0
+
+  companion object {
+    /** Kotlin-only dashboard computation.  Extracted so unit tests can verify
+     *  the fallback logic without requiring the Rust native library. */
+    internal fun computeFallbackDashboardData(
+      transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>
+    ): DashboardData {
+      val now = System.currentTimeMillis()
+
+      // Get current Jalali month boundaries
+      val jalaliDate =
+        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+          .gregorianToJalali(now)
+      val jalaliMonthStart =
+        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+          .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
+          ?.timeInMillis ?: (now - 30L * 24 * 60 * 60 * 1000)
+      val nextMonth = if (jalaliDate.month == 12) 1 else jalaliDate.month + 1
+      val nextMonthYear = if (jalaliDate.month == 12) jalaliDate.year + 1 else jalaliDate.year
+      val jalaliMonthEnd =
+        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+          .jalaliToGregorian(nextMonthYear, nextMonth, 1)
+          ?.timeInMillis ?: now
+
+      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEnd }
+      val monthlyIncome = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount }
+      val monthlyExpenses = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+
+      val unsettledLoans = loans.filter { !it.isSettled }
+      val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount }
+      val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount }
+
+      // currentBalance from all transactions (lifetime), not just the filtered month.
+      val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
+      val totalExpenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+      val currentBalance = totalIncome - totalExpenses
+
+      val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
+      val monthlyDebt =
+        unsettledLoans
+          .filter { it.type == "CREDITOR" }
+          .sumOf { it.remainingAmount / 12 }
+      val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
+
+      val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
+
+      return DashboardData(
+        currentBalance = currentBalance,
+        monthlyExpenses = monthlyExpenses,
+        monthlyIncome = monthlyIncome,
+        debtorsTotal = debtors,
+        creditorsTotal = creditors,
+        upcomingInstallments = upcomingIns,
+        savingsRate = savingsRate,
+        debtToIncomeRatio = debtToIncome
+      )
+    }
+  }
 }

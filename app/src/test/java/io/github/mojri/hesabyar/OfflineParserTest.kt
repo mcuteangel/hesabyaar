@@ -9,16 +9,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tests for GeminiParser.parseSentenceOffline() which now delegates to Rust core.
+ * Tests for parse() which now delegates to Rust core.
  * Tests for MoneyDetector, PersianAmountParser, and PersianTextPreprocessor were removed
  * since those Kotlin classes were deleted — the Rust implementations are tested separately
  * in the Rust test suite (hesabyar-core).
  */
 
 class OfflineParserTest {
+  private fun parse(sentence: String) =
+    GeminiParser.parseSentenceOffline(sentence)
+      ?: throw AssertionError("parseSentenceOffline returned null for: $sentence")
+
   @Test
   fun `parse expense with million`() {
-    val result = GeminiParser.parseSentenceOffline("امروز مرغ خریدم 5 میلیون") ?: return
+    val result = parse("امروز مرغ خریدم 5 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals(50_000_000L, result.amount)
     assertEquals("Food", result.category)
@@ -26,7 +30,7 @@ class OfflineParserTest {
 
   @Test
   fun `parse expense with thousand`() {
-    val result = GeminiParser.parseSentenceOffline("بنزین خریدم 450 هزار تومان") ?: return
+    val result = parse("بنزین خریدم 450 هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals(4_500_000L, result.amount)
     assertEquals("Transportation", result.category)
@@ -34,7 +38,7 @@ class OfflineParserTest {
 
   @Test
   fun `parse income with million`() {
-    val result = GeminiParser.parseSentenceOffline("حقوق گرفتم 20 میلیون") ?: return
+    val result = parse("حقوق گرفتم 20 میلیون")
     assertEquals("INCOME", result.type)
     assertEquals(200_000_000L, result.amount)
     assertEquals("Income", result.category)
@@ -42,7 +46,7 @@ class OfflineParserTest {
 
   @Test
   fun `parse loan creditor`() {
-    val result = GeminiParser.parseSentenceOffline("از علی 5 میلیون قرض گرفتم") ?: return
+    val result = parse("از علی 5 میلیون قرض گرفتم")
     assertEquals("LOAN_CREDITOR", result.type)
     assertEquals(50_000_000L, result.amount)
     assertEquals("علی", result.personName)
@@ -50,14 +54,14 @@ class OfflineParserTest {
 
   @Test
   fun `parse loan debtor`() {
-    val result = GeminiParser.parseSentenceOffline("به رضا 2 میلیون قرض دادم") ?: return
+    val result = parse("به رضا 2 میلیون قرض دادم")
     assertEquals("LOAN_DEBTOR", result.type)
     assertEquals(20_000_000L, result.amount)
   }
 
   @Test
   fun `parse installment`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون") ?: return
+    val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals(30_000_000L, result.amount)
     assertNotNull(result.title)
@@ -65,39 +69,39 @@ class OfflineParserTest {
 
   @Test
   fun `parse date offset - yesterday`() {
-    val result = GeminiParser.parseSentenceOffline("دیروز 500 هزار خرج کردم") ?: return
+    val result = parse("دیروز 500 هزار خرج کردم")
     assertEquals(-1, result.dateOffsetDays)
   }
 
   @Test
   fun `parse date offset - tomorrow`() {
-    val result = GeminiParser.parseSentenceOffline("فردا 1 میلیون واریز می‌کنم") ?: return
+    val result = parse("فردا 1 میلیون واریز می‌کنم")
     assertEquals(1, result.dateOffsetDays)
   }
 
   @Test
   fun `parse amount without multiplier`() {
-    val result = GeminiParser.parseSentenceOffline("1200 تومان خرج کردم") ?: return
+    val result = parse("1200 تومان خرج کردم")
     assertEquals(12_000L, result.amount)
   }
 
   @Test
   fun `parse shopping expense`() {
-    val result = GeminiParser.parseSentenceOffline("لباس خریدم 800 هزار تومان") ?: return
+    val result = parse("لباس خریدم 800 هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals("Shopping", result.category)
   }
 
   @Test
   fun `parse bill payment`() {
-    val result = GeminiParser.parseSentenceOffline("قبض برق دادم 200 هزار") ?: return
+    val result = parse("قبض برق دادم 200 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Bills", result.category)
   }
 
   @Test
   fun `parse haircut expense with thousand`() {
-    val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن") ?: return
+    val result = parse("اصلاح کردم 200 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(2_000_000L, result.amount)
     assertEquals("Other", result.category)
@@ -105,14 +109,14 @@ class OfflineParserTest {
 
   @Test
   fun `parse amount with persian numerals`() {
-    val result = GeminiParser.parseSentenceOffline("بنزین زدم ۶۰۰ هزار تومان") ?: return
+    val result = parse("بنزین زدم ۶۰۰ هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals(6_000_000L, result.amount)
   }
 
   @Test
   fun `parse salon visit`() {
-    val result = GeminiParser.parseSentenceOffline("آرایشگاه رفتم ۱۵۰ هزار تومان") ?: return
+    val result = parse("آرایشگاه رفتم ۱۵۰ هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
     assertEquals(1_500_000L, result.amount)
@@ -120,26 +124,26 @@ class OfflineParserTest {
 
   @Test
   fun `parse description extracted from sentence`() {
-    val result = GeminiParser.parseSentenceOffline("اصلاح کردم 200 هزار تومن") ?: return
+    val result = parse("اصلاح کردم 200 هزار تومن")
     assertTrue(result.description.isNotBlank())
   }
 
   @Test
   fun `installment description is future-oriented not paid`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون") ?: return
+    val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("قسط آینده", result.description)
   }
 
   @Test
   fun `installment notes indicate pending status`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون") ?: return
+    val result = parse("قسط ماشین 3 میلیون")
     assertEquals("قسط در انتظار پرداخت", result.notes)
   }
 
   @Test
   fun `installment with specific jalali date calculates correct days`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون") ?: return
+    val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
@@ -148,7 +152,7 @@ class OfflineParserTest {
 
   @Test
   fun `installment with mordad month extracts days`() {
-    val result = GeminiParser.parseSentenceOffline("قسط خانه 15 مرداد 5 میلیون") ?: return
+    val result = parse("قسط خانه 15 مرداد 5 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
@@ -156,14 +160,14 @@ class OfflineParserTest {
 
   @Test
   fun `installment without specific date defaults to 30`() {
-    val result = GeminiParser.parseSentenceOffline("قسط جدید 2 میلیون") ?: return
+    val result = parse("قسط جدید 2 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals(30, result.daysFromNow)
   }
 
   @Test
   fun `installment with persian numerals in date`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین ۲۰ مهر ۸ میلیون") ?: return
+    val result = parse("قسط ماشین ۲۰ مهر ۸ میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
@@ -171,19 +175,19 @@ class OfflineParserTest {
 
   @Test
   fun `installment title is extracted correctly`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون") ?: return
+    val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("قسط ماشین", result.title)
   }
 
   @Test
   fun `installment for mortgage loan extracts correct title`() {
-    val result = GeminiParser.parseSentenceOffline("قسط وام مسکن 10 مرداد 5 میلیون") ?: return
+    val result = parse("قسط وام مسکن 10 مرداد 5 میلیون")
     assertEquals("قسط وام مسکن", result.title)
   }
 
   @Test
   fun `installment amount is correct`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 25 تیر 10 میلیون") ?: return
+    val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals(100_000_000L, result.amount)
   }
 
@@ -193,49 +197,49 @@ class OfflineParserTest {
 
   @Test
   fun `parse soda purchase as expense not income`() {
-    val result = GeminiParser.parseSentenceOffline("نوشابه گرفتم 85 هزار تومن") ?: return
+    val result = parse("نوشابه گرفتم 85 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(850_000L, result.amount)
   }
 
   @Test
   fun `parse internet package as expense not income`() {
-    val result = GeminiParser.parseSentenceOffline("دیروز بسته ایترنت گرفتم 109 هزار و 800 تومن") ?: return
+    val result = parse("دیروز بسته ایترنت گرفتم 109 هزار و 800 تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(1_098_000L, result.amount)
   }
 
   @Test
   fun `income description includes subject`() {
-    val result = GeminiParser.parseSentenceOffline("بابت فروش پرتقال ها 200 هزار تومن گرفتم") ?: return
+    val result = parse("بابت فروش پرتقال ها 200 هزار تومن گرفتم")
     assertEquals("INCOME", result.type)
     assertTrue("Description should mention subject", result.description.contains("پرتقال"))
   }
 
   @Test
   fun `expense description includes subject`() {
-    val result = GeminiParser.parseSentenceOffline("بسته اینترنت خریدم 100 هزار تومن") ?: return
+    val result = parse("بسته اینترنت خریدم 100 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should mention subject", result.description.contains("بسته اینترنت"))
   }
 
   @Test
   fun `expense description for food includes item`() {
-    val result = GeminiParser.parseSentenceOffline("مرغ خریدم 80 هزار تومن") ?: return
+    val result = parse("مرغ خریدم 80 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should mention food item", result.description.contains("مرغ"))
   }
 
   @Test
   fun `soda purchase description includes soda`() {
-    val result = GeminiParser.parseSentenceOffline("نوشابه خریدم 85 هزار تومن") ?: return
+    val result = parse("نوشابه خریدم 85 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should contain soda", result.description.contains("نوشابه"))
   }
 
   @Test
   fun `soda with time word excludes time from subject`() {
-    val result = GeminiParser.parseSentenceOffline("دیشب نوشابه گرفتم") ?: return
+    val result = parse("دیشب نوشابه گرفتم")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should not contain دیشب", !result.description.contains("دیشب"))
     assertTrue("Description should contain soda", result.description.contains("نوشابه"))
@@ -262,7 +266,7 @@ class OfflineParserTest {
         "پیتزا خریدم 90 هزار"
       )
     foodSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Food for: $sentence", "Food", result.category)
     }
   }
@@ -277,7 +281,7 @@ class OfflineParserTest {
         "مترو رفتم 10 هزار"
       )
     transportSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Transportation for: $sentence", "Transportation", result.category)
     }
   }
@@ -291,7 +295,7 @@ class OfflineParserTest {
         "کیف خریدم 200 هزار"
       )
     shoppingSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Shopping for: $sentence", "Shopping", result.category)
     }
   }
@@ -304,7 +308,7 @@ class OfflineParserTest {
         "قبض گاز پرداخت کردم 100 هزار"
       )
     billSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Bills for: $sentence", "Bills", result.category)
     }
   }
@@ -318,7 +322,7 @@ class OfflineParserTest {
         "عطر خریدم 300 هزار"
       )
     personalSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Other for: $sentence", "Other", result.category)
     }
   }
@@ -331,7 +335,7 @@ class OfflineParserTest {
         "شهریه دانشگاه پرداخت کردم 2 میلیون"
       )
     educationSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Other for: $sentence", "Other", result.category)
     }
   }
@@ -345,7 +349,7 @@ class OfflineParserTest {
         "واریز شد 10 میلیون"
       )
     incomeSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Income for: $sentence", "Income", result.category)
     }
   }
@@ -358,7 +362,7 @@ class OfflineParserTest {
         "قرض گرفتم 10 میلیون"
       )
     loanSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Loans for: $sentence", "Loans", result.category)
     }
   }
@@ -370,7 +374,7 @@ class OfflineParserTest {
         "چیز عجیبی خریدم 50 هزار"
       )
     otherSentences.forEach { sentence ->
-      val result = GeminiParser.parseSentenceOffline(sentence) ?: return@forEach
+      val result = parse(sentence)
       assertEquals("Expected Other for: $sentence", "Other", result.category)
     }
   }
@@ -381,19 +385,19 @@ class OfflineParserTest {
 
   @Test
   fun `confidence - multiple factors increase confidence`() {
-    val result = GeminiParser.parseSentenceOffline("دیروز مرغ خریدم 80 هزار تومن به علی") ?: return
+    val result = parse("دیروز مرغ خریدم 80 هزار تومن به علی")
     assertTrue("Confidence should be >= 0.85", result.confidence >= 0.85f)
   }
 
   @Test
   fun `confidence - amount only gives moderate confidence`() {
-    val result = GeminiParser.parseSentenceOffline("500 هزار تومان") ?: return
+    val result = parse("500 هزار تومان")
     assertTrue("Confidence should be >= 0.70", result.confidence >= 0.70f)
   }
 
   @Test
   fun `confidence - no money keywords gives low confidence`() {
-    val result = GeminiParser.parseSentenceOffline("متن بدون پول") ?: return
+    val result = parse("متن بدون پول")
     assertTrue("Confidence should be <= 0.65", result.confidence <= 0.65f)
   }
 
@@ -403,7 +407,7 @@ class OfflineParserTest {
 
   @Test
   fun `paid installment with tasvie returns expense`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین را تسویه کردم 3 میلیون") ?: return
+    val result = parse("قسط ماشین را تسویه کردم 3 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
     assertNull(result.daysFromNow)
@@ -411,7 +415,7 @@ class OfflineParserTest {
 
   @Test
   fun `paid installment with pardakht returns expense`() {
-    val result = GeminiParser.parseSentenceOffline("قسط خانه پرداخت کردم 5 میلیون") ?: return
+    val result = parse("قسط خانه پرداخت کردم 5 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
     assertNull(result.daysFromNow)
@@ -419,7 +423,7 @@ class OfflineParserTest {
 
   @Test
   fun `paid installment with dadam returns expense`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین دادم 3 میلیون") ?: return
+    val result = parse("قسط ماشین دادم 3 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
     assertNull(result.daysFromNow)
@@ -427,7 +431,7 @@ class OfflineParserTest {
 
   @Test
   fun `pending installment without paid keyword returns installment type`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین 3 میلیون") ?: return
+    val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("Installments", result.category)
     assertNotNull(result.daysFromNow)
@@ -435,14 +439,14 @@ class OfflineParserTest {
 
   @Test
   fun `installment with variz does not force expense`() {
-    val result = GeminiParser.parseSentenceOffline("قسط ماشین واریز شد 3 میلیون") ?: return
+    val result = parse("قسط ماشین واریز شد 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("Installments", result.category)
   }
 
   @Test
   fun `category OTHER expense description does not include subject in parentheses`() {
-    val result = GeminiParser.parseSentenceOffline("چیز عجیبی خریدم 50 هزار") ?: return
+    val result = parse("چیز عجیبی خریدم 50 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
     assertFalse(
@@ -454,7 +458,7 @@ class OfflineParserTest {
 
   @Test
   fun `category OTHER expense uses base description without formatting`() {
-    val result = GeminiParser.parseSentenceOffline("خرج غیرمعمول 100 هزار") ?: return
+    val result = parse("خرج غیرمعمول 100 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
     assertFalse(
@@ -465,7 +469,7 @@ class OfflineParserTest {
 
   @Test
   fun `non-OTHER category expense includes subject in parentheses`() {
-    val result = GeminiParser.parseSentenceOffline("مرغ خریدم 80 هزار") ?: return
+    val result = parse("مرغ خریدم 80 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Food", result.category)
     assertTrue(
