@@ -60,7 +60,7 @@ class ExportViewModel
             )
         } catch (e: CancellationException) {
           throw e
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
           exportState.value =
             ExportState.Error(
               "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
@@ -85,11 +85,11 @@ class ExportViewModel
           val resolver = appContext.contentResolver
           val uri =
             resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-              ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
+              ?: throw java.io.IOException("ایجاد فایل در Downloads ناموفق بود")
 
           resolver.openOutputStream(uri)?.use { output ->
             output.write(bytes)
-          } ?: throw Exception("نوشتن فایل ناموفق بود")
+          } ?: throw java.io.IOException("نوشتن فایل ناموفق بود")
 
           "Downloads/$fileName"
         } else {

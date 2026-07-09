@@ -39,8 +39,8 @@ object JalaliCalendarHelper {
     )
   }
 
-  private fun unpackJalaliDate(packed: Long): JalaliDate {
-    if (packed == PACKED_DATE_INVALID || packed == Long.MIN_VALUE) return JalaliDate(0, 0, 0)
+  private fun unpackJalaliDate(packed: Long): JalaliDate? {
+    if (packed == PACKED_DATE_INVALID || packed == Long.MIN_VALUE) return null
     val year = (packed shr YEAR_SHIFT).toInt()
     val month = ((packed shr MONTH_SHIFT) and 0xFF).toInt()
     val day = (packed and 0xFF).toInt()
@@ -61,7 +61,7 @@ object JalaliCalendarHelper {
     return unpackJalaliDate(
       io.github.mojri.hesabyar.rust.RustBridge
         .gregorianToJalaliSync(utcCal.timeInMillis)
-    )
+    ) ?: JalaliDate(gYear, gMonth, gDay)
   }
 
   fun jalaliToGregorian(
