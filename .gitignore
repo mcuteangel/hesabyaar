@@ -40,6 +40,8 @@ keystore-backups/my-upload-key.jks.bak
 .agents/
 skills-lock.json
 .mimocode/
+~/.local/share/mimocode/
+~/.opencode/
 docs/uiplan.md
 .superpowers/
 docs/superpowers/
