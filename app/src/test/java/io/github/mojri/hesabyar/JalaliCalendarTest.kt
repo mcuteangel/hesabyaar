@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
@@ -31,8 +32,9 @@ class JalaliCalendarTest {
     val gMonth = 6
     val gDay = 15
     val jd = JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
-    val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)!!
-    assertEquals(gYear, gc.get(Calendar.YEAR))
+    val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)
+    assertNotNull("jalaliToGregorian returned null for Jalali ${jd.year}/${jd.month}/${jd.day}", gc)
+    assertEquals(gYear, gc!!.get(Calendar.YEAR))
     assertEquals(gMonth - 1, gc.get(Calendar.MONTH))
     assertEquals(gDay, gc.get(Calendar.DAY_OF_MONTH))
   }
@@ -53,10 +55,14 @@ class JalaliCalendarTest {
       )
     for ((gYear, gMonth, gDay) in dates) {
       val jd = JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
-      val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)!!
+      val gc = JalaliCalendarHelper.jalaliToGregorian(jd.year, jd.month, jd.day)
+      assertNotNull(
+        "jalaliToGregorian returned null for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
+        gc
+      )
       assertTrue(
         "jalaliToGregorian should return non-zero for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
-        gc.timeInMillis != 0L
+        gc!!.timeInMillis != 0L
       )
       assertEquals("Year mismatch for $gYear/$gMonth/$gDay", gYear, gc.get(Calendar.YEAR))
       assertEquals("Month mismatch for $gYear/$gMonth/$gDay", gMonth - 1, gc.get(Calendar.MONTH))
@@ -112,8 +118,9 @@ class JalaliCalendarTest {
 
   @Test
   fun `jalaliToGregorian - known conversion`() {
-    val gc = JalaliCalendarHelper.jalaliToGregorian(1403, 1, 1)!!
-    assertEquals(2024, gc.get(Calendar.YEAR))
+    val gc = JalaliCalendarHelper.jalaliToGregorian(1403, 1, 1)
+    assertNotNull("jalaliToGregorian(1403, 1, 1) should not return null", gc)
+    assertEquals(2024, gc!!.get(Calendar.YEAR))
     assertEquals(Calendar.MARCH, gc.get(Calendar.MONTH))
     assertEquals(20, gc.get(Calendar.DAY_OF_MONTH))
   }

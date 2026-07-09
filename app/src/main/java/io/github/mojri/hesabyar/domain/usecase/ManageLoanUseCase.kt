@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import kotlinx.coroutines.flow.Flow
 
@@ -12,7 +13,7 @@ class ManageLoanUseCase(
 
   suspend fun addLoan(
     personName: String,
-    type: String,
+    type: LoanType,
     amount: Long,
     description: String,
     customDate: Long? = null

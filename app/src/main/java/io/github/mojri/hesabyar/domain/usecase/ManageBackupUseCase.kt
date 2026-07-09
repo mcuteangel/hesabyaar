@@ -3,9 +3,16 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
+import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.firstOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,86 +20,169 @@ import org.json.JSONObject
 class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface
 ) {
+  private companion object
+
   fun parseBackupJson(jsonString: String): BackupPayload? {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge
-        .parseBackupJsonSync(jsonString) ?: return null
+        .parseBackupJsonSync(jsonString)
+    if (rustResult != null) {
+      val rootJson = parseRawJson(jsonString)
+      return BackupPayload(
+        version = rustResult.version,
+        timestamp = rustResult.timestamp,
+        appVersion = rustResult.appVersion,
+        transactions =
+          rustResult.transactions.map {
+            io.github.mojri.hesabyar.rust.RustMappers
+              .fromRustTransaction(it)
+          },
+        loans =
+          rustResult.loans.map {
+            io.github.mojri.hesabyar.rust.RustMappers
+              .fromRustLoan(it)
+          },
+        installments =
+          rustResult.installments.map {
+            io.github.mojri.hesabyar.rust.RustMappers
+              .fromRustInstallment(it)
+          },
+        paymentHistories = parsePaymentHistories(rootJson),
+        categories =
+          rustResult.categories.map {
+            io.github.mojri.hesabyar.rust.RustMappers
+              .fromRustCategory(it)
+          },
+        settings = parseSettings(rootJson)
+      )
+    }
+    // Rust unavailable — fall back to Kotlin-only JSON parsing
+    return parseBackupJsonKotlin(jsonString)
+  }
 
-    // Parse the raw JSON once and reuse it for both extractions
-    // (Rust ignores these unknown fields, so we recover them from the raw string).
-    val rootJson: JSONObject? =
-      try {
-        JSONObject(jsonString)
-      } catch (_: Exception) {
-        null
-      }
+  private fun parseRawJson(jsonString: String): JSONObject? =
+    try {
+      JSONObject(jsonString)
+    } catch (_: Exception) {
+      null
+    }
 
-    // Parse paymentHistories from raw JSON (Rust ignores unknown fields)
-    val paymentHistories: List<PaymentHistory> =
-      try {
-        val arr = rootJson?.optJSONArray("paymentHistories")
-        if (arr != null) {
+  private fun parseSettings(rootJson: JSONObject?): BackupSettings {
+    val obj = rootJson?.optJSONObject("settings") ?: return BackupSettings()
+    return BackupSettings(darkMode = obj.optBoolean("darkMode", true))
+  }
+
+  private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
+    val root = parseRawJson(jsonString) ?: return null
+    return try {
+      val transactions =
+        root.optJSONArray("transactions")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
-            try {
-              val obj = arr.getJSONObject(i)
-              PaymentHistory(
-                id = obj.optLong("id", 0L),
-                loanId = obj.optLong("loanId", 0L),
-                amount = obj.optLong("amount", 0L),
-                date = obj.optLong("date", System.currentTimeMillis()),
-                notes = obj.optString("notes", "")
-              )
-            } catch (_: Exception) {
-              null
-            }
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            Transaction(
+              id = o.optLong("id", 0L),
+              type =
+                io.github.mojri.hesabyar.data.TransactionType.entries
+                  .firstOrNull { it.name == o.optString("type") }
+                  ?: io.github.mojri.hesabyar.data.TransactionType.EXPENSE,
+              categoryId = o.optLong("categoryId", 0L),
+              amount = o.optLong("amount", 0L),
+              description = o.optString("description", ""),
+              personName = o.optString("personName", "").ifBlank { null },
+              date = o.optLong("date", 0L),
+              dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
+              installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L }
+            )
           }
-        } else {
-          emptyList()
-        }
-      } catch (_: Exception) {
-        emptyList()
-      }
+        } ?: emptyList()
 
-    // Parse settings from raw JSON
-    val settings: BackupSettings =
-      try {
-        val settingsObj = rootJson?.optJSONObject("settings")
-        if (settingsObj != null) {
-          BackupSettings(darkMode = settingsObj.optBoolean("darkMode", true))
-        } else {
-          BackupSettings()
-        }
-      } catch (_: Exception) {
-        BackupSettings()
-      }
+      val loans =
+        root.optJSONArray("loans")?.let { arr ->
+          (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            Loan(
+              id = o.optLong("id", 0L),
+              personName = o.optString("personName", ""),
+              type =
+                io.github.mojri.hesabyar.data.LoanType.entries
+                  .firstOrNull { it.name == o.optString("type") }
+                  ?: io.github.mojri.hesabyar.data.LoanType.CREDITOR,
+              originalAmount = o.optLong("originalAmount", 0L),
+              remainingAmount = o.optLong("remainingAmount", 0L),
+              description = o.optString("description", ""),
+              date = o.optLong("date", 0L),
+              isSettled = o.optBoolean("isSettled", false)
+            )
+          }
+        } ?: emptyList()
 
-    return BackupPayload(
-      version = rustResult.version,
-      timestamp = rustResult.timestamp,
-      appVersion = rustResult.appVersion,
-      transactions =
-        rustResult.transactions.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .fromRustTransaction(it)
-        },
-      loans =
-        rustResult.loans.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .fromRustLoan(it)
-        },
-      installments =
-        rustResult.installments.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .fromRustInstallment(it)
-        },
-      paymentHistories = paymentHistories,
-      categories =
-        rustResult.categories.map {
-          io.github.mojri.hesabyar.rust.RustMappers
-            .fromRustCategory(it)
-        },
-      settings = settings
-    )
+      val installments =
+        root.optJSONArray("installments")?.let { arr ->
+          (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            Installment(
+              id = o.optLong("id", 0L),
+              title = o.optString("title", ""),
+              amount = o.optLong("amount", 0L),
+              dueDate = o.optLong("dueDate", 0L),
+              isPaid = o.optBoolean("isPaid", false),
+              reminderEnabled = o.optBoolean("reminderEnabled", true),
+              notes = o.optString("notes", "")
+            )
+          }
+        } ?: emptyList()
+
+      val categories =
+        root.optJSONArray("categories")?.let { arr ->
+          (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            Category(
+              id = o.optLong("id", 0L),
+              name = o.optString("name", ""),
+              key = o.optString("key", ""),
+              icon = o.optString("icon", ""),
+              color = o.optLong("color", 0L),
+              type =
+                io.github.mojri.hesabyar.data.CategoryType.entries
+                  .firstOrNull { it.name == o.optString("type") }
+                  ?: io.github.mojri.hesabyar.data.CategoryType.EXPENSE,
+              isDefault = o.optBoolean("isDefault", false)
+            )
+          }
+        } ?: emptyList()
+
+      BackupPayload(
+        version = root.optInt("version", 1),
+        timestamp = root.optLong("timestamp", System.currentTimeMillis()),
+        appVersion = root.optString("appVersion", "1.0"),
+        transactions = transactions,
+        loans = loans,
+        installments = installments,
+        paymentHistories = parsePaymentHistories(root),
+        categories = categories,
+        settings = parseSettings(root)
+      )
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun parsePaymentHistories(rootJson: JSONObject?): List<PaymentHistory> {
+    val arr = rootJson?.optJSONArray("paymentHistories") ?: return emptyList()
+    return try {
+      (0 until arr.length()).mapNotNull { i ->
+        val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+        PaymentHistory(
+          id = obj.optLong("id", 0L),
+          loanId = obj.optLong("loanId", 0L),
+          amount = obj.optLong("amount", 0L),
+          date = obj.optLong("date", System.currentTimeMillis()),
+          notes = obj.optString("notes", "")
+        )
+      }
+    } catch (_: Exception) {
+      emptyList()
+    }
   }
 
   private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
@@ -101,14 +191,8 @@ class ManageBackupUseCase(
       timestamp = timestamp,
       appVersion = appVersion,
       transactions =
-        transactions
-          .filter { tx ->
-            io.github.mojri.hesabyar.rust.TransactionType.entries
-              .any { e -> e.name == tx.type }
-          }.let {
-            io.github.mojri.hesabyar.rust.RustMappers
-              .mapTransactions(it)
-          },
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
       loans =
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
@@ -170,7 +254,7 @@ class ManageBackupUseCase(
           put("key", it.key)
           put("icon", it.icon)
           put("color", it.color)
-          put("type", it.type)
+          put("type", it.type.name)
           put("isDefault", it.isDefault)
         }
       )
@@ -182,7 +266,7 @@ class ManageBackupUseCase(
       transArray.put(
         JSONObject().apply {
           put("id", it.id)
-          put("type", it.type)
+          put("type", it.type.name)
           put("categoryId", it.categoryId)
           put("amount", it.amount)
           put("description", it.description)
@@ -201,7 +285,7 @@ class ManageBackupUseCase(
         JSONObject().apply {
           put("id", it.id)
           put("personName", it.personName)
-          put("type", it.type)
+          put("type", it.type.name)
           put("originalAmount", it.originalAmount)
           put("remainingAmount", it.remainingAmount)
           put("description", it.description)
@@ -246,7 +330,7 @@ class ManageBackupUseCase(
   }
 
   suspend fun importBackupFromFile(backup: BackupPayload) {
-    repository.importBackup(backup.transactions, backup.loans, backup.installments, backup.paymentHistories)
+    repository.replaceAllFromBackup(backup)
   }
 
   fun buildBackupSummary(backup: BackupPayload): String =

@@ -1,9 +1,12 @@
 package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import java.math.RoundingMode
 import io.github.mojri.hesabyar.ui.AnalyticsData as KAnalyticsData
 import io.github.mojri.hesabyar.ui.CategoryBreakdown as KCategoryBreakdown
@@ -89,7 +92,7 @@ object RustMappers {
       personName = loan.personName,
       originalAmount = loan.originalAmount,
       remainingAmount = loan.remainingAmount,
-      type = loan.type,
+      type = loan.type.name,
       progress = progress
     )
   }
@@ -115,12 +118,12 @@ object RustMappers {
   fun mapCategoryMap(categories: List<Category>): Map<Long, Category> = categories.associateBy { it.id }
 
   /**
-   * Map a free-form DB transaction type string to a valid Rust [TransactionType].
-   * Falls back to [TransactionType.EXPENSE] for unknown values instead of throwing,
-   * since [Transaction.type] is an unconstrained string.
+   * Map a DB transaction type to the Rust [TransactionType].
+   * Since [Transaction.type] is now a typed enum, this is a direct passthrough.
    */
-  fun mapTransactionType(type: String): TransactionType =
-    TransactionType.entries.firstOrNull { it.name == type } ?: TransactionType.EXPENSE
+  fun mapTransactionType(type: TransactionType): io.github.mojri.hesabyar.rust.TransactionType =
+    io.github.mojri.hesabyar.rust.TransactionType
+      .valueOf(type.name)
 
   fun mapTransaction(tx: Transaction): io.github.mojri.hesabyar.rust.Transaction =
     io.github.mojri.hesabyar.rust.Transaction(
@@ -139,7 +142,7 @@ object RustMappers {
     io.github.mojri.hesabyar.rust.Loan(
       id = loan.id,
       personName = loan.personName,
-      loanType = loan.type,
+      loanType = loan.type.name,
       originalAmount = loan.originalAmount,
       remainingAmount = loan.remainingAmount,
       description = loan.description,
@@ -165,7 +168,7 @@ object RustMappers {
       key = cat.key,
       icon = cat.icon,
       color = cat.color,
-      categoryType = cat.type,
+      categoryType = cat.type.name,
       isDefault = cat.isDefault
     )
 
@@ -190,7 +193,7 @@ object RustMappers {
   fun fromRustTransaction(tx: io.github.mojri.hesabyar.rust.Transaction): Transaction =
     Transaction(
       id = tx.id,
-      type = tx.txType.name,
+      type = TransactionType.valueOf(tx.txType.name),
       categoryId = tx.categoryId,
       amount = tx.amount,
       description = tx.description,
@@ -204,7 +207,7 @@ object RustMappers {
     Loan(
       id = loan.id,
       personName = loan.personName,
-      type = loan.loanType,
+      type = LoanType.valueOf(loan.loanType),
       originalAmount = loan.originalAmount,
       remainingAmount = loan.remainingAmount,
       description = loan.description,
@@ -230,7 +233,7 @@ object RustMappers {
       key = cat.key,
       icon = cat.icon,
       color = cat.color,
-      type = cat.categoryType,
+      type = CategoryType.valueOf(cat.categoryType),
       isDefault = cat.isDefault
     )
 }

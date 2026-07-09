@@ -72,7 +72,7 @@ object JalaliCalendarHelper {
     val timestampMs =
       io.github.mojri.hesabyar.rust.RustBridge
         .jalaliToGregorianSync(jYear, jMonth, jDay)
-    if (timestampMs == Long.MIN_VALUE) return null
+    if (timestampMs == 0L || timestampMs == Long.MIN_VALUE) return null
     // Rust returns UTC midnight for the given Jalali date. To avoid 1-day
     // shift in UTC-negative timezones, extract Y/M/D in UTC then build a
     // *local* Calendar from those fields (not from the raw timestamp).
@@ -82,8 +82,12 @@ object JalaliCalendarHelper {
     cal.set(
       utcCal.get(java.util.Calendar.YEAR),
       utcCal.get(java.util.Calendar.MONTH),
-      utcCal.get(java.util.Calendar.DAY_OF_MONTH)
+      utcCal.get(java.util.Calendar.DAY_OF_MONTH),
+      0,
+      0,
+      0
     )
+    cal.set(java.util.Calendar.MILLISECOND, 0)
     return cal
   }
 }

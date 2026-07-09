@@ -8,6 +8,91 @@ fun resolveCredential(key: String) =
     ?: providers.environmentVariable(key).orNull
     ?: ""
 
+fun runUniffiGen(
+  libPath: File,
+  outDir: File
+): Int {
+  val cmd =
+    listOf(
+      "cargo",
+      "run",
+      "--manifest-path",
+      file("$rustDir/Cargo.toml").absolutePath,
+      "--package",
+      "uniffi-gen",
+      "--",
+      libPath.absolutePath,
+      outDir.absolutePath,
+    )
+  val pb = ProcessBuilder(cmd)
+  pb.directory(rustDir)
+  pb.inheritIO()
+  return pb.start().waitFor()
+}
+
+fun buildHostLibrary() {
+  logger.lifecycle("Step 1/4: Building host-native Rust library...")
+  val cargoBuild = ProcessBuilder("cargo", "build", "--release")
+  cargoBuild.directory(rustDir)
+  cargoBuild.inheritIO()
+  if (cargoBuild.start().waitFor() != 0) {
+    throw GradleException("cargo build --release failed")
+  }
+}
+
+fun resolveHostArtifact(): File {
+  val osName = System.getProperty("os.name").lowercase()
+  return when {
+    osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
+    osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
+    else -> rustTargetDir.resolve("release/libhesabyar_core.so")
+  }.also { hostLib ->
+    if (!hostLib.exists()) {
+      throw GradleException("Host library not found at: ${hostLib.absolutePath}")
+    }
+    logger.lifecycle("Step 2/4: Host library at ${hostLib.name}")
+  }
+}
+
+fun generateBindings(
+  hostLib: File,
+  outDir: File,
+) {
+  logger.lifecycle("Step 3/4: Generating UniFFI Kotlin bindings...")
+  if (outDir.exists()) outDir.deleteRecursively()
+  outDir.mkdirs()
+  val exitCode = runUniffiGen(hostLib, outDir)
+  if (exitCode != 0) {
+    throw GradleException("UniFFI binding generation failed")
+  }
+}
+
+fun patchAndInstallOutput(
+  tempDir: File,
+  dest: File,
+) {
+  logger.lifecycle("Step 4/4: Patching package and installing bindings...")
+  val generatedKt =
+    tempDir
+      .walkTopDown()
+      .firstOrNull { it.isFile && it.extension == "kt" }
+      ?: throw GradleException("No .kt file found in ${tempDir.absolutePath}")
+
+  val content = generatedKt.readText(Charsets.UTF_8)
+  val patched =
+    content.replace(
+      Regex("^package uniffi\\.hesabyar_core$", RegexOption.MULTILINE),
+      "package $appId.rust"
+    )
+
+  val templateFile = file("buildSrc/template/HesabyarCore.template.kt")
+  val pkg = "$appId.rust"
+  val compatObject = "\n" + templateFile.readText(Charsets.UTF_8).replace("__PKG__", pkg)
+
+  dest.parentFile.mkdirs()
+  dest.writeText(patched + compatObject, Charsets.UTF_8)
+}
+
 val versionMaxSegment = 99
 val versionMajorMultiplier = 10000
 val versionMinorMultiplier = 100
@@ -272,85 +357,77 @@ val rustTargets =
     RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
   )
 
+rustTargets.forEach { target ->
+  val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
+  val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
+  val outputLib = file("$outDir/${target.jniLib}")
+  tasks.register(taskName) {
+    group = "rust"
+    description = "Build Rust .so for ${target.abi}"
+    inputs.dir(rustDir.resolve("hesabyar-core/src"))
+    inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+    inputs.file(rustDir.resolve("Cargo.lock"))
+    outputs.file(outputLib)
+    doLast {
+      val ndkHome = System.getenv("ANDROID_NDK_HOME")
+      if (ndkHome.isNullOrBlank()) {
+        throw GradleException(
+          "ANDROID_NDK_HOME is not set.\n" +
+            "Install the Android NDK and set ANDROID_NDK_HOME to its root directory.\n" +
+            "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/27.0.12077973"
+        )
+      }
+      val cmd =
+        listOf(
+          "cargo",
+          "ndk",
+          "-t",
+          target.triple,
+          "-o",
+          outDir.absolutePath,
+          "build",
+          "--release",
+        )
+      val pb = ProcessBuilder(cmd)
+      pb.directory(rustDir)
+      pb.inheritIO()
+      val exitCode = pb.start().waitFor()
+      if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
+      val libDirect = File(outDir, target.jniLib)
+      val foundLib =
+        if (libDirect.exists()) {
+          libDirect
+        } else {
+          outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
+            ?: throw GradleException(
+              "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
+            )
+        }
+    }
+  }
+}
+
 tasks.register("assembleRust") {
   group = "rust"
   description = "Cross-compile Rust shared core for all Android ABIs via cargo-ndk"
-  doFirst {
-    val ndkHome = System.getenv("ANDROID_NDK_HOME")
-    if (ndkHome.isNullOrBlank()) {
-      throw GradleException(
-        "ANDROID_NDK_HOME is not set.\n" +
-          "Install the Android NDK and set ANDROID_NDK_HOME to its root directory.\n" +
-          "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/27.0.12077973"
-      )
-    }
-  }
   rustTargets.forEach { target ->
     val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
-    tasks.register(taskName) {
-      group = "rust"
-      description = "Build Rust .so for ${target.abi}"
-      doLast {
-        val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
-        val cmd =
-          listOf(
-            "cargo",
-            "ndk",
-            "-t",
-            target.triple,
-            "-o",
-            outDir.absolutePath,
-            "build",
-            "--release",
-          )
-        val pb = ProcessBuilder(cmd)
-        pb.directory(rustDir)
-        pb.inheritIO()
-        val exitCode = pb.start().waitFor()
-        if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
-        // cargo-ndk may place the .so directly in outDir or under a triple subdirectory.
-        // Search both locations to handle varying cargo-ndk versions.
-        val libDirect = File(outDir, target.jniLib)
-        val foundLib =
-          if (libDirect.exists()) {
-            libDirect
-          } else {
-            outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
-              ?: throw GradleException(
-                "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
-              )
-          }
-      }
-    }
     dependsOn(taskName)
   }
 }
 
 tasks.register("generateRustBindings") {
   group = "rust"
-  description = "Generate UniFFI Kotlin bindings from the compiled Rust library"
-  dependsOn("assembleRust")
+  description = "Generate UniFFI Kotlin bindings from a host-native build"
+  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
+  outputs.dir(generatedDir)
   doLast {
-    // The bindings are generated by running uniffi-bindgen on the compiled cdylib.
-    // This requires uniffi-bindgen-cli or the uniffi library to be available.
-    val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
+    buildHostLibrary()
+    val hostLib = resolveHostArtifact()
     generatedDir.mkdirs()
-    val cmd =
-      listOf(
-        "cargo",
-        "run",
-        "--manifest-path",
-        file("$rustDir/Cargo.toml").absolutePath,
-        "--package",
-        "uniffi-gen",
-        "--",
-        rustTargetDir.resolve("aarch64-linux-android/release/libhesabyar_core.so").absolutePath,
-        generatedDir.absolutePath,
-      )
-    val pb = ProcessBuilder(cmd)
-    pb.directory(rustDir)
-    pb.inheritIO()
-    val exitCode = pb.start().waitFor()
+    val exitCode = runUniffiGen(hostLib, generatedDir)
     if (exitCode != 0) throw GradleException("Binding generation failed (exit $exitCode)")
     logger.lifecycle("Kotlin bindings generated at: ${generatedDir.absolutePath}")
   }
@@ -372,95 +449,16 @@ tasks.register("generateAndFixBindings") {
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
   inputs.dir(rustDir.resolve("hesabyar-core/src"))
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
   val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
   outputs.file(dest)
   doLast {
-    fun buildHostLibrary() {
-      logger.lifecycle("Step 1/4: Building host-native Rust library...")
-      val cargoBuild = ProcessBuilder("cargo", "build", "--release")
-      cargoBuild.directory(rustDir)
-      cargoBuild.inheritIO()
-      if (cargoBuild.start().waitFor() != 0) {
-        throw GradleException("cargo build --release failed")
-      }
-    }
-
-    fun resolveHostArtifact(): File {
-      val osName = System.getProperty("os.name").lowercase()
-      return when {
-        osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
-        osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
-        else -> rustTargetDir.resolve("release/libhesabyar_core.so")
-      }.also { hostLib ->
-        if (!hostLib.exists()) {
-          throw GradleException("Host library not found at: ${hostLib.absolutePath}")
-        }
-        logger.lifecycle("Step 2/4: Host library at ${hostLib.name}")
-      }
-    }
-
-    fun generateBindings(
-      hostLib: File,
-      outDir: File
-    ) {
-      logger.lifecycle("Step 3/4: Generating UniFFI Kotlin bindings...")
-      if (outDir.exists()) outDir.deleteRecursively()
-      outDir.mkdirs()
-      val genCmd =
-        listOf(
-          "cargo",
-          "run",
-          "--manifest-path",
-          file("$rustDir/Cargo.toml").absolutePath,
-          "--package",
-          "uniffi-gen",
-          "--",
-          hostLib.absolutePath,
-          outDir.absolutePath,
-        )
-      val gen = ProcessBuilder(genCmd)
-      gen.directory(rustDir)
-      gen.inheritIO()
-      if (gen.start().waitFor() != 0) {
-        throw GradleException("UniFFI binding generation failed")
-      }
-    }
-
-    fun patchAndInstallOutput(
-      tempDir: File,
-      dest: File
-    ) {
-      logger.lifecycle("Step 4/4: Patching package and installing bindings...")
-      val generatedKt =
-        tempDir
-          .walkTopDown()
-          .firstOrNull { it.isFile && it.extension == "kt" }
-          ?: throw GradleException("No .kt file found in ${tempDir.absolutePath}")
-
-      val content = generatedKt.readText(Charsets.UTF_8)
-      val patched =
-        content.replace(
-          Regex("^package uniffi\\.hesabyar_core$", RegexOption.MULTILINE),
-          "package $appId.rust"
-        )
-
-      // Append HesabyarCore compatibility object from template.
-      // Template lives in app/buildSrc/template/HesabyarCore.template.kt — update it there.
-      val templateFile = file("buildSrc/template/HesabyarCore.template.kt")
-      val pkg = "$appId.rust"
-      val compatObject = "\n" + templateFile.readText(Charsets.UTF_8).replace("__PKG__", pkg)
-
-      dest.parentFile.mkdirs()
-      dest.writeText(patched + compatObject, Charsets.UTF_8)
-    }
-
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
     val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
     generateBindings(hostLib, tempDir)
     patchAndInstallOutput(tempDir, dest)
 
-    // Cleanup temp directory.
     tempDir.deleteRecursively()
 
     logger.lifecycle("Bindings installed at: ${dest.absolutePath}")

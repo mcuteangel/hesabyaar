@@ -4,7 +4,9 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.DashboardData
 import kotlinx.coroutines.flow.Flow
 
@@ -83,22 +85,22 @@ class GetDashboardDataUseCase(
           ?.timeInMillis ?: now
 
       val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEnd }
-      val monthlyIncome = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount }
-      val monthlyExpenses = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+      val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
       val unsettledLoans = loans.filter { !it.isSettled }
-      val debtors = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount }
-      val creditors = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount }
+      val debtors = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
+      val creditors = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
 
       // currentBalance from all transactions (lifetime), not just the filtered month.
-      val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-      val totalExpenses = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+      val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val totalExpenses = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       val currentBalance = totalIncome - totalExpenses
 
       val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
       val monthlyDebt =
         unsettledLoans
-          .filter { it.type == "CREDITOR" }
+          .filter { it.type == LoanType.CREDITOR }
           .sumOf { it.remainingAmount / 12 }
       val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
 

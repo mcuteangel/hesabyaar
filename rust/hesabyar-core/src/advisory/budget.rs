@@ -1,4 +1,4 @@
-﻿use crate::models::{Category, Installment, Loan, Transaction, TransactionType};
+use crate::models::{Category, Installment, Loan, Transaction, TransactionType};
 use crate::currency::format_number;
 
 /// Get offline budget advice based on local rules.
@@ -84,8 +84,16 @@ pub fn get_offline_forecast(
     loans: &[Loan],
     installments: &[Installment],
 ) -> String {
-    let unpaid_installments: Vec<&Installment> = installments.iter().filter(|i| !i.is_paid).collect();
-    let upcoming_sum: i64 = unpaid_installments.iter().map(|i| i.amount).sum();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    let thirty_days_ms = 30 * 24 * 60 * 60 * 1000;
+    let upcoming_installments: Vec<&Installment> = installments
+        .iter()
+        .filter(|i| !i.is_paid && i.due_date >= now_ms && i.due_date <= now_ms + thirty_days_ms)
+        .collect();
+    let upcoming_sum: i64 = upcoming_installments.iter().map(|i| i.amount).sum();
 
     let unsettled_creditor_loan_monthly: i64 = loans
         .iter()
@@ -98,10 +106,6 @@ pub fn get_offline_forecast(
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
-let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64;
     let window_start = now_ms - 90 * 24 * 60 * 60 * 1000;
     let recent: Vec<&Transaction> = transactions
         .iter()
@@ -111,16 +115,16 @@ let now_ms = std::time::SystemTime::now()
     let recent_income: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Income).map(|t| t.amount).sum();
     let recent_expense: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Expense).map(|t| t.amount).sum();
 
-    let actual_days = if !recent.is_empty() {
+    let days_span = if !recent.is_empty() {
         let oldest_date = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
-        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)) as i64
+        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).max(1.0).ceil()
     } else {
-        0
+        1.0
     };
-    let months_elapsed = (actual_days as f64 / 30.0).max(1.0).ceil() as i64;
+    let months_elapsed = (days_span / 30.0).max(1.0);
 
-    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { recent_income / months_elapsed } else { 0 };
-    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { recent_expense / months_elapsed } else { 0 };
+    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { (recent_income as f64 / months_elapsed) as i64 } else { 0 };
+    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { (recent_expense as f64 / months_elapsed) as i64 } else { 0 };
     let est_balance = avg_income - avg_expense - total_obligations;
 
     let mut sb = String::new();

@@ -36,8 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.AmountResolutionInput
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -949,7 +952,7 @@ fun TransactionMiniItem(
   onClick: () -> Unit = {},
   onDelete: () -> Unit = {}
 ) {
-  val isIncome = transaction.type == "INCOME"
+  val isIncome = transaction.type == TransactionType.INCOME
   val category = categories.find { it.id == transaction.categoryId }
   val categoryColor =
     category?.let { Color(it.color) } ?: if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
@@ -1179,7 +1182,7 @@ fun TransactionDetailDialog(
   onDelete: () -> Unit,
   onDismiss: () -> Unit
 ) {
-  val isIncome = transaction.type == "INCOME"
+  val isIncome = transaction.type == TransactionType.INCOME
   val category = categories.find { it.id == transaction.categoryId }
 
   AlertDialog(
@@ -1368,7 +1371,7 @@ fun ManualTransactionDialog(
 ) {
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
-  var selectedType by remember { mutableStateOf(transactionToEdit?.type ?: "EXPENSE") }
+  var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
   val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
   var amountValue by remember {
     mutableStateOf(
@@ -1395,8 +1398,8 @@ fun ManualTransactionDialog(
   val filteredCategories =
     categories.filter { cat ->
       when (selectedType) {
-        "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
-        "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
+        TransactionType.INCOME.name -> cat.type == CategoryType.INCOME || cat.type == CategoryType.BOTH
+        TransactionType.EXPENSE.name -> cat.type == CategoryType.EXPENSE || cat.type == CategoryType.BOTH
         else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
       }
     }
@@ -1811,7 +1814,7 @@ fun ManualTransactionDialog(
                   if (isEditMode) {
                     val updatedTransaction =
                       transactionToEdit.copy(
-                        type = selectedType,
+                        type = TransactionType.valueOf(selectedType),
                         categoryId = selectedCategoryId,
                         amount = finalAmountRial,
                         description = desc,
@@ -1820,7 +1823,7 @@ fun ManualTransactionDialog(
                     transactionViewModel.updateTransaction(updatedTransaction)
                   } else {
                     transactionViewModel.addTransaction(
-                      type = selectedType,
+                      type = TransactionType.valueOf(selectedType),
                       categoryId = selectedCategoryId,
                       amount = finalAmountRial,
                       description = desc,
@@ -1851,7 +1854,7 @@ fun ManualTransactionDialog(
                     }
                   loanViewModel.addLoan(
                     personName = person,
-                    type = if (selectedType == "LOAN_DEBTOR") "DEBTOR" else "CREDITOR",
+                    type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
                     amount = finalAmountRial,
                     description = desc,
                     customDate = customDate

@@ -54,28 +54,37 @@ object CurrencyFormatter {
   }
 
   /** Format number only (no unit) — for components that show their own label. */
-  fun formatNumber(value: Long): String {
+  fun formatNumber(value: Long): String =
+    formatWithSign(value) {
+      io.github.mojri.hesabyar.rust.RustBridge
+        .formatNumberSync(it)
+    }
+
+  fun format(rial: Long): String =
+    formatWithSign(rial) {
+      io.github.mojri.hesabyar.rust.RustBridge
+        .formatCurrencySync(it, toRustUnit())
+    }
+
+  private fun formatWithSign(
+    value: Long,
+    formatAbs: (Long) -> String
+  ): String {
     val isNegative = value < 0
     val absValue = if (isNegative) -value else value
+    val rustResult = formatAbs(absValue)
     val formatted =
-      toPersianDigits(
-        io.github.mojri.hesabyar.rust.RustBridge
-          .formatNumberSync(absValue)
-      )
+      if (rustResult.isNotEmpty()) {
+        toPersianDigits(rustResult)
+      } else {
+        kotlinFallback(absValue)
+      }
     return if (isNegative) "-$formatted" else formatted
   }
 
-  fun format(rial: Long): String {
-    // Handle negative values to avoid leading thousands separator (e.g. -,۱۲۳ ریال).
-    // Extract the sign, format the absolute value, then re-add the sign.
-    val isNegative = rial < 0
-    val absValue = if (isNegative) -rial else rial
-    val formatted =
-      toPersianDigits(
-        io.github.mojri.hesabyar.rust.RustBridge
-          .formatCurrencySync(absValue, toRustUnit())
-      )
-    return if (isNegative) "-$formatted" else formatted
+  private fun kotlinFallback(value: Long): String {
+    val western = "%,d".format(value)
+    return toPersianDigits(western)
   }
 
   /**
@@ -84,7 +93,7 @@ object CurrencyFormatter {
    * Example: 10 Tomans * 10 = 100 Rials.
    */
   fun toRial(displayValue: Long): Long =
-    convertWithFallback(displayValue) { unit, rustUnit ->
+    convertWithFallback(displayValue) { rustUnit ->
       io.github.mojri.hesabyar.rust.RustBridge
         .toRialSync(displayValue, rustUnit)
     } ?: when (currentUnit) {
@@ -98,7 +107,7 @@ object CurrencyFormatter {
    * Example: 100 Rials / 10 = 10 Tomans.
    */
   fun fromRial(rial: Long): Long =
-    convertWithFallback(rial) { unit, rustUnit ->
+    convertWithFallback(rial) { rustUnit ->
       io.github.mojri.hesabyar.rust.RustBridge
         .fromRialSync(rial, rustUnit)
     } ?: when (currentUnit) {
@@ -108,11 +117,10 @@ object CurrencyFormatter {
 
   private inline fun convertWithFallback(
     inputValue: Long,
-    rustCall: (CurrencyUnit, io.github.mojri.hesabyar.rust.CurrencyUnit) -> Long
+    rustCall: (io.github.mojri.hesabyar.rust.CurrencyUnit) -> Long
   ): Long? {
-    val unit = currentUnit
     val rustUnit = toRustUnit()
-    val result = rustCall(unit, rustUnit)
+    val result = rustCall(rustUnit)
     return if (result == 0L && inputValue != 0L) null else result
   }
 }

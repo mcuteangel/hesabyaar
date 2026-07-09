@@ -75,14 +75,14 @@ class HesabyarRepository(
 
     val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
     val desc =
-      if (loan.type == "CREDITOR") {
+      if (loan.type == LoanType.CREDITOR) {
         "بازپرداخت بدهی به ${loan.personName} - $notes"
       } else {
         "دریافت بازپرداخت از ${loan.personName} - $notes"
       }
     val tx =
       Transaction(
-        type = if (loan.type == "CREDITOR") "EXPENSE" else "INCOME",
+        type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
         categoryId = loansCategory.id,
         amount = amount,
         description = desc,
@@ -112,7 +112,7 @@ class HesabyarRepository(
         if (installmentsCategory != null) {
           transactionDao.insertTransaction(
             Transaction(
-              type = "EXPENSE",
+              type = TransactionType.EXPENSE,
               categoryId = installmentsCategory.id,
               amount = installment.amount,
               description = "پرداخت قسط: ${installment.title} - ${installment.notes}"

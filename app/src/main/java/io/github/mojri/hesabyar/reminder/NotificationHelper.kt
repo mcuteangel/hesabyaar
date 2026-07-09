@@ -8,6 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import io.github.mojri.hesabyar.MainActivity
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 
 object NotificationHelper {
@@ -113,7 +114,7 @@ object NotificationHelper {
     loanId: Long,
     personName: String,
     remainingAmount: Long,
-    loanType: String
+    loanType: LoanType
   ) {
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -131,7 +132,7 @@ object NotificationHelper {
       )
 
     val formattedAmount = CurrencyFormatter.format(remainingAmount)
-    val typeLabel = if (loanType == "CREDITOR") "بدهی" else "طلب"
+    val typeLabel = if (loanType == LoanType.CREDITOR) "بدهی" else "طلب"
     val titleText = "یادآوری $typeLabel"
     val bodyText = "شما $typeLabel به مبلغ $formattedAmount به «$personName» دارید."
 

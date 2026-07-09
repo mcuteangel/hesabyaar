@@ -40,7 +40,6 @@ pub fn initialize() {
 #[uniffi::export]
 pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, HesabyarError> {
     crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence))
-        .map_err(|e| HesabyarError::ParseError { detail: format!("{:?}", e) })
 }
 
 /// Infer expense category from a Persian sentence (full 200+ keyword version).

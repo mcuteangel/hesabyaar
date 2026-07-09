@@ -212,7 +212,7 @@ pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarErro
     catch_unwind_safe(|| {
         crate::validation::validate_transaction(&transaction)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })
+    })?
 }
 
 /// Validate a single loan.
@@ -223,7 +223,7 @@ pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
         crate::validation::validate_loan(&loan)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })
+    })?
 }
 
 /// Validate a single installment.
@@ -234,7 +234,7 @@ pub fn validate_installment(installment: Installment) -> Result<(), HesabyarErro
     catch_unwind_safe(|| {
         crate::validation::validate_installment(&installment)
             .map_err(|e| HesabyarError::ValidationError { detail: e })
-    })
+    })?
 }
 
 /// Validate a ParsedResult (AI parser output).

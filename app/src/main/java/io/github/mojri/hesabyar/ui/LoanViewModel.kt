@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import kotlinx.coroutines.flow.*
@@ -22,7 +23,7 @@ class LoanViewModel
 
     fun addLoan(
       personName: String,
-      type: String,
+      type: LoanType,
       amount: Long,
       description: String,
       customDate: Long? = null

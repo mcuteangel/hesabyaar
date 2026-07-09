@@ -6,7 +6,9 @@ import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 
 class ParseTransactionUseCase(
   private val repository: HesabyarRepositoryInterface
@@ -27,7 +29,7 @@ class ParseTransactionUseCase(
       "INCOME", "EXPENSE" -> {
         repository.insertTransaction(
           Transaction(
-            type = result.type,
+            type = TransactionType.valueOf(result.type),
             categoryId = categoryId,
             amount = result.amount,
             description = result.description,
@@ -37,7 +39,7 @@ class ParseTransactionUseCase(
         )
       }
       "LOAN_DEBTOR", "LOAN_CREDITOR" -> {
-        val loanType = if (result.type == "LOAN_DEBTOR") "DEBTOR" else "CREDITOR"
+        val loanType = if (result.type == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR
         repository.insertLoan(
           Loan(
             personName = result.personName ?: "نامشخص",

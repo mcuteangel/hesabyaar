@@ -17,6 +17,25 @@ class HesabyarApp : Application() {
 
     @JvmStatic
     fun isRustInitialized(): Boolean = rustInitialized
+
+    @JvmStatic
+    fun ensureRustInitialized(): Boolean {
+      if (rustInitialized) return true
+      return try {
+        System.loadLibrary("hesabyar_core")
+        io.github.mojri.hesabyar.rust.HesabyarCore
+          .initialize()
+        rustInitialized = true
+        Log.i(TAG, "Rust shared core initialized successfully (lazy)")
+        true
+      } catch (e: UnsatisfiedLinkError) {
+        Log.e(TAG, "Failed to load hesabyar_core native library", e)
+        false
+      } catch (e: RuntimeException) {
+        Log.e(TAG, "Failed to initialize Rust core", e)
+        false
+      }
+    }
   }
 
   override fun onCreate() {
@@ -24,23 +43,5 @@ class HesabyarApp : Application() {
     val prefs = getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
     val unit = CurrencyUnit.fromKey(prefs.getString("currency_unit", "تومان") ?: "تومان")
     CurrencyFormatter.setUnit(unit)
-
-    initializeRustCore()
-  }
-
-  private fun initializeRustCore() {
-    try {
-      System.loadLibrary("hesabyar_core")
-      // Call Rust initialize() to install panic hook
-      io.github.mojri.hesabyar.rust.HesabyarCore
-        .initialize()
-      rustInitialized = true
-      Log.i(TAG, "Rust shared core initialized successfully")
-    } catch (e: UnsatisfiedLinkError) {
-      Log.e(TAG, "Failed to load hesabyar_core native library", e)
-      // App continues without Rust core — AI/offline parser features unavailable
-    } catch (e: RuntimeException) {
-      Log.e(TAG, "Failed to initialize Rust core", e)
-    }
   }
 }

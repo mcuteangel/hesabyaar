@@ -174,11 +174,13 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     if payload.version < 1 {
         errors.push("Invalid backup version".into());
     }
-    // Category cross-reference check (mirrors FFI validate_backup)
+    // Category cross-reference check (mirrors FFI validate_backup).
+    // Only check positive IDs — zero is a legacy default tolerated by
+    // validate_transaction, so treating it as missing would break old backups.
     if !payload.categories.is_empty() {
         let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
         for (i, tx) in payload.transactions.iter().enumerate() {
-            if !category_ids.contains(&tx.category_id) {
+            if tx.category_id > 0 && !category_ids.contains(&tx.category_id) {
                 errors.push(format!(
                     "Transaction[{}] references non-existent category {}",
                     i, tx.category_id
@@ -613,5 +615,30 @@ mod tests {
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         assert_eq!(result.errors.len(), 1);
+    }
+
+    #[test]
+    fn test_backup_legacy_category_id_zero_not_rejected() {
+        // category_id == 0 is a legacy default tolerated by validate_transaction;
+        // backup validation must not treat it as a missing category reference.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![make_tx(50000, "groceries", 0)],
+            loans: vec![],
+            installments: vec![],
+            categories: vec![Category {
+                id: 1,
+                name: "Food".into(),
+                key: "food".into(),
+                icon: "".into(),
+                color: 0,
+                category_type: "EXPENSE".into(),
+                is_default: false,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(result.is_valid, "Legacy category_id=0 should be tolerated, got: {:?}", result.errors);
     }
 }

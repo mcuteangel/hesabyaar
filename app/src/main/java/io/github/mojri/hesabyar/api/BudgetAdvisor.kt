@@ -5,6 +5,8 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.rust.RustMappers
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -82,7 +84,7 @@ object BudgetAdvisor {
   ): String {
     val categoriesGroup =
       transactions
-        .filter { it.type == "EXPENSE" }
+        .filter { it.type == TransactionType.EXPENSE }
         .groupBy { it.categoryId }
         .mapValues { it.value.sumOf { tx -> tx.amount } }
 
@@ -97,7 +99,7 @@ object BudgetAdvisor {
     categories: List<Category>
   ): String =
     transactions.take(30).joinToString("\n") { tx ->
-      val typeStr = if (tx.type == "INCOME") "درآمد" else "هزینه"
+      val typeStr = if (tx.type == TransactionType.INCOME) "درآمد" else "هزینه"
       val cat = categories.find { it.id == tx.categoryId }
       "- ${cat?.name ?: "سایر"} | $typeStr | ${formatAmountClean(tx.amount)} | شرح: ${tx.description}"
     }
@@ -120,7 +122,9 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     categories: List<Category>
   ): String {
-    val validation = io.github.mojri.hesabyar.rust.RustBridge.validateAiAdvice(text)
+    val validation =
+      io.github.mojri.hesabyar.rust.RustBridge
+        .validateAiAdvice(text)
     if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
       AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
       return getOfflineAdvice(transactions, categories)
@@ -151,8 +155,8 @@ object BudgetAdvisor {
   }
 
   private fun summarizeTransactions(transactions: List<Transaction>): TxSummary {
-    val income = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val expense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+    val income = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val expense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     return TxSummary(income, expense)
   }
 
@@ -169,8 +173,7 @@ object BudgetAdvisor {
           io.github.mojri.hesabyar.rust.Transaction(
             id = it.id,
             txType =
-              io.github.mojri.hesabyar.rust.TransactionType
-                .valueOf(it.type),
+              RustMappers.mapTransactionType(it.type),
             categoryId = it.categoryId,
             amount = it.amount,
             description = it.description,
@@ -187,7 +190,7 @@ object BudgetAdvisor {
             key = it.key,
             icon = it.icon,
             color = it.color,
-            categoryType = it.type,
+            categoryType = it.type.name,
             isDefault = it.isDefault
           )
         }
@@ -209,7 +212,7 @@ object BudgetAdvisor {
     val summary = summarizeTransactions(transactions)
     val categoriesGroup =
       transactions
-        .filter { it.type == "EXPENSE" }
+        .filter { it.type == TransactionType.EXPENSE }
         .groupBy { it.categoryId }
         .mapValues { it.value.sumOf { tx -> tx.amount } }
     val categoryReport =
@@ -268,15 +271,15 @@ object BudgetAdvisor {
         return@withContext message
       }
 
-      val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-      val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+      val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       val activeLoansCount = loans.filter { !it.isSettled }.size
       val upcomingInstallments = installments.filter { !it.isPaid }
       val totalUpcomingAmount = upcomingInstallments.sumOf { it.amount }
 
       val categoryReport =
         transactions
-          .filter { it.type == "EXPENSE" }
+          .filter { it.type == TransactionType.EXPENSE }
           .groupBy { it.categoryId }
           .mapValues { it.value.sumOf { tx -> tx.amount } }
           .entries
@@ -367,8 +370,7 @@ object BudgetAdvisor {
           io.github.mojri.hesabyar.rust.Transaction(
             id = it.id,
             txType =
-              io.github.mojri.hesabyar.rust.TransactionType
-                .valueOf(it.type),
+              RustMappers.mapTransactionType(it.type),
             categoryId = it.categoryId,
             amount = it.amount,
             description = it.description,
@@ -382,7 +384,7 @@ object BudgetAdvisor {
           io.github.mojri.hesabyar.rust.Loan(
             id = it.id,
             personName = it.personName,
-            loanType = it.type,
+            loanType = it.type.name,
             originalAmount = it.originalAmount,
             remainingAmount = it.remainingAmount,
             description = it.description,
@@ -454,7 +456,7 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.Loan(
           id = it.id,
           personName = it.personName,
-          loanType = it.type,
+          loanType = it.type.name,
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
           description = it.description,
@@ -493,8 +495,8 @@ object BudgetAdvisor {
     installments: List<Installment>,
     categories: List<Category>
   ): String {
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+    val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val balance = totalIncome - totalExpense
     val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome)
     val savingsRate = if (totalIncome > 0) balance.toDouble() / totalIncome.toDouble() else 0.0
@@ -554,8 +556,7 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.Transaction(
           id = it.id,
           txType =
-            io.github.mojri.hesabyar.rust.TransactionType
-              .valueOf(it.type),
+            RustMappers.mapTransactionType(it.type),
           categoryId = it.categoryId,
           amount = it.amount,
           description = it.description,
@@ -569,7 +570,7 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.Loan(
           id = it.id,
           personName = it.personName,
-          loanType = it.type,
+          loanType = it.type.name,
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
           description = it.description,
@@ -595,7 +596,7 @@ object BudgetAdvisor {
           key = it.key,
           icon = it.icon,
           color = it.color,
-          categoryType = it.type,
+          categoryType = it.type.name,
           isDefault = it.isDefault
         )
       }

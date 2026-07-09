@@ -26,8 +26,8 @@ class ExcelExporter {
     categories: List<Category>,
   ): ExportResult {
     val categoryMap = categories.associateBy { it.id }
-    val incomeTransactions = transactions.filter { it.type == "INCOME" }
-    val expenseTransactions = transactions.filter { it.type == "EXPENSE" }
+    val incomeTransactions = transactions.filter { it.type == TransactionType.INCOME }
+    val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
 
     val sheets =
       listOf(
@@ -99,7 +99,7 @@ class ExcelExporter {
       buildList {
         add(Cell(value = (index + 1).toString(), bold = false))
         if (includeType) {
-          add(Cell(value = if (tx.type == "INCOME") "دریافتی" else "پرداختی", bold = false))
+          add(Cell(value = if (tx.type == TransactionType.INCOME) "دریافتی" else "پرداختی", bold = false))
         }
         add(Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false))
         add(Cell(value = formatAmount(tx.amount), bold = false))
@@ -124,7 +124,7 @@ class ExcelExporter {
         listOf(
           Cell(value = (index + 1).toString(), bold = false),
           Cell(value = loan.personName, bold = false),
-          Cell(value = if (loan.type == "DEBTOR") "طلبکار" else "بدهکار", bold = false),
+          Cell(value = if (loan.type == LoanType.DEBTOR) "طلبکار" else "بدهکار", bold = false),
           Cell(value = formatAmount(loan.originalAmount), bold = false),
           Cell(value = formatAmount(loan.remainingAmount), bold = false),
           Cell(value = loan.description, bold = false),
@@ -170,13 +170,16 @@ class ExcelExporter {
   }
 
   private fun generateFilename(): String {
+    val jalali =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .gregorianToJalali(System.currentTimeMillis())
     val cal = Calendar.getInstance()
-    val y = cal.get(Calendar.YEAR)
-    val m = (cal.get(Calendar.MONTH) + 1).toString().padStart(2, '0')
-    val d = cal.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
     val h = cal.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
     val min = cal.get(Calendar.MINUTE).toString().padStart(2, '0')
     val s = cal.get(Calendar.SECOND).toString().padStart(2, '0')
-    return "hesabyar_report_${y}${m}${d}_${h}${min}$s.xlsx"
+    return "hesabyar_report_${jalali.year}${jalali.month.toString().padStart(
+      2,
+      '0'
+    )}${jalali.day.toString().padStart(2, '0')}_${h}${min}$s.xlsx"
   }
 }

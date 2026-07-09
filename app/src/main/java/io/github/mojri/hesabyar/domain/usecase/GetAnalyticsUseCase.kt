@@ -3,7 +3,9 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AnalyticsData
 import java.math.RoundingMode
 
@@ -69,12 +71,15 @@ class GetAnalyticsUseCase {
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
     val now = System.currentTimeMillis()
-    val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
-    val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
-
     val jalaliDate =
       io.github.mojri.hesabyar.ui.JalaliCalendarHelper
         .gregorianToJalali(now)
+    val jalaliMonthStart =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
+        ?.timeInMillis ?: (now - 30L * 24 * 60 * 60 * 1000)
+    val monthlyTx = transactions.filter { it.date in jalaliMonthStart..now }
+
     val monthLabel =
       if (jalaliDate.month in 1..12) jalaliMonthNames[jalaliDate.month - 1] else ""
 
@@ -83,40 +88,70 @@ class GetAnalyticsUseCase {
         jalaliYear = jalaliDate.year,
         jalaliMonth = jalaliDate.month,
         label = monthLabel,
-        income = monthlyTx.filter { it.type == "INCOME" }.sumOf { it.amount },
-        expense = monthlyTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        income = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+        expense = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       )
 
     val unsettledLoans = loans.filter { !it.isSettled }
     val debtors =
-      unsettledLoans.filter { it.type == "DEBTOR" }.map {
+      unsettledLoans.filter { it.type == LoanType.DEBTOR }.map {
         io.github.mojri.hesabyar.ui.DebtSummary(
           personName = it.personName,
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
-          type = it.type,
+          type = it.type.name,
           progress = computeDebtProgress(it.originalAmount, it.remainingAmount)
         )
       }
     val creditors =
-      unsettledLoans.filter { it.type == "CREDITOR" }.map {
+      unsettledLoans.filter { it.type == LoanType.CREDITOR }.map {
         io.github.mojri.hesabyar.ui.DebtSummary(
           personName = it.personName,
           originalAmount = it.originalAmount,
           remainingAmount = it.remainingAmount,
-          type = it.type,
+          type = it.type.name,
           progress = computeDebtProgress(it.originalAmount, it.remainingAmount)
         )
       }
 
+    val monthlyIncomeData =
+      io.github.mojri.hesabyar.ui.MonthlyData(
+        jalaliYear = jalaliDate.year,
+        jalaliMonth = jalaliDate.month,
+        label = monthLabel,
+        income = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+        expense = 0L
+      )
+
+    val monthlyExpenseTotal = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val categoryBreakdown =
+      if (monthlyExpenseTotal > 0) {
+        monthlyTx
+          .filter { it.type == TransactionType.EXPENSE }
+          .groupBy { it.categoryId }
+          .map { (catId, txs) ->
+            val cat = categories.find { it.id == catId }
+            val total = txs.sumOf { it.amount }
+            io.github.mojri.hesabyar.ui.CategoryBreakdown(
+              categoryId = catId,
+              categoryName = cat?.name ?: "سایر",
+              color = cat?.color ?: 0xFF999999,
+              total = total,
+              percentage = (total * 100f / monthlyExpenseTotal)
+            )
+          }.sortedByDescending { it.total }
+      } else {
+        emptyList()
+      }
+
     return AnalyticsData(
       monthlySpending = listOf(monthlySpending),
-      monthlyIncome = emptyList(),
-      categoryBreakdown = emptyList(),
+      monthlyIncome = listOf(monthlyIncomeData),
+      categoryBreakdown = categoryBreakdown,
       debtors = debtors,
       creditors = creditors,
-      totalDebt = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount },
-      totalCredit = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount },
+      totalDebt = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount },
+      totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount },
       totalInstallments = installments.size,
       paidInstallments = installments.count { it.isPaid }
     )

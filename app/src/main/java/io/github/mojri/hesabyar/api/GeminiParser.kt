@@ -4,7 +4,9 @@ import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONException
@@ -155,7 +157,7 @@ object GeminiParser {
   private fun parseJsonResultFallback(jsonStr: String): ParsedResult? {
     return try {
       val json = JSONObject(jsonStr)
-      val type = json.optString("type", TYPE_EXPENSE)
+      val type = json.optString("type", TransactionType.EXPENSE.name)
       val amount = json.optLong("amount", 0L)
       if (amount <= 0L) return null
       val category = json.optString("category", CATEGORY_OTHER)
@@ -179,7 +181,7 @@ object GeminiParser {
       val notes = json.optString("notes").takeIf { it.isNotEmpty() }
 
       ParsedResult(
-        type = if (type in VALID_TYPES) type else TYPE_EXPENSE,
+        type = if (type in VALID_TYPES) type else TransactionType.EXPENSE.name,
         amount = amount,
         category = category,
         personName = personName,
@@ -214,10 +216,169 @@ object GeminiParser {
     if (rustResult != null) {
       return mapRustParsedResult(rustResult)
     }
-    // Return null to indicate parsing failure — callers should not create zero-amount transactions
-    AppLogger.w(TAG, "Rust parser returned null, returning null to indicate failure")
+    AppLogger.w(TAG, "Rust parser unavailable, using Kotlin fallback")
+    return kotlinFallbackParse(rawSentence)
+  }
+
+  private fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
+    val normalized = normalizePersianDigits(rawSentence)
+    val amount = extractAmount(normalized) ?: return null
+    if (amount <= 0L) return null
+    val type = detectType(rawSentence)
+    val category = detectCategory(rawSentence, type)
+    val personName = extractPersonName(rawSentence)
+    val dateOffsetDays = detectDateOffset(rawSentence)
+    return ParsedResult(
+      type = type,
+      amount = amount,
+      category = category,
+      personName = personName,
+      description = rawSentence,
+      daysFromNow = null,
+      title = null,
+      dateOffsetDays = dateOffsetDays,
+      hour = null,
+      minute = null,
+      confidence = 0.5f,
+      notes = null
+    )
+  }
+
+  private fun normalizePersianDigits(text: String): String {
+    val sb = StringBuilder(text.length)
+    for (c in text) {
+      when (c) {
+        in '\u06F0'..'\u06F9' -> sb.append((c.code - 0x06F0 + '0'.code).toChar())
+        in '\u0660'..'\u0669' -> sb.append((c.code - 0x0660 + '0'.code).toChar())
+        else -> sb.append(c)
+      }
+    }
+    return sb.toString()
+  }
+
+  private fun extractAmount(text: String): Long? {
+    // Match patterns like "5 میلیون", "450 هزار", "1,500,000", "۵۰۰۰۰۰"
+    val millionPattern = Regex("""(\d[\d,]*)\s*(?:میلیون|million)""", RegexOption.IGNORE_CASE)
+    val hazarPattern = Regex("""(\d[\d,]*)\s*(?:هزار|hazar)""", RegexOption.IGNORE_CASE)
+    val plainPattern = Regex("""(\d[\d,]+)""")
+
+    millionPattern.find(text)?.let { m ->
+      val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
+      return num * 1_000_000
+    }
+    hazarPattern.find(text)?.let { m ->
+      val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
+      return num * 1_000
+    }
+    plainPattern.find(text)?.let { m ->
+      val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
+      return num
+    }
     return null
   }
+
+  private fun detectType(text: String): String {
+    if (text.contains(KEYWORD_OT) ||
+      text.contains("حقوق") ||
+      text.contains("درآمد") ||
+      text.contains("فروش") ||
+      text.contains("واریز") ||
+      text.contains("سود")
+    ) {
+      return TYPE_INCOME
+    }
+    if (text.contains("قسط")) return TYPE_INSTALLMENT
+    if (text.contains(KEYWORD_CREDITOR) || text.contains("طلب دارم") || text.contains("قرض دادم")) {
+      return TYPE_LOAN_DEBTOR
+    }
+    if (text.contains(KEYWORD_DEBTOR) || text.contains("قرض گرفتم") || text.contains("وام")) {
+      return TYPE_LOAN_CREDITOR
+    }
+    return TYPE_EXPENSE
+  }
+
+  private fun detectCategory(
+    text: String,
+    type: String
+  ): String {
+    if (type == TYPE_INCOME) return CATEGORY_INCOME
+    if (type == TYPE_INSTALLMENT) return CATEGORY_INSTALLMENTS
+    if (type == TYPE_LOAN_DEBTOR || type == TYPE_LOAN_CREDITOR) return CATEGORY_LOANS
+    if (text.contains("پارکینگ") ||
+      text.contains("بنزین") ||
+      text.contains("تاکسی") ||
+      text.contains("اتوبوس") ||
+      text.contains("مترو")
+    ) {
+      return CATEGORY_TRANSPORTATION
+    }
+    if (text.contains("برق") ||
+      text.contains("آب") ||
+      text.contains("گاز") ||
+      text.contains("تلفن") ||
+      text.contains("قبض")
+    ) {
+      return CATEGORY_BILLS
+    }
+    if (text.contains("اجاره") || text.contains("رهن")) return CATEGORY_RENT_UTILITIES
+    if (text.contains("غذا") ||
+      text.contains("رستوران") ||
+      text.contains("ناهار") ||
+      text.contains("شام") ||
+      text.contains("صبحانه") ||
+      text.contains("بستنی")
+    ) {
+      return CATEGORY_FOOD
+    }
+    if (text.contains("خرید") || text.contains("فروشگاه")) return CATEGORY_SHOPPING
+    if (text.contains("آموزش") ||
+      text.contains("کلاس") ||
+      text.contains("مدرسه") ||
+      text.contains("دانشگاه")
+    ) {
+      return CATEGORY_EDUCATION
+    }
+    if (text.contains("درمان") ||
+      text.contains("دارو") ||
+      text.contains("بیمارستان") ||
+      text.contains("پزشک")
+    ) {
+      return CATEGORY_PERSONAL_CARE
+    }
+    if (text.contains("هدیه") || text.contains("جشن") || text.contains("مراسم")) {
+      return CATEGORY_EVENTS_GIFTS
+    }
+    if (text.contains("خیریه") || text.contains("صدقه")) return CATEGORY_CHARITY
+    if (text.contains(KEYWORD_INVESTMENT) || text.contains("صندوق") || text.contains("سهام")) {
+      return CATEGORY_INVESTMENT
+    }
+    return CATEGORY_OTHER
+  }
+
+  private fun extractPersonName(text: String): String? {
+    val patterns =
+      listOf(
+        Regex("""(?:به|از)\s+(\S+)"""),
+        Regex("""(?:قرض دادم به|قرض گرفتم از)\s+(\S+)""")
+      )
+    for (p in patterns) {
+      p
+        .find(text)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.let { return it }
+    }
+    return null
+  }
+
+  private fun detectDateOffset(text: String): Int =
+    when {
+      text.contains("دیروز") -> -1
+      text.contains("پریروز") -> -2
+      text.contains("فردا") -> 1
+      text.contains("پس‌فردا") || text.contains("پسفردا") -> 2
+      else -> 0
+    }
 
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
@@ -239,13 +400,13 @@ object GeminiParser {
         return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
       }
 
-      val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
-      val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
+      val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       val balance = incomeTotal - expenseTotal
 
       val categoryTotals =
         transactions
-          .filter { it.type == TYPE_EXPENSE }
+          .filter { it.type == TransactionType.EXPENSE }
           .groupBy { it.categoryId }
           .mapValues { entry -> entry.value.sumOf { it.amount } }
 
@@ -284,7 +445,7 @@ object GeminiParser {
             if (activeLoans.isNotEmpty()) {
               appendLine("\nوام‌ها و قرض‌های فعال:")
               activeLoans.forEach { loan ->
-                val role = if (loan.type == "DEBTOR") "طلبکار (قرض دادید به)" else "بدهکار (قرض گرفتید از)"
+                val role = if (loan.type == LoanType.DEBTOR) "طلبکار (قرض دادید به)" else "بدهکار (قرض گرفتید از)"
                 appendLine(
                   "- ${loan.personName} ($role): کل ${loan.originalAmount} تومان | مانده ${loan.remainingAmount} تومان"
                 )
@@ -301,7 +462,7 @@ object GeminiParser {
             if (transactions.isNotEmpty()) {
               appendLine("\nتراکنش‌های اخیر:")
               transactions.sortedByDescending { it.date }.take(10).forEach { t ->
-                val sign = if (t.type == TYPE_INCOME) "آمد" else "رفت"
+                val sign = if (t.type == TransactionType.INCOME) "آمد" else "رفت"
                 val cat = categories.find { it.id == t.categoryId }
                 appendLine("- ${t.description} (${cat?.name ?: "سایر"}): ${t.amount} تومان [$sign]")
               }
@@ -346,8 +507,8 @@ object GeminiParser {
     installments: List<Installment>,
     categories: List<Category>
   ): String {
-    val incomeTotal = transactions.filter { it.type == TYPE_INCOME }.sumOf { it.amount }
-    val expenseTotal = transactions.filter { it.type == TYPE_EXPENSE }.sumOf { it.amount }
+    val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val balance = incomeTotal - expenseTotal
 
     val sb = StringBuilder()
@@ -396,7 +557,7 @@ object GeminiParser {
     // 2. High spending category detection
     val categoryTotals =
       transactions
-        .filter { it.type == TYPE_EXPENSE }
+        .filter { it.type == TransactionType.EXPENSE }
         .groupBy { it.categoryId }
         .mapValues { it.value.sumOf { trans -> trans.amount } }
 

@@ -37,7 +37,7 @@ object RustBridge {
         HesabyarCore.initialize()
         selfInitialized = true
         true
-      } catch (_: Exception) {
+      } catch (_: Throwable) {
         false
       }
     }
@@ -58,7 +58,7 @@ object RustBridge {
     if (!available) return fallback
     return try {
       block()
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
       fallback
     }
   }
@@ -254,8 +254,12 @@ object RustBridge {
 
   suspend fun validateBackup(payload: BackupPayload) {
     if (!available) return
-    withContext(Dispatchers.Default) {
-      HesabyarCore.validateBackup(payload)
+    try {
+      withContext(Dispatchers.Default) {
+        HesabyarCore.validateBackup(payload)
+      }
+    } catch (_: Throwable) {
+      // Native failure — degrade silently
     }
   }
 
