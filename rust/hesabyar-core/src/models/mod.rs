@@ -9,9 +9,10 @@ where
     Ok(if val == 0 { None } else { Some(val) })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionType {
+    #[default]
     #[serde(alias = "Expense")]
     Expense,
     #[serde(alias = "Income")]
@@ -50,17 +51,18 @@ impl TransactionType {
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     pub id: i64,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "tx_type")]
     pub tx_type: TransactionType,
+    #[serde(alias = "categoryId")]
     pub category_id: i64,
     pub amount: i64,
     pub description: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "personName")]
     pub person_name: Option<String>,
     pub date: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "dueDate")]
     pub due_date: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "installmentId")]
     pub installment_id: Option<i64>,
 }
 
@@ -68,13 +70,17 @@ pub struct Transaction {
 #[serde(rename_all = "camelCase")]
 pub struct Loan {
     pub id: i64,
+    #[serde(alias = "personName")]
     pub person_name: String,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "loanType")]
     pub loan_type: String,
+    #[serde(alias = "originalAmount")]
     pub original_amount: i64,
+    #[serde(alias = "remainingAmount")]
     pub remaining_amount: i64,
     pub description: String,
     pub date: i64,
+    #[serde(alias = "isSettled")]
     pub is_settled: bool,
 }
 
@@ -84,8 +90,11 @@ pub struct Installment {
     pub id: i64,
     pub title: String,
     pub amount: i64,
+    #[serde(alias = "dueDate")]
     pub due_date: i64,
+    #[serde(alias = "isPaid")]
     pub is_paid: bool,
+    #[serde(alias = "reminderEnabled")]
     pub reminder_enabled: bool,
     pub notes: String,
 }
@@ -98,12 +107,13 @@ pub struct Category {
     pub key: String,
     pub icon: String,
     pub color: i64,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "categoryType")]
     pub category_type: String,
+    #[serde(alias = "isDefault")]
     pub is_default: bool,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct ParsedResult {
     pub tx_type: TransactionType,
     pub amount: i64,
@@ -132,7 +142,7 @@ pub enum CurrencyUnit {
     Toman,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct DashboardData {
     pub current_balance: i64,
     pub monthly_expenses: i64,
@@ -179,7 +189,7 @@ pub struct InstallmentProgress {
     pub is_paid: bool,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct AnalyticsData {
     pub monthly_spending: Vec<MonthlyData>,
     pub monthly_income: Vec<MonthlyData>,
@@ -205,6 +215,7 @@ pub struct AnalyticsData {
 pub struct BackupPayload {
     pub version: i32,
     pub timestamp: i64,
+    #[serde(alias = "appVersion")]
     pub app_version: String,
     #[serde(default)]
     pub transactions: Vec<Transaction>,
@@ -257,7 +268,7 @@ impl std::fmt::Display for HesabyarError {
 
 impl std::error::Error for HesabyarError {}
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct CategoryGuess {
     pub category: String,
     pub subcategory: String,

@@ -52,9 +52,16 @@ object JalaliCalendarHelper {
     gMonth: Int,
     gDay: Int
   ): JalaliDate {
-    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-    cal.set(gYear, gMonth - 1, gDay)
-    return gregorianToJalali(cal.timeInMillis)
+    // Encode the Gregorian Y/M/D as a UTC-midnight timestamp so the
+    // Rust core (which interprets timestamps in UTC) returns the Jalali date
+    // that corresponds to this *local* calendar day. This calls the Rust
+    // bridge directly to avoid recursing back into the timestamp overload.
+    val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+    utcCal.set(gYear, gMonth - 1, gDay)
+    return unpackJalaliDate(
+      io.github.mojri.hesabyar.rust.RustBridge
+        .gregorianToJalaliSync(utcCal.timeInMillis)
+    )
   }
 
   fun jalaliToGregorian(
@@ -65,7 +72,10 @@ object JalaliCalendarHelper {
     val timestampMs =
       io.github.mojri.hesabyar.rust.RustBridge
         .jalaliToGregorianSync(jYear, jMonth, jDay)
-    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+    // Device-local calendar so callers that compose HOUR_OF_DAY/MINUTE from a
+    // Calendar.getInstance() (the date picker) stay on the same timezone and
+    // no 1-day shift occurs.
+    val cal = java.util.Calendar.getInstance()
     if (timestampMs == Long.MIN_VALUE) {
       // Fallback: use Java calendar for invalid conversions
       cal.set(jYear, jMonth - 1, jDay)

@@ -18,7 +18,7 @@ pub struct AiParsedTransaction {
 }
 
 /// Validation result for free-form AI text (advice / forecast).
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct AdviceValidation {
     pub is_valid: bool,
     pub sanitized_text: String,

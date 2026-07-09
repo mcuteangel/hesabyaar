@@ -1,7 +1,7 @@
 use crate::models::*;
 
 /// Result of batch validation — collects all errors.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct ValidationResult {
     pub is_valid: bool,
     pub errors: Vec<String>,

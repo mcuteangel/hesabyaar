@@ -110,8 +110,8 @@ android {
 }
 
 android.sourceSets.named("main") {
-  java.srcDirs("src/main/java/${appId.replace(".", "/")}/rust")
-  jniLibs.srcDirs("src/main/jniLibs")
+  java.srcDir("src/main/java/${appId.replace(".", "/")}/rust")
+  jniLibs.srcDir("src/main/jniLibs")
 }
 
 // Make the host-native Rust library available to JNA during unit tests.

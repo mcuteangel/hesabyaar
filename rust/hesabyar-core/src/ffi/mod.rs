@@ -67,7 +67,10 @@ pub fn get_offline_budget_advice(
     transactions: Vec<Transaction>,
     categories: Vec<Category>,
 ) -> String {
-    crate::advisory::get_offline_budget_advice(&transactions, &categories)
+    catch_unwind_safe(|| {
+        crate::advisory::get_offline_budget_advice(&transactions, &categories)
+    })
+    .unwrap_or_default()
 }
 
 /// Get offline budget forecast.
@@ -77,7 +80,10 @@ pub fn get_offline_forecast(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
 ) -> String {
-    crate::advisory::get_offline_forecast(&transactions, &loans, &installments)
+    catch_unwind_safe(|| {
+        crate::advisory::get_offline_forecast(&transactions, &loans, &installments)
+    })
+    .unwrap_or_default()
 }
 
 /// Calculate debt-to-income ratio.
@@ -87,13 +93,19 @@ pub fn calculate_debt_to_income_ratio(
     installments: Vec<Installment>,
     monthly_income: i64,
 ) -> f64 {
-    crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, monthly_income)
+    catch_unwind_safe(|| {
+        crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, monthly_income)
+    })
+    .unwrap_or(0.0)
 }
 
 /// Predict time to reach a savings goal.
 #[uniffi::export]
 pub fn predict_time_to_goal(current_savings: i64, monthly_savings: i64, goal_amount: i64) -> i32 {
-    crate::advisory::predict_time_to_goal(current_savings, monthly_savings, goal_amount)
+    catch_unwind_safe(|| {
+        crate::advisory::predict_time_to_goal(current_savings, monthly_savings, goal_amount)
+    })
+    .unwrap_or(-1)
 }
 
 /// Calculate financial health score (0-100).
@@ -104,12 +116,15 @@ pub fn calculate_financial_health_score(
     installments: Vec<Installment>,
     categories: Vec<Category>,
 ) -> i32 {
-    crate::advisory::calculate_financial_health_score(
-        &transactions,
-        &loans,
-        &installments,
-        &categories,
-    )
+    catch_unwind_safe(|| {
+        crate::advisory::calculate_financial_health_score(
+            &transactions,
+            &loans,
+            &installments,
+            &categories,
+        )
+    })
+    .unwrap_or(0)
 }
 
 /// Compute analytics data from transactions, loans, installments, and categories.
@@ -120,7 +135,10 @@ pub fn compute_analytics(
     installments: Vec<Installment>,
     categories: Vec<Category>,
 ) -> AnalyticsData {
-    crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories)
+    catch_unwind_safe(|| {
+        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories)
+    })
+    .unwrap_or_default()
 }
 
 /// Compute dashboard data from transactions, loans, and installments.
@@ -130,7 +148,10 @@ pub fn compute_dashboard_data(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
 ) -> DashboardData {
-    crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments)
+    catch_unwind_safe(|| {
+        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments)
+    })
+    .unwrap_or_default()
 }
 
 // ===========================================================================
@@ -146,7 +167,8 @@ pub fn search_transactions(
     transactions: Vec<Transaction>,
     query: SearchQuery,
 ) -> SearchResponse {
-    crate::search::search_transactions(&transactions, &query)
+    catch_unwind_safe(|| crate::search::search_transactions(&transactions, &query))
+        .unwrap_or_default()
 }
 
 // ===========================================================================
@@ -161,7 +183,7 @@ pub fn search_transactions(
 /// Returns a 64-character hexadecimal string.
 #[uniffi::export]
 pub fn compute_checksum(data: &[u8]) -> String {
-    crate::crypto::compute_checksum(data)
+    catch_unwind_safe(|| crate::crypto::compute_checksum(data)).unwrap_or_default()
 }
 
 /// Verify SHA-256 checksum of data.
@@ -169,7 +191,7 @@ pub fn compute_checksum(data: &[u8]) -> String {
 /// Uses constant-time comparison to prevent timing attacks.
 #[uniffi::export]
 pub fn verify_checksum(data: &[u8], expected: &str) -> bool {
-    crate::crypto::verify_checksum(data, expected)
+    catch_unwind_safe(|| crate::crypto::verify_checksum(data, expected)).unwrap_or(false)
 }
 
 // ===========================================================================
@@ -181,8 +203,11 @@ pub fn verify_checksum(data: &[u8], expected: &str) -> bool {
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarError> {
-    crate::validation::validate_transaction(&transaction)
-        .map_err(|e| HesabyarError::ValidationError { detail: e })
+    let r = catch_unwind_safe(|| {
+        crate::validation::validate_transaction(&transaction)
+            .map_err(|e| HesabyarError::ValidationError { detail: e })
+    })?;
+    r
 }
 
 /// Validate a single loan.
@@ -190,8 +215,11 @@ pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarErro
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
-    crate::validation::validate_loan(&loan)
-        .map_err(|e| HesabyarError::ValidationError { detail: e })
+    let r = catch_unwind_safe(|| {
+        crate::validation::validate_loan(&loan)
+            .map_err(|e| HesabyarError::ValidationError { detail: e })
+    })?;
+    r
 }
 
 /// Validate a single installment.
@@ -199,8 +227,11 @@ pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_installment(installment: Installment) -> Result<(), HesabyarError> {
-    crate::validation::validate_installment(&installment)
-        .map_err(|e| HesabyarError::ValidationError { detail: e })
+    let r = catch_unwind_safe(|| {
+        crate::validation::validate_installment(&installment)
+            .map_err(|e| HesabyarError::ValidationError { detail: e })
+    })?;
+    r
 }
 
 /// Validate a ParsedResult (AI parser output).
@@ -208,8 +239,11 @@ pub fn validate_installment(installment: Installment) -> Result<(), HesabyarErro
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
 #[uniffi::export]
 pub fn validate_parsed_result(result: ParsedResult) -> Result<(), HesabyarError> {
-    crate::validation::validate_parsed_result(&result)
-        .map_err(|e| HesabyarError::ValidationError { detail: e })
+    let r = catch_unwind_safe(|| {
+        crate::validation::validate_parsed_result(&result)
+            .map_err(|e| HesabyarError::ValidationError { detail: e })
+    })?;
+    r
 }
 
 /// Validate an entire backup payload. Collects all errors from all entities.
@@ -217,7 +251,8 @@ pub fn validate_parsed_result(result: ParsedResult) -> Result<(), HesabyarError>
 /// Returns a `ValidationResult` with `is_valid` flag and list of error messages.
 #[uniffi::export]
 pub fn validate_backup_payload(payload: BackupPayload) -> ValidationResult {
-    crate::validation::validate_backup_payload(&payload)
+    catch_unwind_safe(|| crate::validation::validate_backup_payload(&payload))
+        .unwrap_or_default()
 }
 
 // ===========================================================================
@@ -229,7 +264,8 @@ pub fn validate_backup_payload(payload: BackupPayload) -> ValidationResult {
 /// Returns raw XLSX bytes (a valid .xlsx file).
 #[uniffi::export]
 pub fn generate_excel(workbook: WorkbookData) -> Result<Vec<u8>, HesabyarError> {
-    crate::excel::generate_excel(&workbook)
+    let r = catch_unwind_safe(|| crate::excel::generate_excel(&workbook))?;
+    r
 }
 
 // ===========================================================================
@@ -242,7 +278,8 @@ pub fn generate_excel(workbook: WorkbookData) -> Result<Vec<u8>, HesabyarError> 
 /// out-of-range fields, and returns repair metadata.
 #[uniffi::export]
 pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, HesabyarError> {
-    crate::ai_validation::parse_ai_transaction_json(json)
+    let r = catch_unwind_safe(|| crate::ai_validation::parse_ai_transaction_json(json))?;
+    r
 }
 
 /// Validate and sanitize free-form AI advice/forecast text.
@@ -251,5 +288,6 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
 /// Persian content. Returns sanitized text with warnings.
 #[uniffi::export]
 pub fn validate_ai_advice(text: &str) -> AdviceValidation {
-    crate::ai_validation::validate_ai_advice(text)
+    catch_unwind_safe(|| crate::ai_validation::validate_ai_advice(text))
+        .unwrap_or_default()
 }

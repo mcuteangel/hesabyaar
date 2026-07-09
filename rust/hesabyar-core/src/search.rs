@@ -34,7 +34,7 @@ pub struct SearchResult {
 }
 
 /// Complete search response with results and metadata.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct SearchResponse {
     /// Matching transactions, sorted by relevance (highest first).
     pub results: Vec<SearchResult>,
