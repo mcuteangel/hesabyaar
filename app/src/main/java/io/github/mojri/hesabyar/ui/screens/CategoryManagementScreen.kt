@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
@@ -324,8 +325,8 @@ private fun CategoryItem(
           Text(
             text =
               when (category.type) {
-                Category.TYPE_EXPENSE -> "هزینه"
-                Category.TYPE_INCOME -> "درآمد"
+                CategoryType.EXPENSE -> "هزینه"
+                CategoryType.INCOME -> "درآمد"
                 else -> "هر دو"
               },
             style = MaterialTheme.typography.labelSmall,
@@ -369,14 +370,14 @@ private fun CategoryItem(
 private fun CategoryDialog(
   initialCategory: Category?,
   onDismiss: () -> Unit,
-  onSave: (name: String, key: String, icon: String, color: Long, type: String) -> Unit
+  onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
   var name by remember { mutableStateOf(initialCategory?.name.orEmpty()) }
   var key by remember { mutableStateOf(initialCategory?.key.orEmpty()) }
   var selectedIcon by remember { mutableStateOf(initialCategory?.icon ?: "Paid") }
   var selectedColor by remember { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
-  var selectedType by remember { mutableStateOf(initialCategory?.type ?: Category.TYPE_EXPENSE) }
+  var selectedType by remember { mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE) }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
 
   AlertDialog(
@@ -426,8 +427,8 @@ private fun CategoryDialog(
             OutlinedTextField(
               value =
                 when (selectedType) {
-                  Category.TYPE_EXPENSE -> "هزینه"
-                  Category.TYPE_INCOME -> "درآمد"
+                  CategoryType.EXPENSE -> "هزینه"
+                  CategoryType.INCOME -> "درآمد"
                   else -> "هر دو"
                 },
               onValueChange = {},
@@ -443,21 +444,21 @@ private fun CategoryDialog(
               DropdownMenuItem(
                 text = { Text("هزینه") },
                 onClick = {
-                  selectedType = Category.TYPE_EXPENSE
+                  selectedType = CategoryType.EXPENSE
                   typeDropdownExpanded = false
                 }
               )
               DropdownMenuItem(
                 text = { Text("درآمد") },
                 onClick = {
-                  selectedType = Category.TYPE_INCOME
+                  selectedType = CategoryType.INCOME
                   typeDropdownExpanded = false
                 }
               )
               DropdownMenuItem(
                 text = { Text("هر دو") },
                 onClick = {
-                  selectedType = Category.TYPE_BOTH
+                  selectedType = CategoryType.BOTH
                   typeDropdownExpanded = false
                 }
               )
@@ -579,8 +580,8 @@ private fun CategoryDialog(
             Text(
               text =
                 when (selectedType) {
-                  Category.TYPE_EXPENSE -> "هزینه"
-                  Category.TYPE_INCOME -> "درآمد"
+                  CategoryType.EXPENSE -> "هزینه"
+                  CategoryType.INCOME -> "درآمد"
                   else -> "هر دو"
                 },
               style = MaterialTheme.typography.labelSmall,
