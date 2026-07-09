@@ -18,102 +18,118 @@ object BudgetAdvisor {
     config: AiProviderConfig? = null
   ): String =
     withContext(Dispatchers.IO) {
-      AppLogger.d(
-        TAG,
-        "getBudgetAdvice: config=${config?.let {
-          "provider=${it.providerType}, isConfigured=${it.isConfigured}"
-        } ?: "null"}"
-      )
       val providerConfig = config ?: AiProviderConfig()
       if (!providerConfig.isConfigured) {
         AppLogger.w(TAG, "AI provider not configured, using offline local rules budget advisor")
         return@withContext getOfflineAdvice(transactions, categories)
       }
-
       if (transactions.isEmpty()) {
-        val message =
-          "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
-            "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
-        return@withContext message
+        return@withContext noTransactionsAdviceMessage()
       }
 
-      val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-      val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-      val categoriesGroup =
-        transactions
-          .filter { it.type == "EXPENSE" }
-          .groupBy { it.categoryId }
-          .mapValues { it.value.sumOf { tx -> tx.amount } }
-
-      val categoryReport =
-        categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
-          val cat = categories.find { it.id == catId }
-          "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
-        }
-
-      val transactionListPrompt =
-        transactions.take(30).joinToString("\n") { tx ->
-          val typeStr = if (tx.type == "INCOME") "درآمد" else "هزینه"
-          val cat = categories.find { it.id == tx.categoryId }
-          "- ${cat?.name ?: "سایر"} | $typeStr | ${formatAmountClean(tx.amount)} | شرح: ${tx.description}"
-        }
-
-      val prompt =
-        """
-        سلام. من یک حسابدار شخصی ایرانی دارم به نام «حسابیار».
-        لطفاً تراکنش‌های مالی اخیر مرا بررسی کرده و توصیه‌های هوشمند، کاربردی و روان به زبان فارسی برای مدیریت بهتر بودجه، کاهش هزینه‌ها و افزایش پس‌انداز به من ارائه بده.
-
-        آمارهای کلی من:
-        - کل درآمد ثبت شده: ${formatAmountClean(totalIncome)}
-        - کل هزینه‌های ثبت شده: ${formatAmountClean(totalExpense)}
-        - تراز باقیمانده: ${formatAmountClean(totalIncome - totalExpense)}
-
-        هزینه‌ها به تفکیک دسته‌بندی:
-        $categoryReport
-
-        لیست ۳۰ تراکنش آخر من:
-        $transactionListPrompt
-
-        لطفا با یک لحن صمیمی و حرفه‌ای (مشابه یک مشاور مالی باتجربه و دلسوز) تحلیل خودت رو ارائه بدی. 
-        توصیه‌ها رو بخش‌بندی کن (مثلاً تحلیل کلی تراز مالی، بررسی دسته‌بندی هزینه‌های عمده، نکات کاهش مخارج خاص بر اساس تراکنشام، و چند پیشنهاد طلایی کاربردی). 
-        از قالب‌بندی زیبای Markdown (بولد کردن، ایموجی‌ها، لیست‌های نشانه‌دار) استفاده کن تا خواندن آن راحت باشد.
-        """.trimIndent()
-
+      val prompt = buildBudgetPrompt(transactions, categories)
       val systemInstruction =
         "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions " +
           "carefully and provide smart, structured financial recommendations in beautiful Persian. " +
           "Be friendly, polite, action-oriented, and encouraging."
 
-      when (
-        val result =
-          AiProvider.generateContent(
-            config = providerConfig,
-            prompt = prompt,
-            systemInstruction = systemInstruction,
-            temperature = 0.7
-          )
-      ) {
-        is AiProvider.ApiResult.Success -> {
-          val validation =
-            io.github.mojri.hesabyar.rust.RustBridge
-              .validateAiAdvice(result.text)
-          // When the local Rust validator is uninitialized, trust the cloud
-          // advice instead of discarding it on an unavailable engine.
-          if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
-            AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
-            return@withContext getOfflineAdvice(transactions, categories)
-          }
-          if (validation.wasTruncated) {
-            AppLogger.d(TAG, "AI advice truncated: ${validation.warnings}")
-          }
-          validation.sanitizedText
-        }
-        is AiProvider.ApiResult.Failure -> {
-          AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
-          getOfflineAdvice(transactions, categories)
-        }
+      val result =
+        AiProvider.generateContent(
+          config = providerConfig,
+          prompt = prompt,
+          systemInstruction = systemInstruction,
+          temperature = 0.7
+        )
+      handleBudgetAdviceResult(result, transactions, categories)
+    }
+
+  private fun noTransactionsAdviceMessage(): String =
+    "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
+      "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
+
+  private fun buildBudgetPrompt(
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String {
+    val summary = summarizeTransactions(transactions)
+    val categoryReport = buildCategoryReport(transactions, categories)
+    val transactionList = buildTransactionList(transactions, categories)
+
+    return """
+      سلام. من یک حسابدار شخصی ایرانی دارم به نام «حسابیار».
+      لطفاً تراکنش‌های مالی اخیر مرا بررسی کرده و توصیه‌های هوشمند، کاربردی و روان به زبان فارسی برای مدیریت بهتر بودجه، کاهش هزینه‌ها و افزایش پس‌انداز به من ارائه بده.
+
+      آمارهای کلی من:
+      - کل درآمد ثبت شده: ${formatAmountClean(summary.income)}
+      - کل هزینه‌های ثبت شده: ${formatAmountClean(summary.expense)}
+      - تراز باقیمانده: ${formatAmountClean(summary.balance)}
+
+      هزینه‌ها به تفکیک دسته‌بندی:
+      $categoryReport
+
+      لیست ۳۰ تراکنش آخر من:
+      $transactionList
+
+      لطفا با یک لحن صمیمی و حرفه‌ای (مشابه یک مشاور مالی باتجربه و دلسوز) تحلیل خودت رو ارائه بدی. 
+      توصیه‌ها رو بخش‌بندی کن (مثلاً تحلیل کلی تراز مالی، بررسی دسته‌بندی هزینه‌های عمده، نکات کاهش مخارج خاص بر اساس تراکنشام، و چند پیشنهاد طلایی کاربردی). 
+      از قالب‌بندی زیبای Markdown (بولد کردن، ایموجی‌ها، لیست‌های نشانه‌دار) استفاده کن تا خواندن آن راحت باشد.
+      """.trimIndent()
+  }
+
+  private fun buildCategoryReport(
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String {
+    val categoriesGroup =
+      transactions
+        .filter { it.type == "EXPENSE" }
+        .groupBy { it.categoryId }
+        .mapValues { it.value.sumOf { tx -> tx.amount } }
+
+    return categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
+      val cat = categories.find { it.id == catId }
+      "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
+    }
+  }
+
+  private fun buildTransactionList(
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String =
+    transactions.take(30).joinToString("\n") { tx ->
+      val typeStr = if (tx.type == "INCOME") "درآمد" else "هزینه"
+      val cat = categories.find { it.id == tx.categoryId }
+      "- ${cat?.name ?: "سایر"} | $typeStr | ${formatAmountClean(tx.amount)} | شرح: ${tx.description}"
+    }
+
+  private suspend fun handleBudgetAdviceResult(
+    result: AiProvider.ApiResult,
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String =
+    when (result) {
+      is AiProvider.ApiResult.Success -> validateOrFallback(result.text, transactions, categories)
+      is AiProvider.ApiResult.Failure -> {
+        AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
+        getOfflineAdvice(transactions, categories)
       }
     }
+
+  private suspend fun validateOrFallback(
+    text: String,
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ): String {
+    val validation = io.github.mojri.hesabyar.rust.RustBridge.validateAiAdvice(text)
+    if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+      AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
+      return getOfflineAdvice(transactions, categories)
+    }
+    if (validation.wasTruncated) {
+      AppLogger.d(TAG, "AI advice truncated: ${validation.warnings}")
+    }
+    return validation.sanitizedText
+  }
 
   private fun getPersianCategoryName(category: String): String =
     when (category) {
