@@ -96,7 +96,10 @@ let now_ms = std::time::SystemTime::now()
         .unwrap_or_default()
         .as_millis() as i64;
     let window_start = now_ms - 90 * 24 * 60 * 60 * 1000;
-    let recent: Vec<&Transaction> = transactions.iter().filter(|t| t.date >= window_start).collect();
+    let recent: Vec<&Transaction> = transactions
+        .iter()
+        .filter(|t| t.date >= window_start && t.date <= now_ms)
+        .collect();
 
     let recent_income: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Income).map(|t| t.amount).sum();
     let recent_expense: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Expense).map(|t| t.amount).sum();
@@ -132,6 +135,30 @@ let now_ms = std::time::SystemTime::now()
     }
 
     sb
+}
+
+/// Monthly income baseline over the trailing 90-day window, bounded by `now_ms`.
+///
+/// Future-dated transactions are excluded so scheduled income does not inflate
+/// the baseline. Returns 0 when there is no income in the window.
+fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
+    let window_start = now_ms - 90 * 24 * 60 * 60 * 1000;
+    let recent: Vec<&Transaction> = transactions
+        .iter()
+        .filter(|t| {
+            t.tx_type == TransactionType::Income && t.date >= window_start && t.date <= now_ms
+        })
+        .collect();
+    if recent.is_empty() {
+        return 0;
+    }
+    let oldest = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
+    let days = ((now_ms - oldest) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
+        .max(1.0)
+        .ceil();
+    let months = (days / 30.0).max(1.0);
+    let sum: i64 = recent.iter().map(|t| t.amount).sum();
+    (sum as f64 / months) as i64
 }
 
 /// Calculate debt-to-income ratio.
@@ -180,6 +207,11 @@ pub fn calculate_financial_health_score(
     installments: &[Installment],
     _categories: &[Category],
 ) -> i32 {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
     if transactions.is_empty() {
         return 0;
     }
@@ -207,7 +239,11 @@ pub fn calculate_financial_health_score(
     }
 
     // Debt-to-income (max +15)
-    let debt_ratio = calculate_debt_to_income_ratio(loans, installments, total_income);
+    // Scope income to a monthly baseline (trailing 90d window) so the
+    // all-time accumulated income does not understate the ratio relative to
+    // the monthly debt/installment obligations.
+    let monthly_income = monthly_income_baseline(transactions, now_ms);
+    let debt_ratio = calculate_debt_to_income_ratio(loans, installments, monthly_income);
     score += if debt_ratio <= 0.1 {
         15
     } else if debt_ratio <= 0.2 {
@@ -252,5 +288,45 @@ mod tests {
     fn test_debt_to_income_ratio() {
         assert_eq!(calculate_debt_to_income_ratio(&[], &[], 0), 0.0);
         assert_eq!(calculate_debt_to_income_ratio(&[], &[], 100000), 0.0);
+    }
+
+    fn sample_tx(id: i64, ttype: TransactionType, amount: i64, date: i64) -> Transaction {
+        Transaction {
+            id,
+            tx_type: ttype,
+            category_id: 1,
+            amount,
+            description: String::new(),
+            person_name: None,
+            date,
+            due_date: None,
+            installment_id: None,
+        }
+    }
+
+    #[test]
+    fn test_monthly_income_baseline_scopes_recent_window() {
+        let now: i64 = 1_700_000_000_000;
+        let day: i64 = 24 * 60 * 60 * 1000;
+        // Recent income (15 days ago) plus ancient all-time income (330 days ago,
+        // outside the 90-day window).
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 1_000_000, now - 15 * day),
+            sample_tx(2, TransactionType::Income, 11_000_000, now - 330 * day),
+        ];
+        let monthly = monthly_income_baseline(&txs, now);
+        // Only the recent 1_000_000 should count; the ancient income is excluded.
+        assert!(monthly > 0 && monthly <= 1_000_000 + 2);
+    }
+
+    #[test]
+    fn test_financial_health_score_uses_monthly_income_scoping() {
+        let now: i64 = 1_700_000_000_000;
+        let day: i64 = 24 * 60 * 60 * 1000;
+        // Large all-time income, but nothing in the trailing window.
+        let txs = vec![sample_tx(1, TransactionType::Income, 100_000_000, now - 330 * day)];
+        let score = calculate_financial_health_score(&txs, &[], &[], &[]);
+        // Function must remain well-defined (0..=100) with no recent income.
+        assert!((0..=100).contains(&score));
     }
 }

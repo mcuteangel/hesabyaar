@@ -128,30 +128,36 @@ pub fn calculate_financial_health_score(
 }
 
 /// Compute analytics data from transactions, loans, installments, and categories.
+///
+/// Returns `None` when the Rust computation panics, so the Kotlin layer can
+/// fall back to its local DB computation instead of receiving a blank default.
 #[uniffi::export]
 pub fn compute_analytics(
     transactions: Vec<Transaction>,
     loans: Vec<Loan>,
     installments: Vec<Installment>,
     categories: Vec<Category>,
-) -> AnalyticsData {
+) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
         crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories)
     })
-    .unwrap_or_default()
+    .ok()
 }
 
 /// Compute dashboard data from transactions, loans, and installments.
+///
+/// Returns `None` when the Rust computation panics, so the Kotlin layer can
+/// fall back to its local DB computation instead of receiving a blank default.
 #[uniffi::export]
 pub fn compute_dashboard_data(
     transactions: Vec<Transaction>,
     loans: Vec<Loan>,
     installments: Vec<Installment>,
-) -> DashboardData {
+) -> Option<DashboardData> {
     catch_unwind_safe(|| {
         crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments)
     })
-    .unwrap_or_default()
+    .ok()
 }
 
 // ===========================================================================

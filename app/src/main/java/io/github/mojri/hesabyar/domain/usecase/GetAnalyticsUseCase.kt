@@ -25,12 +25,18 @@ class GetAnalyticsUseCase {
           .mapCategories(categories)
       )
 
-    if (rustResult != null) {
+    // Use the Rust result unless it failed (null) or came back as a blank
+    // placeholder while real data exists. In those cases fall back to a local
+    // computation so the UI never shows misleading empty analytics.
+    val hasData =
+      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+    if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapAnalyticsData(rustResult, loans, installments)
     }
 
-    // Kotlin fallback when Rust FFI is unavailable or fails
+    // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
+    // empty/invalid data. Computed directly from the local DB lists.
     val now = System.currentTimeMillis()
     val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
     val monthlyTx = transactions.filter { it.date >= thirtyDaysAgo }
@@ -88,4 +94,19 @@ class GetAnalyticsUseCase {
       paidInstallments = installments.count { it.isPaid }
     )
   }
+
+  /** True when every collection/aggregate is empty/zero, i.e. the Rust result
+   *  is a blank placeholder rather than a real computation. */
+  private fun AnalyticsData.isBlank(): Boolean =
+    monthlySpending.isEmpty() &&
+      monthlyIncome.isEmpty() &&
+      categoryBreakdown.isEmpty() &&
+      debtors.isEmpty() &&
+      creditors.isEmpty() &&
+      activeLoans.isEmpty() &&
+      installmentProgress.isEmpty() &&
+      totalDebt == 0L &&
+      totalCredit == 0L &&
+      totalInstallments == 0 &&
+      paidInstallments == 0
 }

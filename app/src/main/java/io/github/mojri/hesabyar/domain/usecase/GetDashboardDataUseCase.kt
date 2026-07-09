@@ -31,12 +31,18 @@ class GetDashboardDataUseCase(
           .mapInstallments(installments)
       )
 
-    if (rustResult != null) {
+    // Use the Rust result unless it failed (null) or came back as an all-zero
+    // placeholder while real data exists. In those cases fall back to a local
+    // computation so the UI never shows misleading blank zeros.
+    val hasData =
+      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+    if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapDashboardData(rustResult, installments)
     }
 
-    // Kotlin fallback when Rust FFI is unavailable or fails
+    // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
+    // empty/invalid data. Computed directly from the local DB lists.
     val now = System.currentTimeMillis()
     val thirtyDaysAgo = now - 30L * 24 * 60 * 60 * 1000
 
@@ -69,4 +75,16 @@ class GetDashboardDataUseCase(
       debtToIncomeRatio = debtToIncome
     )
   }
+
+  /** True when every field is at its zero/default, i.e. the Rust result is a
+   *  blank placeholder rather than a real computation. */
+  private fun DashboardData.isBlank(): Boolean =
+    currentBalance == 0L &&
+      monthlyExpenses == 0L &&
+      monthlyIncome == 0L &&
+      debtorsTotal == 0L &&
+      creditorsTotal == 0L &&
+      upcomingInstallments.isEmpty() &&
+      savingsRate == 0.0 &&
+      debtToIncomeRatio == 0.0
 }
