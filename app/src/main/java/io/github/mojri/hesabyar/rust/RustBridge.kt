@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,7 +14,7 @@ import kotlinx.coroutines.withContext
  * Naming convention: functions mirror the Rust API 1:1.
  * Generated UniFFI bindings live under [HesabyarCore].
  */
-object RustBridge {
+object RustBridge : JalaliNativeBridge {
   private const val TAG = "RustBridge"
 
   private val available: Boolean
@@ -55,20 +56,23 @@ object RustBridge {
   // Calendar
   // ===========================================================================
 
-  fun gregorianToJalaliSync(timestampMs: Long): Long = rustCallSync(0L) { HesabyarCore.gregorianToJalali(timestampMs) }
+  override fun gregorianToJalaliSync(timestampMs: Long): Long =
+    rustCallSync(0L) {
+      HesabyarCore.gregorianToJalali(timestampMs)
+    }
 
-  fun jalaliToGregorianSync(
+  override fun jalaliToGregorianSync(
     year: Int,
     month: Int,
     day: Int
   ): Long = rustCallSync(Long.MIN_VALUE) { HesabyarCore.jalaliToGregorian(year, month, day) }
 
-  fun getJalaliDaysInMonthSync(
+  override fun getJalaliDaysInMonthSync(
     year: Int,
     month: Int
   ): Int = rustCallSync(30) { HesabyarCore.getJalaliDaysInMonth(year, month) }
 
-  fun isJalaliLeapYearSync(year: Int): Boolean = rustCallSync(false) { HesabyarCore.isJalaliLeapYear(year) }
+  override fun isJalaliLeapYearSync(year: Int): Boolean = rustCallSync(false) { HesabyarCore.isJalaliLeapYear(year) }
 
   // ===========================================================================
   // Currency

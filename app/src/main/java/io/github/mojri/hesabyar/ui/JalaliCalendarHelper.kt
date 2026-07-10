@@ -1,11 +1,51 @@
 package io.github.mojri.hesabyar.ui
 
 import java.util.Calendar
+import java.util.TimeZone
+
+/**
+ * Abstraction over the native (Rust) core used by [JalaliCalendarHelper].
+ *
+ * The helper deliberately avoids a compile-time dependency on the `rust`
+ * package so it can be compiled standalone (e.g. by the pure-JVM benchmark
+ * module). The app installs a provider via [JalaliCalendarHelper.bridgeProvider]
+ * that lazily initializes the Rust core on first use. When it returns null the
+ * pure-Kotlin fallback paths below are used, keeping the helper fully
+ * functional offline.
+ */
+internal interface JalaliNativeBridge {
+  fun gregorianToJalaliSync(timestampMs: Long): Long
+
+  fun jalaliToGregorianSync(
+    year: Int,
+    month: Int,
+    day: Int
+  ): Long
+
+  fun getJalaliDaysInMonthSync(
+    year: Int,
+    month: Int
+  ): Int
+
+  fun isJalaliLeapYearSync(year: Int): Boolean
+}
+
+/** Remainders of (year % 33) that identify a leap year in the Iranian calendar. */
+private val JALALI_LEAP_REMAINDERS = setOf(1, 5, 9, 13, 17, 22, 26, 30)
 
 object JalaliCalendarHelper {
   private const val PACKED_DATE_INVALID = 0L
   private const val YEAR_SHIFT = 16
   private const val MONTH_SHIFT = 8
+
+  /**
+   * Provider for the native core bridge, installed by the app module. Kept as
+   * a decoupled lambda (not a direct `rust` dependency) so this helper compiles
+   * standalone. When it returns null the pure-Kotlin fallback paths are used.
+   */
+  internal var bridgeProvider: (() -> JalaliNativeBridge?)? = null
+
+  private fun resolveBridge(): JalaliNativeBridge? = bridgeProvider?.invoke()
 
   data class JalaliDate(
     val year: Int,
@@ -16,26 +56,26 @@ object JalaliCalendarHelper {
   }
 
   fun isJalaliLeapYear(year: Int): Boolean =
-    io.github.mojri.hesabyar.rust.RustBridge
-      .isJalaliLeapYearSync(year)
+    resolveBridge()?.isJalaliLeapYearSync(year)
+      ?: (year % 33) in JALALI_LEAP_REMAINDERS
 
   fun getDaysInMonth(
     year: Int,
     month: Int
   ): Int =
-    io.github.mojri.hesabyar.rust.RustBridge
-      .getJalaliDaysInMonthSync(year, month)
+    resolveBridge()?.getJalaliDaysInMonthSync(year, month)
+      ?: jalaliDaysInMonthLocal(year, month)
 
   fun gregorianToJalali(timestamp: Long): JalaliDate {
     // Extract device-local Gregorian date first, then convert to Jalali.
     // Using the raw epoch timestamp directly would use UTC and can shift
     // dates by one day for users ahead of UTC (e.g. Iran UTC+3:30).
-    val cal = java.util.Calendar.getInstance()
+    val cal = Calendar.getInstance()
     cal.timeInMillis = timestamp
     return gregorianToJalali(
-      cal.get(java.util.Calendar.YEAR),
-      cal.get(java.util.Calendar.MONTH) + 1,
-      cal.get(java.util.Calendar.DAY_OF_MONTH)
+      cal.get(Calendar.YEAR),
+      cal.get(Calendar.MONTH) + 1,
+      cal.get(Calendar.DAY_OF_MONTH)
     )
   }
 
@@ -49,10 +89,10 @@ object JalaliCalendarHelper {
 
   /**
    * Pure-Kotlin Gregorian→Jalali conversion, mirroring the Rust core
-   * (calendar.rs: gregorian_to_jalali_date). Used when the Rust bridge is
+   * (calendar.rs: gregorian_to_jalali_date). Used when the native bridge is
    * unavailable so callers stay functional. Returns null for invalid input.
    */
-  internal fun gregorianToJalaliLocal(
+  fun gregorianToJalaliLocal(
     gYear: Int,
     gMonth: Int,
     gDay: Int
@@ -105,59 +145,165 @@ object JalaliCalendarHelper {
     gDay: Int
   ): JalaliDate {
     // Validate the Gregorian input up front. Calendar.set() below silently
-    // normalizes invalid dates (e.g. 2024-02-30 -> 2024-03-01) before the Rust
-    // bridge sees them, so the Rust path would otherwise accept inputs the
+    // normalizes invalid dates (e.g. 2024-02-30 -> 2024-03-01) before the native
+    // bridge sees them, so the native path would otherwise accept inputs the
     // pure-Kotlin fallback rejects. Validating first keeps both paths
-    // consistent: invalid dates throw here regardless of Rust availability.
+    // consistent: invalid dates throw here regardless of native availability.
     val local =
       gregorianToJalaliLocal(gYear, gMonth, gDay)
         ?: throw IllegalStateException(
           "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
         )
 
-    // Encode the Gregorian Y/M/D as a UTC-midnight timestamp so the
-    // Rust core (which interprets timestamps in UTC) returns the Jalali date
-    // that corresponds to this *local* calendar day. This calls the Rust
-    // bridge directly to avoid recursing back into the timestamp overload.
-    val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+    // Encode the Gregorian Y/M/D as a UTC-midnight timestamp so the native
+    // core (which interprets timestamps in UTC) returns the Jalali date that
+    // corresponds to this *local* calendar day.
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     utcCal.set(gYear, gMonth - 1, gDay)
-    utcCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-    utcCal.set(java.util.Calendar.MINUTE, 0)
-    utcCal.set(java.util.Calendar.SECOND, 0)
-    utcCal.set(java.util.Calendar.MILLISECOND, 0)
-    val fromRust =
-      unpackJalaliDate(
-        io.github.mojri.hesabyar.rust.RustBridge
-          .gregorianToJalaliSync(utcCal.timeInMillis)
-      )
-    // Prefer Rust result; fall back to the already-validated local conversion.
-    return fromRust ?: local
+    utcCal.set(Calendar.HOUR_OF_DAY, 0)
+    utcCal.set(Calendar.MINUTE, 0)
+    utcCal.set(Calendar.SECOND, 0)
+    utcCal.set(Calendar.MILLISECOND, 0)
+    val fromNative =
+      resolveBridge()
+        ?.gregorianToJalaliSync(utcCal.timeInMillis)
+        ?.let { unpackJalaliDate(it) }
+    // Prefer the native result; fall back to the already-validated local conversion.
+    return fromNative ?: local
   }
 
   fun jalaliToGregorian(
     jYear: Int,
     jMonth: Int,
     jDay: Int
-  ): java.util.Calendar? {
+  ): Calendar? {
     val timestampMs =
-      io.github.mojri.hesabyar.rust.RustBridge
-        .jalaliToGregorianSync(jYear, jMonth, jDay)
-    if (timestampMs == Long.MIN_VALUE) return null
-    // Rust returns UTC midnight for the given Jalali date. To avoid 1-day
-    // shift in UTC-negative timezones, extract Y/M/D in UTC then build a
-    // *local* Calendar from those fields (not from the raw timestamp).
-    val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-    utcCal.timeInMillis = timestampMs
-    val cal = java.util.Calendar.getInstance()
-    cal.set(
-      utcCal.get(java.util.Calendar.YEAR),
-      utcCal.get(java.util.Calendar.MONTH),
-      utcCal.get(java.util.Calendar.DAY_OF_MONTH),
-      0,
-      0,
-      0
-    )
-    cal.set(java.util.Calendar.MILLISECOND, 0)
+      resolveBridge()?.jalaliToGregorianSync(jYear, jMonth, jDay)
+    if (timestampMs != null && timestampMs != Long.MIN_VALUE) {
+      // Native returns UTC midnight for the given Jalali date. To avoid 1-day
+      // shift in UTC-negative timezones, extract Y/M/D in UTC then build a
+      // *local* Calendar from those fields (not from the raw timestamp).
+      val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+      utcCal.timeInMillis = timestampMs
+      val cal = Calendar.getInstance()
+      cal.set(
+        utcCal.get(Calendar.YEAR),
+        utcCal.get(Calendar.MONTH),
+        utcCal.get(Calendar.DAY_OF_MONTH),
+        0,
+        0,
+        0
+      )
+      cal.set(Calendar.MILLISECOND, 0)
+      return cal
+    }
+    // Native bridge unavailable: use the pure-Kotlin conversion.
+    return jalaliToGregorianLocal(jYear, jMonth, jDay)
+  }
+
+  /**
+   * Pure-Kotlin Jalali→Gregorian conversion, mirroring the Rust core. Used when
+   * the native bridge is unavailable. Returns null for out-of-range input.
+   *
+   * Implemented as the exact inverse of [gregorianToJalaliLocal] so the two
+   * stay perfectly consistent (same day-number arithmetic in both directions).
+   */
+  fun jalaliToGregorianLocal(
+    jYear: Int,
+    jMonth: Int,
+    jDay: Int
+  ): Calendar? {
+    if (jMonth < 1 || jMonth > 12) return null
+    if (jDay < 1 || jDay > jalaliDaysInMonthLocal(jYear, jMonth)) return null
+
+    val gDayNo = jalaliToDayNo(jYear, jMonth, jDay) + 79
+    val (gy, gm, gd) = gregorianFromDayNo(gDayNo)
+    val cal = Calendar.getInstance()
+    cal.set(gy, gm - 1, gd, 0, 0, 0)
+    cal.set(Calendar.MILLISECOND, 0)
     return cal
+  }
+
+  private fun jalaliDaysInMonthLocal(
+    year: Int,
+    month: Int
+  ): Int =
+    when (month) {
+      in 1..6 -> 31
+      in 7..11 -> 30
+      12 -> if (isJalaliLeapYear(year)) 30 else 29
+      else -> 0
+    }
+
+  private val GREGORIAN_MONTH_OFFSETS = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365)
+  private val JALALI_MONTH_DAYS = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
+
+  private fun isGregLeap(year: Int): Boolean = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+
+  /** Gregorian (year, month, day) → days since 1600-01-01, mirroring [gregorianToJalaliLocal]. */
+  private fun gregorianToDayNo(
+    gYear: Int,
+    gMonth: Int,
+    gDay: Int
+  ): Long {
+    val leap = isGregLeap(gYear)
+    val gy = gYear - 1600
+    val gm = gMonth - 1
+    val gd = gDay - 1
+    var dayNo = 365L * gy + (gy + 3) / 4 - (gy + 99) / 100 + (gy + 399) / 400
+    dayNo += GREGORIAN_MONTH_OFFSETS[gm]
+    if (gm > 1 && leap) dayNo += 1
+    dayNo += gd
+    return dayNo
+  }
+
+  /** Inverse of [gregorianToDayNo]: days since 1600-01-01 → Gregorian (year, month, day). */
+  private fun gregorianFromDayNo(dayNo: Long): Triple<Int, Int, Int> {
+    var rem = dayNo
+    var year = 1600
+    while (true) {
+      val days = if (isGregLeap(year)) 366L else 365L
+      if (rem < days) break
+      rem -= days
+      year++
+    }
+    val offsets =
+      if (isGregLeap(year)) {
+        intArrayOf(0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366)
+      } else {
+        GREGORIAN_MONTH_OFFSETS
+      }
+    var m = 0
+    while (m < 11 && rem >= offsets[m + 1]) m++
+    val day = (rem - offsets[m] + 1).toInt()
+    return Triple(year, m + 1, day)
+  }
+
+  /**
+   * Inverse of the Jalali decomposition inside [gregorianToJalaliLocal]:
+   * Jalali (year, month, day) → Jalali day number (days since the same epoch
+   * used by that function).
+   */
+  private fun jalaliToDayNo(
+    jy: Int,
+    jm: Int,
+    jd: Int
+  ): Long {
+    val j3 = (jd - 1) + (0 until jm - 1).sumOf { JALALI_MONTH_DAYS[it] }
+    val base = jy - 979
+    // jy - 979 = 33*jNp + 4*q1 + jyExtra, with q1 in [0,8] and jyExtra in [0,3].
+    for (jNp in (base / 33 - 1)..(base / 33 + 1)) {
+      val rem = base - 33 * jNp
+      if (rem < 0 || rem > 35) continue
+      for (jyExtra in 0..3) {
+        if ((rem - jyExtra) % 4 != 0) continue
+        val q1 = (rem - jyExtra) / 4
+        if (q1 < 0 || q1 > 8) continue
+        val j2 = if (jyExtra == 0) j3 else 365 * jyExtra + j3 + 1
+        val j1 = q1 * 1461L + (j2 % 1461)
+        return jNp * 12053L + j1
+      }
+    }
+    return 0L
   }
 }

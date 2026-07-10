@@ -5,8 +5,10 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.HiltAndroidApp
 import io.github.mojri.hesabyar.rust.InternalException
+import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 
 @HiltAndroidApp
 class HesabyarApp : Application() {
@@ -17,6 +19,13 @@ class HesabyarApp : Application() {
 
     @Volatile
     private var rustInitialized = false
+
+    init {
+      // Wire the Jalali calendar helper to the Rust core. The provider lazily
+      // initializes the native library on first calendar call, preserving the
+      // previous behavior where the helper itself triggered Rust init.
+      JalaliCalendarHelper.bridgeProvider = { if (ensureRustInitialized()) RustBridge else null }
+    }
 
     @JvmStatic
     fun isRustInitialized(): Boolean = rustInitialized
