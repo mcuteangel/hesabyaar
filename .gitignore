@@ -40,6 +40,8 @@ keystore-backups/my-upload-key.jks.bak
 .agents/
 skills-lock.json
 .mimocode/
+# Local AI-tool skill repos committed by accident (nested git repos under literal ~ dir)
+/~/
 docs/uiplan.md
 .superpowers/
 docs/superpowers/
