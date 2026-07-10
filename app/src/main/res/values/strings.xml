@@ -6,4 +6,7 @@
     <string name="loan_type_debtor">من قرض دادم</string>
     <string name="loan_type_creditor">من قرض گرفتم</string>
     <string name="currency_unit">تومان</string>
+    <string name="category_type_expense">هزینه</string>
+    <string name="category_type_income">درآمد</string>
+    <string name="category_type_both">هر دو</string>
 </resources>

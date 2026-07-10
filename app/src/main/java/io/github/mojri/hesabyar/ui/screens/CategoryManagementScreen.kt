@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.ui.CategoryViewModel
@@ -89,11 +91,12 @@ private val CATEGORY_COLORS =
   )
 
 private val CategoryType.displayName: String
+  @Composable
   get() =
     when (this) {
-      CategoryType.EXPENSE -> "هزینه"
-      CategoryType.INCOME -> "درآمد"
-      CategoryType.BOTH -> "هر دو"
+      CategoryType.EXPENSE -> stringResource(R.string.category_type_expense)
+      CategoryType.INCOME -> stringResource(R.string.category_type_income)
+      CategoryType.BOTH -> stringResource(R.string.category_type_both)
     }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -162,6 +162,61 @@ object BudgetAdvisor {
 
   private fun formatAmountClean(amount: Long): String = CurrencyFormatter.format(amount)
 
+  private fun List<Transaction>.toRustTransactions(): List<io.github.mojri.hesabyar.rust.Transaction> =
+    map {
+      io.github.mojri.hesabyar.rust.Transaction(
+        id = it.id,
+        txType = RustMappers.mapTransactionType(it.type),
+        categoryId = it.categoryId,
+        amount = it.amount,
+        description = it.description,
+        personName = it.personName,
+        date = it.date,
+        dueDate = it.dueDate,
+        installmentId = it.installmentId
+      )
+    }
+
+  private fun List<Loan>.toRustLoans(): List<io.github.mojri.hesabyar.rust.Loan> =
+    map {
+      io.github.mojri.hesabyar.rust.Loan(
+        id = it.id,
+        personName = it.personName,
+        loanType = it.type.name,
+        originalAmount = it.originalAmount,
+        remainingAmount = it.remainingAmount,
+        description = it.description,
+        date = it.date,
+        isSettled = it.isSettled
+      )
+    }
+
+  private fun List<Installment>.toRustInstallments(): List<io.github.mojri.hesabyar.rust.Installment> =
+    map {
+      io.github.mojri.hesabyar.rust.Installment(
+        id = it.id,
+        title = it.title,
+        amount = it.amount,
+        dueDate = it.dueDate,
+        isPaid = it.isPaid,
+        reminderEnabled = it.reminderEnabled,
+        notes = it.notes
+      )
+    }
+
+  private fun List<Category>.toRustCategories(): List<io.github.mojri.hesabyar.rust.Category> =
+    map {
+      io.github.mojri.hesabyar.rust.Category(
+        id = it.id,
+        name = it.name,
+        key = it.key,
+        icon = it.icon,
+        color = it.color,
+        categoryType = it.type.name,
+        isDefault = it.isDefault
+      )
+    }
+
   // High quality local rules budget advisor for offline mode
   fun getOfflineAdvice(
     transactions: List<Transaction>,
@@ -169,31 +224,8 @@ object BudgetAdvisor {
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineBudgetAdviceSync(
-        transactions.map {
-          io.github.mojri.hesabyar.rust.Transaction(
-            id = it.id,
-            txType =
-              RustMappers.mapTransactionType(it.type),
-            categoryId = it.categoryId,
-            amount = it.amount,
-            description = it.description,
-            personName = it.personName,
-            date = it.date,
-            dueDate = it.dueDate,
-            installmentId = it.installmentId
-          )
-        },
-        categories.map {
-          io.github.mojri.hesabyar.rust.Category(
-            id = it.id,
-            name = it.name,
-            key = it.key,
-            icon = it.icon,
-            color = it.color,
-            categoryType = it.type.name,
-            isDefault = it.isDefault
-          )
-        }
+        transactions.toRustTransactions(),
+        categories.toRustCategories()
       )
     if (rustResult.isNotEmpty()) return rustResult
 
@@ -366,43 +398,9 @@ object BudgetAdvisor {
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineForecastSync(
-        transactions.map {
-          io.github.mojri.hesabyar.rust.Transaction(
-            id = it.id,
-            txType =
-              RustMappers.mapTransactionType(it.type),
-            categoryId = it.categoryId,
-            amount = it.amount,
-            description = it.description,
-            personName = it.personName,
-            date = it.date,
-            dueDate = it.dueDate,
-            installmentId = it.installmentId
-          )
-        },
-        loans.map {
-          io.github.mojri.hesabyar.rust.Loan(
-            id = it.id,
-            personName = it.personName,
-            loanType = it.type.name,
-            originalAmount = it.originalAmount,
-            remainingAmount = it.remainingAmount,
-            description = it.description,
-            date = it.date,
-            isSettled = it.isSettled
-          )
-        },
-        installments.map {
-          io.github.mojri.hesabyar.rust.Installment(
-            id = it.id,
-            title = it.title,
-            amount = it.amount,
-            dueDate = it.dueDate,
-            isPaid = it.isPaid,
-            reminderEnabled = it.reminderEnabled,
-            notes = it.notes
-          )
-        }
+        transactions.toRustTransactions(),
+        loans.toRustLoans(),
+        installments.toRustInstallments()
       )
     if (rustResult.isNotEmpty()) return rustResult
 
@@ -452,29 +450,8 @@ object BudgetAdvisor {
     monthlyIncome: Long
   ): Double =
     io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
-      loans.map {
-        io.github.mojri.hesabyar.rust.Loan(
-          id = it.id,
-          personName = it.personName,
-          loanType = it.type.name,
-          originalAmount = it.originalAmount,
-          remainingAmount = it.remainingAmount,
-          description = it.description,
-          date = it.date,
-          isSettled = it.isSettled
-        )
-      },
-      installments.map {
-        io.github.mojri.hesabyar.rust.Installment(
-          id = it.id,
-          title = it.title,
-          amount = it.amount,
-          dueDate = it.dueDate,
-          isPaid = it.isPaid,
-          reminderEnabled = it.reminderEnabled,
-          notes = it.notes
-        )
-      },
+      loans.toRustLoans(),
+      installments.toRustInstallments(),
       monthlyIncome
     )
 
@@ -552,53 +529,9 @@ object BudgetAdvisor {
     categories: List<Category>
   ): Int =
     io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
-      transactions.map {
-        io.github.mojri.hesabyar.rust.Transaction(
-          id = it.id,
-          txType =
-            RustMappers.mapTransactionType(it.type),
-          categoryId = it.categoryId,
-          amount = it.amount,
-          description = it.description,
-          personName = it.personName,
-          date = it.date,
-          dueDate = it.dueDate,
-          installmentId = it.installmentId
-        )
-      },
-      loans.map {
-        io.github.mojri.hesabyar.rust.Loan(
-          id = it.id,
-          personName = it.personName,
-          loanType = it.type.name,
-          originalAmount = it.originalAmount,
-          remainingAmount = it.remainingAmount,
-          description = it.description,
-          date = it.date,
-          isSettled = it.isSettled
-        )
-      },
-      installments.map {
-        io.github.mojri.hesabyar.rust.Installment(
-          id = it.id,
-          title = it.title,
-          amount = it.amount,
-          dueDate = it.dueDate,
-          isPaid = it.isPaid,
-          reminderEnabled = it.reminderEnabled,
-          notes = it.notes
-        )
-      },
-      categories.map {
-        io.github.mojri.hesabyar.rust.Category(
-          id = it.id,
-          name = it.name,
-          key = it.key,
-          icon = it.icon,
-          color = it.color,
-          categoryType = it.type.name,
-          isDefault = it.isDefault
-        )
-      }
+      transactions.toRustTransactions(),
+      loans.toRustLoans(),
+      installments.toRustInstallments(),
+      categories.toRustCategories()
     )
 }
