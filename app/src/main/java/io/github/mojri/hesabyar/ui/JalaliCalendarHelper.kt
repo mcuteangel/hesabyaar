@@ -98,7 +98,7 @@ object JalaliCalendarHelper {
     gDay: Int
   ): JalaliDate? {
     if (gMonth < 1 || gMonth > 12) return null
-    val isLeap = (gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)
+    val isLeap = gYear % 4 == 0 && gYear % 100 != 0 || gYear % 400 == 0
     val maxDay =
       when (gMonth) {
         1, 3, 5, 7, 8, 10, 12 -> 31
@@ -238,7 +238,7 @@ object JalaliCalendarHelper {
   private val GREGORIAN_MONTH_OFFSETS = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365)
   private val JALALI_MONTH_DAYS = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
 
-  private fun isGregLeap(year: Int): Boolean = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+  private fun isGregLeap(year: Int): Boolean = year % 4 == 0 && year % 100 != 0 || year % 400 == 0
 
   /** Gregorian (year, month, day) → days since 1600-01-01, mirroring [gregorianToJalaliLocal]. */
   private fun gregorianToDayNo(
@@ -289,7 +289,7 @@ object JalaliCalendarHelper {
     jm: Int,
     jd: Int
   ): Long {
-    val j3 = (jd - 1) + (0 until jm - 1).sumOf { JALALI_MONTH_DAYS[it] }
+    val j3 = jd - 1 + (0 until jm - 1).sumOf { JALALI_MONTH_DAYS[it] }
     val base = jy - 979
     // jy - 979 = 33*jNp + 4*q1 + jyExtra, with q1 in [0,8] and jyExtra in [0,3].
     for (jNp in (base / 33 - 1)..(base / 33 + 1)) {

@@ -137,7 +137,7 @@ class GetAnalyticsUseCase {
               categoryName = cat?.name ?: "سایر",
               color = cat?.color ?: 0xFF999999,
               total = total,
-              percentage = (total * 100f / monthlyExpenseTotal)
+              percentage = total * 100f / monthlyExpenseTotal
             )
           }.sortedByDescending { it.total }
       } else {

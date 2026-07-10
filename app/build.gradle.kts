@@ -1,3 +1,5 @@
+import io.gitlab.arturbosch.detekt.Detekt
+
 val appId = "io.github.mojri.hesabyar"
 val storePwdKey = "KEYSTORE_PASSWORD"
 val keyAliasKey = "KEY_ALIAS"
@@ -136,6 +138,7 @@ plugins {
   alias(libs.plugins.secrets)
   alias(libs.plugins.ktlint)
   alias(libs.plugins.hilt)
+  alias(libs.plugins.detekt)
   jacoco
 }
 
@@ -323,6 +326,25 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+// ---------------------------------------------------------------------------
+// detekt — static analysis for Kotlin
+//
+// Configuration lives in config/detekt/detekt.yml and excludes auto-generated
+// UniFFI bindings (rust/uniffi/** and **/generated/**) so only our handwritten
+// code is linted.
+// ---------------------------------------------------------------------------
+detekt {
+  config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+  buildUponDefaultConfig = true
+  allRules = false
+  autoCorrect = false
+  ignoredBuildTypes = listOf("release")
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+  jvmTarget = "17"
 }
 
 // ---------------------------------------------------------------------------
