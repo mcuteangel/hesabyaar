@@ -1,5 +1,4 @@
 package io.github.mojri.hesabyar.ui.screens
-
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -88,6 +87,14 @@ private val CATEGORY_COLORS =
     0xFFCDDC39L,
     0xFF03A9F4L
   )
+
+private val CategoryType.displayName: String
+  get() =
+    when (this) {
+      CategoryType.EXPENSE -> "هزینه"
+      CategoryType.INCOME -> "درآمد"
+      CategoryType.BOTH -> "هر دو"
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -323,12 +330,7 @@ private fun CategoryItem(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
           )
           Text(
-            text =
-              when (category.type) {
-                CategoryType.EXPENSE -> "هزینه"
-                CategoryType.INCOME -> "درآمد"
-                else -> "هر دو"
-              },
+            text = category.type.displayName,
             style = MaterialTheme.typography.labelSmall,
             color = categoryColor,
             fontWeight = FontWeight.Medium
@@ -425,12 +427,7 @@ private fun CategoryDialog(
             onExpandedChange = { typeDropdownExpanded = it }
           ) {
             OutlinedTextField(
-              value =
-                when (selectedType) {
-                  CategoryType.EXPENSE -> "هزینه"
-                  CategoryType.INCOME -> "درآمد"
-                  else -> "هر دو"
-                },
+              value = selectedType.displayName,
               onValueChange = {},
               modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
               readOnly = true,
@@ -578,12 +575,7 @@ private fun CategoryDialog(
               fontWeight = FontWeight.Bold
             )
             Text(
-              text =
-                when (selectedType) {
-                  CategoryType.EXPENSE -> "هزینه"
-                  CategoryType.INCOME -> "درآمد"
-                  else -> "هر دو"
-                },
+              text = selectedType.displayName,
               style = MaterialTheme.typography.labelSmall,
               color = previewColor
             )

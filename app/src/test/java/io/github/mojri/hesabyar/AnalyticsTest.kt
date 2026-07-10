@@ -1,9 +1,12 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.CategoryBreakdown
 import io.github.mojri.hesabyar.ui.DebtSummary
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
@@ -12,14 +15,14 @@ import org.junit.Test
 
 class AnalyticsTest {
   private fun createTransaction(
-    type: String,
+    type: TransactionType,
     amount: Long,
     categoryId: Long = 1L,
     date: Long = System.currentTimeMillis()
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test", date = date)
 
   private fun createLoan(
-    type: String,
+    type: LoanType,
     originalAmount: Long,
     remainingAmount: Long,
     personName: String = "test",
@@ -45,7 +48,7 @@ class AnalyticsTest {
     id: Long,
     name: String,
     color: Long = 0xFF757575L
-  ): Category = Category(id = id, name = name, key = "test", icon = "Test", color = color, type = "EXPENSE")
+  ): Category = Category(id = id, name = name, key = "test", icon = "Test", color = color, type = CategoryType.EXPENSE)
 
   @Test
   fun `monthly spending grouping by jalali month`() {
@@ -55,13 +58,13 @@ class AnalyticsTest {
 
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 1_000_000, date = now),
-        createTransaction("EXPENSE", 2_000_000, date = now),
-        createTransaction("EXPENSE", 3_000_000, date = now - oneMonthMs)
+        createTransaction(TransactionType.EXPENSE, 1_000_000, date = now),
+        createTransaction(TransactionType.EXPENSE, 2_000_000, date = now),
+        createTransaction(TransactionType.EXPENSE, 3_000_000, date = now - oneMonthMs)
       )
 
     val monthlyMap = mutableMapOf<String, Long>()
-    transactions.filter { it.type == "EXPENSE" }.forEach { t ->
+    transactions.filter { it.type == TransactionType.EXPENSE }.forEach { t ->
       val jd = JalaliCalendarHelper.gregorianToJalali(t.date)
       val key = "${jd.year}_${jd.month}"
       monthlyMap[key] = (monthlyMap[key] ?: 0L) + t.amount
@@ -81,13 +84,13 @@ class AnalyticsTest {
 
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 1_000_000, categoryId = 1L),
-        createTransaction("EXPENSE", 2_000_000, categoryId = 1L),
-        createTransaction("EXPENSE", 500_000, categoryId = 2L)
+        createTransaction(TransactionType.EXPENSE, 1_000_000, categoryId = 1L),
+        createTransaction(TransactionType.EXPENSE, 2_000_000, categoryId = 1L),
+        createTransaction(TransactionType.EXPENSE, 500_000, categoryId = 2L)
       )
 
     val categoryTotals = mutableMapOf<Long, Long>()
-    transactions.filter { it.type == "EXPENSE" }.forEach { t ->
+    transactions.filter { it.type == TransactionType.EXPENSE }.forEach { t ->
       categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] ?: 0L) + t.amount
     }
 
@@ -115,17 +118,17 @@ class AnalyticsTest {
   fun `debt summary progress calculation`() {
     val loans =
       listOf(
-        createLoan("DEBTOR", 5_000_000, 3_000_000, "علی"),
-        createLoan("CREDITOR", 10_000_000, 5_000_000, "محمد")
+        createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000, "علی"),
+        createLoan(LoanType.CREDITOR, 10_000_000, 5_000_000, "محمد")
       )
 
     val debtors =
-      loans.filter { it.type == "DEBTOR" && !it.isSettled }.map { loan ->
+      loans.filter { it.type == LoanType.DEBTOR && !it.isSettled }.map { loan ->
         DebtSummary(
           personName = loan.personName,
           originalAmount = loan.originalAmount,
           remainingAmount = loan.remainingAmount,
-          type = loan.type,
+          type = loan.type.name,
           progress =
             if (loan.originalAmount > 0) {
               1f - (loan.remainingAmount.toFloat() / loan.originalAmount)
@@ -201,15 +204,15 @@ class AnalyticsTest {
   fun `total debt and credit calculation`() {
     val loans =
       listOf(
-        createLoan("DEBTOR", 5_000_000, 3_000_000, "علی"),
-        createLoan("DEBTOR", 2_000_000, 1_000_000, "حسن"),
-        createLoan("CREDITOR", 10_000_000, 5_000_000, "محمد"),
-        createLoan("CREDITOR", 3_000_000, 0L, "رضا", isSettled = true)
+        createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000, "علی"),
+        createLoan(LoanType.DEBTOR, 2_000_000, 1_000_000, "حسن"),
+        createLoan(LoanType.CREDITOR, 10_000_000, 5_000_000, "محمد"),
+        createLoan(LoanType.CREDITOR, 3_000_000, 0L, "رضا", isSettled = true)
       )
 
     val unsettledLoans = loans.filter { !it.isSettled }
-    val totalDebt = unsettledLoans.filter { it.type == "DEBTOR" }.sumOf { it.remainingAmount }
-    val totalCredit = unsettledLoans.filter { it.type == "CREDITOR" }.sumOf { it.remainingAmount }
+    val totalDebt = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
+    val totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
 
     assertEquals(4_000_000L, totalDebt) // 3M + 1M
     assertEquals(5_000_000L, totalCredit) // Only unsettled
@@ -217,7 +220,7 @@ class AnalyticsTest {
 
   @Test
   fun `loan progress percentage`() {
-    val loan = createLoan("DEBTOR", 10_000_000, 4_000_000)
+    val loan = createLoan(LoanType.DEBTOR, 10_000_000, 4_000_000)
 
     val progress =
       if (loan.originalAmount > 0) {
@@ -234,8 +237,8 @@ class AnalyticsTest {
   fun `category percentage calculation`() {
     val expenses =
       listOf(
-        createTransaction("EXPENSE", 600_000, categoryId = 1L),
-        createTransaction("EXPENSE", 400_000, categoryId = 2L)
+        createTransaction(TransactionType.EXPENSE, 600_000, categoryId = 1L),
+        createTransaction(TransactionType.EXPENSE, 400_000, categoryId = 2L)
       )
 
     val total = expenses.sumOf { it.amount }

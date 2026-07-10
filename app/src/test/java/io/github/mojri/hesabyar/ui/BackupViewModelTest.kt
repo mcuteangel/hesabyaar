@@ -198,7 +198,9 @@ class BackupViewModelTest {
       importShouldThrow?.let { throw it }
     }
 
-    override suspend fun replaceAllFromBackup(backup: BackupPayload) {}
+    override suspend fun replaceAllFromBackup(backup: BackupPayload) {
+      importShouldThrow?.let { throw it }
+    }
 
     override suspend fun mergeFromBackup(backup: BackupPayload) {}
 

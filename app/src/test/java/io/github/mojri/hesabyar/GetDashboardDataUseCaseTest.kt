@@ -2,7 +2,9 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -25,13 +27,13 @@ import org.junit.Test
  */
 class GetDashboardDataUseCaseTest {
   private fun tx(
-    type: String,
+    type: TransactionType,
     amount: Long,
     date: Long = System.currentTimeMillis()
   ) = Transaction(type = type, categoryId = 1L, amount = amount, description = "", date = date)
 
   private fun loan(
-    type: String,
+    type: LoanType,
     remaining: Long,
     settled: Boolean = false
   ) = Loan(
@@ -59,9 +61,9 @@ class GetDashboardDataUseCaseTest {
 
     val transactions =
       listOf(
-        tx("INCOME", 5_000_000, recent),
-        tx("EXPENSE", 2_000_000, recent),
-        tx("INCOME", 10_000_000, old) // should be excluded
+        tx(TransactionType.INCOME, 5_000_000, recent),
+        tx(TransactionType.EXPENSE, 2_000_000, recent),
+        tx(TransactionType.INCOME, 10_000_000, old) // should be excluded
       )
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
@@ -75,12 +77,12 @@ class GetDashboardDataUseCaseTest {
 
   @Test
   fun `fallback aggregates debtor and creditor totals from unsettled loans`() {
-    val transactions = listOf(tx("INCOME", 10_000_000))
+    val transactions = listOf(tx(TransactionType.INCOME, 10_000_000))
     val loans =
       listOf(
-        loan("DEBTOR", 3_000_000),
-        loan("CREDITOR", 7_000_000),
-        loan("DEBTOR", 1_000_000, settled = true) // settled → excluded
+        loan(LoanType.DEBTOR, 3_000_000),
+        loan(LoanType.CREDITOR, 7_000_000),
+        loan(LoanType.DEBTOR, 1_000_000, settled = true) // settled → excluded
       )
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, loans, emptyList())
@@ -104,7 +106,7 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun `fallback computes savings rate correctly`() {
     val now = System.currentTimeMillis()
-    val transactions = listOf(tx("INCOME", 10_000_000, now), tx("EXPENSE", 3_000_000, now))
+    val transactions = listOf(tx(TransactionType.INCOME, 10_000_000, now), tx(TransactionType.EXPENSE, 3_000_000, now))
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
 
@@ -115,10 +117,10 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun `fallback computes debt-to-income ratio from creditor loans`() {
     val now = System.currentTimeMillis()
-    val transactions = listOf(tx("INCOME", 12_000_000, now))
+    val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Creditor loan remaining 12M → monthly debt = 12M/12 = 1M
     // debtToIncome = 1M / 12M ≈ 0.0833
-    val loans = listOf(loan("CREDITOR", 12_000_000))
+    val loans = listOf(loan(LoanType.CREDITOR, 12_000_000))
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, loans, emptyList())
 
@@ -142,7 +144,7 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun `fallback with only expenses shows negative balance`() {
     val now = System.currentTimeMillis()
-    val transactions = listOf(tx("EXPENSE", 4_000_000, now))
+    val transactions = listOf(tx(TransactionType.EXPENSE, 4_000_000, now))
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
 
@@ -153,7 +155,7 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun `fallback with only income shows positive balance`() {
     val now = System.currentTimeMillis()
-    val transactions = listOf(tx("INCOME", 8_000_000, now))
+    val transactions = listOf(tx(TransactionType.INCOME, 8_000_000, now))
 
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
 

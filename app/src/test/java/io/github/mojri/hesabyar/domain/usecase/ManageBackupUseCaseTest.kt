@@ -1,0 +1,398 @@
+package io.github.mojri.hesabyar.domain.usecase
+
+import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
+import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ManageBackupUseCaseTest {
+  private class FakeRepository : HesabyarRepositoryInterface {
+    override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
+    override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
+    override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
+    override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+
+    override fun getTransactionsInRange(
+      start: Long,
+      end: Long
+    ): Flow<List<Transaction>> = flowOf(emptyList())
+
+    override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
+
+    override suspend fun getCategoryById(id: Long): Category? = null
+
+    override suspend fun getCategoryByKey(key: String): Category? = null
+
+    override suspend fun insertCategory(category: Category): Long = 0L
+
+    override suspend fun updateCategory(category: Category) {}
+
+    override suspend fun deleteCategory(category: Category) {}
+
+    override suspend fun insertTransaction(transaction: Transaction): Long = 0L
+
+    override suspend fun deleteTransaction(transaction: Transaction) {}
+
+    override suspend fun updateTransaction(transaction: Transaction) {}
+
+    override suspend fun insertLoan(loan: Loan): Long = 0L
+
+    override suspend fun updateLoan(loan: Loan) {}
+
+    override suspend fun deleteLoan(loan: Loan) {}
+
+    override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> = flowOf(emptyList())
+
+    override suspend fun addPaymentToLoan(
+      loanId: Long,
+      amount: Long,
+      notes: String,
+      customDate: Long?
+    ): Boolean = false
+
+    override suspend fun insertInstallment(installment: Installment): Long = 0L
+
+    override suspend fun updateInstallment(installment: Installment) {}
+
+    override suspend fun deleteInstallment(installment: Installment) {}
+
+    override suspend fun importBackup(
+      transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>,
+      paymentHistories: List<PaymentHistory>
+    ) {}
+
+    override suspend fun replaceAllFromBackup(backup: BackupPayload) {}
+
+    override suspend fun mergeFromBackup(backup: BackupPayload) {}
+
+    override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
+  }
+
+  private val useCase = ManageBackupUseCase(FakeRepository())
+
+  private fun buildBackupJson(block: JSONObject.() -> Unit): String = JSONObject().apply(block).toString()
+
+  // --- success: transactions ---
+
+  @Test
+  fun `parseBackupJson fallback parses transaction fields`() {
+    val json =
+      buildBackupJson {
+        put(
+          "transactions",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 7L)
+              put("type", "INCOME")
+              put("categoryId", 3L)
+              put("amount", 1_250_000L)
+              put("description", "salary")
+              put("personName", "Boss")
+              put("date", 1_700_000_000_000L)
+              put("dueDate", 1_800_000_000_000L)
+              put("installmentId", 5L)
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertTrue(result != null)
+    assertEquals(1, result!!.transactions.size)
+    val tx = result.transactions[0]
+    assertEquals(7L, tx.id)
+    assertEquals(TransactionType.INCOME, tx.type)
+    assertEquals(3L, tx.categoryId)
+    assertEquals(1_250_000L, tx.amount)
+    assertEquals("salary", tx.description)
+    assertEquals("Boss", tx.personName)
+    assertEquals(1_700_000_000_000L, tx.date)
+    assertEquals(1_800_000_000_000L, tx.dueDate)
+    assertEquals(5L, tx.installmentId)
+  }
+
+  @Test
+  fun `parseBackupJson fallback defaults transaction type when omitted`() {
+    val json =
+      buildBackupJson {
+        put(
+          "transactions",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 1L)
+              put("amount", 500L)
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.transactions.size)
+    assertEquals(TransactionType.EXPENSE, result.transactions[0].type)
+  }
+
+  @Test
+  fun `parseBackupJson fallback drops transaction with invalid type`() {
+    val json =
+      buildBackupJson {
+        put(
+          "transactions",
+          JSONArray().apply {
+            put(
+              JSONObject().apply {
+                put("id", 1L)
+                put("type", "BOGUS")
+                put("amount", 500L)
+              }
+            )
+            put(
+              JSONObject().apply {
+                put("id", 2L)
+                put("type", "INCOME")
+                put("amount", 800L)
+              }
+            )
+          }
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.transactions.size)
+    assertEquals(2L, result.transactions[0].id)
+  }
+
+  // --- success: loans ---
+
+  @Test
+  fun `parseBackupJson fallback parses loan fields`() {
+    val json =
+      buildBackupJson {
+        put(
+          "loans",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 11L)
+              put("personName", "Reza")
+              put("type", "CREDITOR")
+              put("originalAmount", 5_000_000L)
+              put("remainingAmount", 2_000_000L)
+              put("description", "lent")
+              put("date", 1_600_000_000_000L)
+              put("isSettled", true)
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.loans.size)
+    val loan = result.loans[0]
+    assertEquals(11L, loan.id)
+    assertEquals("Reza", loan.personName)
+    assertEquals(LoanType.CREDITOR, loan.type)
+    assertEquals(5_000_000L, loan.originalAmount)
+    assertEquals(2_000_000L, loan.remainingAmount)
+    assertEquals(true, loan.isSettled)
+  }
+
+  // --- success: installments ---
+
+  @Test
+  fun `parseBackupJson fallback parses installment fields`() {
+    val json =
+      buildBackupJson {
+        put(
+          "installments",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 21L)
+              put("title", "Car")
+              put("amount", 900_000L)
+              put("dueDate", 1_500_000_000_000L)
+              put("isPaid", true)
+              put("reminderEnabled", false)
+              put("notes", "n")
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.installments.size)
+    val inst = result.installments[0]
+    assertEquals(21L, inst.id)
+    assertEquals("Car", inst.title)
+    assertEquals(900_000L, inst.amount)
+    assertEquals(true, inst.isPaid)
+    assertEquals(false, inst.reminderEnabled)
+  }
+
+  // --- success: categories ---
+
+  @Test
+  fun `parseBackupJson fallback parses category fields`() {
+    val json =
+      buildBackupJson {
+        put(
+          "categories",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 31L)
+              put("name", "Food")
+              put("key", "food")
+              put("icon", "ic_food")
+              put("color", 0xFF0000L)
+              put("type", "EXPENSE")
+              put("isDefault", true)
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.categories.size)
+    val cat = result.categories[0]
+    assertEquals(31L, cat.id)
+    assertEquals("Food", cat.name)
+    assertEquals(CategoryType.EXPENSE, cat.type)
+    assertEquals(true, cat.isDefault)
+  }
+
+  // --- success: paymentHistories ---
+
+  @Test
+  fun `parseBackupJson fallback parses paymentHistories`() {
+    val json =
+      buildBackupJson {
+        put(
+          "paymentHistories",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 41L)
+              put("loanId", 11L)
+              put("amount", 100_000L)
+              put("date", 1_400_000_000_000L)
+              put("notes", "partial")
+            }
+          )
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(1, result!!.paymentHistories.size)
+    val ph = result.paymentHistories[0]
+    assertEquals(41L, ph.id)
+    assertEquals(11L, ph.loanId)
+    assertEquals(100_000L, ph.amount)
+  }
+
+  // --- success: settings ---
+
+  @Test
+  fun `parseBackupJson fallback parses settings darkMode false`() {
+    val json =
+      buildBackupJson {
+        put(
+          "settings",
+          JSONObject().apply {
+            put("darkMode", false)
+          }
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(false, result!!.settings.darkMode)
+  }
+
+  @Test
+  fun `parseBackupJson fallback defaults settings when missing`() {
+    val result = useCase.parseBackupJson(buildBackupJson {})
+    assertEquals(true, result!!.settings.darkMode)
+  }
+
+  // --- success: top-level metadata + defaults ---
+
+  @Test
+  fun `parseBackupJson fallback uses explicit version and appVersion`() {
+    val json =
+      buildBackupJson {
+        put("version", 3)
+        put("appVersion", "2.4")
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertEquals(3, result!!.version)
+    assertEquals("2.4", result.appVersion)
+  }
+
+  @Test
+  fun `parseBackupJson fallback returns defaults for empty object`() {
+    val result = useCase.parseBackupJson(buildBackupJson {})
+    assertTrue(result != null)
+    assertEquals(1, result!!.version)
+    assertEquals("1.0", result.appVersion)
+    assertTrue(result.transactions.isEmpty())
+    assertTrue(result.loans.isEmpty())
+    assertTrue(result.installments.isEmpty())
+    assertTrue(result.categories.isEmpty())
+    assertTrue(result.paymentHistories.isEmpty())
+    assertTrue(result.timestamp > 0)
+  }
+
+  // --- failure paths ---
+
+  @Test
+  fun `parseBackupJson fallback returns null on malformed JSON`() {
+    val result = useCase.parseBackupJson("this is not json {{{")
+    assertNull(result)
+  }
+
+  @Test
+  fun `parseBackupJson fallback returns null on non-object JSON`() {
+    val result = useCase.parseBackupJson("[1,2,3]")
+    assertNull(result)
+  }
+
+  @Test
+  fun `parseBackupJson fallback returns null on invalid paymentHistories item`() {
+    // An entry that is not a JSON object makes parsePaymentHistories throw,
+    // which the outer try/catch converts to a null payload.
+    val json =
+      buildBackupJson {
+        put(
+          "paymentHistories",
+          JSONArray().put(JSONObject.NULL)
+        )
+      }
+
+    val result = useCase.parseBackupJson(json)
+    assertNull(result)
+  }
+
+  @Test
+  fun `parseBackupJson fallback tolerates missing arrays`() {
+    val result = useCase.parseBackupJson(buildBackupJson {})
+    assertTrue(result!!.transactions.isEmpty())
+    assertTrue(result.loans.isEmpty())
+    assertTrue(result.installments.isEmpty())
+    assertTrue(result.categories.isEmpty())
+    assertFalse(result.toString().isEmpty())
+  }
+}

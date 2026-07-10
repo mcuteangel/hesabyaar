@@ -55,20 +55,23 @@ object CurrencyFormatter {
 
   /** Format number only (no unit) — for components that show their own label. */
   fun formatNumber(value: Long): String =
-    formatWithSign(value) {
+    formatWithSign(value, formatAbs = {
       io.github.mojri.hesabyar.rust.RustBridge
         .formatNumberSync(it)
-    }
+    })
 
   fun format(rial: Long): String =
-    formatWithSign(rial) {
+    formatWithSign(rial, formatAbs = {
       io.github.mojri.hesabyar.rust.RustBridge
         .formatCurrencySync(it, toRustUnit())
+    }) {
+      currencyFallback(it)
     }
 
   private fun formatWithSign(
     value: Long,
-    formatAbs: (Long) -> String
+    formatAbs: (Long) -> String,
+    fallback: (Long) -> String = { kotlinFallback(it) }
   ): String {
     val isNegative = value < 0
     val absValue = if (isNegative) -value else value
@@ -77,7 +80,7 @@ object CurrencyFormatter {
       if (rustResult.isNotEmpty()) {
         toPersianDigits(rustResult)
       } else {
-        kotlinFallback(absValue)
+        fallback(absValue)
       }
     return if (isNegative) "-$formatted" else formatted
   }
@@ -85,6 +88,11 @@ object CurrencyFormatter {
   private fun kotlinFallback(value: Long): String {
     val western = "%,d".format(value)
     return toPersianDigits(western)
+  }
+
+  private fun currencyFallback(rial: Long): String {
+    val display = if (currentUnit == CurrencyUnit.TOMAN) rial / 10 else rial
+    return "${toPersianDigits("%,d".format(display))} ${currentUnit.label}"
   }
 
   /**

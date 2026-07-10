@@ -91,7 +91,7 @@ pub fn get_offline_forecast(
     let thirty_days_ms = 30 * 24 * 60 * 60 * 1000;
     let upcoming_installments: Vec<&Installment> = installments
         .iter()
-        .filter(|i| !i.is_paid && i.due_date >= now_ms && i.due_date <= now_ms + thirty_days_ms)
+        .filter(|i| !i.is_paid && i.due_date <= now_ms + thirty_days_ms)
         .collect();
     let upcoming_sum: i64 = upcoming_installments.iter().map(|i| i.amount).sum();
 
@@ -467,6 +467,27 @@ mod tests {
         let result = get_offline_forecast(&[], &[], &installments);
         // Has unpaid installments → not empty, shows forecast
         assert!(result.contains("\u{062A}\u{0639}\u{0647}\u{062F}"));
+    }
+
+    #[test]
+    fn test_forecast_excludes_installments_beyond_30_days() {
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let installments = vec![Installment {
+            id: 1,
+            title: "car".into(),
+            amount: 5_000_000,
+            due_date: now + 60 * 24 * 60 * 60 * 1000,
+            is_paid: false,
+            reminder_enabled: false,
+            notes: String::new(),
+        }];
+        let result = get_offline_forecast(&txs, &[], &installments);
+        // Due 60 days out is outside the 30-day window → must NOT contribute to obligations.
+        assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
     }
 
     // -- calculate_financial_health_score tests -----------------------------------

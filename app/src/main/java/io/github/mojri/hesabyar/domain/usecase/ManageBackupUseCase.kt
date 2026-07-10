@@ -187,8 +187,10 @@ class ManageBackupUseCase(
 
   private fun parsePaymentHistories(rootJson: JSONObject?): List<PaymentHistory> {
     val arr = rootJson?.optJSONArray("paymentHistories") ?: return emptyList()
-    return (0 until arr.length()).mapNotNull { i ->
-      val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+    return (0 until arr.length()).map { i ->
+      val obj =
+        arr.optJSONObject(i)
+          ?: throw IllegalArgumentException("Invalid paymentHistories item at index $i")
       PaymentHistory(
         id = obj.optLong("id", 0L),
         loanId = obj.optLong("loanId", 0L),

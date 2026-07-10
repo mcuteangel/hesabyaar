@@ -220,7 +220,7 @@ object GeminiParser {
     return kotlinFallbackParse(rawSentence)
   }
 
-  private fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
+  internal fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
     val normalized = normalizePersianDigits(rawSentence)
     val amount = extractAmount(normalized) ?: return null
     if (amount <= 0L) return null
@@ -264,15 +264,15 @@ object GeminiParser {
 
     millionPattern.find(text)?.let { m ->
       val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
-      return num * 1_000_000
+      return num * 1_000_000 * 10
     }
     hazarPattern.find(text)?.let { m ->
       val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
-      return num * 1_000
+      return num * 1_000 * 10
     }
     plainPattern.find(text)?.let { m ->
       val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
-      return num
+      return num * 10
     }
     return null
   }
@@ -289,10 +289,10 @@ object GeminiParser {
     }
     if (text.contains("قسط")) return TYPE_INSTALLMENT
     if (text.contains(KEYWORD_CREDITOR) || text.contains("طلب دارم") || text.contains("قرض دادم")) {
-      return TYPE_LOAN_DEBTOR
+      return TYPE_LOAN_CREDITOR
     }
     if (text.contains(KEYWORD_DEBTOR) || text.contains("قرض گرفتم") || text.contains("وام")) {
-      return TYPE_LOAN_CREDITOR
+      return TYPE_LOAN_DEBTOR
     }
     return TYPE_EXPENSE
   }

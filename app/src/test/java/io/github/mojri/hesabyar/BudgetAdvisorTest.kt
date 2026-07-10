@@ -2,22 +2,25 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BudgetAdvisorTest {
   private fun createTransaction(
-    type: String,
+    type: TransactionType,
     amount: Long,
     categoryId: Long = 1L
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
   private fun createLoan(
-    type: String,
+    type: LoanType,
     originalAmount: Long,
     remainingAmount: Long,
     personName: String = "test"
@@ -40,7 +43,8 @@ class BudgetAdvisorTest {
     id: Long,
     name: String,
     key: String = "test"
-  ): Category = Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
+  ): Category =
+    Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = CategoryType.EXPENSE)
 
   @Test
   fun `getOfflineAdvice - empty transactions`() {
@@ -52,8 +56,8 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - high spending ratio warns`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 9_500_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 9_500_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
@@ -65,8 +69,8 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - low spending ratio congratulates`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 2_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 2_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(result.contains("عملکرد") || result.contains("فوق‌العاده") || result.contains("۸۰٪"))
@@ -76,8 +80,8 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - balanced ratio`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 6_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 6_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
@@ -94,9 +98,9 @@ class BudgetAdvisorTest {
       )
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000, 1L),
-        createTransaction("EXPENSE", 1_000_000, 2L)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000, 1L),
+        createTransaction(TransactionType.EXPENSE, 1_000_000, 2L)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, categories)
     assertTrue(result.contains("خوراک"))
@@ -106,8 +110,8 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - contains financial advice`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(result.contains("بودجه") || result.contains("پس‌انداز") || result.contains("هزینه"))
@@ -117,8 +121,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - mentions active installments`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val installments =
       listOf(
@@ -140,8 +144,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - negative balance warns`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 5_000_000),
-        createTransaction("EXPENSE", 6_000_000)
+        createTransaction(TransactionType.INCOME, 5_000_000),
+        createTransaction(TransactionType.EXPENSE, 6_000_000)
       )
     val installments =
       listOf(
@@ -155,8 +159,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - positive balance stable`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000)
       )
     val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), emptyList())
     assertTrue(result.contains("پایدار") || result.contains("سبز") || result.contains("مازاد"))
@@ -166,8 +170,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - mentions installment amounts`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000)
       )
     val installments =
       listOf(
@@ -199,7 +203,7 @@ class BudgetAdvisorTest {
   fun `no income - expense only gives correct ratio`() {
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(

@@ -16,32 +16,12 @@ import kotlinx.coroutines.withContext
 object RustBridge {
   private const val TAG = "RustBridge"
 
-  @Volatile
-  private var selfInitialized = false
-
   private val available: Boolean
-    get() {
-      if (HesabyarApp.isRustInitialized()) return true
-      if (selfInitialized) return true
-      return trySelfInit()
-    }
+    get() = HesabyarApp.ensureRustInitialized()
 
   /** Public view of [available] so callers can decide whether a local
    *  validation result reflects a real check or merely an uninitialized engine. */
   val isAvailable: Boolean get() = available
-
-  private fun trySelfInit(): Boolean {
-    synchronized(this) {
-      if (selfInitialized) return true
-      return try {
-        HesabyarCore.initialize()
-        selfInitialized = true
-        true
-      } catch (_: Throwable) {
-        false
-      }
-    }
-  }
 
   private suspend fun <T> rustCall(
     fallback: T,
@@ -254,12 +234,8 @@ object RustBridge {
 
   suspend fun validateBackup(payload: BackupPayload) {
     if (!available) return
-    try {
-      withContext(Dispatchers.Default) {
-        HesabyarCore.validateBackup(payload)
-      }
-    } catch (_: Throwable) {
-      // Native failure — degrade silently
+    withContext(Dispatchers.Default) {
+      HesabyarCore.validateBackup(payload)
     }
   }
 

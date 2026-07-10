@@ -170,10 +170,10 @@ class ExcelExporter {
   }
 
   private fun generateFilename(): String {
+    val cal = Calendar.getInstance()
     val jalali =
       io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-        .gregorianToJalali(System.currentTimeMillis())
-    val cal = Calendar.getInstance()
+        .gregorianToJalali(cal.timeInMillis)
     val h = cal.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
     val min = cal.get(Calendar.MINUTE).toString().padStart(2, '0')
     val s = cal.get(Calendar.SECOND).toString().padStart(2, '0')

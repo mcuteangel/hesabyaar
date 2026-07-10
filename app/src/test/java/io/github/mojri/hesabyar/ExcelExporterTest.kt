@@ -1,7 +1,9 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -167,14 +169,21 @@ class ExcelExporterTest {
   fun `category lookup returns name`() {
     val categories =
       listOf(
-        Category(id = 1L, name = "خوراک", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE"),
+        Category(
+          id = 1L,
+          name = "خوراک",
+          key = "Food",
+          icon = "Restaurant",
+          color = 0xFF4CAF50L,
+          type = CategoryType.EXPENSE
+        ),
         Category(
           id = 2L,
           name = "حمل و نقل",
           key = "Transportation",
           icon = "Car",
           color = 0xFFFF9800L,
-          type = "EXPENSE"
+          type = CategoryType.EXPENSE
         )
       )
     val map = categories.associateBy { it.id }
@@ -186,7 +195,14 @@ class ExcelExporterTest {
   fun `missing category returns default name`() {
     val categories =
       listOf(
-        Category(id = 1L, name = "خوراک", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
+        Category(
+          id = 1L,
+          name = "خوراک",
+          key = "Food",
+          icon = "Restaurant",
+          color = 0xFF4CAF50L,
+          type = CategoryType.EXPENSE
+        )
       )
     val map = categories.associateBy { it.id }
     val name = map[999L]?.name ?: "سایر"
@@ -197,13 +213,13 @@ class ExcelExporterTest {
   fun `income and expense filtering`() {
     val transactions =
       listOf(
-        Transaction(type = "INCOME", categoryId = 1L, amount = 5_000_000L, description = "salary"),
-        Transaction(type = "EXPENSE", categoryId = 2L, amount = 1_000_000L, description = "food"),
-        Transaction(type = "INCOME", categoryId = 1L, amount = 3_000_000L, description = "bonus"),
-        Transaction(type = "EXPENSE", categoryId = 3L, amount = 500_000L, description = "taxi")
+        Transaction(type = TransactionType.INCOME, categoryId = 1L, amount = 5_000_000L, description = "salary"),
+        Transaction(type = TransactionType.EXPENSE, categoryId = 2L, amount = 1_000_000L, description = "food"),
+        Transaction(type = TransactionType.INCOME, categoryId = 1L, amount = 3_000_000L, description = "bonus"),
+        Transaction(type = TransactionType.EXPENSE, categoryId = 3L, amount = 500_000L, description = "taxi")
       )
-    val income = transactions.filter { it.type == "INCOME" }
-    val expense = transactions.filter { it.type == "EXPENSE" }
+    val income = transactions.filter { it.type == TransactionType.INCOME }
+    val expense = transactions.filter { it.type == TransactionType.EXPENSE }
     assertEquals(2, income.size)
     assertEquals(2, expense.size)
     assertEquals(8_000_000L, income.sumOf { it.amount })
@@ -235,8 +251,8 @@ class ExcelExporterTest {
   fun `summary row calculation for income sheet`() {
     val transactions =
       listOf(
-        Transaction(type = "INCOME", categoryId = 1L, amount = 5_000_000L, description = "s1"),
-        Transaction(type = "INCOME", categoryId = 1L, amount = 3_000_000L, description = "s2")
+        Transaction(type = TransactionType.INCOME, categoryId = 1L, amount = 5_000_000L, description = "s1"),
+        Transaction(type = TransactionType.INCOME, categoryId = 1L, amount = 3_000_000L, description = "s2")
       )
     val total = transactions.sumOf { it.amount }
     assertEquals(8_000_000L, total)
@@ -246,9 +262,9 @@ class ExcelExporterTest {
   fun `summary row calculation for expense sheet`() {
     val transactions =
       listOf(
-        Transaction(type = "EXPENSE", categoryId = 1L, amount = 1_000_000L, description = "e1"),
-        Transaction(type = "EXPENSE", categoryId = 2L, amount = 500_000L, description = "e2"),
-        Transaction(type = "EXPENSE", categoryId = 3L, amount = 200_000L, description = "e3")
+        Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 1_000_000L, description = "e1"),
+        Transaction(type = TransactionType.EXPENSE, categoryId = 2L, amount = 500_000L, description = "e2"),
+        Transaction(type = TransactionType.EXPENSE, categoryId = 3L, amount = 200_000L, description = "e3")
       )
     val total = transactions.sumOf { it.amount }
     assertEquals(1_700_000L, total)

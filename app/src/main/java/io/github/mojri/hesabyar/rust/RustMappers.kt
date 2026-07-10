@@ -190,10 +190,16 @@ object RustMappers {
   // Reverse mappers: Rust → Kotlin domain types
   // ===========================================================================
 
+  private fun toKotlinTransactionType(rustName: String): TransactionType =
+    when (rustName) {
+      "INCOME", "LOAN_CREDITOR" -> TransactionType.INCOME
+      else -> TransactionType.EXPENSE
+    }
+
   fun fromRustTransaction(tx: io.github.mojri.hesabyar.rust.Transaction): Transaction =
     Transaction(
       id = tx.id,
-      type = TransactionType.valueOf(tx.txType.name),
+      type = toKotlinTransactionType(tx.txType.name),
       categoryId = tx.categoryId,
       amount = tx.amount,
       description = tx.description,
