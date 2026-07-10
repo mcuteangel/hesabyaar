@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -39,7 +40,7 @@ object RustBridge : JalaliNativeBridge {
     if (!available) return fallback
     return try {
       block()
-    } catch (_: Throwable) {
+    } catch (_: Exception) {
       fallback
     }
   }
@@ -130,7 +131,8 @@ object RustBridge : JalaliNativeBridge {
     }
     return try {
       withContext(Dispatchers.Default) { HesabyarCore.validateAiAdvice(text) }
-    } catch (_: Throwable) {
+    } catch (e: Exception) {
+      if (e is CancellationException) throw e
       AdviceValidation(
         isValid = false,
         sanitizedText = text,

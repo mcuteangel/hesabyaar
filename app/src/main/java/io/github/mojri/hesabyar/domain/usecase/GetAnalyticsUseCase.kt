@@ -83,13 +83,16 @@ class GetAnalyticsUseCase {
     val monthLabel =
       if (jalaliDate.month in 1..12) jalaliMonthNames[jalaliDate.month - 1] else ""
 
+    val monthlyIncomeTotal = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val monthlyExpenseTotal = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
     val monthlySpending =
       io.github.mojri.hesabyar.ui.MonthlyData(
         jalaliYear = jalaliDate.year,
         jalaliMonth = jalaliDate.month,
         label = monthLabel,
-        income = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-        expense = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        income = monthlyIncomeTotal,
+        expense = monthlyExpenseTotal
       )
 
     val unsettledLoans = loans.filter { !it.isSettled }
@@ -119,18 +122,18 @@ class GetAnalyticsUseCase {
         jalaliYear = jalaliDate.year,
         jalaliMonth = jalaliDate.month,
         label = monthLabel,
-        income = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+        income = monthlyIncomeTotal,
         expense = 0L
       )
 
-    val monthlyExpenseTotal = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val categoryBreakdown =
       if (monthlyExpenseTotal > 0) {
+        val catById = categories.associateBy { it.id }
         monthlyTx
           .filter { it.type == TransactionType.EXPENSE }
           .groupBy { it.categoryId }
           .map { (catId, txs) ->
-            val cat = categories.find { it.id == catId }
+            val cat = catById[catId]
             val total = txs.sumOf { it.amount }
             io.github.mojri.hesabyar.ui.CategoryBreakdown(
               categoryId = catId,
