@@ -26,6 +26,11 @@ jobs:
       HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
 
     steps:
+      - name: Clean corrupted mimocode submodule config
+        run: |
+          git -C ~/.local/share/mimocode/skills/gh-pr-triage config --remove-section submodule.* || true
+        continue-on-error: true
+
       - name: Checkout
         uses: actions/checkout@v4.2.2
         with:
