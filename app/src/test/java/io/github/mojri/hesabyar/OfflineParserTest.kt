@@ -146,7 +146,9 @@ class OfflineParserTest {
     val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
+    @Suppress("UnnecessaryParentheses")
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
+    @Suppress("UnnecessaryParentheses")
     assertTrue("daysFromNow should be less than 365", (result.daysFromNow ?: 0) < 365)
   }
 
@@ -155,6 +157,7 @@ class OfflineParserTest {
     val result = parse("قسط خانه 15 مرداد 5 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
+    @Suppress("UnnecessaryParentheses")
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
   }
 
@@ -170,6 +173,7 @@ class OfflineParserTest {
     val result = parse("قسط ماشین ۲۰ مهر ۸ میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
+    @Suppress("UnnecessaryParentheses")
     assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
   }
 

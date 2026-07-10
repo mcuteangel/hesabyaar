@@ -12,6 +12,14 @@ style:
       - '**/rust/uniffi/**'
       - '**/generated/**'
       - '**/rust/hesabyar_core.kt'
+  UtilityClassWithPublicConstructor:
+    excludes:
+      - '**/test/**'
+
+empty-blocks:
+  EmptyFunctionBlock:
+    excludes:
+      - '**/test/**'
 
 complexity:
   CyclomaticComplexMethod:

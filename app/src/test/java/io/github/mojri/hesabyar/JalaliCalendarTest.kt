@@ -194,5 +194,7 @@ class JalaliCalendarTest {
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 0, 15))
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 13, 15))
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2023, 2, 29))
+    assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 2, 30))
+    assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 4, 31))
   }
 }

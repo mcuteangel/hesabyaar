@@ -13,7 +13,7 @@ class ExcelExporterTest {
     val sb = StringBuilder()
     var i = index
     while (i >= 0) {
-      sb.append('A' + (i % 26))
+      sb.append('A' + i % 26)
       i = i / 26 - 1
     }
     return sb.reverse().toString()

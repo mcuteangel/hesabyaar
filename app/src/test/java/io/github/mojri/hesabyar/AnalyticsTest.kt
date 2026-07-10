@@ -131,7 +131,7 @@ class AnalyticsTest {
           type = loan.type.name,
           progress =
             if (loan.originalAmount > 0) {
-              1f - (loan.remainingAmount.toFloat() / loan.originalAmount)
+              1f - loan.remainingAmount.toFloat() / loan.originalAmount
             } else {
               0f
             }
@@ -224,7 +224,7 @@ class AnalyticsTest {
 
     val progress =
       if (loan.originalAmount > 0) {
-        1f - (loan.remainingAmount.toFloat() / loan.originalAmount)
+        1f - loan.remainingAmount.toFloat() / loan.originalAmount
       } else {
         0f
       }

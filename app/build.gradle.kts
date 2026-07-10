@@ -336,7 +336,6 @@ dependencies {
 // code is linted.
 // ---------------------------------------------------------------------------
 detekt {
-  source.setFrom(files("src/main/java", "src/main/kotlin"))
   config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
   baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
   buildUponDefaultConfig = true

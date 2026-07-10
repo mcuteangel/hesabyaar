@@ -104,7 +104,7 @@ class AiConfigTest {
     val entry =
       ModelCacheEntry(
         models = listOf("model1"),
-        fetchedAt = System.currentTimeMillis() - (25 * 60 * 60 * 1000L)
+        fetchedAt = System.currentTimeMillis() - 25 * 60 * 60 * 1000L
       )
     assertTrue(entry.isExpired)
   }
@@ -124,7 +124,7 @@ class AiConfigTest {
     val entry =
       ModelCacheEntry(
         models = listOf("model1"),
-        fetchedAt = System.currentTimeMillis() - (23 * 60 * 60 * 1000L)
+        fetchedAt = System.currentTimeMillis() - 23 * 60 * 60 * 1000L
       )
     assertFalse(entry.isExpired)
   }

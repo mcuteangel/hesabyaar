@@ -109,7 +109,7 @@ class ThemeTest {
       )
     for (i in 0 until lightLevels.size - 1) {
       assertTrue(
-        "Light surface container level $i luminance ${lightLevels[i]} should be >= level ${i + 1} ${lightLevels[i + 1]}",
+        "Light level $i lum ${lightLevels[i]} should be >= level ${i + 1} ${lightLevels[i + 1]}",
         lightLevels[i] >= lightLevels[i + 1]
       )
     }

@@ -198,14 +198,14 @@ class AiCacheTest {
 
   @Test
   fun `format last fetch time - recent time returns minutes ago`() {
-    val fiveMinutesAgo = System.currentTimeMillis() - (5 * 60 * 1000) - 1000
+    val fiveMinutesAgo = System.currentTimeMillis() - 5 * 60 * 1000 - 1000
     val result = formatLastFetchTime(fiveMinutesAgo)
     assertTrue("Expected 'دقیقه پیش' but got: $result", result.contains("دقیقه پیش"))
   }
 
   @Test
   fun `format last fetch time - one minute returns singular`() {
-    val oneMinuteAgo = System.currentTimeMillis() - (60 * 1000) - 1000
+    val oneMinuteAgo = System.currentTimeMillis() - 60 * 1000 - 1000
     val result = formatLastFetchTime(oneMinuteAgo)
     assertEquals("۱ دقیقه پیش", result)
   }
@@ -219,14 +219,14 @@ class AiCacheTest {
 
   @Test
   fun `format last fetch time - hours ago`() {
-    val twoHoursAgo = System.currentTimeMillis() - (2 * 60 * 60 * 1000) - 1000
+    val twoHoursAgo = System.currentTimeMillis() - 2 * 60 * 60 * 1000 - 1000
     val result = formatLastFetchTime(twoHoursAgo)
     assertTrue("Expected 'ساعت پیش' but got: $result", result.contains("ساعت پیش"))
   }
 
   @Test
   fun `format last fetch time - one hour returns singular`() {
-    val oneHourAgo = System.currentTimeMillis() - (60 * 60 * 1000) - 1000
+    val oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000 - 1000
     val result = formatLastFetchTime(oneHourAgo)
     assertEquals("۱ ساعت پیش", result)
   }
