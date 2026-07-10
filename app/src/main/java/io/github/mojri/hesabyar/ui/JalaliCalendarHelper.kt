@@ -109,10 +109,11 @@ object JalaliCalendarHelper {
     // bridge sees them, so the Rust path would otherwise accept inputs the
     // pure-Kotlin fallback rejects. Validating first keeps both paths
     // consistent: invalid dates throw here regardless of Rust availability.
-    val local = gregorianToJalaliLocal(gYear, gMonth, gDay)
-      ?: throw IllegalStateException(
-        "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
-      )
+    val local =
+      gregorianToJalaliLocal(gYear, gMonth, gDay)
+        ?: throw IllegalStateException(
+          "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
+        )
 
     // Encode the Gregorian Y/M/D as a UTC-midnight timestamp so the
     // Rust core (which interprets timestamps in UTC) returns the Jalali date
