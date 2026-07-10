@@ -336,6 +336,7 @@ dependencies {
 // code is linted.
 // ---------------------------------------------------------------------------
 detekt {
+  source.setFrom(files("src/main/java", "src/main/kotlin"))
   config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
   baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
   buildUponDefaultConfig = true
@@ -355,9 +356,11 @@ ktlint {
 
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
   jvmTarget = "17"
+  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
 }
 tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
   jvmTarget = "17"
+  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
 }
 
 // ---------------------------------------------------------------------------
