@@ -344,6 +344,15 @@ detekt {
   ignoredBuildTypes = listOf("release")
 }
 
+// ktlint must not inspect auto-generated UniFFI bindings, only our handwritten
+// code. The generateAndFixBindings task installs bindings into the rust package,
+// and generateRustBindings emits into a generated/ subdirectory.
+ktlint {
+  filter {
+    exclude("**/rust/**", "**/generated/**")
+  }
+}
+
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
   jvmTarget = "17"
 }
