@@ -294,7 +294,7 @@ object JalaliCalendarHelper {
     // jy - 979 = 33*jNp + 4*q1 + jyExtra, with q1 in [0,8] and jyExtra in [0,3].
     for (jNp in (base / 33 - 1)..(base / 33 + 1)) {
       val rem = base - 33 * jNp
-      if (rem < 0 || rem > 35) continue
+      if (rem < 0 || rem > 32) continue
       for (jyExtra in 0..3) {
         if ((rem - jyExtra) % 4 != 0) continue
         val q1 = (rem - jyExtra) / 4
