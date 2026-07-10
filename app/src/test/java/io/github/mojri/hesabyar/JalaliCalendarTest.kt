@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
@@ -61,11 +62,7 @@ class JalaliCalendarTest {
         "jalaliToGregorian returned null for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
         gc
       )
-      assertTrue(
-        "jalaliToGregorian should return non-zero for $gYear/$gMonth/$gDay (Jalali: ${jd.year}/${jd.month}/${jd.day})",
-        gc!!.timeInMillis != 0L
-      )
-      assertEquals("Year mismatch for $gYear/$gMonth/$gDay", gYear, gc.get(Calendar.YEAR))
+      assertEquals("Year mismatch for $gYear/$gMonth/$gDay", gYear, gc!!.get(Calendar.YEAR))
       assertEquals("Month mismatch for $gYear/$gMonth/$gDay", gMonth - 1, gc.get(Calendar.MONTH))
       assertEquals("Day mismatch for $gYear/$gMonth/$gDay", gDay, gc.get(Calendar.DAY_OF_MONTH))
     }
@@ -183,11 +180,11 @@ class JalaliCalendarTest {
         Triple(2024, 4, 31),
       )
     for ((gYear, gMonth, gDay) in invalid) {
-      try {
+      assertThrows(
+        "Expected IllegalStateException for invalid date $gYear/$gMonth/$gDay",
+        IllegalStateException::class.java,
+      ) {
         JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
-        org.junit.Assert.fail("Expected IllegalStateException for invalid date $gYear/$gMonth/$gDay")
-      } catch (e: IllegalStateException) {
-        // expected
       }
     }
   }
