@@ -1,4 +1,4 @@
-import io.gitlab.arturbosch.detekt.Detekt
+import dev.detekt.gradle.Detekt
 
 val appId = "io.github.mojri.hesabyar"
 val storePwdKey = "KEYSTORE_PASSWORD"
@@ -354,11 +354,11 @@ ktlint {
   }
 }
 
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
   jvmTarget = "17"
   exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
 }
-tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
+tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach {
   jvmTarget = "17"
   exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
 }

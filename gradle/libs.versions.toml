@@ -41,7 +41,7 @@ hilt = "2.60"
 hiltNavigationCompose = "1.2.0"
 sqlcipher = "4.6.1"
   biometric = "1.4.0-alpha07"
-  detekt = "1.23.8"
+  detekt = "2.0.0-alpha.5"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -108,4 +108,4 @@ roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
   hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-  detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+  detekt = { id = "dev.detekt", version.ref = "detekt" }
