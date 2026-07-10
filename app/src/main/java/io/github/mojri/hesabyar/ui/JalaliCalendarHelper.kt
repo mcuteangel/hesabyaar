@@ -47,6 +47,59 @@ object JalaliCalendarHelper {
     return JalaliDate(year, month, day)
   }
 
+  /**
+   * Pure-Kotlin Gregorian→Jalali conversion, mirroring the Rust core
+   * (calendar.rs: gregorian_to_jalali_date). Used when the Rust bridge is
+   * unavailable so callers stay functional. Returns null for invalid input.
+   */
+  internal fun gregorianToJalaliLocal(
+    gYear: Int,
+    gMonth: Int,
+    gDay: Int
+  ): JalaliDate? {
+    if (gMonth < 1 || gMonth > 12) return null
+    val maxDay =
+      when (gMonth) {
+        1, 3, 5, 7, 8, 10, 12 -> 31
+        4, 6, 9, 11 -> 30
+        2 ->
+          if ((gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)) 29 else 28
+        else -> return null
+      }
+    if (gDay < 1 || gDay > maxDay) return null
+
+    val gMonthDayOffsets = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0)
+    val jMonthDays = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
+
+    val gy = gYear - 1600
+    val gm = gMonth - 1
+    val gd = gDay - 1
+    val isLeap = (gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)
+
+    var gDayNo = 365 * gy + (gy + 3) / 4 - (gy + 99) / 100 + (gy + 399) / 400
+    gDayNo += gMonthDayOffsets[gm]
+    if (gm > 1 && isLeap) gDayNo += 1
+    gDayNo += gd
+
+    var jDayNo = gDayNo - 79
+    val jNp = jDayNo / 12053
+    jDayNo %= 12053
+    var jy = 979 + 33 * jNp + 4 * (jDayNo / 1461)
+    jDayNo %= 1461
+    if (jDayNo >= 366) {
+      jy += (jDayNo - 1) / 365
+      jDayNo = (jDayNo - 1) % 365
+    }
+
+    var i = 0
+    while (i < 11 && jDayNo >= jMonthDays[i]) {
+      jDayNo -= jMonthDays[i]
+      i++
+    }
+
+    return JalaliDate(jy, i + 1, jDayNo + 1)
+  }
+
   fun gregorianToJalali(
     gYear: Int,
     gMonth: Int,
@@ -58,12 +111,15 @@ object JalaliCalendarHelper {
     // bridge directly to avoid recursing back into the timestamp overload.
     val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
     utcCal.set(gYear, gMonth - 1, gDay)
-    return unpackJalaliDate(
-      io.github.mojri.hesabyar.rust.RustBridge
-        .gregorianToJalaliSync(utcCal.timeInMillis)
-    ) ?: throw IllegalStateException(
-      "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: Rust bridge returned invalid result"
-    )
+    val fromRust =
+      unpackJalaliDate(
+        io.github.mojri.hesabyar.rust.RustBridge
+          .gregorianToJalaliSync(utcCal.timeInMillis)
+      )
+    return fromRust ?: gregorianToJalaliLocal(gYear, gMonth, gDay)
+      ?: throw IllegalStateException(
+        "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
+      )
   }
 
   fun jalaliToGregorian(

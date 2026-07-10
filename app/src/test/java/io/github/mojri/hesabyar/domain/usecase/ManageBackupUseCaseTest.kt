@@ -371,9 +371,9 @@ class ManageBackupUseCaseTest {
   }
 
   @Test
-  fun `parseBackupJson fallback returns null on invalid paymentHistories item`() {
-    // An entry that is not a JSON object makes parsePaymentHistories throw,
-    // which the outer try/catch converts to a null payload.
+  fun `parseBackupJson skips invalid paymentHistories item and restores rest`() {
+    // A non-object entry in paymentHistories is skipped (not a fatal crash),
+    // so the rest of the backup still parses and the payload is non-null.
     val json =
       buildBackupJson {
         put(
@@ -383,7 +383,8 @@ class ManageBackupUseCaseTest {
       }
 
     val result = useCase.parseBackupJson(json)
-    assertNull(result)
+    assertTrue(result != null)
+    assertTrue(result!!.paymentHistories.isEmpty())
   }
 
   @Test

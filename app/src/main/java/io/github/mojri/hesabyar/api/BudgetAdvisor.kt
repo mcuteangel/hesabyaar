@@ -162,61 +162,6 @@ object BudgetAdvisor {
 
   private fun formatAmountClean(amount: Long): String = CurrencyFormatter.format(amount)
 
-  private fun List<Transaction>.toRustTransactions(): List<io.github.mojri.hesabyar.rust.Transaction> =
-    map {
-      io.github.mojri.hesabyar.rust.Transaction(
-        id = it.id,
-        txType = RustMappers.mapTransactionType(it.type),
-        categoryId = it.categoryId,
-        amount = it.amount,
-        description = it.description,
-        personName = it.personName,
-        date = it.date,
-        dueDate = it.dueDate,
-        installmentId = it.installmentId
-      )
-    }
-
-  private fun List<Loan>.toRustLoans(): List<io.github.mojri.hesabyar.rust.Loan> =
-    map {
-      io.github.mojri.hesabyar.rust.Loan(
-        id = it.id,
-        personName = it.personName,
-        loanType = it.type.name,
-        originalAmount = it.originalAmount,
-        remainingAmount = it.remainingAmount,
-        description = it.description,
-        date = it.date,
-        isSettled = it.isSettled
-      )
-    }
-
-  private fun List<Installment>.toRustInstallments(): List<io.github.mojri.hesabyar.rust.Installment> =
-    map {
-      io.github.mojri.hesabyar.rust.Installment(
-        id = it.id,
-        title = it.title,
-        amount = it.amount,
-        dueDate = it.dueDate,
-        isPaid = it.isPaid,
-        reminderEnabled = it.reminderEnabled,
-        notes = it.notes
-      )
-    }
-
-  private fun List<Category>.toRustCategories(): List<io.github.mojri.hesabyar.rust.Category> =
-    map {
-      io.github.mojri.hesabyar.rust.Category(
-        id = it.id,
-        name = it.name,
-        key = it.key,
-        icon = it.icon,
-        color = it.color,
-        categoryType = it.type.name,
-        isDefault = it.isDefault
-      )
-    }
-
   // High quality local rules budget advisor for offline mode
   fun getOfflineAdvice(
     transactions: List<Transaction>,
@@ -224,8 +169,10 @@ object BudgetAdvisor {
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineBudgetAdviceSync(
-        transactions.toRustTransactions(),
-        categories.toRustCategories()
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapCategories(categories)
       )
     if (rustResult.isNotEmpty()) return rustResult
 
@@ -398,9 +345,12 @@ object BudgetAdvisor {
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineForecastSync(
-        transactions.toRustTransactions(),
-        loans.toRustLoans(),
-        installments.toRustInstallments()
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments)
       )
     if (rustResult.isNotEmpty()) return rustResult
 
@@ -450,8 +400,10 @@ object BudgetAdvisor {
     monthlyIncome: Long
   ): Double =
     io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
-      loans.toRustLoans(),
-      installments.toRustInstallments(),
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapLoans(loans),
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapInstallments(installments),
       monthlyIncome
     )
 
@@ -529,9 +481,13 @@ object BudgetAdvisor {
     categories: List<Category>
   ): Int =
     io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
-      transactions.toRustTransactions(),
-      loans.toRustLoans(),
-      installments.toRustInstallments(),
-      categories.toRustCategories()
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapTransactions(transactions),
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapLoans(loans),
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapInstallments(installments),
+      io.github.mojri.hesabyar.rust.RustMappers
+        .mapCategories(categories)
     )
 }

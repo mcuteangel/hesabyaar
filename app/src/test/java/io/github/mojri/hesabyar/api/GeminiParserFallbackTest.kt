@@ -56,17 +56,24 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `fallback detects loan creditor via قرض دادم`() {
+  fun `fallback does not mistake فروشگاه for sale income`() {
+    val result = parse("فروشگاه رفتم 200 هزار")
+    assertEquals("EXPENSE", result!!.type)
+    assertEquals("Shopping", result.category)
+  }
+
+  @Test
+  fun `fallback detects loan debtor via قرض دادم`() {
     val result = parse("به علی 5 میلیون قرض دادم")
-    assertEquals("LOAN_CREDITOR", result!!.type)
+    assertEquals("LOAN_DEBTOR", result!!.type)
     assertEquals("Loans", result.category)
     assertEquals("علی", result.personName)
   }
 
   @Test
-  fun `fallback detects loan debtor via قرض گرفتم`() {
+  fun `fallback detects loan creditor via قرض گرفتم`() {
     val result = parse("از رضا 2 میلیون قرض گرفتم")
-    assertEquals("LOAN_DEBTOR", result!!.type)
+    assertEquals("LOAN_CREDITOR", result!!.type)
     assertEquals("Loans", result.category)
     assertEquals("رضا", result.personName)
   }

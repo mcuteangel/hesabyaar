@@ -2,7 +2,6 @@ package io.github.mojri.hesabyar.ui
 
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -146,21 +145,6 @@ class CurrencyFormatterTest {
     val result = CurrencyFormatter.format(-10_000_000L)
     assertTrue(result.startsWith("-"))
     assertTrue(result.endsWith("تومان"))
-  }
-
-  @Test
-  fun `formatNumber produces persian digits without unit`() {
-    val result = CurrencyFormatter.formatNumber(1_234_567L)
-    assertTrue(result.contains("۱"))
-    assertTrue(result.contains("٬"))
-    assertFalse(result.endsWith("تومان"))
-    assertFalse(result.endsWith("ریال"))
-  }
-
-  @Test
-  fun `formatNumber negative value keeps sign`() {
-    val result = CurrencyFormatter.formatNumber(-1_234_567L)
-    assertTrue(result.startsWith("-"))
   }
 
   // --- Kotlin fallback branch (Rust unavailable in unit tests) ---

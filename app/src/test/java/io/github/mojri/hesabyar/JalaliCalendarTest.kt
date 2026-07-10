@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
@@ -146,5 +147,33 @@ class JalaliCalendarTest {
   fun `JalaliDate toString zero-pads month and day`() {
     val date = JalaliCalendarHelper.JalaliDate(1403, 3, 9)
     assertEquals("1403/03/09", date.toString())
+  }
+
+  @Test
+  fun `gregorianToJalaliLocal matches known conversions (Rust fallback)`() {
+    // Pure-Kotlin fallback must agree with the Rust core when it is offline.
+    val cases =
+      listOf(
+        Triple(2024, 3, 20) to Triple(1403, 1, 1),
+        Triple(2024, 9, 22) to Triple(1403, 7, 1),
+        Triple(2025, 3, 20) to Triple(1403, 12, 30),
+        Triple(2024, 2, 29) to Triple(1402, 12, 10),
+        Triple(2020, 3, 21) to Triple(1399, 1, 2),
+        Triple(2023, 7, 1) to Triple(1402, 4, 10),
+      )
+    for ((g, expected) in cases) {
+      val jd = JalaliCalendarHelper.gregorianToJalaliLocal(g.first, g.second, g.third)
+      assertNotNull("Local fallback returned null for ${g.first}/${g.second}/${g.third}", jd)
+      assertEquals("Year mismatch for ${g.first}/${g.second}/${g.third}", expected.first, jd!!.year)
+      assertEquals("Month mismatch for ${g.first}/${g.second}/${g.third}", expected.second, jd.month)
+      assertEquals("Day mismatch for ${g.first}/${g.second}/${g.third}", expected.third, jd.day)
+    }
+  }
+
+  @Test
+  fun `gregorianToJalaliLocal returns null for invalid date`() {
+    assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 0, 15))
+    assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 13, 15))
+    assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2023, 2, 29))
   }
 }

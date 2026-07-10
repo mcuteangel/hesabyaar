@@ -61,7 +61,7 @@ object RustBridge {
     year: Int,
     month: Int,
     day: Int
-  ): Long = rustCallSync(0L) { HesabyarCore.jalaliToGregorian(year, month, day) }
+  ): Long = rustCallSync(Long.MIN_VALUE) { HesabyarCore.jalaliToGregorian(year, month, day) }
 
   fun getJalaliDaysInMonthSync(
     year: Int,

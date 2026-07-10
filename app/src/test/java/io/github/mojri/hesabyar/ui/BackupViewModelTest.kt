@@ -62,7 +62,7 @@ class BackupViewModelTest {
             "version": 1,
             "timestamp": 1710000000000,
             "appVersion": "1.0",
-            "transactions": [{"id": 0, "type": "Expense", "categoryId": 1, "amount": 1000, "description": "test", "date": 1710000000000}],
+            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 1000, "description": "test", "date": 1710000000000}],
             "loans": [],
             "installments": [],
             "categories": []
@@ -122,7 +122,7 @@ class BackupViewModelTest {
             "version": 1,
             "timestamp": 1710000000000,
             "appVersion": "1.0",
-            "transactions": [{"id": 0, "type": "Expense", "categoryId": 1, "amount": 500, "description": "dup", "date": 1710000000000}],
+            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 500, "description": "dup", "date": 1710000000000}],
             "loans": [],
             "installments": [],
             "categories": []

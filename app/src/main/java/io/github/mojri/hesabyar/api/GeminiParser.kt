@@ -281,7 +281,7 @@ object GeminiParser {
     if (text.contains(KEYWORD_OT) ||
       text.contains("حقوق") ||
       text.contains("درآمد") ||
-      text.contains("فروش") ||
+      (text.contains("فروش") && !text.contains("فروشگاه")) ||
       text.contains("واریز") ||
       text.contains("سود")
     ) {
@@ -289,10 +289,10 @@ object GeminiParser {
     }
     if (text.contains("قسط")) return TYPE_INSTALLMENT
     if (text.contains(KEYWORD_CREDITOR) || text.contains("طلب دارم") || text.contains("قرض دادم")) {
-      return TYPE_LOAN_CREDITOR
+      return TYPE_LOAN_DEBTOR
     }
     if (text.contains(KEYWORD_DEBTOR) || text.contains("قرض گرفتم") || text.contains("وام")) {
-      return TYPE_LOAN_DEBTOR
+      return TYPE_LOAN_CREDITOR
     }
     return TYPE_EXPENSE
   }

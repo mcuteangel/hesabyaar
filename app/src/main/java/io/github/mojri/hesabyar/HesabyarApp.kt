@@ -39,6 +39,9 @@ class HesabyarApp : Application() {
         } catch (e: InternalException) {
           Log.e(TAG, "Failed to initialize Rust core", e)
           false
+        } catch (e: RuntimeException) {
+          Log.e(TAG, "Unexpected failure initializing Rust core", e)
+          false
         }
       }
     }
