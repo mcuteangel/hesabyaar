@@ -20,7 +20,7 @@ jobs:
           distribution: "temurin"
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@3b3071828a1cc309b4372e008b8b0e79be96f6e5
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v4

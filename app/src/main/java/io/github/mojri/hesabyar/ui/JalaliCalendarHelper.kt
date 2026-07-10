@@ -58,13 +58,13 @@ object JalaliCalendarHelper {
     gDay: Int
   ): JalaliDate? {
     if (gMonth < 1 || gMonth > 12) return null
+    val isLeap = (gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)
     val maxDay =
       when (gMonth) {
         1, 3, 5, 7, 8, 10, 12 -> 31
         4, 6, 9, 11 -> 30
-        2 ->
-          if ((gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)) 29 else 28
-        else -> return null
+        2 -> if (isLeap) 29 else 28
+        else -> 31
       }
     if (gDay < 1 || gDay > maxDay) return null
 
@@ -74,7 +74,6 @@ object JalaliCalendarHelper {
     val gy = gYear - 1600
     val gm = gMonth - 1
     val gd = gDay - 1
-    val isLeap = (gYear % 4 == 0 && gYear % 100 != 0) || (gYear % 400 == 0)
 
     var gDayNo = 365 * gy + (gy + 3) / 4 - (gy + 99) / 100 + (gy + 399) / 400
     gDayNo += gMonthDayOffsets[gm]
@@ -105,21 +104,33 @@ object JalaliCalendarHelper {
     gMonth: Int,
     gDay: Int
   ): JalaliDate {
+    // Validate the Gregorian input up front. Calendar.set() below silently
+    // normalizes invalid dates (e.g. 2024-02-30 -> 2024-03-01) before the Rust
+    // bridge sees them, so the Rust path would otherwise accept inputs the
+    // pure-Kotlin fallback rejects. Validating first keeps both paths
+    // consistent: invalid dates throw here regardless of Rust availability.
+    val local = gregorianToJalaliLocal(gYear, gMonth, gDay)
+      ?: throw IllegalStateException(
+        "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
+      )
+
     // Encode the Gregorian Y/M/D as a UTC-midnight timestamp so the
     // Rust core (which interprets timestamps in UTC) returns the Jalali date
     // that corresponds to this *local* calendar day. This calls the Rust
     // bridge directly to avoid recursing back into the timestamp overload.
     val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
     utcCal.set(gYear, gMonth - 1, gDay)
+    utcCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    utcCal.set(java.util.Calendar.MINUTE, 0)
+    utcCal.set(java.util.Calendar.SECOND, 0)
+    utcCal.set(java.util.Calendar.MILLISECOND, 0)
     val fromRust =
       unpackJalaliDate(
         io.github.mojri.hesabyar.rust.RustBridge
           .gregorianToJalaliSync(utcCal.timeInMillis)
       )
-    return fromRust ?: gregorianToJalaliLocal(gYear, gMonth, gDay)
-      ?: throw IllegalStateException(
-        "Failed to convert Gregorian date ($gYear-$gMonth-$gDay) to Jalali: invalid date"
-      )
+    // Prefer Rust result; fall back to the already-validated local conversion.
+    return fromRust ?: local
   }
 
   fun jalaliToGregorian(

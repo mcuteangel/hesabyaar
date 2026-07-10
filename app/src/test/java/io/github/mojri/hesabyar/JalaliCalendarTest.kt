@@ -171,6 +171,28 @@ class JalaliCalendarTest {
   }
 
   @Test
+  fun `gregorianToJalali rejects invalid date when Rust available`() {
+    // Calendar.set() normalizes invalid dates, so the Rust path must still
+    // reject them (not silently accept the normalized date).
+    val invalid =
+      listOf(
+        Triple(2024, 2, 30),
+        Triple(2023, 2, 29),
+        Triple(2024, 0, 15),
+        Triple(2024, 13, 15),
+        Triple(2024, 4, 31),
+      )
+    for ((gYear, gMonth, gDay) in invalid) {
+      try {
+        JalaliCalendarHelper.gregorianToJalali(gYear, gMonth, gDay)
+        org.junit.Assert.fail("Expected IllegalStateException for invalid date $gYear/$gMonth/$gDay")
+      } catch (e: IllegalStateException) {
+        // expected
+      }
+    }
+  }
+
+  @Test
   fun `gregorianToJalaliLocal returns null for invalid date`() {
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 0, 15))
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 13, 15))
