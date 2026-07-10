@@ -1,0 +1,31 @@
+# detekt configuration for Hesabyar
+#
+# Handwritten Kotlin is linted; auto-generated UniFFI bindings are excluded so
+# detekt findings from generated code (e.g. rust/uniffi/** and **/generated/**)
+# are suppressed. Generated files are still kept in the type-resolution context
+# via per-rule `excludes` (rule-set level) so they remain available to resolve
+# types referenced by handwritten code.
+
+build:
+  maxIssues: 0
+  excludes:
+    - '**/rust/uniffi/**'
+    - '**/generated/**'
+    - '**/rust/hesabyar_core.kt'
+  weights: {}
+
+style:
+  UnnecessaryParentheses:
+    active: true
+    excludes:
+      - '**/rust/uniffi/**'
+      - '**/generated/**'
+      - '**/rust/hesabyar_core.kt'
+
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    excludes:
+      - '**/rust/uniffi/**'
+      - '**/generated/**'
+      - '**/rust/hesabyar_core.kt'

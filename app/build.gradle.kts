@@ -337,6 +337,7 @@ dependencies {
 // ---------------------------------------------------------------------------
 detekt {
   config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+  baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
   buildUponDefaultConfig = true
   allRules = false
   autoCorrect = false
@@ -344,6 +345,9 @@ detekt {
 }
 
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+  jvmTarget = "17"
+}
+tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
   jvmTarget = "17"
 }
 
