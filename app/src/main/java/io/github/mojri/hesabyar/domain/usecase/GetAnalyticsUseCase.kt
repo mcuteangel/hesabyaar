@@ -153,6 +153,7 @@ class GetAnalyticsUseCase {
       categoryBreakdown = categoryBreakdown,
       debtors = debtors,
       creditors = creditors,
+      activeLoans = unsettledLoans,
       totalDebt = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount },
       totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount },
       totalInstallments = installments.size,

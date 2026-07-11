@@ -30,34 +30,39 @@ class ManageBackupUseCase(
         io.github.mojri.hesabyar.rust.RustBridge
           .parseBackupJsonSync(jsonString)
       if (rustResult != null) {
-        val rootJson = parseRawJson(jsonString)
-        BackupPayload(
-          version = rustResult.version,
-          timestamp = rustResult.timestamp,
-          appVersion = rustResult.appVersion,
-          transactions =
-            rustResult.transactions.map {
-              io.github.mojri.hesabyar.rust.RustMappers
-                .fromRustTransaction(it)
-            },
-          loans =
-            rustResult.loans.map {
-              io.github.mojri.hesabyar.rust.RustMappers
-                .fromRustLoan(it)
-            },
-          installments =
-            rustResult.installments.map {
-              io.github.mojri.hesabyar.rust.RustMappers
-                .fromRustInstallment(it)
-            },
-          paymentHistories = parsePaymentHistories(rootJson),
-          categories =
-            rustResult.categories.map {
-              io.github.mojri.hesabyar.rust.RustMappers
-                .fromRustCategory(it)
-            },
-          settings = parseSettings(rootJson)
-        )
+        try {
+          val rootJson = parseRawJson(jsonString)
+          BackupPayload(
+            version = rustResult.version,
+            timestamp = rustResult.timestamp,
+            appVersion = rustResult.appVersion,
+            transactions =
+              rustResult.transactions.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustTransaction(it)
+              },
+            loans =
+              rustResult.loans.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustLoan(it)
+              },
+            installments =
+              rustResult.installments.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustInstallment(it)
+              },
+            paymentHistories = parsePaymentHistories(rootJson),
+            categories =
+              rustResult.categories.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustCategory(it)
+              },
+            settings = parseSettings(rootJson)
+          )
+        } catch (_: IllegalArgumentException) {
+          // Malformed/outdated enum strings — fall back to Kotlin-only parsing
+          parseBackupJsonKotlin(jsonString)
+        }
       } else {
         // Rust unavailable — fall back to Kotlin-only JSON parsing
         parseBackupJsonKotlin(jsonString)
@@ -213,16 +218,48 @@ class ManageBackupUseCase(
 
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
     withContext(dispatcher) {
-      val rustResult =
-        io.github.mojri.hesabyar.rust.RustBridge
-          .validateBackupPayloadSync(backup.toRustPayload())
+      if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+        val rustResult =
+          io.github.mojri.hesabyar.rust.RustBridge
+            .validateBackupPayloadSync(backup.toRustPayload())
 
-      if (rustResult.isValid) {
-        BackupValidationResult.Valid
+        if (rustResult.isValid) {
+          BackupValidationResult.Valid
+        } else {
+          BackupValidationResult.Invalid(rustResult.errors)
+        }
       } else {
-        BackupValidationResult.Invalid(rustResult.errors)
+        // Rust unavailable — fall back to local Kotlin validation
+        validateBackupKotlin(backup)
       }
     }
+
+  private fun validateBackupKotlin(backup: BackupPayload): BackupValidationResult {
+    val errors = mutableListOf<String>()
+
+    if (backup.version <= 0) errors.add("نسخه پشتیبان نامعتبر است")
+    if (backup.appVersion.isBlank()) errors.add("نسخه برنامه پشتیبان نامعتبر است")
+    if (backup.timestamp <= 0) errors.add("زمان تهیه پشتیبان نامعتبر است")
+
+    backup.transactions.forEachIndexed { i, t ->
+      if (t.amount < 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
+      if (t.date < 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
+    }
+    backup.loans.forEachIndexed { i, l ->
+      if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
+      if (l.originalAmount < 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
+    }
+    backup.installments.forEachIndexed { i, it ->
+      if (it.amount < 0) errors.add("مبلغ قسط #$i نامعتبر است")
+      if (it.dueDate < 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+    }
+
+    return if (errors.isEmpty()) {
+      BackupValidationResult.Valid
+    } else {
+      BackupValidationResult.Invalid(errors)
+    }
+  }
 
   suspend fun executeRestore(
     backup: BackupPayload,
