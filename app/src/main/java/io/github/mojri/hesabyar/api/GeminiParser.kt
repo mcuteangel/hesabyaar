@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONException
@@ -31,6 +32,35 @@ object GeminiParser {
   private const val TYPE_INSTALLMENT = "INSTALLMENT"
   private const val KEY_DAYS_FROM_NOW = "daysFromNow"
   private const val KEYWORD_ICE_CREAM = "بستنی"
+
+  private const val DAY_MS = 24L * 60L * 60L * 1000L
+
+  private data class TransactionTotals(
+    val income: Long = 0L,
+    val expense: Long = 0L,
+    val categoryTotals: Map<Long, Long> = emptyMap()
+  )
+
+  /**
+   * Single-pass aggregation of [transactions] into total income, total expense, and a
+   * categoryId→expenseAmount map. Shared by the online and offline advice paths so the
+   * aggregation logic stays defined in one place.
+   */
+  private fun calculateTransactionTotals(transactions: List<Transaction>): TransactionTotals {
+    val cats = mutableMapOf<Long, Long>()
+    val (income, expense) =
+      transactions.fold(0L to 0L) { (inc, exp), t ->
+        when (t.type) {
+          TransactionType.INCOME -> (inc + t.amount) to exp
+          TransactionType.EXPENSE -> {
+            cats[t.categoryId] = (cats[t.categoryId] ?: 0L) + t.amount
+            inc to (exp + t.amount)
+          }
+          else -> inc to exp
+        }
+      }
+    return TransactionTotals(income, expense, cats)
+  }
 
   private const val CATEGORY_FOOD = "Food"
   private const val CATEGORY_TRANSPORTATION = "Transportation"
@@ -345,14 +375,63 @@ object GeminiParser {
     return null
   }
 
-  private fun detectDateOffset(text: String): Int =
-    when {
+  private fun detectDateOffset(text: String): Int {
+    detectExplicitJalaliOffset(text)?.let { return it }
+    return when {
       text.contains("دیروز") -> -1
       text.contains("پریروز") -> -2
       text.contains("پس‌فردا") || text.contains("پسفردا") -> 2
       text.contains("فردا") -> 1
       else -> 0
     }
+  }
+
+  /**
+   * Parses an explicit Jalali date mention like "۲۵ تیر" or "تیر ۵" and returns the offset in days
+   * from today (same-year assumption, mirroring the AI prompt's date math). Returns null when no
+   * Jalali date is found so callers fall back to relative-word detection.
+   */
+  private fun detectExplicitJalaliOffset(text: String): Int? {
+    val normalized = normalizePersianDigits(text)
+    val monthByName =
+      mapOf(
+        "فروردین" to 1,
+        "اردیبهشت" to 2,
+        "خرداد" to 3,
+        "تیر" to 4,
+        "مرداد" to 5,
+        "شهریور" to 6,
+        "مهر" to 7,
+        "آبان" to 8,
+        "آذر" to 9,
+        "دی" to 10,
+        "بهمن" to 11,
+        "اسفند" to 12
+      )
+    for ((name, month) in monthByName) {
+      val day =
+        ("""(?<![\d])(\d{1,2})\s*$name""")
+          .toRegex()
+          .find(normalized)
+          ?.groupValues
+          ?.getOrNull(1)
+          ?: ("""(?<![\d])$name\s*(\d{1,2})(?![\d])""")
+            .toRegex()
+            .find(normalized)
+            ?.groupValues
+            ?.getOrNull(1)
+          ?: continue
+      val dayNum = day.toIntOrNull() ?: continue
+      if (dayNum !in 1..31) continue
+      val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+      val todayCal =
+        JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day) ?: return null
+      val targetCal =
+        JalaliCalendarHelper.jalaliToGregorian(today.year, month, dayNum) ?: return null
+      return ((targetCal.timeInMillis - todayCal.timeInMillis) / DAY_MS).toInt()
+    }
+    return null
+  }
 
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
@@ -374,15 +453,11 @@ object GeminiParser {
         return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
       }
 
-      val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-      val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+      val totals = calculateTransactionTotals(transactions)
+      val incomeTotal = totals.income
+      val expenseTotal = totals.expense
+      val categoryTotals = totals.categoryTotals
       val balance = incomeTotal - expenseTotal
-
-      val categoryTotals =
-        transactions
-          .filter { it.type == TransactionType.EXPENSE }
-          .groupBy { it.categoryId }
-          .mapValues { entry -> entry.value.sumOf { it.amount } }
 
       val activeLoans = loans.filter { !it.isSettled }
       val activeInstallments = installments.filter { !it.isPaid }
@@ -481,8 +556,10 @@ object GeminiParser {
     installments: List<Installment>,
     categories: List<Category>
   ): String {
-    val incomeTotal = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-    val expenseTotal = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val totals = calculateTransactionTotals(transactions)
+    val incomeTotal = totals.income
+    val expenseTotal = totals.expense
+    val categoryTotals = totals.categoryTotals
     val balance = incomeTotal - expenseTotal
 
     val sb = StringBuilder()
@@ -529,12 +606,6 @@ object GeminiParser {
     }
 
     // 2. High spending category detection
-    val categoryTotals =
-      transactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .groupBy { it.categoryId }
-        .mapValues { it.value.sumOf { trans -> trans.amount } }
-
     val worstCategoryId = categoryTotals.maxByOrNull { it.value }?.key
     val worstCategory = categories.find { it.id == worstCategoryId }
     if (worstCategory != null && expenseTotal > 0) {

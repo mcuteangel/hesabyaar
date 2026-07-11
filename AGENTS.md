@@ -24,7 +24,7 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ./gradlew lint
 ```
 
-**No CI/CD is configured.** No GitHub Actions workflows exist.
+
 
 ## Environment Setup
 

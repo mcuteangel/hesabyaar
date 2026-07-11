@@ -24,7 +24,6 @@ class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface,
   private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-
   suspend fun parseBackupJson(jsonString: String): BackupPayload? =
     withContext(dispatcher) {
       val rustResult =

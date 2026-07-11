@@ -1,7 +1,9 @@
 package io.github.mojri.hesabyar.api
 
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -142,6 +144,34 @@ class GeminiParserFallbackTest {
   fun `fallback defaults offset to zero`() {
     val result = parse("غذا خریدم 100 هزار")
     assertEquals(0, result!!.dateOffsetDays)
+  }
+
+  @Test
+  fun `fallback parses explicit Jalali date to day offset`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    val futureMonth = if (today.month == 12) 1 else today.month + 1
+    val pastMonth = if (today.month == 1) 12 else today.month - 1
+
+    val future = parse("خرج ۱۰۰ هزار ${monthName[futureMonth]} ۵")
+    assertTrue(future!!.dateOffsetDays!! > 0)
+
+    val past = parse("خرج ۱۰۰ هزار ${monthName[pastMonth]} ۵")
+    assertTrue(past!!.dateOffsetDays!! < 0)
   }
 
   // --- success: fixed fallback metadata ---
