@@ -35,6 +35,8 @@ object GeminiParser {
 
   private const val DAY_MS = 24L * 60L * 60L * 1000L
 
+  private const val TOMAN_TO_RIAL = 10L
+
   private data class TransactionTotals(
     val income: Long = 0L,
     val expense: Long = 0L,
@@ -190,6 +192,7 @@ object GeminiParser {
       val type = json.optString("type", TransactionType.EXPENSE.name)
       val amount = json.optLong("amount", 0L)
       if (amount <= 0L) return null
+      val amountRial = amount * TOMAN_TO_RIAL
       val category = json.optString("category", CATEGORY_OTHER)
       val personName = json.optString("personName").takeIf { it.isNotEmpty() }
       val description = json.optString("description").takeIf { it.isNotEmpty() } ?: ""
@@ -212,7 +215,7 @@ object GeminiParser {
 
       ParsedResult(
         type = if (type in VALID_TYPES) type else TransactionType.EXPENSE.name,
-        amount = amount,
+        amount = amountRial,
         category = category,
         personName = personName,
         description = description,

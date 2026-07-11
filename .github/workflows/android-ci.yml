@@ -27,7 +27,8 @@ jobs:
 
       - name: Install cargo-ndk
         # Required by :app:assembleRust to cross-compile the Android .so files.
-        run: cargo install cargo-ndk
+        # Pin a tested version and use --locked for reproducible installs.
+        run: cargo install cargo-ndk --version 3.5.2 --locked
 
       - name: Set up Android NDK
         run: sdkmanager "ndk;27.0.12077973"

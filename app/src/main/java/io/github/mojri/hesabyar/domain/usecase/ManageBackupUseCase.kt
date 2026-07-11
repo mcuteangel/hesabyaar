@@ -241,23 +241,44 @@ class ManageBackupUseCase(
     if (backup.appVersion.isBlank()) errors.add("نسخه برنامه پشتیبان نامعتبر است")
     if (backup.timestamp <= 0) errors.add("زمان تهیه پشتیبان نامعتبر است")
 
-    backup.transactions.forEachIndexed { i, t ->
-      if (t.amount < 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
-      if (t.date < 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
-    }
-    backup.loans.forEachIndexed { i, l ->
-      if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
-      if (l.originalAmount < 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
-    }
-    backup.installments.forEachIndexed { i, it ->
-      if (it.amount < 0) errors.add("مبلغ قسط #$i نامعتبر است")
-      if (it.dueDate < 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
-    }
+    validateBackupTransactions(backup.transactions, errors)
+    validateBackupLoans(backup.loans, errors)
+    validateBackupInstallments(backup.installments, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid
     } else {
       BackupValidationResult.Invalid(errors)
+    }
+  }
+
+  private fun validateBackupTransactions(
+    transactions: List<Transaction>,
+    errors: MutableList<String>
+  ) {
+    transactions.forEachIndexed { i, t ->
+      if (t.amount < 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
+      if (t.date < 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupLoans(
+    loans: List<Loan>,
+    errors: MutableList<String>
+  ) {
+    loans.forEachIndexed { i, l ->
+      if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
+      if (l.originalAmount < 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupInstallments(
+    installments: List<Installment>,
+    errors: MutableList<String>
+  ) {
+    installments.forEachIndexed { i, it ->
+      if (it.amount < 0) errors.add("مبلغ قسط #$i نامعتبر است")
+      if (it.dueDate < 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
     }
   }
 
