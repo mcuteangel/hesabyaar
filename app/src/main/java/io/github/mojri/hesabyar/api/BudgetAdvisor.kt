@@ -189,16 +189,7 @@ object BudgetAdvisor {
       return "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا تحلیل بودجه انجام شود."
     }
     val summary = summarizeTransactions(transactions)
-    val categoriesGroup =
-      transactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .groupBy { it.categoryId }
-        .mapValues { it.value.sumOf { tx -> tx.amount } }
-    val categoryReport =
-      categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
-        val cat = categories.find { it.id == catId }
-        "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
-      }
+    val categoryReport = buildCategoryReport(transactions, categories)
 
     val sb = StringBuilder()
     sb.appendLine("### 📊 تحلیل بودجه محلی (آفلاین)")
@@ -215,7 +206,7 @@ object BudgetAdvisor {
     when {
       summary.expense > summary.income ->
         sb.appendLine("🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود.")
-      summary.income > 0 && summary.balance.toDouble() / summary.income.toDouble() > 0.2 ->
+      summary.income > 0 && summary.balance > summary.income / 5 ->
         sb.appendLine("✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود.")
       else ->
         sb.appendLine("⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید.")
@@ -256,16 +247,7 @@ object BudgetAdvisor {
       val upcomingInstallments = installments.filter { !it.isPaid }
       val totalUpcomingAmount = upcomingInstallments.sumOf { it.amount }
 
-      val categoryReport =
-        transactions
-          .filter { it.type == TransactionType.EXPENSE }
-          .groupBy { it.categoryId }
-          .mapValues { it.value.sumOf { tx -> tx.amount } }
-          .entries
-          .joinToString("\n") { (catId, sum) ->
-            val cat = categories.find { it.id == catId }
-            "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
-          }
+      val categoryReport = buildCategoryReport(transactions, categories)
 
       val installmentListPrompt =
         upcomingInstallments.take(15).joinToString("\n") { inst ->
