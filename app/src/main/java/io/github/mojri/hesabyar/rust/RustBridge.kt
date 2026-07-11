@@ -9,8 +9,15 @@ import kotlinx.coroutines.withContext
 /**
  * Kotlin wrapper around the Rust shared core (hesabyar-core).
  *
- * All Rust FFI calls are dispatched on [Dispatchers.Default] to avoid blocking the main thread.
- * If the Rust library failed to load, every function returns a safe fallback.
+ * Not all bridge operations are asynchronous. Async APIs are dispatched on
+ * [Dispatchers.Default] (via [rustCall]) to avoid blocking the main thread, while
+ * the many synchronous APIs run directly on the caller's thread (via [rustCallSync])
+ * with no coroutine hop. If the Rust library failed to load, every function returns
+ * a safe fallback.
+ *
+ * Maintainers: inspect whether you are calling a `suspend`/async variant or a
+ * synchronous `*Sync` variant, and handle threading appropriately — synchronous
+ * calls can block the calling thread (e.g. the main thread) if invoked from UI code.
  *
  * Naming convention: functions mirror the Rust API 1:1.
  * Generated UniFFI bindings live under [HesabyarCore].
@@ -68,10 +75,14 @@ object RustBridge : JalaliNativeBridge {
     day: Int
   ): Long = rustCallSync(Long.MIN_VALUE) { HesabyarCore.jalaliToGregorian(year, month, day) }
 
+  // Returns the native month length, or -1 if the Rust core is unavailable or
+  // the call fails. -1 is an explicit failure sentinel (valid Jalali months are
+  // always >= 29); callers must fall back to local calendar logic instead of
+  // treating it as a real length.
   override fun getJalaliDaysInMonthSync(
     year: Int,
     month: Int
-  ): Int = rustCallSync(30) { HesabyarCore.getJalaliDaysInMonth(year, month) }
+  ): Int = rustCallSync(-1) { HesabyarCore.getJalaliDaysInMonth(year, month) }
 
   override fun isJalaliLeapYearSync(year: Int): Boolean = rustCallSync(false) { HesabyarCore.isJalaliLeapYear(year) }
 
@@ -240,8 +251,14 @@ object RustBridge : JalaliNativeBridge {
 
   suspend fun validateBackup(payload: BackupPayload) {
     if (!available) return
-    withContext(Dispatchers.Default) {
-      HesabyarCore.validateBackup(payload)
+    try {
+      withContext(Dispatchers.Default) {
+        HesabyarCore.validateBackup(payload)
+      }
+    } catch (e: Exception) {
+      // Swallow non-cancellation failures so a Rust/FFI error doesn't break the
+      // calling coroutine. A failed validation simply means "not validated".
+      if (e is CancellationException) throw e
     }
   }
 

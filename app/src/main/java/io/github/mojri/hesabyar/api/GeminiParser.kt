@@ -534,7 +534,7 @@ object GeminiParser {
           val validation =
             io.github.mojri.hesabyar.rust.RustBridge
               .validateAiAdvice(result.text)
-          if (!validation.isValid) {
+          if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
             AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
             return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
           }

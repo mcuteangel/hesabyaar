@@ -345,11 +345,13 @@ detekt {
 }
 
 // ktlint must not inspect auto-generated UniFFI bindings, only our handwritten
-// code. The generateAndFixBindings task installs bindings into the rust package,
-// and generateRustBindings emits into a generated/ subdirectory.
+// code. The generateAndFixBindings task installs the generated binding into
+// `hesabyar_core.kt`, and generateRustBindings emits into a generated/ or
+// rust/uniffi/ subdirectory. Handwritten bridge/mapper files (RustBridge.kt,
+// RustMappers.kt) stay in lint scope.
 ktlint {
   filter {
-    exclude("**/rust/**", "**/generated/**")
+    exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
   }
 }
 

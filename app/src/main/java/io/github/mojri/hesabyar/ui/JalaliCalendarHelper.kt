@@ -62,9 +62,17 @@ object JalaliCalendarHelper {
   fun getDaysInMonth(
     year: Int,
     month: Int
-  ): Int =
-    resolveBridge()?.getJalaliDaysInMonthSync(year, month)
-      ?: jalaliDaysInMonthLocal(year, month)
+  ): Int {
+    // Native call may return -1 if the Rust core is unavailable or failed, or
+    // null if no bridge is installed. In either case fall back to the
+    // pure-Kotlin Jalali month-length logic for the exact correct value.
+    val fromNative = resolveBridge()?.getJalaliDaysInMonthSync(year, month)
+    return if (fromNative != null && fromNative > 0) {
+      fromNative
+    } else {
+      jalaliDaysInMonthLocal(year, month)
+    }
+  }
 
   fun gregorianToJalali(timestamp: Long): JalaliDate {
     // Extract device-local Gregorian date first, then convert to Jalali.

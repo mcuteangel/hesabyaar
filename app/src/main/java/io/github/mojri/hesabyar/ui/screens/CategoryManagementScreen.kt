@@ -97,6 +97,7 @@ private val CategoryType.displayName: String
       CategoryType.EXPENSE -> stringResource(R.string.category_type_expense)
       CategoryType.INCOME -> stringResource(R.string.category_type_income)
       CategoryType.BOTH -> stringResource(R.string.category_type_both)
+      CategoryType.UNKNOWN -> stringResource(R.string.category_type_expense)
     }
 
 @OptIn(ExperimentalMaterial3Api::class)
