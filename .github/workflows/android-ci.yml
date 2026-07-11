@@ -25,12 +25,24 @@ jobs:
           toolchain: stable
           targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
+      - name: Install cargo-ndk
+        # Required by :app:assembleRust to cross-compile the Android .so files.
+        run: cargo install cargo-ndk
+
+      - name: Set up Android NDK
+        run: sdkmanager "ndk;27.0.12077973"
+
+      - name: Export ANDROID_NDK_HOME
+        # Activates the compileRustCore -> KotlinCompile wiring in app/build.gradle.kts.
+        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/bin
             rust/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
@@ -53,6 +65,13 @@ jobs:
 
       - name: Generate Rust bindings
         run: ./gradlew :app:generateAndFixBindings
+
+      - name: Compile Rust core (Android .so)
+        # Builds libhesabyar_core.so for every ABI into src/main/jniLibs.
+        # Implicitly wired into KotlinCompile via app/build.gradle.kts, so any
+        # gradle task that compiles Kotlin (testDebugUnitTest, assembleDebug)
+        # also triggers this when Rust sources change.
+        run: ./gradlew :app:compileRustCore
 
       - name: Run ktlint
         run: ./gradlew ktlintCheck

@@ -459,6 +459,37 @@ tasks.register("assembleRust") {
   }
 }
 
+// ---------------------------------------------------------------------------
+// compileRustCore — auto-trigger Rust cross-compile before Kotlin compilation
+//
+// Lifecycle task that reuses the existing `assembleRust` task. Its inputs/outputs
+// let Gradle skip the work when no Rust source changed, so it only runs when the
+// native core actually needs rebuilding. Wired into the standard build so the
+// native .so files are refreshed before Kotlin code is compiled.
+//
+// Requires ANDROID_NDK_HOME; the wiring below is skipped when the NDK is not
+// configured, so NDK-less environments (e.g. unit-test CI) build as before.
+// ---------------------------------------------------------------------------
+tasks.register("compileRustCore") {
+  group = "rust"
+  description = "Recompile Rust core before Kotlin compilation when sources change"
+  dependsOn("assembleRust")
+  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.lock"))
+  outputs.dir(file("$projectDir/src/main/jniLibs"))
+}
+
+if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
+  logger.lifecycle(
+    "ANDROID_NDK_HOME not set — skipping automatic Rust cross-compile before Kotlin compilation."
+  )
+} else {
+  tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    dependsOn("compileRustCore")
+  }
+}
+
 tasks.register("generateRustBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings from a host-native build"

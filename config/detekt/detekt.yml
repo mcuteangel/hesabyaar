@@ -13,6 +13,7 @@ style:
       - '**/generated/**'
       - '**/rust/hesabyar_core.kt'
   UtilityClassWithPublicConstructor:
+    active: true
     excludes:
       - '**/test/**'
 
