@@ -13,52 +13,57 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ManageBackupUseCase(
-  private val repository: HesabyarRepositoryInterface
+  private val repository: HesabyarRepositoryInterface,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-  private companion object
 
-  fun parseBackupJson(jsonString: String): BackupPayload? {
-    val rustResult =
-      io.github.mojri.hesabyar.rust.RustBridge
-        .parseBackupJsonSync(jsonString)
-    if (rustResult != null) {
-      val rootJson = parseRawJson(jsonString)
-      return BackupPayload(
-        version = rustResult.version,
-        timestamp = rustResult.timestamp,
-        appVersion = rustResult.appVersion,
-        transactions =
-          rustResult.transactions.map {
-            io.github.mojri.hesabyar.rust.RustMappers
-              .fromRustTransaction(it)
-          },
-        loans =
-          rustResult.loans.map {
-            io.github.mojri.hesabyar.rust.RustMappers
-              .fromRustLoan(it)
-          },
-        installments =
-          rustResult.installments.map {
-            io.github.mojri.hesabyar.rust.RustMappers
-              .fromRustInstallment(it)
-          },
-        paymentHistories = parsePaymentHistories(rootJson),
-        categories =
-          rustResult.categories.map {
-            io.github.mojri.hesabyar.rust.RustMappers
-              .fromRustCategory(it)
-          },
-        settings = parseSettings(rootJson)
-      )
+  suspend fun parseBackupJson(jsonString: String): BackupPayload? =
+    withContext(dispatcher) {
+      val rustResult =
+        io.github.mojri.hesabyar.rust.RustBridge
+          .parseBackupJsonSync(jsonString)
+      if (rustResult != null) {
+        val rootJson = parseRawJson(jsonString)
+        BackupPayload(
+          version = rustResult.version,
+          timestamp = rustResult.timestamp,
+          appVersion = rustResult.appVersion,
+          transactions =
+            rustResult.transactions.map {
+              io.github.mojri.hesabyar.rust.RustMappers
+                .fromRustTransaction(it)
+            },
+          loans =
+            rustResult.loans.map {
+              io.github.mojri.hesabyar.rust.RustMappers
+                .fromRustLoan(it)
+            },
+          installments =
+            rustResult.installments.map {
+              io.github.mojri.hesabyar.rust.RustMappers
+                .fromRustInstallment(it)
+            },
+          paymentHistories = parsePaymentHistories(rootJson),
+          categories =
+            rustResult.categories.map {
+              io.github.mojri.hesabyar.rust.RustMappers
+                .fromRustCategory(it)
+            },
+          settings = parseSettings(rootJson)
+        )
+      } else {
+        // Rust unavailable — fall back to Kotlin-only JSON parsing
+        parseBackupJsonKotlin(jsonString)
+      }
     }
-    // Rust unavailable — fall back to Kotlin-only JSON parsing
-    return parseBackupJsonKotlin(jsonString)
-  }
 
   private fun parseRawJson(jsonString: String): JSONObject? =
     try {
@@ -72,6 +77,19 @@ class ManageBackupUseCase(
     return BackupSettings(darkMode = obj.optBoolean("darkMode", true))
   }
 
+  private inline fun <reified T : Enum<T>> parseType(
+    obj: JSONObject,
+    default: T
+  ): T {
+    val typeStr = obj.optString("type", "")
+    if (typeStr.isEmpty()) return default
+    return try {
+      enumValueOf<T>(typeStr)
+    } catch (_: IllegalArgumentException) {
+      default
+    }
+  }
+
   private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
     val root = parseRawJson(jsonString) ?: return null
     return try {
@@ -79,15 +97,7 @@ class ManageBackupUseCase(
         root.optJSONArray("transactions")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val typeStr = o.optString("type", "")
-            val type =
-              if (typeStr.isEmpty()) {
-                io.github.mojri.hesabyar.data.TransactionType.EXPENSE
-              } else {
-                io.github.mojri.hesabyar.data.TransactionType.entries
-                  .firstOrNull { it.name == typeStr }
-                  ?: return@mapNotNull null
-              }
+            val type = parseType(o, io.github.mojri.hesabyar.data.TransactionType.EXPENSE)
             Transaction(
               id = o.optLong("id", 0L),
               type = type,
@@ -106,15 +116,7 @@ class ManageBackupUseCase(
         root.optJSONArray("loans")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val typeStr = o.optString("type", "")
-            val type =
-              if (typeStr.isEmpty()) {
-                io.github.mojri.hesabyar.data.LoanType.CREDITOR
-              } else {
-                io.github.mojri.hesabyar.data.LoanType.entries
-                  .firstOrNull { it.name == typeStr }
-                  ?: return@mapNotNull null
-              }
+            val type = parseType(o, io.github.mojri.hesabyar.data.LoanType.CREDITOR)
             Loan(
               id = o.optLong("id", 0L),
               personName = o.optString("personName", ""),
@@ -148,15 +150,7 @@ class ManageBackupUseCase(
         root.optJSONArray("categories")?.let { arr ->
           (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val typeStr = o.optString("type", "")
-            val type =
-              if (typeStr.isEmpty()) {
-                io.github.mojri.hesabyar.data.CategoryType.EXPENSE
-              } else {
-                io.github.mojri.hesabyar.data.CategoryType.entries
-                  .firstOrNull { it.name == typeStr }
-                  ?: return@mapNotNull null
-              }
+            val type = parseType(o, io.github.mojri.hesabyar.data.CategoryType.EXPENSE)
             Category(
               id = o.optLong("id", 0L),
               name = o.optString("name", ""),
@@ -218,17 +212,18 @@ class ManageBackupUseCase(
           .mapCategories(categories)
     )
 
-  fun validateBackup(backup: BackupPayload): BackupValidationResult {
-    val rustResult =
-      io.github.mojri.hesabyar.rust.RustBridge
-        .validateBackupPayloadSync(backup.toRustPayload())
+  suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
+    withContext(dispatcher) {
+      val rustResult =
+        io.github.mojri.hesabyar.rust.RustBridge
+          .validateBackupPayloadSync(backup.toRustPayload())
 
-    return if (rustResult.isValid) {
-      BackupValidationResult.Valid
-    } else {
-      BackupValidationResult.Invalid(rustResult.errors)
+      if (rustResult.isValid) {
+        BackupValidationResult.Valid
+      } else {
+        BackupValidationResult.Invalid(rustResult.errors)
+      }
     }
-  }
 
   suspend fun executeRestore(
     backup: BackupPayload,

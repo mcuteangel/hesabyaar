@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -113,7 +114,7 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertTrue(result != null)
     assertEquals(1, result!!.transactions.size)
     val tx = result.transactions[0]
@@ -143,13 +144,13 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(1, result!!.transactions.size)
     assertEquals(TransactionType.EXPENSE, result.transactions[0].type)
   }
 
   @Test
-  fun `parseBackupJson fallback drops transaction with invalid type`() {
+  fun `parseBackupJson fallback uses default type for invalid type`() {
     val json =
       buildBackupJson {
         put(
@@ -173,9 +174,12 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
-    assertEquals(1, result!!.transactions.size)
-    assertEquals(2L, result.transactions[0].id)
+    val result = runBlocking { useCase.parseBackupJson(json) }
+    assertEquals(2, result!!.transactions.size)
+    assertEquals(1L, result.transactions[0].id)
+    assertEquals(TransactionType.EXPENSE, result.transactions[0].type)
+    assertEquals(2L, result.transactions[1].id)
+    assertEquals(TransactionType.INCOME, result.transactions[1].type)
   }
 
   // --- success: loans ---
@@ -201,7 +205,7 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(1, result!!.loans.size)
     val loan = result.loans[0]
     assertEquals(11L, loan.id)
@@ -234,7 +238,7 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(1, result!!.installments.size)
     val inst = result.installments[0]
     assertEquals(21L, inst.id)
@@ -266,7 +270,7 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(1, result!!.categories.size)
     val cat = result.categories[0]
     assertEquals(31L, cat.id)
@@ -295,7 +299,7 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(1, result!!.paymentHistories.size)
     val ph = result.paymentHistories[0]
     assertEquals(41L, ph.id)
@@ -317,13 +321,13 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(false, result!!.settings.darkMode)
   }
 
   @Test
   fun `parseBackupJson fallback defaults settings when missing`() {
-    val result = useCase.parseBackupJson(buildBackupJson {})
+    val result = runBlocking { useCase.parseBackupJson(buildBackupJson {}) }
     assertEquals(true, result!!.settings.darkMode)
   }
 
@@ -337,14 +341,14 @@ class ManageBackupUseCaseTest {
         put("appVersion", "2.4")
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertEquals(3, result!!.version)
     assertEquals("2.4", result.appVersion)
   }
 
   @Test
   fun `parseBackupJson fallback returns defaults for empty object`() {
-    val result = useCase.parseBackupJson(buildBackupJson {})
+    val result = runBlocking { useCase.parseBackupJson(buildBackupJson {}) }
     assertTrue(result != null)
     assertEquals(1, result!!.version)
     assertEquals("1.0", result.appVersion)
@@ -360,13 +364,13 @@ class ManageBackupUseCaseTest {
 
   @Test
   fun `parseBackupJson fallback returns null on malformed JSON`() {
-    val result = useCase.parseBackupJson("this is not json {{{")
+    val result = runBlocking { useCase.parseBackupJson("this is not json {{{") }
     assertNull(result)
   }
 
   @Test
   fun `parseBackupJson fallback returns null on non-object JSON`() {
-    val result = useCase.parseBackupJson("[1,2,3]")
+    val result = runBlocking { useCase.parseBackupJson("[1,2,3]") }
     assertNull(result)
   }
 
@@ -382,14 +386,14 @@ class ManageBackupUseCaseTest {
         )
       }
 
-    val result = useCase.parseBackupJson(json)
+    val result = runBlocking { useCase.parseBackupJson(json) }
     assertTrue(result != null)
     assertTrue(result!!.paymentHistories.isEmpty())
   }
 
   @Test
   fun `parseBackupJson fallback tolerates missing arrays`() {
-    val result = useCase.parseBackupJson(buildBackupJson {})
+    val result = runBlocking { useCase.parseBackupJson(buildBackupJson {}) }
     assertTrue(result!!.transactions.isEmpty())
     assertTrue(result.loans.isEmpty())
     assertTrue(result.installments.isEmpty())

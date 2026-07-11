@@ -43,7 +43,7 @@ class BackupViewModelTest {
     Dispatchers.setMain(testDispatcher)
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
-    val useCase = ManageBackupUseCase(fakeRepo)
+    val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
     viewModel = BackupViewModel(context, useCase)
     viewModel.ioDispatcher = testDispatcher
   }

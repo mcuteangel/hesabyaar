@@ -45,7 +45,8 @@ class BackupViewModel
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
           val backup = parseBackupOrReportError(text) ?: return@launch
 
-          when (val result = manageBackupUseCase.validateBackup(backup)) {
+          val result = manageBackupUseCase.validateBackup(backup)
+          when (result) {
             is BackupValidationResult.Invalid -> {
               operationState.value = BackupOperationState.ValidationFailed(result.errors)
             }
@@ -118,7 +119,7 @@ class BackupViewModel
         )
     }
 
-    private fun parseBackupOrReportError(text: String): BackupPayload? {
+    private suspend fun parseBackupOrReportError(text: String): BackupPayload? {
       val backup = manageBackupUseCase.parseBackupJson(text)
       if (backup == null) reportInvalidBackupParse()
       return backup
