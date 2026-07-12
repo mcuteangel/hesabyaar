@@ -57,7 +57,7 @@ object JalaliCalendarHelper {
 
   fun isJalaliLeapYear(year: Int): Boolean =
     resolveBridge()?.isJalaliLeapYearSync(year)
-      ?: (year % 33) in JALALI_LEAP_REMAINDERS
+      ?: year % 33 in JALALI_LEAP_REMAINDERS
 
   fun getDaysInMonth(
     year: Int,
@@ -90,7 +90,7 @@ object JalaliCalendarHelper {
   private fun unpackJalaliDate(packed: Long): JalaliDate? {
     if (packed == PACKED_DATE_INVALID || packed == Long.MIN_VALUE) return null
     val year = (packed shr YEAR_SHIFT).toInt()
-    val month = ((packed shr MONTH_SHIFT) and 0xFF).toInt()
+    val month = (packed shr MONTH_SHIFT and 0xFF).toInt()
     val day = (packed and 0xFF).toInt()
     return JalaliDate(year, month, day)
   }
@@ -100,6 +100,9 @@ object JalaliCalendarHelper {
    * (calendar.rs: gregorian_to_jalali_date). Used when the native bridge is
    * unavailable so callers stay functional. Returns null for invalid input.
    */
+  private val GREGORIAN_MONTH_MAX_DAYS = intArrayOf(0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+  private val GREGORIAN_MONTH_MAX_DAYS_LEAP = intArrayOf(0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
   fun gregorianToJalaliLocal(
     gYear: Int,
     gMonth: Int,
@@ -107,14 +110,8 @@ object JalaliCalendarHelper {
   ): JalaliDate? {
     if (gMonth < 1 || gMonth > 12) return null
     val isLeap = gYear % 4 == 0 && gYear % 100 != 0 || gYear % 400 == 0
-    val maxDay =
-      when (gMonth) {
-        1, 3, 5, 7, 8, 10, 12 -> 31
-        4, 6, 9, 11 -> 30
-        2 -> if (isLeap) 29 else 28
-        else -> 31
-      }
-    if (gDay < 1 || gDay > maxDay) return null
+    val maxDays = if (isLeap) GREGORIAN_MONTH_MAX_DAYS_LEAP else GREGORIAN_MONTH_MAX_DAYS
+    if (gDay < 1 || gDay > maxDays[gMonth]) return null
 
     val gMonthDayOffsets = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0)
     val jMonthDays = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
@@ -300,7 +297,7 @@ object JalaliCalendarHelper {
     val j3 = jd - 1 + (0 until jm - 1).sumOf { JALALI_MONTH_DAYS[it] }
     val base = jy - 979
     // jy - 979 = 33*jNp + 4*q1 + jyExtra, with q1 in [0,8] and jyExtra in [0,3].
-    for (jNp in (base / 33 - 1)..(base / 33 + 1)) {
+    for (jNp in base / 33 - 1..base / 33 + 1) {
       val rem = base - 33 * jNp
       if (rem < 0 || rem > 32) continue
       for (jyExtra in 0..3) {
@@ -308,7 +305,7 @@ object JalaliCalendarHelper {
         val q1 = (rem - jyExtra) / 4
         if (q1 < 0 || q1 > 8) continue
         val j2 = if (jyExtra == 0) j3 else 365 * jyExtra + j3 + 1
-        val j1 = q1 * 1461L + (j2 % 1461)
+        val j1 = q1 * 1461L + j2 % 1461
         return jNp * 12053L + j1
       }
     }

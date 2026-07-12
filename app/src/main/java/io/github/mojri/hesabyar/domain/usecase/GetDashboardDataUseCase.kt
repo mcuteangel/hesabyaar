@@ -76,7 +76,7 @@ class GetDashboardDataUseCase(
       val jalaliMonthStart =
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
           .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
-          ?.timeInMillis ?: (now - 30L * 24 * 60 * 60 * 1000)
+          ?.timeInMillis ?: now - 30L * 24 * 60 * 60 * 1000
       val nextMonth = if (jalaliDate.month == 12) 1 else jalaliDate.month + 1
       val nextMonthYear = if (jalaliDate.month == 12) jalaliDate.year + 1 else jalaliDate.year
       val jalaliMonthEnd =

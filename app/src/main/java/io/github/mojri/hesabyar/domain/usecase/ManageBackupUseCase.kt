@@ -97,91 +97,91 @@ class ManageBackupUseCase(
   private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
     val root = parseRawJson(jsonString) ?: return null
     return try {
-      val transactions =
-        root.optJSONArray("transactions")?.let { arr ->
-          (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val type = parseType(o, io.github.mojri.hesabyar.data.TransactionType.EXPENSE)
-            Transaction(
-              id = o.optLong("id", 0L),
-              type = type,
-              categoryId = o.optLong("categoryId", 0L),
-              amount = o.optLong("amount", 0L),
-              description = o.optString("description", ""),
-              personName = o.optString("personName", "").ifBlank { null },
-              date = o.optLong("date", 0L),
-              dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
-              installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L }
-            )
-          }
-        } ?: emptyList()
-
-      val loans =
-        root.optJSONArray("loans")?.let { arr ->
-          (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val type = parseType(o, io.github.mojri.hesabyar.data.LoanType.CREDITOR)
-            Loan(
-              id = o.optLong("id", 0L),
-              personName = o.optString("personName", ""),
-              type = type,
-              originalAmount = o.optLong("originalAmount", 0L),
-              remainingAmount = o.optLong("remainingAmount", 0L),
-              description = o.optString("description", ""),
-              date = o.optLong("date", 0L),
-              isSettled = o.optBoolean("isSettled", false)
-            )
-          }
-        } ?: emptyList()
-
-      val installments =
-        root.optJSONArray("installments")?.let { arr ->
-          (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            Installment(
-              id = o.optLong("id", 0L),
-              title = o.optString("title", ""),
-              amount = o.optLong("amount", 0L),
-              dueDate = o.optLong("dueDate", 0L),
-              isPaid = o.optBoolean("isPaid", false),
-              reminderEnabled = o.optBoolean("reminderEnabled", true),
-              notes = o.optString("notes", "")
-            )
-          }
-        } ?: emptyList()
-
-      val categories =
-        root.optJSONArray("categories")?.let { arr ->
-          (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val type = parseType(o, io.github.mojri.hesabyar.data.CategoryType.EXPENSE)
-            Category(
-              id = o.optLong("id", 0L),
-              name = o.optString("name", ""),
-              key = o.optString("key", ""),
-              icon = o.optString("icon", ""),
-              color = o.optLong("color", 0L),
-              type = type,
-              isDefault = o.optBoolean("isDefault", false)
-            )
-          }
-        } ?: emptyList()
-
       BackupPayload(
         version = root.optInt("version", 1),
         timestamp = root.optLong("timestamp", System.currentTimeMillis()),
         appVersion = root.optString("appVersion", "1.0"),
-        transactions = transactions,
-        loans = loans,
-        installments = installments,
+        transactions = parseTransactions(root),
+        loans = parseLoans(root),
+        installments = parseInstallmentsFromJson(root),
         paymentHistories = parsePaymentHistories(root),
-        categories = categories,
+        categories = parseCategories(root),
         settings = parseSettings(root)
       )
     } catch (_: Exception) {
       null
     }
   }
+
+  private fun parseTransactions(root: JSONObject): List<Transaction> =
+    root.optJSONArray("transactions")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.TransactionType.EXPENSE)
+        Transaction(
+          id = o.optLong("id", 0L),
+          type = type,
+          categoryId = o.optLong("categoryId", 0L),
+          amount = o.optLong("amount", 0L),
+          description = o.optString("description", ""),
+          personName = o.optString("personName", "").ifBlank { null },
+          date = o.optLong("date", 0L),
+          dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
+          installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L }
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseLoans(root: JSONObject): List<Loan> =
+    root.optJSONArray("loans")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.LoanType.CREDITOR)
+        Loan(
+          id = o.optLong("id", 0L),
+          personName = o.optString("personName", ""),
+          type = type,
+          originalAmount = o.optLong("originalAmount", 0L),
+          remainingAmount = o.optLong("remainingAmount", 0L),
+          description = o.optString("description", ""),
+          date = o.optLong("date", 0L),
+          isSettled = o.optBoolean("isSettled", false)
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseInstallmentsFromJson(root: JSONObject): List<Installment> =
+    root.optJSONArray("installments")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        Installment(
+          id = o.optLong("id", 0L),
+          title = o.optString("title", ""),
+          amount = o.optLong("amount", 0L),
+          dueDate = o.optLong("dueDate", 0L),
+          isPaid = o.optBoolean("isPaid", false),
+          reminderEnabled = o.optBoolean("reminderEnabled", true),
+          notes = o.optString("notes", "")
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseCategories(root: JSONObject): List<Category> =
+    root.optJSONArray("categories")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.CategoryType.EXPENSE)
+        Category(
+          id = o.optLong("id", 0L),
+          name = o.optString("name", ""),
+          key = o.optString("key", ""),
+          icon = o.optString("icon", ""),
+          color = o.optLong("color", 0L),
+          type = type,
+          isDefault = o.optBoolean("isDefault", false)
+        )
+      }
+    } ?: emptyList()
 
   private fun parsePaymentHistories(rootJson: JSONObject?): List<PaymentHistory> {
     val arr = rootJson?.optJSONArray("paymentHistories") ?: return emptyList()

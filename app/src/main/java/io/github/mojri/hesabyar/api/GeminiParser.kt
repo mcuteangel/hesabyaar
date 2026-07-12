@@ -313,24 +313,28 @@ object GeminiParser {
   }
 
   private fun detectType(text: String): String {
-    if (text.contains(KEYWORD_OT) ||
-      text.contains("حقوق") ||
-      text.contains("درآمد") ||
-      (text.contains("فروش") && !text.contains("فروشگاه")) ||
-      text.contains("واریز") ||
-      text.contains("سود")
-    ) {
-      return TYPE_INCOME
-    }
+    if (looksLikeIncome(text)) return TYPE_INCOME
     if (text.contains("قسط")) return TYPE_INSTALLMENT
-    if (text.contains(KEYWORD_CREDITOR) || text.contains("طلب دارم") || text.contains("قرض دادم")) {
-      return TYPE_LOAN_DEBTOR
-    }
-    if (text.contains(KEYWORD_DEBTOR) || text.contains("قرض گرفتم") || text.contains("وام")) {
-      return TYPE_LOAN_CREDITOR
-    }
+    if (looksLikeLoanDebtor(text)) return TYPE_LOAN_DEBTOR
+    if (looksLikeLoanCreditor(text)) return TYPE_LOAN_CREDITOR
     return TYPE_EXPENSE
   }
+
+  private fun looksLikeIncome(text: String): Boolean =
+    text.contains(KEYWORD_OT) ||
+      text.contains("حقوق") ||
+      text.contains("درآمد") ||
+      text.contains("واریز") ||
+      text.contains("سود") ||
+      looksLikeSale(text)
+
+  private fun looksLikeSale(text: String): Boolean = text.contains("فروش") && !text.contains("فروشگاه")
+
+  private fun looksLikeLoanDebtor(text: String): Boolean =
+    text.contains(KEYWORD_CREDITOR) || text.contains("طلب دارم") || text.contains("قرض دادم")
+
+  private fun looksLikeLoanCreditor(text: String): Boolean =
+    text.contains(KEYWORD_DEBTOR) || text.contains("قرض گرفتم") || text.contains("وام")
 
   private val categoryKeywords =
     mapOf(

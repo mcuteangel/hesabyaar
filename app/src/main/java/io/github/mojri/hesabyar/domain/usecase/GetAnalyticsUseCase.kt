@@ -77,7 +77,7 @@ class GetAnalyticsUseCase {
     val jalaliMonthStart =
       io.github.mojri.hesabyar.ui.JalaliCalendarHelper
         .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
-        ?.timeInMillis ?: (now - 30L * 24 * 60 * 60 * 1000)
+        ?.timeInMillis ?: now - 30L * 24 * 60 * 60 * 1000
     val monthlyTx = transactions.filter { it.date in jalaliMonthStart..now }
 
     val monthLabel =
