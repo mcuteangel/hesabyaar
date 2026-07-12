@@ -1,11 +1,13 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -16,6 +18,19 @@ import org.junit.Test
  */
 
 class OfflineParserTest {
+  private var previousRustState = false
+
+  @Before
+  fun setUp() {
+    previousRustState = HesabyarApp.isRustInitialized()
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
+
+  @After
+  fun tearDown() {
+    HesabyarApp.setRustInitializedForTesting(previousRustState)
+  }
+
   private fun parse(sentence: String) =
     GeminiParser.parseSentenceOffline(sentence)
       ?: throw AssertionError("parseSentenceOffline returned null for: $sentence")

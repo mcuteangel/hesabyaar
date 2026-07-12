@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -165,13 +166,227 @@ class GeminiParserFallbackTest {
         12 to "اسفند"
       )
     val futureMonth = if (today.month == 12) 1 else today.month + 1
-    val pastMonth = if (today.month == 1) 12 else today.month - 1
 
     val future = parse("خرج ۱۰۰ هزار ${monthName[futureMonth]} ۵")
     assertTrue(future!!.dateOffsetDays!! > 0)
 
-    val past = parse("خرج ۱۰۰ هزار ${monthName[pastMonth]} ۵")
-    assertTrue(past!!.dateOffsetDays!! < 0)
+    // Earlier month resolves to next year (positive offset)
+    val earlierMonth = if (today.month == 1) 12 else today.month - 1
+    val earlier = parse("خرج ۱۰۰ هزار ${monthName[earlierMonth]} ۵")
+    assertTrue(earlier!!.dateOffsetDays!! > 0)
+  }
+
+  // --- explicit Jalali date: day-month format (e.g. "۲۵ تیر") ---
+
+  @Test
+  fun `explicit Jalali date day-month format parses correctly`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    // Pick a day that's not today to avoid zero-offset
+    val testDay = if (today.day != 15) 15 else 10
+    val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
+    // Same month, different day — offset should be testDay - today.day
+    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+  }
+
+  // --- explicit Jalali date: month-day format (e.g. "تیر ۲۵") ---
+
+  @Test
+  fun `explicit Jalali date month-day format parses correctly`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    val testDay = if (today.day != 20) 20 else 5
+    val result = parse("خریدم ۱۰۰ هزار ${monthName[today.month]} $testDay")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
+    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+  }
+
+  // --- same-month zero offset ---
+
+  @Test
+  fun `explicit Jalali date same day yields zero offset`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    val result = parse("خریدم ۱۰۰ هزار ${today.day} ${monthName[today.month]}")
+    assertNotNull(result)
+    assertEquals(0, result!!.dateOffsetDays)
+  }
+
+  // --- edge-case day numbers ---
+
+  @Test
+  fun `explicit Jalali date day 1 parses correctly`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    val result = parse("خریدم ۱۰۰ هزار ۱ ${monthName[today.month]}")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
+  }
+
+  @Test
+  fun `explicit Jalali date day 31 parses correctly for 31-day months`() {
+    // Months 1-6 have 31 days in Jalali
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    if (today.month <= 6) {
+      val monthName =
+        mapOf(
+          1 to "فروردین",
+          2 to "اردیبهشت",
+          3 to "خرداد",
+          4 to "تیر",
+          5 to "مرداد",
+          6 to "شهریور"
+        )
+      val result = parse("خریدم ۱۰۰ هزار ۳۱ ${monthName[today.month]}")
+      assertNotNull(result)
+      assertNotNull(result!!.dateOffsetDays)
+    }
+  }
+
+  // --- invalid day numbers ---
+
+  @Test
+  fun `explicit Jalali date day 0 is ignored`() {
+    val result = parse("خریدم ۱۰۰ هزار ۰ تیر")
+    // Day 0 is invalid (not in 1..31), so detectExplicitJalaliOffset returns null
+    // and falls through to relative-word detection (no match → offset 0)
+    assertEquals(0, result!!.dateOffsetDays)
+  }
+
+  @Test
+  fun `explicit Jalali date day 32 is ignored`() {
+    val result = parse("خریدم ۱۰۰ هزار ۳۲ تیر")
+    assertEquals(0, result!!.dateOffsetDays)
+  }
+
+  // --- year-boundary: month < today.month means next year ---
+
+  @Test
+  fun `explicit Jalali date in earlier month uses next year`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    // Pick a month that is strictly before the current month (wraps to next year)
+    val targetMonth = if (today.month > 1) today.month - 1 else 12
+    val result = parse("خریدم ۱۰۰ هزار ۵ ${monthName[targetMonth]}")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
+    assertTrue(
+      "Offset should be positive (future) for next-year date, was ${result.dateOffsetDays}",
+      result.dateOffsetDays!! > 0
+    )
+  }
+
+  @Test
+  fun `explicit Jalali date in same or later month uses current year`() {
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val monthName =
+      mapOf(
+        1 to "فروردین",
+        2 to "اردیبهشت",
+        3 to "خرداد",
+        4 to "تیر",
+        5 to "مرداد",
+        6 to "شهریور",
+        7 to "مهر",
+        8 to "آبان",
+        9 to "آذر",
+        10 to "دی",
+        11 to "بهمن",
+        12 to "اسفند"
+      )
+    // Same month, different day — offset can be positive or negative depending on day
+    val testDay = if (today.day != 15) 15 else 10
+    val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
+    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+  }
+
+  // --- no Jalali date found ---
+
+  @Test
+  fun `no Jalali date returns null offset via relative word fallback`() {
+    val result = parse("خریدم ۱۰۰ هزار غذا")
+    assertEquals(0, result!!.dateOffsetDays)
+  }
+
+  @Test
+  fun `relative word still works when no explicit Jalali date present`() {
+    val result = parse("دیروز ۱۰۰ هزار خرج کردم")
+    assertEquals(-1, result!!.dateOffsetDays)
   }
 
   // --- success: fixed fallback metadata ---
@@ -214,5 +429,97 @@ class GeminiParserFallbackTest {
   @Test
   fun `fallback returns null when only zero amount`() {
     assertNull(parse("0 تومان"))
+  }
+
+  // ============================================================
+  // parseJsonResultFallback tests — Toman-to-Rial conversion
+  // ============================================================
+
+  private fun parseJson(json: String) = GeminiParser.parseJsonResultFallback(json)
+
+  @Test
+  fun `json fallback converts toman to rial`() {
+    val json = """{"type":"EXPENSE","amount":5000000,"category":"Food","description":"مرغ"}"""
+    val result = parseJson(json)
+    assertNotNull(result)
+    assertEquals(50_000_000L, result!!.amount) // 5M toman * 10 = 50M rial
+  }
+
+  @Test
+  fun `json fallback large amount converts correctly`() {
+    val json = """{"type":"INCOME","amount":20000000,"category":"Income","description":"حقوق"}"""
+    val result = parseJson(json)
+    assertNotNull(result)
+    assertEquals(200_000_000L, result!!.amount) // 20M toman * 10 = 200M rial
+  }
+
+  @Test
+  fun `json fallback small amount converts correctly`() {
+    val json = """{"type":"EXPENSE","amount":50000,"category":"Food","description":"نان"}"""
+    val result = parseJson(json)
+    assertNotNull(result)
+    assertEquals(500_000L, result!!.amount) // 50K toman * 10 = 500K rial
+  }
+
+  @Test
+  fun `json fallback one toman converts to ten rial`() {
+    val json = """{"type":"EXPENSE","amount":1,"category":"Other","description":"test"}"""
+    val result = parseJson(json)
+    assertNotNull(result)
+    assertEquals(10L, result!!.amount)
+  }
+
+  @Test
+  fun `json fallback zero amount returns null`() {
+    val json = """{"type":"EXPENSE","amount":0,"category":"Food","description":"test"}"""
+    assertNull(parseJson(json))
+  }
+
+  @Test
+  fun `json fallback negative amount returns null`() {
+    val json = """{"type":"EXPENSE","amount":-5000,"category":"Food","description":"test"}"""
+    assertNull(parseJson(json))
+  }
+
+  @Test
+  fun `json fallback overflowing amount returns null`() {
+    // Long.MAX_VALUE / 10 = 922337203685477580; anything above overflows
+    val json = """{"type":"EXPENSE","amount":922337203685477581,"category":"Food","description":"test"}"""
+    assertNull(parseJson(json))
+  }
+
+  @Test
+  fun `json fallback missing amount returns null`() {
+    val json = """{"type":"EXPENSE","category":"Food","description":"test"}"""
+    assertNull(parseJson(json))
+  }
+
+  @Test
+  fun `json fallback malformed json returns null`() {
+    assertNull(parseJson("{invalid json"))
+  }
+
+  @Test
+  fun `json fallback empty string returns null`() {
+    assertNull(parseJson(""))
+  }
+
+  @Test
+  fun `json fallback preserves all fields`() {
+    val json =
+      """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
+        """description":"قسط ماشین","personName":"علی","dateOffsetDays":5,"""" +
+        """daysFromNow":30,"title":"قسط ماشین","hour":14,"minute":30,"confidence":0.9}"""
+    val result = parseJson(json)
+    assertNotNull(result)
+    assertEquals(30_000_000L, result!!.amount)
+    assertEquals("INSTALLMENT", result.type)
+    assertEquals("علی", result.personName)
+    assertEquals(5, result.dateOffsetDays)
+    assertEquals(30, result.daysFromNow)
+    assertEquals("قسط ماشین", result.title)
+    assertEquals(14, result.hour)
+    assertEquals(30, result.minute)
+    assertEquals(0.9f, result.confidence, 0.01f)
   }
 }

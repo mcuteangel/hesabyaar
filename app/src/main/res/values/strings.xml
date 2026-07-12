@@ -9,4 +9,5 @@
     <string name="category_type_expense">هزینه</string>
     <string name="category_type_income">درآمد</string>
     <string name="category_type_both">هر دو</string>
+    <string name="category_type_unknown">نامشخص</string>
 </resources>

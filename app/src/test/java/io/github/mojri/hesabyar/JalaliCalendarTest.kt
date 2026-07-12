@@ -1,17 +1,32 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.ui.JalaliNativeBridge
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import java.util.Calendar
 import java.util.TimeZone
 
 class JalaliCalendarTest {
+  @Before
+  fun setUp() {
+    // Ensure bridgeProvider is null before each test so tests are isolated
+    // from other test suites that may set a mock bridge.
+    JalaliCalendarHelper.bridgeProvider = null
+  }
+
+  @After
+  fun tearDown() {
+    JalaliCalendarHelper.bridgeProvider = null
+  }
+
   @Test
   fun `known date conversion - 1403-01-01`() {
     val jd = JalaliCalendarHelper.gregorianToJalali(2024, 3, 20)
@@ -196,5 +211,52 @@ class JalaliCalendarTest {
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2023, 2, 29))
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 2, 30))
     assertNull(JalaliCalendarHelper.gregorianToJalaliLocal(2024, 4, 31))
+  }
+
+  @Test
+  fun `getDaysInMonth falls back to local when native returns -1`() {
+    val originalProvider = JalaliCalendarHelper.bridgeProvider
+    try {
+      JalaliCalendarHelper.bridgeProvider = {
+        object : JalaliNativeBridge {
+          override fun gregorianToJalaliSync(timestampMs: Long): Long = throw AssertionError("Should not be called")
+
+          override fun jalaliToGregorianSync(
+            year: Int,
+            month: Int,
+            day: Int
+          ): Long = throw AssertionError("Should not be called")
+
+          override fun getJalaliDaysInMonthSync(
+            year: Int,
+            month: Int
+          ): Int = -1
+
+          override fun isJalaliLeapYearSync(year: Int): Boolean = (year % 33) in intArrayOf(1, 5, 9, 13, 17, 22, 26, 30)
+        }
+      }
+      // Month 12 in non-leap year should have 29 days
+      assertEquals(29, JalaliCalendarHelper.getDaysInMonth(1400, 12))
+      // Month 1 always has 31 days
+      assertEquals(31, JalaliCalendarHelper.getDaysInMonth(1403, 1))
+      // Month 7 always has 30 days
+      assertEquals(30, JalaliCalendarHelper.getDaysInMonth(1403, 7))
+    } finally {
+      JalaliCalendarHelper.bridgeProvider = originalProvider
+    }
+  }
+
+  @Test
+  fun `getDaysInMonth falls back to local when bridge returns null`() {
+    val originalProvider = JalaliCalendarHelper.bridgeProvider
+    try {
+      JalaliCalendarHelper.bridgeProvider = { null }
+      // Without native bridge, should use local calculation
+      assertEquals(29, JalaliCalendarHelper.getDaysInMonth(1400, 12))
+      assertEquals(30, JalaliCalendarHelper.getDaysInMonth(1403, 12))
+      assertEquals(31, JalaliCalendarHelper.getDaysInMonth(1403, 1))
+    } finally {
+      JalaliCalendarHelper.bridgeProvider = originalProvider
+    }
   }
 }

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -12,9 +13,18 @@ import org.robolectric.shadows.ShadowLog
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class GeminiParserLogLevelTest {
+  private var previousRustState = false
+
   @Before
   fun setUp() {
     ShadowLog.clear()
+    previousRustState = HesabyarApp.isRustInitialized()
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
+
+  @After
+  fun tearDown() {
+    HesabyarApp.setRustInitializedForTesting(previousRustState)
   }
 
   @Test

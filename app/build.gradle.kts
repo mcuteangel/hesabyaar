@@ -405,7 +405,9 @@ rustTargets.forEach { target ->
     description = "Build Rust .so for ${target.abi}"
     inputs.dir(rustDir.resolve("hesabyar-core/src"))
     inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+    inputs.file(rustDir.resolve("Cargo.toml"))
     inputs.file(rustDir.resolve("Cargo.lock"))
+    inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
     outputs.file(outputLib)
     doLast {
       val ndkHome = System.getenv("ANDROID_NDK_HOME")
@@ -476,7 +478,9 @@ tasks.register("compileRustCore") {
   dependsOn("assembleRust")
   inputs.dir(rustDir.resolve("hesabyar-core/src"))
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.toml"))
   inputs.file(rustDir.resolve("Cargo.lock"))
+  inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   outputs.dir(file("$projectDir/src/main/jniLibs"))
 }
 
@@ -495,6 +499,8 @@ tasks.register("generateRustBindings") {
   description = "Generate UniFFI Kotlin bindings from a host-native build"
   inputs.dir(rustDir.resolve("hesabyar-core/src"))
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.toml"))
+  inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
   outputs.dir(generatedDir)
   doLast {
@@ -523,6 +529,8 @@ tasks.register("generateAndFixBindings") {
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
   inputs.dir(rustDir.resolve("hesabyar-core/src"))
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.toml"))
+  inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
   val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
   outputs.file(dest)

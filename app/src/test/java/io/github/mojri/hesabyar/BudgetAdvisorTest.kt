@@ -8,11 +8,26 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class BudgetAdvisorTest {
+  private var previousRustState = false
+
+  @Before
+  fun setUp() {
+    previousRustState = HesabyarApp.isRustInitialized()
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
+
+  @After
+  fun tearDown() {
+    HesabyarApp.setRustInitializedForTesting(previousRustState)
+  }
+
   private fun createTransaction(
     type: TransactionType,
     amount: Long,

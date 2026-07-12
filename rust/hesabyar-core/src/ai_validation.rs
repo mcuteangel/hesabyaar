@@ -270,7 +270,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
 
     let result = ParsedResult {
         tx_type,
-        amount: amount_i64,
+        amount: amount_i64 * 10,
         category: normalized,
         person_name,
         description,
@@ -436,7 +436,7 @@ mod tests {
     fn test_valid_full_json() {
         let result = parse_ai_transaction_json(full_json()).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Income);
-        assert_eq!(result.result.amount, 20_000_000);
+        assert_eq!(result.result.amount, 200_000_000); // 20M toman * 10 = 200M rial
         assert_eq!(result.result.category, "Income");
         assert_eq!(result.result.person_name, Some("علی".to_string()));
         assert_eq!(result.result.description, "دریافت حقوق");
@@ -451,7 +451,7 @@ mod tests {
     fn test_valid_minimal_json() {
         let result = parse_ai_transaction_json(&minimal_json(50000)).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
-        assert_eq!(result.result.amount, 50000);
+        assert_eq!(result.result.amount, 500000); // 50000 toman * 10 = 500000 rial
         assert_eq!(result.result.category, "Food");
         // Defaults applied
         assert_eq!(result.result.confidence, 0.8);
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn test_positive_amount_passes() {
         let result = parse_ai_transaction_json(&minimal_json(50000)).unwrap();
-        assert_eq!(result.result.amount, 50000);
+        assert_eq!(result.result.amount, 500000); // 50000 toman * 10 = 500000 rial
     }
 
     #[test]
@@ -564,7 +564,7 @@ mod tests {
     fn test_float_amount_truncated() {
         let json = r#"{"type": "EXPENSE", "amount": 500.7, "category": "Food"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
-        assert_eq!(result.result.amount, 500);
+        assert_eq!(result.result.amount, 5000); // 500 toman * 10 = 5000 rial
         assert!(result.was_repaired);
         assert!(result.repair_notes.iter().any(|n| n.contains("truncated")));
     }
@@ -573,7 +573,7 @@ mod tests {
     fn test_large_amount() {
         let json = r#"{"type": "INCOME", "amount": 50000000, "category": "Income"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
-        assert_eq!(result.result.amount, 50_000_000);
+        assert_eq!(result.result.amount, 500_000_000); // 50M toman * 10 = 500M rial
     }
 
     // =====================================================================

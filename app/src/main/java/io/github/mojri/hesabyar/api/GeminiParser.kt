@@ -53,10 +53,10 @@ object GeminiParser {
     val (income, expense) =
       transactions.fold(0L to 0L) { (inc, exp), t ->
         when (t.type) {
-          TransactionType.INCOME -> (inc + t.amount) to exp
+          TransactionType.INCOME -> inc + t.amount to exp
           TransactionType.EXPENSE -> {
             cats[t.categoryId] = (cats[t.categoryId] ?: 0L) + t.amount
-            inc to (exp + t.amount)
+            inc to exp + t.amount
           }
           else -> inc to exp
         }
@@ -186,12 +186,13 @@ object GeminiParser {
       notes = r.notes
     )
 
-  private fun parseJsonResultFallback(jsonStr: String): ParsedResult? {
+  internal fun parseJsonResultFallback(jsonStr: String): ParsedResult? {
     return try {
       val json = JSONObject(jsonStr)
       val type = json.optString("type", TransactionType.EXPENSE.name)
       val amount = json.optLong("amount", 0L)
       if (amount <= 0L) return null
+      if (amount > Long.MAX_VALUE / TOMAN_TO_RIAL) return null
       val amountRial = amount * TOMAN_TO_RIAL
       val category = json.optString("category", CATEGORY_OTHER)
       val personName = json.optString("personName").takeIf { it.isNotEmpty() }
@@ -249,7 +250,7 @@ object GeminiParser {
     if (rustResult != null) {
       return mapRustParsedResult(rustResult)
     }
-    AppLogger.w(TAG, "Rust parser unavailable, using Kotlin fallback")
+    AppLogger.d(TAG, "Rust parser unavailable, using Kotlin fallback")
     return kotlinFallbackParse(rawSentence)
   }
 
@@ -335,10 +336,27 @@ object GeminiParser {
       CATEGORY_TRANSPORTATION to listOf("پارکینگ", "بنزین", "تاکسی", "اتوبوس", "مترو"),
       CATEGORY_BILLS to listOf("برق", "آب", "گاز", "تلفن", "قبض"),
       CATEGORY_RENT_UTILITIES to listOf("اجاره", "رهن"),
-      CATEGORY_FOOD to listOf("غذا", "رستوران", "ناهار", "شام", "صبحانه", "بستنی"),
-      CATEGORY_SHOPPING to listOf("خرید", "فروشگاه"),
+      CATEGORY_FOOD to
+        listOf(
+          "غذا",
+          "رستوران",
+          "ناهار",
+          "شام",
+          "صبحانه",
+          "بستنی",
+          "مرغ",
+          "گوشت",
+          "ماهی",
+          "سبزی",
+          "میوه",
+          "شیر",
+          "تخم",
+          "پنیر",
+          "نان"
+        ),
+      CATEGORY_SHOPPING to listOf("لباس", "کفش", "فروشگاه"),
       CATEGORY_EDUCATION to listOf("آموزش", "کلاس", "مدرسه", "دانشگاه"),
-      CATEGORY_PERSONAL_CARE to listOf("درمان", "دارو", "بیمارستان", "پزشک"),
+      CATEGORY_PERSONAL_CARE to listOf("درمان", "دارو", "بیمارستان", "پزشک", "اصلاح", "آرایشگاه"),
       CATEGORY_EVENTS_GIFTS to listOf("هدیه", "جشن", "مراسم"),
       CATEGORY_CHARITY to listOf("خیریه", "صدقه"),
       CATEGORY_INVESTMENT to listOf(KEYWORD_INVESTMENT, "صندوق", "سهام")
@@ -413,12 +431,12 @@ object GeminiParser {
       )
     for ((name, month) in monthByName) {
       val day =
-        ("""(?<![\d])(\d{1,2})\s*$name""")
+        """(?<![\d])(\d{1,2})\s*$name"""
           .toRegex()
           .find(normalized)
           ?.groupValues
           ?.getOrNull(1)
-          ?: ("""(?<![\d])$name\s*(\d{1,2})(?![\d])""")
+          ?: """(?<![\d])$name\s*(\d{1,2})(?![\d])"""
             .toRegex()
             .find(normalized)
             ?.groupValues
@@ -429,8 +447,9 @@ object GeminiParser {
       val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
       val todayCal =
         JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day) ?: return null
+      val targetYear = if (month < today.month) today.year + 1 else today.year
       val targetCal =
-        JalaliCalendarHelper.jalaliToGregorian(today.year, month, dayNum) ?: return null
+        JalaliCalendarHelper.jalaliToGregorian(targetYear, month, dayNum) ?: return null
       return ((targetCal.timeInMillis - todayCal.timeInMillis) / DAY_MS).toInt()
     }
     return null
@@ -537,7 +556,7 @@ object GeminiParser {
           val validation =
             io.github.mojri.hesabyar.rust.RustBridge
               .validateAiAdvice(result.text)
-          if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+          if (!validation.isValid) {
             AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
             return@withContext getBudgetAdviceOffline(transactions, loans, installments, categories)
           }

@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import dagger.hilt.android.HiltAndroidApp
 import io.github.mojri.hesabyar.rust.InternalException
 import io.github.mojri.hesabyar.rust.RustBridge
@@ -29,6 +30,16 @@ class HesabyarApp : Application() {
 
     @JvmStatic
     fun isRustInitialized(): Boolean = rustInitialized
+
+    /**
+     * Force Rust availability state for unit tests.
+     * Must be called in @After to restore original state.
+     */
+    @VisibleForTesting
+    @JvmStatic
+    fun setRustInitializedForTesting(value: Boolean) {
+      rustInitialized = value
+    }
 
     @JvmStatic
     fun ensureRustInitialized(): Boolean {

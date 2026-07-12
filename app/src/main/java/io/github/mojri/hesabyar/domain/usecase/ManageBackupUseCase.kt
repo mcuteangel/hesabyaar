@@ -257,8 +257,8 @@ class ManageBackupUseCase(
     errors: MutableList<String>
   ) {
     transactions.forEachIndexed { i, t ->
-      if (t.amount < 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
-      if (t.date < 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
+      if (t.amount <= 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
+      if (t.date <= 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
     }
   }
 
@@ -267,8 +267,10 @@ class ManageBackupUseCase(
     errors: MutableList<String>
   ) {
     loans.forEachIndexed { i, l ->
+      if (l.personName.isBlank()) errors.add("نام شخص وام #$i خالی است")
+      if (l.date <= 0) errors.add("تاریخ وام #$i نامعتبر است")
+      if (l.originalAmount <= 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
       if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
-      if (l.originalAmount < 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
     }
   }
 
@@ -277,8 +279,9 @@ class ManageBackupUseCase(
     errors: MutableList<String>
   ) {
     installments.forEachIndexed { i, it ->
-      if (it.amount < 0) errors.add("مبلغ قسط #$i نامعتبر است")
-      if (it.dueDate < 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+      if (it.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
+      if (it.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
+      if (it.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
     }
   }
 

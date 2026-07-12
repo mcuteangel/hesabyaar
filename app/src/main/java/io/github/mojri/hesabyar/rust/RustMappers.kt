@@ -122,8 +122,12 @@ object RustMappers {
    * Since [Transaction.type] is now a typed enum, this is a direct passthrough.
    */
   fun mapTransactionType(type: TransactionType): io.github.mojri.hesabyar.rust.TransactionType =
-    io.github.mojri.hesabyar.rust.TransactionType
-      .valueOf(type.name)
+    when (type) {
+      TransactionType.UNKNOWN -> io.github.mojri.hesabyar.rust.TransactionType.EXPENSE
+      else ->
+        io.github.mojri.hesabyar.rust.TransactionType
+          .valueOf(type.name)
+    }
 
   fun mapTransaction(tx: Transaction): io.github.mojri.hesabyar.rust.Transaction =
     io.github.mojri.hesabyar.rust.Transaction(
