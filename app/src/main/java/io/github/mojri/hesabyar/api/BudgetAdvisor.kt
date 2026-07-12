@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 
 object BudgetAdvisor {
   private const val TAG = "BudgetAdvisor"
+  private const val SAVINGS_RATIO = 5
 
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
@@ -206,7 +207,7 @@ object BudgetAdvisor {
     when {
       summary.expense > summary.income ->
         sb.appendLine("🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود.")
-      summary.income > 0 && summary.balance > summary.income / 5 ->
+      summary.income > 0 && summary.balance > summary.income / SAVINGS_RATIO ->
         sb.appendLine("✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود.")
       else ->
         sb.appendLine("⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید.")

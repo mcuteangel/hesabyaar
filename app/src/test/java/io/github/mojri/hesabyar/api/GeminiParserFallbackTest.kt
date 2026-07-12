@@ -15,6 +15,22 @@ import org.junit.Test
 class GeminiParserFallbackTest {
   private fun parse(sentence: String) = GeminiParser.kotlinFallbackParse(sentence)
 
+  private val monthName =
+    mapOf(
+      1 to "فروردین",
+      2 to "اردیبهشت",
+      3 to "خرداد",
+      4 to "تیر",
+      5 to "مرداد",
+      6 to "شهریور",
+      7 to "مهر",
+      8 to "آبان",
+      9 to "آذر",
+      10 to "دی",
+      11 to "بهمن",
+      12 to "اسفند"
+    )
+
   // --- success: amount extraction ---
 
   @Test
@@ -150,21 +166,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `fallback parses explicit Jalali date to day offset`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     val futureMonth = if (today.month == 12) 1 else today.month + 1
 
     val future = parse("خرج ۱۰۰ هزار ${monthName[futureMonth]} ۵")
@@ -181,21 +183,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date day-month format parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     // Pick a day that's not today to avoid zero-offset
     val testDay = if (today.day != 15) 15 else 10
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
@@ -210,21 +198,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date month-day format parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     val testDay = if (today.day != 20) 20 else 5
     val result = parse("خریدم ۱۰۰ هزار ${monthName[today.month]} $testDay")
     assertNotNull(result)
@@ -237,21 +211,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date same day yields zero offset`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     val result = parse("خریدم ۱۰۰ هزار ${today.day} ${monthName[today.month]}")
     assertNotNull(result)
     assertEquals(0, result!!.dateOffsetDays)
@@ -262,21 +222,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date day 1 parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     val result = parse("خریدم ۱۰۰ هزار ۱ ${monthName[today.month]}")
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
@@ -284,22 +230,10 @@ class GeminiParserFallbackTest {
 
   @Test
   fun `explicit Jalali date day 31 parses correctly for 31-day months`() {
-    // Months 1-6 have 31 days in Jalali
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    if (today.month <= 6) {
-      val monthName =
-        mapOf(
-          1 to "فروردین",
-          2 to "اردیبهشت",
-          3 to "خرداد",
-          4 to "تیر",
-          5 to "مرداد",
-          6 to "شهریور"
-        )
-      val result = parse("خریدم ۱۰۰ هزار ۳۱ ${monthName[today.month]}")
-      assertNotNull(result)
-      assertNotNull(result!!.dateOffsetDays)
-    }
+    // Farvardin (month 1) always has 31 days in Jalali — avoids skipping on months 7-12
+    val result = parse("خریدم ۱۰۰ هزار ۳۱ فروردین")
+    assertNotNull(result)
+    assertNotNull(result!!.dateOffsetDays)
   }
 
   // --- invalid day numbers ---
@@ -323,21 +257,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date in earlier month uses next year`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     // Pick a month that is strictly before the current month (wraps to next year)
     val targetMonth = if (today.month > 1) today.month - 1 else 12
     val result = parse("خریدم ۱۰۰ هزار ۵ ${monthName[targetMonth]}")
@@ -352,21 +272,7 @@ class GeminiParserFallbackTest {
   @Test
   fun `explicit Jalali date in same or later month uses current year`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val monthName =
-      mapOf(
-        1 to "فروردین",
-        2 to "اردیبهشت",
-        3 to "خرداد",
-        4 to "تیر",
-        5 to "مرداد",
-        6 to "شهریور",
-        7 to "مهر",
-        8 to "آبان",
-        9 to "آذر",
-        10 to "دی",
-        11 to "بهمن",
-        12 to "اسفند"
-      )
+
     // Same month, different day — offset can be positive or negative depending on day
     val testDay = if (today.day != 15) 15 else 10
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")

@@ -268,9 +268,14 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
         if trimmed.is_empty() { None } else { Some(trimmed) }
     });
 
+    let amount_toman = amount_i64.checked_mul(10)
+        .ok_or_else(|| HesabyarError::ValidationError {
+            detail: "Amount overflows i64 range after multiplication".to_string(),
+        })?;
+
     let result = ParsedResult {
         tx_type,
-        amount: amount_i64 * 10,
+        amount: amount_toman,
         category: normalized,
         person_name,
         description,

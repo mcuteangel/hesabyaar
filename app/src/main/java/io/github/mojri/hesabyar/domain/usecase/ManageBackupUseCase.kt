@@ -278,10 +278,10 @@ class ManageBackupUseCase(
     installments: List<Installment>,
     errors: MutableList<String>
   ) {
-    installments.forEachIndexed { i, it ->
-      if (it.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
-      if (it.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
-      if (it.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+    installments.forEachIndexed { i, installment ->
+      if (installment.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
+      if (installment.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
+      if (installment.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
     }
   }
 

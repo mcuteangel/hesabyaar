@@ -232,7 +232,7 @@ class JalaliCalendarTest {
             month: Int
           ): Int = -1
 
-          override fun isJalaliLeapYearSync(year: Int): Boolean = (year % 33) in intArrayOf(1, 5, 9, 13, 17, 22, 26, 30)
+          override fun isJalaliLeapYearSync(year: Int): Boolean = year % 33 in intArrayOf(1, 5, 9, 13, 17, 22, 26, 30)
         }
       }
       // Month 12 in non-leap year should have 29 days

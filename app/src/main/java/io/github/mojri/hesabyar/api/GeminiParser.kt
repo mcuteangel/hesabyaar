@@ -84,6 +84,8 @@ object GeminiParser {
 
   private const val KEYWORD_TOMAN = "تومان"
   private const val KEYWORD_HAZAR = "هزار"
+  private const val MIN_JALALI_DAY = 1
+  private const val MAX_JALALI_DAY = 31
 
   private const val LOAN_ADVICE =
     "🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای %d مورد تسویه نشده هستید. " +
@@ -191,9 +193,8 @@ object GeminiParser {
       val json = JSONObject(jsonStr)
       val type = json.optString("type", TransactionType.EXPENSE.name)
       val amount = json.optLong("amount", 0L)
-      if (amount <= 0L) return null
-      if (amount > Long.MAX_VALUE / TOMAN_TO_RIAL) return null
-      val amountRial = amount * TOMAN_TO_RIAL
+      val validAmount = amount.takeIf { it in 1..Long.MAX_VALUE / TOMAN_TO_RIAL } ?: return null
+      val amountRial = validAmount * TOMAN_TO_RIAL
       val category = json.optString("category", CATEGORY_OTHER)
       val personName = json.optString("personName").takeIf { it.isNotEmpty() }
       val description = json.optString("description").takeIf { it.isNotEmpty() } ?: ""
@@ -429,30 +430,42 @@ object GeminiParser {
         "بهمن" to 11,
         "اسفند" to 12
       )
-    for ((name, month) in monthByName) {
-      val day =
-        """(?<![\d])(\d{1,2})\s*$name"""
+    return monthByName.entries.firstNotNullOfOrNull { (name, month) ->
+      computeJalaliDayOffset(normalized, name, month)
+    }
+  }
+
+  private fun computeJalaliDayOffset(
+    normalized: String,
+    name: String,
+    month: Int
+  ): Int? {
+    val dayNum = extractJalaliDay(normalized, name) ?: return null
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val targetYear = if (month < today.month) today.year + 1 else today.year
+    val todayCal = JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day)
+    val targetCal = JalaliCalendarHelper.jalaliToGregorian(targetYear, month, dayNum)
+    return todayCal?.let { tCal ->
+      targetCal?.let { dCal -> ((dCal.timeInMillis - tCal.timeInMillis) / DAY_MS).toInt() }
+    }
+  }
+
+  private fun extractJalaliDay(
+    normalized: String,
+    name: String
+  ): Int? {
+    val dayStr =
+      """(?<![\d])(\d{1,2})\s*$name"""
+        .toRegex()
+        .find(normalized)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?: """(?<![\d])$name\s*(\d{1,2})(?![\d])"""
           .toRegex()
           .find(normalized)
           ?.groupValues
           ?.getOrNull(1)
-          ?: """(?<![\d])$name\s*(\d{1,2})(?![\d])"""
-            .toRegex()
-            .find(normalized)
-            ?.groupValues
-            ?.getOrNull(1)
-          ?: continue
-      val dayNum = day.toIntOrNull() ?: continue
-      if (dayNum !in 1..31) continue
-      val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-      val todayCal =
-        JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day) ?: return null
-      val targetYear = if (month < today.month) today.year + 1 else today.year
-      val targetCal =
-        JalaliCalendarHelper.jalaliToGregorian(targetYear, month, dayNum) ?: return null
-      return ((targetCal.timeInMillis - todayCal.timeInMillis) / DAY_MS).toInt()
-    }
-    return null
+    return dayStr?.toIntOrNull()?.takeIf { it in MIN_JALALI_DAY..MAX_JALALI_DAY }
   }
 
   suspend fun getBudgetAdvice(

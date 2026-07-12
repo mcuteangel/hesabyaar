@@ -131,6 +131,7 @@ object RustBridge : JalaliNativeBridge {
   // AI validation
   // ===========================================================================
 
+  @Suppress("TooGenericExceptionCaught")
   suspend fun validateAiAdvice(text: String): AdviceValidation {
     if (!available) {
       return AdviceValidation(
@@ -249,6 +250,7 @@ object RustBridge : JalaliNativeBridge {
       HesabyarCore.validateBackupPayload(payload)
     }
 
+  @Suppress("TooGenericExceptionCaught")
   suspend fun validateBackup(payload: BackupPayload) {
     if (!available) return
     try {
