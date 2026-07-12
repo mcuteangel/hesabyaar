@@ -244,6 +244,8 @@ class ManageBackupUseCase(
     validateBackupTransactions(backup.transactions, errors)
     validateBackupLoans(backup.loans, errors)
     validateBackupInstallments(backup.installments, errors)
+    validateBackupCategories(backup.categories, errors)
+    validateBackupPaymentHistories(backup.paymentHistories, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid
@@ -282,6 +284,25 @@ class ManageBackupUseCase(
       if (installment.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
       if (installment.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
       if (installment.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupCategories(
+    categories: List<Category>,
+    errors: MutableList<String>
+  ) {
+    categories.forEachIndexed { i, category ->
+      if (category.name.isBlank()) errors.add("نام دسته‌بندی #$i خالی است")
+    }
+  }
+
+  private fun validateBackupPaymentHistories(
+    payments: List<PaymentHistory>,
+    errors: MutableList<String>
+  ) {
+    payments.forEachIndexed { i, payment ->
+      if (payment.amount <= 0) errors.add("مبلغ پرداخت #$i نامعتبر است")
+      if (payment.date <= 0) errors.add("تاریخ پرداخت #$i نامعتبر است")
     }
   }
 

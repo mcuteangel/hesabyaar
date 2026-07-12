@@ -581,6 +581,19 @@ mod tests {
         assert_eq!(result.result.amount, 500_000_000); // 50M toman * 10 = 500M rial
     }
 
+    #[test]
+    fn test_amount_overflow_after_multiplication() {
+        // i64::MAX / 10 = 922337203685477580; amount * 10 overflows for anything larger
+        let json = r#"{"type": "EXPENSE", "amount": 922337203685477581, "category": "Food"}"#;
+        let err = parse_ai_transaction_json(json).unwrap_err();
+        match err {
+            HesabyarError::ValidationError { detail } => {
+                assert!(detail.contains("overflows"));
+            }
+            _ => panic!("Expected ValidationError for overflow"),
+        }
+    }
+
     // =====================================================================
     // Category normalization tests
     // =====================================================================

@@ -22,14 +22,25 @@ try_commit() {
   fi
   echo "  ✓ ktlintFormat passed"
 
-  # Re-stage only files that were originally staged AND modified by ktlintFormat.
-  # This picks up the auto-fixes into the commit snapshot without pulling in
-  # unrelated unstaged changes the user intentionally left out.
+  # Snapshot each staged file's working-tree hash before ktlintFormat runs,
+  # then compare after to re-stage only files ktlintFormat actually changed.
+  # This avoids pulling in pre-existing unstaged changes the user left out.
   if [[ ${#staged_files[@]} -gt 0 ]]; then
+    declare -A pre_format_hash
+    for f in "${staged_files[@]}"; do
+      if [[ -f "$f" ]]; then
+        pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
+      fi
+    done
+
     local modified_files=()
     for f in "${staged_files[@]}"; do
-      if [[ -f "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
-        modified_files+=("$f")
+      if [[ -f "$f" ]]; then
+        local post_hash
+        post_hash=$(git hash-object "$f" 2>/dev/null || echo "")
+        if [[ -n "${pre_format_hash[$f]}" && "${pre_format_hash[$f]}" != "$post_hash" ]]; then
+          modified_files+=("$f")
+        fi
       fi
     done
     if [[ ${#modified_files[@]} -gt 0 ]]; then
