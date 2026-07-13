@@ -60,6 +60,13 @@ class RustBridgeTest {
 
   @Test
   fun `currency sync calls delegate to the native core`() {
+    // The numeric substring is produced by the Rust core (currency.rs
+    // `format_number`), which emits ASCII digits ('0'..'9') and an ASCII ','
+    // thousands separator unconditionally — it performs no locale-aware
+    // formatting. The output is therefore independent of the JVM/OS locale this
+    // test runs under, so `contains("1,000,000")` is not locale-fragile. (If the
+    // core ever switched to Persian/Arabic digits, these assertions SHOULD fail
+    // as a regression signal — do not loosen them to accept alternate digits.)
     assertTrue(RustBridge.formatCurrencySync(1_000_000L, CurrencyUnit.RIAL).contains("1,000,000"))
     // 100 Toman = 1,000 Rial.
     assertEquals(1_000L, RustBridge.toRialSync(100L, CurrencyUnit.TOMAN))

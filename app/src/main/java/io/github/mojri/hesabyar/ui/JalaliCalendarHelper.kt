@@ -224,14 +224,114 @@ object JalaliCalendarHelper {
     val jalaliDate = gregorianToJalali(timestamp)
 
     val startCal = jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
-    val start = startCal?.timeInMillis ?: timestamp - 30L * 24 * 60 * 60 * 1000
+    val start =
+      startCal?.timeInMillis
+        ?: saturatingSubtract(timestamp, 15L * 24 * 60 * 60 * 1000)
 
     val nextMonth = if (jalaliDate.month == 12) 1 else jalaliDate.month + 1
     val nextMonthYear = if (jalaliDate.month == 12) jalaliDate.year + 1 else jalaliDate.year
     val nextMonthStartCal = jalaliToGregorian(nextMonthYear, nextMonth, 1)
-    val nextMonthStart = nextMonthStartCal?.timeInMillis ?: start + 30L * 24 * 60 * 60 * 1000
+    val nextMonthStart =
+      nextMonthStartCal?.timeInMillis
+        ?: saturatingAdd(timestamp, 15L * 24 * 60 * 60 * 1000)
 
-    return start to nextMonthStart - 1L
+    return start to saturatingSubtract(nextMonthStart, 1L)
+  }
+
+  /**
+   * Saturating `a + b` that clamps to [Long.MIN_VALUE]/[Long.MAX_VALUE] instead of
+   * wrapping, so extreme timestamps keep an ordered, bounded range in the
+   * month-boundary fallbacks above.
+   */
+  internal fun saturatingAdd(
+    a: Long,
+    b: Long
+  ): Long =
+    if (b > 0 && a > Long.MAX_VALUE - b) {
+      Long.MAX_VALUE
+    } else if (b < 0 && a < Long.MIN_VALUE - b) {
+      Long.MIN_VALUE
+    } else {
+      a + b
+    }
+
+  /**
+   * Saturating `a - b` that clamps to [Long.MIN_VALUE]/[Long.MAX_VALUE] instead of
+   * wrapping. Implemented via [saturatingAdd] so the overflow logic lives in one
+   * place.
+   */
+  internal fun saturatingSubtract(
+    a: Long,
+    b: Long
+  ): Long = saturatingAdd(a, -b)
+
+  /**
+   * UTC half-open `[start, nextMonthStart)` boundaries of the Jalali month
+   * containing [timestamp], matching the Rust core's `compute_dashboard_data`
+   * (which interprets epoch-ms timestamps in UTC).
+   *
+   * Both values are epoch-ms in UTC:
+   * - `start`          = 00:00:00.000 UTC of the 1st day of the Jalali month
+   * - `nextMonthStart` = 00:00:00.000 UTC of the 1st day of the *next* month
+   *   (i.e. the exclusive end of the current month)
+   *
+   * The dashboard fallback in
+   * [io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase] uses this
+   * so transactions/installments are assigned to the same Jalali month as the
+   * Rust path. A device-local range would otherwise differ by the UTC offset
+   * (≈3:30 in Iran), making the fallback include an installment Rust assigns to
+   * the adjacent month and producing divergent debt-to-income around boundaries.
+   * Filter with `date >= start && date < nextMonthStart` — equivalent to the
+   * Rust core's `[monthStartMs, monthEndMs)` range.
+   */
+  fun getUtcJalaliMonthBoundaries(timestamp: Long): Pair<Long, Long> {
+    // Determine the Jalali month of [timestamp] in UTC, like the Rust core does.
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    utcCal.timeInMillis = timestamp
+    val jalaliDate =
+      gregorianToJalaliLocal(
+        utcCal.get(Calendar.YEAR),
+        utcCal.get(Calendar.MONTH) + 1,
+        utcCal.get(Calendar.DAY_OF_MONTH)
+      )
+    val (jy, jm) =
+      if (jalaliDate != null) {
+        jalaliDate.year to jalaliDate.month
+      } else {
+        // Best-effort 30-day window so callers still get a finite, ordered range.
+        val windowStart = saturatingSubtract(timestamp, 30L * 24 * 60 * 60 * 1000)
+        val windowEnd = saturatingAdd(timestamp, 30L * 24 * 60 * 60 * 1000)
+        return windowStart to windowEnd
+      }
+
+    val start = jalaliMonthStartUtcMs(jy, jm)
+    val nextMonth = if (jm == 12) 1 else jm + 1
+    val nextYear = if (jm == 12) jy + 1 else jy
+    val nextMonthStart = jalaliMonthStartUtcMs(nextYear, nextMonth)
+    return start to nextMonthStart
+  }
+
+  /**
+   * UTC epoch-ms of midnight of the Gregorian date that corresponds to the
+   * Jalali `(jy, jm, 1)`. Mirrors Rust's `jalali_to_gregorian(jy, jm, 1)`, which
+   * returns the UTC midnight for the given Jalali date.
+   */
+  private fun jalaliMonthStartUtcMs(
+    jy: Int,
+    jm: Int
+  ): Long {
+    val gCal = jalaliToGregorianLocal(jy, jm, 1) ?: return 0L
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    utcCal.set(
+      gCal.get(Calendar.YEAR),
+      gCal.get(Calendar.MONTH),
+      gCal.get(Calendar.DAY_OF_MONTH),
+      0,
+      0,
+      0
+    )
+    utcCal.set(Calendar.MILLISECOND, 0)
+    return utcCal.timeInMillis
   }
 
   /**

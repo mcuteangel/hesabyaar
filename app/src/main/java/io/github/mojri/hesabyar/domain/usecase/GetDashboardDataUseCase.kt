@@ -69,13 +69,15 @@ class GetDashboardDataUseCase(
     ): DashboardData {
       val now = System.currentTimeMillis()
 
-      // Current Jalali month boundaries (00:00:00.000 of the 1st day to
-      // 23:59:59.999 of the last day), centralized in JalaliCalendarHelper.
-      val (jalaliMonthStart, jalaliMonthEnd) =
+      // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
+      // matching the Rust core's compute_dashboard_data (which interprets
+      // timestamps in UTC). Centralized in JalaliCalendarHelper so the fallback
+      // and Rust paths assign transactions/installments to the same Jalali month.
+      val (jalaliMonthStart, jalaliMonthEndExclusive) =
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-          .getJalaliMonthBoundaries(now)
+          .getUtcJalaliMonthBoundaries(now)
 
-      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date <= jalaliMonthEnd }
+      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEndExclusive }
       val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
       val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
@@ -100,7 +102,7 @@ class GetDashboardDataUseCase(
       // monthly portion (remaining / 12) of unsettled creditor loans.
       val installmentDebt =
         installments
-          .filter { !it.isPaid && it.dueDate >= jalaliMonthStart && it.dueDate <= jalaliMonthEnd }
+          .filter { !it.isPaid && it.dueDate >= jalaliMonthStart && it.dueDate < jalaliMonthEndExclusive }
           .sumOf { it.amount }
       val creditorLoanDebt =
         unsettledLoans

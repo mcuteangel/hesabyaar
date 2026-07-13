@@ -57,6 +57,13 @@ class GeminiParserFallbackTest {
     assertEquals(6_000_000L, result!!.amount)
   }
 
+  @Test
+  fun `fallback overflowing million amount returns null instead of wrapping`() {
+    // 9,999,999,999,999,999 * 1_000_000 * 10 overflows Long; must return null
+    // rather than a wrapped/negative amount.
+    assertNull(parse("9999999999999999 میلیون خرج کردم"))
+  }
+
   // --- success: type detection ---
 
   @Test
@@ -148,6 +155,15 @@ class GeminiParserFallbackTest {
   @Test
   fun `fallback detects yesterday offset`() {
     val result = parse("دیروز 500 هزار خرج کردم")
+    assertEquals(-1, result!!.dateOffsetDays)
+  }
+
+  @Test
+  fun `explicit date does not match month name inside longer word like دیروز`() {
+    // "5 دیروز" must not be read as "5 دی" (Dey 5); the month name requires a
+    // letter boundary after it. The sentence still contains the relative word
+    // "دیروز", so the offset should resolve to yesterday (-1), not a Dey offset.
+    val result = parse("خریدم 5 دیروز 500 هزار")
     assertEquals(-1, result!!.dateOffsetDays)
   }
 

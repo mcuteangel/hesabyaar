@@ -21,20 +21,23 @@ import java.util.TimeZone
 class JalaliMonthBoundariesTest {
   private val tehran = TimeZone.getTimeZone("Asia/Tehran")
   private var originalDefaultTz: TimeZone? = null
+  private var originalBridgeProvider = JalaliCalendarHelper.bridgeProvider
 
   @Before
   fun setUp() {
     originalDefaultTz = TimeZone.getDefault()
     TimeZone.setDefault(tehran)
-    // Use the pure-Kotlin path so results are deterministic and independent of
-    // whether the native core is loaded in the test JVM.
+    // Capture and later restore the bridge provider so tests that install a
+    // native bridge are not perturbed; force the pure-Kotlin path for this test
+    // so results are deterministic and independent of native-core loading.
+    originalBridgeProvider = JalaliCalendarHelper.bridgeProvider
     JalaliCalendarHelper.bridgeProvider = null
   }
 
   @After
   fun tearDown() {
     TimeZone.setDefault(originalDefaultTz)
-    JalaliCalendarHelper.bridgeProvider = null
+    JalaliCalendarHelper.bridgeProvider = originalBridgeProvider
   }
 
   private fun tehranMillis(
@@ -105,5 +108,39 @@ class JalaliMonthBoundariesTest {
     assertEquals(29L * 24 * 60 * 60 * 1000, end - start + 1)
     assertEquals(JalaliCalendarHelper.JalaliDate(1402, 11, 30), JalaliCalendarHelper.gregorianToJalali(start - 1))
     assertEquals(JalaliCalendarHelper.JalaliDate(1403, 1, 1), JalaliCalendarHelper.gregorianToJalali(end + 1))
+  }
+
+  // --- Saturating arithmetic used by the month-boundary fallbacks ------------
+  // Extreme timestamps must NOT wrap the 30-day fallback window; the range must
+  // stay ordered and bounded at Long.MIN_VALUE / Long.MAX_VALUE.
+
+  private val windowMs = 30L * 24 * 60 * 60 * 1000
+
+  @Test
+  fun `saturatingAdd clamps at Long MAX instead of wrapping`() {
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingAdd(Long.MAX_VALUE, windowMs))
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingAdd(Long.MAX_VALUE - windowMs / 2, windowMs))
+  }
+
+  @Test
+  fun `saturatingAdd clamps at Long MIN when subtracting past it`() {
+    assertEquals(Long.MIN_VALUE, JalaliCalendarHelper.saturatingAdd(Long.MIN_VALUE, -windowMs))
+  }
+
+  @Test
+  fun `saturatingSubtract clamps at Long MIN instead of wrapping`() {
+    assertEquals(Long.MIN_VALUE, JalaliCalendarHelper.saturatingSubtract(Long.MIN_VALUE, windowMs))
+  }
+
+  @Test
+  fun `saturatingSubtract clamps at Long MAX for negative subtrahend`() {
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingSubtract(Long.MAX_VALUE, -1))
+  }
+
+  @Test
+  fun `saturating arithmetic matches plain arithmetic in safe range`() {
+    assertEquals(1000L - windowMs, JalaliCalendarHelper.saturatingSubtract(1000L, windowMs))
+    assertEquals(1000L + windowMs, JalaliCalendarHelper.saturatingAdd(1000L, windowMs))
+    assertEquals(Long.MAX_VALUE - 1, JalaliCalendarHelper.saturatingSubtract(Long.MAX_VALUE, 1))
   }
 }

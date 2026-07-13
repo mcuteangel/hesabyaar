@@ -583,8 +583,11 @@ object BudgetAdvisor {
 
   // Trailing-90-day income baseline, mirroring the Rust core's
   // `monthly_income_baseline` so the debt-to-income ratio uses current income.
-  private fun localMonthlyIncomeBaseline(transactions: List<Transaction>): Long {
-    val nowMs = System.currentTimeMillis()
+  // `nowMs` is injectable for deterministic, non-flaky tests.
+  internal fun localMonthlyIncomeBaseline(
+    transactions: List<Transaction>,
+    nowMs: Long = System.currentTimeMillis()
+  ): Long {
     val windowStart = nowMs - 90L * 24 * 60 * 60 * 1000
     val recent =
       transactions.filter {

@@ -435,6 +435,25 @@ class OfflineParserTest {
   }
 
   @Test
+  fun `kotlin fallback ignores phone numbers containing the telephone keyword`() {
+    // "تلفن" is a bill category keyword, but a phone NUMBER must not be parsed
+    // as a transaction (the whole number would otherwise be extracted as an amount).
+    assertNull(GeminiParser.kotlinFallbackParse("شماره تلفن ۰۹۱۲۳۴۵۶۷۸۹"))
+    assertNull(GeminiParser.kotlinFallbackParse("تلفن 09123456789"))
+    // A bare mobile number is also excluded even without the "تلفن" word.
+    assertNull(GeminiParser.kotlinFallbackParse("۰۹۱۲۳۴۵۶۷۸۹"))
+  }
+
+  @Test
+  fun `kotlin fallback still parses a real telephone bill`() {
+    // Phone BILLS carry stronger keywords (قبض/هزینه) so they must still parse.
+    val result = GeminiParser.kotlinFallbackParse("قبض تلفن ۵۰ هزار")
+    assertNotNull(result)
+    assertEquals(500_000L, result!!.amount)
+    assertEquals("Bills", result.category)
+  }
+
+  @Test
   fun `kotlin fallback still parses valid monetary numeric string`() {
     // A number WITH monetary context must still parse (regression guard).
     val result = GeminiParser.kotlinFallbackParse("خرید 500 تومان")

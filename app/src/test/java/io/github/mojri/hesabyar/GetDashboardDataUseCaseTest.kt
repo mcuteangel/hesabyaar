@@ -6,6 +6,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -183,5 +184,83 @@ class GetDashboardDataUseCaseTest {
 
     assertEquals(8_000_000L, result.currentBalance)
     assertEquals(1.0, result.savingsRate, 0.01) // all income saved
+  }
+
+  // -- Edge cases requested by reviewer --------------------------------------
+
+  @Test
+  fun `fallback clamps savings rate to zero when expenses exceed income`() {
+    // Both transactions fall inside the current Jalali month (date defaults to now).
+    val transactions =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000),
+        tx(TransactionType.EXPENSE, 8_000_000) // expense > income
+      )
+
+    val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
+
+    // savingsRate = (5M - 8M) / 5M = -0.6, clamped to 0.0 by coerceIn(0.0, 1.0).
+    assertEquals(0.0, result.savingsRate, 0.0001)
+    assertEquals(-3_000_000L, result.currentBalance) // lifetime balance stays negative
+  }
+
+  @Test
+  fun `fallback returns debt-to-income ratio of one when income is zero and debt exists`() {
+    // No income transactions -> monthlyIncome == 0.
+    // An unpaid installment due within the current cycle creates monthly debt.
+    val installments = listOf(inst(2_000_000, paid = false))
+
+    val result = GetDashboardDataUseCase.computeFallbackDashboardData(emptyList(), emptyList(), installments)
+
+    assertEquals(0L, result.monthlyIncome)
+    // monthlyIncome <= 0 and monthlyDebt > 0 -> debtToIncomeRatio == 1.0
+    assertEquals(1.0, result.debtToIncomeRatio, 0.0001)
+  }
+
+  @Test
+  fun `fallback includes transaction inside UTC month boundary but excludes next month start`() {
+    // The fallback uses UTC half-open [start, end) boundaries matching the Rust
+    // core, so a transaction one ms before the exclusive end is included while
+    // one exactly at the next-month start is excluded.
+    val (_, jalaliMonthEndExclusive) =
+      JalaliCalendarHelper.getUtcJalaliMonthBoundaries(System.currentTimeMillis())
+
+    val inside = tx(TransactionType.INCOME, 4_000_000, jalaliMonthEndExclusive - 1L)
+    val outside = tx(TransactionType.INCOME, 9_000_000, jalaliMonthEndExclusive)
+
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        listOf(inside, outside),
+        emptyList(),
+        emptyList()
+      )
+
+    // Only the inside transaction is included in the monthly window.
+    assertEquals(4_000_000L, result.monthlyIncome)
+  }
+
+  @Test
+  fun `fallback debt-to-income filters installments on UTC month boundary matching Rust`() {
+    val now = System.currentTimeMillis()
+    val (_, jalaliMonthEndExclusive) =
+      JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
+
+    val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
+    // Unpaid installment due one ms before the UTC month end (exclusive) is in
+    // the current cycle; one exactly at the next-month start is not. This mirrors
+    // Rust compute_dashboard_data's `due_date < month_end_ms` half-open filter.
+    val inside = inst(2_000_000, paid = false, dueDate = jalaliMonthEndExclusive - 1L)
+    val outside = inst(5_000_000, paid = false, dueDate = jalaliMonthEndExclusive)
+
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions,
+        emptyList(),
+        listOf(inside, outside)
+      )
+
+    // monthlyDebt = 2M (inside only) / 12M income = 0.1667 — proving the
+    // out-of-cycle installment is excluded, identical to the Rust path.
+    assertEquals(0.1667, result.debtToIncomeRatio, 0.01)
   }
 }

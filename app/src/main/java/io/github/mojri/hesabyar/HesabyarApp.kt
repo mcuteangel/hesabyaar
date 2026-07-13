@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import dagger.hilt.android.HiltAndroidApp
+import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.rust.InternalException
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -32,12 +33,18 @@ class HesabyarApp : Application() {
     fun isRustInitialized(): Boolean = rustInitialized
 
     /**
-     * Force Rust availability state for unit tests.
-     * Must be called in @After to restore original state.
+     * Force Rust availability state for unit tests only.
+     *
+     * Guarded two ways so production can never flip the real initialization
+     * state: (1) `internal` visibility — only code in this module (i.e. tests)
+     * may call it; (2) a `BuildConfig.DEBUG` check means a release build ignores
+     * the call entirely. The `@VisibleForTesting` `otherwise = INTERNAL` tells
+     * lint the intended visibility is internal.
      */
     @VisibleForTesting
     @JvmStatic
-    fun setRustInitializedForTesting(value: Boolean) {
+    internal fun setRustInitializedForTesting(value: Boolean) {
+      if (!BuildConfig.DEBUG) return
       rustInitialized = value
     }
 

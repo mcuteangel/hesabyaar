@@ -203,11 +203,21 @@ pub fn predict_time_to_goal(current_savings: i64, monthly_savings: i64, goal_amo
     if monthly_savings <= 0 {
         return -1;
     }
-    let remaining = goal_amount - current_savings;
+    let remaining = goal_amount.saturating_sub(current_savings);
     if remaining <= 0 {
         0
     } else {
-        ((remaining + monthly_savings - 1) / monthly_savings) as i32
+        // months = ceil(remaining / monthly_savings)
+        //          = (remaining + monthly_savings - 1) / monthly_savings
+        // Compute with saturating arithmetic so a massive goal cannot overflow,
+        // then clamp to i32::MAX. This mirrors the Kotlin fallback's
+        // `coerceAtMost(Int.MAX_VALUE)` so the Rust and Kotlin paths never
+        // diverge (a raw `as i32` would wrap a huge count into a negative value).
+        let numerator = remaining
+            .saturating_add(monthly_savings)
+            .saturating_sub(1);
+        let months = numerator / monthly_savings; // both positive here
+        (months.clamp(0, i32::MAX as i64)) as i32
     }
 }
 
@@ -293,6 +303,17 @@ mod tests {
         assert_eq!(predict_time_to_goal(0, 1000, 10000), 10);
         assert_eq!(predict_time_to_goal(10000, 1000, 10000), 0);
         assert_eq!(predict_time_to_goal(0, 0, 10000), -1);
+    }
+
+    #[test]
+    fn test_predict_time_to_goal_overflow_saturates_at_i32_max() {
+        // A massive goal with a tiny monthly saving must saturate at i32::MAX
+        // instead of wrapping into a negative month count (parity with the
+        // Kotlin fallback's coerceAtMost(Int.MAX_VALUE)).
+        assert_eq!(predict_time_to_goal(0, 1, i64::MAX), i32::MAX);
+        assert_eq!(predict_time_to_goal(0, 1, 3_000_000_000_000_000_000), i32::MAX);
+        // Large but finite goals also clamp rather than overflow.
+        assert_eq!(predict_time_to_goal(0, 1, i64::MAX - 5), i32::MAX);
     }
 
     #[test]
