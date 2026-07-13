@@ -118,7 +118,7 @@ app/src/main/java/io/github/mojri/hesabyar/
 ## 🚀 شروع به کار
 
 ### پیش‌نیازها
-- Android Studio (نسخه آخرین)
+- Android Studio (آخرین نسخه)
 - JDK 21+
 - Git
 
