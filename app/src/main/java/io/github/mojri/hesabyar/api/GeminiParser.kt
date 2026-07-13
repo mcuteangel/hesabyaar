@@ -394,7 +394,7 @@ object GeminiParser {
       val hasBillSignal = billPaymentKeywords.any { normalized.contains(it) }
       val shouldSkip = !hasContext && !isPhone || isPhone && !hasBillSignal
       if (shouldSkip) {
-        AppLogger.d(TAG, "kotlinFallbackParse: skipped, no financial context or phone number: $rawSentence")
+        AppLogger.d(TAG, "kotlinFallbackParse: skipped, no financial context detected")
         return null
       }
     }
