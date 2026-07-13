@@ -492,6 +492,16 @@ if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     dependsOn("compileRustCore")
   }
+
+  // Gradle 9+ validates that a task consuming another task's outputs declares an
+  // explicit dependency. The merge*JniLibFolders tasks read src/main/jniLibs,
+  // which compileRustCore (via assembleRust) produces, so wire that dependency
+  // explicitly to avoid implicit-dependency validation failures.
+  tasks.configureEach {
+    if (name.contains("merge", ignoreCase = true) && name.contains("JniLibFolders", ignoreCase = true)) {
+      dependsOn("compileRustCore")
+    }
+  }
 }
 
 tasks.register("generateRustBindings") {

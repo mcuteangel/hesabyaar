@@ -13,6 +13,113 @@ import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
 
+/**
+ * Keywords that signal the input is about a monetary transaction. Used as a
+ * validation gate in [GeminiParser.kotlinFallbackParse] to reject non-monetary
+ * numeric strings (e.g. a year "1403", a phone number, or an ID) before digit
+ * extraction runs, preventing false-positive transaction parsing.
+ */
+private val FINANCIAL_CONTEXT_KEYWORDS =
+  // Currency units
+  listOf(
+    "تومان",
+    "تومن",
+    "ریال"
+  ) +
+    // Amount multipliers (strong money signal on their own)
+    listOf(
+      "هزار",
+      "میلیون",
+      "میلیارد"
+    ) +
+    // Transaction verbs / nouns
+    listOf(
+      "خرید",
+      "خرج",
+      "هزینه",
+      "پرداخت",
+      "برداشت",
+      "واریز",
+      "دریافت",
+      "پس‌انداز",
+      "قسط",
+      "قرض",
+      "وام",
+      "طلب",
+      "بدهی",
+      "مانده",
+      "حساب",
+      "فاکتور",
+      "صورت‌حساب"
+    ) +
+    // Income / sale signals
+    listOf(
+      "حقوق",
+      "درآمد",
+      "فروش",
+      "سود"
+    ) +
+    // Common category words (mirrors the categoryKeywords map inside the parser)
+    listOf(
+      "برق",
+      "آب",
+      "گاز",
+      "تلفن",
+      "قبض",
+      "بنزین",
+      "تاکسی",
+      "مترو",
+      "اتوبوس",
+      "پارکینگ",
+      "غذا",
+      "رستوران",
+      "ناهار",
+      "شام",
+      "صبحانه",
+      "بستنی",
+      "مرغ",
+      "گوشت",
+      "ماهی",
+      "سبزی",
+      "میوه",
+      "شیر",
+      "تخم",
+      "پنیر",
+      "نان",
+      "لباس",
+      "کفش",
+      "فروشگاه",
+      "آموزش",
+      "کلاس",
+      "مدرسه",
+      "دانشگاه",
+      "درمان",
+      "دارو",
+      "بیمارستان",
+      "پزشک",
+      "اصلاح",
+      "آرایشگاه",
+      "هدیه",
+      "جشن",
+      "مراسم",
+      "خیریه",
+      "صدقه",
+      "سرمایه‌گذاری",
+      "صندوق",
+      "سهام",
+      "اجاره",
+      "رهن",
+      "اسنپ",
+      "کرایه",
+      "نوشابه"
+    )
+
+private val DIGIT_PATTERN = Regex("""[0-9\u06F0-\u06F9\u0660-\u0669]""")
+
+private fun containsDigits(text: String): Boolean = DIGIT_PATTERN.containsMatchIn(text)
+
+private fun hasFinancialContext(text: String): Boolean = FINANCIAL_CONTEXT_KEYWORDS.any { text.contains(it) }
+
 object GeminiParser {
   private const val TAG = "GeminiParser"
 
@@ -256,6 +363,14 @@ object GeminiParser {
   }
 
   internal fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
+    // Validation gate: block non-monetary numeric strings (e.g. a year "1403"
+    // or a phone number) that contain digits but no financial context keyword.
+    // This prevents false-positive transaction parsing. Pure non-numeric text is
+    // left to fall through to the (null) amount extraction below.
+    if (containsDigits(rawSentence) && !hasFinancialContext(rawSentence)) {
+      AppLogger.d(TAG, "kotlinFallbackParse: skipped, no financial context: $rawSentence")
+      return null
+    }
     val normalized = normalizePersianDigits(rawSentence)
     val amount = extractAmount(normalized) ?: return null
     if (amount <= 0L) return null

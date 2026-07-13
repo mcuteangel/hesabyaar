@@ -421,6 +421,28 @@ class OfflineParserTest {
   }
 
   // ============================================================
+  // Fallback parser financial-context validation gate
+  // ============================================================
+
+  @Test
+  fun `kotlin fallback returns null for non-monetary numeric string`() {
+    // A bare year must not be parsed as a transaction (false positive).
+    assertNull(GeminiParser.kotlinFallbackParse("سال 1403"))
+    // Persian digits are normalized, so a year in Arabic-Indic digits is blocked too.
+    assertNull(GeminiParser.kotlinFallbackParse("سال ۱۴۰۳"))
+    // A phone-number-like numeric string also lacks monetary context.
+    assertNull(GeminiParser.kotlinFallbackParse("شماره من 09123456789 است"))
+  }
+
+  @Test
+  fun `kotlin fallback still parses valid monetary numeric string`() {
+    // A number WITH monetary context must still parse (regression guard).
+    val result = GeminiParser.kotlinFallbackParse("خرید 500 تومان")
+    assertNotNull(result)
+    assertEquals(5_000L, result!!.amount)
+  }
+
+  // ============================================================
   // classifyInstallment paid vs pending tests
   // ============================================================
 
@@ -509,6 +531,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("EXPENSE", result!!.type)
+    // JSON amount is 5,000,000 Toman; parser normalizes to Rial (×10) → 50,000,000.
     assertEquals(50_000_000L, result.amount)
     assertEquals("Food", result.category)
     assertEquals("مرغ", result.description)
@@ -524,6 +547,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("INCOME", result!!.type)
+    // JSON amount is 20,000,000 Toman; parser normalizes to Rial (×10) → 200,000,000.
     assertEquals(200_000_000L, result.amount)
     assertEquals("Income", result.category)
   }
@@ -548,6 +572,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("INSTALLMENT", result!!.type)
+    // JSON amount is 3,000,000 Toman; parser normalizes to Rial (×10) → 30,000,000.
     assertEquals(30_000_000L, result.amount)
     assertEquals("قسط ماشین", result.title)
   }

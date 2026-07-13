@@ -128,6 +128,28 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
+  fun `fallback debt-to-income sums current-cycle installments with prorated creditor loans`() {
+    val now = System.currentTimeMillis()
+    val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
+    // Creditor loan remaining 12M → prorated monthly = 1M
+    val loans = listOf(loan(LoanType.CREDITOR, 12_000_000))
+    // Unpaid installment due this cycle adds its full amount (2M) to monthly debt.
+    val installments =
+      listOf(
+        inst(2_000_000, paid = false, dueDate = now),
+        inst(5_000_000, paid = true, dueDate = now), // paid → excluded
+        inst(9_000_000, paid = false, dueDate = now - 400L * 24 * 60 * 60 * 1000) // prior cycle → excluded
+      )
+
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(transactions, loans, installments)
+
+    // monthlyDebt = 1M (loan/12) + 2M (current-cycle installment) = 3M
+    // debtToIncome = 3M / 12M = 0.25
+    assertEquals(0.25, result.debtToIncomeRatio, 0.01)
+  }
+
+  @Test
   fun `fallback returns all zeros for empty input`() {
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(emptyList(), emptyList(), emptyList())
 

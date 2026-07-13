@@ -69,22 +69,13 @@ class GetDashboardDataUseCase(
     ): DashboardData {
       val now = System.currentTimeMillis()
 
-      // Get current Jalali month boundaries
-      val jalaliDate =
+      // Current Jalali month boundaries (00:00:00.000 of the 1st day to
+      // 23:59:59.999 of the last day), centralized in JalaliCalendarHelper.
+      val (jalaliMonthStart, jalaliMonthEnd) =
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-          .gregorianToJalali(now)
-      val jalaliMonthStart =
-        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-          .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
-          ?.timeInMillis ?: now - 30L * 24 * 60 * 60 * 1000
-      val nextMonth = if (jalaliDate.month == 12) 1 else jalaliDate.month + 1
-      val nextMonthYear = if (jalaliDate.month == 12) jalaliDate.year + 1 else jalaliDate.year
-      val jalaliMonthEnd =
-        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-          .jalaliToGregorian(nextMonthYear, nextMonth, 1)
-          ?.timeInMillis ?: now
+          .getJalaliMonthBoundaries(now)
 
-      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEnd }
+      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date <= jalaliMonthEnd }
       val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
       val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
@@ -97,12 +88,33 @@ class GetDashboardDataUseCase(
       val totalExpenses = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       val currentBalance = totalIncome - totalExpenses
 
-      val savingsRate = if (monthlyIncome > 0) (monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome else 0.0
-      val monthlyDebt =
+      val savingsRate =
+        if (monthlyIncome > 0) {
+          ((monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome).coerceIn(0.0, 1.0)
+        } else {
+          0.0
+        }
+
+      // Monthly debt obligations mirror the Rust core's calculate_debt_to_income_ratio:
+      // unpaid installments due in the current cycle (full amount) plus the prorated
+      // monthly portion (remaining / 12) of unsettled creditor loans.
+      val installmentDebt =
+        installments
+          .filter { !it.isPaid && it.dueDate >= jalaliMonthStart && it.dueDate <= jalaliMonthEnd }
+          .sumOf { it.amount }
+      val creditorLoanDebt =
         unsettledLoans
           .filter { it.type == LoanType.CREDITOR }
           .sumOf { it.remainingAmount / 12 }
-      val debtToIncome = if (monthlyIncome > 0) monthlyDebt.toDouble() / monthlyIncome else 0.0
+      val monthlyDebt = installmentDebt + creditorLoanDebt
+      val debtToIncome =
+        if (monthlyIncome > 0) {
+          monthlyDebt.toDouble() / monthlyIncome
+        } else if (monthlyDebt > 0) {
+          1.0
+        } else {
+          0.0
+        }
 
       val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
 

@@ -1,0 +1,229 @@
+package io.github.mojri.hesabyar.rust
+
+import io.github.mojri.hesabyar.HesabyarApp
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * Exercises [RustBridge] against the real native core (the unit-test JVM loads
+ * the `hesabyar_core` library, so [RustBridge.isAvailable] is true here).
+ *
+ * These tests raise coverage of the bridge's delegation paths and lock in that
+ * the native-backed results are shaped and bounded as the app expects.
+ *
+ * The *unavailable* fallback branches (safe sentinels returned when the native
+ * library fails to load) cannot be exercised from this JVM suite because the
+ * library always loads here; they are covered by an instrumentation test that
+ * runs without the native library present.
+ */
+class RustBridgeTest {
+  @Before
+  fun setUp() {
+    HesabyarApp.setRustInitializedForTesting(true)
+  }
+
+  @After
+  fun tearDown() {
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
+
+  @Test
+  fun `isAvailable is true when the native core is loaded`() {
+    assertTrue(RustBridge.isAvailable)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Calendar
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `calendar sync calls delegate to the native core`() {
+    assertTrue(RustBridge.gregorianToJalaliSync(1_700_000_000_000L) != 0L)
+    assertTrue(RustBridge.jalaliToGregorianSync(1403, 1, 1) != 0L)
+    val days = RustBridge.getJalaliDaysInMonthSync(1403, 1)
+    assertTrue(days in 29..31)
+    // Leap-year detection is deterministic across calls.
+    val leap = RustBridge.isJalaliLeapYearSync(1403)
+    assertEquals(leap, RustBridge.isJalaliLeapYearSync(1403))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Currency
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `currency sync calls delegate to the native core`() {
+    assertTrue(RustBridge.formatCurrencySync(1_000_000L, CurrencyUnit.RIAL).contains("1,000,000"))
+    // 100 Toman = 1,000 Rial.
+    assertEquals(1_000L, RustBridge.toRialSync(100L, CurrencyUnit.TOMAN))
+    assertEquals(1_000_000L, RustBridge.fromRialSync(1_000_000L, CurrencyUnit.RIAL))
+    assertTrue(RustBridge.formatNumberSync(1_234_567L).contains("1,234,567"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parser
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `parser sync calls delegate to the native core`() {
+    val parsed = RustBridge.parseSentenceOfflineSync("خرید نان 5000")
+    assertNotNull(parsed)
+    assertEquals(TransactionType.EXPENSE, parsed!!.txType)
+    assertEquals(50_000L, parsed.amount)
+
+    assertTrue(RustBridge.inferExpenseCategorySync("قبض برق").category.isNotEmpty())
+    assertFalse(RustBridge.containsMoneySync("سلام"))
+    assertTrue(RustBridge.normalizeMoneyTextSync("۱۲۳").isNotEmpty())
+    // parsePersianAmount returns the parsed value in Toman (no Rial conversion).
+    assertEquals(123L, RustBridge.parsePersianAmountSync("۱۲۳ تومان"))
+    assertTrue(RustBridge.preprocessPersianTextSync("متن").isNotEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI validation
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `validateAiAdvice delegates to the native core without throwing`() =
+    runTest {
+      val result = RustBridge.validateAiAdvice("پیشنهاد ساختگی برای صرفه جویی")
+      assertNotNull(result)
+      assertTrue(result.sanitizedText is String)
+    }
+
+  @Test
+  fun `parseAiTransactionJsonSync parses a valid transaction`() {
+    val parsed = RustBridge.parseAiTransactionJsonSync("""{"type":"EXPENSE","amount":1000}""")
+    assertNotNull(parsed)
+    assertEquals(TransactionType.EXPENSE, parsed!!.result.txType)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Validation (boolean)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `boolean validators accept valid entities`() {
+    val txn =
+      Transaction(
+        id = 1L,
+        txType = TransactionType.EXPENSE,
+        categoryId = 1L,
+        amount = 5_000_000L,
+        description = "test",
+        personName = null,
+        date = 1_700_000_000_000L,
+        dueDate = null,
+        installmentId = null
+      )
+    val loan =
+      Loan(
+        id = 1L,
+        personName = "علی",
+        loanType = "DEBTOR",
+        originalAmount = 1_000_000L,
+        remainingAmount = 1_000_000L,
+        description = "test",
+        date = 1_700_000_000_000L,
+        isSettled = false
+      )
+    val installment =
+      Installment(
+        id = 1L,
+        title = "قسط",
+        amount = 500_000L,
+        dueDate = 1_700_000_000_000L,
+        isPaid = false,
+        reminderEnabled = true,
+        notes = ""
+      )
+    assertTrue(RustBridge.validateTransactionSync(txn))
+    assertTrue(RustBridge.validateLoanSync(loan))
+    assertTrue(RustBridge.validateInstallmentSync(installment))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Budget / analytics / search / backup
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `budget and forecast sync calls produce advice text`() {
+    assertTrue(RustBridge.getOfflineBudgetAdviceSync(emptyList(), emptyList()).isNotEmpty())
+    assertTrue(RustBridge.getOfflineForecastSync(emptyList(), emptyList(), emptyList()).isNotEmpty())
+  }
+
+  @Test
+  fun `budget numeric sync calls compute expected values`() {
+    assertEquals(0.0, RustBridge.calculateDebtToIncomeRatioSync(emptyList(), emptyList(), 1_000_000L), 0.0)
+    assertEquals(10, RustBridge.predictTimeToGoalSync(0L, 100_000L, 1_000_000L))
+    assertEquals(0, RustBridge.calculateFinancialHealthScoreSync(emptyList(), emptyList(), emptyList(), emptyList()))
+  }
+
+  @Test
+  fun `analytics and dashboard sync calls return data structures`() {
+    assertNotNull(RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList()))
+    assertNotNull(RustBridge.computeDashboardDataSync(emptyList(), emptyList(), emptyList()))
+  }
+
+  @Test
+  fun `searchTransactionsSync returns an empty result for no data`() {
+    val query =
+      SearchQuery(
+        text = "",
+        minAmount = 0L,
+        maxAmount = 0L,
+        startDate = 0L,
+        endDate = 0L,
+        categoryId = 0L,
+        txType = TransactionType.EXPENSE,
+        useTypeFilter = false
+      )
+    val response = RustBridge.searchTransactionsSync(emptyList(), query)
+    assertTrue(response.results.isEmpty())
+    assertEquals(0L, response.totalCount)
+    assertEquals(0L, response.totalAmount)
+  }
+
+  @Test
+  fun `backup sync calls behave on valid and invalid input`() {
+    // Invalid JSON is handled gracefully (null) rather than throwing.
+    assertNull(RustBridge.parseBackupJsonSync("this is not json"))
+    val result = RustBridge.validateBackupPayloadSync(emptyBackupPayload())
+    assertNotNull(result)
+  }
+
+  @Test
+  fun `validateBackup completes without throwing`() =
+    runTest {
+      RustBridge.validateBackup(emptyBackupPayload())
+    }
+
+  // ---------------------------------------------------------------------------
+  // Checksum / Excel
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `checksum and excel sync calls delegate to the native core`() {
+    assertTrue(RustBridge.computeChecksumSync(byteArrayOf(1, 2, 3)).isNotEmpty())
+    assertFalse(RustBridge.verifyChecksumSync(byteArrayOf(1), "abc"))
+    assertNotNull(RustBridge.generateExcel(WorkbookData(emptyList())))
+  }
+
+  private fun emptyBackupPayload(): BackupPayload =
+    BackupPayload(
+      version = 1,
+      timestamp = 0L,
+      appVersion = "test",
+      transactions = emptyList(),
+      loans = emptyList(),
+      installments = emptyList(),
+      categories = emptyList()
+    )
+}

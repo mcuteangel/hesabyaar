@@ -11,6 +11,8 @@ import io.github.mojri.hesabyar.rust.RustMappers
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.ceil
+import kotlin.math.max
 
 object BudgetAdvisor {
   private const val TAG = "BudgetAdvisor"
@@ -436,7 +438,8 @@ object BudgetAdvisor {
     if (monthlySavings <= 0) return -1
     val remaining = goalAmount - currentSavings
     return if (remaining > 0) {
-      ((remaining + monthlySavings - 1) / monthlySavings).toInt()
+      val months = (remaining - 1) / monthlySavings + 1L
+      months.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     } else {
       0
     }
@@ -548,7 +551,10 @@ object BudgetAdvisor {
     }
 
     // Debt-to-income (max +15)
-    val debtRatio = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+    // Use a trailing-90-day income baseline so all-time accumulated income does
+    // not understate the ratio relative to the monthly debt obligations. This
+    // mirrors the Rust core's `monthly_income_baseline` scoping.
+    val debtRatio = calculateDebtToIncomeRatio(loans, installments, localMonthlyIncomeBaseline(transactions))
     score +=
       when {
         debtRatio <= 0.1 -> 15
@@ -573,5 +579,22 @@ object BudgetAdvisor {
       }
 
     return score.coerceIn(0, 100)
+  }
+
+  // Trailing-90-day income baseline, mirroring the Rust core's
+  // `monthly_income_baseline` so the debt-to-income ratio uses current income.
+  private fun localMonthlyIncomeBaseline(transactions: List<Transaction>): Long {
+    val nowMs = System.currentTimeMillis()
+    val windowStart = nowMs - 90L * 24 * 60 * 60 * 1000
+    val recent =
+      transactions.filter {
+        it.type == TransactionType.INCOME && it.date >= windowStart && it.date <= nowMs
+      }
+    if (recent.isEmpty()) return 0L
+    val oldest = recent.minOf { it.date }
+    val days = max(1.0, ceil((nowMs - oldest).toDouble() / (24.0 * 60 * 60 * 1000)))
+    val months = max(1.0, days / 30.0)
+    val sum = recent.sumOf { it.amount }
+    return (sum.toDouble() / months).toLong()
   }
 }

@@ -207,6 +207,34 @@ object JalaliCalendarHelper {
   }
 
   /**
+   * Returns the inclusive `[start, end]` millisecond boundaries of the Jalali
+   * month containing [timestamp]:
+   * - `start` = 00:00:00.000 of the 1st day of that month
+   * - `end`   = 23:59:59.999 of the last day of that month
+   *
+   * `end` is exactly (start of the following month) − 1 ms, so filtering with
+   * `date in start..end` is equivalent to `date >= start && date < nextMonthStart`.
+   *
+   * Both values are expressed in the device's local timezone (consistent with
+   * [gregorianToJalali] and [jalaliToGregorian]). If the conversion fails for an
+   * extreme input, a best-effort 30-day window around [timestamp] is returned so
+   * callers still get a finite, ordered range.
+   */
+  fun getJalaliMonthBoundaries(timestamp: Long): Pair<Long, Long> {
+    val jalaliDate = gregorianToJalali(timestamp)
+
+    val startCal = jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
+    val start = startCal?.timeInMillis ?: timestamp - 30L * 24 * 60 * 60 * 1000
+
+    val nextMonth = if (jalaliDate.month == 12) 1 else jalaliDate.month + 1
+    val nextMonthYear = if (jalaliDate.month == 12) jalaliDate.year + 1 else jalaliDate.year
+    val nextMonthStartCal = jalaliToGregorian(nextMonthYear, nextMonth, 1)
+    val nextMonthStart = nextMonthStartCal?.timeInMillis ?: start + 30L * 24 * 60 * 60 * 1000
+
+    return start to nextMonthStart - 1L
+  }
+
+  /**
    * Pure-Kotlin Jalali→Gregorian conversion, mirroring the Rust core. Used when
    * the native bridge is unavailable. Returns null for out-of-range input.
    *
