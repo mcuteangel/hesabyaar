@@ -5,6 +5,8 @@
   <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
+    
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge)
 </p>
 
 <p align="center">
