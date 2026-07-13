@@ -1,85 +1,254 @@
 # حسابیار (Hesabyar)
 
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge)
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge" alt="Platform">
+  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
+</p>
 
-Persian-first personal finance assistant for Android.
+<p align="center">
+  <b>اولین دستیار مالی شخصی با اولویت زبان فارسی برای اندروید</b>
+</p>
 
-## Features
+<p align="center">
+  مدیریت هوشمند امور مالی با رابط کاربری مدرن و امکانات پیشرفته
+</p>
 
-- **Transaction Management**: Track income and expenses with categories
-- **Loan & Debt Tracking**: Manage debts and credits with people
-- **Installment Management**: Track recurring payments with reminders
-- **AI-Powered Parsing**: Natural language Persian input for quick entry
-- **Budget Advisor**: AI-powered financial insights and recommendations
-- **Analytics Dashboard**: Monthly spending, category breakdown, debt overview
-- **Backup & Restore**: JSON-based backup with replace/merge modes
-- **Excel Export**: Export reports to .xlsx format
-- **Offline-First**: All core features work without internet
-- **Jalali Calendar**: Full Persian calendar support
+---
 
-## Tech Stack
+## 📋 مقدمه
 
-- Kotlin, Jetpack Compose, Material 3
-- Room Database (SQLite)
-- Navigation Compose
-- Kotlin Coroutines + Flow
-- WorkManager (background reminders)
-- OkHttp + Retrofit (networking)
-- Firebase AI / OpenRouter / Custom AI providers
-- Robolectric + Roborazzi (testing)
+**حسابیار** یک برنامه اندرویدی برای مدیریت امور مالی شخصی است که با تمرکز بر نیازهای کاربران فارسی‌زبان طراحی شده است. این برنامه با ارائه رابط کاربری ساده و در عین حال قدرتمند، به شما کمک می‌کند تا امور مالی خود را به صورت حرفه‌ای مدیریت کنید.
 
-## Build
+## ✨ ویژگی‌های کلیدی
 
-```bash
-# Debug build
-./gradlew installDebug
+### 💰 مدیریت تراکنش‌ها
+- ثبت درآمد و هزینه با دسته‌بندی‌های سفارشی
+- پشتیبانی انحصاری از واحدهای تومان و ریال
+- ثبت سریع تراکنش با استفاده از زبان طبیعی فارسی
+- ویرایش و حذف آسان تراکنش‌ها
 
-# Run tests
-./gradlew test
+### 🏦 پیگیری وام و بدهی
+- مدیریت کامل بدهی‌ها و اعتبارات با افراد
+- ثبت وام‌های دریافتی و پرداختی
+- یادآوری خودکار سررسید اقساط
+- مشاهده تراز مالی با هر شخص
 
-# Lint check
-./gradlew lint
-```
+### 📅 مدیریت اقساط
+- ثبت اقساط با تاریخ سررسید
+- یادآوری خودکار قبل از سررسید
+- مشاهده لیست کامل اقساط فعال
+- علامت‌گذاری اقساط پرداخت شده
 
-## Environment Setup
+### 🤖 هوش مصنوعی
+- **تجزیه و تحلیل هوشمند**: دریافت بینش‌های مالی و توصیه‌های هوشمند
+- **ورودی زبان طبیعی**: ثبت تراکنش با استفاده از جملات فارسی طبیعی
+- **مشاهده الگوهای مالی**: شناسایی عادات مالی و ارائه پیشنهادات بهبود
 
-1. Copy `.env.example` to `.env`
-2. Set `GEMINI_API_KEY` for AI features (optional)
-3. For release builds, set signing credentials in `.env`
+### 📊 داشبورد تحلیلی
+- مشاهده هزینه‌ها و درآمدها به صورت ماهانه
+- تجزیه و تحلیل بر اساس دسته‌بندی
+- مشاهده خلاصه بدهی‌ها و اعتبارات
+- نمودارهای گرافیکی برای درک بهتر وضعیت مالی
 
-## Project Structure
+### 💾 پشتیبان‌گیری و بازیابی
+- پشتیبان‌گیری کامل از داده‌ها در قالب JSON
+- دو حالت بازیابی: جایگزینی کامل یا ادغام با داده‌های موجود
+- ذخیره در حافظه داخلی یا فضای ابری
+
+### 📤 صادرات به اکسل
+- صادرات گزارشات مالی به فرمت .xlsx
+- سفارشی‌سازی گزارشات صادر شده
+- مناسب برای تحلیل‌های پیشرفته در اکسل
+
+### 🌐 ویژگی‌های دیگر
+- **آفلاین‌فست**: تمام ویژگی‌های اصلی بدون نیاز به اینترنت کار می‌کنند
+- **تقویم جلالی**: پشتیبانی کامل از تقویم شمسی
+- **رابط کاربری مدرن**: طراحی با Jetpack Compose و Material 3
+- **امنیتی**: حفاظت از داده‌ها با رمزنگاری
+
+---
+
+## 🛠 تکنولوژی‌های مورد استفاده
+
+| دسته | تکنولوژی |
+|------|------------|
+| **زبان برنامه‌نویسی** | Kotlin |
+| **رابط کاربری** | Jetpack Compose, Material 3 |
+| **پایگاه داده** | Room Database (SQLite) |
+| **ناوبری** | Navigation Compose |
+| **همزمانی** | Kotlin Coroutines + Flow |
+| **عملیات پس‌زمینه** | WorkManager |
+| **شبکه** | OkHttp + Retrofit |
+| **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
+| **تست** | Robolectric, Roborazzi |
+| **بنچمارک** | CodSpeed, JMH |
+
+---
+
+## 📦 ساختار پروژه
 
 ```
 app/src/main/java/io/github/mojri/hesabyar/
-├── api/           # AI providers, parsers, budget advisor
-├── data/          # Room entities, DAOs, repository, backup, Excel export
-├── reminder/      # WorkManager workers, notification helpers
-└── ui/            # Compose screens, ViewModels, theme
+├── api/                    # ارائه‌دهندگان هوش مصنوعی، مفسرها، مشاور بودجه
+│   ├── ai/                 # پیاده‌سازی‌های مختلف AI
+│   ├── parser/             # مفسرهای ورودی زبان طبیعی
+│   └── advisor/            # مشاور هوشمند مالی
+│
+├── data/                   # لایه داده
+│   ├── db/                 # موجودیت‌ها، DAOها، پایگاه داده Room
+│   ├── repository/         # مخازن داده
+│   ├── backup/             # پشتیبان‌گیری و بازیابی
+│   └── export/             # صادرات به اکسل
+│
+├── reminder/               # یادآوری‌ها و اعلان‌ها
+│   ├── worker/             # کارگران WorkManager
+│   └── notification/       # کمک‌کنندگان اعلان
+│
+└── ui/                     # لایه رابط کاربری
+    ├── screens/            # صفحات Compose
+    ├── viewmodel/          # ViewModelها
+    ├── theme/              # تم و استایل‌ها
+    └── components/         # کامپوننت‌های قابل استفاده مجدد
 ```
 
-## Testing
+---
 
+## 🚀 شروع به کار
+
+### پیش‌نیازها
+- Android Studio (نسخه آخرین)
+- JDK 21+
+- Git
+
+### راه‌اندازی محیط
+
+1. مخزن را کلون کنید:
+   ```bash
+   git clone https://github.com/mcuteangel/hesabyaar.git
+   cd hesabyaar
+   ```
+
+2. زیرماژول‌های git را initialize کنید:
+   ```bash
+   git submodule update --init --recursive
+   ```
+
+3. فایل `.env` را از روی `.env.example` کپی کنید:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. کلید API هوش مصنوعی را تنظیم کنید (اختیاری):
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+5. برای buildهای release، اطلاعات امضای دیجیتال را در `.env` تنظیم کنید.
+
+---
+
+## 🔨 ساخت و اجرا
+
+### ساخت نسخه Debug
 ```bash
-# All unit tests
-./gradlew test
+./gradlew installDebug
+```
 
-# Single test class
+### اجرا بر روی دستگاه
+```bash
+./gradlew runDebug
+```
+
+### ساخت APK
+```bash
+./gradlew assembleDebug
+./gradlew assembleRelease
+```
+
+---
+
+## 🧪 تست
+
+### اجرا کردن تمام تست‌ها
+```bash
+./gradlew test
+```
+
+### اجرا کردن تست یک کلاس خاص
+```bash
 ./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
 ```
 
-## Benchmarks
-
-Performance is tracked with [CodSpeed](https://codspeed.io) using JMH. The
-benchmarks live in the standalone `benchmarks/` Gradle build and exercise the
-hot, pure-JVM logic (Persian amount parsing and Jalali calendar conversions).
-They run automatically in CI on every pull request.
-
+### آنالیز کد
 ```bash
-# Requires JDK 21+. The CodSpeed JMH fork is vendored as a git submodule.
-git submodule update --init --recursive
-cd benchmarks && ./gradlew jmh
+./gradlew lint
 ```
 
-## License
+---
 
-Private - All rights reserved.
+## 📈 بنچمارک
+
+پروژه از بنچمارک‌های عملکردی با استفاده از CodSpeed و JMH استفاده می‌کند. بنچمارک‌ها در build مستقل `benchmarks/` قرار دارند و منطق داغ و خالص JVM (تجزیه مقدار فارسی و تبدیلات تقویم جلالی) را تمرین می‌کنند.
+
+### اجرا کردن بنچمارک‌ها
+```bash
+cd benchmarks
+./gradlew jmh
+```
+
+بنچمارک‌ها به صورت خودکار در CI بر روی هر Pull Request اجرا می‌شوند.
+
+---
+
+## 📝 مستندات
+
+- [مستندات فنی](docs/TECHNICAL.md) - جزئیات فنی پیاده‌سازی
+- [راهنمای توسعه](docs/DEVELOPMENT.md) - راهنمای توسعه‌دهندگان
+- [CHANGELOG](CHANGELOG.md) - تاریخچه تغییرات
+- [AGENTS](AGENTS.md) - راهنمای استفاده از عامل‌های هوش مصنوعی
+
+---
+
+## 🤝 مشارکت
+
+ما از مشارکت‌های جامعه استقبال می‌کنیم! برای مشارکت:
+
+1. مخزن را Fork کنید
+2. یک شاخه جدید ایجاد کنید (`git checkout -b feature/amazing-feature`)
+3. تغییرات خود را Commit کنید (`git commit -m 'feat: add amazing feature'`)
+4. به مخزن اصلی Push کنید (`git push origin feature/amazing-feature`)
+5. یک Pull Request ایجاد کنید
+
+### راهنمایی‌های مشارکت
+- از پیغام‌های Commit معنی‌دار استفاده کنید
+- کد خود را تست کنید
+- از استانداردهای کدگذاری پروژه پیروی کنید
+- مستندات را به‌روز نگه دارید
+
+---
+
+## 📄 مجوز
+
+این پروژه تحت **مجوز MIT** منتشر شده است. برای جزئیات بیشتر، فایل [LICENSE](LICENSE) را مشاهده کنید.
+
+---
+
+## 🙏 تشکر و قدردانی
+
+- از تمام کاربران و مشارکت‌کنندگان برای حمایتشان سپاسگزاریم
+- از جامعه اندرویدی ایران برای بازخوردهای ارزشمند
+- از توسعه‌دهندگان کتابخانه‌های اوپن سورس که این پروژه را ممکن ساخته‌اند
+
+---
+
+## 📞 تماس
+
+برای سوال‌ها، پیشنهادات یا گزارش مشکلات، لطفاً از طریق [GitHub Issues](https://github.com/mcuteangel/hesabyaar/issues) اقدام کنید.
+
+---
+
+<p align="center">
+  ساخته شده با ❤️ برای جامعه فارسی‌زبان
+</p>
