@@ -208,15 +208,19 @@ pub fn predict_time_to_goal(current_savings: i64, monthly_savings: i64, goal_amo
         0
     } else {
         // months = ceil(remaining / monthly_savings)
-        //          = (remaining + monthly_savings - 1) / monthly_savings
-        // Compute with saturating arithmetic so a massive goal cannot overflow,
-        // then clamp to i32::MAX. This mirrors the Kotlin fallback's
-        // `coerceAtMost(Int.MAX_VALUE)` so the Rust and Kotlin paths never
-        // diverge (a raw `as i32` would wrap a huge count into a negative value).
-        let numerator = remaining
-            .saturating_add(monthly_savings)
-            .saturating_sub(1);
-        let months = numerator / monthly_savings; // both positive here
+        // Compute the quotient and remainder directly so the numerator never
+        // overflows: the old `(remaining + monthly_savings - 1) / monthly_savings`
+        // saturated `remaining + monthly_savings` to i64::MAX for huge goals,
+        // dropping the carry and undercounting the duration. Clamp to i32::MAX to
+        // mirror the Kotlin fallback's `coerceAtMost(Int.MAX_VALUE)` so the Rust
+        // and Kotlin paths never diverge (a raw `as i32` would wrap a huge count
+        // into a negative value).
+        let q = remaining / monthly_savings;
+        let months = if remaining % monthly_savings == 0 {
+          q
+        } else {
+          q.saturating_add(1)
+        };
         (months.clamp(0, i32::MAX as i64)) as i32
     }
 }
@@ -314,6 +318,16 @@ mod tests {
         assert_eq!(predict_time_to_goal(0, 1, 3_000_000_000_000_000_000), i32::MAX);
         // Large but finite goals also clamp rather than overflow.
         assert_eq!(predict_time_to_goal(0, 1, i64::MAX - 5), i32::MAX);
+    }
+
+    #[test]
+    fn test_predict_time_to_goal_ceil_no_overflow_undercount() {
+        // Reproduces the carry-loss bug: with a large remaining balance and a
+        // large monthly saving, `remaining + monthly_savings` saturates to
+        // i64::MAX before the division, dropping the carry and undercounting the
+        // duration by one. The quotient/remainder form must stay exact.
+        // ceil((i64::MAX - 100) / 5_000_000_000) == 1844674408.
+        assert_eq!(predict_time_to_goal(0, 5_000_000_000, i64::MAX - 100), 1844674408);
     }
 
     #[test]

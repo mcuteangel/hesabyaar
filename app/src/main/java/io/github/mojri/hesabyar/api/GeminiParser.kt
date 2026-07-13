@@ -334,6 +334,38 @@ object GeminiParser {
    */
   private val phoneNumberPattern = Regex("""09\d{9}|0\d{10}""")
 
+  // Strong bill/payment words that distinguish a real bill (e.g. "قبض تلفن ۵۰
+  // هزار") from a bare phone number that merely mentions "تلفن". Category words
+  // like برق/آب/گاز/بنزین are intentionally excluded so a phone number with a
+  // category label is still treated as a phone number unless a money signal exists.
+  private val billPaymentKeywords =
+    listOf(
+      "تومان",
+      "تومن",
+      "ریال",
+      "هزار",
+      "میلیون",
+      "میلیارد",
+      "خرید",
+      "خرج",
+      "هزینه",
+      "پرداخت",
+      "برداشت",
+      "واریز",
+      "دریافت",
+      "پس‌انداز",
+      "قسط",
+      "قرض",
+      "وام",
+      "طلب",
+      "بدهی",
+      "مانده",
+      "حساب",
+      "فاکتور",
+      "صورت‌حساب",
+      "قبض"
+    )
+
   private fun looksLikePhoneNumber(text: String): Boolean {
     val normalized = normalizePersianDigits(text)
     if (normalized.contains("شماره تلفن") ||
@@ -346,16 +378,26 @@ object GeminiParser {
   }
 
   internal fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
-    // Validation gate: block non-monetary numeric strings (e.g. a year "1403"
-    // or a phone number) that contain digits but no financial context keyword.
-    // This prevents false-positive transaction parsing. Phone-number phrasing
-    // is excluded even when it carries a category keyword like `تلفن`.
-    // Pure non-numeric text is left to fall through to the (null) amount extraction below.
-    if (containsDigits(rawSentence) && (!hasFinancialContext(rawSentence) || looksLikePhoneNumber(rawSentence))) {
-      AppLogger.d(TAG, "kotlinFallbackParse: skipped, no financial context or phone number: $rawSentence")
-      return null
-    }
     val normalized = normalizePersianDigits(rawSentence)
+    // Validation gate: block non-monetary numeric strings (e.g. a year "۱۴۰۳"
+    // or a bare phone number) that contain digits but no financial context.
+    // A telephone bill that embeds the account's phone number (e.g.
+    // "پرداخت قبض تلفن ۰۹۱۲... مبلغ ۵۰ هزار") still carries a bill/payment signal,
+    // so it must NOT be blocked as a phone number. Therefore a string is treated
+    // as a pure phone number — and skipped — only when it lacks any separate
+    // bill/payment signal. Bare years and pure phone numbers are blocked via the
+    // absence of financial context / bill signal.
+    // Pure non-numeric text is left to fall through to the (null) amount extraction below.
+    if (containsDigits(rawSentence)) {
+      val isPhone = looksLikePhoneNumber(normalized)
+      val hasContext = hasFinancialContext(rawSentence)
+      val hasBillSignal = billPaymentKeywords.any { normalized.contains(it) }
+      val shouldSkip = !hasContext && !isPhone || isPhone && !hasBillSignal
+      if (shouldSkip) {
+        AppLogger.d(TAG, "kotlinFallbackParse: skipped, no financial context or phone number: $rawSentence")
+        return null
+      }
+    }
     val amount = extractAmount(normalized) ?: return null
     if (amount <= 0L) return null
     val type = detectType(rawSentence)

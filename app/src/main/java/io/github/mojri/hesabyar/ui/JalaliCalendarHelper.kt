@@ -263,7 +263,16 @@ object JalaliCalendarHelper {
   internal fun saturatingSubtract(
     a: Long,
     b: Long
-  ): Long = saturatingAdd(a, -b)
+  ): Long {
+    if (b == Long.MIN_VALUE) {
+      // `-b` would itself overflow (Long.MIN_VALUE negated wraps back to
+      // Long.MIN_VALUE), inverting the saturation direction for extreme
+      // month-boundary fallbacks. `a - Long.MIN_VALUE == a + Long.MAX_VALUE + 1`,
+      // which saturating addition of Long.MAX_VALUE reproduces exactly.
+      return saturatingAdd(a, Long.MAX_VALUE)
+    }
+    return saturatingAdd(a, -b)
+  }
 
   /**
    * UTC half-open `[start, nextMonthStart)` boundaries of the Jalali month

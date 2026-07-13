@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
@@ -87,6 +88,25 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - empty transactions`() {
     val result = BudgetAdvisor.getOfflineAdvice(emptyList(), emptyList())
     assertTrue(result.contains("نکردهاید"))
+  }
+
+  @Test
+  fun `getBudgetAdviceOffline - empty transactions still surfaces unpaid installment`() {
+    val installments =
+      listOf(
+        createInstallment("قسط ماشین", 2_000_000, isPaid = false)
+      )
+    val result =
+      BudgetAdviceGenerator.getBudgetAdviceOffline(
+        emptyList(),
+        emptyList(),
+        installments,
+        emptyList()
+      )
+    // Empty-ledger message must be retained...
+    assertTrue(result.contains("نکرده"))
+    // ...while the upcoming obligation is still surfaced (offline, no AI/network).
+    assertTrue(result.contains("اقساط"))
   }
 
   @Test

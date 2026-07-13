@@ -418,6 +418,12 @@ rustTargets.forEach { target ->
             "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/27.0.12077973"
         )
       }
+      // Always start from a clean ABI output dir. cargo-ndk writes the library
+      // into a nested <abi>/ subfolder, so a stale top-level .so from a previous
+      // build would otherwise shadow the freshly compiled one and get packaged
+      // instead (causing UniFFI checksum mismatches at runtime).
+      if (outDir.exists()) outDir.deleteRecursively()
+      outDir.mkdirs()
       val cmd =
         listOf(
           "cargo",
@@ -434,19 +440,21 @@ rustTargets.forEach { target ->
       pb.inheritIO()
       val exitCode = pb.start().waitFor()
       if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
-      val libDirect = File(outDir, target.jniLib)
       val foundLib =
-        if (libDirect.exists()) {
-          libDirect
-        } else {
-          outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
-            ?: throw GradleException(
-              "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
-            )
-        }
+        outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
+          ?: throw GradleException(
+            "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
+          )
       // Ensure the library is copied to the expected output location
       if (foundLib != outputLib) {
         foundLib.copyTo(outputLib, overwrite = true)
+        // cargo-ndk emits into a nested <abi>/ subfolder; remove that leftover
+        // so only the flat top-level .so is packaged (avoids duplicate/conflicting
+        // native libraries and UniFFI checksum mismatches).
+        val nestedDir = File(outDir, target.abi)
+        if (nestedDir.exists() && nestedDir != outputLib.parentFile) {
+          nestedDir.deleteRecursively()
+        }
       }
     }
   }

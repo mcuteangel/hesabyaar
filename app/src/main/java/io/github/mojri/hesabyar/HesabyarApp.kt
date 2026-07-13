@@ -38,8 +38,11 @@ class HesabyarApp : Application() {
      * Guarded two ways so production can never flip the real initialization
      * state: (1) `internal` visibility — only code in this module (i.e. tests)
      * may call it; (2) a `BuildConfig.DEBUG` check means a release build ignores
-     * the call entirely. The `@VisibleForTesting` `otherwise = INTERNAL` tells
-     * lint the intended visibility is internal.
+     * the call entirely. The `internal` modifier already restricts visibility to
+     * this module (where the tests live); `@VisibleForTesting` merely signals the
+     * method exists for tests. Note: the annotation's `otherwise` enum has no
+     * `INTERNAL` value (only PRIVATE/PROTECTED/PACKAGE/NONE), so it intentionally
+     * defaults rather than overstating visibility.
      */
     @VisibleForTesting
     @JvmStatic

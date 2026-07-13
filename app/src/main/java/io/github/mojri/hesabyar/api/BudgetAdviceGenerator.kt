@@ -114,62 +114,85 @@ internal object BudgetAdviceGenerator {
   ): String {
     val totals = calculateTransactionTotals(transactions)
     val balance = totals.income - totals.expense
-    val activeLoans = loans.filter { !it.isSettled }
-    val activeInstallments = installments.filter { !it.isPaid }
     return StringBuilder()
       .apply {
         appendLine("تعداد کل تراکنش‌ها: ${transactions.size}")
         appendLine("کل درآمد ثبت شده: ${totals.income} تومان")
         appendLine("کل مخارج ثبت شده: ${totals.expense} تومان")
         appendLine("تراز باقیمانده (پس‌انداز): $balance تومان")
-        appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
-        totals.categoryTotals.forEach { (catId, amt) ->
-          val cat = categories.find { it.id == catId }
-          appendLine("- ${cat?.name ?: "سایر"}: $amt تومان")
-        }
-        if (activeLoans.isNotEmpty()) {
-          appendLine("\nوام‌ها و قرض‌های فعال:")
-          activeLoans.forEach { loan ->
-            val role =
-              if (loan.type == LoanType.DEBTOR) {
-                "طلبکار (قرض دادید به)"
-              } else {
-                "بدهکار (قرض گرفتید از)"
-              }
-            appendLine(
-              "- ${loan.personName} ($role): " +
-                "کل ${loan.originalAmount} تومان | " +
-                "مانده ${loan.remainingAmount} تومان"
-            )
-          }
-        }
-        if (activeInstallments.isNotEmpty()) {
-          appendLine("\nاقساط پرداخت نشده:")
-          activeInstallments.forEach { inst ->
-            appendLine("- ${inst.title}: ${inst.amount} تومان")
-          }
-        }
-        if (transactions.isNotEmpty()) {
-          appendLine("\nتراکنش‌های اخیر:")
-          transactions
-            .sortedByDescending { it.date }
-            .take(MAX_RECENT_TRANSACTIONS)
-            .forEach { t ->
-              val sign =
-                if (t.type == TransactionType.INCOME) {
-                  "آمد"
-                } else {
-                  "رفت"
-                }
-              val cat = categories.find { it.id == t.categoryId }
-              appendLine(
-                "- ${t.description} " +
-                  "(${cat?.name ?: "سایر"}): " +
-                  "${t.amount} تومان [$sign]"
-              )
-            }
-        }
+        appendCategoryBreakdown(this, totals.categoryTotals, categories)
+        appendActiveDebtsToSummary(this, loans, installments)
+        appendRecentTransactions(this, transactions, categories)
       }.toString()
+  }
+
+  private fun appendCategoryBreakdown(
+    sb: StringBuilder,
+    categoryTotals: Map<Long, Long>,
+    categories: List<Category>
+  ) {
+    sb.appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
+    categoryTotals.forEach { (catId, amt) ->
+      val cat = categories.find { it.id == catId }
+      sb.appendLine("- ${cat?.name ?: "سایر"}: $amt تومان")
+    }
+  }
+
+  private fun appendActiveDebtsToSummary(
+    sb: StringBuilder,
+    loans: List<Loan>,
+    installments: List<Installment>
+  ) {
+    val activeLoans = loans.filter { !it.isSettled }
+    if (activeLoans.isNotEmpty()) {
+      sb.appendLine("\nوام‌ها و قرض‌های فعال:")
+      activeLoans.forEach { loan ->
+        val role =
+          if (loan.type == LoanType.DEBTOR) {
+            "طلبکار (قرض دادید به)"
+          } else {
+            "بدهکار (قرض گرفتید از)"
+          }
+        sb.appendLine(
+          "- ${loan.personName} ($role): " +
+            "کل ${loan.originalAmount} تومان | " +
+            "مانده ${loan.remainingAmount} تومان"
+        )
+      }
+    }
+    val activeInstallments = installments.filter { !it.isPaid }
+    if (activeInstallments.isNotEmpty()) {
+      sb.appendLine("\nاقساط پرداخت نشده:")
+      activeInstallments.forEach { inst ->
+        sb.appendLine("- ${inst.title}: ${inst.amount} تومان")
+      }
+    }
+  }
+
+  private fun appendRecentTransactions(
+    sb: StringBuilder,
+    transactions: List<Transaction>,
+    categories: List<Category>
+  ) {
+    if (transactions.isEmpty()) return
+    sb.appendLine("\nتراکنش‌های اخیر:")
+    transactions
+      .sortedByDescending { it.date }
+      .take(MAX_RECENT_TRANSACTIONS)
+      .forEach { t ->
+        val sign =
+          if (t.type == TransactionType.INCOME) {
+            "آمد"
+          } else {
+            "رفت"
+          }
+        val cat = categories.find { it.id == t.categoryId }
+        sb.appendLine(
+          "- ${t.description} " +
+            "(${cat?.name ?: "سایر"}): " +
+            "${t.amount} تومان [$sign]"
+        )
+      }
   }
 
   private suspend fun handleAdviceResult(
@@ -241,60 +264,58 @@ internal object BudgetAdviceGenerator {
     sb.append("💡 **تحلیلگر و مشاور مالی هوشمند (آفلاین)**\n\n")
     if (transactions.isEmpty()) {
       sb.append(EMPTY_TRANSACTIONS_MSG)
-      return sb.toString()
+      // Retain debt-related advice when the ledger is empty but the user still
+      // has active unpaid obligations (loans or installments). Only return early
+      // when there are genuinely no relevant debt records to surface.
+      val hasActiveDebts =
+        loans.any { !it.isSettled } || installments.any { !it.isPaid }
+      if (!hasActiveDebts) return sb.toString()
+      sb.append("\n\n")
+    } else {
+      sb.append(
+        "بر اساس مداقه بر تراکنش‌های ثبت شده، " +
+          "چند توصیه عملی برای شما داریم:\n\n"
+      )
+      sb.append(formatSavingsAdvice(totals.income, balance))
+      appendCategoryAdvice(
+        sb,
+        totals.categoryTotals,
+        totals.expense,
+        categories
+      )
     }
-    sb.append(
-      "بر اساس مداقه بر تراکنش‌های ثبت شده، " +
-        "چند توصیه عملی برای شما داریم:\n\n"
-    )
-    appendSavingsAdvice(sb, totals.income, balance)
-    appendCategoryAdvice(
-      sb,
-      totals.categoryTotals,
-      totals.expense,
-      categories
-    )
     appendLoanAdvice(sb, loans, installments)
     return sb.toString()
   }
 
-  private fun appendSavingsAdvice(
-    sb: StringBuilder,
+  private fun formatSavingsAdvice(
     incomeTotal: Long,
     balance: Long
-  ) {
+  ): String {
     if (incomeTotal <= 0) {
-      sb.append(NO_INCOME_MSG)
-      return
+      return NO_INCOME_MSG
     }
     val rate = balance * 100.0 / incomeTotal
-    when {
-      rate < 0 -> sb.append(formatDeficitMsg(rate))
+    return when {
+      rate < 0 ->
+        "⚠️ **کنترل تراز مخارج**: متاسفانه مخارج شما در این " +
+          "دوره بیش از درآمدتان بوده است " +
+          "(${String.format("%.1f", rate)}٪ کسری). " +
+          "توصیه می‌شود خریدهای غیرضروری خود را به زمان بهتری " +
+          "موکول کرده و روی کالاهای اساسی متمرکز شوید.\n\n"
       rate < LOW_SAVINGS_THRESHOLD ->
-        sb.append(formatLowSavingsMsg(rate))
-      else -> sb.append(formatGoodSavingsMsg(rate))
+        "📉 **بهبود نرخ پس‌انداز**: شما حدود " +
+          "${String.format("%.1f", rate)}٪ از درآمد خود را " +
+          "پس‌انداز کرده‌اید. برای داشتن پشتوانه مالی مطمئن‌تر، " +
+          "تلاش کنید با کاهش مخارج کوچکِ روزمره، " +
+          "این نسبت را به حداقل ۲۰٪ برسانید.\n\n"
+      else ->
+        "🎉 **عملکرد عالی پس‌انداز**: آفرین! شما توانسته‌اید " +
+          "بیش از ${String.format("%.1f", rate)}٪ از درآمد خود را " +
+          "پس‌انداز کنید. این روند فوق‌العاده را برای " +
+          "ثروت‌آفرینی بیشتر ادامه دهید.\n\n"
     }
   }
-
-  private fun formatDeficitMsg(rate: Double): String =
-    "⚠️ **کنترل تراز مخارج**: متاسفانه مخارج شما در این " +
-      "دوره بیش از درآمدتان بوده است " +
-      "(${String.format("%.1f", rate)}٪ کسری). " +
-      "توصیه می‌شود خریدهای غیرضروری خود را به زمان بهتری " +
-      "موکول کرده و روی کالاهای اساسی متمرکز شوید.\n\n"
-
-  private fun formatLowSavingsMsg(rate: Double): String =
-    "📉 **بهبود نرخ پس‌انداز**: شما حدود " +
-      "${String.format("%.1f", rate)}٪ از درآمد خود را " +
-      "پس‌انداز کرده‌اید. برای داشتن پشتوانه مالی مطمئن‌تر، " +
-      "تلاش کنید با کاهش مخارج کوچکِ روزمره، " +
-      "این نسبت را به حداقل ۲۰٪ برسانید.\n\n"
-
-  private fun formatGoodSavingsMsg(rate: Double): String =
-    "🎉 **عملکرد عالی پس‌انداز**: آفرین! شما توانسته‌اید " +
-      "بیش از ${String.format("%.1f", rate)}٪ از درآمد خود را " +
-      "پس‌انداز کنید. این روند فوق‌العاده را برای " +
-      "ثروت‌آفرینی بیشتر ادامه دهید.\n\n"
 
   private fun appendCategoryAdvice(
     sb: StringBuilder,
