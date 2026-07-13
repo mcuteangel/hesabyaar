@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -261,6 +262,7 @@ object RustBridge : JalaliNativeBridge {
       // Swallow non-cancellation failures so a Rust/FFI error doesn't break the
       // calling coroutine. A failed validation simply means "not validated".
       if (e is CancellationException) throw e
+      AppLogger.e(TAG, "Rust backup validation failed (non-fatal, treated as not validated)", e)
     }
   }
 

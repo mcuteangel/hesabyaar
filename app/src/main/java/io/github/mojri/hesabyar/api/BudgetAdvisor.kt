@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustMappers
@@ -382,24 +383,64 @@ object BudgetAdvisor {
     installments: List<Installment>,
     monthlyIncome: Long
   ): Double =
-    io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapLoans(loans),
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapInstallments(installments),
-      monthlyIncome
-    )
+    if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+      io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments),
+        monthlyIncome
+      )
+    } else {
+      localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome)
+    }
+
+  // Local, dependency-free debt-to-income ratio used when the Rust core is unavailable.
+  @Suppress("MagicNumber")
+  private fun localCalculateDebtToIncomeRatio(
+    loans: List<Loan>,
+    installments: List<Installment>,
+    monthlyIncome: Long
+  ): Double {
+    val monthlyDebtPayments =
+      installments.filter { !it.isPaid }.sumOf { it.amount } +
+        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / 12 }
+    return when {
+      monthlyIncome <= 0 && monthlyDebtPayments > 0 -> 1.0
+      monthlyIncome <= 0 -> 0.0
+      else -> monthlyDebtPayments.toDouble() / monthlyIncome.toDouble()
+    }
+  }
 
   fun predictTimeToGoal(
     currentSavings: Long,
     monthlySavings: Long,
     goalAmount: Long
   ): Int =
-    io.github.mojri.hesabyar.rust.RustBridge.predictTimeToGoalSync(
-      currentSavings,
-      monthlySavings,
-      goalAmount
-    )
+    if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+      io.github.mojri.hesabyar.rust.RustBridge.predictTimeToGoalSync(
+        currentSavings,
+        monthlySavings,
+        goalAmount
+      )
+    } else {
+      localPredictTimeToGoal(currentSavings, monthlySavings, goalAmount)
+    }
+
+  // Local, dependency-free time-to-goal prediction used when the Rust core is unavailable.
+  private fun localPredictTimeToGoal(
+    currentSavings: Long,
+    monthlySavings: Long,
+    goalAmount: Long
+  ): Int {
+    if (monthlySavings <= 0) return -1
+    val remaining = goalAmount - currentSavings
+    return if (remaining > 0) {
+      ((remaining + monthlySavings - 1) / monthlySavings).toInt()
+    } else {
+      0
+    }
+  }
 
   fun getPersonalizedAdvice(
     transactions: List<Transaction>,
@@ -463,14 +504,74 @@ object BudgetAdvisor {
     installments: List<Installment>,
     categories: List<Category>
   ): Int =
-    io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapTransactions(transactions),
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapLoans(loans),
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapInstallments(installments),
-      io.github.mojri.hesabyar.rust.RustMappers
-        .mapCategories(categories)
-    )
+    if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+      io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapCategories(categories)
+      )
+    } else {
+      localCalculateFinancialHealthScore(transactions, loans, installments)
+    }
+
+  // Local, dependency-free financial health score used when the Rust core is unavailable.
+  @Suppress("MagicNumber", "CyclomaticComplexMethod")
+  private fun localCalculateFinancialHealthScore(
+    transactions: List<Transaction>,
+    loans: List<Loan>,
+    installments: List<Installment>
+  ): Int {
+    if (transactions.isEmpty()) return 0
+
+    val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val balance = totalIncome - totalExpense
+
+    var score = 50
+
+    // Savings rate (max +25)
+    if (totalIncome > 0) {
+      val savingsRate = balance.toDouble() / totalIncome.toDouble()
+      score +=
+        when {
+          savingsRate >= 0.3 -> 25
+          savingsRate >= 0.2 -> 20
+          savingsRate >= 0.1 -> 10
+          savingsRate >= 0 -> 0
+          else -> -15
+        }
+    }
+
+    // Debt-to-income (max +15)
+    val debtRatio = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+    score +=
+      when {
+        debtRatio <= 0.1 -> 15
+        debtRatio <= 0.2 -> 10
+        debtRatio <= 0.3 -> 5
+        debtRatio <= 0.4 -> 0
+        else -> -10
+      }
+
+    // Category diversification (+10 if spending across 3+ categories)
+    val expenseCategories =
+      transactions
+        .filter { it.type == TransactionType.EXPENSE }
+        .map { it.categoryId }
+        .distinct()
+        .size
+    score +=
+      when {
+        expenseCategories >= 5 -> 10
+        expenseCategories >= 3 -> 5
+        else -> 0
+      }
+
+    return score.coerceIn(0, 100)
+  }
 }

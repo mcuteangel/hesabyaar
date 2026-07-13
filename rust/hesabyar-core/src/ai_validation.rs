@@ -583,8 +583,11 @@ mod tests {
 
     #[test]
     fn test_amount_overflow_after_multiplication() {
-        // i64::MAX / 10 = 922337203685477580; amount * 10 overflows for anything larger
-        let json = r#"{"type": "EXPENSE", "amount": 922337203685477581, "category": "Food"}"#;
+        // Amount is deserialized as f64, so pick a value that is *exactly*
+        // representable as f64 to avoid relying on rounding direction near the
+        // boundary. 1e18 is exact (10^18 = 2^18 * 5^18, mantissa fits in 52 bits),
+        // exceeds i64::MAX/10 (922337203685477580), and 1e18 * 10 = 1e19 overflows i64.
+        let json = r#"{"type": "EXPENSE", "amount": 1000000000000000000, "category": "Food"}"#;
         let err = parse_ai_transaction_json(json).unwrap_err();
         match err {
             HesabyarError::ValidationError { detail } => {

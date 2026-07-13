@@ -52,7 +52,13 @@ class BudgetAdvisorTest {
     title: String = "test",
     amount: Long,
     isPaid: Boolean = false
-  ): Installment = Installment(title = title, amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
+  ): Installment =
+    Installment(
+      title = title,
+      amount = amount,
+      dueDate = System.currentTimeMillis() + 24L * 60L * 60L * 1000L,
+      isPaid = isPaid
+    )
 
   private fun createCategory(
     id: Long,

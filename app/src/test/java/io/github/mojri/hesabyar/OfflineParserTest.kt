@@ -509,7 +509,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("EXPENSE", result!!.type)
-    assertEquals(5_000_000L, result.amount)
+    assertEquals(50_000_000L, result.amount)
     assertEquals("Food", result.category)
     assertEquals("مرغ", result.description)
     assertNull(result.personName)
@@ -524,7 +524,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("INCOME", result!!.type)
-    assertEquals(20_000_000L, result.amount)
+    assertEquals(200_000_000L, result.amount)
     assertEquals("Income", result.category)
   }
 
@@ -548,7 +548,7 @@ class OfflineParserTest {
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
     assertEquals("INSTALLMENT", result!!.type)
-    assertEquals(3_000_000L, result.amount)
+    assertEquals(30_000_000L, result.amount)
     assertEquals("قسط ماشین", result.title)
   }
 
