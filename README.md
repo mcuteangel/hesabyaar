@@ -1,5 +1,6 @@
 # حسابیار (Hesabyar)
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b34f9b3726bf4e859564dd3b2456e2d9)](https://app.codacy.com/gh/mcuteangel/hesabyaar?utm_source=github.com&utm_medium=referral&utm_content=mcuteangel/hesabyaar&utm_campaign=Badge_Grade)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge)
 
 Persian-first personal finance assistant for Android.
