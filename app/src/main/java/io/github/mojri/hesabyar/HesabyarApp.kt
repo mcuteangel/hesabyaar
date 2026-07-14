@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar
 
-// Application entry point — Hilt injects dependencies here.
+// Application entry point — Hilt injects dependencies here
+
 import android.app.Application
 import android.content.Context
 import android.util.Log
