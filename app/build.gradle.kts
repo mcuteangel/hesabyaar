@@ -83,7 +83,7 @@ fun patchAndInstallOutput(
   val content = generatedKt.readText(Charsets.UTF_8)
   val patched =
     content.replace(
-      Regex("^package uniffi\\.hesabyar_core$", RegexOption.MULTILINE),
+      Regex("^package uniffi\.hesabyar_core$", RegexOption.MULTILINE),
       "package $appId.rust"
     )
 
@@ -95,40 +95,24 @@ fun patchAndInstallOutput(
   dest.writeText(patched + compatObject, Charsets.UTF_8)
 }
 
-val versionMaxSegment = 99
-val versionMajorMultiplier = 10000
-val versionMinorMultiplier = 100
+// Read version from VERSION file
+val versionFile = rootProject.file("VERSION")
+val versionString = if (versionFile.exists()) {
+    versionFile.readText().trim()
+} else {
+    "0.1.0"
+}
 
-val versionText =
-  providers
-    .fileContents(
-      rootProject.layout.projectDirectory.file("VERSION")
-    ).asText
-    .get()
-    .trim()
-val versionContent = versionText.split(".")
-require(versionContent.size == 3) {
-  "VERSION file must contain exactly 3 dot-separated segments (MAJOR.MINOR.PATCH), got: '$versionText'"
+val versionParts = versionString.split(".")
+val calculatedVersionCode = if (versionParts.size == 3) {
+    try {
+        versionParts[0].toInt() * 10000 + versionParts[1].toInt() * 100 + versionParts[2].toInt()
+    } catch (e: NumberFormatException) {
+        1
+    }
+} else {
+    1
 }
-val versionMajor =
-  versionContent[0].toIntOrNull()
-    ?: throw GradleException("VERSION major segment is not a number: '${versionContent[0]}'")
-val versionMinor =
-  versionContent[1].toIntOrNull()
-    ?: throw GradleException("VERSION minor segment is not a number: '${versionContent[1]}'")
-val versionPatch =
-  versionContent[2].toIntOrNull()
-    ?: throw GradleException("VERSION patch segment is not a number: '${versionContent[2]}'")
-require(versionMajor >= 0) { "VERSION major must be >= 0, got: $versionMajor" }
-require(versionMinor in 0..versionMaxSegment) {
-  "VERSION minor must be 0-$versionMaxSegment, got: $versionMinor"
-}
-require(versionPatch in 0..versionMaxSegment) {
-  "VERSION patch must be 0-$versionMaxSegment, got: $versionPatch"
-}
-val versionName = "$versionMajor.$versionMinor.$versionPatch"
-val versionCode =
-  versionMajor * versionMajorMultiplier + versionMinor * versionMinorMultiplier + versionPatch
 
 plugins {
   alias(libs.plugins.android.application)
@@ -150,9 +134,8 @@ android {
     applicationId = appId
     minSdk = 26
     targetSdk = 36
-    this.versionCode = versionCode
-    this.versionName = versionName
-
+    versionCode = calculatedVersionCode
+    versionName = versionString
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -202,9 +185,6 @@ android.sourceSets.named("main") {
   jniLibs.srcDir("src/main/jniLibs")
 }
 
-// Make the host-native Rust library available to JNA during unit tests.
-// The generateAndFixBindings task builds the DLL/SO into rust/target/release/.
-// JNA 5.x searches jna.library.path first, then java.library.path.
 val rustReleaseDir = file("${rootProject.projectDir}/rust/target/release")
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
   jvmArgs(
@@ -213,8 +193,6 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
   )
 }
 
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
 secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
@@ -228,19 +206,17 @@ tasks.register("checkSigningConfig") {
     val keyAlias = resolveCredential(keyAliasKey)
     val keyPassword = resolveCredential(keyPasswordKey)
     val keystoreFile = file("$rootDir/my-upload-key.jks")
-
     val issues = mutableListOf<String>()
     if (storePassword.isBlank()) issues.add("$storePwdKey is not set")
     if (keyAlias.isBlank()) issues.add("$keyAliasKey is not set")
     if (keyPassword.isBlank()) issues.add("$keyPasswordKey is not set")
     if (!keystoreFile.exists()) issues.add("Keystore file not found: my-upload-key.jks")
-
     if (issues.isNotEmpty()) {
-      logger.warn("⚠ Signing configuration issues:")
+      logger.warn("warning Signing configuration issues:")
       issues.forEach { logger.warn("  - $it") }
       logger.warn("Add signing credentials to your local .env file. See .env.example for reference.")
     } else {
-      logger.lifecycle("✓ Signing configuration is valid.")
+      logger.lifecycle("check Signing configuration is valid.")
     }
   }
 }
@@ -260,17 +236,10 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   }
 }
 
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
-  // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
-  // implementation(libs.androidx.camera.camera2)
-  // implementation(libs.androidx.camera.core)
-  // implementation(libs.androidx.camera.lifecycle)
-  // implementation(libs.androidx.camera.view)
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
@@ -279,7 +248,6 @@ dependencies {
   implementation(libs.androidx.compose.ui.text.google.fonts)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -287,7 +255,6 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
-  // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.androidx.work.runtime.ktx)
@@ -296,7 +263,6 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   implementation(libs.hilt.android)
   ksp(libs.hilt.compiler)
@@ -304,7 +270,6 @@ dependencies {
   implementation(libs.sqlcipher)
   implementation(libs.biometric)
   implementation("net.java.dev.jna:jna:5.17.0@aar")
-  // Plain JAR needed for JVM unit tests — the @aar only contains Android natives
   testImplementation("net.java.dev.jna:jna:5.17.0")
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
@@ -324,61 +289,25 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
+  ksp(libs.androidx.room.compiler)
+  ksp(libs.moshi.kotlin.codegen)
 }
 
-// ---------------------------------------------------------------------------
-// detekt — static analysis for Kotlin
-//
-// Configuration lives in config/detekt/detekt.yml and excludes auto-generated
-// UniFFI bindings (rust/uniffi/** and **/generated/**) so only our handwritten
-// code is linted.
-// ---------------------------------------------------------------------------
-detekt {
-  config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
-  baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
-  buildUponDefaultConfig = true
-  allRules = false
-  autoCorrect = false
-  ignoredBuildTypes = listOf("release")
+plugins {
+  id("com.diffplug.spotless") version "6.25.0"
 }
 
-// ktlint must not inspect auto-generated UniFFI bindings, only our handwritten
-// code. The generateAndFixBindings task installs the generated binding into
-// `hesabyar_core.kt`, and generateRustBindings emits into a generated/ or
-// rust/uniffi/ subdirectory. Handwritten bridge/mapper files (RustBridge.kt,
-// RustMappers.kt) stay in lint scope.
-ktlint {
-  filter {
-    exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
+spotless {
+  kotlin {
+    target("**/*.kt")
+    ktlint()
+  }
+  kotlinGradle {
+    target("*.gradle.kts")
+    ktlint()
   }
 }
 
-tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
-  jvmTarget = "17"
-  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
-}
-tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach {
-  jvmTarget = "17"
-  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
-}
-
-// ---------------------------------------------------------------------------
-// Rust shared-core cross-compilation
-//
-// Builds libhesabyar_core.so for each Android ABI via cargo-ndk and copies
-// the binaries into the appropriate jniLibs directory.
-//
-// Prerequisites:
-//   1. Install cargo-ndk:  cargo install cargo-ndk
-//   2. Set ANDROID_NDK_HOME to your NDK installation (e.g. ~/Android/Sdk/ndk/27.0.12077973)
-//   3. rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-//
-// Usage:
-//   ./gradlew :app:assembleRust     — build all Rust .so files
-//   ./gradlew :app:generateRustBindings — generate UniFFI Kotlin bindings
-// ---------------------------------------------------------------------------
 val rustDir = file("${rootProject.projectDir}/rust")
 val rustTargetDir = file("${rootProject.projectDir}/rust/target")
 
@@ -388,13 +317,12 @@ data class RustTarget(
   val jniLib: String,
 )
 
-val rustTargets =
-  listOf(
-    RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
-    RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
-    RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
-    RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
-  )
+val rustTargets = listOf(
+  RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
+  RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
+  RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
+  RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
+)
 
 rustTargets.forEach { target ->
   val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
@@ -413,44 +341,21 @@ rustTargets.forEach { target ->
       val ndkHome = System.getenv("ANDROID_NDK_HOME")
       if (ndkHome.isNullOrBlank()) {
         throw GradleException(
-          "ANDROID_NDK_HOME is not set.\n" +
-            "Install the Android NDK and set ANDROID_NDK_HOME to its root directory.\n" +
-            "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/27.0.12077973"
+          "ANDROID_NDK_HOME is not set. Install the Android NDK and set ANDROID_NDK_HOME to its root directory. Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/27.0.12077973"
         )
       }
-      // Always start from a clean ABI output dir. cargo-ndk writes the library
-      // into a nested <abi>/ subfolder, so a stale top-level .so from a previous
-      // build would otherwise shadow the freshly compiled one and get packaged
-      // instead (causing UniFFI checksum mismatches at runtime).
       if (outDir.exists()) outDir.deleteRecursively()
       outDir.mkdirs()
-      val cmd =
-        listOf(
-          "cargo",
-          "ndk",
-          "-t",
-          target.triple,
-          "-o",
-          outDir.absolutePath,
-          "build",
-          "--release",
-        )
+      val cmd = listOf("cargo", "ndk", "-t", target.triple, "-o", outDir.absolutePath, "build", "--release")
       val pb = ProcessBuilder(cmd)
       pb.directory(rustDir)
       pb.inheritIO()
       val exitCode = pb.start().waitFor()
       if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
-      val foundLib =
-        outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
-          ?: throw GradleException(
-            "Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}"
-          )
-      // Ensure the library is copied to the expected output location
+      val foundLib = outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
+          ?: throw GradleException("Expected native library ${target.jniLib} not found for ${target.abi} at ${outDir.absolutePath}")
       if (foundLib != outputLib) {
         foundLib.copyTo(outputLib, overwrite = true)
-        // cargo-ndk emits into a nested <abi>/ subfolder; remove that leftover
-        // so only the flat top-level .so is packaged (avoids duplicate/conflicting
-        // native libraries and UniFFI checksum mismatches).
         val nestedDir = File(outDir, target.abi)
         if (nestedDir.exists() && nestedDir != outputLib.parentFile) {
           nestedDir.deleteRecursively()
@@ -469,17 +374,6 @@ tasks.register("assembleRust") {
   }
 }
 
-// ---------------------------------------------------------------------------
-// compileRustCore — auto-trigger Rust cross-compile before Kotlin compilation
-//
-// Lifecycle task that reuses the existing `assembleRust` task. Its inputs/outputs
-// let Gradle skip the work when no Rust source changed, so it only runs when the
-// native core actually needs rebuilding. Wired into the standard build so the
-// native .so files are refreshed before Kotlin code is compiled.
-//
-// Requires ANDROID_NDK_HOME; the wiring below is skipped when the NDK is not
-// configured, so NDK-less environments (e.g. unit-test CI) build as before.
-// ---------------------------------------------------------------------------
 tasks.register("compileRustCore") {
   group = "rust"
   description = "Recompile Rust core before Kotlin compilation when sources change"
@@ -493,18 +387,11 @@ tasks.register("compileRustCore") {
 }
 
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
-  logger.lifecycle(
-    "ANDROID_NDK_HOME not set — skipping automatic Rust cross-compile before Kotlin compilation."
-  )
+  logger.lifecycle("ANDROID_NDK_HOME not set skipping automatic Rust cross-compile before Kotlin compilation.")
 } else {
   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     dependsOn("compileRustCore")
   }
-
-  // Gradle 9+ validates that a task consuming another task's outputs declares an
-  // explicit dependency. The merge*JniLibFolders tasks read src/main/jniLibs,
-  // which compileRustCore (via assembleRust) produces, so wire that dependency
-  // explicitly to avoid implicit-dependency validation failures.
   tasks.configureEach {
     if (name.contains("merge", ignoreCase = true) && name.contains("JniLibFolders", ignoreCase = true)) {
       dependsOn("compileRustCore")
@@ -531,17 +418,6 @@ tasks.register("generateRustBindings") {
   }
 }
 
-// ---------------------------------------------------------------------------
-// generateAndFixBindings — One-click UniFFI binding generation
-//
-// Builds a host-native Rust library, runs uniffi-gen on it, patches the
-// package declaration, and installs the result into the Kotlin source tree.
-//
-// Usage:
-//   ./gradlew :app:generateAndFixBindings
-//
-// No manual edits required after running this task.
-// ---------------------------------------------------------------------------
 tasks.register("generateAndFixBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
@@ -558,9 +434,7 @@ tasks.register("generateAndFixBindings") {
     val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
     generateBindings(hostLib, tempDir)
     patchAndInstallOutput(tempDir, dest)
-
     tempDir.deleteRecursively()
-
     logger.lifecycle("Bindings installed at: ${dest.absolutePath}")
     logger.lifecycle("generateAndFixBindings completed successfully.")
   }
@@ -572,42 +446,25 @@ tasks.register("generateKeystore") {
   doFirst {
     val storePassword = resolveCredential(storePwdKey)
     val keyPassword = resolveCredential(keyPasswordKey)
-    val keyAlias =
-      providers.gradleProperty(keyAliasKey).orNull
+    val keyAlias = providers.gradleProperty(keyAliasKey).orNull
         ?: providers.environmentVariable(keyAliasKey).orNull
         ?: "mojrico"
     if (storePassword.isBlank() || keyPassword.isBlank()) {
       throw GradleException(
-        "$storePwdKey and $keyPasswordKey must be set.\n" +
-          "Add them to your local .env file or set as environment variables.\n" +
-          "See .env.example for reference."
+        "$storePwdKey and $keyPasswordKey must be set. Add them to your local .env file or set as environment variables. See .env.example for reference."
       )
     }
     val keystoreFile = File(rootDir, "my-upload-key.jks")
     if (!keystoreFile.exists()) {
       println("Generating release keystore...")
-      val pb =
-        ProcessBuilder(
-          "keytool",
-          "-genkey",
-          "-noprompt",
-          "-alias",
-          keyAlias,
-          "-dname",
-          "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
-          "-keystore",
-          keystoreFile.absolutePath,
-          "-storepass",
-          storePassword,
-          "-keypass",
-          keyPassword,
-          "-keyalg",
-          "RSA",
-          "-keysize",
-          "2048",
-          "-validity",
-          "10000"
-        )
+      val pb = ProcessBuilder(
+        "keytool", "-genkey", "-noprompt", "-alias", keyAlias,
+        "-dname", "CN=Hesabyar, OU=None, O=None, L=None, S=None, C=IR",
+        "-keystore", keystoreFile.absolutePath,
+        "-storepass", storePassword,
+        "-keypass", keyPassword,
+        "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000"
+      )
       val proc = pb.start()
       proc.waitFor()
       println("Keystore generated successfully at: ${keystoreFile.absolutePath}")
@@ -615,4 +472,28 @@ tasks.register("generateKeystore") {
       println("Keystore already exists, skipping generation.")
     }
   }
+}
+
+detekt {
+  config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+  baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
+  buildUponDefaultConfig = true
+  allRules = false
+  autoCorrect = false
+  ignoredBuildTypes = listOf("release")
+}
+
+ktlint {
+  filter {
+    exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
+  }
+}
+
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
+  jvmTarget = "17"
+  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
+}
+tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach {
+  jvmTarget = "17"
+  exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt")
 }
