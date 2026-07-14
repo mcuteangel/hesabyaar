@@ -299,6 +299,9 @@ tines.core)
   ksp(libs.moshi.kotlin.codegen)
 }
 
+plugins {
+  id("com.diffplug.spotless") version "6.25.0"
+}
 
 spotless {
   kotlin {
