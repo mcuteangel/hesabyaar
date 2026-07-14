@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import kotlinx.coroutines.flow.Flow
 
@@ -9,7 +10,7 @@ class ManageCategoryUseCase(
 ) {
   val allCategories: Flow<List<Category>> = repository.allCategories
 
-  fun getCategoriesByType(type: String): Flow<List<Category>> = repository.getCategoriesByType(type)
+  fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = repository.getCategoriesByType(type.name)
 
   suspend fun getCategoryById(id: Long): Category? = repository.getCategoryById(id)
 
@@ -20,7 +21,7 @@ class ManageCategoryUseCase(
     key: String,
     icon: String,
     color: Long,
-    type: String
+    type: CategoryType
   ): Long = repository.insertCategory(Category(name = name, key = key, icon = icon, color = color, type = type))
 
   suspend fun updateCategory(category: Category) = repository.updateCategory(category)

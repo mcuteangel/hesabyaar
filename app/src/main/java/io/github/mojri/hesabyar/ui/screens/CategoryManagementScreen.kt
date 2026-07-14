@@ -1,5 +1,4 @@
 package io.github.mojri.hesabyar.ui.screens
-
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,10 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
@@ -87,6 +89,16 @@ private val CATEGORY_COLORS =
     0xFFCDDC39L,
     0xFF03A9F4L
   )
+
+private val CategoryType.displayName: String
+  @Composable
+  get() =
+    when (this) {
+      CategoryType.EXPENSE -> stringResource(R.string.category_type_expense)
+      CategoryType.INCOME -> stringResource(R.string.category_type_income)
+      CategoryType.BOTH -> stringResource(R.string.category_type_both)
+      CategoryType.UNKNOWN -> stringResource(R.string.category_type_unknown)
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -322,12 +334,7 @@ private fun CategoryItem(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
           )
           Text(
-            text =
-              when (category.type) {
-                Category.TYPE_EXPENSE -> "هزینه"
-                Category.TYPE_INCOME -> "درآمد"
-                else -> "هر دو"
-              },
+            text = category.type.displayName,
             style = MaterialTheme.typography.labelSmall,
             color = categoryColor,
             fontWeight = FontWeight.Medium
@@ -369,14 +376,14 @@ private fun CategoryItem(
 private fun CategoryDialog(
   initialCategory: Category?,
   onDismiss: () -> Unit,
-  onSave: (name: String, key: String, icon: String, color: Long, type: String) -> Unit
+  onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
   var name by remember { mutableStateOf(initialCategory?.name.orEmpty()) }
   var key by remember { mutableStateOf(initialCategory?.key.orEmpty()) }
   var selectedIcon by remember { mutableStateOf(initialCategory?.icon ?: "Paid") }
   var selectedColor by remember { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
-  var selectedType by remember { mutableStateOf(initialCategory?.type ?: Category.TYPE_EXPENSE) }
+  var selectedType by remember { mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE) }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
 
   AlertDialog(
@@ -424,12 +431,7 @@ private fun CategoryDialog(
             onExpandedChange = { typeDropdownExpanded = it }
           ) {
             OutlinedTextField(
-              value =
-                when (selectedType) {
-                  Category.TYPE_EXPENSE -> "هزینه"
-                  Category.TYPE_INCOME -> "درآمد"
-                  else -> "هر دو"
-                },
+              value = selectedType.displayName,
               onValueChange = {},
               modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
               readOnly = true,
@@ -443,21 +445,21 @@ private fun CategoryDialog(
               DropdownMenuItem(
                 text = { Text("هزینه") },
                 onClick = {
-                  selectedType = Category.TYPE_EXPENSE
+                  selectedType = CategoryType.EXPENSE
                   typeDropdownExpanded = false
                 }
               )
               DropdownMenuItem(
                 text = { Text("درآمد") },
                 onClick = {
-                  selectedType = Category.TYPE_INCOME
+                  selectedType = CategoryType.INCOME
                   typeDropdownExpanded = false
                 }
               )
               DropdownMenuItem(
                 text = { Text("هر دو") },
                 onClick = {
-                  selectedType = Category.TYPE_BOTH
+                  selectedType = CategoryType.BOTH
                   typeDropdownExpanded = false
                 }
               )
@@ -577,12 +579,7 @@ private fun CategoryDialog(
               fontWeight = FontWeight.Bold
             )
             Text(
-              text =
-                when (selectedType) {
-                  Category.TYPE_EXPENSE -> "هزینه"
-                  Category.TYPE_INCOME -> "درآمد"
-                  else -> "هر دو"
-                },
+              text = selectedType.displayName,
               style = MaterialTheme.typography.labelSmall,
               color = previewColor
             )

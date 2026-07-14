@@ -1,5 +1,10 @@
 name: AI Issue OS v2 (Self-Healing + Context-Aware Manual)
 
+env:
+  # Model for the Gemini CLI. Override per-repo via Settings → Secrets/Variables
+  # (vars.GEMINI_MODEL). Falls back to the previously-working model if unset.
+  GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.1-flash-lite' }}
+
 on:
   push:
   pull_request:
@@ -103,6 +108,15 @@ jobs:
 
           { head -n 500 diff_full.txt; echo "... [TRUNCATED] ..."; tail -n 500 diff_full.txt; } > diff.txt
 
+      - name: Sanitize Gemini context (strip image tags)
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+        run: |
+          # Strip Markdown image tags ![alt](url) and HTML <img ...> so the Gemini
+          # CLI never sends image payloads (root cause of the API 400 errors).
+          clean() { sed -E 's/!\[[^]]*\]\([^)]*\)//g; s/<img[^>]*>//gi' "$1"; }
+          [ -f intel.json ] && clean intel.json > intel.json.tmp && mv intel.json.tmp intel.json
+          [ -f diff.txt ] && clean diff.txt > diff.txt.tmp && mv diff.txt.tmp diff.txt
+
       - name: Prepare Gemini context
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         run: |
@@ -120,12 +134,13 @@ jobs:
 
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+        continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
         id: gemini
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: gemini-3.1-flash-lite
+          gemini_model: ${{ env.GEMINI_MODEL }}
           prompt: |
             You are a GitHub AI system.
             Context:
@@ -362,11 +377,12 @@ jobs:
 
       - name: Generate Issue with Gemini
         id: gen_issue
+        continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: gemini-3.1-flash-lite
+          gemini_model: ${{ env.GEMINI_MODEL }}
           prompt: |
             You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
 

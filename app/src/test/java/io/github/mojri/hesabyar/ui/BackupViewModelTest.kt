@@ -43,7 +43,7 @@ class BackupViewModelTest {
     Dispatchers.setMain(testDispatcher)
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
-    val useCase = ManageBackupUseCase(fakeRepo)
+    val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
     viewModel = BackupViewModel(context, useCase)
     viewModel.ioDispatcher = testDispatcher
   }
@@ -60,10 +60,12 @@ class BackupViewModelTest {
         """
         {
             "version": 1,
-            "transactions": [{"type": "EXPENSE", "categoryId": 1, "amount": 1000, "description": "test"}],
+            "timestamp": 1710000000000,
+            "appVersion": "1.0",
+            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 1000, "description": "test", "date": 1710000000000}],
             "loans": [],
             "installments": [],
-            "paymentHistories": []
+            "categories": []
         }
         """.trimIndent()
 
@@ -118,10 +120,12 @@ class BackupViewModelTest {
         """
         {
             "version": 1,
-            "transactions": [{"type": "EXPENSE", "categoryId": 1, "amount": 500, "description": "dup"}],
+            "timestamp": 1710000000000,
+            "appVersion": "1.0",
+            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 500, "description": "dup", "date": 1710000000000}],
             "loans": [],
             "installments": [],
-            "paymentHistories": []
+            "categories": []
         }
         """.trimIndent()
 
@@ -194,7 +198,9 @@ class BackupViewModelTest {
       importShouldThrow?.let { throw it }
     }
 
-    override suspend fun replaceAllFromBackup(backup: BackupPayload) {}
+    override suspend fun replaceAllFromBackup(backup: BackupPayload) {
+      importShouldThrow?.let { throw it }
+    }
 
     override suspend fun mergeFromBackup(backup: BackupPayload) {}
 

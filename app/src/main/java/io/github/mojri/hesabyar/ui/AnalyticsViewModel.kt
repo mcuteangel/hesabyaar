@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.GetAnalyticsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
@@ -50,7 +51,9 @@ class AnalyticsViewModel
         categories
       ) { trans, loanList, instList, catList ->
         getAnalyticsUseCase.computeAnalytics(trans, loanList, instList, catList)
-      }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
+      }.flowOn(Dispatchers.Default)
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
 
     fun setSelectedJalaliMonth(
       year: Int?,

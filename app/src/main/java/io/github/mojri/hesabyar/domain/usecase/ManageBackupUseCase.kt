@@ -4,162 +4,306 @@ import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ManageBackupUseCase(
-  private val repository: HesabyarRepositoryInterface
+  private val repository: HesabyarRepositoryInterface,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-  fun parseBackupJson(jsonString: String): BackupPayload {
-    val root = JSONObject(jsonString)
-
-    val transactions = ArrayList<Transaction>()
-    val transArray = root.optJSONArray("transactions") ?: JSONArray()
-    for (i in 0 until transArray.length()) {
-      val obj = transArray.getJSONObject(i)
-      transactions.add(
-        Transaction(
-          id = obj.optLong("id", 0),
-          type = obj.getString("type"),
-          categoryId = obj.optLong("categoryId", 1L),
-          amount = obj.getLong("amount"),
-          description = obj.optString("description", ""),
-          personName = obj.optString("personName").let { if (it.isBlank()) null else it },
-          date = obj.optLong("date", System.currentTimeMillis()),
-          dueDate = obj.optLong("dueDate", 0L).let { if (it == 0L) null else it },
-          installmentId = obj.optLong("installmentId", 0L).let { if (it == 0L) null else it }
-        )
-      )
+  suspend fun parseBackupJson(jsonString: String): BackupPayload? =
+    withContext(dispatcher) {
+      val rustResult =
+        io.github.mojri.hesabyar.rust.RustBridge
+          .parseBackupJsonSync(jsonString)
+      if (rustResult != null) {
+        try {
+          val rootJson = parseRawJson(jsonString)
+          BackupPayload(
+            version = rustResult.version,
+            timestamp = rustResult.timestamp,
+            appVersion = rustResult.appVersion,
+            transactions =
+              rustResult.transactions.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustTransaction(it)
+              },
+            loans =
+              rustResult.loans.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustLoan(it)
+              },
+            installments =
+              rustResult.installments.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustInstallment(it)
+              },
+            paymentHistories = parsePaymentHistories(rootJson),
+            categories =
+              rustResult.categories.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustCategory(it)
+              },
+            settings = parseSettings(rootJson)
+          )
+        } catch (_: IllegalArgumentException) {
+          // Malformed/outdated enum strings — fall back to Kotlin-only parsing
+          parseBackupJsonKotlin(jsonString)
+        }
+      } else {
+        // Rust unavailable — fall back to Kotlin-only JSON parsing
+        parseBackupJsonKotlin(jsonString)
+      }
     }
 
-    val loans = ArrayList<Loan>()
-    val loansArray = root.optJSONArray("loans") ?: JSONArray()
-    for (i in 0 until loansArray.length()) {
-      val obj = loansArray.getJSONObject(i)
-      loans.add(
-        Loan(
-          id = obj.optLong("id", 0),
-          personName = obj.getString("personName"),
-          type = obj.getString("type"),
-          originalAmount = obj.getLong("originalAmount"),
-          remainingAmount = obj.getLong("remainingAmount"),
-          description = obj.optString("description", ""),
-          date = obj.optLong("date", System.currentTimeMillis()),
-          isSettled = obj.optBoolean("isSettled", false)
-        )
-      )
+  private fun parseRawJson(jsonString: String): JSONObject? =
+    try {
+      JSONObject(jsonString)
+    } catch (_: Exception) {
+      null
     }
 
-    val installments = ArrayList<Installment>()
-    val instArray = root.optJSONArray("installments") ?: JSONArray()
-    for (i in 0 until instArray.length()) {
-      val obj = instArray.getJSONObject(i)
-      installments.add(
-        Installment(
-          id = obj.optLong("id", 0),
-          title = obj.getString("title"),
-          amount = obj.getLong("amount"),
-          dueDate = obj.getLong("dueDate"),
-          isPaid = obj.optBoolean("isPaid", false),
-          reminderEnabled = obj.optBoolean("reminderEnabled", true),
-          notes = obj.optString("notes", "")
-        )
-      )
-    }
-
-    val paymentHistories = ArrayList<PaymentHistory>()
-    val paymentsArray = root.optJSONArray("paymentHistories") ?: JSONArray()
-    for (i in 0 until paymentsArray.length()) {
-      val obj = paymentsArray.getJSONObject(i)
-      paymentHistories.add(
-        PaymentHistory(
-          id = obj.optLong("id", 0),
-          loanId = obj.getLong("loanId"),
-          amount = obj.getLong("amount"),
-          date = obj.optLong("date", System.currentTimeMillis()),
-          notes = obj.optString("notes", "")
-        )
-      )
-    }
-
-    val categories = ArrayList<Category>()
-    val catArray = root.optJSONArray("categories") ?: JSONArray()
-    for (i in 0 until catArray.length()) {
-      val obj = catArray.getJSONObject(i)
-      categories.add(
-        Category(
-          id = obj.optLong("id", 0),
-          name = obj.getString("name"),
-          key = obj.getString("key"),
-          icon = obj.optString("icon", "Paid"),
-          color = obj.optLong("color", 0xFF757575L),
-          type = obj.optString("type", "BOTH"),
-          isDefault = obj.optBoolean("isDefault", false)
-        )
-      )
-    }
-
-    val settingsObj = root.optJSONObject("settings")
-    val settings =
-      BackupSettings(
-        darkMode = settingsObj?.optBoolean("darkMode", true) ?: true
-      )
-
-    return BackupPayload(
-      version = root.optInt("version", 1),
-      timestamp = root.optLong("timestamp", System.currentTimeMillis()),
-      appVersion = root.optString("appVersion", "1.0"),
-      transactions = transactions,
-      loans = loans,
-      installments = installments,
-      paymentHistories = paymentHistories,
-      categories = categories,
-      settings = settings
-    )
+  private fun parseSettings(rootJson: JSONObject?): BackupSettings {
+    val obj = rootJson?.optJSONObject("settings") ?: return BackupSettings()
+    return BackupSettings(darkMode = obj.optBoolean("darkMode", true))
   }
 
-  fun validateBackup(backup: BackupPayload): BackupValidationResult {
-    val errors = ArrayList<String>()
+  private inline fun <reified T : Enum<T>> parseType(
+    obj: JSONObject,
+    default: T
+  ): T {
+    val typeStr = obj.optString("type", "")
+    if (typeStr.isEmpty()) return default
+    return try {
+      enumValueOf<T>(typeStr)
+    } catch (_: IllegalArgumentException) {
+      default
+    }
+  }
 
-    if (backup.version < 1) {
-      errors.add("نسخه پشتیبان نامعتبر است")
+  private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
+    val root = parseRawJson(jsonString) ?: return null
+    return try {
+      BackupPayload(
+        version = root.optInt("version", 1),
+        timestamp = root.optLong("timestamp", System.currentTimeMillis()),
+        appVersion = root.optString("appVersion", "1.0"),
+        transactions = parseTransactions(root),
+        loans = parseLoans(root),
+        installments = parseInstallmentsFromJson(root),
+        paymentHistories = parsePaymentHistories(root),
+        categories = parseCategories(root),
+        settings = parseSettings(root)
+      )
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun parseTransactions(root: JSONObject): List<Transaction> =
+    root.optJSONArray("transactions")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.TransactionType.EXPENSE)
+        Transaction(
+          id = o.optLong("id", 0L),
+          type = type,
+          categoryId = o.optLong("categoryId", 0L),
+          amount = o.optLong("amount", 0L),
+          description = o.optString("description", ""),
+          personName = o.optString("personName", "").ifBlank { null },
+          date = o.optLong("date", 0L),
+          dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
+          installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L }
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseLoans(root: JSONObject): List<Loan> =
+    root.optJSONArray("loans")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.LoanType.CREDITOR)
+        Loan(
+          id = o.optLong("id", 0L),
+          personName = o.optString("personName", ""),
+          type = type,
+          originalAmount = o.optLong("originalAmount", 0L),
+          remainingAmount = o.optLong("remainingAmount", 0L),
+          description = o.optString("description", ""),
+          date = o.optLong("date", 0L),
+          isSettled = o.optBoolean("isSettled", false)
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseInstallmentsFromJson(root: JSONObject): List<Installment> =
+    root.optJSONArray("installments")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        Installment(
+          id = o.optLong("id", 0L),
+          title = o.optString("title", ""),
+          amount = o.optLong("amount", 0L),
+          dueDate = o.optLong("dueDate", 0L),
+          isPaid = o.optBoolean("isPaid", false),
+          reminderEnabled = o.optBoolean("reminderEnabled", true),
+          notes = o.optString("notes", "")
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseCategories(root: JSONObject): List<Category> =
+    root.optJSONArray("categories")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.CategoryType.EXPENSE)
+        Category(
+          id = o.optLong("id", 0L),
+          name = o.optString("name", ""),
+          key = o.optString("key", ""),
+          icon = o.optString("icon", ""),
+          color = o.optLong("color", 0L),
+          type = type,
+          isDefault = o.optBoolean("isDefault", false)
+        )
+      }
+    } ?: emptyList()
+
+  private fun parsePaymentHistories(rootJson: JSONObject?): List<PaymentHistory> {
+    val arr = rootJson?.optJSONArray("paymentHistories") ?: return emptyList()
+    return (0 until arr.length()).mapNotNull { i ->
+      val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+      PaymentHistory(
+        id = obj.optLong("id", 0L),
+        loanId = obj.optLong("loanId", 0L),
+        amount = obj.optLong("amount", 0L),
+        date = obj.optLong("date", System.currentTimeMillis()),
+        notes = obj.optString("notes", "")
+      )
+    }
+  }
+
+  private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
+    io.github.mojri.hesabyar.rust.BackupPayload(
+      version = version,
+      timestamp = timestamp,
+      appVersion = appVersion,
+      transactions =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+      loans =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+      installments =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments),
+      categories =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapCategories(categories)
+    )
+
+  suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
+    withContext(dispatcher) {
+      if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
+        val rustResult =
+          io.github.mojri.hesabyar.rust.RustBridge
+            .validateBackupPayloadSync(backup.toRustPayload())
+
+        if (rustResult.isValid) {
+          BackupValidationResult.Valid
+        } else {
+          BackupValidationResult.Invalid(rustResult.errors)
+        }
+      } else {
+        // Rust unavailable — fall back to local Kotlin validation
+        validateBackupKotlin(backup)
+      }
     }
 
-    for (tx in backup.transactions) {
-      if (tx.amount <= 0) {
-        errors.add("مبلغ تراکنش نامعتبر: ${tx.description}")
-      }
-      if (tx.type !in listOf("EXPENSE", "INCOME")) {
-        errors.add("نوع تراکنش نامعتبر: ${tx.type}")
-      }
-    }
+  private fun validateBackupKotlin(backup: BackupPayload): BackupValidationResult {
+    val errors = mutableListOf<String>()
 
-    for (loan in backup.loans) {
-      if (loan.originalAmount <= 0) {
-        errors.add("مبلغ وام نامعتبر: ${loan.personName}")
-      }
-      if (loan.type !in listOf("DEBTOR", "CREDITOR")) {
-        errors.add("نوع وام نامعتبر: ${loan.type}")
-      }
-    }
+    if (backup.version <= 0) errors.add("نسخه پشتیبان نامعتبر است")
+    if (backup.appVersion.isBlank()) errors.add("نسخه برنامه پشتیبان نامعتبر است")
+    if (backup.timestamp <= 0) errors.add("زمان تهیه پشتیبان نامعتبر است")
 
-    for (inst in backup.installments) {
-      if (inst.amount <= 0) {
-        errors.add("مبلغ قسط نامعتبر: ${inst.title}")
-      }
-    }
+    validateBackupTransactions(backup.transactions, errors)
+    validateBackupLoans(backup.loans, errors)
+    validateBackupInstallments(backup.installments, errors)
+    validateBackupCategories(backup.categories, errors)
+    validateBackupPaymentHistories(backup.paymentHistories, errors)
 
-    if (errors.isNotEmpty()) {
-      return BackupValidationResult.Invalid(errors)
+    return if (errors.isEmpty()) {
+      BackupValidationResult.Valid
+    } else {
+      BackupValidationResult.Invalid(errors)
     }
-    return BackupValidationResult.Valid
+  }
+
+  private fun validateBackupTransactions(
+    transactions: List<Transaction>,
+    errors: MutableList<String>
+  ) {
+    transactions.forEachIndexed { i, t ->
+      if (t.amount <= 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
+      if (t.date <= 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupLoans(
+    loans: List<Loan>,
+    errors: MutableList<String>
+  ) {
+    loans.forEachIndexed { i, l ->
+      if (l.personName.isBlank()) errors.add("نام شخص وام #$i خالی است")
+      if (l.date <= 0) errors.add("تاریخ وام #$i نامعتبر است")
+      if (l.originalAmount <= 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
+      if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupInstallments(
+    installments: List<Installment>,
+    errors: MutableList<String>
+  ) {
+    installments.forEachIndexed { i, installment ->
+      if (installment.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
+      if (installment.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
+      if (installment.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupCategories(
+    categories: List<Category>,
+    errors: MutableList<String>
+  ) {
+    categories.forEachIndexed { i, category ->
+      if (category.name.isBlank()) errors.add("نام دسته‌بندی #$i خالی است")
+    }
+  }
+
+  private fun validateBackupPaymentHistories(
+    payments: List<PaymentHistory>,
+    errors: MutableList<String>
+  ) {
+    payments.forEachIndexed { i, payment ->
+      if (payment.amount <= 0) errors.add("مبلغ پرداخت #$i نامعتبر است")
+      if (payment.date <= 0) errors.add("تاریخ پرداخت #$i نامعتبر است")
+    }
   }
 
   suspend fun executeRestore(
@@ -200,7 +344,7 @@ class ManageBackupUseCase(
           put("key", it.key)
           put("icon", it.icon)
           put("color", it.color)
-          put("type", it.type)
+          put("type", it.type.name)
           put("isDefault", it.isDefault)
         }
       )
@@ -212,7 +356,7 @@ class ManageBackupUseCase(
       transArray.put(
         JSONObject().apply {
           put("id", it.id)
-          put("type", it.type)
+          put("type", it.type.name)
           put("categoryId", it.categoryId)
           put("amount", it.amount)
           put("description", it.description)
@@ -231,7 +375,7 @@ class ManageBackupUseCase(
         JSONObject().apply {
           put("id", it.id)
           put("personName", it.personName)
-          put("type", it.type)
+          put("type", it.type.name)
           put("originalAmount", it.originalAmount)
           put("remainingAmount", it.remainingAmount)
           put("description", it.description)
@@ -275,13 +419,8 @@ class ManageBackupUseCase(
     return rootJson
   }
 
-  suspend fun importBackupFromFile(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
-  ) {
-    repository.importBackup(transactions, loans, installments, paymentHistories)
+  suspend fun importBackupFromFile(backup: BackupPayload) {
+    repository.replaceAllFromBackup(backup)
   }
 
   fun buildBackupSummary(backup: BackupPayload): String =

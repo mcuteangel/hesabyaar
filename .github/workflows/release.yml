@@ -76,9 +76,24 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
+      - name: Install Rust toolchain
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+
+      - name: Cache Cargo dependencies
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
       - name: Cache Gradle packages
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: |
             ~/.gradle/caches
@@ -94,9 +109,18 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
           echo "Keystore decoded successfully"
 
+      - name: Run Rust tests
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        working-directory: rust
+        run: cargo test -p hesabyar-core
+
       - name: Grant execute permission for gradlew
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
         run: chmod +x gradlew
+
+      - name: Generate Rust bindings
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        run: ./gradlew :app:generateAndFixBindings
 
       - name: Run unit tests
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'

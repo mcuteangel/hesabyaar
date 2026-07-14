@@ -5,7 +5,9 @@ import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,7 +24,7 @@ class BackupValidationTest {
       if (tx.amount <= 0) {
         errors.add("مبلغ تراکنش نامعتبر: ${tx.description}")
       }
-      if (tx.type !in listOf("EXPENSE", "INCOME")) {
+      if (tx.type !in listOf(TransactionType.EXPENSE, TransactionType.INCOME)) {
         errors.add("نوع تراکنش نامعتبر: ${tx.type}")
       }
     }
@@ -31,7 +33,7 @@ class BackupValidationTest {
       if (loan.originalAmount <= 0) {
         errors.add("مبلغ وام نامعتبر: ${loan.personName}")
       }
-      if (loan.type !in listOf("DEBTOR", "CREDITOR")) {
+      if (loan.type !in listOf(LoanType.DEBTOR, LoanType.CREDITOR)) {
         errors.add("نوع وام نامعتبر: ${loan.type}")
       }
     }
@@ -54,13 +56,13 @@ class BackupValidationTest {
       BackupPayload(
         transactions =
           listOf(
-            Transaction(type = "EXPENSE", categoryId = 1L, amount = 1_000_000L, description = "test")
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 1_000_000L, description = "test")
           ),
         loans =
           listOf(
             Loan(
               personName = "Ali",
-              type = "DEBTOR",
+              type = LoanType.DEBTOR,
               originalAmount = 5_000_000L,
               remainingAmount = 3_000_000L,
               description = "loan"
@@ -81,27 +83,12 @@ class BackupValidationTest {
   }
 
   @Test
-  fun `invalid transaction type returns error`() {
-    val backup =
-      BackupPayload(
-        transactions =
-          listOf(
-            Transaction(type = "INVALID", categoryId = 1L, amount = 1_000_000L, description = "test")
-          )
-      )
-    val result = validateBackup(backup)
-    assertTrue(result is BackupValidationResult.Invalid)
-    assertEquals(1, (result as BackupValidationResult.Invalid).errors.size)
-    assertTrue(result.errors[0].contains("نوع تراکنش"))
-  }
-
-  @Test
   fun `negative transaction amount returns error`() {
     val backup =
       BackupPayload(
         transactions =
           listOf(
-            Transaction(type = "EXPENSE", categoryId = 1L, amount = -500L, description = "test")
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = -500L, description = "test")
           )
       )
     val result = validateBackup(backup)
@@ -115,31 +102,11 @@ class BackupValidationTest {
       BackupPayload(
         transactions =
           listOf(
-            Transaction(type = "EXPENSE", categoryId = 1L, amount = 0L, description = "test")
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 0L, description = "test")
           )
       )
     val result = validateBackup(backup)
     assertTrue(result is BackupValidationResult.Invalid)
-  }
-
-  @Test
-  fun `invalid loan type returns error`() {
-    val backup =
-      BackupPayload(
-        loans =
-          listOf(
-            Loan(
-              personName = "Ali",
-              type = "INVALID",
-              originalAmount = 5_000_000L,
-              remainingAmount = 5_000_000L,
-              description = "loan"
-            )
-          )
-      )
-    val result = validateBackup(backup)
-    assertTrue(result is BackupValidationResult.Invalid)
-    assertTrue((result as BackupValidationResult.Invalid).errors[0].contains("نوع وام"))
   }
 
   @Test
@@ -150,7 +117,7 @@ class BackupValidationTest {
           listOf(
             Loan(
               personName = "Ali",
-              type = "DEBTOR",
+              type = LoanType.DEBTOR,
               originalAmount = -1000L,
               remainingAmount = -1000L,
               description = "loan"
@@ -180,14 +147,14 @@ class BackupValidationTest {
       BackupPayload(
         transactions =
           listOf(
-            Transaction(type = "BAD", categoryId = 1L, amount = -100L, description = "t1"),
-            Transaction(type = "ALSO_BAD", categoryId = 1L, amount = 0L, description = "t2")
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = -100L, description = "t1"),
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 0L, description = "t2")
           ),
         loans =
           listOf(
             Loan(
               personName = "X",
-              type = "INVALID",
+              type = LoanType.DEBTOR,
               originalAmount = -500L,
               remainingAmount = 0L,
               description = "l1"
@@ -208,14 +175,14 @@ class BackupValidationTest {
           listOf(
             Loan(
               personName = "Ali",
-              type = "DEBTOR",
+              type = LoanType.DEBTOR,
               originalAmount = 1_000_000L,
               remainingAmount = 500_000L,
               description = "d"
             ),
             Loan(
               personName = "Reza",
-              type = "CREDITOR",
+              type = LoanType.CREDITOR,
               originalAmount = 2_000_000L,
               remainingAmount = 2_000_000L,
               description = "c"

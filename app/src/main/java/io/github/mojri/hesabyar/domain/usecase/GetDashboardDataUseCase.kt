@@ -4,7 +4,9 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.DashboardData
 import kotlinx.coroutines.flow.Flow
 
@@ -21,65 +23,113 @@ class GetDashboardDataUseCase(
     loans: List<Loan>,
     installments: List<Installment>
   ): DashboardData {
-    val (totalIncome, totalExpense, monthlyIncome, monthlyExpense) = aggregateTransactions(transactions)
-    val (debtorsTotal, creditorsTotal) = aggregateLoans(loans)
-    val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(transactions),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapLoans(loans),
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapInstallments(installments)
+      )
 
-    val balance = totalIncome - totalExpense
-    val savingsRate = if (totalIncome > 0) balance.toDouble() / totalIncome.toDouble() else 0.0
-
-    val monthlyInstallmentTotal = upcomingIns.sumOf { it.amount }
-    val debtToIncomeRatio =
-      if (monthlyIncome > 0) monthlyInstallmentTotal.toDouble() / monthlyIncome.toDouble() else 0.0
-
-    return DashboardData(
-      currentBalance = balance,
-      monthlyExpenses = monthlyExpense,
-      monthlyIncome = monthlyIncome,
-      debtorsTotal = debtorsTotal,
-      creditorsTotal = creditorsTotal,
-      upcomingInstallments = upcomingIns,
-      savingsRate = savingsRate,
-      debtToIncomeRatio = debtToIncomeRatio
-    )
-  }
-
-  private fun aggregateTransactions(transactions: List<Transaction>): Quadruple {
-    var totalIncome = 0L
-    var totalExpense = 0L
-    var monthlyIncome = 0L
-    var monthlyExpense = 0L
-    val oneMonthAgo = System.currentTimeMillis() - (30L * 24L * 60L * 60L * 1000L)
-
-    transactions.forEach {
-      if (it.type == "INCOME") {
-        totalIncome += it.amount
-        if (it.date >= oneMonthAgo) monthlyIncome += it.amount
-      } else {
-        totalExpense += it.amount
-        if (it.date >= oneMonthAgo) monthlyExpense += it.amount
-      }
+    // Use the Rust result unless it failed (null) or came back as an all-zero
+    // placeholder while real data exists. In those cases fall back to a local
+    // computation so the UI never shows misleading blank zeros.
+    val hasData =
+      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+    if (rustResult != null && !(hasData && rustResult.isBlank())) {
+      return io.github.mojri.hesabyar.rust.RustMappers
+        .mapDashboardData(rustResult, installments)
     }
-    return Quadruple(totalIncome, totalExpense, monthlyIncome, monthlyExpense)
+
+    // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
+    // empty/invalid data. Computed directly from the local DB lists.
+    return computeFallbackDashboardData(transactions, loans, installments)
   }
 
-  private fun aggregateLoans(loans: List<Loan>): Pair<Long, Long> {
-    var debtorsTotal = 0L
-    var creditorsTotal = 0L
-    loans.filter { !it.isSettled }.forEach {
-      if (it.type == "DEBTOR") {
-        debtorsTotal += it.remainingAmount
-      } else {
-        creditorsTotal += it.remainingAmount
-      }
+  /** True when every field is at its zero/default, i.e. the Rust result is a
+   *  blank placeholder rather than a real computation. */
+  private fun io.github.mojri.hesabyar.rust.DashboardData.isBlank(): Boolean =
+    currentBalance == 0L &&
+      monthlyExpenses == 0L &&
+      monthlyIncome == 0L &&
+      debtorsTotal == 0L &&
+      creditorsTotal == 0L &&
+      savingsRate == 0.0 &&
+      debtToIncomeRatio == 0.0
+
+  companion object {
+    /** Kotlin-only dashboard computation.  Extracted so unit tests can verify
+     *  the fallback logic without requiring the Rust native library. */
+    internal fun computeFallbackDashboardData(
+      transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>
+    ): DashboardData {
+      val now = System.currentTimeMillis()
+
+      // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
+      // matching the Rust core's compute_dashboard_data (which interprets
+      // timestamps in UTC). Centralized in JalaliCalendarHelper so the fallback
+      // and Rust paths assign transactions/installments to the same Jalali month.
+      val (jalaliMonthStart, jalaliMonthEndExclusive) =
+        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+          .getUtcJalaliMonthBoundaries(now)
+
+      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEndExclusive }
+      val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
+      val unsettledLoans = loans.filter { !it.isSettled }
+      val debtors = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
+      val creditors = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
+
+      // currentBalance from all transactions (lifetime), not just the filtered month.
+      val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val totalExpenses = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+      val currentBalance = totalIncome - totalExpenses
+
+      val savingsRate =
+        if (monthlyIncome > 0) {
+          ((monthlyIncome - monthlyExpenses).toDouble() / monthlyIncome).coerceIn(0.0, 1.0)
+        } else {
+          0.0
+        }
+
+      // Monthly debt obligations mirror the Rust core's calculate_debt_to_income_ratio:
+      // unpaid installments due in the current cycle (full amount) plus the prorated
+      // monthly portion (remaining / 12) of unsettled creditor loans.
+      val installmentDebt =
+        installments
+          .filter { !it.isPaid && it.dueDate >= jalaliMonthStart && it.dueDate < jalaliMonthEndExclusive }
+          .sumOf { it.amount }
+      val creditorLoanDebt =
+        unsettledLoans
+          .filter { it.type == LoanType.CREDITOR }
+          .sumOf { it.remainingAmount / 12 }
+      val monthlyDebt = installmentDebt + creditorLoanDebt
+      val debtToIncome =
+        if (monthlyIncome > 0) {
+          monthlyDebt.toDouble() / monthlyIncome
+        } else if (monthlyDebt > 0) {
+          1.0
+        } else {
+          0.0
+        }
+
+      val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
+
+      return DashboardData(
+        currentBalance = currentBalance,
+        monthlyExpenses = monthlyExpenses,
+        monthlyIncome = monthlyIncome,
+        debtorsTotal = debtors,
+        creditorsTotal = creditors,
+        upcomingInstallments = upcomingIns,
+        savingsRate = savingsRate,
+        debtToIncomeRatio = debtToIncome
+      )
     }
-    return debtorsTotal to creditorsTotal
   }
-
-  private data class Quadruple(
-    val a: Long,
-    val b: Long,
-    val c: Long,
-    val d: Long
-  )
 }

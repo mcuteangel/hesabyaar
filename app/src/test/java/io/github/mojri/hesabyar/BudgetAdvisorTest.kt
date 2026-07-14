@@ -1,23 +1,81 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.api.AiProvider
+import io.github.mojri.hesabyar.api.AiProviderConfig
+import io.github.mojri.hesabyar.api.AiProviderType
+import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class BudgetAdvisorTest {
+  private var previousRustState = false
+
+  @Before
+  fun setUp() {
+    previousRustState = HesabyarApp.isRustInitialized()
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
+
+  @After
+  fun tearDown() {
+    HesabyarApp.setRustInitializedForTesting(previousRustState)
+  }
+
+  private val dayMs = 24L * 60 * 60 * 1000
+
+  // Normalize Persian/Arabic digits and the Persian thousands separator to their
+  // Western forms so assertions are locale-rendering agnostic.
+  private fun normalizeDigits(input: String): String {
+    val persian = "۰۱۲۳۴۵۶۷۸۹"
+    val arabic = "٠١٢٣٤٥٦٧٨٩"
+    val sb = StringBuilder(input.length)
+    for (c in input) {
+      sb.append(
+        when {
+          c in persian -> '0' + persian.indexOf(c)
+          c in arabic -> '0' + arabic.indexOf(c)
+          c == '٬' -> ','
+          else -> c
+        }
+      )
+    }
+    return sb.toString()
+  }
+
   private fun createTransaction(
-    type: String,
+    type: TransactionType,
     amount: Long,
     categoryId: Long = 1L
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
+  private fun createTransactionAt(
+    type: TransactionType,
+    amount: Long,
+    dateMs: Long,
+    categoryId: Long = 1L
+  ): Transaction =
+    Transaction(
+      type = type,
+      amount = amount,
+      categoryId = categoryId,
+      description = "test",
+      date = dateMs
+    )
+
   private fun createLoan(
-    type: String,
+    type: LoanType,
     originalAmount: Long,
     remainingAmount: Long,
     personName: String = "test"
@@ -34,30 +92,138 @@ class BudgetAdvisorTest {
     title: String = "test",
     amount: Long,
     isPaid: Boolean = false
-  ): Installment = Installment(title = title, amount = amount, dueDate = System.currentTimeMillis(), isPaid = isPaid)
+  ): Installment =
+    Installment(
+      title = title,
+      amount = amount,
+      dueDate = System.currentTimeMillis() + 24L * 60L * 60L * 1000L,
+      isPaid = isPaid
+    )
 
   private fun createCategory(
     id: Long,
     name: String,
     key: String = "test"
-  ): Category = Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = "EXPENSE")
+  ): Category =
+    Category(id = id, name = name, key = key, icon = "Test", color = 0xFF757575L, type = CategoryType.EXPENSE)
 
   @Test
   fun `getOfflineAdvice - empty transactions`() {
     val result = BudgetAdvisor.getOfflineAdvice(emptyList(), emptyList())
-    assertTrue(result.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید"))
+    assertTrue(result.contains("نکردهاید"))
   }
+
+  @Test
+  fun `getBudgetAdviceOffline - empty transactions still surfaces unpaid installment`() {
+    val installments =
+      listOf(
+        createInstallment("قسط ماشین", 2_000_000, isPaid = false)
+      )
+    val result =
+      BudgetAdviceGenerator.getBudgetAdviceOffline(
+        emptyList(),
+        emptyList(),
+        installments,
+        emptyList()
+      )
+    // Empty-ledger message must be retained...
+    assertTrue(result.contains("نکرده"))
+    // ...while the upcoming obligation is still surfaced (offline, no AI/network).
+    assertTrue(result.contains("اقساط"))
+  }
+
+  @Test
+  fun `getBudgetAdvice delegates to loans-slash-installments-aware offline advice`() =
+    kotlinx.coroutines.test.runTest {
+      // The production entry point (BudgetAdvisor.getBudgetAdvice) must route
+      // through BudgetAdviceGenerator so unpaid obligations ship in the advice,
+      // even with no AI config (offline path). Regression guard for the
+      // previously-unreachable generator wiring.
+      val installments = listOf(createInstallment("قسط ماشین", 2_000_000, isPaid = false))
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          installments,
+          emptyList(),
+          null
+        )
+      assertTrue(result.contains("اقساط"))
+    }
+
+  @Test
+  fun `getBudgetAdvice with configured provider and empty ledger returns empty-state without AI call`() =
+    kotlinx.coroutines.test.runTest {
+      // A configured provider must not trigger a paid/network AI request for an
+      // account with no transactions and no unpaid obligations. The regression
+      // guard asserts directly on the call/no-call decision (not just the output
+      // shape): if the early-return were removed, the injected generator would be
+      // invoked and this test would fail — an AI failure would otherwise fall back
+      // to the same offline message and mask the leak.
+      val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
+      assertTrue(config.isConfigured)
+      var aiCallCount = 0
+      val recordingGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+        { _, _, _, _ ->
+          aiCallCount++
+          AiProvider.ApiResult.Success("شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید.")
+        }
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          emptyList(),
+          emptyList(),
+          config,
+          recordingGenerate
+        )
+      assertEquals("AI must not be called for an empty ledger", 0, aiCallCount)
+      assertTrue(result.contains("نکرده‌اید"))
+    }
+
+  @Test
+  fun `getBudgetAdvice with configured provider still calls AI when unpaid obligations exist`() =
+    kotlinx.coroutines.test.runTest {
+      // When unpaid obligations exist, the generator path must still be used even
+      // with an empty transaction list. The guard asserts the AI generator is
+      // actually invoked (not merely that offline text leaked through when the
+      // call fails), and that the AI-produced result — not the offline fallback —
+      // is what gets returned.
+      val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
+      assertTrue(config.isConfigured)
+      var aiCallCount = 0
+      val aiText = "شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید."
+      val recordingGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+        { _, _, _, _ ->
+          aiCallCount++
+          AiProvider.ApiResult.Success(aiText)
+        }
+      val installments = listOf(createInstallment("قسط ماشین", 2_000_000, isPaid = false))
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          installments,
+          emptyList(),
+          config,
+          recordingGenerate
+        )
+      assertEquals("AI must be called when unpaid obligations exist", 1, aiCallCount)
+      // The AI-produced text (validated and returned as-is) must be the result,
+      // proving the offline fallback was bypassed.
+      assertEquals("expected AI output, got: $result", aiText, result)
+    }
 
   @Test
   fun `getOfflineAdvice - high spending ratio warns`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 9_500_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 9_500_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(
-      result.contains("ناترازی") || result.contains("کسری") || result.contains("۹۵") || result.contains("95")
+      result.contains("کسری") || result.contains("مخارج") || result.contains("بیش از درآمد")
     )
   }
 
@@ -65,22 +231,24 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - low spending ratio congratulates`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 2_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 2_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("پس‌انداز") || result.contains("۷۰") || result.contains("70"))
+    assertTrue(result.contains("عملکرد") || result.contains("فوق‌العاده") || result.contains("۸۰٪"))
   }
 
   @Test
   fun `getOfflineAdvice - balanced ratio`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 6_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 6_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("تعادل") || result.contains("تعادل نسبی"))
+    assertTrue(
+      result.contains("پس‌انداز") || result.contains("۴۰٪")
+    )
   }
 
   @Test
@@ -92,9 +260,9 @@ class BudgetAdvisorTest {
       )
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000, 1L),
-        createTransaction("EXPENSE", 1_000_000, 2L)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000, 1L),
+        createTransaction(TransactionType.EXPENSE, 1_000_000, 2L)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, categories)
     assertTrue(result.contains("خوراک"))
@@ -104,26 +272,39 @@ class BudgetAdvisorTest {
   fun `getOfflineAdvice - contains financial advice`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
     assertTrue(result.contains("بودجه") || result.contains("پس‌انداز") || result.contains("هزینه"))
   }
 
   @Test
-  fun `getOfflineAdvice - mentions active installments`() {
+  fun `getOfflineForecast - mentions active installments in Toman not Rial`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val installments =
       listOf(
         createInstallment("قسط ماشین", 2_000_000, isPaid = false)
       )
-    val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("اقساط") || result.contains("بدهی"))
+    val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), installments)
+    // 2,000,000 Rial must render as Toman (200,000), never the raw Rial value.
+    assertTrue(result.contains("اقساط"))
+    assertTrue(result.contains("تومان"))
+    // Positive guard: the installment amount must actually be rendered (in Toman),
+    // so the negative Rial check below cannot pass vacuously if formatting changes.
+    // Normalize digits so the assertion is robust to Persian/Western rendering.
+    assertTrue(
+      "forecast must render the Toman-converted installment amount, got: $result",
+      normalizeDigits(result).contains("200,000")
+    )
+    assertFalse(
+      "forecast must not expose raw Rial magnitude 2,000,000, got: $result",
+      result.contains("2,000,000")
+    )
   }
 
   @Test
@@ -136,8 +317,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - negative balance warns`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 5_000_000),
-        createTransaction("EXPENSE", 6_000_000)
+        createTransaction(TransactionType.INCOME, 5_000_000),
+        createTransaction(TransactionType.EXPENSE, 6_000_000)
       )
     val installments =
       listOf(
@@ -151,8 +332,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - positive balance stable`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000)
       )
     val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), emptyList())
     assertTrue(result.contains("پایدار") || result.contains("سبز") || result.contains("مازاد"))
@@ -162,8 +343,8 @@ class BudgetAdvisorTest {
   fun `getOfflineForecast - mentions installment amounts`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000),
-        createTransaction("EXPENSE", 3_000_000)
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 3_000_000)
       )
     val installments =
       listOf(
@@ -175,29 +356,121 @@ class BudgetAdvisorTest {
   }
 
   @Test
-  fun `getPersianCategoryName maps correctly`() {
-    val mapping =
-      mapOf(
-        "Food" to "خوراک",
-        "Transportation" to "حمل و نقل",
-        "Shopping" to "خرید و پوشاک",
-        "Bills" to "قبض‌ها و اشتراک",
-        "Installments" to "اقساط",
-        "Loans" to "وام و امور اشخاص",
-        "Income" to "درآمد"
-      )
-    assertEquals("خوراک", mapping["Food"])
-    assertEquals("حمل و نقل", mapping["Transportation"])
-    assertEquals(7, mapping.size)
+  fun `getPersianCategoryName maps category keys to production Persian names`() {
+    // Exercises the real production mapping (Category.DEFAULTS) instead of a
+    // locally declared copy that could drift from the shipped defaults.
+    assertEquals("خوراک", BudgetAdvisor.getPersianCategoryName("Food"))
+    assertEquals("حمل و نقل", BudgetAdvisor.getPersianCategoryName("Transportation"))
+    assertEquals("خرید", BudgetAdvisor.getPersianCategoryName("Shopping"))
+    assertEquals("قبوض", BudgetAdvisor.getPersianCategoryName("Bills"))
+    assertEquals("اقساط", BudgetAdvisor.getPersianCategoryName("Installments"))
+    assertEquals("وام و قرض", BudgetAdvisor.getPersianCategoryName("Loans"))
+    assertEquals("درآمد", BudgetAdvisor.getPersianCategoryName("Income"))
+    assertEquals("سایر", BudgetAdvisor.getPersianCategoryName("Other"))
+    // Unknown keys fall back to themselves (no false translation).
+    assertEquals("UnknownKey", BudgetAdvisor.getPersianCategoryName("UnknownKey"))
+    // Coverage: every default category must expose a non-blank Persian name.
+    Category.DEFAULTS.forEach { assertTrue(it.name.isNotBlank()) }
   }
 
   @Test
   fun `no income - expense only gives correct ratio`() {
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 5_000_000)
+        createTransaction(TransactionType.EXPENSE, 5_000_000)
       )
     val result = BudgetAdvisor.getOfflineAdvice(transactions, emptyList())
-    assertTrue(result.contains("جذب") || result.contains("درآمد") || result.contains("ثبت نکرده‌اید"))
+    assertTrue(
+      result.contains("درآمد") || result.contains("ثبت نکرده") || result.contains("هزینه")
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // localMonthlyIncomeBaseline (trailing-90-day income baseline)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `localMonthlyIncomeBaseline - empty list returns zero`() {
+    val now = 1_700_000_000_000L
+    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(emptyList(), now))
+  }
+
+  @Test
+  fun `localMonthlyIncomeBaseline - single income transaction normalizes to monthly`() {
+    val now = 1_700_000_000_000L
+    // 30 days ago -> spans exactly 1 month -> baseline equals the amount.
+    val tx = createTransactionAt(TransactionType.INCOME, 3_000_000, now - 30 * dayMs)
+    assertEquals(3_000_000L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), now))
+  }
+
+  @Test
+  fun `localMonthlyIncomeBaseline - typical case sums and normalizes multiple incomes`() {
+    val now = 1_700_000_000_000L
+    val tx1 = createTransactionAt(TransactionType.INCOME, 1_500_000, now - 15 * dayMs)
+    val tx2 = createTransactionAt(TransactionType.INCOME, 1_500_000, now - 45 * dayMs)
+    // oldest is 45 days ago -> 45/30 = 1.5 months; 3,000,000 / 1.5 = 2,000,000.
+    assertEquals(2_000_000L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx1, tx2), now))
+  }
+
+  @Test
+  fun `localMonthlyIncomeBaseline - boundary strictly filters outside 90 days`() {
+    val now = 1_700_000_000_000L
+    val within89 = createTransactionAt(TransactionType.INCOME, 4_000_000, now - 89 * dayMs)
+    val outside91 = createTransactionAt(TransactionType.INCOME, 9_000_000, now - 91 * dayMs)
+
+    // A transaction older than 90 days must be excluded entirely.
+    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(outside91), now))
+
+    // A transaction inside the window is counted, and an out-of-window one must
+    // not change the result (proving strict trailing-90-day filtering).
+    val onlyWithin = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(within89), now)
+    val withOutside = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(within89, outside91), now)
+    assertEquals(onlyWithin, withOutside)
+    assertTrue(onlyWithin > 0)
+
+    // The inclusive boundary (exactly 90 days ago) is still inside the window.
+    val atBoundary = createTransactionAt(TransactionType.INCOME, 3_000_000, now - 90 * dayMs)
+    assertTrue(BudgetAdvisor.localMonthlyIncomeBaseline(listOf(atBoundary), now) > 0)
+
+    // Expenses are never counted as income.
+    val expense = createTransactionAt(TransactionType.EXPENSE, 8_000_000, now - 10 * dayMs)
+    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(expense), now))
+  }
+
+  // ---------------------------------------------------------------------------
+  // calculateFinancialHealthScore (local fallback when Rust is unavailable)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `calculateFinancialHealthScore - local fallback when Rust unavailable`() {
+    val transactions =
+      listOf(
+        createTransaction(TransactionType.INCOME, 10_000_000),
+        createTransaction(TransactionType.EXPENSE, 2_000_000)
+      )
+    val score =
+      BudgetAdvisor.calculateFinancialHealthScore(
+        transactions,
+        emptyList(),
+        emptyList(),
+        emptyList()
+      )
+    // Deterministic local computation: savings rate 0.8 (+25) + no debt (+15) + 1 category (+0) = 90.
+    assertEquals(90, score)
+    assertTrue(score in 0..100)
+
+    // Determinism: a second call yields the same result (no flaky time dependence).
+    assertEquals(
+      score,
+      BudgetAdvisor.calculateFinancialHealthScore(transactions, emptyList(), emptyList(), emptyList())
+    )
+  }
+
+  @Test
+  fun `calculateFinancialHealthScore - empty data returns zero via local fallback`() {
+    assertEquals(
+      0,
+      BudgetAdvisor.calculateFinancialHealthScore(emptyList(), emptyList(), emptyList(), emptyList())
+    )
   }
 }

@@ -11,10 +11,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.mojri.hesabyar.domain.usecase.ExportExcelUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,8 +34,7 @@ class ExportViewModel
         try {
           val result = exportExcelUseCase.export()
 
-          val savedPath = saveToDownloads(result.file)
-          result.file.delete()
+          val savedPath = saveToDownloads(result.filename, result.bytes)
 
           val summary =
             buildString {
@@ -57,16 +56,24 @@ class ExportViewModel
         } catch (e: SecurityException) {
           exportState.value =
             ExportState.Error(
-              "دسترسی به پوشه Downloads امکان‌پذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
+              "دسترسی به پوشه Downloads امکان\u200Cپذیر نیست: ${e.localizedMessage ?: "خطای دسترسی"}"
+            )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: IllegalStateException) {
+          exportState.value =
+            ExportState.Error(
+              "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
             )
         }
       }
     }
 
-    private suspend fun saveToDownloads(tempFile: File): String =
+    private suspend fun saveToDownloads(
+      fileName: String,
+      bytes: ByteArray
+    ): String =
       withContext(Dispatchers.IO) {
-        val fileName = tempFile.name
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           val contentValues =
             ContentValues().apply {
@@ -78,13 +85,11 @@ class ExportViewModel
           val resolver = appContext.contentResolver
           val uri =
             resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-              ?: throw Exception("ایجاد فایل در Downloads ناموفق بود")
+              ?: throw java.io.IOException("ایجاد فایل در Downloads ناموفق بود")
 
           resolver.openOutputStream(uri)?.use { output ->
-            tempFile.inputStream().use { input ->
-              input.copyTo(output)
-            }
-          } ?: throw Exception("نوشتن فایل ناموفق بود")
+            output.write(bytes)
+          } ?: throw java.io.IOException("نوشتن فایل ناموفق بود")
 
           "Downloads/$fileName"
         } else {
@@ -92,8 +97,8 @@ class ExportViewModel
           val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
           if (!downloadsDir.exists()) downloadsDir.mkdirs()
 
-          val destFile = File(downloadsDir, fileName)
-          tempFile.copyTo(destFile, overwrite = true)
+          val destFile = java.io.File(downloadsDir, fileName)
+          destFile.writeBytes(bytes)
 
           destFile.absolutePath
         }

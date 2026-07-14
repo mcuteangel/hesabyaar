@@ -35,8 +35,6 @@ jmh {
 kotlin.sourceSets.named("main") {
     kotlin.setSrcDirs(listOf("../app/src/main/java"))
     kotlin.include(
-        "io/github/mojri/hesabyar/api/PersianAmountParser.kt",
-        "io/github/mojri/hesabyar/api/MoneyDetector.kt",
         "io/github/mojri/hesabyar/ui/JalaliCalendarHelper.kt",
     )
 }

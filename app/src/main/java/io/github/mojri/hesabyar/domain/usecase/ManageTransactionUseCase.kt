@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.Flow
 
 class ManageTransactionUseCase(
@@ -15,7 +16,7 @@ class ManageTransactionUseCase(
   ): Flow<List<Transaction>> = repository.getTransactionsInRange(start, end)
 
   suspend fun addTransaction(
-    type: String,
+    type: TransactionType,
     categoryId: Long,
     amount: Long,
     description: String,

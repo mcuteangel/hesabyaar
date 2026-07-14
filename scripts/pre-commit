@@ -14,7 +14,7 @@ try_commit() {
 
   # Run ktlintFormat first to auto-fix formatting
   echo ""
-  echo "[1/2] Running ktlintFormat (auto-fix)..."
+  echo "[1/3] Running ktlintFormat (auto-fix)..."
   if ! ./gradlew ktlintFormat --quiet; then
     echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
     echo "   Run ./gradlew ktlintFormat manually to see details."
@@ -22,20 +22,53 @@ try_commit() {
   fi
   echo "  ✓ ktlintFormat passed"
 
-  # Only re-stage the files that were originally staged
+  # Snapshot each staged file's working-tree hash before ktlintFormat runs,
+  # then compare after to re-stage only files ktlintFormat actually changed.
+  # This avoids pulling in pre-existing unstaged changes the user left out.
   if [[ ${#staged_files[@]} -gt 0 ]]; then
-    git add "${staged_files[@]}"
+    declare -A pre_format_hash
+    for f in "${staged_files[@]}"; do
+      if [[ -f "$f" ]]; then
+        pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
+      fi
+    done
+
+    local modified_files=()
+    for f in "${staged_files[@]}"; do
+      if [[ -f "$f" ]]; then
+        local post_hash
+        post_hash=$(git hash-object "$f" 2>/dev/null || echo "")
+        if [[ -n "${pre_format_hash[$f]}" && "${pre_format_hash[$f]}" != "$post_hash" ]]; then
+          modified_files+=("$f")
+        fi
+      fi
+    done
+    if [[ ${#modified_files[@]} -gt 0 ]]; then
+      echo "  Re-staging ${#modified_files[@]} file(s) with auto-fixes..."
+      git add "${modified_files[@]}"
+    fi
   fi
 
   # Run ktlintCheck to verify no style violations remain
   echo ""
-  echo "[2/2] Running ktlintCheck..."
+  echo "[2/3] Running ktlintCheck..."
   if ! ./gradlew ktlintCheck --quiet; then
     echo "❌ ktlintCheck failed — Kotlin style violations detected."
     echo "   Fix the issues manually or re-stage the files and try again."
     return 1
   fi
   echo "  ✓ ktlintCheck passed"
+
+  # Run detekt to match CI strictness (whole-project, non-autocorrectable rules)
+  echo ""
+  echo "[3/3] Running detekt (static analysis)..."
+  if ! ./gradlew detekt; then
+    echo "❌ detekt failed — code quality issues detected."
+    echo "   Fix the issues or run ./gradlew detekt to see details."
+    return 1
+  fi
+  echo "  ✓ detekt passed"
+
   return 0
 }
 

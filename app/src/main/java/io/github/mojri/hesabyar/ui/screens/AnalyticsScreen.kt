@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -517,8 +518,7 @@ private fun DebtCreditSummaryCard(
           color =
             if (items.isEmpty()) {
               MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            } else if (items.first().type ==
-              "DEBTOR"
+            } else if (items.first().type == LoanType.DEBTOR.name
             ) {
               FinancialColors.IncomeGreen
             } else {
@@ -563,8 +563,7 @@ private fun DebtCreditSummaryCard(
                 text = CurrencyFormatter.format(item.remainingAmount),
                 style = MaterialTheme.typography.bodySmall,
                 color =
-                  if (item.type ==
-                    "DEBTOR"
+                  if (item.type == LoanType.DEBTOR.name
                   ) {
                     FinancialColors.IncomeGreen
                   } else {
@@ -661,11 +660,11 @@ private fun LoanStatusCard(loans: List<Loan>) {
                 fontWeight = FontWeight.Bold
               )
               Text(
-                text = if (loan.type == "DEBTOR") "بدهکار" else "طلبکار",
+                text = if (loan.type == LoanType.DEBTOR) "بدهکار" else "طلبکار",
                 style = MaterialTheme.typography.labelSmall,
                 color =
                   if (loan.type ==
-                    "DEBTOR"
+                    LoanType.DEBTOR
                   ) {
                     FinancialColors.IncomeGreen
                   } else {
@@ -682,8 +681,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                   .height(8.dp)
                   .clip(ShapeTokens.Small),
               color =
-                if (loan.type ==
-                  "DEBTOR"
+                if (loan.type == LoanType.DEBTOR
                 ) {
                   FinancialColors.IncomeGreen
                 } else {

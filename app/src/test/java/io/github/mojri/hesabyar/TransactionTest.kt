@@ -2,19 +2,21 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TransactionTest {
   private fun createTransaction(
-    type: String,
+    type: TransactionType,
     amount: Long,
     categoryId: Long = 8L
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
   private fun createLoan(
-    type: String,
+    type: LoanType,
     originalAmount: Long,
     remainingAmount: Long,
     isSettled: Boolean = false
@@ -37,16 +39,16 @@ class TransactionTest {
   fun `balance calculation - income minus expense`() {
     val transactions =
       listOf(
-        createTransaction("INCOME", 10_000_000), // 10M Rial
-        createTransaction("EXPENSE", 3_000_000), // 3M Rial
-        createTransaction("INCOME", 5_000_000), // 5M Rial
-        createTransaction("EXPENSE", 2_000_000) // 2M Rial
+        createTransaction(TransactionType.INCOME, 10_000_000), // 10M Rial
+        createTransaction(TransactionType.EXPENSE, 3_000_000), // 3M Rial
+        createTransaction(TransactionType.INCOME, 5_000_000), // 5M Rial
+        createTransaction(TransactionType.EXPENSE, 2_000_000) // 2M Rial
       )
 
     var totalIncome = 0L
     var totalExpense = 0L
     transactions.forEach {
-      if (it.type == "INCOME") {
+      if (it.type == TransactionType.INCOME) {
         totalIncome += it.amount
       } else {
         totalExpense += it.amount
@@ -62,14 +64,14 @@ class TransactionTest {
   fun `balance calculation - all expenses`() {
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 1_000_000),
-        createTransaction("EXPENSE", 2_000_000)
+        createTransaction(TransactionType.EXPENSE, 1_000_000),
+        createTransaction(TransactionType.EXPENSE, 2_000_000)
       )
 
     var totalIncome = 0L
     var totalExpense = 0L
     transactions.forEach {
-      if (it.type == "INCOME") {
+      if (it.type == TransactionType.INCOME) {
         totalIncome += it.amount
       } else {
         totalExpense += it.amount
@@ -87,7 +89,7 @@ class TransactionTest {
     var totalIncome = 0L
     var totalExpense = 0L
     transactions.forEach {
-      if (it.type == "INCOME") {
+      if (it.type == TransactionType.INCOME) {
         totalIncome += it.amount
       } else {
         totalExpense += it.amount
@@ -104,15 +106,15 @@ class TransactionTest {
 
     val transactions =
       listOf(
-        createTransaction("EXPENSE", 1_000_000, foodCategoryId),
-        createTransaction("EXPENSE", 2_000_000, foodCategoryId),
-        createTransaction("EXPENSE", 500_000, transportCategoryId),
-        createTransaction("INCOME", 10_000_000, incomeCategoryId)
+        createTransaction(TransactionType.EXPENSE, 1_000_000, foodCategoryId),
+        createTransaction(TransactionType.EXPENSE, 2_000_000, foodCategoryId),
+        createTransaction(TransactionType.EXPENSE, 500_000, transportCategoryId),
+        createTransaction(TransactionType.INCOME, 10_000_000, incomeCategoryId)
       )
 
     val categoryTotals =
       transactions
-        .filter { it.type == "EXPENSE" }
+        .filter { it.type == TransactionType.EXPENSE }
         .groupBy { it.categoryId }
         .mapValues { entry -> entry.value.sumOf { it.amount } }
 
@@ -125,15 +127,15 @@ class TransactionTest {
   fun `loan balance - remaining amount`() {
     val loans =
       listOf(
-        createLoan("DEBTOR", 5_000_000, 3_000_000),
-        createLoan("CREDITOR", 10_000_000, 10_000_000),
-        createLoan("DEBTOR", 2_000_000, 0L, isSettled = true)
+        createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000),
+        createLoan(LoanType.CREDITOR, 10_000_000, 10_000_000),
+        createLoan(LoanType.DEBTOR, 2_000_000, 0L, isSettled = true)
       )
 
     var debtorsTotal = 0L
     var creditorsTotal = 0L
     loans.filter { !it.isSettled }.forEach {
-      if (it.type == "DEBTOR") {
+      if (it.type == LoanType.DEBTOR) {
         debtorsTotal += it.remainingAmount
       } else {
         creditorsTotal += it.remainingAmount

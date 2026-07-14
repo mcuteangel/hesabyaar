@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -517,6 +519,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value
                       )
@@ -585,6 +589,8 @@ fun SmartAssistantScreen(
                     IconButton(onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true
@@ -618,6 +624,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true
@@ -666,6 +674,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true
@@ -829,8 +839,8 @@ fun ParsedResultCard(
   val filteredCategories =
     categories.filter { cat ->
       when (selectedType) {
-        "INCOME" -> cat.type == "INCOME" || cat.type == "BOTH"
-        "EXPENSE" -> cat.type == "EXPENSE" || cat.type == "BOTH"
+        TransactionType.INCOME.name -> cat.type == CategoryType.INCOME || cat.type == CategoryType.BOTH
+        TransactionType.EXPENSE.name -> cat.type == CategoryType.EXPENSE || cat.type == CategoryType.BOTH
         else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
       }
     }
@@ -1273,7 +1283,14 @@ fun ConfirmationDialog(
           Text(
             text = CurrencyFormatter.format(result.amount),
             fontWeight = FontWeight.Bold,
-            color = if (result.type == "INCOME") FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+            color =
+              if (result.type ==
+                TransactionType.INCOME.name
+              ) {
+                FinancialColors.IncomeGreen
+              } else {
+                FinancialColors.ExpenseRed
+              }
           )
         }
 

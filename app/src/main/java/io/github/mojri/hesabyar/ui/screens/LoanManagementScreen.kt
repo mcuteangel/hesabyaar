@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
@@ -38,8 +39,8 @@ import java.util.*
 
 @Composable
 private fun LoanTypeSelector(
-  loanType: String,
-  onTypeChange: (String) -> Unit,
+  loanType: LoanType,
+  onTypeChange: (LoanType) -> Unit,
   modifier: Modifier = Modifier
 ) {
   Row(
@@ -51,23 +52,23 @@ private fun LoanTypeSelector(
         .padding(SpacingTokens.xs)
   ) {
     HesabyarButton(
-      onClick = { onTypeChange("DEBTOR") },
+      onClick = { onTypeChange(LoanType.DEBTOR) },
       modifier = Modifier.weight(1f),
       text = stringResource(R.string.loan_type_debtor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == "DEBTOR") FinancialColors.IncomeGreen else Color.Transparent,
-          contentColor = if (loanType == "DEBTOR") Color.White else MaterialTheme.colorScheme.onSurface
+          containerColor = if (loanType == LoanType.DEBTOR) FinancialColors.IncomeGreen else Color.Transparent,
+          contentColor = if (loanType == LoanType.DEBTOR) Color.White else MaterialTheme.colorScheme.onSurface
         )
     )
     HesabyarButton(
-      onClick = { onTypeChange("CREDITOR") },
+      onClick = { onTypeChange(LoanType.CREDITOR) },
       modifier = Modifier.weight(1f),
       text = stringResource(R.string.loan_type_creditor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == "CREDITOR") FinancialColors.ExpenseRed else Color.Transparent,
-          contentColor = if (loanType == "CREDITOR") Color.White else MaterialTheme.colorScheme.onSurface
+          containerColor = if (loanType == LoanType.CREDITOR) FinancialColors.ExpenseRed else Color.Transparent,
+          contentColor = if (loanType == LoanType.CREDITOR) Color.White else MaterialTheme.colorScheme.onSurface
         )
     )
   }
@@ -83,11 +84,11 @@ fun LoanManagementScreen(
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingLoan by remember { mutableStateOf<Loan?>(null) }
-  var termState by remember { mutableStateOf("DEBTOR") } // "DEBTOR" = they owe me, "CREDITOR" = I owe them
+  var termState by remember { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
 
   // Filtered lists
-  val debtors = loans.filter { it.type == "DEBTOR" }
-  val creditors = loans.filter { it.type == "CREDITOR" }
+  val debtors = loans.filter { it.type == LoanType.DEBTOR }
+  val creditors = loans.filter { it.type == LoanType.CREDITOR }
 
   Column(
     modifier =
@@ -123,21 +124,21 @@ fun LoanManagementScreen(
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
       HesabyarChip(
-        selected = termState == "DEBTOR",
-        onClick = { termState = "DEBTOR" },
+        selected = termState == LoanType.DEBTOR,
+        onClick = { termState = LoanType.DEBTOR },
         label = "طلب‌های من (بدهکاران)",
         modifier = Modifier.weight(1f)
       )
 
       HesabyarChip(
-        selected = termState == "CREDITOR",
-        onClick = { termState = "CREDITOR" },
+        selected = termState == LoanType.CREDITOR,
+        onClick = { termState = LoanType.CREDITOR },
         label = "بدهی‌های من (طلبکاران)",
         modifier = Modifier.weight(1f)
       )
     }
 
-    val activeList = if (termState == "DEBTOR") debtors else creditors
+    val activeList = if (termState == LoanType.DEBTOR) debtors else creditors
 
     if (activeList.isEmpty()) {
       Box(
@@ -154,7 +155,7 @@ fun LoanManagementScreen(
           Icon(
             imageVector =
               if (termState ==
-                "DEBTOR"
+                LoanType.DEBTOR
               ) {
                 Icons.Filled.ArrowCircleDown
               } else {
@@ -165,7 +166,7 @@ fun LoanManagementScreen(
             modifier = Modifier.size(64.dp)
           )
           Text(
-            text = if (termState == "DEBTOR") "هیچ طلبی ثبت نشده است." else "هیچ بدهی‌ای ثبت نشده است.",
+            text = if (termState == LoanType.DEBTOR) "هیچ طلبی ثبت نشده است." else "هیچ بدهی‌ای ثبت نشده است.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
           )
@@ -192,7 +193,7 @@ fun LoanManagementScreen(
   // Add Loan Dialog
   if (showAddDialog) {
     var personName by remember { mutableStateOf("") }
-    var loanType by remember { mutableStateOf(termState) } // DEBTOR or CREDITOR
+    var loanType by remember { mutableStateOf(termState) } // LoanType.DEBTOR or LoanType.CREDITOR
     var amountText by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var customDate by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -371,8 +372,7 @@ fun LoanListItem(
   val statusColor =
     if (loan.isSettled) {
       MaterialTheme.colorScheme.primary
-    } else if (loan.type ==
-      "DEBTOR"
+    } else if (loan.type == LoanType.DEBTOR
     ) {
       FinancialColors.IncomeGreen
     } else {
@@ -381,8 +381,7 @@ fun LoanListItem(
   val statusText =
     if (loan.isSettled) {
       "تسویه شده"
-    } else if (loan.type ==
-      "DEBTOR"
+    } else if (loan.type == LoanType.DEBTOR
     ) {
       "طلب وصول‌نشده"
     } else {
@@ -426,7 +425,7 @@ fun LoanListItem(
             Icon(
               imageVector =
                 if (loan.type ==
-                  "DEBTOR"
+                  LoanType.DEBTOR
                 ) {
                   Icons.Filled.ArrowCircleDown
                 } else {

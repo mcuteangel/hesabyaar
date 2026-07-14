@@ -16,10 +16,7 @@ class ExportExcelUseCase(
         transactions = repository.allTransactions.firstOrNull() ?: emptyList(),
         loans = repository.allLoans.firstOrNull() ?: emptyList(),
         installments = repository.allInstallments.firstOrNull() ?: emptyList(),
-        categories = repository.allCategories.firstOrNull() ?: emptyList(),
-        getPaymentsForLoan = { loanId ->
-          repository.getPaymentHistoryForLoan(loanId).firstOrNull() ?: emptyList()
-        }
+        categories = repository.allCategories.firstOrNull() ?: emptyList()
       )
     }
 }

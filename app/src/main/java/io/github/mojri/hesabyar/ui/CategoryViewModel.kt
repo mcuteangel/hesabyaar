@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,7 +25,7 @@ class CategoryViewModel
       key: String,
       icon: String,
       color: Long,
-      type: String
+      type: CategoryType
     ) {
       viewModelScope.launch {
         manageCategoryUseCase.addCategory(name, key, icon, color, type)

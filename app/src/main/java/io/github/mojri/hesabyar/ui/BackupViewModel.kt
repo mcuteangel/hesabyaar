@@ -43,9 +43,10 @@ class BackupViewModel
       viewModelScope.launch {
         try {
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = manageBackupUseCase.parseBackupJson(text)
+          val backup = parseBackupOrReportError(text) ?: return@launch
 
-          when (val result = manageBackupUseCase.validateBackup(backup)) {
+          val result = manageBackupUseCase.validateBackup(backup)
+          when (result) {
             is BackupValidationResult.Invalid -> {
               operationState.value = BackupOperationState.ValidationFailed(result.errors)
             }
@@ -110,6 +111,20 @@ class BackupViewModel
       sharedPrefs.edit().putBoolean("dark_mode", settings.darkMode).apply()
     }
 
+    private fun reportInvalidBackupParse() {
+      pendingRestoreBackup.value = null
+      operationState.value =
+        BackupOperationState.Error(
+          "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
+        )
+    }
+
+    private suspend fun parseBackupOrReportError(text: String): BackupPayload? {
+      val backup = manageBackupUseCase.parseBackupJson(text)
+      if (backup == null) reportInvalidBackupParse()
+      return backup
+    }
+
     fun cancelPendingRestore() {
       pendingRestoreBackup.value = null
     }
@@ -164,13 +179,8 @@ class BackupViewModel
         operationState.value = BackupOperationState.Importing
         try {
           val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = manageBackupUseCase.parseBackupJson(text)
-          manageBackupUseCase.importBackupFromFile(
-            backup.transactions,
-            backup.loans,
-            backup.installments,
-            backup.paymentHistories
-          )
+          val backup = parseBackupOrReportError(text) ?: return@launch
+          manageBackupUseCase.importBackupFromFile(backup)
           operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
         } catch (e: IOException) {
           operationState.value =

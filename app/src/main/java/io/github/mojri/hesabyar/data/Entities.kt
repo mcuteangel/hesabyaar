@@ -11,14 +11,10 @@ data class Category(
   val key: String,
   val icon: String,
   val color: Long,
-  val type: String,
+  val type: CategoryType,
   val isDefault: Boolean = false
 ) : Serializable {
   companion object {
-    const val TYPE_EXPENSE = "EXPENSE"
-    const val TYPE_INCOME = "INCOME"
-    const val TYPE_BOTH = "BOTH"
-
     val DEFAULTS =
       listOf(
         Category(
@@ -26,7 +22,7 @@ data class Category(
           key = "Food",
           icon = "Restaurant",
           color = 0xFF4CAF50L,
-          type = TYPE_EXPENSE,
+          type = CategoryType.EXPENSE,
           isDefault = true
         ),
         Category(
@@ -34,7 +30,7 @@ data class Category(
           key = "Transportation",
           icon = "DirectionsCar",
           color = 0xFFFF9800L,
-          type = TYPE_EXPENSE,
+          type = CategoryType.EXPENSE,
           isDefault = true
         ),
         Category(
@@ -42,7 +38,7 @@ data class Category(
           key = "Shopping",
           icon = "ShoppingBag",
           color = 0xFF2196F3L,
-          type = TYPE_EXPENSE,
+          type = CategoryType.EXPENSE,
           isDefault = true
         ),
         Category(
@@ -50,7 +46,7 @@ data class Category(
           key = "Bills",
           icon = "ReceiptLong",
           color = 0xFF009688L,
-          type = TYPE_EXPENSE,
+          type = CategoryType.EXPENSE,
           isDefault = true
         ),
         Category(
@@ -58,7 +54,7 @@ data class Category(
           key = "Installments",
           icon = "CreditCard",
           color = 0xFFF44336L,
-          type = TYPE_EXPENSE,
+          type = CategoryType.EXPENSE,
           isDefault = true
         ),
         Category(
@@ -66,7 +62,7 @@ data class Category(
           key = "Loans",
           icon = "HistoryEdu",
           color = 0xFF9C27B0L,
-          type = TYPE_BOTH,
+          type = CategoryType.BOTH,
           isDefault = true
         ),
         Category(
@@ -74,7 +70,7 @@ data class Category(
           key = "Income",
           icon = "Paid",
           color = 0xFF4CAF50L,
-          type = TYPE_INCOME,
+          type = CategoryType.INCOME,
           isDefault = true
         ),
         Category(
@@ -82,7 +78,7 @@ data class Category(
           key = "Other",
           icon = "Paid",
           color = 0xFF757575L,
-          type = TYPE_BOTH,
+          type = CategoryType.BOTH,
           isDefault = true
         )
       )
@@ -92,7 +88,7 @@ data class Category(
 @Entity(tableName = "transactions")
 data class Transaction(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
-  val type: String, // "EXPENSE", "INCOME"
+  val type: TransactionType,
   val categoryId: Long,
   val amount: Long, // Rial
   val description: String,
@@ -106,7 +102,7 @@ data class Transaction(
 data class Loan(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val personName: String,
-  val type: String, // "DEBTOR" (you are owed money), "CREDITOR" (you owe money)
+  val type: LoanType,
   val originalAmount: Long, // Rial
   val remainingAmount: Long, // Rial
   val description: String,

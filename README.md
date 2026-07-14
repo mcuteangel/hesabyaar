@@ -181,6 +181,9 @@ app/src/main/java/io/github/mojri/hesabyar/
 ### اجرا کردن تست یک کلاس خاص
 ```bash
 ./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
+
+# Benchmarks (Criterion)
+cargo bench -p hesabyar-core
 ```
 
 ### آنالیز کد

@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AdvisorUIState
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -103,7 +104,7 @@ fun ReportsScreen(
   val categoryTotals = HashMap<Long, Long>()
 
   filteredList.forEach {
-    if (it.type == "INCOME") {
+    if (it.type == TransactionType.INCOME) {
       totalIncome += it.amount
     } else {
       totalExpense += it.amount
@@ -353,6 +354,8 @@ fun ReportsScreen(
                   onClick = {
                     aiAssistantViewModel.fetchBudgetAdvice(
                       dashboardViewModel.transactions.value,
+                      dashboardViewModel.loans.value,
+                      dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
                       false
@@ -414,6 +417,8 @@ fun ReportsScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         true
@@ -459,6 +464,8 @@ fun ReportsScreen(
                   onClick = {
                     aiAssistantViewModel.fetchBudgetAdvice(
                       dashboardViewModel.transactions.value,
+                      dashboardViewModel.loans.value,
+                      dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
                       true
@@ -667,13 +674,13 @@ fun ReportsScreen(
           Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
               text =
-                (if (transaction.type == "INCOME") "+" else "-") +
+                (if (transaction.type == TransactionType.INCOME) "+" else "-") +
                   CurrencyFormatter.format(transaction.amount),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color =
                 if (transaction.type ==
-                  "INCOME"
+                  TransactionType.INCOME
                 ) {
                   FinancialColors.IncomeGreen
                 } else {

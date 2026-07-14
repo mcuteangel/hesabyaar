@@ -3,10 +3,13 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -75,14 +78,14 @@ class RepositoryLogicTest {
     val loan =
       Loan(
         personName = "Ali",
-        type = "CREDITOR",
+        type = LoanType.CREDITOR,
         originalAmount = 5_000_000L,
         remainingAmount = 5_000_000L,
         description = "test"
       )
     val notes = "partial payment"
     val desc =
-      if (loan.type == "CREDITOR") {
+      if (loan.type == LoanType.CREDITOR) {
         "بازپرداخت بدهی به ${loan.personName} - $notes"
       } else {
         "دریافت بازپرداخت از ${loan.personName} - $notes"
@@ -96,14 +99,14 @@ class RepositoryLogicTest {
     val loan =
       Loan(
         personName = "Reza",
-        type = "DEBTOR",
+        type = LoanType.DEBTOR,
         originalAmount = 3_000_000L,
         remainingAmount = 3_000_000L,
         description = "test"
       )
     val notes = "repayment"
     val desc =
-      if (loan.type == "CREDITOR") {
+      if (loan.type == LoanType.CREDITOR) {
         "بازپرداخت بدهی به ${loan.personName} - $notes"
       } else {
         "دریافت بازپرداخت از ${loan.personName} - $notes"
@@ -116,12 +119,12 @@ class RepositoryLogicTest {
   fun `importBackup - clears and inserts`() {
     val existingTransactions =
       mutableListOf(
-        Transaction(type = "EXPENSE", categoryId = 1L, amount = 100L, description = "old")
+        Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 100L, description = "old")
       )
     val newTransactions =
       listOf(
-        Transaction(type = "INCOME", categoryId = 2L, amount = 200L, description = "new1"),
-        Transaction(type = "EXPENSE", categoryId = 3L, amount = 300L, description = "new2")
+        Transaction(type = TransactionType.INCOME, categoryId = 2L, amount = 200L, description = "new1"),
+        Transaction(type = TransactionType.EXPENSE, categoryId = 3L, amount = 300L, description = "new2")
       )
 
     existingTransactions.clear()
@@ -135,11 +138,11 @@ class RepositoryLogicTest {
   fun `replaceAllFromBackup - replaces all data`() {
     val existingCategories =
       mutableListOf(
-        Category(id = 1L, name = "Old", key = "Old", icon = "Test", color = 0L, type = "EXPENSE")
+        Category(id = 1L, name = "Old", key = "Old", icon = "Test", color = 0L, type = CategoryType.EXPENSE)
       )
     val newCategories =
       listOf(
-        Category(id = 1L, name = "New", key = "New", icon = "Test", color = 0L, type = "EXPENSE")
+        Category(id = 1L, name = "New", key = "New", icon = "Test", color = 0L, type = CategoryType.EXPENSE)
       )
 
     existingCategories.clear()
@@ -152,9 +155,23 @@ class RepositoryLogicTest {
   @Test
   fun `mergeFromBackup - updates existing category`() {
     val existing =
-      Category(id = 1, name = "Old Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
+      Category(
+        id = 1,
+        name = "Old Food",
+        key = "Food",
+        icon = "Restaurant",
+        color = 0xFF4CAF50L,
+        type = CategoryType.EXPENSE
+      )
     val backup =
-      Category(id = 0, name = "New Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
+      Category(
+        id = 0,
+        name = "New Food",
+        key = "Food",
+        icon = "Restaurant",
+        color = 0xFF4CAF50L,
+        type = CategoryType.EXPENSE
+      )
 
     val existingKey = existing.key
     val backupKey = backup.key
@@ -169,7 +186,14 @@ class RepositoryLogicTest {
   fun `mergeFromBackup - inserts new category`() {
     val existingKeys = setOf("Food", "Transportation")
     val backupCategory =
-      Category(id = 0, name = "Health", key = "Health", icon = "Heart", color = 0xFFE91E63L, type = "EXPENSE")
+      Category(
+        id = 0,
+        name = "Health",
+        key = "Health",
+        icon = "Heart",
+        color = 0xFFE91E63L,
+        type = CategoryType.EXPENSE
+      )
 
     val isNew = backupCategory.key !in existingKeys
     assertTrue(isNew)
@@ -183,12 +207,12 @@ class RepositoryLogicTest {
 
     val transaction =
       Transaction(
-        type = "EXPENSE",
+        type = TransactionType.EXPENSE,
         categoryId = 5L,
         amount = installment.amount,
         description = "پرداخت قسط: ${installment.title} - ${installment.notes}"
       )
-    assertEquals("EXPENSE", transaction.type)
+    assertEquals(TransactionType.EXPENSE, transaction.type)
     assertEquals(2_000_000L, transaction.amount)
   }
 
@@ -212,12 +236,15 @@ class RepositoryLogicTest {
         version = 2,
         timestamp = 1234567890L,
         appVersion = "1.5",
-        transactions = listOf(Transaction(type = "EXPENSE", categoryId = 1L, amount = 1000L, description = "t")),
+        transactions =
+          listOf(
+            Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 1000L, description = "t")
+          ),
         loans =
           listOf(
             Loan(
               personName = "Ali",
-              type = "DEBTOR",
+              type = LoanType.DEBTOR,
               originalAmount = 5000L,
               remainingAmount = 3000L,
               description = "l"
@@ -227,7 +254,7 @@ class RepositoryLogicTest {
         paymentHistories = listOf(PaymentHistory(loanId = 1L, amount = 1000L)),
         categories =
           listOf(
-            Category(name = "Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = "EXPENSE")
+            Category(name = "Food", key = "Food", icon = "Restaurant", color = 0xFF4CAF50L, type = CategoryType.EXPENSE)
           ),
         settings = BackupSettings(darkMode = false)
       )

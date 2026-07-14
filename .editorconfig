@@ -49,3 +49,26 @@ indent_size = 2
 # Makefile (tabs required)
 [Makefile]
 indent_style = tab
+
+# Generated UniFFI Kotlin bindings — do not lint.
+# Names are dictated by the Rust core, so disable naming/filename rules here.
+[**/hesabyar_core.kt]
+generated = true
+ktlint_standard_filename = disabled
+ktlint_standard_function-naming = disabled
+ktlint_standard_property-naming = disabled
+
+# Exclude entire rust and uniffi source directories (auto-generated UniFFI bindings).
+[**/rust/**/*.kt]
+generated = true
+
+[**/uniffi/**/*.kt]
+generated = true
+
+# Exclude entire generated Rust/UniFFI directories from ktlint.
+# These contain auto-generated bindings; linting them produces noise.
+[**/rust/**/*.kt]
+generated = true
+
+[**/uniffi/**/*.kt]
+generated = true
