@@ -1,155 +1,259 @@
 # حسابیار (Hesabyar)
 
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge)
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge" alt="Platform">
+  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
+    
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge) [![CodeFactor](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge)](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage) 
+</p>
 
-Persian-first personal finance assistant for Android.
+<p align="center">
+  <b>اولین دستیار مالی شخصی با اولویت زبان فارسی برای اندروید</b>
+</p>
 
-## Features
+<p align="center">
+  مدیریت هوشمند امور مالی با رابط کاربری مدرن و امکانات پیشرفته
+</p>
 
-- **Transaction Management**: Track income and expenses with categories
-- **Loan & Debt Tracking**: Manage debts and credits with people
-- **Installment Management**: Track recurring payments with reminders
-- **AI-Powered Parsing**: Natural language Persian input for quick entry
-- **Budget Advisor**: AI-powered financial insights and recommendations
-- **Analytics Dashboard**: Monthly spending, category breakdown, debt overview
-- **Backup & Restore**: JSON-based backup with AES-256-GCM encryption
-- **Excel Export**: Export reports to .xlsx format (Rust-powered)
-- **Offline-First**: All core features work without internet
-- **Jalali Calendar**: Full Persian calendar support
+---
 
-## Tech Stack
+## 📋 مقدمه
 
-### Android (Kotlin)
-- Kotlin, Jetpack Compose, Material 3
-- Room Database (SQLite)
-- Navigation Compose
-- Kotlin Coroutines + Flow
-- WorkManager (background reminders)
-- OkHttp + Retrofit (networking)
-- Firebase AI / OpenRouter / Custom AI providers
-- Robolectric + Roborazzi (testing)
+**حسابیار** یک برنامه اندرویدی برای مدیریت امور مالی شخصی است که با تمرکز بر نیازهای کاربران فارسی‌زبان طراحی شده است. این برنامه با ارائه رابط کاربری ساده و در عین حال قدرتمند، به شما کمک می‌کند تا امور مالی خود را به صورت حرفه‌ای مدیریت کنید.
 
-### Shared Core (Rust)
-- Jalali/Gregorian calendar conversion
-- Persian NLP parser (amount detection, category inference)
-- Transaction search with relevance scoring
-- Budget advisory and financial health scoring
-- Excel report generation (`rust_xlsxwriter`)
-- AES-256-GCM backup encryption
-- All business logic testable outside Android
+## ✨ ویژگی‌های کلیدی
 
-## Prerequisites
+### 💰 مدیریت تراکنش‌ها
+- ثبت درآمد و هزینه با دسته‌بندی‌های سفارشی
+- پشتیبانی انحصاری از واحدهای تومان و ریال
+- ثبت سریع تراکنش با استفاده از زبان طبیعی فارسی
+- ویرایش و حذف آسان تراکنش‌ها
 
-### For Android development
-- JDK 17+
-- Android SDK (compileSdk 37)
-- Gradle 8.x
+### 🏦 پیگیری وام و بدهی
+- مدیریت کامل بدهی‌ها و اعتبارات با افراد
+- ثبت وام‌های دریافتی و پرداختی
+- یادآوری خودکار سررسید اقساط
+- مشاهده تراز مالی با هر شخص
 
-### For Rust core development
-- [Rust toolchain](https://rustup.rs/) (stable)
-- No additional system dependencies needed (pure Rust crates)
+### 📅 مدیریت اقساط
+- ثبت اقساط با تاریخ سررسید
+- یادآوری خودکار قبل از سررسید
+- مشاهده لیست کامل اقساط فعال
+- علامت‌گذاری اقساط پرداخت شده
 
-## Build
+### 🤖 هوش مصنوعی
+- **تجزیه و تحلیل هوشمند**: دریافت بینش‌های مالی و توصیه‌های هوشمند
+- **ورودی زبان طبیعی**: ثبت تراکنش با استفاده از جملات فارسی طبیعی
+- **مشاهده الگوهای مالی**: شناسایی عادات مالی و ارائه پیشنهادها بهبود
 
+### 📊 داشبورد تحلیلی
+- مشاهده هزینه‌ها و درآمدها به صورت ماهانه
+- تجزیه و تحلیل بر اساس دسته‌بندی
+- مشاهده خلاصه بدهی‌ها و اعتبارات
+- نمودارهای گرافیکی برای درک بهتر وضعیت مالی
+
+### 💾 پشتیبان‌گیری و بازیابی
+- پشتیبان‌گیری کامل از داده‌ها در قالب JSON
+- دو حالت بازیابی: جایگزینی کامل یا ادغام با داده‌های موجود
+- ذخیره در حافظه داخلی یا فضای ابری
+
+### 📤 صادرات به اکسل
+- صادرات گزارش‌ها مالی به فرمت .xlsx
+- سفارشی‌سازی گزارش‌ها صادر شده
+- مناسب برای تحلیل‌های پیشرفته در اکسل
+
+### 🌐 ویژگی‌های دیگر
+- **آفلاین‌محور**: تمام ویژگی‌های اصلی بدون نیاز به اینترنت کار می‌کنند
+- **تقویم جلالی**: پشتیبانی کامل از تقویم شمسی
+- **رابط کاربری مدرن**: طراحی با Jetpack Compose و Material 3
+- **امنیت**: حفاظت از داده‌ها با رمزنگاری
+
+---
+
+## 🛠 تکنولوژی‌های مورد استفاده
+
+| دسته | تکنولوژی |
+|------|------------|
+| **زبان برنامه‌نویسی** | Kotlin |
+| **رابط کاربری** | Jetpack Compose, Material 3 |
+| **پایگاه داده** | Room Database (SQLite) |
+| **ناوبری** | Navigation Compose |
+| **همزمانی** | Kotlin Coroutines + Flow |
+| **عملیات پس‌زمینه** | WorkManager |
+| **شبکه** | OkHttp + Retrofit |
+| **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
+| **تست** | Robolectric, Roborazzi |
+| **بنچمارک** | CodSpeed, JMH |
+
+---
+
+## 📦 ساختار پروژه
+
+```text
+app/src/main/java/io/github/mojri/hesabyar/
+├── api/                    # ارائه‌دهندگان هوش مصنوعی، مفسرها، مشاور بودجه
+│   ├── ai/                 # پیاده‌سازی‌های مختلف AI
+│   ├── parser/             # مفسرهای ورودی زبان طبیعی
+│   └── advisor/            # مشاور هوشمند مالی
+│
+├── data/                   # لایه داده
+│   ├── db/                 # موجودیت‌ها، DAOها، پایگاه داده Room
+│   ├── repository/         # مخازن داده
+│   ├── backup/             # پشتیبان‌گیری و بازیابی
+│   └── export/             # صادرات به اکسل
+│
+├── reminder/               # یادآوری‌ها و اعلان‌ها
+│   ├── worker/             # کارگران WorkManager
+│   └── notification/       # کمک‌کنندگان اعلان
+│
+└── ui/                     # لایه رابط کاربری
+    ├── screens/            # صفحات Compose
+    ├── viewmodel/          # ViewModelها
+    ├── theme/              # تم و استایل‌ها
+    └── components/         # کامپوننت‌های قابل استفاده مجدد
+```
+
+---
+
+## 🚀 شروع به کار
+
+### پیش‌نیازها
+- Android Studio (آخرین نسخه)
+- JDK 21+
+- Git
+
+### راه‌اندازی محیط
+
+1. مخزن را کلون کنید:
+   ```bash
+   git clone https://github.com/mcuteangel/hesabyaar.git
+   cd hesabyaar
+   ```
+
+2. زیرماژول‌های git را initialize کنید:
+   ```bash
+   git submodule update --init --recursive
+   ```
+
+3. فایل `.env` را از روی `.env.example` کپی کنید:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. کلید API هوش مصنوعی را تنظیم کنید (اختیاری):
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+5. برای buildهای release، اطلاعات امضای دیجیتال را در `.env` تنظیم کنید.
+
+---
+
+## 🔨 ساخت و اجرا
+
+### ساخت نسخه Debug
 ```bash
-# One-click: build Rust core + generate Kotlin bindings + build Android
 ./gradlew installDebug
-
-# Or step by step:
-cargo test -p hesabyar-core          # Run Rust tests (270+ tests)
-./gradlew :app:generateAndFixBindings  # Generate UniFFI Kotlin bindings
-./gradlew installDebug                # Build and install debug APK
-
-# Run all tests
-./gradlew test                        # Kotlin unit tests
-cargo test -p hesabyar-core          # Rust unit tests
-
-# Lint check
-./gradlew lint
 ```
 
-## Environment Setup
-
-1. Copy `.env.example` to `.env`
-2. Set `GEMINI_API_KEY` for AI features (optional)
-3. For release builds, set signing credentials in `.env`
-
-## Project Structure
-
-```
-hesabyaar/
-├── app/src/main/java/io/github/mojri/hesabyar/
-│   ├── api/           # AI providers, parsers, budget advisor
-│   ├── data/          # Room entities, DAOs, repository, backup, Excel export
-│   ├── reminder/      # WorkManager workers, notification helpers
-│   ├── rust/          # UniFFI bridge (RustBridge.kt, generated bindings)
-│   └── ui/            # Compose screens, ViewModels, theme
-├── rust/
-│   ├── hesabyar-core/ # Shared Rust core library
-│   │   ├── src/
-│   │   │   ├── advisory/   # Budget advice, forecast, health score
-│   │   │   ├── analytics.rs
-│   │   │   ├── calendar.rs # Jalali/Gregorian conversion
-│   │   │   ├── crypto.rs   # AES-256-GCM encryption
-│   │   │   ├── currency.rs # Rial/Toman formatting
-│   │   │   ├── dashboard.rs
-│   │   │   ├── excel.rs    # XLSX generation
-│   │   │   ├── ffi/mod.rs  # FFI wrappers
-│   │   │   ├── models/mod.rs
-│   │   │   ├── parser/     # Persian NLP
-│   │   │   ├── search.rs   # Full-text search
-│   │   │   └── validation.rs
-│   │   ├── benches/         # Criterion benchmarks
-│   │   └── tests/golden/    # Golden test data
-│   └── uniffi-gen/          # Kotlin binding generator
-└── .github/workflows/       # CI/CD pipelines
-```
-
-## Rust Core Architecture
-
-The Rust core (`hesabyar-core`) is a shared library compiled as a C dynamic library (`cdylib`) and consumed by Android via UniFFI bindings. It provides:
-
-- **Calendar**: Jalali ↔ Gregorian conversion (zero dependency on java.time)
-- **Parser**: Persian NLP for extracting amounts, dates, categories from natural language
-- **Search**: Full-text search with ZWNJ normalization and relevance scoring
-- **Analytics**: Monthly aggregation, category breakdown, debt summary
-- **Dashboard**: Balance, savings rate, debt-to-income ratio
-- **Advisory**: Budget advice, forecast, financial health score (0-100)
-- **Excel**: XLSX report generation with RTL layout and Persian formatting
-- **Crypto**: AES-256-GCM backup encryption with SHA-256 integrity
-- **Validation**: Centralized business rules for transactions, loans, installments
-
-All monetary values use `i64` (Rial). **1 Toman = EXACTLY 10 Rials** (hardcoded, never changes).
-
-## Testing
-
+### اجرا بر روی دستگاه
 ```bash
-# Rust tests (270+ tests)
-cargo test -p hesabyar-core
+./gradlew installDebug
+```
 
-# Kotlin unit tests
+### ساخت APK
+```bash
+./gradlew assembleDebug
+./gradlew assembleRelease
+```
+
+---
+
+## 🧪 تست
+
+### اجرا کردن تمام تست‌ها
+```bash
 ./gradlew test
+```
 
-# Single test class
+### اجرا کردن تست یک کلاس خاص
+```bash
 ./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
 
 # Benchmarks (Criterion)
 cargo bench -p hesabyar-core
 ```
 
-## Benchmarks
+### آنالیز کد
+```bash
+./gradlew lint
+```
 
-Performance is tracked with [CodSpeed](https://codspeed.io) using JMH for Kotlin
-and Criterion for Rust. Rust benchmarks cover parser, calendar, advisory, search,
-crypto, and validation. They run automatically in CI on every pull request.
+---
 
-## CI/CD
+## 📈 بنچمارک
 
-GitHub Actions workflows:
-- **android-ci.yml**: Runs on every push/PR — Rust tests, binding generation, Kotlin tests, lint, APK build
-- **release.yml**: Auto-versioning and release on main branch pushes
-- **codspeed.yml**: Performance benchmark tracking
+پروژه از بنچمارک‌های عملکردی با استفاده از CodSpeed و JMH استفاده می‌کند. بنچمارک‌ها در build مستقل `benchmarks/` قرار دارند و منطق داغ و خالص JVM (تجزیه مقدار فارسی و تبدیلات تقویم جلالی) را تمرین می‌کنند.
 
-## License
+### اجرا کردن بنچمارک‌ها
+```bash
+cd benchmarks
+./gradlew jmh
+```
 
-Private - All rights reserved.
+بنچمارک‌ها به صورت خودکار در CI بر روی هر Pull Request اجرا می‌شوند.
+
+---
+
+## 📝 مستندات
+
+- [معماری پروژه](docs/architecture/ARCHITECTURE.md) - جزئیات معماری و پیاده‌سازی
+- [راهنمای ساخت و انتشار](docs/BUILD_RELEASE.md) - راهنمای توسعه‌دهندگان
+- [CHANGELOG](CHANGELOG.md) - تاریخچه تغییرات
+- [AGENTS](AGENTS.md) - راهنمای استفاده از عامل‌های هوش مصنوعی
+
+---
+
+## 🤝 مشارکت
+
+ما از مشارکت‌های جامعه استقبال می‌کنیم! برای مشارکت:
+
+1. مخزن را Fork کنید
+2. یک شاخه جدید ایجاد کنید (`git checkout -b feature/amazing-feature`)
+3. تغییرات خود را Commit کنید (`git commit -m 'feat: add amazing feature'`)
+4. به مخزن اصلی Push کنید (`git push origin feature/amazing-feature`)
+5. یک Pull Request ایجاد کنید
+
+### راهنمایی‌های مشارکت
+- از پیغام‌های Commit معنی‌دار استفاده کنید
+- کد خود را تست کنید
+- از استانداردهای کدگذاری پروژه پیروی کنید
+- مستندات را به‌روز نگه دارید
+
+---
+
+## 📄 مجوز
+
+مجوز این پروژه هنوز نهایی نشده است. لطفاً پیش از استفاده در پروژه‌های دیگر با نگهدارنده مخزن تماس بگیرید.
+
+---
+
+## 🙏 تشکر و قدردانی
+
+- از تمام کاربران و مشارکت‌کنندگان برای حمایتشان سپاسگزاریم
+- از جامعه اندرویدی ایران برای بازخوردهای ارزشمند
+- از توسعه‌دهندگان کتابخانه‌های اوپن سورس که این پروژه را ممکن ساخته‌اند
+
+---
+
+## 📞 تماس
+
+برای سؤال‌ها، پیشنهادها یا گزارش مشکلات، لطفاً از طریق [GitHub Issues](https://github.com/mcuteangel/hesabyaar/issues) اقدام کنید.
+
+---
+
+<p align="center">
+  ساخته شده با ❤️ برای جامعه فارسی‌زبان
+</p>
