@@ -1,0 +1,36 @@
+name: Setup Rust for Android
+description: Install Rust toolchain with Android targets, cargo-ndk, and NDK
+
+inputs:
+  rust-toolchain:
+    description: Rust toolchain version
+    default: stable
+  cargo-ndk-version:
+    description: cargo-ndk version
+    default: "3.5.2"
+  ndk-version:
+    description: Android NDK version
+    default: "27.0.12077973"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+      with:
+        toolchain: ${{ inputs.rust-toolchain }}
+        targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+
+    - name: Install cargo-ndk
+      shell: bash
+      run: cargo install cargo-ndk --version ${{ inputs.cargo-ndk-version }} --locked
+
+    - name: Set up Android NDK
+      shell: bash
+      run: |
+        export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        sdkmanager "ndk;${{ inputs.ndk-version }}"
+
+    - name: Export ANDROID_NDK_HOME
+      shell: bash
+      run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_ENV"

@@ -19,25 +19,8 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
-        with:
-          toolchain: stable
-          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
-
-      - name: Install cargo-ndk
-        # Required by :app:assembleRust to cross-compile the Android .so files.
-        # Pin a tested version and use --locked for reproducible installs.
-        run: cargo install cargo-ndk --version 3.5.2 --locked
-
-      - name: Set up Android NDK
-        run: |
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          sdkmanager "ndk;27.0.12077973"
-
-      - name: Export ANDROID_NDK_HOME
-        # Activates the compileRustCore -> KotlinCompile wiring in app/build.gradle.kts.
-        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+      - name: Setup Rust for Android
+        uses: ./.github/actions/setup-rust-android
 
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
