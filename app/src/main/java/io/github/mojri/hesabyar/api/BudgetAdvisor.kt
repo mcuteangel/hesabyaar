@@ -30,14 +30,17 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    config: AiProviderConfig? = null
+    config: AiProviderConfig? = null,
+    aiGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+      { cfg, prompt, sys, temp -> AiProvider.generateContent(cfg, prompt, sys, temp) }
   ): String =
     BudgetAdviceGenerator.getBudgetAdvice(
       transactions,
       loans,
       installments,
       categories,
-      config
+      config,
+      aiGenerate
     )
 
   private fun buildCategoryReport(

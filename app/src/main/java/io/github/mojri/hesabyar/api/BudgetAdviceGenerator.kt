@@ -16,6 +16,12 @@ import kotlinx.coroutines.withContext
  */
 internal object BudgetAdviceGenerator {
   private const val TAG = "BudgetAdviceGenerator"
+
+  /**
+   * Rial-per-Toman conversion factor. The DB stores Rial, so any raw [Long]
+   * from a transaction/loan/installment is Rial until divided by this.
+   */
+  private const val RIAL_PER_TOMAN = 10L
   private const val LOW_SAVINGS_THRESHOLD = 10.0
   private const val MAX_RECENT_TRANSACTIONS = 10
 
@@ -67,7 +73,9 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    config: AiProviderConfig? = null
+    config: AiProviderConfig? = null,
+    aiGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+      { cfg, prompt, sys, temp -> AiProvider.generateContent(cfg, prompt, sys, temp) }
   ): String =
     withContext(Dispatchers.IO) {
       val cfg = config ?: AiProviderConfig()
@@ -106,11 +114,11 @@ internal object BudgetAdviceGenerator {
       val prompt =
         "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
       val result =
-        AiProvider.generateContent(
-          config = cfg,
-          prompt = prompt,
-          systemInstruction = ADVICE_SYSTEM_PROMPT,
-          temperature = 0.6
+        aiGenerate(
+          cfg,
+          prompt,
+          ADVICE_SYSTEM_PROMPT,
+          0.6
         )
       handleAdviceResult(
         result,
@@ -121,7 +129,7 @@ internal object BudgetAdviceGenerator {
       )
     }
 
-  private fun buildDataSummary(
+  internal fun buildDataSummary(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
@@ -132,9 +140,9 @@ internal object BudgetAdviceGenerator {
     return StringBuilder()
       .apply {
         appendLine("تعداد کل تراکنش‌ها: ${transactions.size}")
-        appendLine("کل درآمد ثبت شده: ${totals.income} تومان")
-        appendLine("کل مخارج ثبت شده: ${totals.expense} تومان")
-        appendLine("تراز باقیمانده (پس‌انداز): $balance تومان")
+        appendLine("کل درآمد ثبت شده: ${totals.income / RIAL_PER_TOMAN} تومان")
+        appendLine("کل مخارج ثبت شده: ${totals.expense / RIAL_PER_TOMAN} تومان")
+        appendLine("تراز باقیمانده (پس‌انداز): ${balance / RIAL_PER_TOMAN} تومان")
         appendCategoryBreakdown(this, totals.categoryTotals, categories)
         appendActiveDebtsToSummary(this, loans, installments)
         appendRecentTransactions(this, transactions, categories)
@@ -149,7 +157,7 @@ internal object BudgetAdviceGenerator {
     sb.appendLine("\nتفکیک هزینه‌ها به دسته‌بندی:")
     categoryTotals.forEach { (catId, amt) ->
       val cat = categories.find { it.id == catId }
-      sb.appendLine("- ${cat?.name ?: "سایر"}: $amt تومان")
+      sb.appendLine("- ${cat?.name ?: "سایر"}: ${amt / RIAL_PER_TOMAN} تومان")
     }
   }
 
@@ -170,8 +178,8 @@ internal object BudgetAdviceGenerator {
           }
         sb.appendLine(
           "- ${loan.personName} ($role): " +
-            "کل ${loan.originalAmount} تومان | " +
-            "مانده ${loan.remainingAmount} تومان"
+            "کل ${loan.originalAmount / RIAL_PER_TOMAN} تومان | " +
+            "مانده ${loan.remainingAmount / RIAL_PER_TOMAN} تومان"
         )
       }
     }
@@ -179,7 +187,7 @@ internal object BudgetAdviceGenerator {
     if (activeInstallments.isNotEmpty()) {
       sb.appendLine("\nاقساط پرداخت نشده:")
       activeInstallments.forEach { inst ->
-        sb.appendLine("- ${inst.title}: ${inst.amount} تومان")
+        sb.appendLine("- ${inst.title}: ${inst.amount / RIAL_PER_TOMAN} تومان")
       }
     }
   }
@@ -205,12 +213,12 @@ internal object BudgetAdviceGenerator {
         sb.appendLine(
           "- ${t.description} " +
             "(${cat?.name ?: "سایر"}): " +
-            "${t.amount} تومان [$sign]"
+            "${t.amount / RIAL_PER_TOMAN} تومان [$sign]"
         )
       }
   }
 
-  private suspend fun handleAdviceResult(
+  internal suspend fun handleAdviceResult(
     result: AiProvider.ApiResult,
     transactions: List<Transaction>,
     loans: List<Loan>,
@@ -231,8 +239,11 @@ internal object BudgetAdviceGenerator {
         val validation =
           io.github.mojri.hesabyar.rust.RustBridge
             .validateAiAdvice(result.text)
-        if (!validation.isValid &&
-          io.github.mojri.hesabyar.rust.RustBridge.isAvailable
+        if (
+          AdviceValidationPolicy.shouldDiscardOnValidationFailure(
+            validation,
+            io.github.mojri.hesabyar.rust.RustBridge.isAvailable
+          )
         ) {
           AppLogger.w(
             TAG,
@@ -365,7 +376,7 @@ internal object BudgetAdviceGenerator {
     }
     if (activeInst.isNotEmpty()) {
       val total = activeInst.sumOf { it.amount }
-      sb.append(INSTALLMENT_ADVICE.format(activeInst.size, total))
+      sb.append(INSTALLMENT_ADVICE.format(activeInst.size, total / RIAL_PER_TOMAN))
     }
   }
 }

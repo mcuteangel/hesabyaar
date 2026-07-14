@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.AdviceSignature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -43,34 +44,6 @@ class AiCacheTest {
   ): Category =
     Category(id = id, name = name, key = "test", icon = "Test", color = 0xFF757575L, type = CategoryType.EXPENSE)
 
-  private fun computeDataSignature(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    categories: List<Category>
-  ): String {
-    val txCount = transactions.size
-    val txTotal = transactions.sumOf { it.amount }
-    val loanCount = loans.size
-    val loanRemaining = loans.sumOf { it.remainingAmount }
-    val loanSettled = loans.count { it.isSettled }
-    val instCount = installments.size
-    val instPaid = installments.count { it.isPaid }
-    val instAmount = installments.sumOf { it.amount }
-    val catCount = categories.size
-    return "$txCount|$txTotal|$loanCount|$loanRemaining|$loanSettled|$instCount|$instPaid|$instAmount|$catCount"
-  }
-
-  private fun computeAdviceSignature(
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String {
-    val txCount = transactions.size
-    val txTotal = transactions.sumOf { it.amount }
-    val catCount = categories.size
-    return "$txCount|$txTotal|$catCount"
-  }
-
   @Test
   fun `data signature - same data produces same signature`() {
     val transactions =
@@ -82,8 +55,8 @@ class AiCacheTest {
     val installments = listOf(createInstallment(1_000_000))
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val sig1 = computeDataSignature(transactions, loans, installments, categories)
-    val sig2 = computeDataSignature(transactions, loans, installments, categories)
+    val sig1 = AdviceSignature.computeDataSignature(transactions, loans, installments, categories)
+    val sig2 = AdviceSignature.computeDataSignature(transactions, loans, installments, categories)
 
     assertEquals(sig1, sig2)
   }
@@ -92,10 +65,11 @@ class AiCacheTest {
   fun `data signature - changes when transaction amount changes`() {
     val transactions1 = listOf(createTransaction(TransactionType.INCOME, 10_000_000))
     val transactions2 = listOf(createTransaction(TransactionType.INCOME, 15_000_000))
-    val emptyLists = Triple(emptyList<Loan>(), emptyList<Installment>(), emptyList<Category>())
+    val (loans, installments, cats) =
+      Triple(emptyList<Loan>(), emptyList<Installment>(), emptyList<Category>())
 
-    val sig1 = computeDataSignature(transactions1, emptyLists.first, emptyLists.second, emptyLists.third)
-    val sig2 = computeDataSignature(transactions2, emptyLists.first, emptyLists.second, emptyLists.third)
+    val sig1 = AdviceSignature.computeDataSignature(transactions1, loans, installments, cats)
+    val sig2 = AdviceSignature.computeDataSignature(transactions2, loans, installments, cats)
 
     assertNotEquals(sig1, sig2)
   }
@@ -108,10 +82,11 @@ class AiCacheTest {
         createTransaction(TransactionType.INCOME, 10_000_000),
         createTransaction(TransactionType.EXPENSE, 2_000_000)
       )
-    val emptyLists = Triple(emptyList<Loan>(), emptyList<Installment>(), emptyList<Category>())
+    val (loans, installments, cats) =
+      Triple(emptyList<Loan>(), emptyList<Installment>(), emptyList<Category>())
 
-    val sig1 = computeDataSignature(transactions1, emptyLists.first, emptyLists.second, emptyLists.third)
-    val sig2 = computeDataSignature(transactions2, emptyLists.first, emptyLists.second, emptyLists.third)
+    val sig1 = AdviceSignature.computeDataSignature(transactions1, loans, installments, cats)
+    val sig2 = AdviceSignature.computeDataSignature(transactions2, loans, installments, cats)
 
     assertNotEquals(sig1, sig2)
   }
@@ -124,8 +99,8 @@ class AiCacheTest {
     val emptyInst = emptyList<Installment>()
     val emptyCat = emptyList<Category>()
 
-    val sig1 = computeDataSignature(transactions, loans1, emptyInst, emptyCat)
-    val sig2 = computeDataSignature(transactions, loans2, emptyInst, emptyCat)
+    val sig1 = AdviceSignature.computeDataSignature(transactions, loans1, emptyInst, emptyCat)
+    val sig2 = AdviceSignature.computeDataSignature(transactions, loans2, emptyInst, emptyCat)
 
     assertNotEquals(sig1, sig2)
   }
@@ -138,8 +113,8 @@ class AiCacheTest {
     val installments2 = listOf(createInstallment(1_000_000))
     val emptyCat = emptyList<Category>()
 
-    val sig1 = computeDataSignature(transactions, emptyLoans, installments1, emptyCat)
-    val sig2 = computeDataSignature(transactions, emptyLoans, installments2, emptyCat)
+    val sig1 = AdviceSignature.computeDataSignature(transactions, emptyLoans, installments1, emptyCat)
+    val sig2 = AdviceSignature.computeDataSignature(transactions, emptyLoans, installments2, emptyCat)
 
     assertNotEquals(sig1, sig2)
   }
@@ -147,7 +122,7 @@ class AiCacheTest {
   @Test
   fun `data signature - empty data produces valid signature`() {
     val sig =
-      computeDataSignature(
+      AdviceSignature.computeDataSignature(
         emptyList(),
         emptyList(),
         emptyList(),
@@ -165,8 +140,8 @@ class AiCacheTest {
       )
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val sig1 = computeAdviceSignature(transactions, categories)
-    val sig2 = computeAdviceSignature(transactions, categories)
+    val sig1 = AdviceSignature.computeAdviceSignature(transactions, emptyList(), emptyList(), categories)
+    val sig2 = AdviceSignature.computeAdviceSignature(transactions, emptyList(), emptyList(), categories)
 
     assertEquals(sig1, sig2)
   }
@@ -177,8 +152,8 @@ class AiCacheTest {
     val transactions2 = listOf(createTransaction(TransactionType.INCOME, 20_000_000))
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val sig1 = computeAdviceSignature(transactions1, categories)
-    val sig2 = computeAdviceSignature(transactions2, categories)
+    val sig1 = AdviceSignature.computeAdviceSignature(transactions1, emptyList(), emptyList(), categories)
+    val sig2 = AdviceSignature.computeAdviceSignature(transactions2, emptyList(), emptyList(), categories)
 
     assertNotEquals(sig1, sig2)
   }
@@ -188,8 +163,8 @@ class AiCacheTest {
     val transactions = listOf(createTransaction(TransactionType.INCOME, 10_000_000))
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val sig1 = computeAdviceSignature(transactions, categories)
-    val sig2 = computeAdviceSignature(transactions, categories)
+    val sig1 = AdviceSignature.computeAdviceSignature(transactions, emptyList(), emptyList(), categories)
+    val sig2 = AdviceSignature.computeAdviceSignature(transactions, emptyList(), emptyList(), categories)
 
     assertEquals(sig1, sig2)
   }
@@ -257,7 +232,7 @@ class AiCacheTest {
     val installments = listOf(createInstallment(1_000_000))
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val sig = computeDataSignature(transactions, loans, installments, categories)
+    val sig = AdviceSignature.computeDataSignature(transactions, loans, installments, categories)
     val parts = sig.split("|")
 
     assertEquals(9, parts.size)
@@ -279,7 +254,7 @@ class AiCacheTest {
     val installments = emptyList<Installment>()
     val categories = listOf(createCategory(1L, "خوراک"))
 
-    val originalSig = computeDataSignature(transactions, loans, installments, categories)
+    val originalSig = AdviceSignature.computeDataSignature(transactions, loans, installments, categories)
 
     // Change transactions
     val newTransactions =
@@ -287,22 +262,22 @@ class AiCacheTest {
         createTransaction(TransactionType.INCOME, 10_000_000),
         createTransaction(TransactionType.EXPENSE, 1_000_000)
       )
-    val sigAfterTxChange = computeDataSignature(newTransactions, loans, installments, categories)
+    val sigAfterTxChange = AdviceSignature.computeDataSignature(newTransactions, loans, installments, categories)
     assertNotEquals("Signature should change when transactions change", originalSig, sigAfterTxChange)
 
     // Change loans
     val newLoans = listOf(createLoan(LoanType.CREDITOR, 2_000_000, 2_000_000))
-    val sigAfterLoanChange = computeDataSignature(transactions, newLoans, installments, categories)
+    val sigAfterLoanChange = AdviceSignature.computeDataSignature(transactions, newLoans, installments, categories)
     assertNotEquals("Signature should change when loans change", originalSig, sigAfterLoanChange)
 
     // Change installments
     val newInstallments = listOf(createInstallment(500_000))
-    val sigAfterInstChange = computeDataSignature(transactions, loans, newInstallments, categories)
+    val sigAfterInstChange = AdviceSignature.computeDataSignature(transactions, loans, newInstallments, categories)
     assertNotEquals("Signature should change when installments change", originalSig, sigAfterInstChange)
 
     // Change category count
     val newCategories = listOf(createCategory(1L, "خوراک"), createCategory(2L, "حمل و نقل"))
-    val sigAfterCatChange = computeDataSignature(transactions, loans, installments, newCategories)
+    val sigAfterCatChange = AdviceSignature.computeDataSignature(transactions, loans, installments, newCategories)
     assertNotEquals("Signature should change when category count changes", originalSig, sigAfterCatChange)
   }
 
@@ -314,8 +289,8 @@ class AiCacheTest {
     val loansBefore = listOf(createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000))
     val loansAfter = listOf(createLoan(LoanType.DEBTOR, 5_000_000, 1_000_000))
 
-    val sigBefore = computeDataSignature(transactions, loansBefore, emptyInst, emptyCat)
-    val sigAfter = computeDataSignature(transactions, loansAfter, emptyInst, emptyCat)
+    val sigBefore = AdviceSignature.computeDataSignature(transactions, loansBefore, emptyInst, emptyCat)
+    val sigAfter = AdviceSignature.computeDataSignature(transactions, loansAfter, emptyInst, emptyCat)
 
     assertNotEquals("Signature should change when loan remaining balance changes", sigBefore, sigAfter)
   }
@@ -328,8 +303,8 @@ class AiCacheTest {
     val installmentsBefore = listOf(createInstallment(1_000_000, isPaid = false))
     val installmentsAfter = listOf(createInstallment(1_000_000, isPaid = true))
 
-    val sigBefore = computeDataSignature(transactions, emptyLoans, installmentsBefore, emptyCat)
-    val sigAfter = computeDataSignature(transactions, emptyLoans, installmentsAfter, emptyCat)
+    val sigBefore = AdviceSignature.computeDataSignature(transactions, emptyLoans, installmentsBefore, emptyCat)
+    val sigAfter = AdviceSignature.computeDataSignature(transactions, emptyLoans, installmentsAfter, emptyCat)
 
     assertNotEquals("Signature should change when an installment is paid", sigBefore, sigAfter)
   }

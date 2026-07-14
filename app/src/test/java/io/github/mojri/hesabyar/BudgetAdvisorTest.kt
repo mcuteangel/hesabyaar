@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.api.AiProvider
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
@@ -134,18 +135,29 @@ class BudgetAdvisorTest {
   fun `getBudgetAdvice with configured provider and empty ledger returns empty-state without AI call`() =
     kotlinx.coroutines.test.runTest {
       // A configured provider must not trigger a paid/network AI request for an
-      // account with no transactions and no unpaid obligations. It should return
-      // the empty-state message directly (regression guard for the leak).
+      // account with no transactions and no unpaid obligations. The regression
+      // guard asserts directly on the call/no-call decision (not just the output
+      // shape): if the early-return were removed, the injected generator would be
+      // invoked and this test would fail — an AI failure would otherwise fall back
+      // to the same offline message and mask the leak.
       val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
       assertTrue(config.isConfigured)
+      var aiCallCount = 0
+      val recordingGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+        { _, _, _, _ ->
+          aiCallCount++
+          AiProvider.ApiResult.Success("شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید.")
+        }
       val result =
         BudgetAdvisor.getBudgetAdvice(
           emptyList(),
           emptyList(),
           emptyList(),
           emptyList(),
-          config
+          config,
+          recordingGenerate
         )
+      assertEquals("AI must not be called for an empty ledger", 0, aiCallCount)
       assertTrue(result.contains("نکرده‌اید"))
     }
 
@@ -153,10 +165,19 @@ class BudgetAdvisorTest {
   fun `getBudgetAdvice with configured provider still calls AI when unpaid obligations exist`() =
     kotlinx.coroutines.test.runTest {
       // When unpaid obligations exist, the generator path must still be used even
-      // with an empty transaction list (offline fallback surfaces them; the
-      // configured path is allowed to proceed to the AI request).
+      // with an empty transaction list. The guard asserts the AI generator is
+      // actually invoked (not merely that offline text leaked through when the
+      // call fails), and that the AI-produced result — not the offline fallback —
+      // is what gets returned.
       val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
       assertTrue(config.isConfigured)
+      var aiCallCount = 0
+      val aiText = "شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید."
+      val recordingGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
+        { _, _, _, _ ->
+          aiCallCount++
+          AiProvider.ApiResult.Success(aiText)
+        }
       val installments = listOf(createInstallment("قسط ماشین", 2_000_000, isPaid = false))
       val result =
         BudgetAdvisor.getBudgetAdvice(
@@ -164,10 +185,13 @@ class BudgetAdvisorTest {
           emptyList(),
           installments,
           emptyList(),
-          config
+          config,
+          recordingGenerate
         )
-      // Offline empty-ledger message must NOT appear (no early return happened).
-      assertTrue("expected obligations to be surfaced, got: $result", result.contains("اقساط"))
+      assertEquals("AI must be called when unpaid obligations exist", 1, aiCallCount)
+      // The AI-produced text (validated and returned as-is) must be the result,
+      // proving the offline fallback was bypassed.
+      assertEquals("expected AI output, got: $result", aiText, result)
     }
 
   @Test
@@ -236,7 +260,7 @@ class BudgetAdvisorTest {
   }
 
   @Test
-  fun `getOfflineForecast - mentions active installments`() {
+  fun `getOfflineForecast - mentions active installments in Toman not Rial`() {
     val transactions =
       listOf(
         createTransaction(TransactionType.INCOME, 10_000_000),
@@ -247,8 +271,12 @@ class BudgetAdvisorTest {
         createInstallment("قسط ماشین", 2_000_000, isPaid = false)
       )
     val result = BudgetAdvisor.getOfflineForecast(transactions, emptyList(), installments)
+    // 2,000,000 Rial must render as Toman (200,000), never the raw Rial value.
+    assertTrue(result.contains("اقساط"))
+    assertTrue(result.contains("تومان"))
     assertTrue(
-      result.contains("اقساط") && result.contains("2,000,000")
+      "forecast must not expose raw Rial magnitude 2,000,000, got: $result",
+      !result.contains("2,000,000")
     )
   }
 

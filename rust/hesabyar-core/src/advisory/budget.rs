@@ -1,5 +1,5 @@
-use crate::models::{Category, Installment, Loan, Transaction, TransactionType};
-use crate::currency::format_number;
+use crate::models::{Category, CurrencyUnit, Installment, Loan, Transaction, TransactionType};
+use crate::currency::format_currency;
 
 /// Get offline budget advice based on local rules.
 pub fn get_offline_budget_advice(
@@ -65,7 +65,7 @@ pub fn get_offline_budget_advice(
             let cat_expense = category_totals.get(&cat_id).unwrap_or(&0);
             sb.push_str(&format!(
                 "\u{1F4CA} **\u{0628}\u{0632}\u{0631}\u{06AF}\u{062A}\u{0631}\u{06CC}\u{0646} \u{06A9}\u{0627}\u{0646}\u{0648}\u{0646} \u{0647}\u{0632}\u{06CC}\u{0646}\u{0647}:** \u{062F}\u{0633}\u{062A}\u{0647} **{}** \u{0628}\u{0627} \u{0645}\u{062C}\u{0645}\u{0648}\u{0639} {}.\n\n",
-                cat.name, format_number(*cat_expense)
+                cat.name, format_currency(*cat_expense, CurrencyUnit::Toman)
             ));
         }
     }
@@ -129,19 +129,19 @@ pub fn get_offline_forecast(
 
     let mut sb = String::new();
     sb.push_str("### \u{1F52E} \u{067E}\u{06CC}\u{0634}\u{0628}\u{06CC}\u{0646}\u{06CC} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F} \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647}\n\n");
-    sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_number(avg_income)));
-    sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_number(avg_expense)));
-    sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_number(total_obligations)));
+    sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_income, CurrencyUnit::Toman)));
+    sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_expense, CurrencyUnit::Toman)));
+    sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_currency(total_obligations, CurrencyUnit::Toman)));
 
     if est_balance < 0 {
         sb.push_str(&format!(
-            "\n### \u{1F6A8} \u{0647}\u{0634}\u{062F}\u{0627}\u{0631} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F}: \u{0631}\u{06CC}\u{0633}\u{06A9} \u{06A9}\u{0633}\u{0631}\u{06CC} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0628}\u{0639}\u{062F}!\n\u{0628}\u{0627} \u{0646}\u{06AF}\u{0631}\u{0627}\u{0646}\u{06CC} \u{062E}\u{0641}\u{06CC}\u{0641} \u{062A}\u{0631}\u{0627}\u{0632} \u{0646}\u{0642}\u{062F}\u{06CC} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647} \u{0628}\u{0627} **\u{06A9}\u{0633}\u{0631}\u{06CC} \u{062D}\u{062F}\u{0648}\u{062F} {}** \u{0631}\u{0648}\u{0628}\u{0631}\u{0647} \u{062E}\u{0648}\u{0647}\u{062F}.\n\n",
-            format_number(est_balance.abs())
+            "\n### \u{1F6A8} \u{0647}\u{0634}\u{062F}\u{0627}\u{0631} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F}: \u{0631}\u{06CC}\u{0633}\u{06A9} \u{06A9}\u{0633}\u{0631}\u{06CC} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0628}\u{0639}\u{062F}!\n\u{0628}\u{0627} \u{0646}\u{06AF}\u{0631}\u{0627}\u{0646}\u{06CC} \u{062E}\u{0641}\u{06CC}\u{0641} \u{062A}\u{0631}\u{0627}\u{0632} \u{0646}\u{0642}\u{062F}\u{06CC} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647} \u{0628}\u{0627} **\u{06A9}\u{0633}\u{0631}\u{06CC} \u{062D}\u{062F}\u{0648}\u{062F} {}** \u{0631}\u{0648}\u{0628}\u{0631}\u{0648} \u{062E}\u{0648}\u{0627}\u{0647}\u{062F}.\n\n",
+            format_currency(est_balance.abs(), CurrencyUnit::Toman)
         ));
     } else {
         sb.push_str(&format!(
             "\n### \u{1F7E2} \u{0647}\u{0634}\u{062F}\u{0627}\u{0631} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F}: \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0645}\u{0627}\u{0644}\u{06CC} \u{067E}\u{0627}\u{06CC}\u{062F}\u{0627}\u{0631}\n\u{0628}\u{0631}\u{0627}\u{0633}\u{0627}\u{0633} \u{0627}\u{0644}\u{06AF}\u{0648}\u{06CC} \u{062F}\u{062E}\u{0644} \u{0648} \u{062E}\u{0631}\u{062C} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647} \u{0628}\u{0627} **\u{0645}\u{0627}\u{0632}\u{0627}\u{062F} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} {}** \u{067E}\u{0637} \u{0633}\u{0628}\u{06A9} \u{0628}\u{06AF}\u{0631}\u{062F}\u{06CC}\u{062F}.\n\n",
-            format_number(est_balance)
+            format_currency(est_balance, CurrencyUnit::Toman)
         ));
     }
 
@@ -434,6 +434,25 @@ mod tests {
         assert!(result.contains("\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}"));
     }
 
+    #[test]
+    fn test_advice_category_amount_is_in_toman_not_rial() {
+        // 10,000,000 Rial expense must be shown as "1,000,000 تومان",
+        // never as the raw Rial value "10,000,000 تومان".
+        let txs = vec![sample_tx(1, TransactionType::Expense, 10_000_000, 0)];
+        let cats = vec![Category {
+            id: 1,
+            name: "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}".into(),
+            key: "groceries".into(),
+            icon: "".into(),
+            color: 0,
+            category_type: "EXPENSE".into(),
+            is_default: false,
+        }];
+        let result = get_offline_budget_advice(&txs, &cats);
+        assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
+        assert!(!result.contains("10,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
+    }
+
     // -- get_offline_forecast tests ----------------------------------------------
 
     #[test]
@@ -485,6 +504,28 @@ mod tests {
         let result = get_offline_forecast(&txs, &[], &installments);
         // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
         assert!(result.contains("\u{0627}\u{0642}\u{0633}\u{0627}\u{0637}"));
+    }
+
+    #[test]
+    fn test_forecast_amounts_are_in_toman_not_rial() {
+        // 10,000,000 Rial income/installment must render as "1,000,000 تومان".
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(2, TransactionType::Expense, 3_000_000, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let installments = vec![Installment {
+            id: 1,
+            title: "rent".into(),
+            amount: 10_000_000,
+            due_date: now + 30 * 24 * 60 * 60 * 1000,
+            is_paid: false,
+            reminder_enabled: false,
+            notes: String::new(),
+        }];
+        let result = get_offline_forecast(&txs, &[], &installments);
+        assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
+        assert!(!result.contains("10,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
     }
 
     #[test]
