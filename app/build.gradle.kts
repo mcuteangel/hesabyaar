@@ -1,1 +1,3 @@
-IMPORTANT: Full file update coming...
+import dev.detekt.gradle.Detekt
+
+val appId = "io.github.mojri.hesabyar"
