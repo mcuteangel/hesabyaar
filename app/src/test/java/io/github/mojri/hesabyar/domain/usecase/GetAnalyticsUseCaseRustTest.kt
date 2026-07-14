@@ -5,7 +5,6 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,11 +37,20 @@ class GetAnalyticsUseCaseRustTest {
     )
 
   @Test
-  fun `rust path returns a non-null analytics result`() {
+  fun `rust path yields empty collections and zero totals for empty inputs`() {
     assertTrue(RustBridge.isAvailable)
     val result =
       useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList())
-    assertNotNull(result)
+
+    assertTrue(result.debtors.isEmpty())
+    assertTrue(result.creditors.isEmpty())
+    assertTrue(result.activeLoans.isEmpty())
+    assertEquals(0, result.totalInstallments)
+    assertEquals(0, result.paidInstallments)
+    assertTrue(result.installmentProgress.isEmpty())
+    assertTrue(result.categoryBreakdown.isEmpty())
+    assertEquals(0L, result.totalDebt)
+    assertEquals(0L, result.totalCredit)
   }
 
   @Test

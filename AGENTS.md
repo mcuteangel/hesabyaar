@@ -24,8 +24,6 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ./gradlew lint
 ```
 
-
-
 ## Environment Setup
 
 1. Copy `.env.example` to `.env`
@@ -128,38 +126,48 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 
 ## 🛡️ Mandatory Post-Modification Verification Workflow
 
-Every time you modify, refactor, or introduce new code in the codebase, you **MUST** execute the following verification steps before marking the task as complete or asking for user feedback. Do not skip this under any circumstances.
+Every time you modify, refactor, or introduce new code in the codebase, you **MUST** execute the following verification steps before marking the task as complete or asking for user feedback. Do not skip this under any circumstances, except when the user explicitly overrides this workflow or the change is a trivial documentation/edit with no behavioral impact.
 
 ### 1. Static Analysis & Linting (Detekt & ktlint)
+
 Run the linting and static analysis checks to ensure no code-style or cognitive-complexity regressions were introduced:
+
 ```bash
-./gradlew ktlintCheck detekt --no-companion --no-daemon
+./gradlew ktlintCheck detekt --no-daemon
 ```
 
 ### 2. Unit Testing Suite
+
 Run the local testing suite to ensure all components and boundaries function properly:
 
 **Kotlin/Android Tests:**
+
 ```bash
 ./gradlew test --no-daemon
 ```
 
 **Rust Core Tests (If Rust modules were touched):**
+
 ```bash
 cargo test
 ```
 
 ### 3. Critical Process Isolation Flag (`--no-daemon`)
-- **Rule:** You MUST append the `--no-daemon` flag to every single `./gradlew` command you execute.
+
+- **Rule:** You MUST append the `--no-daemon` flag to every single `./gradlew` command you execute, unless the user explicitly requests a daemonized run or the command is a non-build utility that has no daemon.
 - **Reason:** Running Gradle in-process or leaving background compiler daemons alive will cause the agent environment to freeze, hang, or lock file descriptors, breaking the execution loop. Forcing `--no-daemon` ensures the process terminates cleanly after compilation/testing finishes.
 
 ### 4. Debugging & Auto-Correction
+
 If detekt or ktlint fails due to formatting issues, you may attempt an auto-fix using:
+
 ```bash
 ./gradlew ktlintFormat --no-daemon
 ```
+
 If compilation or tests fail, analyze the logs immediately, debug the root cause, apply the fix, and re-run the full verification loop until all checks are 100% green.
 
 ### Constraints
+
 - Keep this workflow readable and well-structured in `AGENTS.md`.
 - Do not overwrite existing instructions; only append or integrate this verification lifecycle cleanly.

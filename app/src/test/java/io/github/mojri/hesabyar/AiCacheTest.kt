@@ -52,9 +52,13 @@ class AiCacheTest {
     val txCount = transactions.size
     val txTotal = transactions.sumOf { it.amount }
     val loanCount = loans.size
+    val loanRemaining = loans.sumOf { it.remainingAmount }
+    val loanSettled = loans.count { it.isSettled }
     val instCount = installments.size
+    val instPaid = installments.count { it.isPaid }
+    val instAmount = installments.sumOf { it.amount }
     val catCount = categories.size
-    return "$txCount|$txTotal|$loanCount|$instCount|$catCount"
+    return "$txCount|$txTotal|$loanCount|$loanRemaining|$loanSettled|$instCount|$instPaid|$instAmount|$catCount"
   }
 
   private fun computeAdviceSignature(
@@ -149,7 +153,7 @@ class AiCacheTest {
         emptyList(),
         emptyList()
       )
-    assertEquals("0|0|0|0|0", sig)
+    assertEquals("0|0|0|0|0|0|0|0|0", sig)
   }
 
   @Test
@@ -256,12 +260,16 @@ class AiCacheTest {
     val sig = computeDataSignature(transactions, loans, installments, categories)
     val parts = sig.split("|")
 
-    assertEquals(5, parts.size)
+    assertEquals(9, parts.size)
     assertEquals("1", parts[0]) // txCount
     assertEquals("10000000", parts[1]) // txTotal
     assertEquals("1", parts[2]) // loanCount
-    assertEquals("1", parts[3]) // instCount
-    assertEquals("1", parts[4]) // catCount
+    assertEquals("3000000", parts[3]) // loanRemaining
+    assertEquals("0", parts[4]) // loanSettled
+    assertEquals("1", parts[5]) // instCount
+    assertEquals("0", parts[6]) // instPaid
+    assertEquals("1000000", parts[7]) // instAmount
+    assertEquals("1", parts[8]) // catCount
   }
 
   @Test
@@ -296,5 +304,33 @@ class AiCacheTest {
     val newCategories = listOf(createCategory(1L, "خوراک"), createCategory(2L, "حمل و نقل"))
     val sigAfterCatChange = computeDataSignature(transactions, loans, installments, newCategories)
     assertNotEquals("Signature should change when category count changes", originalSig, sigAfterCatChange)
+  }
+
+  @Test
+  fun `data signature - changes when loan balance changes without count change`() {
+    val transactions = listOf(createTransaction(TransactionType.INCOME, 10_000_000))
+    val emptyInst = emptyList<Installment>()
+    val emptyCat = emptyList<Category>()
+    val loansBefore = listOf(createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000))
+    val loansAfter = listOf(createLoan(LoanType.DEBTOR, 5_000_000, 1_000_000))
+
+    val sigBefore = computeDataSignature(transactions, loansBefore, emptyInst, emptyCat)
+    val sigAfter = computeDataSignature(transactions, loansAfter, emptyInst, emptyCat)
+
+    assertNotEquals("Signature should change when loan remaining balance changes", sigBefore, sigAfter)
+  }
+
+  @Test
+  fun `data signature - changes when installment is paid without count change`() {
+    val transactions = listOf(createTransaction(TransactionType.INCOME, 10_000_000))
+    val emptyLoans = emptyList<Loan>()
+    val emptyCat = emptyList<Category>()
+    val installmentsBefore = listOf(createInstallment(1_000_000, isPaid = false))
+    val installmentsAfter = listOf(createInstallment(1_000_000, isPaid = true))
+
+    val sigBefore = computeDataSignature(transactions, emptyLoans, installmentsBefore, emptyCat)
+    val sigAfter = computeDataSignature(transactions, emptyLoans, installmentsAfter, emptyCat)
+
+    assertNotEquals("Signature should change when an installment is paid", sigBefore, sigAfter)
   }
 }

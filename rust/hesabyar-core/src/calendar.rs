@@ -327,14 +327,16 @@ mod tests {
         // 1408 is Farvardin 1, 1409 — confirming the 30-day leap Esfand rolls
         // over correctly.
         let next_after_1407 = jalali_to_gregorian(1407, 12, 29).unwrap() + 86_400_000;
-        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().year, 1408);
-        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().month, 1);
-        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().day, 1);
+        let rollover_1407 = gregorian_to_jalali(next_after_1407).unwrap();
+        assert_eq!(rollover_1407.year, 1408);
+        assert_eq!(rollover_1407.month, 1);
+        assert_eq!(rollover_1407.day, 1);
 
         let next_after_1408 = jalali_to_gregorian(1408, 12, 30).unwrap() + 86_400_000;
-        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().year, 1409);
-        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().month, 1);
-        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().day, 1);
+        let rollover_1408 = gregorian_to_jalali(next_after_1408).unwrap();
+        assert_eq!(rollover_1408.year, 1409);
+        assert_eq!(rollover_1408.month, 1);
+        assert_eq!(rollover_1408.day, 1);
     }
 
     // =====================================================================

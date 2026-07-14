@@ -81,6 +81,21 @@ internal object BudgetAdviceGenerator {
           categories
         )
       }
+      // With a configured provider, an empty ledger (no transactions and no unpaid
+      // obligations) must surface the empty-state message directly instead of
+      // burning a paid network/AI request on nothing. Unpaid loans/installments are
+      // still worth analyzing, so the generator path is retained for those.
+      val hasUnpaidObligations =
+        loans.any { !it.isSettled } || installments.any { !it.isPaid }
+      if (transactions.isEmpty() && !hasUnpaidObligations) {
+        AppLogger.d(TAG, "getBudgetAdvice: empty ledger, returning empty-state without AI call")
+        return@withContext getBudgetAdviceOffline(
+          transactions,
+          loans,
+          installments,
+          categories
+        )
+      }
       val summary =
         buildDataSummary(
           transactions,
@@ -216,7 +231,9 @@ internal object BudgetAdviceGenerator {
         val validation =
           io.github.mojri.hesabyar.rust.RustBridge
             .validateAiAdvice(result.text)
-        if (!validation.isValid) {
+        if (!validation.isValid &&
+          io.github.mojri.hesabyar.rust.RustBridge.isAvailable
+        ) {
           AppLogger.w(
             TAG,
             "AI advice validation failed: ${validation.warnings}"

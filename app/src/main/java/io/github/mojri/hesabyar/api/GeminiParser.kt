@@ -140,6 +140,7 @@ object GeminiParser {
   private const val DAY_MS = 24L * 60L * 60L * 1000L
 
   private const val TOMAN_TO_RIAL = 10L
+  private const val BILLION_SCALE = 1_000_000_000L
 
   private const val CATEGORY_FOOD = "Food"
   private const val CATEGORY_TRANSPORTATION = "Transportation"
@@ -402,7 +403,8 @@ object GeminiParser {
       val isPhone = looksLikePhoneNumber(normalized)
       val hasContext = hasFinancialContext(rawSentence)
       val hasMoneyUnit = moneyUnitKeywords.any { normalized.contains(it) }
-      val shouldSkip = !hasContext && !isPhone || isPhone && !hasMoneyUnit
+      val hasBillingAmount = billingAmountPattern.containsMatchIn(normalized)
+      val shouldSkip = !hasContext && !isPhone || isPhone && !hasMoneyUnit && !hasBillingAmount
       if (shouldSkip) {
         val skipReason =
           if (isPhone) "phone without monetary amount" else "no financial context"
@@ -444,11 +446,30 @@ object GeminiParser {
     return sb.toString()
   }
 
+  // "مبلغ <number>" (optionally followed by a scale word) marks an explicit
+  // monetary amount, used both as a validation signal and as the preferred
+  // amount source so a phone number is never extracted as the amount.
+  private val billingAmountPattern =
+    Regex("""مبلغ\s*(\d[\d,]*)\s*(میلیارد|میلیون|هزار)?""", RegexOption.IGNORE_CASE)
+
   private fun extractAmount(text: String): Long? {
     // Match patterns like "5 میلیون", "450 هزار", "1,500,000", "۵۰۰۰۰۰"
     val millionPattern = Regex("""(\d[\d,]*)\s*(?:میلیون|million)""", RegexOption.IGNORE_CASE)
     val hazarPattern = Regex("""(\d[\d,]*)\s*(?:هزار|hazar)""", RegexOption.IGNORE_CASE)
     val plainPattern = Regex("""(\d[\d,]+)""")
+
+    // A "مبلغ <number>" token is an explicit monetary amount. Match it first so a
+    // preceding phone number is never mistaken for the amount, and so a bill that
+    // states the amount without a currency suffix still parses correctly.
+    billingAmountPattern.find(text)?.let { m ->
+      val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let
+      return when (m.groupValues[2]) {
+        "هزار" -> scaleAmount(num, 1_000 * TOMAN_TO_RIAL)
+        "میلیون" -> scaleAmount(num, 1_000_000 * TOMAN_TO_RIAL)
+        "میلیارد" -> scaleAmount(num, BILLION_SCALE * TOMAN_TO_RIAL)
+        else -> scaleAmount(num, TOMAN_TO_RIAL)
+      }
+    }
 
     millionPattern.find(text)?.let { m ->
       val num = m.groupValues[1].replace(",", "").toLongOrNull() ?: return@let

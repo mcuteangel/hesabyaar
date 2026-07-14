@@ -56,18 +56,6 @@ object BudgetAdvisor {
     }
   }
 
-  private fun getPersianCategoryName(category: String): String =
-    when (category) {
-      "Food" -> "خوراک"
-      "Transportation" -> "حمل و نقل"
-      "Shopping" -> "خرید و پوشاک"
-      "Bills" -> "قبض‌ها و اشتراک"
-      "Installments" -> "اقساط"
-      "Loans" -> "وام و امور اشخاص"
-      "Income" -> "درآمد"
-      else -> "سایر موارد"
-    }
-
   private class TxSummary(
     val income: Long,
     val expense: Long

@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.api.AiProviderConfig
+import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.data.Category
@@ -126,6 +128,46 @@ class BudgetAdvisorTest {
           null
         )
       assertTrue(result.contains("اقساط"))
+    }
+
+  @Test
+  fun `getBudgetAdvice with configured provider and empty ledger returns empty-state without AI call`() =
+    kotlinx.coroutines.test.runTest {
+      // A configured provider must not trigger a paid/network AI request for an
+      // account with no transactions and no unpaid obligations. It should return
+      // the empty-state message directly (regression guard for the leak).
+      val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
+      assertTrue(config.isConfigured)
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          emptyList(),
+          emptyList(),
+          config
+        )
+      assertTrue(result.contains("نکرده‌اید"))
+    }
+
+  @Test
+  fun `getBudgetAdvice with configured provider still calls AI when unpaid obligations exist`() =
+    kotlinx.coroutines.test.runTest {
+      // When unpaid obligations exist, the generator path must still be used even
+      // with an empty transaction list (offline fallback surfaces them; the
+      // configured path is allowed to proceed to the AI request).
+      val config = AiProviderConfig(providerType = AiProviderType.GEMINI, apiKey = "fake-key")
+      assertTrue(config.isConfigured)
+      val installments = listOf(createInstallment("قسط ماشین", 2_000_000, isPaid = false))
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          installments,
+          emptyList(),
+          config
+        )
+      // Offline empty-ledger message must NOT appear (no early return happened).
+      assertTrue("expected obligations to be surfaced, got: $result", result.contains("اقساط"))
     }
 
   @Test

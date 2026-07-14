@@ -28,7 +28,7 @@ class ExcelExporterRealTest {
 
   @After
   fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(true)
+    HesabyarApp.setRustInitializedForTesting(false)
   }
 
   private fun makeData(): Triple<List<Transaction>, List<Loan>, List<Installment>> {
@@ -105,7 +105,7 @@ class ExcelExporterRealTest {
     }
 
   @Test
-  fun `export throws when rust excel generation returns null`() =
+  fun `export delegates to native core when available`() =
     runTest {
       // generateExcel() returns null only when the native core is unavailable
       // (see RustBridge). In unit tests the library is always loaded, so we

@@ -466,6 +466,18 @@ class OfflineParserTest {
   }
 
   @Test
+  fun `kotlin fallback parses bill with phone number and مبلغ amount without unit`() {
+    // A bill that embeds the account phone number and states the amount via
+    // "مبلغ <number>" WITHOUT a currency suffix must still parse, and the amount
+    // must come from the مبلغ token (not the phone digits).
+    val result =
+      GeminiParser.kotlinFallbackParse("پرداخت قبض تلفن ۰۹۱۲۳۴۵۶۷۸۹ مبلغ ۵۰۰۰۰")
+    assertNotNull(result)
+    assertEquals(500_000L, result!!.amount)
+    assertEquals("Bills", result.category)
+  }
+
+  @Test
   fun `kotlin fallback still parses valid monetary numeric string`() {
     // A number WITH monetary context must still parse (regression guard).
     val result = GeminiParser.kotlinFallbackParse("خرید 500 تومان")

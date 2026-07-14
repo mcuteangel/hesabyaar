@@ -163,9 +163,14 @@ class AiAssistantViewModel
       val txCount = transactions.size
       val txTotal = transactions.sumOf { it.amount }
       val loanCount = loans.size
+      val loanRemaining = loans.sumOf { it.remainingAmount }
+      val loanSettled = loans.count { it.isSettled }
       val instCount = installments.size
+      val instPaid = installments.count { it.isPaid }
+      val instAmount = installments.sumOf { it.amount }
       val catCount = categories.size
-      return "$txCount|$txTotal|$loanCount|$instCount|$catCount|${configSignature()}"
+      return "$txCount|$txTotal|$loanCount|$loanRemaining|$loanSettled|" +
+        "$instCount|$instPaid|$instAmount|$catCount|${configSignature()}"
     }
 
     internal fun computeAdviceSignature(
@@ -173,14 +178,7 @@ class AiAssistantViewModel
       loans: List<Loan>,
       installments: List<Installment>,
       categories: List<Category>
-    ): String {
-      val txCount = transactions.size
-      val txTotal = transactions.sumOf { it.amount }
-      val loanCount = loans.size
-      val instCount = installments.size
-      val catCount = categories.size
-      return "$txCount|$txTotal|$loanCount|$instCount|$catCount|${configSignature()}"
-    }
+    ): String = computeDataSignature(transactions, loans, installments, categories)
 
     private fun invalidateCaches() {
       cachedAdvice = null
