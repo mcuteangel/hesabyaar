@@ -68,7 +68,7 @@ internal object BudgetAdviceGenerator {
     installments: List<Installment>,
     categories: List<Category>,
     config: AiProviderConfig? = null
-  ): String? =
+  ): String =
     withContext(Dispatchers.IO) {
       val cfg = config ?: AiProviderConfig()
       AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
@@ -201,7 +201,7 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>
-  ): String? {
+  ): String {
     val fallback = {
       getBudgetAdviceOffline(
         transactions,

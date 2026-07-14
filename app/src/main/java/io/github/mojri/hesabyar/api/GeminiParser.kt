@@ -338,6 +338,12 @@ object GeminiParser {
   // هزار") from a bare phone number that merely mentions "تلفن". Category words
   // like برق/آب/گاز/بنزین are intentionally excluded so a phone number with a
   // category label is still treated as a phone number unless a money signal exists.
+  // Explicit money-unit words that confirm a distinct monetary amount (as
+  // opposed to transaction wording like قبض/پرداخت). Used to allow a detected
+  // phone number through only when a real amount is present.
+  private val moneyUnitKeywords =
+    listOf("تومان", "تومن", "ریال", "هزار", "میلیون", "میلیارد")
+
   private val billPaymentKeywords =
     listOf(
       "تومان",
@@ -383,18 +389,24 @@ object GeminiParser {
     // or a bare phone number) that contain digits but no financial context.
     // A telephone bill that embeds the account's phone number (e.g.
     // "پرداخت قبض تلفن ۰۹۱۲... مبلغ ۵۰ هزار") still carries a bill/payment signal,
-    // so it must NOT be blocked as a phone number. Therefore a string is treated
-    // as a pure phone number — and skipped — only when it lacks any separate
-    // bill/payment signal. Bare years and pure phone numbers are blocked via the
-    // absence of financial context / bill signal.
+    // so it must NOT be blocked as a phone number. However, transaction wording
+    // alone (قبض/پرداخت/...) must NOT let a detected phone number through: the
+    // fallback amount extractor treats any digit run as an amount, so a
+    // phone-number-only bill would otherwise be parsed with the phone digits as
+    // its amount. Therefore a detected phone number is skipped unless a distinct
+    // monetary amount — signalled by an explicit money unit (تومان/ریال/هزار/...) —
+    // is present. Bare years and pure phone numbers are blocked via the absence
+    // of financial context / money unit.
     // Pure non-numeric text is left to fall through to the (null) amount extraction below.
     if (containsDigits(rawSentence)) {
       val isPhone = looksLikePhoneNumber(normalized)
       val hasContext = hasFinancialContext(rawSentence)
-      val hasBillSignal = billPaymentKeywords.any { normalized.contains(it) }
-      val shouldSkip = !hasContext && !isPhone || isPhone && !hasBillSignal
+      val hasMoneyUnit = moneyUnitKeywords.any { normalized.contains(it) }
+      val shouldSkip = !hasContext && !isPhone || isPhone && !hasMoneyUnit
       if (shouldSkip) {
-        AppLogger.d(TAG, "kotlinFallbackParse: skipped: ${if (isPhone) "phone without bill signal" else "no financial context"}: $rawSentence")
+        val skipReason =
+          if (isPhone) "phone without monetary amount" else "no financial context"
+        AppLogger.d(TAG, "kotlinFallbackParse: skipped: $skipReason")
         return null
       }
     }

@@ -519,6 +519,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value
                       )
@@ -587,6 +589,8 @@ fun SmartAssistantScreen(
                     IconButton(onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true
@@ -620,6 +624,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true
@@ -668,6 +674,8 @@ fun SmartAssistantScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         forceRefresh = true

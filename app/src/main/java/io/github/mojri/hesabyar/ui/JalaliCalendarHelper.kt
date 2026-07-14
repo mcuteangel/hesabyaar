@@ -267,9 +267,12 @@ object JalaliCalendarHelper {
     if (b == Long.MIN_VALUE) {
       // `-b` would itself overflow (Long.MIN_VALUE negated wraps back to
       // Long.MIN_VALUE), inverting the saturation direction for extreme
-      // month-boundary fallbacks. `a - Long.MIN_VALUE == a + Long.MAX_VALUE + 1`,
-      // which saturating addition of Long.MAX_VALUE reproduces exactly.
-      return saturatingAdd(a, Long.MAX_VALUE)
+      // month-boundary fallbacks. `a - Long.MIN_VALUE == a + Long.MAX_VALUE + 1`.
+      // saturatingAdd(a, Long.MAX_VALUE) yields `a + Long.MAX_VALUE`; the final
+      // `+1` is added unless the result already saturated to Long.MAX_VALUE (in
+      // which case adding 1 would overflow the other way).
+      val r = saturatingAdd(a, Long.MAX_VALUE)
+      return if (r == Long.MAX_VALUE) r else r + 1
     }
     return saturatingAdd(a, -b)
   }

@@ -170,12 +170,16 @@ class AiAssistantViewModel
 
     internal fun computeAdviceSignature(
       transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>,
       categories: List<Category>
     ): String {
       val txCount = transactions.size
       val txTotal = transactions.sumOf { it.amount }
+      val loanCount = loans.size
+      val instCount = installments.size
       val catCount = categories.size
-      return "$txCount|$txTotal|$catCount|${configSignature()}"
+      return "$txCount|$txTotal|$loanCount|$instCount|$catCount|${configSignature()}"
     }
 
     private fun invalidateCaches() {
@@ -301,11 +305,13 @@ class AiAssistantViewModel
 
     fun fetchBudgetAdvice(
       transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>,
       categories: List<Category>,
       isOnlineMode: Boolean,
       forceRefresh: Boolean = false
     ) {
-      val currentSignature = computeAdviceSignature(transactions, categories)
+      val currentSignature = computeAdviceSignature(transactions, loans, installments, categories)
 
       if (!forceRefresh &&
         currentSignature == lastKnownAdviceSignature &&
@@ -319,7 +325,14 @@ class AiAssistantViewModel
         _advisorState.value = AdvisorUIState.Loading
         try {
           val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
-          val advice = getBudgetAdviceUseCase.getAdvice(transactions, categories, config)
+          val advice =
+            getBudgetAdviceUseCase.getAdvice(
+              transactions,
+              loans,
+              installments,
+              categories,
+              config
+            )
           cachedAdvice = advice
           lastAdviceFetchTimeMs = System.currentTimeMillis()
           lastKnownAdviceSignature = currentSignature

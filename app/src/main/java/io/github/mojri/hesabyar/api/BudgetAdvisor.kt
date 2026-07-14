@@ -18,69 +18,27 @@ object BudgetAdvisor {
   private const val TAG = "BudgetAdvisor"
   private const val IDEAL_SAVINGS_DENOMINATOR = 5
 
+  /**
+   * Budget advice entry point used by the app. Delegates to
+   * [BudgetAdviceGenerator], which is loans/installments-aware (its offline
+   * path surfaces unpaid loans and upcoming installments). Previously this
+   * method ignored loans/installments and the generator's richer behavior was
+   * unreachable from production code.
+   */
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
+    loans: List<Loan>,
+    installments: List<Installment>,
     categories: List<Category>,
     config: AiProviderConfig? = null
   ): String =
-    withContext(Dispatchers.IO) {
-      val providerConfig = config ?: AiProviderConfig()
-      if (!providerConfig.isConfigured) {
-        AppLogger.w(TAG, "AI provider not configured, using offline local rules budget advisor")
-        return@withContext getOfflineAdvice(transactions, categories)
-      }
-      if (transactions.isEmpty()) {
-        return@withContext noTransactionsAdviceMessage()
-      }
-
-      val prompt = buildBudgetPrompt(transactions, categories)
-      val systemInstruction =
-        "You are Hesabyar's Elite Financial Advisor. Analyze the user's Persian transactions " +
-          "carefully and provide smart, structured financial recommendations in beautiful Persian. " +
-          "Be friendly, polite, action-oriented, and encouraging."
-
-      val result =
-        AiProvider.generateContent(
-          config = providerConfig,
-          prompt = prompt,
-          systemInstruction = systemInstruction,
-          temperature = 0.7
-        )
-      handleBudgetAdviceResult(result, transactions, categories)
-    }
-
-  private fun noTransactionsAdviceMessage(): String =
-    "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا " +
-      "هوش مصنوعی بتواند بودجه شما را تحلیل کند."
-
-  private fun buildBudgetPrompt(
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String {
-    val summary = summarizeTransactions(transactions)
-    val categoryReport = buildCategoryReport(transactions, categories)
-    val transactionList = buildTransactionList(transactions, categories)
-
-    return """
-      سلام. من یک حسابدار شخصی ایرانی دارم به نام «حسابیار».
-      لطفاً تراکنش‌های مالی اخیر مرا بررسی کرده و توصیه‌های هوشمند، کاربردی و روان به زبان فارسی برای مدیریت بهتر بودجه، کاهش هزینه‌ها و افزایش پس‌انداز به من ارائه بده.
-
-      آمارهای کلی من:
-      - کل درآمد ثبت شده: ${formatAmountClean(summary.income)}
-      - کل هزینه‌های ثبت شده: ${formatAmountClean(summary.expense)}
-      - تراز باقیمانده: ${formatAmountClean(summary.balance)}
-
-      هزینه‌ها به تفکیک دسته‌بندی:
-      $categoryReport
-
-      لیست ۳۰ تراکنش آخر من:
-      $transactionList
-
-      لطفا با یک لحن صمیمی و حرفه‌ای (مشابه یک مشاور مالی باتجربه و دلسوز) تحلیل خودت رو ارائه بدی. 
-      توصیه‌ها رو بخش‌بندی کن (مثلاً تحلیل کلی تراز مالی، بررسی دسته‌بندی هزینه‌های عمده، نکات کاهش مخارج خاص بر اساس تراکنشام، و چند پیشنهاد طلایی کاربردی). 
-      از قالب‌بندی زیبای Markdown (بولد کردن، ایموجی‌ها، لیست‌های نشانه‌دار) استفاده کن تا خواندن آن راحت باشد.
-      """.trimIndent()
-  }
+    BudgetAdviceGenerator.getBudgetAdvice(
+      transactions,
+      loans,
+      installments,
+      categories,
+      config
+    )
 
   private fun buildCategoryReport(
     transactions: List<Transaction>,
@@ -96,47 +54,6 @@ object BudgetAdvisor {
       val cat = categories.find { it.id == catId }
       "- ${cat?.name ?: "سایر"}: ${formatAmountClean(sum)}"
     }
-  }
-
-  private fun buildTransactionList(
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String =
-    transactions.take(30).joinToString("\n") { tx ->
-      val typeStr = if (tx.type == TransactionType.INCOME) "درآمد" else "هزینه"
-      val cat = categories.find { it.id == tx.categoryId }
-      "- ${cat?.name ?: "سایر"} | $typeStr | ${formatAmountClean(tx.amount)} | شرح: ${tx.description}"
-    }
-
-  private suspend fun handleBudgetAdviceResult(
-    result: AiProvider.ApiResult,
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String =
-    when (result) {
-      is AiProvider.ApiResult.Success -> validateOrFallback(result.text, transactions, categories)
-      is AiProvider.ApiResult.Failure -> {
-        AppLogger.e(TAG, "AI budget advice failed: ${result.error}")
-        getOfflineAdvice(transactions, categories)
-      }
-    }
-
-  private suspend fun validateOrFallback(
-    text: String,
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String {
-    val validation =
-      io.github.mojri.hesabyar.rust.RustBridge
-        .validateAiAdvice(text)
-    if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
-      AppLogger.w(TAG, "AI advice failed validation, using offline: ${validation.warnings}")
-      return getOfflineAdvice(transactions, categories)
-    }
-    if (validation.wasTruncated) {
-      AppLogger.d(TAG, "AI advice truncated: ${validation.warnings}")
-    }
-    return validation.sanitizedText
   }
 
   private fun getPersianCategoryName(category: String): String =

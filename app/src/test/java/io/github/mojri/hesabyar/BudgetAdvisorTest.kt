@@ -110,6 +110,25 @@ class BudgetAdvisorTest {
   }
 
   @Test
+  fun `getBudgetAdvice delegates to loans-slash-installments-aware offline advice`() =
+    kotlinx.coroutines.test.runTest {
+      // The production entry point (BudgetAdvisor.getBudgetAdvice) must route
+      // through BudgetAdviceGenerator so unpaid obligations ship in the advice,
+      // even with no AI config (offline path). Regression guard for the
+      // previously-unreachable generator wiring.
+      val installments = listOf(createInstallment("قسط ماشین", 2_000_000, isPaid = false))
+      val result =
+        BudgetAdvisor.getBudgetAdvice(
+          emptyList(),
+          emptyList(),
+          installments,
+          emptyList(),
+          null
+        )
+      assertTrue(result.contains("اقساط"))
+    }
+
+  @Test
   fun `getOfflineAdvice - high spending ratio warns`() {
     val transactions =
       listOf(

@@ -110,6 +110,37 @@ class JalaliMonthBoundariesTest {
     assertEquals(JalaliCalendarHelper.JalaliDate(1403, 1, 1), JalaliCalendarHelper.gregorianToJalali(end + 1))
   }
 
+  @Test
+  fun `testJalaliBoundaries_HandlesFiveYearLeapAnomaly_ForYear1407And1408`() {
+    // Jalali leap years follow the 33-year Birashk cycle (year % 33 ∈
+    // {1,5,9,13,17,22,26,30}), NOT a fixed `year % 4`. After the 1403 leap year
+    // the next leap is 1408 — a 5-year gap (1404–1407 are 365-day years). The
+    // Esfand month length must reflect this: 29 days in 1407, 30 days in 1408.
+    // This locks the 5-year anomaly into the month-boundary math.
+    assertEquals(false, JalaliCalendarHelper.isJalaliLeapYear(1407))
+    assertEquals(true, JalaliCalendarHelper.isJalaliLeapYear(1408))
+    assertEquals(29, JalaliCalendarHelper.getDaysInMonth(1407, 12))
+    assertEquals(30, JalaliCalendarHelper.getDaysInMonth(1408, 12))
+
+    // Scenario A: Esfand 1407 (29 days). A mid-month timestamp resolves to the
+    // correct month, the boundary span is exactly 29 days, and the day after the
+    // end is Farvardin 1408.
+    val t1407 = JalaliCalendarHelper.jalaliToGregorian(1407, 12, 15)!!.timeInMillis
+    val (start1407, end1407) = JalaliCalendarHelper.getJalaliMonthBoundaries(t1407)
+    assertEquals(JalaliCalendarHelper.JalaliDate(1407, 12, 1), JalaliCalendarHelper.gregorianToJalali(start1407))
+    assertEquals(JalaliCalendarHelper.JalaliDate(1407, 12, 29), JalaliCalendarHelper.gregorianToJalali(end1407))
+    assertEquals(29L * 24 * 60 * 60 * 1000, end1407 - start1407 + 1)
+    assertEquals(JalaliCalendarHelper.JalaliDate(1408, 1, 1), JalaliCalendarHelper.gregorianToJalali(end1407 + 1))
+
+    // Scenario B: Esfand 1408 (30 days, the 5-year leap correction).
+    val t1408 = JalaliCalendarHelper.jalaliToGregorian(1408, 12, 15)!!.timeInMillis
+    val (start1408, end1408) = JalaliCalendarHelper.getJalaliMonthBoundaries(t1408)
+    assertEquals(JalaliCalendarHelper.JalaliDate(1408, 12, 1), JalaliCalendarHelper.gregorianToJalali(start1408))
+    assertEquals(JalaliCalendarHelper.JalaliDate(1408, 12, 30), JalaliCalendarHelper.gregorianToJalali(end1408))
+    assertEquals(30L * 24 * 60 * 60 * 1000, end1408 - start1408 + 1)
+    assertEquals(JalaliCalendarHelper.JalaliDate(1409, 1, 1), JalaliCalendarHelper.gregorianToJalali(end1408 + 1))
+  }
+
   // --- Saturating arithmetic used by the month-boundary fallbacks ------------
   // Extreme timestamps must NOT wrap the 30-day fallback window; the range must
   // stay ordered and bounded at Long.MIN_VALUE / Long.MAX_VALUE.
@@ -142,5 +173,16 @@ class JalaliMonthBoundariesTest {
     assertEquals(1000L - windowMs, JalaliCalendarHelper.saturatingSubtract(1000L, windowMs))
     assertEquals(1000L + windowMs, JalaliCalendarHelper.saturatingAdd(1000L, windowMs))
     assertEquals(Long.MAX_VALUE - 1, JalaliCalendarHelper.saturatingSubtract(Long.MAX_VALUE, 1))
+  }
+
+  @Test
+  fun `saturatingSubtract handles Long MIN_VALUE subtrahend without off-by-one`() {
+    // `a - Long.MIN_VALUE == a + Long.MAX_VALUE + 1`. The +1 must be applied for
+    // non-positive a (where it does not overflow); for positive a the result
+    // already saturates to Long.MAX_VALUE.
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingSubtract(5L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingSubtract(0L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE, JalaliCalendarHelper.saturatingSubtract(-1L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE - 4, JalaliCalendarHelper.saturatingSubtract(-5L, Long.MIN_VALUE))
   }
 }

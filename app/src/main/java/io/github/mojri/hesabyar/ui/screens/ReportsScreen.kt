@@ -354,6 +354,8 @@ fun ReportsScreen(
                   onClick = {
                     aiAssistantViewModel.fetchBudgetAdvice(
                       dashboardViewModel.transactions.value,
+                      dashboardViewModel.loans.value,
+                      dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
                       false
@@ -415,6 +417,8 @@ fun ReportsScreen(
                     onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(
                         dashboardViewModel.transactions.value,
+                        dashboardViewModel.loans.value,
+                        dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
                         true
@@ -460,6 +464,8 @@ fun ReportsScreen(
                   onClick = {
                     aiAssistantViewModel.fetchBudgetAdvice(
                       dashboardViewModel.transactions.value,
+                      dashboardViewModel.loans.value,
+                      dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
                       true

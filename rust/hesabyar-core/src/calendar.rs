@@ -312,6 +312,31 @@ mod tests {
         assert_eq!(get_jalali_days_in_month(1402, 12), 29); // 1402 is not leap
     }
 
+    #[test]
+    fn test_five_year_leap_anomaly_1407_and_1408() {
+        // Jalali leap years follow the 33-year Birashk cycle, not `year % 4`.
+        // After the 1403 leap year the next leap is 1408 — a 5-year gap
+        // (1404–1407 are 365-day years). Esfand 1407 must be 29 days and
+        // Esfand 1408 must be 30 days.
+        assert!(!is_jalali_leap_year(1407)); // 1407 % 33 = 21
+        assert!(is_jalali_leap_year(1408)); // 1408 % 33 = 22
+        assert_eq!(get_jalali_days_in_month(1407, 12), 29);
+        assert_eq!(get_jalali_days_in_month(1408, 12), 30);
+
+        // The day after Esfand 1407 is Farvardin 1, 1408; the day after Esfand
+        // 1408 is Farvardin 1, 1409 — confirming the 30-day leap Esfand rolls
+        // over correctly.
+        let next_after_1407 = jalali_to_gregorian(1407, 12, 29).unwrap() + 86_400_000;
+        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().year, 1408);
+        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().month, 1);
+        assert_eq!(gregorian_to_jalali(next_after_1407).unwrap().day, 1);
+
+        let next_after_1408 = jalali_to_gregorian(1408, 12, 30).unwrap() + 86_400_000;
+        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().year, 1409);
+        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().month, 1);
+        assert_eq!(gregorian_to_jalali(next_after_1408).unwrap().day, 1);
+    }
+
     // =====================================================================
     // FFI-safe packed function tests
     // =====================================================================
