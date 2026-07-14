@@ -10,8 +10,14 @@ fun resolveCredential(key: String) =
     ?: providers.environmentVariable(key).orNull
     ?: ""
 
-fun runUniffiGen(libPath: File, outDir: File): Int {
-  val cmd = listOf("cargo", "run", "--manifest-path", file("$rustDir/Cargo.toml").absolutePath, "--package", "uniffi-gen", "--", libPath.absolutePath, outDir.absolutePath)
+fun runUniffiGen(
+  libPath: File,
+  outDir: File
+): Int {
+  val cmd = listOf(
+    "cargo", "run", "--manifest-path", file("$rustDir/Cargo.toml").absolutePath,
+    "--package", "uniffi-gen", "--", libPath.absolutePath, outDir.absolutePath
+  )
   val pb = ProcessBuilder(cmd)
   pb.directory(rustDir)
   pb.inheritIO()
@@ -250,7 +256,6 @@ val rustTargets = listOf(
   RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
   RustTarget("x86", "i686-linux-android", "libhesabyar_core.so")
 )
-
 rustTargets.forEach { target ->
   val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
   val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
@@ -284,13 +289,11 @@ rustTargets.forEach { target ->
     }
   }
 }
-
 tasks.register("assembleRust") {
   group = "rust"
   description = "Cross-compile Rust shared core for all Android ABIs via cargo-ndk"
   rustTargets.forEach { target -> dependsOn("assembleRust_${target.abi.replace("-", "_").replace(".", "_")}") }
 }
-
 tasks.register("compileRustCore") {
   group = "rust"
   description = "Recompile Rust core before Kotlin compilation when sources change"
@@ -302,14 +305,12 @@ tasks.register("compileRustCore") {
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   outputs.dir(file("$projectDir/src/main/jniLibs"))
 }
-
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
   logger.lifecycle("ANDROID_NDK_HOME not set — skipping automatic Rust cross-compile before Kotlin compilation.")
 } else {
   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach { dependsOn("compileRustCore") }
   tasks.configureEach { if (name.contains("merge", ignoreCase = true) && name.contains("JniLibFolders", ignoreCase = true)) dependsOn("compileRustCore") }
 }
-
 tasks.register("generateRustBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings from a host-native build"
@@ -328,7 +329,6 @@ tasks.register("generateRustBindings") {
     logger.lifecycle("Kotlin bindings generated at: ${generatedDir.absolutePath}")
   }
 }
-
 tasks.register("generateAndFixBindings") {
   group = "rust"
   description = "Generate UniFFI Kotlin bindings, fix package, and install to source tree"
@@ -350,7 +350,6 @@ tasks.register("generateAndFixBindings") {
     logger.lifecycle("generateAndFixBindings completed successfully.")
   }
 }
-
 tasks.register("generateKeystore") {
   group = "signing"
   description = "Generates a release keystore for signing"
@@ -371,7 +370,6 @@ tasks.register("generateKeystore") {
     }
   }
 }
-
 detekt {
   config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
   baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
@@ -380,8 +378,6 @@ detekt {
   autoCorrect = false
   ignoredBuildTypes = listOf("release")
 }
-
 ktlint { filter { exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt") } }
-
 tasks.withType<dev.detekt.gradle.Detekt>().configureEach { jvmTarget = "17"; exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt") }
 tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach { jvmTarget = "17"; exclude("**/rust/uniffi/**", "**/generated/**", "**/rust/hesabyar_core.kt") }
