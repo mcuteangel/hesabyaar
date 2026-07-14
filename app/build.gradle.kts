@@ -10,14 +10,8 @@ fun resolveCredential(key: String) =
     ?: providers.environmentVariable(key).orNull
     ?: ""
 
-fun runUniffiGen(
-  libPath: File,
-  outDir: File
-): Int {
-  val cmd = listOf(
-    "cargo", "run", "--manifest-path", file("$rustDir/Cargo.toml").absolutePath,
-    "--package", "uniffi-gen", "--", libPath.absolutePath, outDir.absolutePath
-  )
+fun runUniffiGen(libPath: File, outDir: File): Int {
+  val cmd = listOf("cargo", "run", "--manifest-path", file("$rustDir/Cargo.toml").absolutePath, "--package", "uniffi-gen", "--", libPath.absolutePath, outDir.absolutePath)
   val pb = ProcessBuilder(cmd)
   pb.directory(rustDir)
   pb.inheritIO()
@@ -58,7 +52,7 @@ fun patchAndInstallOutput(tempDir: File, dest: File) {
     ?: throw GradleException("No .kt file found in ${tempDir.absolutePath}")
   val content = generatedKt.readText(Charsets.UTF_8)
   val patched = content.replace(
-    Regex("^package uniffi\\\\.hesabyar_core$", RegexOption.MULTILINE),
+    Regex("^package uniffi\\\\\\\\.hesabyar_core$", RegexOption.MULTILINE),
     "package $appId.rust"
   )
   val templateFile = file("buildSrc/template/HesabyarCore.template.kt")
@@ -359,7 +353,7 @@ tasks.register("generateAndFixBindings") {
 
 tasks.register("generateKeystore") {
   group = "signing"
-  description = "Generates a release keystore for signing. Run manually: ./gradlew generateKeystore"
+  description = "Generates a release keystore for signing"
   doFirst {
     val storePassword = resolveCredential(storePwdKey)
     val keyPassword = resolveCredential(keyPasswordKey)
