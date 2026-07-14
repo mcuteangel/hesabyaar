@@ -74,6 +74,13 @@ object BudgetAdvisor {
 
   private fun formatAmountClean(amount: Long): String = CurrencyFormatter.format(amount)
 
+  /**
+   * Resolves the Persian display name for a category key using the production
+   * default-category definitions in [Category.DEFAULTS]. Unknown keys fall back
+   * to the key itself so no transaction is silently mislabeled.
+   */
+  fun getPersianCategoryName(key: String): String = Category.DEFAULTS.firstOrNull { it.key == key }?.name ?: key
+
   // High quality local rules budget advisor for offline mode
   fun getOfflineAdvice(
     transactions: List<Transaction>,

@@ -14,6 +14,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -33,6 +34,25 @@ class BudgetAdvisorTest {
   }
 
   private val dayMs = 24L * 60 * 60 * 1000
+
+  // Normalize Persian/Arabic digits and the Persian thousands separator to their
+  // Western forms so assertions are locale-rendering agnostic.
+  private fun normalizeDigits(input: String): String {
+    val persian = "۰۱۲۳۴۵۶۷۸۹"
+    val arabic = "٠١٢٣٤٥٦٧٨٩"
+    val sb = StringBuilder(input.length)
+    for (c in input) {
+      sb.append(
+        when {
+          c in persian -> '0' + persian.indexOf(c)
+          c in arabic -> '0' + arabic.indexOf(c)
+          c == '٬' -> ','
+          else -> c
+        }
+      )
+    }
+    return sb.toString()
+  }
 
   private fun createTransaction(
     type: TransactionType,
@@ -274,9 +294,16 @@ class BudgetAdvisorTest {
     // 2,000,000 Rial must render as Toman (200,000), never the raw Rial value.
     assertTrue(result.contains("اقساط"))
     assertTrue(result.contains("تومان"))
+    // Positive guard: the installment amount must actually be rendered (in Toman),
+    // so the negative Rial check below cannot pass vacuously if formatting changes.
+    // Normalize digits so the assertion is robust to Persian/Western rendering.
     assertTrue(
+      "forecast must render the Toman-converted installment amount, got: $result",
+      normalizeDigits(result).contains("200,000")
+    )
+    assertFalse(
       "forecast must not expose raw Rial magnitude 2,000,000, got: $result",
-      !result.contains("2,000,000")
+      result.contains("2,000,000")
     )
   }
 
@@ -329,20 +356,21 @@ class BudgetAdvisorTest {
   }
 
   @Test
-  fun `getPersianCategoryName maps correctly`() {
-    val mapping =
-      mapOf(
-        "Food" to "خوراک",
-        "Transportation" to "حمل و نقل",
-        "Shopping" to "خرید و پوشاک",
-        "Bills" to "قبض‌ها و اشتراک",
-        "Installments" to "اقساط",
-        "Loans" to "وام و امور اشخاص",
-        "Income" to "درآمد"
-      )
-    assertEquals("خوراک", mapping["Food"])
-    assertEquals("حمل و نقل", mapping["Transportation"])
-    assertEquals(7, mapping.size)
+  fun `getPersianCategoryName maps category keys to production Persian names`() {
+    // Exercises the real production mapping (Category.DEFAULTS) instead of a
+    // locally declared copy that could drift from the shipped defaults.
+    assertEquals("خوراک", BudgetAdvisor.getPersianCategoryName("Food"))
+    assertEquals("حمل و نقل", BudgetAdvisor.getPersianCategoryName("Transportation"))
+    assertEquals("خرید", BudgetAdvisor.getPersianCategoryName("Shopping"))
+    assertEquals("قبوض", BudgetAdvisor.getPersianCategoryName("Bills"))
+    assertEquals("اقساط", BudgetAdvisor.getPersianCategoryName("Installments"))
+    assertEquals("وام و قرض", BudgetAdvisor.getPersianCategoryName("Loans"))
+    assertEquals("درآمد", BudgetAdvisor.getPersianCategoryName("Income"))
+    assertEquals("سایر", BudgetAdvisor.getPersianCategoryName("Other"))
+    // Unknown keys fall back to themselves (no false translation).
+    assertEquals("UnknownKey", BudgetAdvisor.getPersianCategoryName("UnknownKey"))
+    // Coverage: every default category must expose a non-blank Persian name.
+    Category.DEFAULTS.forEach { assertTrue(it.name.isNotBlank()) }
   }
 
   @Test

@@ -20,6 +20,20 @@ class AiCacheTest {
     categoryId: Long = 1L
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
+  private fun createTransactionAt(
+    type: TransactionType,
+    amount: Long,
+    dateMs: Long,
+    categoryId: Long = 1L
+  ): Transaction =
+    Transaction(
+      type = type,
+      amount = amount,
+      categoryId = categoryId,
+      description = "test",
+      date = dateMs
+    )
+
   private fun createLoan(
     type: LoanType,
     originalAmount: Long,
@@ -128,7 +142,21 @@ class AiCacheTest {
         emptyList(),
         emptyList()
       )
-    assertEquals("0|0|0|0|0|0|0|0|0", sig)
+    assertTrue("empty-data signature must be non-blank", sig.isNotBlank())
+    // Deterministic: same empty input yields the same signature.
+    assertEquals(
+      sig,
+      AdviceSignature.computeDataSignature(emptyList(), emptyList(), emptyList(), emptyList())
+    )
+    // A non-empty dataset must not collide with the empty signature.
+    val nonEmpty =
+      AdviceSignature.computeDataSignature(
+        listOf(createTransaction(TransactionType.INCOME, 10_000_000)),
+        emptyList(),
+        emptyList(),
+        emptyList()
+      )
+    assertNotEquals(sig, nonEmpty)
   }
 
   @Test
@@ -226,25 +254,36 @@ class AiCacheTest {
   }
 
   @Test
-  fun `cache key format - pipe separated`() {
-    val transactions = listOf(createTransaction(TransactionType.INCOME, 10_000_000))
-    val loans = listOf(createLoan(LoanType.DEBTOR, 5_000_000, 3_000_000))
-    val installments = listOf(createInstallment(1_000_000))
-    val categories = listOf(createCategory(1L, "خوراک"))
+  fun `cache key - distinguishes categoryId, type and date without count or total change`() {
+    val fixedDate = 1_700_000_000_000L
+    val base = createTransactionAt(TransactionType.EXPENSE, 3_000_000, fixedDate, 1L)
+    val sigBase =
+      AdviceSignature.computeDataSignature(listOf(base), emptyList(), emptyList(), emptyList())
 
-    val sig = AdviceSignature.computeDataSignature(transactions, loans, installments, categories)
-    val parts = sig.split("|")
+    // Changing categoryId while keeping amount/total identical must invalidate.
+    val differentCat = createTransactionAt(TransactionType.EXPENSE, 3_000_000, fixedDate, 2L)
+    val sigCat =
+      AdviceSignature.computeDataSignature(listOf(differentCat), emptyList(), emptyList(), emptyList())
+    assertNotEquals("signature must change when categoryId changes", sigBase, sigCat)
 
-    assertEquals(9, parts.size)
-    assertEquals("1", parts[0]) // txCount
-    assertEquals("10000000", parts[1]) // txTotal
-    assertEquals("1", parts[2]) // loanCount
-    assertEquals("3000000", parts[3]) // loanRemaining
-    assertEquals("0", parts[4]) // loanSettled
-    assertEquals("1", parts[5]) // instCount
-    assertEquals("0", parts[6]) // instPaid
-    assertEquals("1000000", parts[7]) // instAmount
-    assertEquals("1", parts[8]) // catCount
+    // Changing transaction type while keeping amount identical must invalidate.
+    val differentType = createTransactionAt(TransactionType.INCOME, 3_000_000, fixedDate, 1L)
+    val sigType =
+      AdviceSignature.computeDataSignature(listOf(differentType), emptyList(), emptyList(), emptyList())
+    assertNotEquals("signature must change when transaction type changes", sigBase, sigType)
+
+    // Changing date while keeping amount/total identical must invalidate.
+    val differentDate =
+      createTransactionAt(TransactionType.EXPENSE, 3_000_000, 1_600_000_000_000L, 1L)
+    val sigDate =
+      AdviceSignature.computeDataSignature(listOf(differentDate), emptyList(), emptyList(), emptyList())
+    assertNotEquals("signature must change when date changes", sigBase, sigDate)
+
+    // Identical logical content (same explicit date) yields the same signature.
+    val sameAgain = createTransactionAt(TransactionType.EXPENSE, 3_000_000, fixedDate, 1L)
+    val sigSame =
+      AdviceSignature.computeDataSignature(listOf(sameAgain), emptyList(), emptyList(), emptyList())
+    assertEquals("identical content must produce identical signature", sigBase, sigSame)
   }
 
   @Test
