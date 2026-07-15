@@ -112,7 +112,7 @@ class MainActivity : FragmentActivity() {
                       listOf(
                         Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
                         Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
-                        Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
+                        Triple("LOANS", "قرض و طلب شخصی", Icons.Filled.HistoryEdu),
                         Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
                         Triple("BANK_LOANS", "وام بانکی", Icons.Filled.AccountBalance)
                       )

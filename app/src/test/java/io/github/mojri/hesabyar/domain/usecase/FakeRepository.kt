@@ -12,11 +12,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 internal class FakeRepository : HesabyarRepositoryInterface {
+  private val bankLoans = mutableListOf<BankLoan>()
+  private val installments = mutableListOf<Installment>()
+  private var nextId = 1L
+
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
   override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
   override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
-  override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
+  override val allBankLoans: Flow<List<BankLoan>> = flowOf(bankLoans.toList())
 
   override fun getTransactionsInRange(
     start: Long,
@@ -56,23 +60,34 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     customDate: Long?
   ): Boolean = false
 
-  override suspend fun insertInstallment(installment: Installment): Long = 0L
+  override suspend fun insertInstallment(installment: Installment): Long {
+    val id = nextId++
+    installments.add(installment.copy(id = id))
+    return id
+  }
 
   override suspend fun updateInstallment(installment: Installment) {}
 
   override suspend fun deleteInstallment(installment: Installment) {}
 
-  override suspend fun getBankLoanById(id: Long): BankLoan? = null
+  override suspend fun getBankLoanById(id: Long): BankLoan? = bankLoans.firstOrNull { it.id == id }
 
-  override suspend fun insertBankLoan(bankLoan: BankLoan): Long = 0L
+  override suspend fun insertBankLoan(bankLoan: BankLoan): Long {
+    val id = nextId++
+    bankLoans.add(bankLoan.copy(id = id))
+    return id
+  }
 
   override suspend fun updateBankLoan(bankLoan: BankLoan) {}
 
-  override suspend fun deleteBankLoan(bankLoan: BankLoan) {}
+  override suspend fun deleteBankLoan(bankLoan: BankLoan) {
+    bankLoans.removeIf { it.id == bankLoan.id }
+  }
 
-  override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> = emptyList()
+  override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> =
+    installments.filter { it.bankLoanId == bankLoanId }
 
-  override suspend fun getAllBankLoansSync(): List<BankLoan> = emptyList()
+  override suspend fun getAllBankLoansSync(): List<BankLoan> = bankLoans.toList()
 
   override suspend fun importBackup(
     transactions: List<Transaction>,
