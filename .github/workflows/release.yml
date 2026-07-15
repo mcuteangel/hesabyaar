@@ -126,21 +126,13 @@ jobs:
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
         run: ./gradlew testDebugUnitTest
 
-      - name: Build release APK
+      - name: Build release APK and AAB
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
-
-      - name: Build release AAB
-        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease
+        run: ./gradlew assembleRelease bundleRelease
 
       - name: Generate checksums
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
