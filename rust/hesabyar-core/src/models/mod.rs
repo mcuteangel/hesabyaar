@@ -135,6 +135,7 @@ pub struct BankLoanSummary {
     pub total_interest: i64,
     pub number_of_installments: i32,
     pub is_settled: bool,
+    pub remaining_debt: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -190,6 +191,7 @@ pub struct DashboardData {
     pub savings_rate: f64,
     pub debt_to_income_ratio: f64,
     pub bank_loans_total: i64,
+    pub bank_loans: Vec<BankLoanSummary>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

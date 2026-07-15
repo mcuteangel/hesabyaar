@@ -7,6 +7,30 @@ use std::collections::HashMap;
 /// - Monthly aggregates use the **Jalali calendar** (not Gregorian).
 /// - Category breakdown includes percentage-based burn rates.
 /// - Debt/credit summaries include progress toward settlement.
+
+/// Build per-bank-loan summary rows, computing the remaining outstanding debt.
+///
+/// Until per-loan installment linkage is tracked in Rust, `remaining_debt` is
+/// `0` when the loan is settled and the full `total_repayable_amount` otherwise.
+pub(crate) fn build_bank_loan_summaries(
+    bank_loans: &[BankLoan],
+    _installments: &[Installment],
+) -> Vec<BankLoanSummary> {
+    bank_loans
+        .iter()
+        .map(|b| BankLoanSummary {
+            bank_name: b.bank_name.clone(),
+            loan_name: b.loan_name.clone(),
+            received_amount: b.received_amount,
+            total_repayable_amount: b.total_repayable_amount,
+            total_interest: b.total_interest,
+            number_of_installments: b.number_of_installments,
+            is_settled: b.is_settled,
+            remaining_debt: if b.is_settled { 0 } else { b.total_repayable_amount },
+        })
+        .collect()
+}
+
 pub fn compute_analytics(
     transactions: &[Transaction],
     loans: &[Loan],
@@ -145,23 +169,8 @@ pub fn compute_analytics(
     let total_installments = installments.len() as i32;
     let paid_installments = installments.iter().filter(|i| i.is_paid).count() as i32;
 
-    let bank_loans: Vec<BankLoanSummary> = bank_loans
-        .iter()
-        .map(|b| BankLoanSummary {
-            bank_name: b.bank_name.clone(),
-            loan_name: b.loan_name.clone(),
-            received_amount: b.received_amount,
-            total_repayable_amount: b.total_repayable_amount,
-            total_interest: b.total_interest,
-            number_of_installments: b.number_of_installments,
-            is_settled: b.is_settled,
-        })
-        .collect();
-    let bank_loans_total_debt: i64 = bank_loans
-        .iter()
-        .filter(|b| !b.is_settled)
-        .map(|b| b.total_repayable_amount)
-        .sum();
+    let bank_loans = build_bank_loan_summaries(bank_loans, installments);
+    let bank_loans_total_debt: i64 = bank_loans.iter().map(|b| b.remaining_debt).sum();
 
     AnalyticsData {
         monthly_spending,

@@ -7,6 +7,7 @@
     <ID>CyclomaticComplexMethod:CustomTimePickerDialog.kt:@Composable fun CustomTimePickerDialog</ID>
     <ID>CyclomaticComplexMethod:DashboardScreen.kt:@Composable fun DashboardScreen</ID>
     <ID>CyclomaticComplexMethod:DashboardScreen.kt:@Composable fun ManualTransactionDialog</ID>
+    <ID>CyclomaticComplexMethod:InstallmentScreen.kt:@Composable fun InstallmentScreen</ID>
     <ID>CyclomaticComplexMethod:JalaliDatePickerDialog.kt:@Composable fun JalaliDatePickerDialog</ID>
     <ID>CyclomaticComplexMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
     <ID>CyclomaticComplexMethod:ManageBackupUseCase.kt:ManageBackupUseCase$suspend fun exportBackupJson: JSONObject</ID>
@@ -19,6 +20,7 @@
     <ID>CyclomaticComplexMethod:SmartAssistantScreen.kt:@Composable fun SmartAssistantScreen</ID>
     <ID>FunctionNaming:AmountQuickFillButtons.kt:@Composable fun AmountQuickFillButtons</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
+    <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun BarChart</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun CategoryBreakdownCard</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun CircularProgress</ID>
@@ -78,6 +80,7 @@
     <ID>FunctionNaming:Theme.kt:@Composable fun HesabyarTheme</ID>
     <ID>FunctionNaming:TransactionItem.kt:@Composable fun TransactionItem</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
+    <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun CategoryBreakdownCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun CombinedLineChartCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun DebtCreditSummaryCard</ID>
@@ -211,9 +214,6 @@
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO loans_new (id, personName, type, originalAmount, remainingAmount, description, date, isSettled) SELECT id, personName, type, CAST(originalAmount * 1000 AS INTEGER), CAST(remainingAmount * 1000 AS INTEGER), description, date, isSettled FROM loans"</ID>
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history"</ID>
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO transactions_new (id, type, category, amount, description, personName, date, dueDate, installmentId) SELECT id, type, category, CAST(amount * 1000 AS INTEGER), description, personName, date, dueDate, installmentId FROM transactions"</ID>
-    <ID>MaxLineLength:BankLoanScreen.kt:Text("قسط ماهانه: ${CurrencyFormatter.format(loan.monthlyInstallmentAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
-    <ID>MaxLineLength:BankLoanScreen.kt:Text("مبلغ دریافتی: ${CurrencyFormatter.format(loan.receivedAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
-    <ID>MaxLineLength:BankLoanScreen.kt:Text("مبلغ کل بازپرداخت: ${CurrencyFormatter.format(loan.totalRepayableAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
     <ID>PrintStackTrace:SmartAssistantScreen.kt:e</ID>
     <ID>ReturnCount:AiProvider.kt:AiProvider$private fun callOpenAiCompatible: ApiResult</ID>
     <ID>ReturnCount:AiProviderConfig.kt:AiConfigManager$fun getCachedModels: ModelCacheEntry?</ID>

@@ -132,7 +132,9 @@ class GetDashboardDataUseCase(
         creditorsTotal = creditors,
         upcomingInstallments = upcomingIns,
         savingsRate = savingsRate,
-        debtToIncomeRatio = debtToIncome
+        debtToIncomeRatio = debtToIncome,
+        bankLoans = emptyList(),
+        bankLoansTotal = 0L
       )
     }
   }

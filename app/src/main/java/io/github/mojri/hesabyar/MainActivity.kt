@@ -203,6 +203,7 @@ class MainActivity : FragmentActivity() {
                     InstallmentScreen(
                       installmentViewModel = installmentViewModel,
                       settingsViewModel = settingsViewModel,
+                      bankLoanViewModel = bankLoanViewModel,
                       modifier = modifier
                     )
                   "BANK_LOANS" ->

@@ -740,6 +740,48 @@ fun DashboardScreen(
         }
       }
 
+      // Bank Loans Summary
+      item {
+        if (dashboardData.bankLoans.isNotEmpty()) {
+          HesabyarCard {
+            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Text(
+                  text = "بدهی وام‌های بانکی",
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold
+                )
+                Text(
+                  text = CurrencyFormatter.format(dashboardData.bankLoansTotal),
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = FinancialColors.ExpenseRed
+                )
+              }
+              dashboardData.bankLoans.forEach { bl ->
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                  Text(
+                    text = "${bl.bankName} — ${bl.loanName}",
+                    style = MaterialTheme.typography.bodyMedium
+                  )
+                  Text(
+                    text = CurrencyFormatter.format(bl.remainingDebt),
+                    style = MaterialTheme.typography.bodyMedium
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+
       // Recent Activity Banner
       item {
         SectionHeader(

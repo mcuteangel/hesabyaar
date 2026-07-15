@@ -160,7 +160,9 @@ class GetAnalyticsUseCase {
       totalDebt = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount },
       totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount },
       totalInstallments = installments.size,
-      paidInstallments = installments.count { it.isPaid }
+      paidInstallments = installments.count { it.isPaid },
+      bankLoans = emptyList(),
+      bankLoansTotalDebt = 0L
     )
   }
 

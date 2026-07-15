@@ -33,7 +33,9 @@ object RustMappers {
       creditorsTotal = rust.creditorsTotal,
       upcomingInstallments = upcomingIns,
       savingsRate = rust.savingsRate,
-      debtToIncomeRatio = rust.debtToIncomeRatio
+      debtToIncomeRatio = rust.debtToIncomeRatio,
+      bankLoans = rust.bankLoans,
+      bankLoansTotal = rust.bankLoansTotal
     )
   }
 
@@ -74,7 +76,9 @@ object RustMappers {
       totalInstallments = rust.totalInstallments,
       paidInstallments = rust.paidInstallments,
       totalDebt = rust.totalDebt,
-      totalCredit = rust.totalCredit
+      totalCredit = rust.totalCredit,
+      bankLoans = rust.bankLoans,
+      bankLoansTotalDebt = rust.bankLoansTotalDebt
     )
   }
 

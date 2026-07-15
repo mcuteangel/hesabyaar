@@ -31,6 +31,7 @@ pub fn compute_dashboard_data(
                 savings_rate: 0.0,
                 debt_to_income_ratio: 0.0,
                 bank_loans_total: 0,
+                bank_loans: vec![],
             };
         }
     };
@@ -108,6 +109,8 @@ pub fn compute_dashboard_data(
         .map(|b| b.total_repayable_amount)
         .sum();
 
+    let bank_loans = crate::analytics::build_bank_loan_summaries(bank_loans, installments);
+
     DashboardData {
         current_balance,
         monthly_expenses,
@@ -117,6 +120,7 @@ pub fn compute_dashboard_data(
         savings_rate,
         debt_to_income_ratio: debt_to_income,
         bank_loans_total,
+        bank_loans,
     }
 }
 

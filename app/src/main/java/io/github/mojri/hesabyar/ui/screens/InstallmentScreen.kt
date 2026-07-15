@@ -3,9 +3,11 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
@@ -39,9 +42,10 @@ import java.util.*
 fun InstallmentScreen(
   installmentViewModel: InstallmentViewModel,
   settingsViewModel: SettingsViewModel,
+  bankLoanViewModel: BankLoanViewModel,
   modifier: Modifier = Modifier
 ) {
-  val installments by installmentViewModel.installments.collectAsState()
+  val installments by installmentViewModel.visibleInstallments.collectAsState()
 
   var showAddDialog by remember { mutableStateOf(false) }
   var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
@@ -76,6 +80,32 @@ fun InstallmentScreen(
         text = "ثبت قسط",
         modifier = Modifier.testTag("add_installment_button")
       )
+    }
+
+    // Bank-loan filter
+    val bankLoans by bankLoanViewModel.bankLoans.collectAsState()
+    val bankLoanFilter by installmentViewModel.bankLoanFilter.collectAsState()
+    if (bankLoans.isNotEmpty()) {
+      Row(
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+      ) {
+        HesabyarChip(
+          selected = bankLoanFilter == null,
+          onClick = { installmentViewModel.setBankLoanFilter(null) },
+          label = "همه وام‌ها"
+        )
+        bankLoans.forEach { bl ->
+          HesabyarChip(
+            selected = bankLoanFilter == bl.id,
+            onClick = { installmentViewModel.setBankLoanFilter(bl.id) },
+            label = "${bl.bankName} — ${bl.loanName}"
+          )
+        }
+      }
     }
 
     // Horizontal filter bar (Unpaid / Paid / All)
