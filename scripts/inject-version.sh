@@ -26,7 +26,7 @@ version_code=$((major * 10000 + minor * 100 + patch))
 echo "Injecting version: $version (code: $version_code)"
 
 # Update versionName
-if grep -q 'this.versionName = versionName' "$BUILD_FILE"; then
+if grep -q 'this.versionName = appVersionName' "$BUILD_FILE"; then
   echo "versionName already references external variable - no injection needed"
 else
   # Replace hardcoded versionName
@@ -36,7 +36,7 @@ else
 fi
 
 # Update versionCode
-if grep -q 'this.versionCode = versionCode' "$BUILD_FILE"; then
+if grep -q 'this.versionCode = appVersionCode' "$BUILD_FILE"; then
   echo "versionCode already references external variable - no injection needed"
 else
   sed -i.bak "s/versionCode = [0-9]*/versionCode = $version_code/" "$BUILD_FILE"

@@ -1,4 +1,6 @@
+import com.android.build.api.artifact.SingleArtifact
 import dev.detekt.gradle.Detekt
+import javax.xml.parsers.DocumentBuilderFactory
 
 val appId = "io.github.mojri.hesabyar"
 val storePwdKey = "KEYSTORE_PASSWORD"
@@ -126,8 +128,8 @@ require(versionMinor in 0..versionMaxSegment) {
 require(versionPatch in 0..versionMaxSegment) {
   "VERSION patch must be 0-$versionMaxSegment, got: $versionPatch"
 }
-val versionName = "$versionMajor.$versionMinor.$versionPatch"
-val versionCode =
+val appVersionName = "$versionMajor.$versionMinor.$versionPatch"
+val appVersionCode =
   versionMajor * versionMajorMultiplier + versionMinor * versionMinorMultiplier + versionPatch
 
 plugins {
@@ -150,8 +152,8 @@ android {
     applicationId = appId
     minSdk = 26
     targetSdk = 36
-    this.versionCode = versionCode
-    this.versionName = versionName
+    this.versionCode = appVersionCode
+    this.versionName = appVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -243,6 +245,71 @@ tasks.register("checkSigningConfig") {
       logger.lifecycle("✓ Signing configuration is valid.")
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// verifyReleaseManifestVersion — regression guard for the versionCode/versionName
+// manifest-injection bug. If defaultConfig.versionCode/versionName are not applied
+// (e.g. Kotlin DSL name shadowing), the generated release manifest is missing
+// android:versionCode / android:versionName, which makes `packageReleaseBundle`
+// fail late with "Version code not found in manifest". This task fails fast,
+// before bundleRelease, with a clear message.
+//
+// The manifest is obtained via the AGP Variant API (SingleArtifact.MERGED_MANIFEST)
+// instead of a hardcoded intermediates path, so it stays stable across AGP versions.
+// ---------------------------------------------------------------------------
+androidComponents {
+  onVariants { variant ->
+    if (variant.name != "release") return@onVariants
+
+    val mergedManifest = variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
+
+    tasks.register("verifyReleaseManifestVersion") {
+      group = "verification"
+      description =
+        "Fails if the generated release manifest lacks android:versionCode or android:versionName"
+
+      // The artifact provider also wires the dependency on the task that
+      // produces the merged manifest (processReleaseManifest).
+      inputs.file(mergedManifest)
+
+      doLast {
+        val manifestFile = mergedManifest.get().asFile
+        require(manifestFile.exists()) {
+          "Release manifest not found at ${manifestFile.absolutePath}"
+        }
+        val factory = DocumentBuilderFactory.newInstance()
+        factory.isNamespaceAware = true
+        val doc = factory.newDocumentBuilder().parse(manifestFile)
+        val manifest = doc.getElementsByTagName("manifest").item(0) as org.w3c.dom.Element
+        val androidNs = "http://schemas.android.com/apk/res/android"
+        val versionCode = manifest.getAttributeNS(androidNs, "versionCode")
+        val versionName = manifest.getAttributeNS(androidNs, "versionName")
+
+        if (versionCode.isBlank()) {
+          throw GradleException(
+            "FAIL: android:versionCode missing from generated release manifest " +
+              "(${manifestFile.absolutePath}). defaultConfig.versionCode was likely not applied."
+          )
+        }
+        if (versionName.isBlank()) {
+          throw GradleException(
+            "FAIL: android:versionName missing from generated release manifest " +
+              "(${manifestFile.absolutePath}). defaultConfig.versionName was likely not applied."
+          )
+        }
+        logger.lifecycle(
+          "✓ verifyReleaseManifestVersion: versionCode=$versionCode versionName=$versionName"
+        )
+      }
+    }
+  }
+}
+
+// Guarantee the guard runs before the App Bundle is built, so CI fails early.
+// AGP registers `bundleRelease` lazily, so use a live matching collection.
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+  dependsOn("verifyReleaseManifestVersion")
 }
 
 tasks.register<JacocoReport>("jacocoTestReport") {
