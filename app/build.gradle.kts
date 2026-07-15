@@ -259,19 +259,29 @@ tasks.register("checkSigningConfig") {
 // instead of a hardcoded intermediates path, so it stays stable across AGP versions.
 // ---------------------------------------------------------------------------
 androidComponents {
-  onVariants { variant ->
-    if (variant.name != "release") return@onVariants
+  // Select every variant whose build type is "release" (independent of product
+  // flavors or future variant naming), so the guard works even once flavors are added.
+  onVariants(selector().withBuildType("release")) { variant ->
+    val capitalized = variant.name.replaceFirstChar { it.uppercase() }
+    val verifyTaskName = "verify${capitalized}ManifestVersion"
 
     val mergedManifest = variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
 
-    tasks.register("verifyReleaseManifestVersion") {
+    tasks.register(verifyTaskName) {
       group = "verification"
       description =
-        "Fails if the generated release manifest lacks android:versionCode or android:versionName"
+        "Fails if the generated $capitalized manifest lacks android:versionCode or android:versionName"
 
       // The artifact provider also wires the dependency on the task that
-      // produces the merged manifest (processReleaseManifest).
+      // produces the merged manifest (process${capitalized}Manifest).
       inputs.file(mergedManifest)
+
+      // Declare a marker output so Gradle can skip the task when the merged
+      // manifest is unchanged. A task with no outputs is always out-of-date,
+      // so without this the XML parse would re-run on every bundle build.
+      val markerFile =
+        layout.buildDirectory.file("intermediates/verification/verified_${variant.name}.txt")
+      outputs.file(markerFile)
 
       doLast {
         val manifestFile = mergedManifest.get().asFile
@@ -281,35 +291,62 @@ androidComponents {
         val factory = DocumentBuilderFactory.newInstance()
         factory.isNamespaceAware = true
         val doc = factory.newDocumentBuilder().parse(manifestFile)
-        val manifest = doc.getElementsByTagName("manifest").item(0) as org.w3c.dom.Element
+        val manifest =
+          doc
+            .getElementsByTagName("manifest")
+            .item(0) as? org.w3c.dom.Element
+            ?: throw GradleException(
+              "FAIL: <manifest> element missing from generated $capitalized manifest " +
+                "(${manifestFile.absolutePath}). The merged manifest is malformed or " +
+                "missing its root <manifest> element."
+            )
         val androidNs = "http://schemas.android.com/apk/res/android"
         val versionCode = manifest.getAttributeNS(androidNs, "versionCode")
         val versionName = manifest.getAttributeNS(androidNs, "versionName")
 
         if (versionCode.isBlank()) {
           throw GradleException(
-            "FAIL: android:versionCode missing from generated release manifest " +
+            "FAIL: android:versionCode missing from generated $capitalized manifest " +
               "(${manifestFile.absolutePath}). defaultConfig.versionCode was likely not applied."
+          )
+        }
+        if (versionCode.toLongOrNull() != appVersionCode.toLong()) {
+          throw GradleException(
+            "FAIL: android:versionCode mismatch in generated $capitalized manifest " +
+              "(${manifestFile.absolutePath}). Expected $appVersionCode but found '$versionCode'. " +
+              "defaultConfig.versionCode was likely overridden or not applied."
           )
         }
         if (versionName.isBlank()) {
           throw GradleException(
-            "FAIL: android:versionName missing from generated release manifest " +
+            "FAIL: android:versionName missing from generated $capitalized manifest " +
               "(${manifestFile.absolutePath}). defaultConfig.versionName was likely not applied."
           )
         }
+        if (versionName != appVersionName) {
+          throw GradleException(
+            "FAIL: android:versionName mismatch in generated $capitalized manifest " +
+              "(${manifestFile.absolutePath}). Expected '$appVersionName' but found '$versionName'. " +
+              "defaultConfig.versionName was likely overridden or not applied."
+          )
+        }
         logger.lifecycle(
-          "✓ verifyReleaseManifestVersion: versionCode=$versionCode versionName=$versionName"
+          "✓ $verifyTaskName: versionCode=$versionCode versionName=$versionName"
+        )
+        markerFile.get().asFile.writeText(
+          "verified: versionCode=$versionCode versionName=$versionName"
         )
       }
     }
-  }
-}
 
-// Guarantee the guard runs before the App Bundle is built, so CI fails early.
-// AGP registers `bundleRelease` lazily, so use a live matching collection.
-tasks.matching { it.name == "bundleRelease" }.configureEach {
-  dependsOn("verifyReleaseManifestVersion")
+    // Guarantee the guard runs before the App Bundle for this variant is built,
+    // so CI fails early. AGP registers `bundle${capitalized}` lazily, so use a
+    // live matching collection — this also covers flavored bundle tasks such as
+    // `bundleFreeRelease`.
+    tasks.matching { it.name == "bundle$capitalized" }.configureEach {
+      dependsOn(verifyTaskName)
+    }
+  }
 }
 
 tasks.register<JacocoReport>("jacocoTestReport") {
