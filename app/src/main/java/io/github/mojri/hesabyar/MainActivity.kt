@@ -51,6 +51,7 @@ class MainActivity : FragmentActivity() {
   private val backupViewModel: BackupViewModel by viewModels()
   private val exportViewModel: ExportViewModel by viewModels()
   private val analyticsViewModel: AnalyticsViewModel by viewModels()
+  private val bankLoanViewModel: BankLoanViewModel by viewModels()
 
   private val notificationPermissionLauncher =
     registerForActivityResult(
@@ -112,7 +113,8 @@ class MainActivity : FragmentActivity() {
                         Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
                         Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
                         Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
-                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard)
+                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
+                        Triple("BANK_LOANS", "وام بانکی", Icons.Filled.AccountBalance)
                       )
 
                     tabs.forEach { (tabId, label, icon) ->
@@ -201,6 +203,11 @@ class MainActivity : FragmentActivity() {
                     InstallmentScreen(
                       installmentViewModel = installmentViewModel,
                       settingsViewModel = settingsViewModel,
+                      modifier = modifier
+                    )
+                  "BANK_LOANS" ->
+                    BankLoanScreen(
+                      bankLoanViewModel = bankLoanViewModel,
                       modifier = modifier
                     )
                   "ANALYTICS" ->

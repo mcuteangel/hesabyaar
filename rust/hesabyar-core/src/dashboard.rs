@@ -10,6 +10,7 @@ pub fn compute_dashboard_data(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
+    bank_loans: &[BankLoan],
 ) -> DashboardData {
     // --- Current Jalali month boundaries ---
     let now_ms = std::time::SystemTime::now()
@@ -29,6 +30,7 @@ pub fn compute_dashboard_data(
                 creditors_total: compute_creditors_total(loans),
                 savings_rate: 0.0,
                 debt_to_income_ratio: 0.0,
+                bank_loans_total: 0,
             };
         }
     };
@@ -90,6 +92,7 @@ pub fn compute_dashboard_data(
     let debt_to_income = crate::advisory::calculate_debt_to_income_ratio(
         loans, 
         &current_month_installments, 
+        bank_loans,
         monthly_income
     );
 
@@ -99,6 +102,12 @@ pub fn compute_dashboard_data(
         .filter(|i| !i.is_paid && i.due_date >= month_start_ms && i.due_date < month_end_ms)
         .collect();
 
+    let bank_loans_total: i64 = bank_loans
+        .iter()
+        .filter(|b| !b.is_settled)
+        .map(|b| b.total_repayable_amount)
+        .sum();
+
     DashboardData {
         current_balance,
         monthly_expenses,
@@ -107,6 +116,7 @@ pub fn compute_dashboard_data(
         creditors_total,
         savings_rate,
         debt_to_income_ratio: debt_to_income,
+        bank_loans_total,
     }
 }
 
@@ -192,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_empty_transactions() {
-        let result = compute_dashboard_data(&[], &[], &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[]);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
         assert_eq!(result.monthly_expenses, 0);
@@ -213,7 +223,7 @@ mod tests {
             tx(2, TransactionType::Expense, 300_000, now_ms, 2),
             tx(3, TransactionType::Income, 500_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         // Balance = +1,000,000 - 300,000 + 500,000 = 1,200,000
         assert_eq!(result.current_balance, 1_200_000);
     }
@@ -227,7 +237,7 @@ mod tests {
             tx(3, TransactionType::LoanCreditor, 200_000, now_ms, 1),
             tx(4, TransactionType::Installment, 100_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         // Only Income contributes: +1,000,000
         assert_eq!(result.current_balance, 1_000_000);
     }
@@ -244,7 +254,7 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Income, 2_000_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         // Only current month income counted
         assert_eq!(result.monthly_income, 1_000_000);
     }
@@ -257,7 +267,7 @@ mod tests {
             tx(1, TransactionType::Expense, 500_000, now_ms, 1),
             tx(2, TransactionType::Expense, 300_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         assert_eq!(result.monthly_expenses, 500_000);
     }
 
@@ -268,14 +278,14 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Expense, 400_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         // savings_rate = (1,000,000 - 400,000) / 1,000,000 = 0.6
         assert!((result.savings_rate - 0.6).abs() < 1e-10);
     }
 
     #[test]
     fn test_savings_rate_zero_income() {
-        let result = compute_dashboard_data(&[], &[], &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[]);
         assert_eq!(result.savings_rate, 0.0);
     }
 
@@ -291,7 +301,7 @@ mod tests {
             loan(3, "CREDITOR", 3_000_000, 1_000_000, false),
             loan(4, "DEBTOR", 500_000, 100_000, true), // settled — excluded
         ];
-        let result = compute_dashboard_data(&[], &loans, &[]);
+        let result = compute_dashboard_data(&[], &loans, &[], &[]);
         assert_eq!(result.debtors_total, 2_500_000);  // 500k + 2M
         assert_eq!(result.creditors_total, 1_000_000);
     }
@@ -302,7 +312,7 @@ mod tests {
             loan(1, "DEBTOR", 1_000_000, 500_000, true),
             loan(2, "CREDITOR", 2_000_000, 1_000_000, true),
         ];
-        let result = compute_dashboard_data(&[], &loans, &[]);
+        let result = compute_dashboard_data(&[], &loans, &[], &[]);
         assert_eq!(result.debtors_total, 0);
         assert_eq!(result.creditors_total, 0);
     }
@@ -317,7 +327,7 @@ mod tests {
         let txs = vec![tx(1, TransactionType::Income, 1_000_000, now_ms, 1)];
         let loans = vec![loan(1, "CREDITOR", 1_200_000, 600_000, false)];
         let installments = vec![installment(1, 100_000, now_ms, false)];
-        let result = compute_dashboard_data(&txs, &loans, &installments);
+        let result = compute_dashboard_data(&txs, &loans, &installments, &[]);
         // monthly_debt_payments = 100k (installment) + 600k/12 ≈ 50k = 150k
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
@@ -334,7 +344,7 @@ mod tests {
         // The dashboard must not convert or interpret them.
         let now_ms = now_jalali_month_ms();
         let txs = vec![tx(1, TransactionType::Income, 100, now_ms, 1)];
-        let result = compute_dashboard_data(&txs, &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[]);
         assert_eq!(result.monthly_income, 100);
         assert_eq!(result.current_balance, 100);
     }

@@ -14,6 +14,7 @@ data class BackupPayload(
   val installments: List<Installment> = emptyList(),
   val paymentHistories: List<PaymentHistory> = emptyList(),
   val categories: List<Category> = emptyList(),
+  val bankLoans: List<BankLoan> = emptyList(),
   val settings: BackupSettings = BackupSettings()
 )
 

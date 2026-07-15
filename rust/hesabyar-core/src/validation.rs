@@ -168,6 +168,45 @@ pub fn validate_installment_batch(installments: &[Installment]) -> ValidationRes
     }
 }
 
+/// Validate a single bank loan.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
+    if bl.bank_name.trim().is_empty() {
+        return Err("BankLoan bank_name must not be empty".into());
+    }
+    if bl.received_amount <= 0 {
+        return Err("BankLoan received_amount must be positive".into());
+    }
+    if bl.monthly_installment_amount <= 0 {
+        return Err("BankLoan monthly_installment_amount must be positive".into());
+    }
+    if bl.number_of_installments <= 0 {
+        return Err("BankLoan number_of_installments must be positive".into());
+    }
+    if bl.start_date <= 0 {
+        return Err("BankLoan start_date must be positive".into());
+    }
+    if bl.total_repayable_amount <= 0 {
+        return Err("BankLoan total_repayable_amount must be positive".into());
+    }
+    Ok(())
+}
+
+/// Validate a batch of bank loans. Collects all errors.
+pub fn validate_bank_loan_batch(bank_loans: &[BankLoan]) -> ValidationResult {
+    let mut errors = Vec::new();
+    for (i, bl) in bank_loans.iter().enumerate() {
+        if let Err(e) = validate_bank_loan(bl) {
+            errors.push(format!("BankLoan[{}]: {}", i, e));
+        }
+    }
+    ValidationResult {
+        is_valid: errors.is_empty(),
+        errors,
+    }
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
@@ -191,6 +230,7 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_transaction_batch(&payload.transactions).errors);
     errors.extend(validate_loan_batch(&payload.loans).errors);
     errors.extend(validate_installment_batch(&payload.installments).errors);
+    errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     ValidationResult {
         is_valid: errors.is_empty(),
         errors,
@@ -557,8 +597,9 @@ mod tests {
             transactions: vec![make_tx(50000, "coffee", 1)],
             loans: vec![make_loan(5000000, 3000000, "DEBTOR")],
             installments: vec![make_inst(2000000, "Car loan")],
-            categories: vec![],
-        };
+        bank_loans: vec![],
+        categories: vec![],
+    };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid);
     }
@@ -583,8 +624,9 @@ mod tests {
             transactions: vec![make_tx(0, "bad", 1)],
             loans: vec![make_loan(0, 0, "INVALID")],
             installments: vec![make_inst(0, "")],
-            categories: vec![],
-        };
+        bank_loans: vec![],
+        categories: vec![],
+    };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         // At least one error from each entity type
@@ -610,8 +652,9 @@ mod tests {
             ],
             loans: vec![],
             installments: vec![],
-            categories: vec![],
-        };
+        bank_loans: vec![],
+        categories: vec![],
+    };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         assert_eq!(result.errors.len(), 1);
@@ -628,6 +671,7 @@ mod tests {
             transactions: vec![make_tx(50000, "groceries", 0)],
             loans: vec![],
             installments: vec![],
+            bank_loans: vec![],
             categories: vec![Category {
                 id: 1,
                 name: "Food".into(),

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.rust
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
@@ -165,6 +166,21 @@ object RustMappers {
       notes = inst.notes
     )
 
+  fun mapBankLoan(bankLoan: BankLoan): io.github.mojri.hesabyar.rust.BankLoan =
+    io.github.mojri.hesabyar.rust.BankLoan(
+      id = bankLoan.id,
+      bankName = bankLoan.bankName,
+      loanName = bankLoan.loanName,
+      receivedAmount = bankLoan.receivedAmount,
+      monthlyInstallmentAmount = bankLoan.monthlyInstallmentAmount,
+      numberOfInstallments = bankLoan.numberOfInstallments,
+      totalRepayableAmount = bankLoan.totalRepayableAmount,
+      totalInterest = bankLoan.totalInterest,
+      startDate = bankLoan.startDate,
+      description = bankLoan.description,
+      isSettled = bankLoan.isSettled
+    )
+
   fun mapCategory(cat: Category): io.github.mojri.hesabyar.rust.Category =
     io.github.mojri.hesabyar.rust.Category(
       id = cat.id,
@@ -187,6 +203,8 @@ object RustMappers {
 
   fun mapInstallments(list: List<Installment>): List<io.github.mojri.hesabyar.rust.Installment> =
     list.map { mapInstallment(it) }
+
+  fun mapBankLoans(list: List<BankLoan>): List<io.github.mojri.hesabyar.rust.BankLoan> = list.map { mapBankLoan(it) }
 
   fun mapCategories(list: List<Category>): List<io.github.mojri.hesabyar.rust.Category> = list.map { mapCategory(it) }
 
@@ -234,6 +252,21 @@ object RustMappers {
       isPaid = inst.isPaid,
       reminderEnabled = inst.reminderEnabled,
       notes = inst.notes
+    )
+
+  fun fromRustBankLoan(bankLoan: io.github.mojri.hesabyar.rust.BankLoan): BankLoan =
+    BankLoan(
+      id = bankLoan.id,
+      bankName = bankLoan.bankName,
+      loanName = bankLoan.loanName,
+      receivedAmount = bankLoan.receivedAmount,
+      monthlyInstallmentAmount = bankLoan.monthlyInstallmentAmount,
+      numberOfInstallments = bankLoan.numberOfInstallments,
+      totalRepayableAmount = bankLoan.totalRepayableAmount,
+      totalInterest = bankLoan.totalInterest,
+      startDate = bankLoan.startDate,
+      description = bankLoan.description,
+      isSettled = bankLoan.isSettled
     )
 
   fun fromRustCategory(cat: io.github.mojri.hesabyar.rust.Category): Category =

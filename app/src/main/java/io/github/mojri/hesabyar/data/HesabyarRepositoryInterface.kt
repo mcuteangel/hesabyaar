@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import io.github.mojri.hesabyar.data.BankLoan
 import kotlinx.coroutines.flow.Flow
 
 interface HesabyarRepositoryInterface {
@@ -7,6 +8,7 @@ interface HesabyarRepositoryInterface {
   val allLoans: Flow<List<Loan>>
   val allInstallments: Flow<List<Installment>>
   val allCategories: Flow<List<Category>>
+  val allBankLoans: Flow<List<BankLoan>>
 
   fun getTransactionsInRange(
     start: Long,
@@ -52,11 +54,24 @@ interface HesabyarRepositoryInterface {
 
   suspend fun deleteInstallment(installment: Installment)
 
+  suspend fun getBankLoanById(id: Long): BankLoan?
+
+  suspend fun insertBankLoan(bankLoan: BankLoan): Long
+
+  suspend fun updateBankLoan(bankLoan: BankLoan)
+
+  suspend fun deleteBankLoan(bankLoan: BankLoan)
+
+  suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment>
+
+  suspend fun getAllBankLoansSync(): List<BankLoan>
+
   suspend fun importBackup(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
+    paymentHistories: List<PaymentHistory>,
+    bankLoans: List<BankLoan> = emptyList()
   )
 
   suspend fun replaceAllFromBackup(backup: BackupPayload)

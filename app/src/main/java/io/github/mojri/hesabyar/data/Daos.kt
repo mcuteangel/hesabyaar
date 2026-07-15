@@ -97,6 +97,39 @@ interface LoanDao {
 }
 
 @Dao
+interface BankLoanDao {
+  @Query("SELECT * FROM bank_loans ORDER BY startDate DESC")
+  fun getAllBankLoans(): Flow<List<BankLoan>>
+
+  @Query("SELECT * FROM bank_loans WHERE id = :id LIMIT 1")
+  suspend fun getBankLoanById(id: Long): BankLoan?
+
+  @Query("SELECT * FROM bank_loans ORDER BY startDate DESC")
+  suspend fun getAllBankLoansSync(): List<BankLoan>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertBankLoan(bankLoan: BankLoan): Long
+
+  @Update
+  suspend fun updateBankLoan(bankLoan: BankLoan)
+
+  @Delete
+  suspend fun deleteBankLoan(bankLoan: BankLoan)
+
+  @Query("DELETE FROM bank_loans")
+  suspend fun deleteAllBankLoans()
+
+  @Query("SELECT * FROM installments WHERE bankLoanId = :bankLoanId ORDER BY dueDate ASC")
+  fun getInstallmentsByBankLoanId(bankLoanId: Long): Flow<List<Installment>>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  fun insertAllBlocking(bankLoans: List<BankLoan>)
+
+  @Query("SELECT * FROM bank_loans ORDER BY startDate DESC")
+  fun getAllBankLoansBlocking(): List<BankLoan>
+}
+
+@Dao
 interface InstallmentDao {
   @Query("SELECT * FROM installments ORDER BY dueDate ASC")
   fun getAllInstallments(): Flow<List<Installment>>

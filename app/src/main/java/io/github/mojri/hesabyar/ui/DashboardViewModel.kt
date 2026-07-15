@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import kotlinx.coroutines.Dispatchers
@@ -31,9 +32,13 @@ class DashboardViewModel
       getDashboardDataUseCase.categories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val bankLoans: StateFlow<List<BankLoan>> =
+      getDashboardDataUseCase.bankLoans
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val dashboardState: StateFlow<DashboardData> =
-      combine(transactions, loans, installments) { trans, loanList, instList ->
-        getDashboardDataUseCase.computeDashboardData(trans, loanList, instList)
+      combine(transactions, loans, installments, bankLoans) { trans, loanList, instList, bankLoanList ->
+        getDashboardDataUseCase.computeDashboardData(trans, loanList, instList, bankLoanList)
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())

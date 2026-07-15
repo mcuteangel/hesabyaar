@@ -118,7 +118,8 @@ data class Installment(
   val dueDate: Long,
   val isPaid: Boolean = false,
   val reminderEnabled: Boolean = true,
-  val notes: String = ""
+  val notes: String = "",
+  val bankLoanId: Long? = null
 ) : Serializable
 
 @Entity(tableName = "payment_history")
@@ -129,3 +130,22 @@ data class PaymentHistory(
   val date: Long = System.currentTimeMillis(),
   val notes: String = ""
 ) : Serializable
+
+@Entity(tableName = "bank_loans")
+data class BankLoan(
+  @PrimaryKey(autoGenerate = true) val id: Long = 0,
+  val bankName: String,
+  val loanName: String,
+  val receivedAmount: Long, // Rial (actual disbursed amount)
+  val monthlyInstallmentAmount: Long, // Rial
+  val numberOfInstallments: Int,
+  val totalRepayableAmount: Long, // Rial
+  val totalInterest: Long, // Rial
+  val startDate: Long, // epoch millis
+  val description: String,
+  val isSettled: Boolean = false
+) : Serializable {
+  companion object {
+    private const val serialVersionUID: Long = 1L
+  }
+}

@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class HesabyarRepository(
   private val transactionDao: TransactionDao,
@@ -9,12 +10,14 @@ class HesabyarRepository(
   private val installmentDao: InstallmentDao,
   private val paymentHistoryDao: PaymentHistoryDao,
   private val categoryDao: CategoryDao,
+  private val bankLoanDao: BankLoanDao,
   private val database: AppDatabase
 ) : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
   override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
   override val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
+  override val allBankLoans: Flow<List<BankLoan>> = bankLoanDao.getAllBankLoans()
 
   override fun getTransactionsInRange(
     start: Long,
@@ -127,22 +130,42 @@ class HesabyarRepository(
     installmentDao.deleteInstallment(installment)
   }
 
+  override suspend fun getBankLoanById(id: Long): BankLoan? = bankLoanDao.getBankLoanById(id)
+
+  override suspend fun insertBankLoan(bankLoan: BankLoan): Long = bankLoanDao.insertBankLoan(bankLoan)
+
+  override suspend fun updateBankLoan(bankLoan: BankLoan) {
+    bankLoanDao.updateBankLoan(bankLoan)
+  }
+
+  override suspend fun deleteBankLoan(bankLoan: BankLoan) {
+    bankLoanDao.deleteBankLoan(bankLoan)
+  }
+
+  override suspend fun getAllBankLoansSync(): List<BankLoan> = bankLoanDao.getAllBankLoansSync()
+
   // Backup & Restore structure
+  override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> =
+    bankLoanDao.getInstallmentsByBankLoanId(bankLoanId).first()
+
   override suspend fun importBackup(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
+    paymentHistories: List<PaymentHistory>,
+    bankLoans: List<BankLoan>
   ) = database.withTransaction {
     transactionDao.deleteAllTransactions()
     loanDao.deleteAllLoans()
     installmentDao.deleteAllInstallments()
     paymentHistoryDao.deleteAllPaymentHistory()
+    bankLoanDao.deleteAllBankLoans()
 
     transactions.forEach { transactionDao.insertTransaction(it) }
     loans.forEach { loanDao.insertLoan(it) }
     installments.forEach { installmentDao.insertInstallment(it) }
     paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
+    bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
   }
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
@@ -153,12 +176,14 @@ class HesabyarRepository(
       loanDao.deleteAllLoans()
       installmentDao.deleteAllInstallments()
       paymentHistoryDao.deleteAllPaymentHistory()
+      bankLoanDao.deleteAllBankLoans()
 
       backup.categories.forEach { categoryDao.insertCategory(it) }
       backup.transactions.forEach { transactionDao.insertTransaction(it) }
       backup.loans.forEach { loanDao.insertLoan(it) }
       backup.installments.forEach { installmentDao.insertInstallment(it) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
+      backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
     }
 
   override suspend fun mergeFromBackup(backup: BackupPayload) =
@@ -196,6 +221,10 @@ class HesabyarRepository(
 
       for (payment in backup.paymentHistories) {
         paymentHistoryDao.insertPayment(payment)
+      }
+
+      for (bankLoan in backup.bankLoans) {
+        bankLoanDao.insertBankLoan(bankLoan)
       }
     }
 }

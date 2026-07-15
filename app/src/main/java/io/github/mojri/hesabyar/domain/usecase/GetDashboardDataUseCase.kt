@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
@@ -17,11 +18,13 @@ class GetDashboardDataUseCase(
   val loans: Flow<List<Loan>> = repository.allLoans
   val installments: Flow<List<Installment>> = repository.allInstallments
   val categories: Flow<List<Category>> = repository.allCategories
+  val bankLoans: Flow<List<BankLoan>> = repository.allBankLoans
 
   fun computeDashboardData(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
@@ -30,7 +33,8 @@ class GetDashboardDataUseCase(
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapInstallments(installments)
+          .mapInstallments(installments),
+        bankLoans
       )
 
     // Use the Rust result unless it failed (null) or came back as an all-zero

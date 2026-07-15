@@ -2,18 +2,13 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ComplexCondition:GeminiParser.kt:GeminiParser$text.contains(KEYWORD_OT) || text.contains("حقوق") || text.contains("درآمد") || (text.contains("فروش") &amp;&amp; !text.contains("فروشگاه")) || text.contains("واریز") || text.contains("سود")</ID>
     <ID>CyclomaticComplexMethod:AiAssistantViewModel.kt:AiAssistantViewModel$fun fetchBudgetAdvice</ID>
     <ID>CyclomaticComplexMethod:AnalyticsScreen.kt:@Composable private fun CombinedLineChartCard</ID>
     <ID>CyclomaticComplexMethod:CustomTimePickerDialog.kt:@Composable fun CustomTimePickerDialog</ID>
     <ID>CyclomaticComplexMethod:DashboardScreen.kt:@Composable fun DashboardScreen</ID>
     <ID>CyclomaticComplexMethod:DashboardScreen.kt:@Composable fun ManualTransactionDialog</ID>
-    <ID>CyclomaticComplexMethod:GeminiParser.kt:GeminiParser$private fun detectType: String</ID>
-    <ID>CyclomaticComplexMethod:GeminiParser.kt:GeminiParser$suspend fun getBudgetAdvice: String?</ID>
-    <ID>CyclomaticComplexMethod:JalaliCalendarHelper.kt:JalaliCalendarHelper$fun gregorianToJalaliLocal: JalaliDate?</ID>
     <ID>CyclomaticComplexMethod:JalaliDatePickerDialog.kt:@Composable fun JalaliDatePickerDialog</ID>
     <ID>CyclomaticComplexMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
-    <ID>CyclomaticComplexMethod:ManageBackupUseCase.kt:ManageBackupUseCase$private fun parseBackupJsonKotlin: BackupPayload?</ID>
     <ID>CyclomaticComplexMethod:ManageBackupUseCase.kt:ManageBackupUseCase$suspend fun exportBackupJson: JSONObject</ID>
     <ID>CyclomaticComplexMethod:PinScreen.kt:@Composable fun PinScreen</ID>
     <ID>CyclomaticComplexMethod:ReportsScreen.kt:@Composable fun ReportsScreen</ID>
@@ -34,6 +29,10 @@
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun LoanStatusCard</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun MonthlyTrendCard</ID>
     <ID>FunctionNaming:BalanceCard.kt:@Composable fun BalanceCard</ID>
+    <ID>FunctionNaming:BankLoanScreen.kt:@Composable fun BankLoanScreen</ID>
+    <ID>FunctionNaming:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
+    <ID>FunctionNaming:BankLoanScreen.kt:@Composable private fun BankLoanForm</ID>
+    <ID>FunctionNaming:BankLoanScreen.kt:@Composable private fun BankLoanItem</ID>
     <ID>FunctionNaming:CategoryChip.kt:@Composable fun CategoryFilterChip</ID>
     <ID>FunctionNaming:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
     <ID>FunctionNaming:CategoryManagementScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun CategoryManagementScreen</ID>
@@ -86,6 +85,7 @@
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun LoanStatusCard</ID>
     <ID>LongMethod:AppDatabase.kt:AppDatabase.Companion$private fun migratePlaintextToEncryptedIfNeeded</ID>
     <ID>LongMethod:BalanceCard.kt:@Composable fun BalanceCard</ID>
+    <ID>LongMethod:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
     <ID>LongMethod:BudgetAdvisor.kt:BudgetAdvisor$suspend fun getBudgetForecast: String</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun CategoryManagementScreen</ID>
@@ -98,8 +98,6 @@
     <ID>LongMethod:DashboardScreen.kt:@Composable fun ManualTransactionDialog</ID>
     <ID>LongMethod:DashboardScreen.kt:@Composable fun TransactionDetailDialog</ID>
     <ID>LongMethod:DashboardScreen.kt:@Composable fun TransactionMiniItem</ID>
-    <ID>LongMethod:GeminiParser.kt:GeminiParser$fun getBudgetAdviceOffline: String</ID>
-    <ID>LongMethod:GeminiParser.kt:GeminiParser$suspend fun getBudgetAdvice: String?</ID>
     <ID>LongMethod:GetAnalyticsUseCase.kt:GetAnalyticsUseCase$fun computeAnalytics: AnalyticsData</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentListItem</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentScreen</ID>
@@ -108,7 +106,6 @@
     <ID>LongMethod:LoanManagementScreen.kt:@Composable fun LoanManagementScreen</ID>
     <ID>LongMethod:LockScreen.kt:@Composable fun LockScreen</ID>
     <ID>LongMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
-    <ID>LongMethod:ManageBackupUseCase.kt:ManageBackupUseCase$private fun parseBackupJsonKotlin: BackupPayload?</ID>
     <ID>LongMethod:ManageBackupUseCase.kt:ManageBackupUseCase$suspend fun exportBackupJson: JSONObject</ID>
     <ID>LongMethod:PinScreen.kt:@Composable fun PinScreen</ID>
     <ID>LongMethod:ReportsScreen.kt:@Composable fun ReportsScreen</ID>
@@ -129,12 +126,10 @@
     <ID>MagicNumber:AnalyticsScreen.kt:8f</ID>
     <ID>MagicNumber:AuthManager.kt:AuthManager$1000L</ID>
     <ID>MagicNumber:AuthManager.kt:AuthManager$60</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$0.2</ID>
     <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$0.3</ID>
     <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$0.4</ID>
     <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$100</ID>
     <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$3</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$30</ID>
     <ID>MagicNumber:CategoryChip.kt:0.179f</ID>
     <ID>MagicNumber:CategoryChip.kt:0.5f</ID>
     <ID>MagicNumber:CategoryManagementScreen.kt:7</ID>
@@ -158,7 +153,6 @@
     <ID>MagicNumber:DashboardScreen.kt:5</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$0x0660</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$0x06F0</ID>
-    <ID>MagicNumber:GeminiParser.kt:GeminiParser$10</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$1_000</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$1_000_000</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$2</ID>
@@ -196,7 +190,6 @@
     <ID>MagicNumber:ReminderSettingsManager.kt:ReminderSettingsManager$59</ID>
     <ID>MagicNumber:ReminderSettingsManager.kt:ReminderSettingsManager$7</ID>
     <ID>MagicNumber:ReminderSettingsManager.kt:ReminderSettingsManager$8</ID>
-    <ID>MagicNumber:RustBridge.kt:RustBridge$30</ID>
     <ID>MagicNumber:SettingsScreen.kt:1.1f</ID>
     <ID>MagicNumber:SettingsScreen.kt:10</ID>
     <ID>MagicNumber:SettingsScreen.kt:1000</ID>
@@ -218,9 +211,9 @@
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO loans_new (id, personName, type, originalAmount, remainingAmount, description, date, isSettled) SELECT id, personName, type, CAST(originalAmount * 1000 AS INTEGER), CAST(remainingAmount * 1000 AS INTEGER), description, date, isSettled FROM loans"</ID>
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history"</ID>
     <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO transactions_new (id, type, category, amount, description, personName, date, dueDate, installmentId) SELECT id, type, category, CAST(amount * 1000 AS INTEGER), description, personName, date, dueDate, installmentId FROM transactions"</ID>
-    <ID>MaxLineLength:GeminiParser.kt:GeminiParser$"شما هنوز هیچ تراکنشی ثبت نکرده‌اید! اولین تراکنش‌های دریافتی یا مخارج خود را ثبت کنید تا حسابیار بتواند رفتار مالی شما را تحلیل کند."</ID>
-    <ID>MaxLineLength:GeminiParser.kt:GeminiParser$"📉 **جذب و ثبت درآمد**: شما تاکنون درآمد چشمگیری ثبت نکرده‌اید اما هزینه‌های ثبت شده وجود دارد. تلاش کنید درآمدهای خود را نیز ثبت کنید تا نسبت درآمد به مخارج دقیق‌تر محاسبه شود.\n\n"</ID>
-    <ID>MaxLineLength:GeminiParser.kt:GeminiParser$"📊 **بزرگترین کانون هزینه**: دسته‌بندی **$catName** با سهمی معادل ${catPct.toInt()}٪، بیشترین میزان مصرف نقدینگی را داشته است. بررسی کنید آیا امکان کنترل هزینه‌ها در این بخش وجود دارد یا خیر.\n\n"</ID>
+    <ID>MaxLineLength:BankLoanScreen.kt:Text("قسط ماهانه: ${CurrencyFormatter.format(loan.monthlyInstallmentAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
+    <ID>MaxLineLength:BankLoanScreen.kt:Text("مبلغ دریافتی: ${CurrencyFormatter.format(loan.receivedAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
+    <ID>MaxLineLength:BankLoanScreen.kt:Text("مبلغ کل بازپرداخت: ${CurrencyFormatter.format(loan.totalRepayableAmount)}", style = MaterialTheme.typography.bodyMedium)</ID>
     <ID>PrintStackTrace:SmartAssistantScreen.kt:e</ID>
     <ID>ReturnCount:AiProvider.kt:AiProvider$private fun callOpenAiCompatible: ApiResult</ID>
     <ID>ReturnCount:AiProviderConfig.kt:AiConfigManager$fun getCachedModels: ModelCacheEntry?</ID>
@@ -267,15 +260,6 @@
     <ID>UnnecessaryParentheses:AnalyticsScreen.kt:(paid * 100 / total)</ID>
     <ID>UnnecessaryParentheses:AnalyticsScreen.kt:(value.toFloat() / maxValue)</ID>
     <ID>UnnecessaryParentheses:CustomTimePickerDialog.kt:(Math.round(angle / 6.0).toInt() % 60)</ID>
-    <ID>UnnecessaryParentheses:GeminiParser.kt:GeminiParser$(balance * 100.0 / incomeTotal)</ID>
-    <ID>UnnecessaryParentheses:GeminiParser.kt:GeminiParser$(text.contains("فروش") &amp;&amp; !text.contains("فروشگاه"))</ID>
-    <ID>UnnecessaryParentheses:GetAnalyticsUseCase.kt:GetAnalyticsUseCase$(now - 30L * 24 * 60 * 60 * 1000)</ID>
-    <ID>UnnecessaryParentheses:GetDashboardDataUseCase.kt:GetDashboardDataUseCase.Companion$(now - 30L * 24 * 60 * 60 * 1000)</ID>
-    <ID>UnnecessaryParentheses:JalaliCalendarHelper.kt:JalaliCalendarHelper$(base / 33 + 1)</ID>
-    <ID>UnnecessaryParentheses:JalaliCalendarHelper.kt:JalaliCalendarHelper$(base / 33 - 1)</ID>
-    <ID>UnnecessaryParentheses:JalaliCalendarHelper.kt:JalaliCalendarHelper$(j2 % 1461)</ID>
-    <ID>UnnecessaryParentheses:JalaliCalendarHelper.kt:JalaliCalendarHelper$(packed shr MONTH_SHIFT)</ID>
-    <ID>UnnecessaryParentheses:JalaliCalendarHelper.kt:JalaliCalendarHelper$(year % 33)</ID>
     <ID>UnnecessaryParentheses:JalaliDatePickerDialog.kt:(index % 7)</ID>
     <ID>UnnecessaryParentheses:ParseTransactionUseCase.kt:ParseTransactionUseCase$(System.currentTimeMillis() + (days * 24L * 60L * 60L * 1000L))</ID>
     <ID>UnnecessaryParentheses:ParseTransactionUseCase.kt:ParseTransactionUseCase$(days * 24L * 60L * 60L * 1000L)</ID>

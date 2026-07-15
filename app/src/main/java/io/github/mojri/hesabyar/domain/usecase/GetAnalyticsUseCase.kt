@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -44,7 +45,8 @@ class GetAnalyticsUseCase {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -55,7 +57,8 @@ class GetAnalyticsUseCase {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapCategories(categories)
+          .mapCategories(categories),
+        bankLoans
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -242,7 +243,8 @@ object BudgetAdvisor {
   fun getOfflineForecast(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineForecastSync(
@@ -251,7 +253,8 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapInstallments(installments)
+          .mapInstallments(installments),
+        bankLoans
       )
     if (rustResult.isNotEmpty()) return rustResult
 
@@ -298,7 +301,8 @@ object BudgetAdvisor {
   fun calculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
-    monthlyIncome: Long
+    monthlyIncome: Long,
+    bankLoans: List<BankLoan> = emptyList()
   ): Double =
     if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
       io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
@@ -306,7 +310,8 @@ object BudgetAdvisor {
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
-        monthlyIncome
+        monthlyIncome,
+        bankLoans
       )
     } else {
       localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome)
@@ -420,7 +425,8 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): Int =
     if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
       io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
@@ -431,7 +437,8 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapCategories(categories)
+          .mapCategories(categories),
+        bankLoans
       )
     } else {
       localCalculateFinancialHealthScore(transactions, loans, installments)

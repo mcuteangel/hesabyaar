@@ -1,4 +1,4 @@
-use crate::models::{Category, CurrencyUnit, Installment, Loan, Transaction, TransactionType};
+use crate::models::{BankLoan, Category, CurrencyUnit, Installment, Loan, Transaction, TransactionType};
 use crate::currency::format_currency;
 
 /// Get offline budget advice based on local rules.
@@ -83,6 +83,7 @@ pub fn get_offline_forecast(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
+    bank_loans: &[BankLoan],
 ) -> String {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -100,7 +101,12 @@ pub fn get_offline_forecast(
         .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
         .map(|l| l.remaining_amount / 12)
         .sum();
-    let total_obligations = upcoming_sum + unsettled_creditor_loan_monthly;
+    let bank_loan_monthly: i64 = bank_loans
+        .iter()
+        .filter(|b| !b.is_settled)
+        .map(|b| b.monthly_installment_amount)
+        .sum();
+    let total_obligations = upcoming_sum + unsettled_creditor_loan_monthly + bank_loan_monthly;
 
     if transactions.is_empty() && total_obligations == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
@@ -176,6 +182,7 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
 pub fn calculate_debt_to_income_ratio(
     loans: &[Loan],
     installments: &[Installment],
+    bank_loans: &[BankLoan],
     monthly_income: i64,
 ) -> f64 {
     let monthly_debt_payments: i64 = installments
@@ -187,6 +194,11 @@ pub fn calculate_debt_to_income_ratio(
             .iter()
             .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
             .map(|l| l.remaining_amount / 12)
+            .sum::<i64>()
+        + bank_loans
+            .iter()
+            .filter(|b| !b.is_settled)
+            .map(|b| b.monthly_installment_amount)
             .sum::<i64>();
 
     if monthly_income <= 0 && monthly_debt_payments > 0 {
@@ -230,6 +242,7 @@ pub fn calculate_financial_health_score(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
+    bank_loans: &[BankLoan],
     _categories: &[Category],
 ) -> i32 {
     let now_ms = std::time::SystemTime::now()
@@ -268,7 +281,7 @@ pub fn calculate_financial_health_score(
     // all-time accumulated income does not understate the ratio relative to
     // the monthly debt/installment obligations.
     let monthly_income = monthly_income_baseline(transactions, now_ms);
-    let debt_ratio = calculate_debt_to_income_ratio(loans, installments, monthly_income);
+    let debt_ratio = calculate_debt_to_income_ratio(loans, installments, bank_loans, monthly_income);
     score += if debt_ratio <= 0.1 {
         15
     } else if debt_ratio <= 0.2 {
@@ -332,8 +345,8 @@ mod tests {
 
     #[test]
     fn test_debt_to_income_ratio() {
-        assert_eq!(calculate_debt_to_income_ratio(&[], &[], 0), 0.0);
-        assert_eq!(calculate_debt_to_income_ratio(&[], &[], 100000), 0.0);
+        assert_eq!(calculate_debt_to_income_ratio(&[], &[], &[], 0), 0.0);
+        assert_eq!(calculate_debt_to_income_ratio(&[], &[], &[], 100000), 0.0);
     }
 
     fn now_ms() -> i64 {
@@ -457,7 +470,7 @@ mod tests {
 
     #[test]
     fn test_forecast_empty_returns_no_data_message() {
-        let result = get_offline_forecast(&[], &[], &[]);
+        let result = get_offline_forecast(&[], &[], &[], &[]);
         assert!(result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
     }
 
@@ -468,7 +481,7 @@ mod tests {
             sample_tx(1, TransactionType::Income, 1_000_000, now - 5 * 24 * 60 * 60 * 1000),
             sample_tx(2, TransactionType::Expense, 5_000_000, now - 5 * 24 * 60 * 60 * 1000),
         ];
-        let result = get_offline_forecast(&txs, &[], &[]);
+        let result = get_offline_forecast(&txs, &[], &[], &[]);
         // est_balance negative → warning
         assert!(result.contains("\u{0647}\u{0634}\u{062F}\u{0627}\u{0631}"));
     }
@@ -480,7 +493,7 @@ mod tests {
             sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
             sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
         ];
-        let result = get_offline_forecast(&txs, &[], &[]);
+        let result = get_offline_forecast(&txs, &[], &[], &[]);
         // est_balance positive → surplus
         assert!(result.contains("\u{0648}\u{0636}\u{0639}\u{06CC}\u{062A}"));
     }
@@ -501,7 +514,7 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
         }];
-        let result = get_offline_forecast(&txs, &[], &installments);
+        let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
         assert!(result.contains("\u{0627}\u{0642}\u{0633}\u{0627}\u{0637}"));
     }
@@ -523,7 +536,7 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
         }];
-        let result = get_offline_forecast(&txs, &[], &installments);
+        let result = get_offline_forecast(&txs, &[], &installments, &[]);
         assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
         assert!(!result.contains("10,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
     }
@@ -540,7 +553,7 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
         }];
-        let result = get_offline_forecast(&[], &[], &installments);
+        let result = get_offline_forecast(&[], &[], &installments, &[]);
         // Has unpaid installments → not empty, shows forecast
         assert!(result.contains("\u{062A}\u{0639}\u{0647}\u{062F}"));
     }
@@ -561,7 +574,7 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
         }];
-        let result = get_offline_forecast(&txs, &[], &installments);
+        let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Overdue (past-due) unpaid installment is outside the window → must NOT contribute.
         assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
     }
@@ -582,7 +595,7 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
         }];
-        let result = get_offline_forecast(&txs, &[], &installments);
+        let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Due 60 days out is outside the 30-day window → must NOT contribute to obligations.
         assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
     }
@@ -615,6 +628,7 @@ mod tests {
             &[],
             &[installment.clone()],
             &[],
+            &[],
         );
 
         // --- Case B: only ancient income → monthly_income = 0 → debt ratio = 1.0 → penalty ---
@@ -623,6 +637,7 @@ mod tests {
             &txs_ancient,
             &[],
             &[installment],
+            &[],
             &[],
         );
 

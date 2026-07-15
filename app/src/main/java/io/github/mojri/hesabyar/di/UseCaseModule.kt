@@ -15,6 +15,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
+import io.github.mojri.hesabyar.domain.usecase.ManageBankLoanUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
@@ -40,6 +41,10 @@ object UseCaseModule {
   @Provides
   fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase =
     ManageInstallmentUseCase(repository)
+
+  @Provides
+  fun provideManageBankLoanUseCase(repository: HesabyarRepositoryInterface): ManageBankLoanUseCase =
+    ManageBankLoanUseCase(repository)
 
   @Provides
   fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase =

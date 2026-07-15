@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
@@ -15,6 +16,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
   override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+  override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
 
   override fun getTransactionsInRange(
     start: Long,
@@ -60,11 +62,24 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun deleteInstallment(installment: Installment) {}
 
+  override suspend fun getBankLoanById(id: Long): BankLoan? = null
+
+  override suspend fun insertBankLoan(bankLoan: BankLoan): Long = 0L
+
+  override suspend fun updateBankLoan(bankLoan: BankLoan) {}
+
+  override suspend fun deleteBankLoan(bankLoan: BankLoan) {}
+
+  override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> = emptyList()
+
+  override suspend fun getAllBankLoansSync(): List<BankLoan> = emptyList()
+
   override suspend fun importBackup(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
+    paymentHistories: List<PaymentHistory>,
+    bankLoans: List<BankLoan>
   ) {}
 
   override suspend fun replaceAllFromBackup(backup: BackupPayload) {}

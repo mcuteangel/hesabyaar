@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -57,6 +58,11 @@ class ManageBackupUseCase(
                 io.github.mojri.hesabyar.rust.RustMappers
                   .fromRustCategory(it)
               },
+            bankLoans =
+              rustResult.bankLoans.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustBankLoan(it)
+              },
             settings = parseSettings(rootJson)
           )
         } catch (_: IllegalArgumentException) {
@@ -106,6 +112,7 @@ class ManageBackupUseCase(
         installments = parseInstallmentsFromJson(root),
         paymentHistories = parsePaymentHistories(root),
         categories = parseCategories(root),
+        bankLoans = parseBankLoansFromJson(root),
         settings = parseSettings(root)
       )
     } catch (_: Exception) {
@@ -197,6 +204,26 @@ class ManageBackupUseCase(
     }
   }
 
+  private fun parseBankLoansFromJson(root: JSONObject): List<BankLoan> =
+    root.optJSONArray("bankLoans")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        BankLoan(
+          id = o.optLong("id", 0L),
+          bankName = o.optString("bankName", ""),
+          loanName = o.optString("loanName", ""),
+          receivedAmount = o.optLong("receivedAmount", 0L),
+          monthlyInstallmentAmount = o.optLong("monthlyInstallmentAmount", 0L),
+          numberOfInstallments = o.optInt("numberOfInstallments", 0),
+          totalRepayableAmount = o.optLong("totalRepayableAmount", 0L),
+          totalInterest = o.optLong("totalInterest", 0L),
+          startDate = o.optLong("startDate", 0L),
+          description = o.optString("description", ""),
+          isSettled = o.optBoolean("isSettled", false)
+        )
+      }
+    } ?: emptyList()
+
   private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
     io.github.mojri.hesabyar.rust.BackupPayload(
       version = version,
@@ -211,6 +238,9 @@ class ManageBackupUseCase(
       installments =
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
+      bankLoans =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapBankLoans(bankLoans),
       categories =
         io.github.mojri.hesabyar.rust.RustMappers
           .mapCategories(categories)
@@ -333,6 +363,7 @@ class ManageBackupUseCase(
     val curTrans = repository.allTransactions.firstOrNull() ?: emptyList()
     val curLoans = repository.allLoans.firstOrNull() ?: emptyList()
     val curInstallments = repository.allInstallments.firstOrNull() ?: emptyList()
+    val curBankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
     val allPayments = repository.getAllPaymentHistories()
 
     val catArray = JSONArray()
@@ -402,6 +433,26 @@ class ManageBackupUseCase(
     }
     rootJson.put("installments", instArray)
 
+    val bankLoansArray = JSONArray()
+    curBankLoans.forEach {
+      bankLoansArray.put(
+        JSONObject().apply {
+          put("id", it.id)
+          put("bankName", it.bankName)
+          put("loanName", it.loanName)
+          put("receivedAmount", it.receivedAmount)
+          put("monthlyInstallmentAmount", it.monthlyInstallmentAmount)
+          put("numberOfInstallments", it.numberOfInstallments)
+          put("totalRepayableAmount", it.totalRepayableAmount)
+          put("totalInterest", it.totalInterest)
+          put("startDate", it.startDate)
+          put("description", it.description)
+          put("isSettled", it.isSettled)
+        }
+      )
+    }
+    rootJson.put("bankLoans", bankLoansArray)
+
     val paymentsArray = JSONArray()
     allPayments.forEach {
       paymentsArray.put(
@@ -424,7 +475,7 @@ class ManageBackupUseCase(
   }
 
   fun buildBackupSummary(backup: BackupPayload): String =
-    "${backup.transactions.size} تراکنش، ${backup.loans.size} وام، ${backup.installments.size} قسط، ${backup.categories.size} دسته‌بندی بازیابی شد."
+    "${backup.transactions.size} تراکنش، ${backup.loans.size} وام، ${backup.installments.size} قسط، ${backup.categories.size} دسته‌بندی، ${backup.bankLoans.size} وام بانکی بازیابی شد."
 
   fun buildExportSummary(
     transCount: Int,
