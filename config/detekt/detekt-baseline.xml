@@ -48,6 +48,13 @@
     <ID>FunctionNaming:DashboardScreen.kt:@Composable fun ManualTransactionDialog</ID>
     <ID>FunctionNaming:DashboardScreen.kt:@Composable fun TransactionDetailDialog</ID>
     <ID>FunctionNaming:DashboardScreen.kt:@Composable fun TransactionMiniItem</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun DashboardHeader</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun SmartForecastCard</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun IncomeExpenseCards</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun KpiCards</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun DebtorCreditorCards</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun SmartParsingBanner</ID>
+    <ID>FunctionNaming:DashboardComponents.kt:@Composable internal fun BankLoansSummaryCard</ID>
     <ID>FunctionNaming:EmptyState.kt:@Composable fun EmptyState</ID>
     <ID>FunctionNaming:HesabyarButton.kt:@Composable fun HesabyarButton</ID>
     <ID>FunctionNaming:HesabyarButton.kt:@Composable private fun ButtonContent</ID>
@@ -101,6 +108,10 @@
     <ID>LongMethod:DashboardScreen.kt:@Composable fun ManualTransactionDialog</ID>
     <ID>LongMethod:DashboardScreen.kt:@Composable fun TransactionDetailDialog</ID>
     <ID>LongMethod:DashboardScreen.kt:@Composable fun TransactionMiniItem</ID>
+    <ID>LongMethod:DashboardComponents.kt:@Composable internal fun SmartForecastCard</ID>
+    <ID>LongMethod:DashboardComponents.kt:@Composable internal fun IncomeExpenseCards</ID>
+    <ID>LongMethod:DashboardComponents.kt:@Composable internal fun KpiCards</ID>
+    <ID>LongMethod:DashboardComponents.kt:@Composable internal fun DebtorCreditorCards</ID>
     <ID>LongMethod:GetAnalyticsUseCase.kt:GetAnalyticsUseCase$fun computeAnalytics: AnalyticsData</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentListItem</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentScreen</ID>
@@ -292,6 +303,10 @@
     <ID>WildcardImport:DashboardScreen.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:DashboardScreen.kt:import androidx.compose.material.icons.filled.*</ID>
     <ID>WildcardImport:DashboardScreen.kt:import androidx.compose.material3.*</ID>
+    <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.animation.*</ID>
+    <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.foundation.layout.*</ID>
+    <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.material.icons.filled.*</ID>
+    <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.material3.*</ID>
     <ID>WildcardImport:DashboardViewModel.kt:import kotlinx.coroutines.flow.*</ID>
     <ID>WildcardImport:EmptyState.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:InstallmentItem.kt:import androidx.compose.foundation.layout.*</ID>
