@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.ui.designsystem
 
 import androidx.compose.ui.unit.dp
 
+// Spacing design tokens for consistent layout spacing across the app
 object SpacingTokens {
   val xs = 4.dp
   val sm = 8.dp
