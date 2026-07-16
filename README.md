@@ -26,8 +26,8 @@
 
 ### هسته مشترک (Rust Core)
 
-از نسخه 2.0 به بعد، منطق محاسبه‌ی مالی، پردازش زبان طبیعی فارسی، تبدیل تقویم جلالی/میلادی، فرمت‌سازی پول، و алгоритم‌های تحلیلی به یک **هسته مشترک Rust** (`hesabyar-core`) استخراج شده‌اند. این لایه:
-- کدهای داغ JVM (تجزیه مقدار، تبدیل تاریخ) را با **UniFFI** به اندروید (Kotlin) و دسکتاپ (Rust) هدیه می‌دهد
+از نسخه 2.0 به بعد، منطق محاسبه‌ی مالی، پردازش زبان طبیعی فارسی، تبدیل تقویم جلالی/میلادی، فرمت‌سازی پول، و الگوریتم‌های تحلیلی به یک **هسته مشترک Rust** (`hesabyar-core`) استخراج شده‌اند. این لایه:
+- کدهای داغ JVM (تجزیه مقدار، تبدیل تاریخ) را با **UniFFI** به اندروید (Kotlin) و دسکتاپ (Rust) منتقل می‌کند
 - امنیت حافظه و عملکرد بالا بدون کد `unsafe`
 - بنچمارک‌های Criterion برای رصد رگرسیون‌های عملکردی
 
@@ -94,17 +94,17 @@
 | **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
 | **تست** | Robolectric, Roborazzi |
 | **بنچمارک** | CodSpeed, JMH, **Criterion (Rust)** |
-| **بایندینگ nativos** | **UniFFI** (Kotlin ↔ Rust) |
+| **بایندینگ بومی (Native)** | **UniFFI** (Kotlin ↔ Rust) |
 | **رمزنگاری** | AES-256-GCM (Rust `aes-gcm`) |
 
 ---
 
 ## 🏗 معماری هسته Rust (hesabyar-core)
 
-```
+```text
 rust/
 ├── Cargo.toml                 # Workspace root
-├── hesabyar-core/             # کرتی اصلی منطق تجاری
+├── hesabyar-core/             # کریت اصلی منطق تجاری
 │   ├── Cargo.toml
 │   ├── build.rs               # کد تولید UniFFI scaffolding
 │   ├── src/
@@ -145,10 +145,10 @@ rust/
 |----------|---------|
 | **نوع پول** | `i64` (ریال) — هم‌خوانا با `Long` در Room |
 | **تاریخ** | `i64` (timestamp UTC) + توابع تبدیل جلالی |
-| **بایندینگ** | UniFFI — تولید خودکار Kotlin/Swift، بدون JNI دستی |
+| **بایندینگ** | UniFFI — تولید خودکار Kotlin (توسط `uniffi-gen`)، بدون JNI دستی |
 | **امنیت حافظه** | کد `unsafe` نداریم، تضمین توسط سیستم نوع Rust |
 | **سریال‌سازی** | Serde برای JSON بک‌آپ |
-| **бенچمارک** | Criterion + flamegraph برای تحلیل عملکرد |
+| **بنچمارک** | Criterion + flamegraph برای تحلیل عملکرد |
 
 ---
 
@@ -229,7 +229,7 @@ app/src/main/java/io/github/mojri/hesabyar/
 
 ```bash
 # Build همه ABIهای اندروید
-./gradlew :app:assembleRust
+./gradlew :app:assembleRust --no-daemon
 
 # یا مستقیم با cargo
 cd rust && cargo build --target aarch64-linux-android --release
@@ -238,7 +238,7 @@ cd rust && cargo build --target aarch64-linux-android --release
 ### تولید بایندینگ‌های Kotlin (UniFFI)
 
 ```bash
-./gradlew :app:generateRustBindings
+./gradlew :app:generateRustBindings --no-daemon
 ```
 
 ### ساخت نسخه Debug
@@ -263,12 +263,12 @@ cd rust && cargo build --target aarch64-linux-android --release
 
 ### اجرای تمام تست‌ها
 ```bash
-./gradlew test
+./gradlew test --no-daemon
 ```
 
 ### اجرای تست یک کلاس خاص
 ```bash
-./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
+./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest" --no-daemon
 ```
 
 ### تست‌های Rust Core
@@ -286,7 +286,7 @@ cargo bench
 
 ### آنالیز کد
 ```bash
-./gradlew lint
+./gradlew lint --no-daemon
 ./gradlew ktlintCheck detekt --no-daemon
 ```
 
@@ -299,7 +299,7 @@ cargo bench
 ### اجرای بنچمارک‌های JVM
 ```bash
 cd benchmarks
-./gradlew jmh
+./gradlew jmh --no-daemon
 ```
 
 ### اجرای بنچمارک‌های Rust
@@ -343,7 +343,7 @@ cargo bench
 
 این پروژه تحت مجوز **MIT License** منتشر شده است. برای جزئیات بیشتر فایل [LICENSE](LICENSE) را مشاهده کنید.
 
-```
+```text
 MIT License
 
 Copyright (c) 2026 MojRi
