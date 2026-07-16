@@ -64,7 +64,10 @@ interface HesabyarRepositoryInterface {
 
   suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment>
 
-  suspend fun getAllBankLoansSync(): List<BankLoan>
+  suspend fun addBankLoanWithInstallments(
+    bankLoan: BankLoan,
+    installments: List<Installment>
+  ): Long
 
   suspend fun importBackup(
     transactions: List<Transaction>,

@@ -104,9 +104,6 @@ interface BankLoanDao {
   @Query("SELECT * FROM bank_loans WHERE id = :id LIMIT 1")
   suspend fun getBankLoanById(id: Long): BankLoan?
 
-  @Query("SELECT * FROM bank_loans ORDER BY startDate DESC")
-  suspend fun getAllBankLoansSync(): List<BankLoan>
-
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertBankLoan(bankLoan: BankLoan): Long
 

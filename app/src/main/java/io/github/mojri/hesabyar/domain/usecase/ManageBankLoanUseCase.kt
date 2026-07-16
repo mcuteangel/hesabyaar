@@ -8,8 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class ManageBankLoanUseCase(
-  private val repository: HesabyarRepositoryInterface,
-  private val manageInstallmentUseCase: ManageInstallmentUseCase
+  private val repository: HesabyarRepositoryInterface
 ) {
   val allBankLoans: Flow<List<BankLoan>> = repository.allBankLoans
 
@@ -29,43 +28,46 @@ class ManageBankLoanUseCase(
     val count = if (numberOfInstallments > 0) numberOfInstallments else 1
     val totalRepayable = monthlyInstallmentAmount * count
     val totalInterest = totalRepayable - receivedAmount
-    val id =
-      repository.insertBankLoan(
-        BankLoan(
-          bankName = bankName,
-          loanName = loanName,
-          receivedAmount = receivedAmount,
-          monthlyInstallmentAmount = monthlyInstallmentAmount,
-          numberOfInstallments = count,
-          totalRepayableAmount = totalRepayable,
-          totalInterest = totalInterest,
-          startDate = startDate,
-          description = description,
-          isSettled = false
-        )
+    val bankLoan =
+      BankLoan(
+        bankName = bankName,
+        loanName = loanName,
+        receivedAmount = receivedAmount,
+        monthlyInstallmentAmount = monthlyInstallmentAmount,
+        numberOfInstallments = count,
+        totalRepayableAmount = totalRepayable,
+        totalInterest = totalInterest,
+        startDate = startDate,
+        description = description,
+        isSettled = false
       )
+
     val jStart = JalaliCalendarHelper.gregorianToJalali(startDate)
     val monthsPerYear = 12
-    for (i in 1..count) {
-      var jYear = jStart.year
-      var jMonth = jStart.month + (i - 1)
-      while (jMonth > monthsPerYear) {
-        jMonth -= monthsPerYear
-        jYear += 1
+    val installments =
+      (1..count).map { i ->
+        var jYear = jStart.year
+        var jMonth = jStart.month + (i - 1)
+        while (jMonth > monthsPerYear) {
+          jMonth -= monthsPerYear
+          jYear += 1
+        }
+        val dueDate =
+          JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, jStart.day)?.timeInMillis
+            ?: startDate
+        Installment(
+          title = "قسط $i از $count - $loanName",
+          amount = monthlyInstallmentAmount,
+          dueDate = dueDate,
+          reminderEnabled = true,
+          notes = "",
+          bankLoanId = null
+        )
       }
-      val dueDate =
-        JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, jStart.day)?.timeInMillis
-          ?: startDate
-      manageInstallmentUseCase.addInstallmentForBankLoan(
-        bankLoanId = id,
-        title = "قسط $i از $count - $loanName",
-        amount = monthlyInstallmentAmount,
-        dueDate = dueDate,
-        reminderEnabled = true,
-        notes = ""
-      )
-    }
-    return id
+
+    // Insert loan + its installments atomically so a failure can't leave
+    // orphaned installments referencing a missing loan.
+    return repository.addBankLoanWithInstallments(bankLoan, installments)
   }
 
   suspend fun updateBankLoan(bankLoan: BankLoan) = repository.updateBankLoan(bankLoan)

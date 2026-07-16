@@ -43,10 +43,8 @@ object UseCaseModule {
     ManageInstallmentUseCase(repository)
 
   @Provides
-  fun provideManageBankLoanUseCase(
-    repository: HesabyarRepositoryInterface,
-    manageInstallmentUseCase: ManageInstallmentUseCase
-  ): ManageBankLoanUseCase = ManageBankLoanUseCase(repository, manageInstallmentUseCase)
+  fun provideManageBankLoanUseCase(repository: HesabyarRepositoryInterface): ManageBankLoanUseCase =
+    ManageBankLoanUseCase(repository)
 
   @Provides
   fun provideManageCategoryUseCase(repository: HesabyarRepositoryInterface): ManageCategoryUseCase =

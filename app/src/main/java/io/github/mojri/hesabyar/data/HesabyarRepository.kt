@@ -147,7 +147,14 @@ class HesabyarRepository(
     }
   }
 
-  override suspend fun getAllBankLoansSync(): List<BankLoan> = bankLoanDao.getAllBankLoansSync()
+  override suspend fun addBankLoanWithInstallments(
+    bankLoan: BankLoan,
+    installments: List<Installment>
+  ) = database.withTransaction {
+    val loanId = bankLoanDao.insertBankLoan(bankLoan)
+    installments.forEach { installmentDao.insertInstallment(it.copy(bankLoanId = loanId)) }
+    loanId
+  }
 
   // Backup & Restore structure
   override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> =
@@ -220,16 +227,24 @@ class HesabyarRepository(
         loanDao.insertLoan(loan)
       }
 
+      // Map old bank-loan IDs -> freshly assigned IDs so installments that
+      // reference them stay linked after the merge.
+      val bankLoanIdMap = mutableMapOf<Long, Long>()
+      for (bankLoan in backup.bankLoans) {
+        val newId = bankLoanDao.insertBankLoan(bankLoan)
+        bankLoanIdMap[bankLoan.id] = newId
+      }
+
       for (installment in backup.installments) {
-        installmentDao.insertInstallment(installment)
+        val remapped =
+          installment.bankLoanId?.let { oldId -> bankLoanIdMap[oldId] }?.let { newId ->
+            installment.copy(bankLoanId = newId)
+          } ?: installment
+        installmentDao.insertInstallment(remapped)
       }
 
       for (payment in backup.paymentHistories) {
         paymentHistoryDao.insertPayment(payment)
-      }
-
-      for (bankLoan in backup.bankLoans) {
-        bankLoanDao.insertBankLoan(bankLoan)
       }
     }
 }

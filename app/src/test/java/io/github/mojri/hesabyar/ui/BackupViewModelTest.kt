@@ -201,7 +201,10 @@ class BackupViewModelTest {
 
     override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> = emptyList()
 
-    override suspend fun getAllBankLoansSync(): List<BankLoan> = emptyList()
+    override suspend fun addBankLoanWithInstallments(
+      bankLoan: BankLoan,
+      installments: List<Installment>
+    ): Long = 0L
 
     override suspend fun importBackup(
       transactions: List<Transaction>,

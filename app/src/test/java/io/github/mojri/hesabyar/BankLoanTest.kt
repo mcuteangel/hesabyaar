@@ -2,7 +2,6 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.domain.usecase.FakeRepository
 import io.github.mojri.hesabyar.domain.usecase.ManageBankLoanUseCase
-import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -10,7 +9,7 @@ import org.junit.Test
 class BankLoanTest {
   private fun buildUseCase(): Pair<ManageBankLoanUseCase, FakeRepository> {
     val repo = FakeRepository()
-    return ManageBankLoanUseCase(repo, ManageInstallmentUseCase(repo)) to repo
+    return ManageBankLoanUseCase(repo) to repo
   }
 
   @Test

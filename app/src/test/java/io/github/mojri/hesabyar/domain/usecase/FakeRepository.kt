@@ -111,7 +111,20 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> =
     installments.filter { it.bankLoanId == bankLoanId }
 
-  override suspend fun getAllBankLoansSync(): List<BankLoan> = bankLoans.toList()
+  override suspend fun addBankLoanWithInstallments(
+    bankLoan: BankLoan,
+    installmentsToAdd: List<Installment>
+  ): Long {
+    val id = nextId++
+    bankLoans.add(bankLoan.copy(id = id))
+    _allBankLoans.value = bankLoans.toList()
+    installmentsToAdd.forEach { inst ->
+      val instId = nextId++
+      installments.add(inst.copy(id = instId, bankLoanId = id))
+    }
+    _allInstallments.value = installments.toList()
+    return id
+  }
 
   override suspend fun importBackup(
     transactions: List<Transaction>,
