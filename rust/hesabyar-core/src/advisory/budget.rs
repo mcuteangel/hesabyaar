@@ -101,12 +101,8 @@ pub fn get_offline_forecast(
         .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
         .map(|l| l.remaining_amount / 12)
         .sum();
-    let bank_loan_monthly: i64 = bank_loans
-        .iter()
-        .filter(|b| !b.is_settled)
-        .map(|b| b.monthly_installment_amount)
-        .sum();
-    let total_obligations = upcoming_sum + unsettled_creditor_loan_monthly + bank_loan_monthly;
+    let total_obligations =
+        upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
 
     if transactions.is_empty() && total_obligations == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
@@ -194,11 +190,6 @@ pub fn calculate_debt_to_income_ratio(
             .iter()
             .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
             .map(|l| l.remaining_amount / 12)
-            .sum::<i64>()
-        + bank_loans
-            .iter()
-            .filter(|b| !b.is_settled)
-            .map(|b| b.monthly_installment_amount)
             .sum::<i64>();
 
     if monthly_income <= 0 && monthly_debt_payments > 0 {

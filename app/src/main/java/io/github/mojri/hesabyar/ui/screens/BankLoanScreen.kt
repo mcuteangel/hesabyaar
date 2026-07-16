@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -96,6 +98,16 @@ private fun BankLoanItem(
   onToggleSettled: () -> Unit,
   onDelete: () -> Unit
 ) {
+  var showDeleteConfirm by remember { mutableStateOf(false) }
+  if (showDeleteConfirm) {
+    bankLoanDeleteConfirmDialog(
+      onDismiss = { showDeleteConfirm = false },
+      onConfirm = {
+        showDeleteConfirm = false
+        onDelete()
+      }
+    )
+  }
   HesabyarCard {
     Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
       Row(
@@ -116,23 +128,7 @@ private fun BankLoanItem(
           )
         }
       }
-      Text(
-        "مبلغ دریافتی: ${CurrencyFormatter.format(loan.receivedAmount)}",
-        style = MaterialTheme.typography.bodyMedium
-      )
-      Text(
-        "قسط ماهانه: ${CurrencyFormatter.format(loan.monthlyInstallmentAmount)}",
-        style = MaterialTheme.typography.bodyMedium
-      )
-      Text("تعداد اقساط: ${loan.numberOfInstallments}", style = MaterialTheme.typography.bodyMedium)
-      Text(
-        "مبلغ کل بازپرداخت: ${CurrencyFormatter.format(loan.totalRepayableAmount)}",
-        style = MaterialTheme.typography.bodyMedium
-      )
-      Text("سود کل: ${CurrencyFormatter.format(loan.totalInterest)}", style = MaterialTheme.typography.bodyMedium)
-      if (loan.description.isNotBlank()) {
-        Text("توضیحات: ${loan.description}", style = MaterialTheme.typography.bodySmall)
-      }
+      bankLoanDetailRows(loan)
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
@@ -144,7 +140,7 @@ private fun BankLoanItem(
           modifier = Modifier.weight(1f)
         )
         HesabyarButton(
-          onClick = onDelete,
+          onClick = { showDeleteConfirm = true },
           text = "حذف",
           variant = ButtonVariant.Outlined,
           modifier = Modifier.weight(1f)
@@ -152,6 +148,48 @@ private fun BankLoanItem(
       }
     }
   }
+}
+
+@Composable
+@Composable
+private fun bankLoanDetailRows(loan: BankLoan) {
+  Text(
+    "مبلغ دریافتی: ${CurrencyFormatter.format(loan.receivedAmount)}",
+    style = MaterialTheme.typography.bodyMedium
+  )
+  Text(
+    "قسط ماهانه: ${CurrencyFormatter.format(loan.monthlyInstallmentAmount)}",
+    style = MaterialTheme.typography.bodyMedium
+  )
+  Text("تعداد اقساط: ${loan.numberOfInstallments}", style = MaterialTheme.typography.bodyMedium)
+  Text(
+    "مبلغ کل بازپرداخت: ${CurrencyFormatter.format(loan.totalRepayableAmount)}",
+    style = MaterialTheme.typography.bodyMedium
+  )
+  Text(
+    "سود کل: ${CurrencyFormatter.format(loan.totalInterest)}",
+    style = MaterialTheme.typography.bodyMedium
+  )
+  if (loan.description.isNotBlank()) {
+    Text("توضیحات: ${loan.description}", style = MaterialTheme.typography.bodySmall)
+  }
+}
+
+private fun bankLoanDeleteConfirmDialog(
+  onDismiss: () -> Unit,
+  onConfirm: () -> Unit
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    confirmButton = {
+      HesabyarButton(onClick = onConfirm, text = "حذف", variant = ButtonVariant.Outlined)
+    },
+    dismissButton = {
+      HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
+    },
+    title = { Text("حذف وام بانکی") },
+    text = { Text("آیا از حذف این وام و اقساط تولید شده اطمینان دارید؟ این عمل قابل بازگشت نیست.") }
+  )
 }
 
 @Composable
@@ -255,7 +293,10 @@ private fun BankLoanForm(
   startDateLabel: String,
   onPickDate: () -> Unit
 ) {
-  Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+  Column(
+    modifier = Modifier.verticalScroll(rememberScrollState()),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
     HesabyarInputField(value = bankName, onValueChange = onBankName, label = "نام بانک")
     HesabyarInputField(value = loanName, onValueChange = onLoanName, label = "نام وام")
     HesabyarInputField(

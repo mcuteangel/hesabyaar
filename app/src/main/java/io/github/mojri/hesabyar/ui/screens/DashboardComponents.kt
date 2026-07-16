@@ -599,7 +599,10 @@ internal fun BankLoansSummaryCard(dashboardData: DashboardData) {
         ) {
           Text(
             text = "${bl.bankName} — ${bl.loanName}",
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
           Text(
             text = CurrencyFormatter.format(bl.remainingDebt),

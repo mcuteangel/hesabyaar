@@ -190,6 +190,26 @@ pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
     if bl.total_repayable_amount <= 0 {
         return Err("BankLoan total_repayable_amount must be positive".into());
     }
+    // Repayment/interest relationships, using checked arithmetic to reject overflow.
+    let expected_repayable = bl
+        .monthly_installment_amount
+        .checked_mul(bl.number_of_installments as i64)
+        .ok_or("BankLoan repayable amount overflows (monthly_installment_amount * number_of_installments)")?;
+    if bl.total_repayable_amount != expected_repayable {
+        return Err(
+            "BankLoan total_repayable_amount must equal monthly_installment_amount * number_of_installments".into(),
+        );
+    }
+    let expected_interest = bl
+        .total_repayable_amount
+        .checked_sub(bl.received_amount)
+        .ok_or("BankLoan interest calculation overflows")?;
+    if expected_interest < 0 {
+        return Err("BankLoan total_repayable_amount must not be less than received_amount".into());
+    }
+    if bl.total_interest != expected_interest {
+        return Err("BankLoan total_interest must equal total_repayable_amount - received_amount".into());
+    }
     Ok(())
 }
 
@@ -684,5 +704,58 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid, "Legacy category_id=0 should be tolerated, got: {:?}", result.errors);
+    }
+
+    fn make_bank_loan(monthly: i64, count: i32, received: i64) -> BankLoan {
+        let repayable = monthly * count as i64;
+        BankLoan {
+            id: 1,
+            bank_name: "Bank".into(),
+            loan_name: "Loan".into(),
+            received_amount: received,
+            monthly_installment_amount: monthly,
+            number_of_installments: count,
+            total_repayable_amount: repayable,
+            total_interest: repayable - received,
+            start_date: 1710000000000,
+            description: "test".into(),
+            is_settled: false,
+        }
+    }
+
+    #[test]
+    fn test_valid_bank_loan() {
+        assert!(validate_bank_loan(&make_bank_loan(1_000_000, 12, 10_000_000)).is_ok());
+    }
+
+    #[test]
+    fn test_bank_loan_repayable_mismatch_rejected() {
+        let mut bl = make_bank_loan(1_000_000, 12, 10_000_000);
+        bl.total_repayable_amount += 1;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_interest_mismatch_rejected() {
+        let mut bl = make_bank_loan(1_000_000, 12, 10_000_000);
+        bl.total_interest += 1;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_repayable_overflow_rejected() {
+        let mut bl = make_bank_loan(1, 1, 1);
+        bl.monthly_installment_amount = i64::MAX;
+        bl.number_of_installments = 2;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_received_exceeds_repayable_rejected() {
+        // received > repayable -> negative interest
+        let mut bl = make_bank_loan(1_000_000, 12, 12_000_000);
+        bl.received_amount = 20_000_000;
+        bl.total_interest = bl.total_repayable_amount - bl.received_amount;
+        assert!(validate_bank_loan(&bl).is_err());
     }
 }

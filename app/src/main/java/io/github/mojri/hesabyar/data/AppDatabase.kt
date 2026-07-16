@@ -248,6 +248,7 @@ abstract class AppDatabase : RoomDatabase() {
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
       val transactions = plaintextDb.transactionDao().getAllTransactionsBlocking()
       val loans = plaintextDb.loanDao().getAllLoansBlocking()
+      val bankLoans = plaintextDb.bankLoanDao().getAllBankLoansBlocking()
       val installments = plaintextDb.installmentDao().getAllInstallmentsBlocking()
       val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
 
@@ -271,6 +272,7 @@ abstract class AppDatabase : RoomDatabase() {
           if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
           if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
           if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
+          if (bankLoans.isNotEmpty()) encryptedDb.bankLoanDao().insertAllBlocking(bankLoans)
           if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
           if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
         }

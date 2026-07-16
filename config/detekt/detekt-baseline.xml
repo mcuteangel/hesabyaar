@@ -86,6 +86,7 @@
     <ID>FunctionNaming:SmartAssistantScreen.kt:@Composable fun SmartAssistantScreen</ID>
     <ID>FunctionNaming:Theme.kt:@Composable fun HesabyarTheme</ID>
     <ID>FunctionNaming:TransactionItem.kt:@Composable fun TransactionItem</ID>
+    <ID>FunctionNaming:DebtHubScreen.kt:@Composable fun DebtHubScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun CategoryBreakdownCard</ID>

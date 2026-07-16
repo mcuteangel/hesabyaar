@@ -4,7 +4,7 @@ use hesabyar_core::parser::money_detector::contains_money;
 use hesabyar_core::calendar::{gregorian_to_jalali, jalali_to_gregorian};
 use hesabyar_core::advisory::{calculate_financial_health_score, get_offline_budget_advice};
 use hesabyar_core::search::{search_transactions, SearchQuery};
-use hesabyar_core::crypto::{encrypt_backup, decrypt_backup, compute_checksum, build_encrypted_backup_file, KEY_LEN};
+use hesabyar_core::crypto::compute_checksum;
 use hesabyar_core::validation::{validate_transaction, validate_backup_payload};
 use hesabyar_core::ai_validation::{parse_ai_transaction_json, validate_ai_advice};
 use hesabyar_core::models::*;
@@ -62,7 +62,7 @@ fn bench_budget_advice(c: &mut Criterion) {
     });
 
     c.bench_function("financial_health_score_100tx", |b| {
-        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &categories))
+        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories))
     });
 }
 
@@ -113,13 +113,6 @@ fn bench_search(c: &mut Criterion) {
 }
 
 fn bench_crypto(c: &mut Criterion) {
-    let key: [u8; KEY_LEN] = [
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
-    ];
-
     // Small backup (typical)
     let small_json = r#"{"version":1,"timestamp":1710000000000,"app_version":"1.0","transactions":[],"loans":[],"installments":[],"categories":[]}"#;
 
@@ -132,37 +125,12 @@ fn bench_crypto(c: &mut Criterion) {
             .join(",")
     );
 
-    c.bench_function("encrypt_backup_small", |b| {
-        b.iter(|| encrypt_backup(small_json, &key).unwrap())
-    });
-
-    c.bench_function("decrypt_backup_small", |b| {
-        let encrypted = encrypt_backup(small_json, &key).unwrap();
-        b.iter(|| decrypt_backup(&encrypted, &key).unwrap())
-    });
-
-    c.bench_function("encrypt_backup_large", |b| {
-        b.iter(|| encrypt_backup(&large_json, &key).unwrap())
-    });
-
-    c.bench_function("decrypt_backup_large", |b| {
-        let encrypted = encrypt_backup(&large_json, &key).unwrap();
-        b.iter(|| decrypt_backup(&encrypted, &key).unwrap())
-    });
-
     c.bench_function("checksum_small", |b| {
         b.iter(|| compute_checksum(small_json.as_bytes()))
     });
 
     c.bench_function("checksum_large", |b| {
         b.iter(|| compute_checksum(large_json.as_bytes()))
-    });
-
-    c.bench_function("encrypted_backup_file_roundtrip", |b| {
-        b.iter(|| {
-            let file = build_encrypted_backup_file(small_json, &key).unwrap();
-            hesabyar_core::crypto::parse_encrypted_backup_file(&file, &key).unwrap()
-        })
     });
 }
 
@@ -205,6 +173,7 @@ fn bench_validation(c: &mut Criterion) {
         transactions,
         loans: vec![],
         installments: vec![],
+        bank_loans: vec![],
         categories: vec![],
     };
 

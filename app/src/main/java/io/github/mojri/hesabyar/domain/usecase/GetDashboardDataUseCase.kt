@@ -138,15 +138,19 @@ class GetDashboardDataUseCase(
         upcomingInstallments = upcomingIns,
         savingsRate = savingsRate,
         debtToIncomeRatio = debtToIncome,
-        bankLoans = toBankLoanSummaries(bankLoans),
+        bankLoans = toBankLoanSummaries(bankLoans, installments),
         bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount }
       )
     }
 
-    private fun toBankLoanSummaries(bankLoans: List<BankLoan>): List<BankLoanSummary> =
+    private fun toBankLoanSummaries(
+      bankLoans: List<BankLoan>,
+      installments: List<Installment>
+    ): List<BankLoanSummary> =
       bankLoans
         .filter { !it.isSettled }
         .map { loan ->
+          val paidAmount = installments.filter { it.bankLoanId == loan.id && it.isPaid }.sumOf { it.amount }
           BankLoanSummary(
             bankName = loan.bankName,
             loanName = loan.loanName,
@@ -155,7 +159,7 @@ class GetDashboardDataUseCase(
             totalInterest = loan.totalInterest,
             numberOfInstallments = loan.numberOfInstallments,
             isSettled = loan.isSettled,
-            remainingDebt = if (loan.isSettled) 0 else loan.totalRepayableAmount
+            remainingDebt = if (loan.isSettled) 0 else (loan.totalRepayableAmount - paidAmount).coerceAtLeast(0L)
           )
         }
   }

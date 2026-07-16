@@ -237,9 +237,9 @@ class HesabyarRepository(
 
       for (installment in backup.installments) {
         val remapped =
-          installment.bankLoanId?.let { oldId -> bankLoanIdMap[oldId] }?.let { newId ->
-            installment.copy(bankLoanId = newId)
-          } ?: installment
+          installment.copy(
+            bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get)
+          )
         installmentDao.insertInstallment(remapped)
       }
 

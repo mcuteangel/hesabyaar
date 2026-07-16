@@ -25,9 +25,17 @@ class ManageBankLoanUseCase(
     startDate: Long,
     description: String
   ): Long {
+    require(bankName.isNotBlank()) { "bankName must not be blank" }
+    require(receivedAmount > 0) { "receivedAmount must be positive" }
+    require(monthlyInstallmentAmount > 0) { "monthlyInstallmentAmount must be positive" }
+    require(numberOfInstallments >= 0) { "numberOfInstallments must not be negative" }
+    require(startDate > 0) { "startDate must be positive" }
+
+    // A count of 0 is an interest-free single-payment loan; fall back to one installment.
     val count = if (numberOfInstallments > 0) numberOfInstallments else 1
-    val totalRepayable = monthlyInstallmentAmount * count
-    val totalInterest = totalRepayable - receivedAmount
+    // Checked arithmetic so an overflowed repayable/interest amount can never be persisted.
+    val totalRepayable = Math.multiplyExact(monthlyInstallmentAmount, count.toLong())
+    val totalInterest = Math.subtractExact(totalRepayable, receivedAmount)
     val bankLoan =
       BankLoan(
         bankName = bankName,
@@ -52,9 +60,15 @@ class ManageBankLoanUseCase(
           jMonth -= monthsPerYear
           jYear += 1
         }
+        val dueDay =
+          minOf(
+            jStart.day,
+            JalaliCalendarHelper.getDaysInMonth(jYear, jMonth)
+          )
         val dueDate =
-          JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, jStart.day)?.timeInMillis
-            ?: startDate
+          requireNotNull(
+            JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, dueDay)
+          ).timeInMillis
         Installment(
           title = "قسط $i از $count - $loanName",
           amount = monthlyInstallmentAmount,

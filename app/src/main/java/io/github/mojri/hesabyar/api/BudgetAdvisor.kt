@@ -259,22 +259,26 @@ object BudgetAdvisor {
     if (rustResult.isNotEmpty()) return rustResult
 
     // Rust unavailable: serve a baseline forecast from local data instead of a false "insufficient data" message.
-    return buildLocalOfflineForecast(transactions, loans, installments)
+    return buildLocalOfflineForecast(transactions, loans, installments, bankLoans)
   }
 
   // Local, dependency-free baseline forecast used when the Rust core is unavailable.
   private fun buildLocalOfflineForecast(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan>
   ): String {
     val summary = summarizeTransactions(transactions)
     val upcomingInstallments = installments.filter { !it.isPaid }
     val totalUpcoming = upcomingInstallments.sumOf { it.amount }
+    val activeBankLoans = bankLoans.filter { !it.isSettled }
     val activeLoans = loans.filter { !it.isSettled }
-    val totalDebt = activeLoans.sumOf { it.remainingAmount }
+    val totalDebt = activeLoans.sumOf { it.remainingAmount } + activeBankLoans.sumOf { it.totalRepayableAmount }
+    val activeDebtCount = activeLoans.size + activeBankLoans.size
 
-    if (transactions.isEmpty() && installments.isEmpty() && loans.isEmpty()) {
+    val hasNoData = transactions.isEmpty() && installments.isEmpty() && loans.isEmpty() && bankLoans.isEmpty()
+    if (hasNoData) {
       return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
     }
 
@@ -284,8 +288,8 @@ object BudgetAdvisor {
     sb.appendLine()
     sb.appendLine("**تراز فعلی:** ${formatAmountClean(summary.balance)}")
     sb.appendLine("**اقساط پیش‌رو:** ${upcomingInstallments.size} مورد به مبلغ ${formatAmountClean(totalUpcoming)}")
-    if (activeLoans.isNotEmpty()) {
-      sb.appendLine("**بدهی‌های فعال:** ${activeLoans.size} مورد به مبلغ ${formatAmountClean(totalDebt)}")
+    if (activeDebtCount > 0) {
+      sb.appendLine("**بدهی‌های فعال:** $activeDebtCount مورد به مبلغ ${formatAmountClean(totalDebt)}")
     }
     sb.appendLine()
     sb.appendLine("**تراز پیش‌بینی‌شده (۳۰ روز آینده):** ${formatAmountClean(projectedBalance)}")
@@ -314,7 +318,7 @@ object BudgetAdvisor {
         bankLoans
       )
     } else {
-      localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome)
+      localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome, bankLoans)
     }
 
   // Local, dependency-free debt-to-income ratio used when the Rust core is unavailable.
@@ -322,11 +326,13 @@ object BudgetAdvisor {
   private fun localCalculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
-    monthlyIncome: Long
+    monthlyIncome: Long,
+    bankLoans: List<BankLoan>
   ): Double {
     val monthlyDebtPayments =
       installments.filter { !it.isPaid }.sumOf { it.amount } +
-        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / 12 }
+        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / 12 } +
+        bankLoans.filter { !it.isSettled }.sumOf { it.monthlyInstallmentAmount }
     return when {
       monthlyIncome <= 0 && monthlyDebtPayments > 0 -> 1.0
       monthlyIncome <= 0 -> 0.0
@@ -441,7 +447,7 @@ object BudgetAdvisor {
         bankLoans
       )
     } else {
-      localCalculateFinancialHealthScore(transactions, loans, installments)
+      localCalculateFinancialHealthScore(transactions, loans, installments, bankLoans)
     }
 
   // Local, dependency-free financial health score used when the Rust core is unavailable.
@@ -449,7 +455,8 @@ object BudgetAdvisor {
   private fun localCalculateFinancialHealthScore(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan>
   ): Int {
     if (transactions.isEmpty()) return 0
 
@@ -476,7 +483,8 @@ object BudgetAdvisor {
     // Use a trailing-90-day income baseline so all-time accumulated income does
     // not understate the ratio relative to the monthly debt obligations. This
     // mirrors the Rust core's `monthly_income_baseline` scoping.
-    val debtRatio = calculateDebtToIncomeRatio(loans, installments, localMonthlyIncomeBaseline(transactions))
+    val debtRatio =
+      calculateDebtToIncomeRatio(loans, installments, localMonthlyIncomeBaseline(transactions), bankLoans)
     score +=
       when {
         debtRatio <= 0.1 -> 15

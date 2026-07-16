@@ -30,8 +30,12 @@ pub fn compute_dashboard_data(
                 creditors_total: compute_creditors_total(loans),
                 savings_rate: 0.0,
                 debt_to_income_ratio: 0.0,
-                bank_loans_total: 0,
-                bank_loans: vec![],
+                bank_loans_total: bank_loans
+                    .iter()
+                    .filter(|b| !b.is_settled)
+                    .map(|b| b.total_repayable_amount)
+                    .sum(),
+                bank_loans: crate::analytics::build_bank_loan_summaries(bank_loans, installments),
             };
         }
     };
@@ -336,6 +340,38 @@ mod tests {
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
         assert!(result.debt_to_income_ratio < 1.0);
+    }
+
+    // =====================================================================
+    // Bank loans
+    // =====================================================================
+
+    fn bank_loan(id: i64, total_repayable: i64, settled: bool) -> BankLoan {
+        BankLoan {
+            id,
+            bank_name: "Bank".to_string(),
+            loan_name: format!("Loan {}", id),
+            received_amount: 0,
+            monthly_installment_amount: 0,
+            number_of_installments: 12,
+            total_repayable_amount: total_repayable,
+            total_interest: 0,
+            start_date: 0,
+            description: String::new(),
+            is_settled: settled,
+        }
+    }
+
+    #[test]
+    fn test_bank_loans_total_excludes_settled() {
+        let bank_loans = vec![
+            bank_loan(1, 1_000_000, false),
+            bank_loan(2, 2_000_000, false),
+            bank_loan(3, 500_000, true), // settled — excluded
+        ];
+        let result = compute_dashboard_data(&[], &[], &[], &bank_loans);
+        assert_eq!(result.bank_loans_total, 3_000_000);
+        assert_eq!(result.bank_loans.len(), 3);
     }
 
     // =====================================================================

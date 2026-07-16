@@ -170,26 +170,12 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             }
         }
 
-        // Validate bank loans
+        // Validate bank loans via the canonical validator so all entry paths
+        // enforce the same financial invariants (incl. checked repayment/interest).
         for bl in &payload.bank_loans {
-            if bl.received_amount <= 0 {
+            if let Err(detail) = crate::validation::validate_bank_loan(bl) {
                 return Err(HesabyarError::BackupValidation {
-                    detail: format!("BankLoan {} has invalid received_amount", bl.id),
-                });
-            }
-            if bl.monthly_installment_amount <= 0 {
-                return Err(HesabyarError::BackupValidation {
-                    detail: format!("BankLoan {} has invalid monthly_installment_amount", bl.id),
-                });
-            }
-            if bl.number_of_installments <= 0 {
-                return Err(HesabyarError::BackupValidation {
-                    detail: format!("BankLoan {} has invalid number_of_installments", bl.id),
-                });
-            }
-            if bl.start_date <= 0 {
-                return Err(HesabyarError::BackupValidation {
-                    detail: format!("BankLoan {} has invalid start_date", bl.id),
+                    detail: format!("BankLoan {}: {}", bl.id, detail),
                 });
             }
         }

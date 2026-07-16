@@ -258,6 +258,7 @@ fun InstallmentScreen(
             if (title.isNotBlank() && amountDisplay > 0L) {
               val amountRial = CurrencyFormatter.toRial(amountDisplay)
               installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+              installmentViewModel.setBankLoanFilter(null)
               showAddDialog = false
             } else {
               settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")

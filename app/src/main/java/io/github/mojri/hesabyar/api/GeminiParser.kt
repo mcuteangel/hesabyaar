@@ -633,7 +633,12 @@ object GeminiParser {
   ): Int? {
     val dayNum = extractJalaliDay(normalized, name) ?: return null
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val targetYear = if (month < today.month) today.year + 1 else today.year
+    val targetYear =
+      if (month < today.month || month == today.month && dayNum < today.day) {
+        today.year + 1
+      } else {
+        today.year
+      }
     val todayCal = JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day)
     val targetCal = JalaliCalendarHelper.jalaliToGregorian(targetYear, month, dayNum)
     return todayCal?.let { tCal ->
