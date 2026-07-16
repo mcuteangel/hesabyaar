@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -43,13 +44,23 @@ class ManageBankLoanUseCase(
           isSettled = false
         )
       )
-    val dayMs = 24L * 60 * 60 * 1000
+    val jStart = JalaliCalendarHelper.gregorianToJalali(startDate)
+    val monthsPerYear = 12
     for (i in 1..count) {
+      var jYear = jStart.year
+      var jMonth = jStart.month + (i - 1)
+      while (jMonth > monthsPerYear) {
+        jMonth -= monthsPerYear
+        jYear += 1
+      }
+      val dueDate =
+        JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, jStart.day)?.timeInMillis
+          ?: startDate
       manageInstallmentUseCase.addInstallmentForBankLoan(
         bankLoanId = id,
         title = "قسط $i از $count - $loanName",
         amount = monthlyInstallmentAmount,
-        dueDate = startDate + (i - 1) * 30L * dayMs,
+        dueDate = dueDate,
         reminderEnabled = true,
         notes = ""
       )

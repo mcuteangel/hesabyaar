@@ -65,7 +65,10 @@ class GetAnalyticsUseCase {
     // placeholder while real data exists. In those cases fall back to a local
     // computation so the UI never shows misleading empty analytics.
     val hasData =
-      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+      transactions.isNotEmpty() ||
+        loans.isNotEmpty() ||
+        installments.isNotEmpty() ||
+        bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapAnalyticsData(rustResult, loans, installments)
@@ -150,6 +153,21 @@ class GetAnalyticsUseCase {
         emptyList()
       }
 
+    val bankLoanSummaries =
+      bankLoans.map { loan ->
+        io.github.mojri.hesabyar.rust.BankLoanSummary(
+          bankName = loan.bankName,
+          loanName = loan.loanName,
+          receivedAmount = loan.receivedAmount,
+          totalRepayableAmount = loan.totalRepayableAmount,
+          totalInterest = loan.totalInterest,
+          numberOfInstallments = loan.numberOfInstallments,
+          isSettled = loan.isSettled,
+          remainingDebt = if (loan.isSettled) 0 else loan.totalRepayableAmount
+        )
+      }
+    val bankLoanTotalDebt = bankLoanSummaries.sumOf { it.remainingDebt }
+
     return AnalyticsData(
       monthlySpending = listOf(monthlySpending),
       monthlyIncome = listOf(monthlyIncomeData),
@@ -161,8 +179,8 @@ class GetAnalyticsUseCase {
       totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount },
       totalInstallments = installments.size,
       paidInstallments = installments.count { it.isPaid },
-      bankLoans = emptyList(),
-      bankLoansTotalDebt = 0L
+      bankLoans = bankLoanSummaries,
+      bankLoansTotalDebt = bankLoanTotalDebt
     )
   }
 
@@ -177,5 +195,7 @@ class GetAnalyticsUseCase {
       totalDebt == 0L &&
       totalCredit == 0L &&
       totalInstallments == 0 &&
-      paidInstallments == 0
+      paidInstallments == 0 &&
+      bankLoans.isEmpty() &&
+      bankLoansTotalDebt == 0L
 }

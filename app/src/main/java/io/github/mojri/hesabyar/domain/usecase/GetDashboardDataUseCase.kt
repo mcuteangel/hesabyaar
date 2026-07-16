@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.DashboardData
 import kotlinx.coroutines.flow.Flow
 
@@ -41,7 +42,10 @@ class GetDashboardDataUseCase(
     // placeholder while real data exists. In those cases fall back to a local
     // computation so the UI never shows misleading blank zeros.
     val hasData =
-      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+      transactions.isNotEmpty() ||
+        loans.isNotEmpty() ||
+        installments.isNotEmpty() ||
+        bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapDashboardData(rustResult, installments)
@@ -49,7 +53,7 @@ class GetDashboardDataUseCase(
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    return computeFallbackDashboardData(transactions, loans, installments)
+    return computeFallbackDashboardData(transactions, loans, installments, bankLoans)
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
@@ -69,7 +73,8 @@ class GetDashboardDataUseCase(
     internal fun computeFallbackDashboardData(
       transactions: List<Transaction>,
       loans: List<Loan>,
-      installments: List<Installment>
+      installments: List<Installment>,
+      bankLoans: List<BankLoan> = emptyList()
     ): DashboardData {
       val now = System.currentTimeMillis()
 
@@ -133,9 +138,25 @@ class GetDashboardDataUseCase(
         upcomingInstallments = upcomingIns,
         savingsRate = savingsRate,
         debtToIncomeRatio = debtToIncome,
-        bankLoans = emptyList(),
-        bankLoansTotal = 0L
+        bankLoans = toBankLoanSummaries(bankLoans),
+        bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount }
       )
     }
+
+    private fun toBankLoanSummaries(bankLoans: List<BankLoan>): List<BankLoanSummary> =
+      bankLoans
+        .filter { !it.isSettled }
+        .map { loan ->
+          BankLoanSummary(
+            bankName = loan.bankName,
+            loanName = loan.loanName,
+            receivedAmount = loan.receivedAmount,
+            totalRepayableAmount = loan.totalRepayableAmount,
+            totalInterest = loan.totalInterest,
+            numberOfInstallments = loan.numberOfInstallments,
+            isSettled = loan.isSettled,
+            remainingDebt = if (loan.isSettled) 0 else loan.totalRepayableAmount
+          )
+        }
   }
 }

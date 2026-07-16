@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -161,10 +162,13 @@ class OfflineParserTest {
     val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
-    @Suppress("UnnecessaryParentheses")
-    assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
-    @Suppress("UnnecessaryParentheses")
-    assertTrue("daysFromNow should be less than 365", (result.daysFromNow ?: 0) < 365)
+    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
+    val targetYear = if (4 < today.month) today.year + 1 else today.year
+    val targetCal = JalaliCalendarHelper.jalaliToGregorian(targetYear, 4, 25)
+    val todayCal = JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day)
+    val expected = ((targetCal!!.timeInMillis - todayCal!!.timeInMillis) / (24L * 60 * 60 * 1000)).toInt()
+    assertEquals("daysFromNow should match days to 25 Tir", expected, result.daysFromNow ?: 0)
+    assertTrue("daysFromNow should be less than 365", result.daysFromNow ?: 0 < 365)
   }
 
   @Test

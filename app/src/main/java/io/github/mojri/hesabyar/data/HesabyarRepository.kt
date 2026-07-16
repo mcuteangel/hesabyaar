@@ -139,7 +139,12 @@ class HesabyarRepository(
   }
 
   override suspend fun deleteBankLoan(bankLoan: BankLoan) {
-    bankLoanDao.deleteBankLoan(bankLoan)
+    database.withTransaction {
+      // Remove generated installments linked to this loan before deleting it,
+      // so they don't linger as orphaned reminders/expenses.
+      installmentDao.deleteInstallmentsByBankLoanId(bankLoan.id)
+      bankLoanDao.deleteBankLoan(bankLoan)
+    }
   }
 
   override suspend fun getAllBankLoansSync(): List<BankLoan> = bankLoanDao.getAllBankLoansSync()

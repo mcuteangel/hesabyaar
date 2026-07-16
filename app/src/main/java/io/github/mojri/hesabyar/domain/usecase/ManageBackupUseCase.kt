@@ -168,7 +168,9 @@ class ManageBackupUseCase(
           dueDate = o.optLong("dueDate", 0L),
           isPaid = o.optBoolean("isPaid", false),
           reminderEnabled = o.optBoolean("reminderEnabled", true),
-          notes = o.optString("notes", "")
+          notes = o.optString("notes", ""),
+          bankLoanId =
+            if (o.has("bankLoanId") && !o.isNull("bankLoanId")) o.optLong("bankLoanId") else null
         )
       }
     } ?: emptyList()
@@ -276,6 +278,7 @@ class ManageBackupUseCase(
     validateBackupInstallments(backup.installments, errors)
     validateBackupCategories(backup.categories, errors)
     validateBackupPaymentHistories(backup.paymentHistories, errors)
+    validateBackupBankLoans(backup.bankLoans, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid
@@ -333,6 +336,19 @@ class ManageBackupUseCase(
     payments.forEachIndexed { i, payment ->
       if (payment.amount <= 0) errors.add("مبلغ پرداخت #$i نامعتبر است")
       if (payment.date <= 0) errors.add("تاریخ پرداخت #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupBankLoans(
+    bankLoans: List<BankLoan>,
+    errors: MutableList<String>
+  ) {
+    bankLoans.forEachIndexed { i, bankLoan ->
+      if (bankLoan.bankName.isBlank()) errors.add("نام بانک وام #$i خالی است")
+      if (bankLoan.receivedAmount <= 0) errors.add("مبلغ دریافتی وام #$i نامعتبر است")
+      if (bankLoan.numberOfInstallments <= 0) errors.add("تعداد اقساط وام #$i نامعتبر است")
+      if (bankLoan.monthlyInstallmentAmount <= 0) errors.add("مبلغ قسط ماهانه وام #$i نامعتبر است")
+      if (bankLoan.startDate <= 0) errors.add("تاریخ شروع وام #$i نامعتبر است")
     }
   }
 
@@ -428,6 +444,7 @@ class ManageBackupUseCase(
           put("isPaid", it.isPaid)
           put("reminderEnabled", it.reminderEnabled)
           put("notes", it.notes)
+          put("bankLoanId", it.bankLoanId ?: JSONObject.NULL)
         }
       )
     }
@@ -481,6 +498,7 @@ class ManageBackupUseCase(
     transCount: Int,
     loanCount: Int,
     instCount: Int,
-    catCount: Int
-  ): String = "$transCount تراکنش، $loanCount وام، $instCount قسط، $catCount دسته‌بندی"
+    catCount: Int,
+    bankLoanCount: Int = 0
+  ): String = "$transCount تراکنش، $loanCount وام، $instCount قسط، $catCount دسته‌بندی، $bankLoanCount وام بانکی"
 }

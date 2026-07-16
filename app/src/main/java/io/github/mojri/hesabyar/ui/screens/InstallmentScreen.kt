@@ -85,7 +85,7 @@ fun InstallmentScreen(
     // Bank-loan filter
     val bankLoans by bankLoanViewModel.bankLoans.collectAsState()
     val bankLoanFilter by installmentViewModel.bankLoanFilter.collectAsState()
-    if (bankLoans.isNotEmpty()) {
+    if (bankLoans.isNotEmpty() || bankLoanFilter != null) {
       Row(
         modifier =
           Modifier

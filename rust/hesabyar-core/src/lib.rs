@@ -104,6 +104,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
         if payload.transactions.is_empty()
             && payload.loans.is_empty()
             && payload.installments.is_empty()
+            && payload.bank_loans.is_empty()
             && payload.categories.is_empty()
         {
             return Err(HesabyarError::BackupValidation {

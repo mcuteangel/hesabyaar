@@ -186,10 +186,12 @@ private fun AddBankLoanDialog(
 
   val jDate = JalaliCalendarHelper.gregorianToJalali(startDate)
   val countVal = count.toIntOrNull() ?: 0
+  val receivedVal = received.toLongOrNull() ?: 0L
+  val monthlyVal = monthly.toLongOrNull() ?: 0L
   val canConfirm =
     bankName.isNotBlank() &&
-      received.toLongOrNull() != null &&
-      monthly.toLongOrNull() != null &&
+      receivedVal > 0 &&
+      monthlyVal > 0 &&
       countVal > 0
 
   AlertDialog(
@@ -200,8 +202,8 @@ private fun AddBankLoanDialog(
           onConfirm(
             bankName.trim(),
             loanName.trim(),
-            received.toLongOrNull() ?: 0L,
-            monthly.toLongOrNull() ?: 0L,
+            receivedVal,
+            monthlyVal,
             countVal,
             startDate,
             description.trim()

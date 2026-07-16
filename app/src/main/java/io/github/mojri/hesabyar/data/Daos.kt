@@ -146,6 +146,9 @@ interface InstallmentDao {
   @Query("SELECT * FROM installments WHERE id = :id LIMIT 1")
   suspend fun getInstallmentById(id: Long): Installment?
 
+  @Query("DELETE FROM installments WHERE bankLoanId = :bankLoanId")
+  suspend fun deleteInstallmentsByBankLoanId(bankLoanId: Long)
+
   @Query("SELECT * FROM installments ORDER BY dueDate ASC")
   suspend fun getAllInstallmentsSync(): List<Installment>
 

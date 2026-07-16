@@ -23,8 +23,8 @@ class InstallmentViewModel
     val bankLoanFilter: StateFlow<Long?> = _bankLoanFilter.asStateFlow()
 
     val visibleInstallments: StateFlow<List<Installment>> =
-      combine(installments, _bankLoanFilter) { list, filter ->
-        if (filter == null) list else list.filter { it.bankLoanId == filter }
+      combine(installments, _bankLoanFilter) { list, activeFilter ->
+        if (activeFilter == null) list else list.filter { it.bankLoanId == activeFilter }
       }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setBankLoanFilter(bankLoanId: Long?) {
