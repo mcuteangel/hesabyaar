@@ -123,6 +123,7 @@ fun DashboardScreen(
   val loans by dashboardViewModel.loans.collectAsState()
   val installments by dashboardViewModel.installments.collectAsState()
   val categories by dashboardViewModel.categories.collectAsState()
+  val bankLoans by dashboardViewModel.bankLoans.collectAsState()
   val forecastState by aiAssistantViewModel.forecastState.collectAsState()
   val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
 
@@ -132,8 +133,8 @@ fun DashboardScreen(
   var deletingTransaction by remember { mutableStateOf<Transaction?>(null) }
   var showDetailTransaction by remember { mutableStateOf<Transaction?>(null) }
 
-  LaunchedEffect(transactions, loans, installments, categories) {
-    aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories)
+  LaunchedEffect(transactions, loans, installments, categories, bankLoans) {
+    aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -314,6 +315,7 @@ fun DashboardScreen(
           dashboardViewModel.installments.value,
           dashboardViewModel.categories.value,
           aiAssistantViewModel.isOnlineMode.value,
+          bankLoans = dashboardViewModel.bankLoans.value,
           forceRefresh = true
         )
       }

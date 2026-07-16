@@ -303,8 +303,8 @@ fn make_cell(value: &str) -> Cell {
     }
 }
 
-fn make_sheet(name: &str, rows: usize) -> SheetData {
-    let rows: Vec<Vec<Cell>> = (0..rows)
+fn make_sheet(name: &str, row_count: usize) -> SheetData {
+    let rows: Vec<Vec<Cell>> = (0..row_count)
         .map(|i| vec![make_cell(&i.to_string()), make_cell("value")])
         .collect();
     SheetData {
@@ -413,6 +413,25 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&large_installments),
                 black_box(&categories),
                 black_box(&no_bank_loans),
+            )
+        })
+    });
+
+    let bank_loan_tx: Vec<Transaction> = (0..100)
+        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .collect();
+    let bench_bank_loans: Vec<BankLoan> = (0..50)
+        .map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0))
+        .collect();
+
+    c.bench_function("analytics_100_tx_with_bank_loans", |b| {
+        b.iter(|| {
+            compute_analytics(
+                black_box(&bank_loan_tx),
+                black_box(&no_loans),
+                black_box(&no_installments),
+                black_box(&categories),
+                black_box(&bench_bank_loans),
             )
         })
     });

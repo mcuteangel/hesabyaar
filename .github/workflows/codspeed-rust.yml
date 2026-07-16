@@ -15,6 +15,12 @@ jobs:
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
+    # `id-token: write` (needed for CodSpeed OIDC auth) is stripped by GitHub on
+    # pull requests from forked repositories, which would make this job fail.
+    # Only run on pushes and same-repo PRs; community-fork PRs skip benchmarking.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
 
