@@ -79,9 +79,10 @@ pub fn get_offline_forecast(
     transactions: Vec<Transaction>,
     loans: Vec<Loan>,
     installments: Vec<Installment>,
+    bank_loans: Vec<BankLoan>,
 ) -> String {
     catch_unwind_safe(|| {
-        crate::advisory::get_offline_forecast(&transactions, &loans, &installments)
+        crate::advisory::get_offline_forecast(&transactions, &loans, &installments, &bank_loans)
     })
     .unwrap_or_default()
 }
@@ -91,10 +92,11 @@ pub fn get_offline_forecast(
 pub fn calculate_debt_to_income_ratio(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
+    bank_loans: Vec<BankLoan>,
     monthly_income: i64,
 ) -> f64 {
     catch_unwind_safe(|| {
-        crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, monthly_income)
+        crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, &bank_loans, monthly_income)
     })
     .unwrap_or(0.0)
 }
@@ -114,6 +116,7 @@ pub fn calculate_financial_health_score(
     transactions: Vec<Transaction>,
     loans: Vec<Loan>,
     installments: Vec<Installment>,
+    bank_loans: Vec<BankLoan>,
     categories: Vec<Category>,
 ) -> i32 {
     catch_unwind_safe(|| {
@@ -121,6 +124,7 @@ pub fn calculate_financial_health_score(
             &transactions,
             &loans,
             &installments,
+            &bank_loans,
             &categories,
         )
     })
@@ -137,9 +141,10 @@ pub fn compute_analytics(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
     categories: Vec<Category>,
+    bank_loans: Vec<BankLoan>,
 ) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
-        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories)
+        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans)
     })
     .ok()
 }
@@ -153,9 +158,10 @@ pub fn compute_dashboard_data(
     transactions: Vec<Transaction>,
     loans: Vec<Loan>,
     installments: Vec<Installment>,
+    bank_loans: Vec<BankLoan>,
 ) -> Option<DashboardData> {
     catch_unwind_safe(|| {
-        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments)
+        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments, &bank_loans)
     })
     .ok()
 }

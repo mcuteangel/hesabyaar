@@ -99,9 +99,16 @@ object JalaliCalendarHelper {
    * Pure-Kotlin Gregorian→Jalali conversion, mirroring the Rust core
    * (calendar.rs: gregorian_to_jalali_date). Used when the native bridge is
    * unavailable so callers stay functional. Returns null for invalid input.
+   *
+   * The lookup tables below are hoisted to object-level constants so the hot
+   * conversion path never allocates on every call (the JMH benchmark tracks
+   * this routine's average time, which runs on every transaction/reminder/report
+   * render).
    */
   private val GREGORIAN_MONTH_MAX_DAYS = intArrayOf(0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
   private val GREGORIAN_MONTH_MAX_DAYS_LEAP = intArrayOf(0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+  private val GREGORIAN_MONTH_DAY_OFFSETS = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0)
+  private val JALALI_MONTH_DAY_COUNTS = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
 
   fun gregorianToJalaliLocal(
     gYear: Int,
@@ -113,15 +120,12 @@ object JalaliCalendarHelper {
     val maxDays = if (isLeap) GREGORIAN_MONTH_MAX_DAYS_LEAP else GREGORIAN_MONTH_MAX_DAYS
     if (gDay < 1 || gDay > maxDays[gMonth]) return null
 
-    val gMonthDayOffsets = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0)
-    val jMonthDays = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
-
     val gy = gYear - 1600
     val gm = gMonth - 1
     val gd = gDay - 1
 
     var gDayNo = 365 * gy + (gy + 3) / 4 - (gy + 99) / 100 + (gy + 399) / 400
-    gDayNo += gMonthDayOffsets[gm]
+    gDayNo += GREGORIAN_MONTH_DAY_OFFSETS[gm]
     if (gm > 1 && isLeap) gDayNo += 1
     gDayNo += gd
 
@@ -136,8 +140,8 @@ object JalaliCalendarHelper {
     }
 
     var i = 0
-    while (i < 11 && jDayNo >= jMonthDays[i]) {
-      jDayNo -= jMonthDays[i]
+    while (i < 11 && jDayNo >= JALALI_MONTH_DAY_COUNTS[i]) {
+      jDayNo -= JALALI_MONTH_DAY_COUNTS[i]
       i++
     }
 
@@ -381,7 +385,6 @@ object JalaliCalendarHelper {
     }
 
   private val GREGORIAN_MONTH_OFFSETS = intArrayOf(0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365)
-  private val JALALI_MONTH_DAYS = intArrayOf(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29)
 
   private fun isGregLeap(year: Int): Boolean = year % 4 == 0 && year % 100 != 0 || year % 400 == 0
 
@@ -434,7 +437,7 @@ object JalaliCalendarHelper {
     jm: Int,
     jd: Int
   ): Long {
-    val j3 = jd - 1 + (0 until jm - 1).sumOf { JALALI_MONTH_DAYS[it] }
+    val j3 = jd - 1 + (0 until jm - 1).sumOf { JALALI_MONTH_DAY_COUNTS[it] }
     val base = jy - 979
     // jy - 979 = 33*jNp + 4*q1 + jyExtra, with q1 in [0,8] and jyExtra in [0,3].
     for (jNp in base / 33 - 1..base / 33 + 1) {

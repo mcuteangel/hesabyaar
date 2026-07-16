@@ -522,7 +522,8 @@ fun SmartAssistantScreen(
                         dashboardViewModel.loans.value,
                         dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value
+                        aiAssistantViewModel.isOnlineMode.value,
+                        dashboardViewModel.bankLoans.value
                       )
                     },
                     text = "تحلیل هوشمند بودجه و مخارج",
@@ -593,6 +594,7 @@ fun SmartAssistantScreen(
                         dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
+                        dashboardViewModel.bankLoans.value,
                         forceRefresh = true
                       )
                     }) {
@@ -628,6 +630,7 @@ fun SmartAssistantScreen(
                         dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
+                        dashboardViewModel.bankLoans.value,
                         forceRefresh = true
                       )
                     },
@@ -678,6 +681,7 @@ fun SmartAssistantScreen(
                         dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
+                        dashboardViewModel.bankLoans.value,
                         forceRefresh = true
                       )
                     },

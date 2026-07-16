@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
@@ -7,6 +8,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.DashboardData
 import kotlinx.coroutines.flow.Flow
 
@@ -17,11 +19,13 @@ class GetDashboardDataUseCase(
   val loans: Flow<List<Loan>> = repository.allLoans
   val installments: Flow<List<Installment>> = repository.allInstallments
   val categories: Flow<List<Category>> = repository.allCategories
+  val bankLoans: Flow<List<BankLoan>> = repository.allBankLoans
 
   fun computeDashboardData(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
@@ -30,14 +34,18 @@ class GetDashboardDataUseCase(
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapInstallments(installments)
+          .mapInstallments(installments),
+        bankLoans
       )
 
     // Use the Rust result unless it failed (null) or came back as an all-zero
     // placeholder while real data exists. In those cases fall back to a local
     // computation so the UI never shows misleading blank zeros.
     val hasData =
-      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+      transactions.isNotEmpty() ||
+        loans.isNotEmpty() ||
+        installments.isNotEmpty() ||
+        bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapDashboardData(rustResult, installments)
@@ -45,7 +53,7 @@ class GetDashboardDataUseCase(
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    return computeFallbackDashboardData(transactions, loans, installments)
+    return computeFallbackDashboardData(transactions, loans, installments, bankLoans)
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
@@ -65,7 +73,8 @@ class GetDashboardDataUseCase(
     internal fun computeFallbackDashboardData(
       transactions: List<Transaction>,
       loans: List<Loan>,
-      installments: List<Installment>
+      installments: List<Installment>,
+      bankLoans: List<BankLoan> = emptyList()
     ): DashboardData {
       val now = System.currentTimeMillis()
 
@@ -128,8 +137,30 @@ class GetDashboardDataUseCase(
         creditorsTotal = creditors,
         upcomingInstallments = upcomingIns,
         savingsRate = savingsRate,
-        debtToIncomeRatio = debtToIncome
+        debtToIncomeRatio = debtToIncome,
+        bankLoans = toBankLoanSummaries(bankLoans, installments),
+        bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount }
       )
     }
+
+    private fun toBankLoanSummaries(
+      bankLoans: List<BankLoan>,
+      installments: List<Installment>
+    ): List<BankLoanSummary> =
+      bankLoans
+        .filter { !it.isSettled }
+        .map { loan ->
+          val paidAmount = installments.filter { it.bankLoanId == loan.id && it.isPaid }.sumOf { it.amount }
+          BankLoanSummary(
+            bankName = loan.bankName,
+            loanName = loan.loanName,
+            receivedAmount = loan.receivedAmount,
+            totalRepayableAmount = loan.totalRepayableAmount,
+            totalInterest = loan.totalInterest,
+            numberOfInstallments = loan.numberOfInstallments,
+            isSettled = loan.isSettled,
+            remainingDebt = if (loan.isSettled) 0 else (loan.totalRepayableAmount - paidAmount).coerceAtLeast(0L)
+          )
+        }
   }
 }

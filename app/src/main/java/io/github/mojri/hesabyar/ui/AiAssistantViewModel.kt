@@ -158,17 +158,24 @@ class AiAssistantViewModel
       transactions: List<Transaction>,
       loans: List<Loan>,
       installments: List<Installment>,
-      categories: List<Category>
+      categories: List<Category>,
+      bankLoans: List<BankLoan> = emptyList()
     ): String =
-      AdviceSignature.computeDataSignature(transactions, loans, installments, categories) +
-        "|${configSignature()}"
+      AdviceSignature.computeDataSignature(
+        transactions,
+        loans,
+        installments,
+        categories,
+        bankLoans
+      ) + "|${configSignature()}"
 
     internal fun computeAdviceSignature(
       transactions: List<Transaction>,
       loans: List<Loan>,
       installments: List<Installment>,
-      categories: List<Category>
-    ): String = computeDataSignature(transactions, loans, installments, categories)
+      categories: List<Category>,
+      bankLoans: List<BankLoan> = emptyList()
+    ): String = computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
     private fun invalidateCaches() {
       cachedAdvice = null
@@ -204,9 +211,11 @@ class AiAssistantViewModel
       transactions: List<Transaction>,
       loans: List<Loan>,
       installments: List<Installment>,
-      categories: List<Category>
+      categories: List<Category>,
+      bankLoans: List<BankLoan>
     ) {
-      val newSignature = computeDataSignature(transactions, loans, installments, categories)
+      val newSignature =
+        computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
       if (newSignature == lastKnownForecastSignature && !cachedForecast.isNullOrEmpty()) {
         return
@@ -216,13 +225,27 @@ class AiAssistantViewModel
 
       if (lastForecastFetchTimeMs == 0L) {
         viewModelScope.launch {
-          fetchBudgetForecast(transactions, loans, installments, categories, isOnlineMode.value)
+          fetchBudgetForecast(
+            transactions,
+            loans,
+            installments,
+            categories,
+            isOnlineMode.value,
+            bankLoans = bankLoans
+          )
         }
       } else {
         forecastDebounceJob =
           viewModelScope.launch {
             delay(aiCacheDurationMs)
-            fetchBudgetForecast(transactions, loans, installments, categories, isOnlineMode.value)
+            fetchBudgetForecast(
+              transactions,
+              loans,
+              installments,
+              categories,
+              isOnlineMode.value,
+              bankLoans = bankLoans
+            )
           }
       }
     }
@@ -297,9 +320,11 @@ class AiAssistantViewModel
       installments: List<Installment>,
       categories: List<Category>,
       isOnlineMode: Boolean,
+      bankLoans: List<BankLoan> = emptyList(),
       forceRefresh: Boolean = false
     ) {
-      val currentSignature = computeAdviceSignature(transactions, loans, installments, categories)
+      val currentSignature =
+        computeAdviceSignature(transactions, loans, installments, categories, bankLoans)
 
       if (!forceRefresh &&
         currentSignature == lastKnownAdviceSignature &&
@@ -319,7 +344,8 @@ class AiAssistantViewModel
               loans,
               installments,
               categories,
-              config
+              config,
+              bankLoans
             )
           cachedAdvice = advice
           lastAdviceFetchTimeMs = System.currentTimeMillis()
@@ -362,9 +388,11 @@ class AiAssistantViewModel
       installments: List<Installment>,
       categories: List<Category>,
       isOnlineMode: Boolean,
+      bankLoans: List<BankLoan> = emptyList(),
       forceRefresh: Boolean = false
     ) {
-      val currentSignature = computeDataSignature(transactions, loans, installments, categories)
+      val currentSignature =
+        computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
       if (!forceRefresh &&
         currentSignature == lastKnownForecastSignature &&
@@ -378,7 +406,15 @@ class AiAssistantViewModel
         _forecastState.value = ForecastUIState.Loading
         try {
           val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
-          val forecast = getForecastUseCase.getForecast(transactions, loans, installments, categories, config)
+          val forecast =
+            getForecastUseCase.getForecast(
+              transactions,
+              loans,
+              installments,
+              categories,
+              config,
+              bankLoans
+            )
           cachedForecast = forecast
           lastForecastFetchTimeMs = System.currentTimeMillis()
           lastKnownForecastSignature = currentSignature

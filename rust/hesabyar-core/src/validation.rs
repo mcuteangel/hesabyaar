@@ -168,6 +168,65 @@ pub fn validate_installment_batch(installments: &[Installment]) -> ValidationRes
     }
 }
 
+/// Validate a single bank loan.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
+    if bl.bank_name.trim().is_empty() {
+        return Err("BankLoan bank_name must not be empty".into());
+    }
+    if bl.received_amount <= 0 {
+        return Err("BankLoan received_amount must be positive".into());
+    }
+    if bl.monthly_installment_amount <= 0 {
+        return Err("BankLoan monthly_installment_amount must be positive".into());
+    }
+    if bl.number_of_installments <= 0 {
+        return Err("BankLoan number_of_installments must be positive".into());
+    }
+    if bl.start_date <= 0 {
+        return Err("BankLoan start_date must be positive".into());
+    }
+    if bl.total_repayable_amount <= 0 {
+        return Err("BankLoan total_repayable_amount must be positive".into());
+    }
+    // Repayment/interest relationships, using checked arithmetic to reject overflow.
+    let expected_repayable = bl
+        .monthly_installment_amount
+        .checked_mul(bl.number_of_installments as i64)
+        .ok_or("BankLoan repayable amount overflows (monthly_installment_amount * number_of_installments)")?;
+    if bl.total_repayable_amount != expected_repayable {
+        return Err(
+            "BankLoan total_repayable_amount must equal monthly_installment_amount * number_of_installments".into(),
+        );
+    }
+    let expected_interest = bl
+        .total_repayable_amount
+        .checked_sub(bl.received_amount)
+        .ok_or("BankLoan interest calculation overflows")?;
+    if expected_interest < 0 {
+        return Err("BankLoan total_repayable_amount must not be less than received_amount".into());
+    }
+    if bl.total_interest != expected_interest {
+        return Err("BankLoan total_interest must equal total_repayable_amount - received_amount".into());
+    }
+    Ok(())
+}
+
+/// Validate a batch of bank loans. Collects all errors.
+pub fn validate_bank_loan_batch(bank_loans: &[BankLoan]) -> ValidationResult {
+    let mut errors = Vec::new();
+    for (i, bl) in bank_loans.iter().enumerate() {
+        if let Err(e) = validate_bank_loan(bl) {
+            errors.push(format!("BankLoan[{}]: {}", i, e));
+        }
+    }
+    ValidationResult {
+        is_valid: errors.is_empty(),
+        errors,
+    }
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
@@ -191,6 +250,7 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_transaction_batch(&payload.transactions).errors);
     errors.extend(validate_loan_batch(&payload.loans).errors);
     errors.extend(validate_installment_batch(&payload.installments).errors);
+    errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     ValidationResult {
         is_valid: errors.is_empty(),
         errors,
@@ -557,6 +617,7 @@ mod tests {
             transactions: vec![make_tx(50000, "coffee", 1)],
             loans: vec![make_loan(5000000, 3000000, "DEBTOR")],
             installments: vec![make_inst(2000000, "Car loan")],
+            bank_loans: vec![],
             categories: vec![],
         };
         let result = validate_backup_payload(&payload);
@@ -583,8 +644,9 @@ mod tests {
             transactions: vec![make_tx(0, "bad", 1)],
             loans: vec![make_loan(0, 0, "INVALID")],
             installments: vec![make_inst(0, "")],
-            categories: vec![],
-        };
+        bank_loans: vec![],
+        categories: vec![],
+    };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         // At least one error from each entity type
@@ -610,8 +672,9 @@ mod tests {
             ],
             loans: vec![],
             installments: vec![],
-            categories: vec![],
-        };
+        bank_loans: vec![],
+        categories: vec![],
+    };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         assert_eq!(result.errors.len(), 1);
@@ -628,6 +691,7 @@ mod tests {
             transactions: vec![make_tx(50000, "groceries", 0)],
             loans: vec![],
             installments: vec![],
+            bank_loans: vec![],
             categories: vec![Category {
                 id: 1,
                 name: "Food".into(),
@@ -640,5 +704,58 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid, "Legacy category_id=0 should be tolerated, got: {:?}", result.errors);
+    }
+
+    fn make_bank_loan(monthly: i64, count: i32, received: i64) -> BankLoan {
+        let repayable = monthly * count as i64;
+        BankLoan {
+            id: 1,
+            bank_name: "Bank".into(),
+            loan_name: "Loan".into(),
+            received_amount: received,
+            monthly_installment_amount: monthly,
+            number_of_installments: count,
+            total_repayable_amount: repayable,
+            total_interest: repayable - received,
+            start_date: 1710000000000,
+            description: "test".into(),
+            is_settled: false,
+        }
+    }
+
+    #[test]
+    fn test_valid_bank_loan() {
+        assert!(validate_bank_loan(&make_bank_loan(1_000_000, 12, 10_000_000)).is_ok());
+    }
+
+    #[test]
+    fn test_bank_loan_repayable_mismatch_rejected() {
+        let mut bl = make_bank_loan(1_000_000, 12, 10_000_000);
+        bl.total_repayable_amount += 1;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_interest_mismatch_rejected() {
+        let mut bl = make_bank_loan(1_000_000, 12, 10_000_000);
+        bl.total_interest += 1;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_repayable_overflow_rejected() {
+        let mut bl = make_bank_loan(1, 1, 1);
+        bl.monthly_installment_amount = i64::MAX;
+        bl.number_of_installments = 2;
+        assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    #[test]
+    fn test_bank_loan_received_exceeds_repayable_rejected() {
+        // received > repayable -> negative interest
+        let mut bl = make_bank_loan(1_000_000, 12, 12_000_000);
+        bl.received_amount = 20_000_000;
+        bl.total_interest = bl.total_repayable_amount - bl.received_amount;
+        assert!(validate_bank_loan(&bl).is_err());
     }
 }

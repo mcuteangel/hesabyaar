@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.rust.BankLoanSummary
 
 data class DashboardData(
   val currentBalance: Long = 0L,
@@ -12,7 +13,9 @@ data class DashboardData(
   val creditorsTotal: Long = 0L,
   val upcomingInstallments: List<Installment> = emptyList(),
   val savingsRate: Double = 0.0,
-  val debtToIncomeRatio: Double = 0.0
+  val debtToIncomeRatio: Double = 0.0,
+  val bankLoans: List<BankLoanSummary> = emptyList(),
+  val bankLoansTotal: Long = 0L
 )
 
 sealed interface ParserUIState {
@@ -118,7 +121,9 @@ data class AnalyticsData(
   val totalInstallments: Int = 0,
   val paidInstallments: Int = 0,
   val totalDebt: Long = 0L,
-  val totalCredit: Long = 0L
+  val totalCredit: Long = 0L,
+  val bankLoans: List<BankLoanSummary> = emptyList(),
+  val bankLoansTotalDebt: Long = 0L
 )
 
 sealed interface BackupOperationState {

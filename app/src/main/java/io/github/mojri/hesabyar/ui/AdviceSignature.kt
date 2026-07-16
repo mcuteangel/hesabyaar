@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -25,7 +26,8 @@ internal object AdviceSignature {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val sb = StringBuilder()
     sb.append("T:")
@@ -36,6 +38,8 @@ internal object AdviceSignature {
     for (i in installments) sb.append("\n").append(i.contentString())
     sb.append("\nC:")
     for (c in categories) sb.append("\n").append(c.contentString())
+    sb.append("\nB:")
+    for (b in bankLoans) sb.append("\n").append(b.contentString())
     return sb.toString().sha256()
   }
 
@@ -43,8 +47,9 @@ internal object AdviceSignature {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
-  ): String = computeDataSignature(transactions, loans, installments, categories)
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
+  ): String = computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
   private fun Any.contentString(): String = this.toString()
 

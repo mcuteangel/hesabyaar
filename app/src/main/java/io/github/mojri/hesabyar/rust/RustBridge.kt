@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -185,14 +186,32 @@ object RustBridge : JalaliNativeBridge {
   fun getOfflineForecastSync(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
-  ): String = rustCallSync("") { HesabyarCore.getOfflineForecast(transactions, loans, installments) }
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
+  ): String =
+    rustCallSync("") {
+      HesabyarCore.getOfflineForecast(
+        transactions,
+        loans,
+        installments,
+        RustMappers.mapBankLoans(bankLoans)
+      )
+    }
 
   fun calculateDebtToIncomeRatioSync(
     loans: List<Loan>,
     installments: List<Installment>,
-    monthlyIncome: Long
-  ): Double = rustCallSync(0.0) { HesabyarCore.calculateDebtToIncomeRatio(loans, installments, monthlyIncome) }
+    monthlyIncome: Long,
+    bankLoans: List<BankLoan> = emptyList()
+  ): Double =
+    rustCallSync(0.0) {
+      HesabyarCore.calculateDebtToIncomeRatio(
+        loans,
+        installments,
+        monthlyIncome,
+        RustMappers.mapBankLoans(bankLoans)
+      )
+    }
 
   fun predictTimeToGoalSync(
     currentSavings: Long,
@@ -204,10 +223,17 @@ object RustBridge : JalaliNativeBridge {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): Int =
     rustCallSync(0) {
-      HesabyarCore.calculateFinancialHealthScore(transactions, loans, installments, categories)
+      HesabyarCore.calculateFinancialHealthScore(
+        transactions,
+        loans,
+        installments,
+        categories,
+        RustMappers.mapBankLoans(bankLoans)
+      )
     }
 
   // ===========================================================================
@@ -218,15 +244,33 @@ object RustBridge : JalaliNativeBridge {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): AnalyticsData? =
-    rustCallSync(null) { HesabyarCore.computeAnalytics(transactions, loans, installments, categories) }
+    rustCallSync(null) {
+      HesabyarCore.computeAnalytics(
+        transactions,
+        loans,
+        installments,
+        categories,
+        RustMappers.mapBankLoans(bankLoans)
+      )
+    }
 
   fun computeDashboardDataSync(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
-  ): DashboardData? = rustCallSync(null) { HesabyarCore.computeDashboardData(transactions, loans, installments) }
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
+  ): DashboardData? =
+    rustCallSync(null) {
+      HesabyarCore.computeDashboardData(
+        transactions,
+        loans,
+        installments,
+        RustMappers.mapBankLoans(bankLoans)
+      )
+    }
 
   // ===========================================================================
   // Search

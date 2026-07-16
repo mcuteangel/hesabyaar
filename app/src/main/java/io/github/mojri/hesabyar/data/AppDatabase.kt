@@ -16,8 +16,15 @@ import java.io.File
 import java.io.IOException
 
 @Database(
-  entities = [Transaction::class, Loan::class, Installment::class, PaymentHistory::class, Category::class],
-  version = 4,
+  entities = [
+    Transaction::class,
+    Loan::class,
+    Installment::class,
+    PaymentHistory::class,
+    Category::class,
+    BankLoan::class
+  ],
+  version = 5,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -31,6 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun paymentHistoryDao(): PaymentHistoryDao
 
   abstract fun categoryDao(): CategoryDao
+
+  abstract fun bankLoanDao(): BankLoanDao
 
   companion object {
     @Volatile
@@ -97,6 +106,30 @@ abstract class AppDatabase : RoomDatabase() {
           )
           db.execSQL("UPDATE installments SET amount = amount / 100 WHERE amount > 1000000000")
           db.execSQL("UPDATE payment_history SET amount = amount / 100 WHERE amount > 1000000000")
+        }
+      }
+
+    private val MIGRATION_4_5 =
+      object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL(
+            """
+            CREATE TABLE bank_loans (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              bankName TEXT NOT NULL,
+              loanName TEXT NOT NULL,
+              receivedAmount INTEGER NOT NULL,
+              monthlyInstallmentAmount INTEGER NOT NULL,
+              numberOfInstallments INTEGER NOT NULL,
+              totalRepayableAmount INTEGER NOT NULL,
+              totalInterest INTEGER NOT NULL,
+              startDate INTEGER NOT NULL,
+              description TEXT NOT NULL,
+              isSettled INTEGER NOT NULL
+            )
+            """.trimIndent()
+          )
+          db.execSQL("ALTER TABLE installments ADD COLUMN bankLoanId INTEGER")
         }
       }
 
@@ -169,7 +202,7 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
         instance = db
         db
@@ -209,12 +242,13 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
           .build()
 
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
       val transactions = plaintextDb.transactionDao().getAllTransactionsBlocking()
       val loans = plaintextDb.loanDao().getAllLoansBlocking()
+      val bankLoans = plaintextDb.bankLoanDao().getAllBankLoansBlocking()
       val installments = plaintextDb.installmentDao().getAllInstallmentsBlocking()
       val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
 
@@ -231,13 +265,14 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
 
         encryptedDb.runInTransaction {
           if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
           if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
           if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)
+          if (bankLoans.isNotEmpty()) encryptedDb.bankLoanDao().insertAllBlocking(bankLoans)
           if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
           if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
         }

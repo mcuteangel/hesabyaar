@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -115,6 +117,14 @@ fun AnalyticsScreen(
     // Loan Status
     item {
       LoanStatusCard(loans = analyticsData.activeLoans)
+    }
+
+    // Bank Loan Status
+    item {
+      BankLoanStatusCard(
+        bankLoans = analyticsData.bankLoans,
+        totalDebt = analyticsData.bankLoansTotalDebt
+      )
     }
 
     // Installment Completion Progress
@@ -701,6 +711,92 @@ private fun LoanStatusCard(loans: List<Loan>) {
               )
               Text(
                 text = "اصل: ${CurrencyFormatter.format(loan.originalAmount)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun BankLoanStatusCard(
+  bankLoans: List<BankLoanSummary>,
+  totalDebt: Long
+) {
+  HesabyarCard(modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = "🏦 وضعیت وام‌های بانکی",
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+          color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+          text = CurrencyFormatter.format(totalDebt),
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+          color = FinancialColors.ExpenseRed
+        )
+      }
+
+      if (bankLoans.isEmpty()) {
+        Text(
+          text = "وام بانکی ثبت نشده",
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(SpacingTokens.lg),
+          textAlign = TextAlign.Center,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
+      } else {
+        bankLoans.forEach { bl ->
+          Column(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .clip(ShapeTokens.Medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .padding(SpacingTokens.md),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = "${bl.bankName} — ${bl.loanName}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+              if (bl.isSettled) {
+                Text(
+                  text = "تسویه شده",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = FinancialColors.IncomeGreen
+                )
+              }
+            }
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "مانده: ${CurrencyFormatter.format(bl.remainingDebt)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
               )

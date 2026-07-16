@@ -73,6 +73,19 @@ Data flow: `Screen → ViewModel → Repository → Room/Network`
 4. Does this require a Room migration?
 5. Are local backups still compatible?
 
+## Rust Changes Require Binding Regeneration
+
+The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through UniFFI bindings
+generated into `app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt`.
+
+- After **any change to Rust source** (`rust/**`), the Kotlin FFI bindings and the
+  host library must be regenerated, otherwise the build/FFI calls won't reflect the change.
+- Run: `./gradlew :app:generateAndFixBindings --no-daemon`
+  (alias `:app:generateRustBindings` skips the package-patch/install step).
+- Append `--no-daemon` to every `./gradlew` command unless the user explicitly asks
+  for a daemonized run.
+- Do not manually edit the generated `hesabyar_core.kt`; it is overwritten by the task.
+
 ## Reference Docs
 
 - `docs/TECH_STACK.md` — official dependency list

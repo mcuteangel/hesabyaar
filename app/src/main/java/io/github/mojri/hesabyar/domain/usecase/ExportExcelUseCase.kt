@@ -16,7 +16,8 @@ class ExportExcelUseCase(
         transactions = repository.allTransactions.firstOrNull() ?: emptyList(),
         loans = repository.allLoans.firstOrNull() ?: emptyList(),
         installments = repository.allInstallments.firstOrNull() ?: emptyList(),
-        categories = repository.allCategories.firstOrNull() ?: emptyList()
+        categories = repository.allCategories.firstOrNull() ?: emptyList(),
+        bankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
       )
     }
 }

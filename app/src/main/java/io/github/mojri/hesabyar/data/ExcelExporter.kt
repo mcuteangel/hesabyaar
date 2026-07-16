@@ -16,7 +16,8 @@ class ExcelExporter {
     val incomeCount: Int,
     val expenseCount: Int,
     val loanCount: Int,
-    val installmentCount: Int
+    val installmentCount: Int,
+    val bankLoanCount: Int
   )
 
   suspend fun export(
@@ -24,6 +25,7 @@ class ExcelExporter {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList(),
   ): ExportResult {
     val categoryMap = categories.associateBy { it.id }
     val incomeTransactions = transactions.filter { it.type == TransactionType.INCOME }
@@ -35,7 +37,8 @@ class ExcelExporter {
         buildIncomeSheet(incomeTransactions, categoryMap),
         buildExpensesSheet(expenseTransactions, categoryMap),
         buildLoansSheet(loans),
-        buildInstallmentsSheet(installments)
+        buildInstallmentsSheet(installments),
+        buildBankLoansSheet(bankLoans)
       )
 
     val bytes =
@@ -49,7 +52,8 @@ class ExcelExporter {
       incomeCount = incomeTransactions.size,
       expenseCount = expenseTransactions.size,
       loanCount = loans.size,
-      installmentCount = installments.size
+      installmentCount = installments.size,
+      bankLoanCount = bankLoans.size
     )
   }
 
@@ -149,6 +153,40 @@ class ExcelExporter {
         )
       }
     return SheetData(name = "اقساط", headers = headers, rows = rows, summaryRow = null)
+  }
+
+  private fun buildBankLoansSheet(bankLoans: List<BankLoan>): SheetData {
+    val headers =
+      listOf(
+        "ردیف",
+        "نام بانک",
+        "نام وام",
+        "مبلغ دریافتی",
+        "قسط ماهانه",
+        "تعداد اقساط",
+        "مبلغ کل بازپرداخت",
+        "سود کل",
+        "تاریخ شروع",
+        "وضعیت",
+        HEADER_DESCRIPTION
+      )
+    val rows =
+      bankLoans.mapIndexed { index, bl ->
+        listOf(
+          Cell(value = (index + 1).toString(), bold = false),
+          Cell(value = bl.bankName, bold = false),
+          Cell(value = bl.loanName, bold = false),
+          Cell(value = formatAmount(bl.receivedAmount), bold = false),
+          Cell(value = formatAmount(bl.monthlyInstallmentAmount), bold = false),
+          Cell(value = bl.numberOfInstallments.toString(), bold = false),
+          Cell(value = formatAmount(bl.totalRepayableAmount), bold = false),
+          Cell(value = formatAmount(bl.totalInterest), bold = false),
+          Cell(value = formatDate(bl.startDate), bold = false),
+          Cell(value = if (bl.isSettled) "تسویه شده" else "باز", bold = false),
+          Cell(value = bl.description, bold = false)
+        )
+      }
+    return SheetData(name = "وام\u200Cهای بانکی", headers = headers, rows = rows, summaryRow = null)
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────

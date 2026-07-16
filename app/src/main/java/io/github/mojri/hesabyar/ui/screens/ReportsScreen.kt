@@ -358,6 +358,7 @@ fun ReportsScreen(
                       dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
+                      dashboardViewModel.bankLoans.value,
                       false
                     )
                   },
@@ -421,6 +422,7 @@ fun ReportsScreen(
                         dashboardViewModel.installments.value,
                         dashboardViewModel.categories.value,
                         aiAssistantViewModel.isOnlineMode.value,
+                        dashboardViewModel.bankLoans.value,
                         true
                       )
                     },
@@ -468,6 +470,7 @@ fun ReportsScreen(
                       dashboardViewModel.installments.value,
                       dashboardViewModel.categories.value,
                       aiAssistantViewModel.isOnlineMode.value,
+                      dashboardViewModel.bankLoans.value,
                       true
                     )
                   },

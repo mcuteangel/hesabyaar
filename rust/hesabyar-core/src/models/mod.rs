@@ -102,6 +102,44 @@ pub struct Installment {
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 #[serde(rename_all = "camelCase")]
+pub struct BankLoan {
+    pub id: i64,
+    #[serde(alias = "bankName")]
+    pub bank_name: String,
+    #[serde(alias = "loanName")]
+    pub loan_name: String,
+    #[serde(alias = "receivedAmount")]
+    pub received_amount: i64,
+    #[serde(alias = "monthlyInstallmentAmount")]
+    pub monthly_installment_amount: i64,
+    #[serde(alias = "numberOfInstallments")]
+    pub number_of_installments: i32,
+    #[serde(alias = "totalRepayableAmount")]
+    pub total_repayable_amount: i64,
+    #[serde(alias = "totalInterest")]
+    pub total_interest: i64,
+    #[serde(alias = "startDate")]
+    pub start_date: i64,
+    pub description: String,
+    #[serde(alias = "isSettled")]
+    pub is_settled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
+pub struct BankLoanSummary {
+    pub bank_name: String,
+    pub loan_name: String,
+    pub received_amount: i64,
+    pub total_repayable_amount: i64,
+    pub total_interest: i64,
+    pub number_of_installments: i32,
+    pub is_settled: bool,
+    pub remaining_debt: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
 pub struct Category {
     pub id: i64,
     pub name: String,
@@ -152,6 +190,8 @@ pub struct DashboardData {
     pub creditors_total: i64,
     pub savings_rate: f64,
     pub debt_to_income_ratio: f64,
+    pub bank_loans_total: i64,
+    pub bank_loans: Vec<BankLoanSummary>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -201,6 +241,8 @@ pub struct AnalyticsData {
     pub total_credit: i64,
     pub total_installments: i32,
     pub paid_installments: i32,
+    pub bank_loans: Vec<BankLoanSummary>,
+    pub bank_loans_total_debt: i64,
 }
 
 /// Backup payload for JSON export/import.
@@ -225,6 +267,8 @@ pub struct BackupPayload {
     #[serde(default)]
     pub installments: Vec<Installment>,
     #[serde(default)]
+    pub bank_loans: Vec<BankLoan>,
+    #[serde(default)]
     pub categories: Vec<Category>,
 }
 
@@ -237,6 +281,7 @@ impl Default for BackupPayload {
             transactions: Vec::new(),
             loans: Vec::new(),
             installments: Vec::new(),
+            bank_loans: Vec::new(),
             categories: Vec::new(),
         }
     }
@@ -336,6 +381,7 @@ mod tests {
             }],
             loans: vec![],
             installments: vec![],
+            bank_loans: vec![],
             categories: vec![],
         };
         let json = serde_json::to_string(&original).unwrap();
@@ -383,5 +429,51 @@ mod tests {
         }"#;
         let payload: BackupPayload = serde_json::from_str(json).unwrap();
         assert_eq!(crate::validate_backup(&payload).unwrap_err().to_string(), "Backup validation: Invalid backup version");
+    }
+
+    #[test]
+    fn test_backup_payload_round_trips_bank_loans() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![BankLoan {
+                id: 1,
+                bank_name: "بانک ملت".to_string(),
+                loan_name: "وام خودرو".to_string(),
+                received_amount: 100_000_000,
+                monthly_installment_amount: 10_000_000,
+                number_of_installments: 12,
+                total_repayable_amount: 120_000_000,
+                total_interest: 20_000_000,
+                start_date: 1710000000000,
+                description: "".to_string(),
+                is_settled: false,
+            }],
+            categories: vec![],
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.bank_loans.len(), 1);
+        assert_eq!(restored.bank_loans[0].bank_name, "بانک ملت");
+        assert_eq!(restored.bank_loans[0].total_repayable_amount, 120_000_000);
+    }
+
+    #[test]
+    fn test_backup_payload_old_backup_no_bank_loans_defaults_empty() {
+        let json = r#"{
+            "version": 1,
+            "timestamp": 1710000000000,
+            "appVersion": "1.0",
+            "transactions": [],
+            "loans": [],
+            "installments": [],
+            "categories": []
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.bank_loans.is_empty());
     }
 }

@@ -29,5 +29,24 @@ class ManageInstallmentUseCase(
   suspend fun toggleInstallmentPaid(installment: Installment) =
     repository.updateInstallment(installment.copy(isPaid = !installment.isPaid))
 
+  suspend fun addInstallmentForBankLoan(
+    bankLoanId: Long,
+    title: String,
+    amount: Long,
+    dueDate: Long,
+    reminderEnabled: Boolean,
+    notes: String
+  ): Long =
+    repository.insertInstallment(
+      Installment(
+        bankLoanId = bankLoanId,
+        title = title,
+        amount = amount,
+        dueDate = dueDate,
+        reminderEnabled = reminderEnabled,
+        notes = notes
+      )
+    )
+
   suspend fun deleteInstallment(installment: Installment) = repository.deleteInstallment(installment)
 }
