@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -9,6 +10,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustMappers
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
@@ -31,6 +33,7 @@ object BudgetAdvisor {
     installments: List<Installment>,
     categories: List<Category>,
     config: AiProviderConfig? = null,
+    bankLoans: List<BankLoan> = emptyList(),
     aiGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
       { cfg, prompt, sys, temp -> AiProvider.generateContent(cfg, prompt, sys, temp) }
   ): String =
@@ -40,6 +43,7 @@ object BudgetAdvisor {
       installments,
       categories,
       config,
+      bankLoans,
       aiGenerate
     )
 
@@ -138,7 +142,8 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    config: AiProviderConfig? = null
+    config: AiProviderConfig? = null,
+    bankLoans: List<BankLoan> = emptyList()
   ): String =
     withContext(Dispatchers.IO) {
       AppLogger.d(
@@ -150,7 +155,7 @@ object BudgetAdvisor {
       val providerConfig = config ?: AiProviderConfig()
       if (!providerConfig.isConfigured) {
         AppLogger.w(TAG, "AI provider not configured, using offline local budget forecast")
-        return@withContext getOfflineForecast(transactions, loans, installments)
+        return@withContext getOfflineForecast(transactions, loans, installments, bankLoans)
       }
 
       if (transactions.isEmpty() && installments.isEmpty()) {
@@ -162,7 +167,7 @@ object BudgetAdvisor {
 
       val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
       val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-      val activeLoansCount = loans.filter { !it.isSettled }.size
+      val activeLoansCount = loans.filter { !it.isSettled }.size + bankLoans.count { !it.isSettled }
       val upcomingInstallments = installments.filter { !it.isPaid }
       val totalUpcomingAmount = upcomingInstallments.sumOf { it.amount }
 
@@ -222,7 +227,7 @@ object BudgetAdvisor {
           if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
             AppLogger.w(TAG, "AI forecast failed validation, using offline: ${validation.warnings}")
             "⚠️ پیش‌بینی هوش مصنوعی نامعتبر بود. پیش‌بینی محلی شما:\n\n" +
-              getOfflineForecast(transactions, loans, installments)
+              getOfflineForecast(transactions, loans, installments, bankLoans)
           } else {
             if (validation.wasTruncated) {
               AppLogger.d(TAG, "AI forecast truncated: ${validation.warnings}")
@@ -233,7 +238,7 @@ object BudgetAdvisor {
         is AiProvider.ApiResult.Failure -> {
           AppLogger.e(TAG, "AI forecast failed: ${result.error}")
           "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" +
-            getOfflineForecast(transactions, loans, installments)
+            getOfflineForecast(transactions, loans, installments, bankLoans)
         }
       }
     }
@@ -242,7 +247,8 @@ object BudgetAdvisor {
   fun getOfflineForecast(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.getOfflineForecastSync(
@@ -251,27 +257,40 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapInstallments(installments)
+          .mapInstallments(installments),
+        bankLoans
       )
     if (rustResult.isNotEmpty()) return rustResult
 
     // Rust unavailable: serve a baseline forecast from local data instead of a false "insufficient data" message.
-    return buildLocalOfflineForecast(transactions, loans, installments)
+    return buildLocalOfflineForecast(transactions, loans, installments, bankLoans)
   }
 
   // Local, dependency-free baseline forecast used when the Rust core is unavailable.
   private fun buildLocalOfflineForecast(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan>
   ): String {
     val summary = summarizeTransactions(transactions)
-    val upcomingInstallments = installments.filter { !it.isPaid }
+    val nowMs = System.currentTimeMillis()
+    // Window end is derived with Jalali calendar arithmetic so "the next 30 days"
+    // spans exactly 30 Jalali days (months are 29–31 days) rather than a fixed
+    // 30 × 24h millisecond span. Exclusive end = midnight of the 31st Jalali day
+    // from today, so installments due through the end of day 30 are included and
+    // later ones are excluded from totalUpcoming.
+    val windowEndMs = jalaliPlusDaysMs(nowMs, 31)
+    val upcomingInstallments =
+      installments.filter { !it.isPaid && it.dueDate >= nowMs && it.dueDate < windowEndMs }
     val totalUpcoming = upcomingInstallments.sumOf { it.amount }
+    val activeBankLoans = bankLoans.filter { !it.isSettled }
     val activeLoans = loans.filter { !it.isSettled }
-    val totalDebt = activeLoans.sumOf { it.remainingAmount }
+    val totalDebt = activeLoans.sumOf { it.remainingAmount } + activeBankLoans.sumOf { it.totalRepayableAmount }
+    val activeDebtCount = activeLoans.size + activeBankLoans.size
 
-    if (transactions.isEmpty() && installments.isEmpty() && loans.isEmpty()) {
+    val hasNoData = transactions.isEmpty() && installments.isEmpty() && loans.isEmpty() && bankLoans.isEmpty()
+    if (hasNoData) {
       return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
     }
 
@@ -281,8 +300,8 @@ object BudgetAdvisor {
     sb.appendLine()
     sb.appendLine("**تراز فعلی:** ${formatAmountClean(summary.balance)}")
     sb.appendLine("**اقساط پیش‌رو:** ${upcomingInstallments.size} مورد به مبلغ ${formatAmountClean(totalUpcoming)}")
-    if (activeLoans.isNotEmpty()) {
-      sb.appendLine("**بدهی‌های فعال:** ${activeLoans.size} مورد به مبلغ ${formatAmountClean(totalDebt)}")
+    if (activeDebtCount > 0) {
+      sb.appendLine("**بدهی‌های فعال:** $activeDebtCount مورد به مبلغ ${formatAmountClean(totalDebt)}")
     }
     sb.appendLine()
     sb.appendLine("**تراز پیش‌بینی‌شده (۳۰ روز آینده):** ${formatAmountClean(projectedBalance)}")
@@ -298,7 +317,8 @@ object BudgetAdvisor {
   fun calculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
-    monthlyIncome: Long
+    monthlyIncome: Long,
+    bankLoans: List<BankLoan> = emptyList()
   ): Double =
     if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
       io.github.mojri.hesabyar.rust.RustBridge.calculateDebtToIncomeRatioSync(
@@ -306,18 +326,20 @@ object BudgetAdvisor {
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
-        monthlyIncome
+        monthlyIncome,
+        bankLoans
       )
     } else {
-      localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome)
+      localCalculateDebtToIncomeRatio(loans, installments, monthlyIncome, bankLoans)
     }
 
   // Local, dependency-free debt-to-income ratio used when the Rust core is unavailable.
-  @Suppress("MagicNumber")
+  @Suppress("MagicNumber", "UnusedParameter")
   private fun localCalculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
-    monthlyIncome: Long
+    monthlyIncome: Long,
+    bankLoans: List<BankLoan>
   ): Double {
     val monthlyDebtPayments =
       installments.filter { !it.isPaid }.sumOf { it.amount } +
@@ -364,12 +386,13 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
     val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val balance = totalIncome - totalExpense
-    val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+    val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome, bankLoans)
     val savingsRate = if (totalIncome > 0) balance.toDouble() / totalIncome.toDouble() else 0.0
     val upcomingInstallments = installments.filter { !it.isPaid }
 
@@ -420,7 +443,8 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): Int =
     if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
       io.github.mojri.hesabyar.rust.RustBridge.calculateFinancialHealthScoreSync(
@@ -431,10 +455,11 @@ object BudgetAdvisor {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapCategories(categories)
+          .mapCategories(categories),
+        bankLoans
       )
     } else {
-      localCalculateFinancialHealthScore(transactions, loans, installments)
+      localCalculateFinancialHealthScore(transactions, loans, installments, bankLoans)
     }
 
   // Local, dependency-free financial health score used when the Rust core is unavailable.
@@ -442,7 +467,8 @@ object BudgetAdvisor {
   private fun localCalculateFinancialHealthScore(
     transactions: List<Transaction>,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan>
   ): Int {
     if (transactions.isEmpty()) return 0
 
@@ -469,7 +495,8 @@ object BudgetAdvisor {
     // Use a trailing-90-day income baseline so all-time accumulated income does
     // not understate the ratio relative to the monthly debt obligations. This
     // mirrors the Rust core's `monthly_income_baseline` scoping.
-    val debtRatio = calculateDebtToIncomeRatio(loans, installments, localMonthlyIncomeBaseline(transactions))
+    val debtRatio =
+      calculateDebtToIncomeRatio(loans, installments, localMonthlyIncomeBaseline(transactions), bankLoans)
     score +=
       when {
         debtRatio <= 0.1 -> 15
@@ -514,5 +541,42 @@ object BudgetAdvisor {
     val months = max(1.0, days / 30.0)
     val sum = recent.sumOf { it.amount }
     return (sum.toDouble() / months).toLong()
+  }
+
+  // Adds [days] Jalali days to the date represented by [fromMs] and returns the
+  // resulting day's local-midnight timestamp. Uses JalaliCalendarHelper for all
+  // calendar arithmetic (month lengths differ across Jalali months) so the
+  // 30-day forecast window tracks the Iranian calendar instead of a fixed
+  // millisecond span. Falls back to a millisecond offset if the conversion is
+  // unavailable.
+  @Suppress("MagicNumber")
+  private fun jalaliPlusDaysMs(
+    fromMs: Long,
+    days: Int
+  ): Long {
+    val today = JalaliCalendarHelper.gregorianToJalali(fromMs)
+    var year = today.year
+    var month = today.month
+    var day = today.day
+    var remaining = days
+    while (remaining > 0) {
+      val daysInMonth = JalaliCalendarHelper.getDaysInMonth(year, month)
+      val daysLeftInMonth = daysInMonth - day
+      if (remaining <= daysLeftInMonth) {
+        day += remaining
+        remaining = 0
+      } else {
+        remaining -= daysLeftInMonth + 1
+        day = 1
+        if (month == 12) {
+          month = 1
+          year += 1
+        } else {
+          month += 1
+        }
+      }
+    }
+    return JalaliCalendarHelper.jalaliToGregorian(year, month, day)?.timeInMillis
+      ?: fromMs + days.toLong() * 24 * 60 * 60 * 1000
   }
 }

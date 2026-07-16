@@ -7,11 +7,36 @@ use std::collections::HashMap;
 /// - Monthly aggregates use the **Jalali calendar** (not Gregorian).
 /// - Category breakdown includes percentage-based burn rates.
 /// - Debt/credit summaries include progress toward settlement.
+
+/// Build per-bank-loan summary rows, computing the remaining outstanding debt.
+///
+/// Until per-loan installment linkage is tracked in Rust, `remaining_debt` is
+/// `0` when the loan is settled and the full `total_repayable_amount` otherwise.
+pub(crate) fn build_bank_loan_summaries(
+    bank_loans: &[BankLoan],
+    _installments: &[Installment],
+) -> Vec<BankLoanSummary> {
+    bank_loans
+        .iter()
+        .map(|b| BankLoanSummary {
+            bank_name: b.bank_name.clone(),
+            loan_name: b.loan_name.clone(),
+            received_amount: b.received_amount,
+            total_repayable_amount: b.total_repayable_amount,
+            total_interest: b.total_interest,
+            number_of_installments: b.number_of_installments,
+            is_settled: b.is_settled,
+            remaining_debt: if b.is_settled { 0 } else { b.total_repayable_amount },
+        })
+        .collect()
+}
+
 pub fn compute_analytics(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
     categories: &[Category],
+    bank_loans: &[BankLoan],
 ) -> AnalyticsData {
     let category_map: HashMap<i64, &Category> = categories.iter().map(|c| (c.id, c)).collect();
 
@@ -144,6 +169,9 @@ pub fn compute_analytics(
     let total_installments = installments.len() as i32;
     let paid_installments = installments.iter().filter(|i| i.is_paid).count() as i32;
 
+    let bank_loans = build_bank_loan_summaries(bank_loans, installments);
+    let bank_loans_total_debt: i64 = bank_loans.iter().map(|b| b.remaining_debt).sum();
+
     AnalyticsData {
         monthly_spending,
         monthly_income: monthly_inc,
@@ -154,6 +182,8 @@ pub fn compute_analytics(
         total_credit,
         total_installments,
         paid_installments,
+        bank_loans,
+        bank_loans_total_debt,
     }
 }
 
@@ -225,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_empty_all() {
-        let result = compute_analytics(&[], &[], &[], &[]);
+        let result = compute_analytics(&[], &[], &[], &[], &[]);
         assert!(result.monthly_spending.is_empty());
         assert!(result.monthly_income.is_empty());
         assert!(result.category_breakdown.is_empty());
@@ -248,7 +278,7 @@ mod tests {
             tx(1, TransactionType::Expense, 100_000, now, 1),
             tx(2, TransactionType::Expense, 200_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         // Both transactions are in the current Jalali month → single MonthlyData
         assert_eq!(result.monthly_spending.len(), 1);
         assert_eq!(result.monthly_spending[0].expense, 300_000);
@@ -261,7 +291,7 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now, 1),
             tx(2, TransactionType::Expense, 400_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         assert_eq!(result.monthly_spending.len(), 1);
         assert_eq!(result.monthly_spending[0].income, 1_000_000);
         assert_eq!(result.monthly_spending[0].expense, 400_000);
@@ -276,7 +306,7 @@ mod tests {
             tx(3, TransactionType::LoanCreditor, 200_000, now, 1),
             tx(4, TransactionType::Installment, 100_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         // Only Income contributes to monthly_income
         assert_eq!(result.monthly_spending[0].income, 500_000);
         assert_eq!(result.monthly_spending[0].expense, 0);
@@ -286,7 +316,7 @@ mod tests {
     fn test_monthly_label_includes_jalali_month_days() {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 100, now, 1)];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         let label = &result.monthly_spending[0].label;
         // Label should be like "1404/4 (31 days)"
         assert!(label.contains("days)"), "Label should include days: {}", label);
@@ -306,7 +336,7 @@ mod tests {
             tx(3, TransactionType::Expense, 200_000, now, 2),
             tx(4, TransactionType::Income, 500_000, now, 1), // income — excluded
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[]);
         assert_eq!(result.category_breakdown.len(), 2);
 
         // Food: 300k + 100k = 400k, Transport: 200k
@@ -325,7 +355,7 @@ mod tests {
             tx(2, TransactionType::Expense, 300, now, 2),
             tx(3, TransactionType::Expense, 200, now, 3),
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[]);
         let total_pct: f32 = result.category_breakdown.iter().map(|c| c.percentage).sum();
         assert!((total_pct - 100.0).abs() < 0.01, "Percentages should sum to ~100, got {}", total_pct);
     }
@@ -334,7 +364,7 @@ mod tests {
     fn test_category_unknown_id_gets_empty_name() {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 500, now, 999)];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         assert_eq!(result.category_breakdown.len(), 1);
         assert_eq!(result.category_breakdown[0].category_name, "");
         assert_eq!(result.category_breakdown[0].category_id, 999);
@@ -348,7 +378,7 @@ mod tests {
             tx(1, TransactionType::Expense, 100, now, 2),
             tx(2, TransactionType::Expense, 500, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[]);
         assert_eq!(result.category_breakdown[0].total, 500);
         assert_eq!(result.category_breakdown[1].total, 100);
     }
@@ -356,7 +386,7 @@ mod tests {
     #[test]
     fn test_zero_total_expense_gives_zero_percentages() {
         let txs = vec![tx(1, TransactionType::Income, 1000, now_ms(), 1)];
-        let result = compute_analytics(&txs, &[], &[], &[]);
+        let result = compute_analytics(&txs, &[], &[], &[], &[]);
         // No expenses → category_breakdown is empty
         assert!(result.category_breakdown.is_empty());
     }
@@ -371,7 +401,7 @@ mod tests {
             loan(1, "DEBTOR", "Ali", 1_000_000, 400_000),
             loan(2, "CREDITOR", "Reza", 2_000_000, 1_000_000),
         ];
-        let result = compute_analytics(&[], &loans, &[], &[]);
+        let result = compute_analytics(&[], &loans, &[], &[], &[]);
         assert_eq!(result.debtors.len(), 1);
         assert_eq!(result.creditors.len(), 1);
         assert_eq!(result.total_debt, 400_000);
@@ -382,7 +412,7 @@ mod tests {
     fn test_debt_progress_calculation() {
         // Original 1M, remaining 400k → paid 600k → progress = 60%
         let loans = vec![loan(1, "DEBTOR", "Ali", 1_000_000, 400_000)];
-        let result = compute_analytics(&[], &loans, &[], &[]);
+        let result = compute_analytics(&[], &loans, &[], &[], &[]);
         let d = &result.debtors[0];
         assert!((d.progress - 0.6).abs() < 1e-5);
     }
@@ -390,7 +420,7 @@ mod tests {
     #[test]
     fn test_zero_original_amount_gives_zero_progress() {
         let loans = vec![loan(1, "DEBTOR", "Ali", 0, 0)];
-        let result = compute_analytics(&[], &loans, &[], &[]);
+        let result = compute_analytics(&[], &loans, &[], &[], &[]);
         assert_eq!(result.debtors[0].progress, 0.0);
     }
 
@@ -405,14 +435,14 @@ mod tests {
             installment(2, 200_000, false),
             installment(3, 300_000, true),
         ];
-        let result = compute_analytics(&[], &[], &installments, &[]);
+        let result = compute_analytics(&[], &[], &installments, &[], &[]);
         assert_eq!(result.total_installments, 3);
         assert_eq!(result.paid_installments, 2);
     }
 
     #[test]
     fn test_empty_installments() {
-        let result = compute_analytics(&[], &[], &[], &[]);
+        let result = compute_analytics(&[], &[], &[], &[], &[]);
         assert_eq!(result.total_installments, 0);
         assert_eq!(result.paid_installments, 0);
     }
@@ -427,7 +457,7 @@ mod tests {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 42, now, 1)];
         let cats = vec![category(1, "Test")];
-        let result = compute_analytics(&txs, &[], &[], &cats);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[]);
         assert_eq!(result.category_breakdown[0].total, 42);
         assert_eq!(result.monthly_spending[0].expense, 42);
     }
@@ -446,7 +476,7 @@ mod tests {
             txs.push(tx(i as i64, tx_type, (i as i64) * 100, now, cat_id));
         }
         let cats: Vec<Category> = (1..=5).map(|id| category(id, &format!("Cat{}", id))).collect();
-        let result = compute_analytics(&txs, &[], &[], &cats);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[]);
         assert_eq!(result.category_breakdown.len(), 5);
         // Percentages should still sum to ~100
         let total_pct: f32 = result.category_breakdown.iter().map(|c| c.percentage).sum();

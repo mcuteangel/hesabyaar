@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -44,7 +45,8 @@ class GetAnalyticsUseCase {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -55,14 +57,18 @@ class GetAnalyticsUseCase {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapCategories(categories)
+          .mapCategories(categories),
+        bankLoans
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank
     // placeholder while real data exists. In those cases fall back to a local
     // computation so the UI never shows misleading empty analytics.
     val hasData =
-      transactions.isNotEmpty() || loans.isNotEmpty() || installments.isNotEmpty()
+      transactions.isNotEmpty() ||
+        loans.isNotEmpty() ||
+        installments.isNotEmpty() ||
+        bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapAnalyticsData(rustResult, loans, installments)
@@ -147,6 +153,21 @@ class GetAnalyticsUseCase {
         emptyList()
       }
 
+    val bankLoanSummaries =
+      bankLoans.map { loan ->
+        io.github.mojri.hesabyar.rust.BankLoanSummary(
+          bankName = loan.bankName,
+          loanName = loan.loanName,
+          receivedAmount = loan.receivedAmount,
+          totalRepayableAmount = loan.totalRepayableAmount,
+          totalInterest = loan.totalInterest,
+          numberOfInstallments = loan.numberOfInstallments,
+          isSettled = loan.isSettled,
+          remainingDebt = if (loan.isSettled) 0 else loan.totalRepayableAmount
+        )
+      }
+    val bankLoanTotalDebt = bankLoanSummaries.sumOf { it.remainingDebt }
+
     return AnalyticsData(
       monthlySpending = listOf(monthlySpending),
       monthlyIncome = listOf(monthlyIncomeData),
@@ -157,7 +178,9 @@ class GetAnalyticsUseCase {
       totalDebt = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount },
       totalCredit = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount },
       totalInstallments = installments.size,
-      paidInstallments = installments.count { it.isPaid }
+      paidInstallments = installments.count { it.isPaid },
+      bankLoans = bankLoanSummaries,
+      bankLoansTotalDebt = bankLoanTotalDebt
     )
   }
 
@@ -172,5 +195,7 @@ class GetAnalyticsUseCase {
       totalDebt == 0L &&
       totalCredit == 0L &&
       totalInstallments == 0 &&
-      paidInstallments == 0
+      paidInstallments == 0 &&
+      bankLoans.isEmpty() &&
+      bankLoansTotalDebt == 0L
 }

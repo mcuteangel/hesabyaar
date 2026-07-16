@@ -51,6 +51,7 @@ class MainActivity : FragmentActivity() {
   private val backupViewModel: BackupViewModel by viewModels()
   private val exportViewModel: ExportViewModel by viewModels()
   private val analyticsViewModel: AnalyticsViewModel by viewModels()
+  private val bankLoanViewModel: BankLoanViewModel by viewModels()
 
   private val notificationPermissionLauncher =
     registerForActivityResult(
@@ -88,7 +89,19 @@ class MainActivity : FragmentActivity() {
               onUnlocked = { }
             )
           } else {
-            var currentTab by remember { mutableStateOf("DASHBOARD") }
+            val startTab =
+              when (intent?.getStringExtra("OPEN_TAB")) {
+                "LOANS", "INSTALLMENTS", "BANK_LOANS", "DEBTS" -> "DEBTS"
+                else -> "DASHBOARD"
+              }
+            val startDebtSection =
+              when (intent?.getStringExtra("OPEN_TAB")) {
+                "LOANS" -> DebtSection.LOANS
+                "BANK_LOANS" -> DebtSection.BANK_LOANS
+                else -> DebtSection.INSTALLMENTS
+              }
+            var currentTab by remember { mutableStateOf(startTab) }
+            var debtSection by remember { mutableStateOf(startDebtSection) }
             var showCategoryManagement by remember { mutableStateOf(false) }
 
             if (showCategoryManagement) {
@@ -111,8 +124,7 @@ class MainActivity : FragmentActivity() {
                       listOf(
                         Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
                         Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
-                        Triple("LOANS", "قرض و وام", Icons.Filled.HistoryEdu),
-                        Triple("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard)
+                        Triple("DEBTS", "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
                       )
 
                     tabs.forEach { (tabId, label, icon) ->
@@ -191,15 +203,12 @@ class MainActivity : FragmentActivity() {
                       settingsViewModel = settingsViewModel,
                       modifier = modifier
                     )
-                  "LOANS" ->
-                    LoanManagementScreen(
-                      loanViewModel = loanViewModel,
-                      settingsViewModel = settingsViewModel,
-                      modifier = modifier
-                    )
-                  "INSTALLMENTS" ->
-                    InstallmentScreen(
+                  "DEBTS" ->
+                    DebtHubScreen(
+                      initialSection = debtSection,
                       installmentViewModel = installmentViewModel,
+                      bankLoanViewModel = bankLoanViewModel,
+                      loanViewModel = loanViewModel,
                       settingsViewModel = settingsViewModel,
                       modifier = modifier
                     )

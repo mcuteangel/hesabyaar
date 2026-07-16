@@ -5,6 +5,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.mojri.hesabyar.data.AppDatabase
+import io.github.mojri.hesabyar.data.BankLoanDao
 import io.github.mojri.hesabyar.data.CategoryDao
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -25,6 +26,7 @@ object RepositoryModule {
     installmentDao: InstallmentDao,
     paymentHistoryDao: PaymentHistoryDao,
     categoryDao: CategoryDao,
+    bankLoanDao: BankLoanDao,
     database: AppDatabase
   ): HesabyarRepositoryInterface =
     HesabyarRepository(
@@ -33,6 +35,7 @@ object RepositoryModule {
       installmentDao,
       paymentHistoryDao,
       categoryDao,
+      bankLoanDao,
       database
     )
 }

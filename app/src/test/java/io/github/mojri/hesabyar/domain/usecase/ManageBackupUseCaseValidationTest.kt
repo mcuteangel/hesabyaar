@@ -110,4 +110,36 @@ class ManageBackupUseCaseValidationTest {
       val result = useCase.validateBackup(payload)
       assertTrue("expected $result to be Invalid for zero-amount transaction", result is BackupValidationResult.Invalid)
     }
+
+  @Test
+  fun `kotlin fallback flags invalid bank loan`() =
+    runTest {
+      // Force the Kotlin validation path (no native library).
+      HesabyarApp.setRustInitializedForTesting(false)
+      val payload =
+        BackupPayload(
+          bankLoans =
+            listOf(
+              // Blank bank name + non-positive amounts => invalid.
+              io.github.mojri.hesabyar.data.BankLoan(
+                bankName = "",
+                loanName = "x",
+                receivedAmount = 0L,
+                monthlyInstallmentAmount = 0L,
+                numberOfInstallments = 0,
+                totalRepayableAmount = 0L,
+                totalInterest = 0L,
+                startDate = 0L,
+                description = ""
+              )
+            )
+        )
+
+      val result = useCase.validateBackup(payload)
+      assertTrue(
+        "expected $result to be Invalid for malformed bank loan",
+        result is BackupValidationResult.Invalid
+      )
+      HesabyarApp.setRustInitializedForTesting(true)
+    }
 }

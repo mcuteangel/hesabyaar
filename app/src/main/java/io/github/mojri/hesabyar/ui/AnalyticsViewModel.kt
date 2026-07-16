@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
@@ -43,14 +44,19 @@ class AnalyticsViewModel
       repository.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val bankLoans: StateFlow<List<BankLoan>> =
+      repository.allBankLoans
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val analyticsData: StateFlow<AnalyticsData> =
       combine(
         transactions,
         loans,
         installments,
-        categories
-      ) { trans, loanList, instList, catList ->
-        getAnalyticsUseCase.computeAnalytics(trans, loanList, instList, catList)
+        categories,
+        bankLoans
+      ) { trans, loanList, instList, catList, bankLoanList ->
+        getAnalyticsUseCase.computeAnalytics(trans, loanList, instList, catList, bankLoanList)
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())

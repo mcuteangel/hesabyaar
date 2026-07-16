@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
@@ -8,13 +9,22 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 
 internal class FakeRepository : HesabyarRepositoryInterface {
+  private val bankLoans = mutableListOf<BankLoan>()
+  private val installments = mutableListOf<Installment>()
+  private val _allInstallments = MutableStateFlow<List<Installment>>(emptyList())
+  private val _allBankLoans = MutableStateFlow<List<BankLoan>>(emptyList())
+  private var nextId = 1L
+
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
   override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
-  override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
+  override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+  override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
 
   override fun getTransactionsInRange(
     start: Long,
@@ -54,17 +64,74 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     customDate: Long?
   ): Boolean = false
 
-  override suspend fun insertInstallment(installment: Installment): Long = 0L
+  override suspend fun insertInstallment(installment: Installment): Long {
+    val id = nextId++
+    installments.add(installment.copy(id = id))
+    _allInstallments.value = installments.toList()
+    return id
+  }
 
-  override suspend fun updateInstallment(installment: Installment) {}
+  override suspend fun updateInstallment(installment: Installment) {
+    val idx = installments.indexOfFirst { it.id == installment.id }
+    if (idx >= 0) {
+      installments[idx] = installment
+      _allInstallments.value = installments.toList()
+    }
+  }
 
-  override suspend fun deleteInstallment(installment: Installment) {}
+  override suspend fun deleteInstallment(installment: Installment) {
+    installments.removeIf { it.id == installment.id }
+    _allInstallments.value = installments.toList()
+  }
+
+  override suspend fun getBankLoanById(id: Long): BankLoan? = bankLoans.firstOrNull { it.id == id }
+
+  override suspend fun insertBankLoan(bankLoan: BankLoan): Long {
+    val id = nextId++
+    bankLoans.add(bankLoan.copy(id = id))
+    _allBankLoans.value = bankLoans.toList()
+    return id
+  }
+
+  override suspend fun updateBankLoan(bankLoan: BankLoan) {
+    val idx = bankLoans.indexOfFirst { it.id == bankLoan.id }
+    if (idx >= 0) {
+      bankLoans[idx] = bankLoan
+      _allBankLoans.value = bankLoans.toList()
+    }
+  }
+
+  override suspend fun deleteBankLoan(bankLoan: BankLoan) {
+    bankLoans.removeIf { it.id == bankLoan.id }
+    _allBankLoans.value = bankLoans.toList()
+    installments.removeIf { it.bankLoanId == bankLoan.id }
+    _allInstallments.value = installments.toList()
+  }
+
+  override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> =
+    installments.filter { it.bankLoanId == bankLoanId }
+
+  override suspend fun addBankLoanWithInstallments(
+    bankLoan: BankLoan,
+    installmentsToAdd: List<Installment>
+  ): Long {
+    val id = nextId++
+    bankLoans.add(bankLoan.copy(id = id))
+    _allBankLoans.value = bankLoans.toList()
+    installmentsToAdd.forEach { inst ->
+      val instId = nextId++
+      installments.add(inst.copy(id = instId, bankLoanId = id))
+    }
+    _allInstallments.value = installments.toList()
+    return id
+  }
 
   override suspend fun importBackup(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    paymentHistories: List<PaymentHistory>
+    paymentHistories: List<PaymentHistory>,
+    bankLoans: List<BankLoan>
   ) {}
 
   override suspend fun replaceAllFromBackup(backup: BackupPayload) {}

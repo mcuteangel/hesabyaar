@@ -104,6 +104,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
         if payload.transactions.is_empty()
             && payload.loans.is_empty()
             && payload.installments.is_empty()
+            && payload.bank_loans.is_empty()
             && payload.categories.is_empty()
         {
             return Err(HesabyarError::BackupValidation {
@@ -165,6 +166,16 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             if inst.due_date <= 0 {
                 return Err(HesabyarError::BackupValidation {
                     detail: format!("Installment {} has invalid due_date", inst.id),
+                });
+            }
+        }
+
+        // Validate bank loans via the canonical validator so all entry paths
+        // enforce the same financial invariants (incl. checked repayment/interest).
+        for bl in &payload.bank_loans {
+            if let Err(detail) = crate::validation::validate_bank_loan(bl) {
+                return Err(HesabyarError::BackupValidation {
+                    detail: format!("BankLoan {}: {}", bl.id, detail),
                 });
             }
         }

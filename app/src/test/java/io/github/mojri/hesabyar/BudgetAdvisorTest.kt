@@ -175,6 +175,7 @@ class BudgetAdvisorTest {
           emptyList(),
           emptyList(),
           config,
+          emptyList(),
           recordingGenerate
         )
       assertEquals("AI must not be called for an empty ledger", 0, aiCallCount)
@@ -206,6 +207,7 @@ class BudgetAdvisorTest {
           installments,
           emptyList(),
           config,
+          emptyList(),
           recordingGenerate
         )
       assertEquals("AI must be called when unpaid obligations exist", 1, aiCallCount)

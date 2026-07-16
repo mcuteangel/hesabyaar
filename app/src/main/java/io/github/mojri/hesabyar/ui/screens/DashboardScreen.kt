@@ -33,7 +33,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
@@ -124,6 +123,7 @@ fun DashboardScreen(
   val loans by dashboardViewModel.loans.collectAsState()
   val installments by dashboardViewModel.installments.collectAsState()
   val categories by dashboardViewModel.categories.collectAsState()
+  val bankLoans by dashboardViewModel.bankLoans.collectAsState()
   val forecastState by aiAssistantViewModel.forecastState.collectAsState()
   val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
 
@@ -133,8 +133,8 @@ fun DashboardScreen(
   var deletingTransaction by remember { mutableStateOf<Transaction?>(null) }
   var showDetailTransaction by remember { mutableStateOf<Transaction?>(null) }
 
-  LaunchedEffect(transactions, loans, installments, categories) {
-    aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories)
+  LaunchedEffect(transactions, loans, installments, categories, bankLoans) {
+    aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
   Box(modifier = modifier.fillMaxSize()) {
@@ -146,65 +146,7 @@ fun DashboardScreen(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
       contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
     ) {
-      // Welcome and Custom Header with Logo from Design Spec
-      item {
-        Row(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(vertical = SpacingTokens.md),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-          ) {
-            Box(
-              modifier =
-                Modifier
-                  .size(44.dp)
-                  .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = Icons.Filled.AccountBalanceWallet,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(Dimens.IconMedium)
-              )
-            }
-            Column {
-              Text(
-                text = "حسابیار هوشمند",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-              )
-              Text(
-                text = "دستیار مالی هوشمند شما",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
-              )
-            }
-          }
-
-          IconButton(
-            onClick = { settingsViewModel.toggleDarkMode() },
-            modifier =
-              Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), CircleShape)
-                .size(Dimens.ButtonHeight)
-          ) {
-            Icon(
-              imageVector = if (settingsViewModel.isDarkMode.value) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-              contentDescription = "تغییر تم",
-              modifier = Modifier.size(20.dp),
-              tint = MaterialTheme.colorScheme.primary
-            )
-          }
-        }
-      }
+      item { DashboardHeader(settingsViewModel) }
 
       // Wallet Balance Card
       item {
@@ -216,495 +158,23 @@ fun DashboardScreen(
         )
       }
 
-      // Smart Forecast Alert Card (Compact)
       item {
-        HesabyarCard(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .testTag("budget_forecast_alert_card")
-              .clickable {
-                showFullForecast = true
-              },
-          shape = ShapeTokens.Large,
-          cardColors =
-            CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
-            )
-        ) {
-          Row(
-            modifier =
-              Modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-          ) {
-            Box(
-              modifier =
-                Modifier
-                  .size(Dimens.AvatarSmall)
-                  .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = Icons.Filled.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-              )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "پیش‌بینی بودجه ماه آینده",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-              )
-              when (val state = forecastState) {
-                is ForecastUIState.Loading -> {
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                      modifier = Modifier.size(12.dp),
-                      strokeWidth = 1.5.dp,
-                      color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                    Text(
-                      text = "در حال تحلیل...",
-                      style = MaterialTheme.typography.bodySmall,
-                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                  }
-                }
-                is ForecastUIState.Success -> {
-                  val preview = extractForecastPreview(state.forecast)
-                  Column {
-                    Text(
-                      text = preview,
-                      style = MaterialTheme.typography.bodySmall,
-                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                      maxLines = 2,
-                      overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(SpacingTokens.xs))
-                    Text(
-                      text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(
-                        lastForecastFetchTime
-                      )}",
-                      style = MaterialTheme.typography.labelSmall,
-                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
-                  }
-                }
-                is ForecastUIState.Error -> {
-                  Text(
-                    text = "خطا - برای تلاش مجدد کلیک کنید",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    maxLines = 1
-                  )
-                }
-                is ForecastUIState.Idle -> {
-                  Text(
-                    text = "برای دریافت پیش‌بینی کلیک کنید",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                  )
-                }
-              }
-            }
-            Icon(
-              imageVector = Icons.Filled.ChevronLeft,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary
-            )
-          }
-          Button(
-            onClick = { showFullForecast = true },
-            modifier = Modifier.fillMaxWidth(),
-            shape = ShapeTokens.Medium,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-          ) {
-            Icon(
-              imageVector = Icons.Filled.Assignment,
-              contentDescription = null,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-            Spacer(modifier = Modifier.width(SpacingTokens.sm))
-            Text("مشاهده گزارش کامل", fontWeight = FontWeight.Bold)
-          }
-        }
+        SmartForecastCard(
+          forecastState = forecastState,
+          lastForecastFetchTime = lastForecastFetchTime,
+          aiAssistantViewModel = aiAssistantViewModel,
+          onShowForecast = { showFullForecast = true }
+        )
       }
 
-      // Income vs Expense row
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          // Monthly Income
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-              )
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                  modifier =
-                    Modifier
-                      .size(28.dp)
-                      .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.TrendingUp,
-                    contentDescription = null,
-                    tint = FinancialColors.IncomeGreen,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-                Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                Text(
-                  text = "درآمد ۳۰ روزه",
-                  style = MaterialTheme.typography.titleSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-              }
-              Text(
-                text = CurrencyFormatter.format(dashboardData.monthlyIncome),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = FinancialColors.IncomeGreen,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
+      item { IncomeExpenseCards(dashboardData) }
 
-          // Monthly Expenses
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-              )
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                  modifier =
-                    Modifier
-                      .size(28.dp)
-                      .background(FinancialColors.ExpenseRed.copy(alpha = 0.15f), CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.TrendingDown,
-                    contentDescription = null,
-                    tint = FinancialColors.ExpenseRed,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-                Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                Text(
-                  text = "مخارج ۳۰ روزه",
-                  style = MaterialTheme.typography.titleSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-              }
-              Text(
-                text = CurrencyFormatter.format(dashboardData.monthlyExpenses),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = FinancialColors.ExpenseRed,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
-        }
-      }
-
-      // KPI Row: Savings Rate & Debt-to-Income
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-              )
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                  modifier =
-                    Modifier
-                      .size(28.dp)
-                      .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.Savings,
-                    contentDescription = null,
-                    tint = FinancialColors.IncomeGreen,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-                Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                Text(
-                  text = "نرخ پس‌انداز",
-                  style = MaterialTheme.typography.titleSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-              }
-              val savingsPct = (dashboardData.savingsRate * 100).toInt()
-              Text(
-                text = "$savingsPct%",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color =
-                  when {
-                    savingsPct >= 20 -> FinancialColors.IncomeGreen
-                    savingsPct >= 0 -> FinancialColors.WarningOrange
-                    else -> FinancialColors.ExpenseRed
-                  }
-              )
-            }
-          }
-
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-              )
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                  modifier =
-                    Modifier
-                      .size(28.dp)
-                      .background(FinancialColors.InfoBlue.copy(alpha = 0.15f), CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.AccountBalance,
-                    contentDescription = null,
-                    tint = FinancialColors.InfoBlue,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-                Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                Text(
-                  text = "نسبت بدهی",
-                  style = MaterialTheme.typography.titleSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-              }
-              val debtPct = (dashboardData.debtToIncomeRatio * 100).toInt()
-              Text(
-                text = "$debtPct%",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color =
-                  when {
-                    debtPct > 40 -> FinancialColors.ExpenseRed
-                    debtPct > 20 -> FinancialColors.WarningOrange
-                    else -> FinancialColors.InfoBlue
-                  }
-              )
-            }
-          }
-        }
-      }
+      item { KpiCards(dashboardData) }
 
       // Debtors and Creditors summary Row
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          // Debtors (Other people owe me)
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-              )
-          ) {
-            Column(
-              modifier = Modifier.fillMaxWidth(),
-              verticalArrangement = Arrangement.SpaceBetween
-            ) {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.Group,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onSurface,
-                  modifier = Modifier.size(Dimens.IconMedium)
-                )
-                Box(
-                  modifier =
-                    Modifier
-                      .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
-                      .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
-                ) {
-                  Text(
-                    text = "بدهکاران",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                  )
-                }
-              }
-              Spacer(modifier = Modifier.height(SpacingTokens.lg))
-              Text(
-                text = CurrencyFormatter.format(dashboardData.debtorsTotal),
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
+      item { DebtorCreditorCards(dashboardData) }
 
-          // Creditors (I owe other people)
-          HesabyarCard(
-            modifier = Modifier.weight(1f),
-            shape = ShapeTokens.Large,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = FinancialColors.WarningOrange.copy(alpha = 0.15f)
-              )
-          ) {
-            Column(
-              modifier = Modifier.fillMaxWidth(),
-              verticalArrangement = Arrangement.SpaceBetween
-            ) {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.Payments,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onSurface,
-                  modifier = Modifier.size(Dimens.IconMedium)
-                )
-                Box(
-                  modifier =
-                    Modifier
-                      .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
-                      .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
-                ) {
-                  Text(
-                    text = "طلبکاران",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                  )
-                }
-              }
-              Spacer(modifier = Modifier.height(SpacingTokens.lg))
-              Text(
-                text = CurrencyFormatter.format(dashboardData.creditorsTotal),
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
-        }
-      }
-
-      // Quick Smart Parsing Trigger Banner
-      item {
-        HesabyarCard(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .clickable { onNavigateToAssistant() },
-          shape = ShapeTokens.Large,
-          cardColors =
-            CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            )
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier.weight(1f)
-            ) {
-              Box(
-                modifier =
-                  Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.AutoAwesome,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onPrimary,
-                  modifier = Modifier.size(20.dp)
-                )
-              }
-              Spacer(modifier = Modifier.width(SpacingTokens.md))
-              Column {
-                Text(
-                  text = "تحلیل هوشمند تراکنش",
-                  style = MaterialTheme.typography.titleSmall,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                  text = "جمله بنویسید یا صحبت کنید تا خودکار ثبت شود!",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-              }
-            }
-            Icon(
-              imageVector = Icons.Filled.ChevronLeft,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary
-            )
-          }
-        }
-      }
+      item { SmartParsingBanner(onNavigateToAssistant) }
 
       // Upcoming Installments Header
       item {
@@ -739,6 +209,9 @@ fun DashboardScreen(
           )
         }
       }
+
+      // Bank Loans Summary
+      item { BankLoansSummaryCard(dashboardData) }
 
       // Recent Activity Banner
       item {
@@ -842,6 +315,7 @@ fun DashboardScreen(
           dashboardViewModel.installments.value,
           dashboardViewModel.categories.value,
           aiAssistantViewModel.isOnlineMode.value,
+          bankLoans = dashboardViewModel.bankLoans.value,
           forceRefresh = true
         )
       }

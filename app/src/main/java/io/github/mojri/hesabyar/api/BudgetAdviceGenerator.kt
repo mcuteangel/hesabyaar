@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.api
 
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -26,10 +27,10 @@ internal object BudgetAdviceGenerator {
   private const val MAX_RECENT_TRANSACTIONS = 10
 
   private const val LOAN_ADVICE =
-    "🤝 **امور مالی اشخاص (قرض و وام)**: شما دارای %d مورد " +
-      "تسویه نشده هستید. تسویه به موقع دیون و پیگیری منظم " +
-      "طلب‌ها از اشخاص به پایداری روابط کاری و شخصی شما یاری " +
-      "می‌رساند.\n\n"
+    "🤝 **امور مالی (وام بانکی و قرض اشخاص)**: شما دارای %d مورد " +
+      "تسویه نشده هستید. تسویه به موقع دیون، پیگیری منظم اقساط " +
+      "وام‌های بانکی و طلب‌های اشخاص به پایداری روابط مالی و " +
+      "شخصی شما یاری می‌رساند.\n\n"
   private const val INSTALLMENT_ADVICE =
     "📅 **بدهی‌های سررسیددار (اقساط)**: شما در پیش‌رو %d قسط " +
       "پرداخت‌نشده به ارزش مجموع %d تومان دارید. توصیه می‌شود " +
@@ -74,6 +75,7 @@ internal object BudgetAdviceGenerator {
     installments: List<Installment>,
     categories: List<Category>,
     config: AiProviderConfig? = null,
+    bankLoans: List<BankLoan> = emptyList(),
     aiGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
       { cfg, prompt, sys, temp -> AiProvider.generateContent(cfg, prompt, sys, temp) }
   ): String =
@@ -86,7 +88,8 @@ internal object BudgetAdviceGenerator {
           transactions,
           loans,
           installments,
-          categories
+          categories,
+          bankLoans
         )
       }
       // With a configured provider, an empty ledger (no transactions and no unpaid
@@ -94,14 +97,15 @@ internal object BudgetAdviceGenerator {
       // burning a paid network/AI request on nothing. Unpaid loans/installments are
       // still worth analyzing, so the generator path is retained for those.
       val hasUnpaidObligations =
-        loans.any { !it.isSettled } || installments.any { !it.isPaid }
+        loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
       if (transactions.isEmpty() && !hasUnpaidObligations) {
         AppLogger.d(TAG, "getBudgetAdvice: empty ledger, returning empty-state without AI call")
         return@withContext getBudgetAdviceOffline(
           transactions,
           loans,
           installments,
-          categories
+          categories,
+          bankLoans
         )
       }
       val summary =
@@ -109,7 +113,8 @@ internal object BudgetAdviceGenerator {
           transactions,
           loans,
           installments,
-          categories
+          categories,
+          bankLoans
         )
       val prompt =
         "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
@@ -125,7 +130,8 @@ internal object BudgetAdviceGenerator {
         transactions,
         loans,
         installments,
-        categories
+        categories,
+        bankLoans
       )
     }
 
@@ -133,7 +139,8 @@ internal object BudgetAdviceGenerator {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val totals = calculateTransactionTotals(transactions)
     val balance = totals.income - totals.expense
@@ -144,7 +151,7 @@ internal object BudgetAdviceGenerator {
         appendLine("کل مخارج ثبت شده: ${totals.expense / RIAL_PER_TOMAN} تومان")
         appendLine("تراز باقیمانده (پس‌انداز): ${balance / RIAL_PER_TOMAN} تومان")
         appendCategoryBreakdown(this, totals.categoryTotals, categories)
-        appendActiveDebtsToSummary(this, loans, installments)
+        appendActiveDebtsToSummary(this, loans, installments, bankLoans)
         appendRecentTransactions(this, transactions, categories)
       }.toString()
   }
@@ -164,10 +171,12 @@ internal object BudgetAdviceGenerator {
   private fun appendActiveDebtsToSummary(
     sb: StringBuilder,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ) {
     val activeLoans = loans.filter { !it.isSettled }
-    if (activeLoans.isNotEmpty()) {
+    val activeBankLoans = bankLoans.filter { !it.isSettled }
+    if (activeLoans.isNotEmpty() || activeBankLoans.isNotEmpty()) {
       sb.appendLine("\nوام‌ها و قرض‌های فعال:")
       activeLoans.forEach { loan ->
         val role =
@@ -180,6 +189,13 @@ internal object BudgetAdviceGenerator {
           "- ${loan.personName} ($role): " +
             "کل ${loan.originalAmount / RIAL_PER_TOMAN} تومان | " +
             "مانده ${loan.remainingAmount / RIAL_PER_TOMAN} تومان"
+        )
+      }
+      activeBankLoans.forEach { bankLoan ->
+        sb.appendLine(
+          "- وام بانکی (${bankLoan.bankName}): " +
+            "کل ${bankLoan.totalRepayableAmount / RIAL_PER_TOMAN} تومان | " +
+            "اقساط ماهانه ${bankLoan.monthlyInstallmentAmount / RIAL_PER_TOMAN} تومان"
         )
       }
     }
@@ -223,14 +239,16 @@ internal object BudgetAdviceGenerator {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val fallback = {
       getBudgetAdviceOffline(
         transactions,
         loans,
         installments,
-        categories
+        categories,
+        bankLoans
       )
     }
     return when (result) {
@@ -284,7 +302,8 @@ internal object BudgetAdviceGenerator {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val totals = calculateTransactionTotals(transactions)
     val balance = totals.income - totals.expense
@@ -296,7 +315,7 @@ internal object BudgetAdviceGenerator {
       // has active unpaid obligations (loans or installments). Only return early
       // when there are genuinely no relevant debt records to surface.
       val hasActiveDebts =
-        loans.any { !it.isSettled } || installments.any { !it.isPaid }
+        loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
       if (!hasActiveDebts) return sb.toString()
       sb.append("\n\n")
     } else {
@@ -312,7 +331,7 @@ internal object BudgetAdviceGenerator {
         categories
       )
     }
-    appendLoanAdvice(sb, loans, installments)
+    appendLoanAdvice(sb, loans, installments, bankLoans)
     return sb.toString()
   }
 
@@ -367,12 +386,15 @@ internal object BudgetAdviceGenerator {
   private fun appendLoanAdvice(
     sb: StringBuilder,
     loans: List<Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    bankLoans: List<BankLoan> = emptyList()
   ) {
     val activeLoans = loans.filter { !it.isSettled }
+    val activeBankLoans = bankLoans.filter { !it.isSettled }
     val activeInst = installments.filter { !it.isPaid }
-    if (activeLoans.isNotEmpty()) {
-      sb.append(LOAN_ADVICE.format(activeLoans.size))
+    val totalActiveLoans = activeLoans.size + activeBankLoans.size
+    if (totalActiveLoans > 0) {
+      sb.append(LOAN_ADVICE.format(totalActiveLoans))
     }
     if (activeInst.isNotEmpty()) {
       val total = activeInst.sumOf { it.amount }

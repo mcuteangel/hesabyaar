@@ -231,6 +231,7 @@ class RustBridgeTest {
       transactions = emptyList(),
       loans = emptyList(),
       installments = emptyList(),
+      bankLoans = emptyList(),
       categories = emptyList()
     )
 }
