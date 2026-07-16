@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -201,7 +202,8 @@ class GeminiParserFallbackTest {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
     // Pick a day strictly after today in the same month (guaranteed current-year, positive offset).
-    // Jalali months have at least 29 days, so today.day is never the last day for a +1 step.
+    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
+    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
     val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
     assertNotNull(result)
@@ -216,6 +218,8 @@ class GeminiParserFallbackTest {
   fun `explicit Jalali date month-day format parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
+    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
+    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
     val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار ${monthName[today.month]} $testDay")
     assertNotNull(result)
@@ -291,6 +295,8 @@ class GeminiParserFallbackTest {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
     // Same month, later day — offset is testDay - today.day in the current year
+    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
+    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
     val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
     assertNotNull(result)

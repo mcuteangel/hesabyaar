@@ -33,6 +33,7 @@ object BudgetAdvisor {
     installments: List<Installment>,
     categories: List<Category>,
     config: AiProviderConfig? = null,
+    bankLoans: List<BankLoan> = emptyList(),
     aiGenerate: suspend (AiProviderConfig, String, String?, Double) -> AiProvider.ApiResult =
       { cfg, prompt, sys, temp -> AiProvider.generateContent(cfg, prompt, sys, temp) }
   ): String =
@@ -42,6 +43,7 @@ object BudgetAdvisor {
       installments,
       categories,
       config,
+      bankLoans,
       aiGenerate
     )
 
@@ -140,7 +142,8 @@ object BudgetAdvisor {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    config: AiProviderConfig? = null
+    config: AiProviderConfig? = null,
+    bankLoans: List<BankLoan> = emptyList()
   ): String =
     withContext(Dispatchers.IO) {
       AppLogger.d(
@@ -152,7 +155,7 @@ object BudgetAdvisor {
       val providerConfig = config ?: AiProviderConfig()
       if (!providerConfig.isConfigured) {
         AppLogger.w(TAG, "AI provider not configured, using offline local budget forecast")
-        return@withContext getOfflineForecast(transactions, loans, installments)
+        return@withContext getOfflineForecast(transactions, loans, installments, bankLoans)
       }
 
       if (transactions.isEmpty() && installments.isEmpty()) {
@@ -164,7 +167,7 @@ object BudgetAdvisor {
 
       val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
       val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-      val activeLoansCount = loans.filter { !it.isSettled }.size
+      val activeLoansCount = loans.filter { !it.isSettled }.size + bankLoans.count { !it.isSettled }
       val upcomingInstallments = installments.filter { !it.isPaid }
       val totalUpcomingAmount = upcomingInstallments.sumOf { it.amount }
 
@@ -224,7 +227,7 @@ object BudgetAdvisor {
           if (!validation.isValid && io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
             AppLogger.w(TAG, "AI forecast failed validation, using offline: ${validation.warnings}")
             "⚠️ پیش‌بینی هوش مصنوعی نامعتبر بود. پیش‌بینی محلی شما:\n\n" +
-              getOfflineForecast(transactions, loans, installments)
+              getOfflineForecast(transactions, loans, installments, bankLoans)
           } else {
             if (validation.wasTruncated) {
               AppLogger.d(TAG, "AI forecast truncated: ${validation.warnings}")
@@ -235,7 +238,7 @@ object BudgetAdvisor {
         is AiProvider.ApiResult.Failure -> {
           AppLogger.e(TAG, "AI forecast failed: ${result.error}")
           "⚠️ اتصال به سرور ابری انجام نشد یا کلید معتبر نیست. پیش‌بینی محلی شما به شرح زیر است:\n\n" +
-            getOfflineForecast(transactions, loans, installments)
+            getOfflineForecast(transactions, loans, installments, bankLoans)
         }
       }
     }
@@ -383,12 +386,13 @@ object BudgetAdvisor {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    categories: List<Category>
+    categories: List<Category>,
+    bankLoans: List<BankLoan> = emptyList()
   ): String {
     val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
     val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val balance = totalIncome - totalExpense
-    val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome)
+    val debtToIncome = calculateDebtToIncomeRatio(loans, installments, totalIncome, bankLoans)
     val savingsRate = if (totalIncome > 0) balance.toDouble() / totalIncome.toDouble() else 0.0
     val upcomingInstallments = installments.filter { !it.isPaid }
 
