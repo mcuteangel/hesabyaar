@@ -151,7 +151,6 @@ private fun BankLoanItem(
 }
 
 @Composable
-@Composable
 private fun bankLoanDetailRows(loan: BankLoan) {
   Text(
     "مبلغ دریافتی: ${CurrencyFormatter.format(loan.receivedAmount)}",
@@ -175,6 +174,7 @@ private fun bankLoanDetailRows(loan: BankLoan) {
   }
 }
 
+@Composable
 private fun bankLoanDeleteConfirmDialog(
   onDismiss: () -> Unit,
   onConfirm: () -> Unit
