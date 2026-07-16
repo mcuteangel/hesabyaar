@@ -9,7 +9,6 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -51,10 +52,10 @@ class InstallmentViewModelTest {
 
   @Test
   fun `setBankLoanFilter filters visibleInstallments to matching bankLoanId`() =
-    runTest {
-      viewModel.visibleInstallments.collectForTest()
+    runTest(testDispatcher) {
+      collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
-      testDispatcher.scheduler.advanceUntilIdle()
+      advanceUntilIdle()
 
       assertEquals(listOf(1L), viewModel.visibleInstallments.value.map { it.id })
       assertEquals(10L, viewModel.bankLoanFilter.value)
@@ -62,20 +63,19 @@ class InstallmentViewModelTest {
 
   @Test
   fun `setBankLoanFilter null shows all installments`() =
-    runTest {
-      viewModel.visibleInstallments.collectForTest()
+    runTest(testDispatcher) {
+      collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
-      testDispatcher.scheduler.advanceUntilIdle()
+      advanceUntilIdle()
       viewModel.setBankLoanFilter(null)
-      testDispatcher.scheduler.advanceUntilIdle()
+      advanceUntilIdle()
 
       assertEquals(listOf(1L, 2L, 3L), viewModel.visibleInstallments.value.map { it.id })
       assertEquals(null, viewModel.bankLoanFilter.value)
     }
 
-  private fun <T> StateFlow<T>.collectForTest() {
-    CoroutineScope(testDispatcher).launch { collect {} }
-    testDispatcher.scheduler.advanceUntilIdle()
+  private fun <T> TestScope.collectForTest(flow: StateFlow<T>) {
+    backgroundScope.launch { flow.collect {} }
   }
 
   private class FakeRepository(

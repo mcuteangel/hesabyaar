@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustMappers
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
@@ -270,7 +271,15 @@ object BudgetAdvisor {
     bankLoans: List<BankLoan>
   ): String {
     val summary = summarizeTransactions(transactions)
-    val upcomingInstallments = installments.filter { !it.isPaid }
+    val nowMs = System.currentTimeMillis()
+    // Window end is derived with Jalali calendar arithmetic so "the next 30 days"
+    // spans exactly 30 Jalali days (months are 29–31 days) rather than a fixed
+    // 30 × 24h millisecond span. Exclusive end = midnight of the 31st Jalali day
+    // from today, so installments due through the end of day 30 are included and
+    // later ones are excluded from totalUpcoming.
+    val windowEndMs = jalaliPlusDaysMs(nowMs, 31)
+    val upcomingInstallments =
+      installments.filter { !it.isPaid && it.dueDate >= nowMs && it.dueDate < windowEndMs }
     val totalUpcoming = upcomingInstallments.sumOf { it.amount }
     val activeBankLoans = bankLoans.filter { !it.isSettled }
     val activeLoans = loans.filter { !it.isSettled }
@@ -322,7 +331,7 @@ object BudgetAdvisor {
     }
 
   // Local, dependency-free debt-to-income ratio used when the Rust core is unavailable.
-  @Suppress("MagicNumber")
+  @Suppress("MagicNumber", "UnusedParameter")
   private fun localCalculateDebtToIncomeRatio(
     loans: List<Loan>,
     installments: List<Installment>,
@@ -331,8 +340,7 @@ object BudgetAdvisor {
   ): Double {
     val monthlyDebtPayments =
       installments.filter { !it.isPaid }.sumOf { it.amount } +
-        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / 12 } +
-        bankLoans.filter { !it.isSettled }.sumOf { it.monthlyInstallmentAmount }
+        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / 12 }
     return when {
       monthlyIncome <= 0 && monthlyDebtPayments > 0 -> 1.0
       monthlyIncome <= 0 -> 0.0
@@ -529,5 +537,42 @@ object BudgetAdvisor {
     val months = max(1.0, days / 30.0)
     val sum = recent.sumOf { it.amount }
     return (sum.toDouble() / months).toLong()
+  }
+
+  // Adds [days] Jalali days to the date represented by [fromMs] and returns the
+  // resulting day's local-midnight timestamp. Uses JalaliCalendarHelper for all
+  // calendar arithmetic (month lengths differ across Jalali months) so the
+  // 30-day forecast window tracks the Iranian calendar instead of a fixed
+  // millisecond span. Falls back to a millisecond offset if the conversion is
+  // unavailable.
+  @Suppress("MagicNumber")
+  private fun jalaliPlusDaysMs(
+    fromMs: Long,
+    days: Int
+  ): Long {
+    val today = JalaliCalendarHelper.gregorianToJalali(fromMs)
+    var year = today.year
+    var month = today.month
+    var day = today.day
+    var remaining = days
+    while (remaining > 0) {
+      val daysInMonth = JalaliCalendarHelper.getDaysInMonth(year, month)
+      val daysLeftInMonth = daysInMonth - day
+      if (remaining <= daysLeftInMonth) {
+        day += remaining
+        remaining = 0
+      } else {
+        remaining -= daysLeftInMonth + 1
+        day = 1
+        if (month == 12) {
+          month = 1
+          year += 1
+        } else {
+          month += 1
+        }
+      }
+    }
+    return JalaliCalendarHelper.jalaliToGregorian(year, month, day)?.timeInMillis
+      ?: fromMs + days.toLong() * 24 * 60 * 60 * 1000
   }
 }

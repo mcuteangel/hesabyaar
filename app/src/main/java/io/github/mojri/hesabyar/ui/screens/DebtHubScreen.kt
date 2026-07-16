@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,7 +41,7 @@ fun DebtHubScreen(
   var section by remember { mutableStateOf(initialSection) }
 
   Column(modifier = modifier.fillMaxSize()) {
-    ScrollableTabRow(
+    SecondaryScrollableTabRow(
       selectedTabIndex = DebtSection.entries.indexOf(section),
       edgePadding = SpacingTokens.md,
       containerColor = MaterialTheme.colorScheme.surface,

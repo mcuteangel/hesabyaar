@@ -200,12 +200,13 @@ class GeminiParserFallbackTest {
   fun `explicit Jalali date day-month format parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
-    // Pick a day that's not today to avoid zero-offset
-    val testDay = if (today.day != 15) 15 else 10
+    // Pick a day strictly after today in the same month (guaranteed current-year, positive offset).
+    // Jalali months have at least 29 days, so today.day is never the last day for a +1 step.
+    val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
-    // Same month, different day — offset should be testDay - today.day
+    // Same month, later day — offset should be testDay - today.day
     assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
   }
 
@@ -215,7 +216,7 @@ class GeminiParserFallbackTest {
   fun `explicit Jalali date month-day format parses correctly`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
-    val testDay = if (today.day != 20) 20 else 5
+    val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار ${monthName[today.month]} $testDay")
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
@@ -289,8 +290,8 @@ class GeminiParserFallbackTest {
   fun `explicit Jalali date in same or later month uses current year`() {
     val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
 
-    // Same month, different day — offset can be positive or negative depending on day
-    val testDay = if (today.day != 15) 15 else 10
+    // Same month, later day — offset is testDay - today.day in the current year
+    val testDay = today.day + 1
     val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
