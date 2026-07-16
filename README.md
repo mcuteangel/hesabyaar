@@ -3,9 +3,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
+  <img src="https://img.shields.io/badge/language-Rust-E74C3C?style=for-the-badge" alt="Rust">
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
-    
+     
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge) [![CodeFactor](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge)](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage) 
 </p>
 
@@ -22,6 +23,13 @@
 ## 📋 مقدمه
 
 **حسابیار** یک برنامه اندرویدی برای مدیریت امور مالی شخصی است که با تمرکز بر نیازهای کاربران فارسی‌زبان طراحی شده است. این برنامه با ارائه رابط کاربری ساده و در عین حال قدرتمند، به شما کمک می‌کند تا امور مالی خود را به صورت حرفه‌ای مدیریت کنید.
+
+### هسته مشترک (Rust Core)
+
+از نسخه 2.0 به بعد، منطق محاسبه‌ی مالی، پردازش زبان طبیعی فارسی، تبدیل تقویم جلالی/میلادی، فرمت‌سازی پول، و الگوریتم‌های تحلیلی به یک **هسته مشترک Rust** (`hesabyar-core`) استخراج شده‌اند. این لایه:
+- کدهای داغ JVM (تجزیه مقدار، تبدیل تاریخ) را با **UniFFI** به اندروید (Kotlin) و دسکتاپ (Rust) منتقل می‌کند
+- امنیت حافظه و عملکرد بالا بدون کد `unsafe`
+- بنچمارک‌های Criterion برای رصد رگرسیون‌های عملکردی
 
 ## ✨ ویژگی‌های کلیدی
 
@@ -76,7 +84,7 @@
 
 | دسته | تکنولوژی |
 |------|------------|
-| **زبان برنامه‌نویسی** | Kotlin |
+| **زبان برنامه‌نویسی** | Kotlin, **Rust** |
 | **رابط کاربری** | Jetpack Compose, Material 3 |
 | **پایگاه داده** | Room Database (SQLite) |
 | **ناوبری** | Navigation Compose |
@@ -85,7 +93,62 @@
 | **شبکه** | OkHttp + Retrofit |
 | **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
 | **تست** | Robolectric, Roborazzi |
-| **بنچمارک** | CodSpeed, JMH |
+| **بنچمارک** | CodSpeed, JMH, **Criterion (Rust)** |
+| **بایندینگ بومی (Native)** | **UniFFI** (Kotlin ↔ Rust) |
+| **رمزنگاری** | AES-256-GCM (Rust `aes-gcm`) |
+
+---
+
+## 🏗 معماری هسته Rust (hesabyar-core)
+
+```text
+rust/
+├── Cargo.toml                 # Workspace root
+├── hesabyar-core/             # کریت اصلی منطق تجاری
+│   ├── Cargo.toml
+│   ├── build.rs               # کد تولید UniFFI scaffolding
+│   ├── src/
+│   │   ├── lib.rs             # Re-exportهای عمومی API
+│   │   ├── calendar.rs        # تبدیل تقویم جلالی ↔ میلادی
+│   │   ├── currency.rs        # فرمت‌سازی ریال/تومان
+│   │   ├── analytics.rs       # آنالیتیکس تراکنش‌ها
+│   │   ├── dashboard.rs       # محاسبه داده‌های داشبورد
+│   │   ├── models/            # ساختارهای دامنه
+│   │   ├── parser/            # ماژول پردازش زبان طبیعی فارسی
+│   │   │   ├── mod.rs
+│   │   │   ├── nlp.rs
+│   │   │   ├── text_preprocessor.rs
+│   │   │   ├── money_detector.rs
+│   │   │   └── amount.rs
+│   │   ├── advisory/          # مشاوره مالی آفلاین
+│   │   │   ├── mod.rs
+│   │   │   └── budget.rs
+│   │   ├── ffi/               # لایه UniFFI (20+ تابع صادرشده)
+│   │   │   └── mod.rs
+│   │   ├── validation.rs      # اعتبارسنجی موجودیت‌ها
+│   │   ├── search.rs          # جستجوی متن کامل
+│   │   ├── crypto.rs          # رمزنگاری AES-256-GCM
+│   │   ├── ai_validation.rs   # اعتبارسنجی خروجی AI
+│   │   └── excel.rs           # تولید گزارش اکسل
+│   ├── tests/
+│   │   └── golden/            # تست‌های طلایی (JSON)
+│   └── benches/
+│       └── parser_bench.rs    # بنچمارک‌های Criterion
+└── uniffi-gen/                # باینری تولید بایندینگ Kotlin
+    ├── Cargo.toml
+    └── src/main.rs
+```
+
+### ویژگی‌های معماری Rust
+
+| ویژگی | توضیح |
+|----------|---------|
+| **نوع پول** | `i64` (ریال) — هم‌خوانا با `Long` در Room |
+| **تاریخ** | `i64` (timestamp UTC) + توابع تبدیل جلالی |
+| **بایندینگ** | UniFFI — تولید خودکار Kotlin (توسط `uniffi-gen`)، بدون JNI دستی |
+| **امنیت حافظه** | کد `unsafe` نداریم، تضمین توسط سیستم نوع Rust |
+| **سریال‌سازی** | Serde برای JSON بک‌آپ |
+| **بنچمارک** | Criterion + flamegraph برای تحلیل عملکرد |
 
 ---
 
@@ -123,6 +186,8 @@ app/src/main/java/io/github/mojri/hesabyar/
 - Android Studio (آخرین نسخه)
 - JDK 21+
 - Git
+- **Rust toolchain 1.75+** (برای هسته Rust)
+- **Android NDK** (برای cross-compilation Rust)
 
 ### راه‌اندازی محیط
 
@@ -149,9 +214,32 @@ app/src/main/java/io/github/mojri/hesabyar/
 
 5. برای buildهای release، اطلاعات امضای دیجیتال را در `.env` تنظیم کنید.
 
+6. **Rust toolchain و targets اندروید را نصب کنید:**
+   ```bash
+   rustup default stable
+   rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+   cargo install cargo-ndk
+   ```
+
 ---
 
 ## 🔨 ساخت و اجرا
+
+### ساخت هسته Rust (الزامی برای اولین بار و پس از تغییرات Rust)
+
+```bash
+# Build همه ABIهای اندروید
+./gradlew :app:assembleRust --no-daemon
+
+# یا مستقیم با cargo
+cd rust && cargo build --target aarch64-linux-android --release
+```
+
+### تولید بایندینگ‌های Kotlin (UniFFI)
+
+```bash
+./gradlew :app:generateRustBindings --no-daemon
+```
 
 ### ساخت نسخه Debug
 ```bash
@@ -173,34 +261,51 @@ app/src/main/java/io/github/mojri/hesabyar/
 
 ## 🧪 تست
 
-### اجرا کردن تمام تست‌ها
+### اجرای تمام تست‌ها
 ```bash
-./gradlew test
+./gradlew test --no-daemon
 ```
 
-### اجرا کردن تست یک کلاس خاص
+### اجرای تست یک کلاس خاص
 ```bash
-./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest"
+./gradlew test --tests "io.github.mojri.hesabyar.OfflineParserTest" --no-daemon
+```
 
-# Benchmarks (Criterion)
-cargo bench -p hesabyar-core
+### تست‌های Rust Core
+```bash
+cd rust/hesabyar-core
+cargo test
+cargo test -- --nocapture
+```
+
+### بنچمارک‌های Rust
+```bash
+cd rust/hesabyar-core
+cargo bench
 ```
 
 ### آنالیز کد
 ```bash
-./gradlew lint
+./gradlew lint --no-daemon
+./gradlew ktlintCheck detekt --no-daemon
 ```
 
 ---
 
 ## 📈 بنچمارک
 
-پروژه از بنچمارک‌های عملکردی با استفاده از CodSpeed و JMH استفاده می‌کند. بنچمارک‌ها در build مستقل `benchmarks/` قرار دارند و منطق داغ و خالص JVM (تجزیه مقدار فارسی و تبدیلات تقویم جلالی) را تمرین می‌کنند.
+پروژه از بنچمارک‌های عملکردی با استفاده از **CodSpeed، JMH (JVM)** و **Criterion (Rust)** استفاده می‌کند. بنچمارک‌های JVM در build مستقل `benchmarks/` و بنچمارک‌های Rust در `rust/hesabyar-core/benches/` قرار دارند.
 
-### اجرا کردن بنچمارک‌ها
+### اجرای بنچمارک‌های JVM
 ```bash
 cd benchmarks
-./gradlew jmh
+./gradlew jmh --no-daemon
+```
+
+### اجرای بنچمارک‌های Rust
+```bash
+cd rust/hesabyar-core
+cargo bench
 ```
 
 بنچمارک‌ها به صورت خودکار در CI بر روی هر Pull Request اجرا می‌شوند.
@@ -236,7 +341,7 @@ cd benchmarks
 
 ## 📄 مجوز
 
-مجوز این پروژه هنوز نهایی نشده است. لطفاً پیش از استفاده در پروژه‌های دیگر با نگهدارنده مخزن تماس بگیرید.
+این پروژه تحت مجوز **MIT License** منتشر شده است. متن کامل مجوز در فایل [LICENSE](LICENSE) قرار دارد.
 
 ---
 

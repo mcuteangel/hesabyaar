@@ -29,6 +29,7 @@ This crate contains platform-independent business logic extracted from the Kotli
 
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+cargo install cargo-ndk
 ```
 
 ### Build Commands
@@ -37,8 +38,11 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 # Check (syntax + types)
 cargo check
 
-# Build for Android
-cargo build --target aarch64-linux-android --release
+# Build for Android (all ABIs via cargo-ndk)
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build --release
+
+# Build for host (for UniFFI binding generation)
+cargo build --release
 
 # Run tests
 cargo test
@@ -46,6 +50,19 @@ cargo test
 # Run benchmarks
 cargo bench
 ```
+
+### Generate Kotlin Bindings (UniFFI)
+
+The `uniffi-gen` binary in the workspace root generates Kotlin bindings from the compiled host library:
+
+```bash
+# From workspace root
+cargo run --package uniffi-gen -- \
+  target/release/libhesabyar_core.so \
+  ../app/src/main/java/io/github/mojri/hesabyar/rust
+```
+
+On Windows use `target/release/hesabyar_core.dll`, macOS use `target/release/libhesabyar_core.dylib`.
 
 ## Project Structure
 
@@ -61,14 +78,20 @@ hesabyar-core/
       mod.rs             — Domain model structs
     parser/
       mod.rs             — Parser module re-exports
-      money_detector.rs  — Money keyword detection
+      nlp.rs             — Persian NLP pipeline
       text_preprocessor.rs — Persian text normalization
+      money_detector.rs  — Money keyword detection
       amount.rs          — Amount tokenizer + interpreter
     advisory/
       mod.rs             — Advisory module re-exports
       budget.rs          — Budget advice + forecasting
     ffi/
       mod.rs             — UniFFI bridge with 20+ exported functions
+    validation.rs        — Entity validation
+    search.rs            — Full-text search
+    crypto.rs            — AES-256-GCM encryption
+    ai_validation.rs     — AI output validation
+    excel.rs             — Excel report generation
   tests/
     golden/
       persian_parse_cases.json — Golden test data
