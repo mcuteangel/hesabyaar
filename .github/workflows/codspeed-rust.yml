@@ -1,0 +1,40 @@
+name: CodSpeed Benchmarks (Rust)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Allow running the benchmarks manually from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read # required for actions/checkout
+  id-token: write # required for OIDC authentication with CodSpeed
+
+jobs:
+  benchmarks:
+    name: Run Rust benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          # Simulation mode: deterministic CPU simulation, <1% variance,
+          # automatic flamegraphs. Best for the CPU-bound Rust core.
+          mode: simulation
+          # The `codspeed-criterion-compat` shim is injected here (online CI
+          # only) by renaming it to `criterion`, so the existing criterion
+          # benchmark compiles against the instrumented shim. It is intentionally
+          # NOT a permanent dependency in Cargo.toml: doing so breaks offline
+          # local builds (crates.io is unreachable in the dev sandbox), which would
+          # block `./gradlew :app:testDebugUnitTest` from assembling the Rust .so.
+          run: |
+            cargo remove criterion --dev -p hesabyar-core
+            cargo add codspeed-criterion-compat@2 --rename criterion --dev -p hesabyar-core
+            cargo bench -p hesabyar-core
+          working-directory: rust
