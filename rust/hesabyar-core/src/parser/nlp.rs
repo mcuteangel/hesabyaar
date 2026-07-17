@@ -489,12 +489,9 @@ pub fn extract_person_name(sentence: &str) -> Option<String> {
     None
 }
 
-// Tehran is UTC+3:30 and has observed no DST since 1401. This app is Persian-first /
-// Tehran-local, so day math is aligned to Tehran-local time to match the Kotlin peer
-// (JalaliCalendarHelper uses device-local Calendar.getInstance()). On a non-Tehran
-// device the two sides could differ by a day; that is an accepted, documented
-// assumption for this app's audience rather than pulling in a timezone crate to read
-// the system offset.
+// Tehran is UTC+3:30 (no DST since 1401). Day math is aligned to Tehran-local time to
+// match Kotlin's JalaliCalendarHelper; on non-Tehran devices the two sides may differ
+// by a day — an accepted assumption for this Persian-first app.
 const TEHRAN_OFFSET_MS: i64 = 3 * 3600 * 1000 + 30 * 60 * 1000;
 const MS_PER_DAY: i64 = 86_400_000;
 
