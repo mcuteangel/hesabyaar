@@ -157,6 +157,16 @@ android {
     this.versionName = appVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // BACKUP_SCHEMA_VERSION is the single source of truth in the Rust core
+    // (rust/hesabyar-core/src/models/mod.rs). Derive it here so the Kotlin side
+    // can never drift from the Rust side.
+    val modRs = file("${rootProject.projectDir}/rust/hesabyar-core/src/models/mod.rs").readText()
+    val schemaMatch = Regex("""pub const BACKUP_SCHEMA_VERSION:\s*i32\s*=\s*(\d+)""").find(modRs)
+    val backupSchemaVersion =
+      schemaMatch?.groupValues?.get(1)
+        ?: error("Could not find BACKUP_SCHEMA_VERSION in rust/hesabyar-core/src/models/mod.rs")
+    buildConfigField("int", "BACKUP_SCHEMA_VERSION", backupSchemaVersion)
   }
 
   signingConfigs {
@@ -524,6 +534,12 @@ fun readCoreBaseVersion(): String {
 
 fun computeCoreSourceMeta(): String {
   val md = MessageDigest.getInstance("SHA-256")
+  // Include Cargo.toml so a manual base-version bump changes the metadata too.
+  val cargoToml = file("$rustDir/Cargo.toml")
+  if (cargoToml.exists()) {
+    md.update("Cargo.toml".toByteArray())
+    md.update(cargoToml.readBytes())
+  }
   val srcDir = file("$rustDir/hesabyar-core/src")
   if (srcDir.exists()) {
     srcDir

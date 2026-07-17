@@ -5,18 +5,17 @@ import io.github.mojri.hesabyar.BuildConfig
 /**
  * Backup format/schema version. Bump ONLY on a breaking change to the serialized
  * backup structure (fields added/removed/renamed or a semantics change).
- * Must stay in sync with `BACKUP_SCHEMA_VERSION` in the Rust core
- * (rust/hesabyar-core/src/models/mod.rs).
+ * Single source of truth is the Rust const `BACKUP_SCHEMA_VERSION` in
+ * `rust/hesabyar-core/src/models/mod.rs`; this value is generated into
+ * `BuildConfig.BACKUP_SCHEMA_VERSION` at build time so the two sides cannot drift.
  */
-const val BACKUP_SCHEMA_VERSION = 1
-
 enum class RestoreMode {
   REPLACE,
   MERGE
 }
 
 data class BackupPayload(
-  val version: Int = BACKUP_SCHEMA_VERSION,
+  val version: Int = BuildConfig.BACKUP_SCHEMA_VERSION,
   val timestamp: Long = System.currentTimeMillis(),
   val appVersion: String = BuildConfig.VERSION_NAME,
   val transactions: List<Transaction> = emptyList(),

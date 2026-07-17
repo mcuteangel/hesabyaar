@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Backup format/schema version. Bump ONLY on a breaking change to the
-/// serialized backup structure. Must stay in sync with `BACKUP_SCHEMA_VERSION`
-/// in the Kotlin side (app/.../data/BackupModels.kt).
+/// serialized backup structure. This is the single source of truth: the Kotlin
+/// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
+/// time (app/build.gradle.kts), so the two sides cannot drift.
 pub const BACKUP_SCHEMA_VERSION: i32 = 1;
 
 /// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).

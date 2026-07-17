@@ -111,10 +111,11 @@ versioning scheme, independent from the Android app version (root `VERSION` file
 The backup envelope carries two version fields, kept independent from both the
 app `VERSION` file and the core `CORE_VERSION`:
 
-- `version` — backup **format/schema** version. A single source of truth in
-  `BACKUP_SCHEMA_VERSION` (Kotlin: `data/BackupModels.kt`, Rust:
-  `hesabyar-core/src/models/mod.rs`). Bump it **only** on a breaking change to
-  the serialized backup structure; the two constants must stay equal.
+- `version` — backup **format/schema** version. Single source of truth is the
+  Rust const `BACKUP_SCHEMA_VERSION` in `hesabyar-core/src/models/mod.rs`; the
+  Kotlin side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from it at build time
+  (see `app/build.gradle.kts`), so they cannot drift. Bump it **only** on a
+  breaking change to the serialized backup structure.
 - `appVersion` — the **app version** that produced the backup, written at export
   time as `BuildConfig.VERSION_NAME` (Kotlin) / `env!("CORE_VERSION")` (Rust
   default). Never hardcode a placeholder like `"1.0"`.
