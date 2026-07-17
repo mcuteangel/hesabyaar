@@ -158,7 +158,7 @@ jobs:
             name=$(basename "$src")
             base="${name#app-}"
             base="${base%-release.apk}"
-            abi="${ABI_MAP[$base]:-${base:-universal}}"
+            abi="${ABI_MAP[$base]:-universal}"
             dst="release-artifacts/hesabyar-${VER}-${abi}.apk"
             cp "$src" "$dst"
             echo "APK: $dst"
