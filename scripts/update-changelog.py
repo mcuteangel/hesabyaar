@@ -7,9 +7,13 @@ with the descriptions published on their GitHub release pages.
 
 Usage: update-changelog.py <version> <notes_file> [prev_limit]
 """
+import json
+import os
 import re
-import subprocess  # nosec: needed to call the gh CLI; args are a fixed list, no shell
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 
 VERSION = sys.argv[1]
 NOTES_FILE = sys.argv[2]
@@ -61,17 +65,27 @@ def is_placeholder(content: str) -> bool:
 
 
 def gh_body(tag: str):
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if not repo:
+        print("GITHUB_REPOSITORY not set; skipping backfill", file=sys.stderr)
+        return None
+    url = f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "update-changelog",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     try:
-        out = subprocess.run(  # nosec B603,B607: fixed list, no shell; `tag` is a trusted local version
-            ["gh", "release", "view", tag, "--json", "body", "--jq", ".body"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if out.returncode == 0 and out.stdout.strip():
-            return strip_wrapper(out.stdout)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.load(resp)
+        body = data.get("body") or ""
+        if body.strip():
+            return strip_wrapper(body)
     except Exception as exc:
-        print(f"gh release view failed for {tag}: {exc}", file=sys.stderr)
+        print(f"github api release fetch failed for {tag}: {exc}", file=sys.stderr)
     return None
 
 
