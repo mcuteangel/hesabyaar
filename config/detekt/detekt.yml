@@ -29,3 +29,17 @@ complexity:
       - '**/rust/uniffi/**'
       - '**/generated/**'
       - '**/rust/hesabyar_core.kt'
+  LongMethod:
+    active: true
+    ignoreAnnotated:
+      - 'Composable'
+    excludes:
+      - '**/rust/uniffi/**'
+      - '**/generated/**'
+      - '**/rust/hesabyar_core.kt'
+
+naming:
+  FunctionNaming:
+    active: true
+    ignoreAnnotated:
+      - 'Composable'

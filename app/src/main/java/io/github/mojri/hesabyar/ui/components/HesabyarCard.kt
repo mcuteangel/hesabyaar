@@ -1,13 +1,17 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -20,9 +24,12 @@ fun HesabyarCard(
   modifier: Modifier = Modifier,
   shape: Shape = ShapeTokens.Large,
   elevation: Dp = ElevationTokens.lg,
+  border: BorderStroke? = null,
+  horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+  verticalArrangement: Arrangement.Vertical = Arrangement.Top,
   cardColors: androidx.compose.material3.CardColors =
     CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+      containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ),
   contentPadding: PaddingValues = PaddingValues(SpacingTokens.lg),
   content: @Composable ColumnScope.() -> Unit
@@ -31,10 +38,16 @@ fun HesabyarCard(
     modifier = modifier,
     shape = shape,
     elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+    border = border,
     colors = cardColors
   ) {
     Column(
-      modifier = Modifier.padding(contentPadding),
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(contentPadding),
+      horizontalAlignment = horizontalAlignment,
+      verticalArrangement = verticalArrangement,
       content = content
     )
   }

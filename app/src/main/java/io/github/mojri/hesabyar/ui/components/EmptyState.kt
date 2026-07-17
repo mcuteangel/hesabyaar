@@ -1,5 +1,8 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -15,51 +18,58 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
 fun EmptyState(
-  icon: ImageVector,
   title: String,
+  modifier: Modifier = Modifier,
   description: String? = null,
+  icon: ImageVector? = null,
   actionText: String? = null,
-  onAction: (() -> Unit)? = null,
-  modifier: Modifier = Modifier
+  onAction: (() -> Unit)? = null
 ) {
-  Column(
-    modifier =
-      modifier
-        .fillMaxWidth()
-        .padding(SpacingTokens.xl),
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+  AnimatedVisibility(
+    visible = true,
+    enter = fadeIn() + scaleIn(initialScale = 0.92f)
   ) {
-    Icon(
-      imageVector = icon,
-      contentDescription = null,
-      modifier = Modifier.size(Dimens.AvatarLarge),
-      tint = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Column(
+      modifier =
+        modifier
+          .fillMaxWidth()
+          .padding(SpacingTokens.xl),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+    ) {
+      icon?.let {
+        Icon(
+          imageVector = it,
+          contentDescription = null,
+          modifier = Modifier.size(Dimens.AvatarLarge),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
 
-    Text(
-      text = title,
-      style = MaterialTheme.typography.titleMedium,
-      color = MaterialTheme.colorScheme.onSurface,
-      textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-      modifier = Modifier.semantics { heading() }
-    )
-
-    description?.let {
       Text(
-        text = it,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.semantics { heading() }
       )
-    }
 
-    if (actionText != null && onAction != null) {
-      Spacer(modifier = Modifier.height(SpacingTokens.sm))
-      HesabyarButton(
-        onClick = onAction,
-        text = actionText
-      )
+      description?.let {
+        Text(
+          text = it,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+      }
+
+      if (actionText != null && onAction != null) {
+        Spacer(modifier = Modifier.height(SpacingTokens.sm))
+        HesabyarButton(
+          onClick = onAction,
+          text = actionText
+        )
+      }
     }
   }
 }

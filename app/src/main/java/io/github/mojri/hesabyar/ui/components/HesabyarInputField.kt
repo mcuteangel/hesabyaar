@@ -2,7 +2,6 @@ package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -21,6 +20,7 @@ fun HesabyarInputField(
   placeholder: String? = null,
   trailingIcon: @Composable (() -> Unit)? = null,
   isError: Boolean = false,
+  errorMessage: String? = null,
   supportingText: String? = null,
   visualTransformation: VisualTransformation = VisualTransformation.None,
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
@@ -36,7 +36,16 @@ fun HesabyarInputField(
     placeholder = placeholder?.let { { Text(it) } },
     trailingIcon = trailingIcon,
     isError = isError,
-    supportingText = supportingText?.let { { Text(it) } },
+    supportingText =
+      when {
+        isError && errorMessage != null -> {
+          { Text(text = errorMessage, color = MaterialTheme.colorScheme.error) }
+        }
+        supportingText != null -> {
+          { Text(text = supportingText) }
+        }
+        else -> null
+      },
     visualTransformation = visualTransformation,
     keyboardOptions = keyboardOptions,
     singleLine = singleLine,
@@ -46,7 +55,10 @@ fun HesabyarInputField(
       OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        errorBorderColor = MaterialTheme.colorScheme.error
+        errorBorderColor = MaterialTheme.colorScheme.error,
+        errorSupportingTextColor = MaterialTheme.colorScheme.error,
+        errorLabelColor = MaterialTheme.colorScheme.error,
+        errorTrailingIconColor = MaterialTheme.colorScheme.error
       )
   )
 }

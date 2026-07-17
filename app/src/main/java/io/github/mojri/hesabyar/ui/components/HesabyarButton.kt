@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -16,7 +18,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -36,7 +40,10 @@ fun HesabyarButton(
   variant: ButtonVariant = ButtonVariant.Filled,
   enabled: Boolean = true,
   loading: Boolean = false,
-  colors: ButtonColors? = null
+  colors: ButtonColors? = null,
+  tonalElevation: androidx.compose.ui.unit.Dp = ElevationTokens.sm,
+  shadowElevation: androidx.compose.ui.unit.Dp = ElevationTokens.sm,
+  contentPadding: PaddingValues = DefaultButtonContentPadding
 ) {
   val buttonModifier = modifier.height(Dimens.ButtonHeight)
   val resolvedColors =
@@ -53,7 +60,13 @@ fun HesabyarButton(
         modifier = buttonModifier,
         enabled = enabled && !loading,
         shape = ShapeTokens.Small,
-        colors = resolvedColors
+        colors = resolvedColors,
+        elevation =
+          ButtonDefaults.buttonElevation(
+            defaultElevation = tonalElevation,
+            shadowElevation = shadowElevation
+          ),
+        contentPadding = contentPadding
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
 
     ButtonVariant.Outlined ->
@@ -62,7 +75,8 @@ fun HesabyarButton(
         modifier = buttonModifier,
         enabled = enabled && !loading,
         shape = ShapeTokens.Small,
-        colors = resolvedColors
+        colors = resolvedColors,
+        contentPadding = contentPadding
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
 
     ButtonVariant.Text ->
@@ -71,13 +85,14 @@ fun HesabyarButton(
         modifier = buttonModifier,
         enabled = enabled && !loading,
         shape = ShapeTokens.Small,
-        colors = resolvedColors
+        colors = resolvedColors,
+        contentPadding = contentPadding
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
   }
 }
 
 @Composable
-private fun ButtonContent(
+private fun RowScope.ButtonContent(
   loading: Boolean,
   icon: ImageVector?,
   iconContentDescription: String?,
@@ -105,3 +120,6 @@ private fun ButtonContent(
     }
   }
 }
+
+private val DefaultButtonContentPadding: PaddingValues =
+  PaddingValues(horizontal = 24.dp, vertical = 12.dp)
