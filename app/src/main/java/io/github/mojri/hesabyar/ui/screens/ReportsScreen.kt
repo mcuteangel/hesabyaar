@@ -316,7 +316,7 @@ fun ReportsScreen(
                 Text(
                   text = providerStatus,
                   style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
             }
@@ -407,7 +407,7 @@ fun ReportsScreen(
                     lastAdviceFetchTime
                   )}",
                   style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Row(
@@ -512,7 +512,7 @@ fun ReportsScreen(
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -572,7 +572,7 @@ fun ReportsScreen(
               Text(
                 text = "$percent٪ | " + CurrencyFormatter.format(total),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
 
@@ -643,7 +643,7 @@ fun ReportsScreen(
               .padding(SpacingTokens.xl),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     } else {
@@ -670,7 +670,7 @@ fun ReportsScreen(
                 transaction.date
               )} | ${categories.find { it.id == transaction.categoryId }?.name ?: "سایر"}",
               style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
 
@@ -690,7 +690,7 @@ fun ReportsScreen(
                   FinancialColors.ExpenseRed
                 }
             )
-            IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(48.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف تراکنش",

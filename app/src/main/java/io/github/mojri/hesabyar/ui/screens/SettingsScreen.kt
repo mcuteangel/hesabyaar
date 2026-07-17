@@ -180,7 +180,7 @@ fun SettingsScreen(
               "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} |" +
                 " اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Spacer(modifier = Modifier.height(SpacingTokens.xs))
 
@@ -202,7 +202,7 @@ fun SettingsScreen(
               Text(
                 "تمام داده‌های فعلی حذف و جایگزین می‌شود",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -221,7 +221,7 @@ fun SettingsScreen(
               Text(
                 "داده‌های جدید به اطلاعات فعلی اضافه می‌شود",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -287,7 +287,7 @@ fun SettingsScreen(
         Text(
           text = "نسخه ۱.۰ | توسعه‌دهنده: mcuteangel",
           style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     }
@@ -331,7 +331,7 @@ fun SettingsScreen(
             Text(
               text = "افزودن، ویرایش و حذف دسته‌بندی‌های تراکنش",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
           Icon(
@@ -437,7 +437,7 @@ fun SettingsScreen(
             "جهت جلوگیری از دست رفتن امور مالی خود، به صورت دوره‌ای اقدام به" +
               " تهیه‌ی پشتیبان بفرمایید. فایل خروجی به شکل استاندارد JSON در حافظه ذخیره می‌شود.",
           style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 18.sp
         )
 
@@ -491,7 +491,7 @@ fun SettingsScreen(
             "گزارش کامل مالی شامل تراکنش‌ها، دریافتی‌ها، پرداختی‌ها، وام‌ها و" +
               " اقساط در قالب فایل اکسل (.xlsx) خروجی گرفته شود.",
           style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
           lineHeight = 18.sp
         )
 
@@ -539,7 +539,7 @@ fun SecuritySection(
       Text(
         text = if (isPinSet) "قفل با رمز فعال" else "قفل غیرفعال",
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
     }
     Switch(
@@ -600,7 +600,7 @@ fun SecuritySection(
         Text(
           text = if (hasBiometric) "قفل با اثر انگشت فعال" else "پشتیبانی نمی‌شود",
           style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     }
@@ -792,7 +792,7 @@ fun DebugLogsSection() {
             Text(
               text = "${logs.size} رویداد ثبت شده",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -842,7 +842,7 @@ fun DebugLogsSection() {
         Text(
           text = if (autoRefresh) "بروزرسانی خودکار (هر ۱ ثانیه)" else "بروزرسانی خودکار غیرفعال",
           style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
 
@@ -857,7 +857,7 @@ fun DebugLogsSection() {
           Text(
             text = "هنوز لاگی ثبت نشده است.\nیک عملیات AI انجام دهید.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
           )
         }
@@ -880,7 +880,7 @@ fun DebugLogsSection() {
                 "E" -> MaterialTheme.colorScheme.error
                 "W" -> MaterialTheme.colorScheme.tertiary
                 "I" -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
               }
             Text(
               text = entry.formatted(),
@@ -943,7 +943,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
             Text(
               text = if (isOnlineMode) "استفاده از ارائه‌دهنده هوش مصنوعی" else "استفاده از موتور محلی",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -958,7 +958,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
         Text(
           text = "تنظیمات ذخیره شده:",
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         configs.forEach { config ->
@@ -1052,7 +1052,7 @@ fun ConfigItem(
       Text(
         text = "${config.providerType.displayName} | ${config.model.ifBlank { "بدون مدل" }}",
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis
       )
@@ -1156,7 +1156,7 @@ fun AiConfigDialog(
           Text(
             text = "ارائه‌دهنده:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           ExposedDropdownMenuBox(
             expanded = providerDropdownExpanded,
@@ -1265,7 +1265,7 @@ fun AiConfigDialog(
             Text(
               text = "انتخاب مدل (${fetchedModels.size} مدل موجود):",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             // Search field
@@ -1601,12 +1601,12 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
           Text(
             "۱ روز",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             "۱۴ روز",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -1741,12 +1741,12 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
           Text(
             "۱ روز",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             "۳۰ روز",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }

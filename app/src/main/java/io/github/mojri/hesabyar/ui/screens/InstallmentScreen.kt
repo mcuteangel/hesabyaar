@@ -168,7 +168,7 @@ fun InstallmentScreen(
                 else -> "هیچ قسطی ثبت نشده است."
               },
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -338,7 +338,7 @@ fun InstallmentListItem(
             Text(
               text = "سررسید: ${formatPersianDate(installment.dueDate)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -410,7 +410,7 @@ fun InstallmentListItem(
             Text(
               text = "📝 یادداشت: ${installment.notes}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
               lineHeight = 16.sp
             )
           }

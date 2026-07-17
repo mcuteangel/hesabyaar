@@ -159,7 +159,7 @@ fun CategoryManagementScreen(
         Text(
           text = "هنوز دسته‌بندی‌ای ثبت نشده است.",
           style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     } else {
@@ -331,7 +331,7 @@ private fun CategoryItem(
           Text(
             text = category.key,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = category.type.displayName,
@@ -424,7 +424,7 @@ private fun CategoryDialog(
           Text(
             text = "نوع:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           ExposedDropdownMenuBox(
             expanded = typeDropdownExpanded,
@@ -471,7 +471,7 @@ private fun CategoryDialog(
           Text(
             text = "رنگ:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           LazyVerticalGrid(
             columns = GridCells.Fixed(8),
@@ -506,7 +506,7 @@ private fun CategoryDialog(
           Text(
             text = "آیکون:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           LazyVerticalGrid(
             columns = GridCells.Fixed(7),
@@ -538,7 +538,7 @@ private fun CategoryDialog(
                     if (isSelected) {
                       MaterialTheme.colorScheme.primary
                     } else {
-                      MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                      MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
               }

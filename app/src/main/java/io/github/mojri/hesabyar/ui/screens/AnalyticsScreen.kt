@@ -167,7 +167,7 @@ private fun MonthlyTrendCard(
               .padding(SpacingTokens.xl),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         // Bar chart
@@ -199,7 +199,7 @@ private fun MonthlyTrendCard(
               Text(
                 text = item.label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -402,7 +402,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
               .padding(SpacingTokens.xl),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         // Donut chart
@@ -442,7 +442,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
             Text(
               text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -527,7 +527,7 @@ private fun DebtCreditSummaryCard(
           fontWeight = FontWeight.Bold,
           color =
             if (items.isEmpty()) {
-              MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+              MaterialTheme.colorScheme.onSurfaceVariant
             } else if (items.first().type == LoanType.DEBTOR.name
             ) {
               FinancialColors.IncomeGreen
@@ -546,7 +546,7 @@ private fun DebtCreditSummaryCard(
               .padding(SpacingTokens.lg),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         items.forEach { item ->
@@ -600,12 +600,12 @@ private fun DebtCreditSummaryCard(
               Text(
                 text = "پرداخت شده: ${(item.progress * 100).toInt()}٪",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               Text(
                 text = "اصل: ${CurrencyFormatter.format(item.originalAmount)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -639,7 +639,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               .padding(SpacingTokens.lg),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         loans.forEach { loan ->
@@ -707,12 +707,12 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Text(
                 text = "باقیمانده: ${CurrencyFormatter.format(loan.remainingAmount)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               Text(
                 text = "اصل: ${CurrencyFormatter.format(loan.originalAmount)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -757,7 +757,7 @@ private fun BankLoanStatusCard(
               .padding(SpacingTokens.lg),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         bankLoans.forEach { bl ->
@@ -798,7 +798,7 @@ private fun BankLoanStatusCard(
               Text(
                 text = "مانده: ${CurrencyFormatter.format(bl.remainingDebt)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
@@ -836,7 +836,7 @@ private fun InstallmentProgressCard(
               .padding(SpacingTokens.lg),
           textAlign = TextAlign.Center,
           style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       } else {
         // Progress ring
@@ -927,7 +927,7 @@ private fun CircularProgress(
 
     // Background arc
     drawArc(
-      color = Color.LightGray.copy(alpha = 0.3f),
+          color = MaterialTheme.colorScheme.outlineVariant,
       startAngle = -90f,
       sweepAngle = 360f,
       useCenter = false,

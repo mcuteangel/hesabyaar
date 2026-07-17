@@ -81,7 +81,7 @@ fun AmountQuickFillButtons(
           if (isEnabled) {
             FinancialColors.WarningOrange
           } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.onSurfaceVariant
           }
       )
     }

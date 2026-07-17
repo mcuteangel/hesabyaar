@@ -228,7 +228,7 @@ fun SmartAssistantScreen(
                 Text(
                   text = "جمله خود را به زبان فارسی ساده تایپ کنید یا بگویید تا هوش مصنوعی آن را تحلیل کند.",
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
                   lineHeight = 18.sp
                 )
               }
@@ -464,7 +464,7 @@ fun SmartAssistantScreen(
                       "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
                     },
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
             }
@@ -617,7 +617,7 @@ fun SmartAssistantScreen(
                       lastAdviceFetchTime
                     )}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                   )
 
                   Spacer(modifier = Modifier.height(SpacingTokens.md))
@@ -953,7 +953,7 @@ fun ParsedResultCard(
           Text(
             text = "نوع تراکنش شناسایی شده:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Row(
             modifier =
@@ -995,7 +995,7 @@ fun ParsedResultCard(
           Text(
             text = "مبلغ استخراج شده (${CurrencyFormatter.unitLabel}):",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           OutlinedTextField(
             value = amountValue,
@@ -1043,7 +1043,7 @@ fun ParsedResultCard(
           Text(
             text = "دسته‌بندی مربوطه:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Row(
             modifier =
@@ -1068,7 +1068,7 @@ fun ParsedResultCard(
           Text(
             text = "شرح یا توضیح تراکنش:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           HesabyarInputField(
             value = descriptionText,
@@ -1090,7 +1090,7 @@ fun ParsedResultCard(
             Text(
               text = "طرف حساب (شخص مربوطه):",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HesabyarInputField(
               value = personNameText,
@@ -1109,7 +1109,7 @@ fun ParsedResultCard(
               Text(
                 text = "عنوان قسط:",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               HesabyarInputField(
                 value = titleText,
@@ -1124,7 +1124,7 @@ fun ParsedResultCard(
               Text(
                 text = "فاصله تا موعد پرداخت (روز):",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               HesabyarInputField(
                 value = daysFromNowText,

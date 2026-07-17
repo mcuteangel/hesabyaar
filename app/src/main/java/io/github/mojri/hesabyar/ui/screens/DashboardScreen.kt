@@ -64,6 +64,10 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import java.util.*
 
+import kotlinx.coroutines.delay
+
+private const val DIALOG_EXIT_MS = 300
+
 private val CATEGORY_ICONS_MAP =
   mapOf(
     "Restaurant" to Icons.Filled.Restaurant,
@@ -137,11 +141,15 @@ fun DashboardScreen(
     aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
-  Box(modifier = modifier.fillMaxSize()) {
+  Box(
+    modifier = modifier.fillMaxSize(),
+    contentAlignment = Alignment.TopCenter
+  ) {
     LazyColumn(
       modifier =
         Modifier
-          .fillMaxSize()
+          .widthIn(max = 840.dp)
+          .fillMaxWidth()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
       contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
@@ -398,7 +406,7 @@ fun InstallmentMiniItem(
               installment.dueDate
             )} | ${CurrencyFormatter.format(installment.amount)}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -438,7 +446,7 @@ fun TransactionMiniItem(
         .fillMaxWidth()
         .clickable(onClick = onClick),
     shape = ShapeTokens.Medium,
-    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -480,7 +488,7 @@ fun TransactionMiniItem(
           Text(
             text = "${formatPersianDate(transaction.date)} | ${category?.name ?: "سایر"}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -492,7 +500,7 @@ fun TransactionMiniItem(
           fontWeight = FontWeight.Bold,
           color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
         )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
@@ -511,17 +519,23 @@ fun ForecastDetailDialog(
   onDismiss: () -> Unit,
   onRefresh: () -> Unit
 ) {
+  var visible by remember { mutableStateOf(true) }
   Dialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { visible = false },
     properties =
       androidx.compose.ui.window
         .DialogProperties(usePlatformDefaultWidth = false)
   ) {
-    Surface(
-      modifier =
-        Modifier
-          .fillMaxWidth(0.95f)
-          .fillMaxHeight(0.85f),
+    AnimatedVisibility(
+      visible = visible,
+      enter = expandVertically() + fadeIn(),
+      exit = shrinkVertically() + fadeOut()
+    ) {
+      Surface(
+        modifier =
+          Modifier
+            .fillMaxWidth(0.95f)
+            .fillMaxHeight(0.85f),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = ElevationTokens.lg
@@ -553,7 +567,7 @@ fun ForecastDetailDialog(
               color = MaterialTheme.colorScheme.primary
             )
           }
-          IconButton(onClick = onDismiss) {
+          IconButton(onClick = { visible = false }) {
             Icon(
               imageVector = Icons.Filled.Close,
               contentDescription = "بستن"
@@ -580,7 +594,7 @@ fun ForecastDetailDialog(
                 Text(
                   text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
                   style = MaterialTheme.typography.bodyMedium,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
             }
@@ -600,7 +614,7 @@ fun ForecastDetailDialog(
               Text(
                 text = state.message,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               Spacer(modifier = Modifier.height(SpacingTokens.lg))
               Button(onClick = onRefresh) {
@@ -645,6 +659,13 @@ fun ForecastDetailDialog(
         }
       }
     }
+    }
+  }
+  LaunchedEffect(visible) {
+    if (!visible) {
+      delay(DIALOG_EXIT_MS)
+      onDismiss()
+    }
   }
 }
 
@@ -682,7 +703,7 @@ fun TransactionDetailDialog(
           Text(
             text = "نوع:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = if (isIncome) "درآمد" else "هزینه",
@@ -702,7 +723,7 @@ fun TransactionDetailDialog(
           Text(
             text = "مبلغ:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = CurrencyFormatter.format(transaction.amount),
@@ -722,7 +743,7 @@ fun TransactionDetailDialog(
           Text(
             text = "دسته‌بندی:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = category?.name ?: "سایر",
@@ -741,7 +762,7 @@ fun TransactionDetailDialog(
           Text(
             text = "تاریخ:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = formatPersianDate(transaction.date),
@@ -760,7 +781,7 @@ fun TransactionDetailDialog(
           Text(
             text = "توضیحات:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = transaction.description,
@@ -843,6 +864,7 @@ fun ManualTransactionDialog(
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
 ) {
+  var visible by remember { mutableStateOf(true) }
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
@@ -886,16 +908,21 @@ fun ManualTransactionDialog(
     }
 
   Dialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { visible = false },
     properties =
       androidx.compose.ui.window
         .DialogProperties(usePlatformDefaultWidth = false)
   ) {
-    Surface(
-      modifier =
-        Modifier
-          .fillMaxWidth(0.92f)
-          .wrapContentHeight()
+    AnimatedVisibility(
+      visible = visible,
+      enter = expandVertically() + fadeIn(),
+      exit = shrinkVertically() + fadeOut()
+    ) {
+      Surface(
+        modifier =
+          Modifier
+            .fillMaxWidth(0.92f)
+            .wrapContentHeight()
           .padding(vertical = SpacingTokens.xl),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
@@ -921,8 +948,8 @@ fun ManualTransactionDialog(
             color = MaterialTheme.colorScheme.primary
           )
           IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.size(Dimens.IconLarge)
+            onClick = { visible = false },
+            modifier = Modifier.size(48.dp)
           ) {
             Icon(
               imageVector = Icons.Filled.Close,
@@ -948,7 +975,7 @@ fun ManualTransactionDialog(
             Text(
               text = "نوع تراکنش / تعهد مالی:",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(
               modifier =
@@ -973,44 +1000,33 @@ fun ManualTransactionDialog(
                     "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
                     else -> FinancialColors.WarningOrange
                   }
-                Box(
-                  modifier =
-                    Modifier
-                      .clip(ShapeTokens.Medium)
-                      .background(
-                        if (isSelected) {
-                          chipColor
-                        } else {
-                          MaterialTheme.colorScheme.surfaceVariant
-                            .copy(
-                              alpha = 0.5f
-                            )
-                        }
-                      ).clickable {
-                        selectedType = typeKey
-                        selectedCategoryId =
-                          when (typeKey) {
-                            "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
-                            "LOAN_DEBTOR", "LOAN_CREDITOR" ->
-                              categories.find { it.key == "Loans" }?.id
-                                ?: 1L
-                            "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
-                            else -> selectedCategoryId
-                          }
-                      }.padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
-                ) {
-                  Text(
-                    text = typeLabel,
-                    color =
-                      if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimary
-                      } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                      },
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                  )
-                }
+                FilterChip(
+                  selected = isSelected,
+                  onClick = {
+                    selectedType = typeKey
+                    selectedCategoryId =
+                      when (typeKey) {
+                        "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                        "LOAN_DEBTOR", "LOAN_CREDITOR" ->
+                          categories.find { it.key == "Loans" }?.id
+                            ?: 1L
+                        "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                        else -> selectedCategoryId
+                      }
+                  },
+                  label = {
+                    Text(
+                      text = typeLabel,
+                      style = MaterialTheme.typography.labelMedium,
+                      fontWeight = FontWeight.Bold
+                    )
+                  },
+                  colors =
+                    FilterChipDefaults.filterChipColors(
+                      selectedContainerColor = chipColor,
+                      selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
               }
             }
           }
@@ -1020,7 +1036,7 @@ fun ManualTransactionDialog(
             Text(
               text = "مبلغ (${CurrencyFormatter.unitLabel}):",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             OutlinedTextField(
               value = amountValue,
@@ -1078,7 +1094,7 @@ fun ManualTransactionDialog(
               Text(
                 text = "دسته‌بندی مربوطه:",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               Row(
                 modifier =
@@ -1089,34 +1105,22 @@ fun ManualTransactionDialog(
               ) {
                 filteredCategories.forEach { cat ->
                   val isSelected = selectedCategoryId == cat.id
-                  Box(
-                    modifier =
-                      Modifier
-                        .clip(ShapeTokens.Medium)
-                        .background(
-                          if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                          } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                              .copy(
-                                alpha = 0.5f
-                              )
-                          }
-                        ).clickable { selectedCategoryId = cat.id }
-                        .padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
-                  ) {
-                    Text(
-                      text = cat.name,
-                      color =
-                        if (isSelected) {
-                          MaterialTheme.colorScheme.onPrimary
-                        } else {
-                          MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                      style = MaterialTheme.typography.labelMedium,
-                      fontWeight = FontWeight.Medium
-                    )
-                  }
+                  FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedCategoryId = cat.id },
+                    label = {
+                      Text(
+                        text = cat.name,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium
+                      )
+                    },
+                    colors =
+                      FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                      )
+                  )
                 }
               }
             }
@@ -1128,7 +1132,7 @@ fun ManualTransactionDialog(
               Text(
                 text = "طرف حساب (شخص مربوطه):",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
               OutlinedTextField(
                 value = personNameText,
@@ -1158,7 +1162,7 @@ fun ManualTransactionDialog(
                 Text(
                   text = "عنوان قسط:",
                   style = MaterialTheme.typography.labelMedium,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                   value = titleText,
@@ -1181,7 +1185,7 @@ fun ManualTransactionDialog(
                 Text(
                   text = "فاصله تا موعد پرداخت (روز):",
                   style = MaterialTheme.typography.labelMedium,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                   value = daysFromNowText,
@@ -1210,7 +1214,7 @@ fun ManualTransactionDialog(
             Text(
               text = "شرح یا توضیح تراکنش:",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             OutlinedTextField(
               value = descriptionText,
@@ -1240,7 +1244,7 @@ fun ManualTransactionDialog(
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
           OutlinedButton(
-            onClick = onDismiss,
+            onClick = { visible = false },
             modifier = Modifier.weight(1f),
             shape = ShapeTokens.Medium
           ) {
@@ -1355,7 +1359,7 @@ fun ManualTransactionDialog(
                   )
                 }
               }
-              onDismiss()
+              visible = false
             },
             modifier = Modifier.weight(1f),
             shape = ShapeTokens.Medium,
@@ -1368,6 +1372,13 @@ fun ManualTransactionDialog(
           }
         }
       }
+    }
+    }
+  }
+  LaunchedEffect(visible) {
+    if (!visible) {
+      delay(DIALOG_EXIT_MS)
+      onDismiss()
     }
   }
 }
