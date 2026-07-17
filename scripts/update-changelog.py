@@ -7,13 +7,12 @@ with the descriptions published on their GitHub release pages.
 
 Usage: update-changelog.py <version> <notes_file> [prev_limit]
 """
+import http.client
 import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.parse
-import urllib.request
 
 VERSION = sys.argv[1]
 NOTES_FILE = sys.argv[2]
@@ -70,22 +69,30 @@ def gh_body(tag: str):
     if not repo:
         print("GITHUB_REPOSITORY not set; skipping backfill", file=sys.stderr)
         return None
-    url = f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
+    path = "/repos/%s/releases/tags/%s" % (repo, urllib.parse.quote(tag))
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "update-changelog",
     }
     if token:
-        headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, headers=headers)
+        headers["Authorization"] = "Bearer %s" % token
+    conn = None
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.load(resp)
+        conn = http.client.HTTPSConnection("api.github.com", timeout=30)
+        conn.request("GET", path, headers=headers)
+        resp = conn.getresponse()
+        if resp.status != 200:
+            print("github api returned %s for %s" % (resp.status, tag), file=sys.stderr)
+            return None
+        data = json.loads(resp.read().decode("utf-8"))
         body = data.get("body") or ""
         if body.strip():
             return strip_wrapper(body)
     except Exception as exc:
-        print(f"github api release fetch failed for {tag}: {exc}", file=sys.stderr)
+        print("github api release fetch failed for %s: %s" % (tag, exc), file=sys.stderr)
+    finally:
+        if conn is not None:
+            conn.close()
     return None
 
 
