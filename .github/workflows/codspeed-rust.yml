@@ -33,7 +33,7 @@ jobs:
       - name: Install cargo-codspeed
         # cargo-codspeed sets CODSPEED_CARGO_WORKSPACE_ROOT and instruments the
         # shim. Without it, cargo bench panics with the NotPresent env error.
-        run: cargo install cargo-codspeed
+        run: cargo install cargo-codspeed --locked
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@f99becdce5e5d51fd556489ebef684f4ecfd6286 # v4
