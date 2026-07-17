@@ -63,6 +63,6 @@ jobs:
           run: |
             cargo remove criterion --dev -p hesabyar-core
             cargo add codspeed-criterion-compat@2 --rename criterion --dev -p hesabyar-core
-            cargo codspeed build -p hesabyar-core
+            cargo codspeed build -p hesabyar-core -m simulation
             cargo codspeed run -p hesabyar-core
           working-directory: rust
