@@ -61,9 +61,14 @@ jobs:
           # `cargo codspeed run` (not plain `cargo bench`) is required so the
           # shim runs under the instrumented harness that defines
           # CODSPEED_CARGO_WORKSPACE_ROOT.
+          # Pinned to major v1: on runs where CodSpeed OIDC auth is unavailable
+          # (e.g. automation PRs where `id-token: write` is stripped), v1 falls
+          # back to running the suite as plain criterion instead of panicking on a
+          # missing CODSPEED_CARGO_WORKSPACE_ROOT env var. v2 hard-requires that
+          # env and crashes the job in those environments.
           run: |
             cargo remove criterion --dev -p hesabyar-core
-            cargo add codspeed-criterion-compat@2 --rename criterion --dev -p hesabyar-core
+            cargo add codspeed-criterion-compat@1 --rename criterion --dev -p hesabyar-core
             cargo codspeed build -p hesabyar-core -m simulation
             cargo codspeed run -p hesabyar-core
           working-directory: rust
