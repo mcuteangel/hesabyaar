@@ -191,6 +191,21 @@ android {
       isDebuggable = true
     }
   }
+
+  // Ship architecture-specific APKs (arm-v7a, arm-v8a, x86_64) alongside a
+  // universal APK so users can grab the smallest build for their device.
+  // Gated on ANDROID_NDK_HOME: without the NDK the Rust .so files aren't built,
+  // so a local `assembleRelease` would otherwise emit per-ABI APKs missing the
+  // native lib. CI sets ANDROID_NDK_HOME, so the split build runs there; local
+  // dev gets a single fat APK instead of several broken ones.
+  splits {
+    abi {
+      isEnable = !System.getenv("ANDROID_NDK_HOME").isNullOrBlank()
+      reset()
+      include("armeabi-v7a", "arm64-v8a", "x86_64")
+      isUniversalApk = true
+    }
+  }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11

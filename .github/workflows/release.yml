@@ -136,10 +136,40 @@ jobs:
 
       - name: Generate checksums
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: |
           mkdir -p release-artifacts
-          find app/build/outputs/apk/release -name "*.apk" -exec cp {} release-artifacts/ \;
-          find app/build/outputs/bundle/release -name "*.aab" -exec cp {} release-artifacts/ \;
+          VER="v${NEW_VERSION}"
+          # Map Gradle's per-ABI APK names to user-friendly, versioned filenames.
+          declare -A ABI_MAP=(
+            ["armeabi-v7a"]="arm-v7a"
+            ["arm64-v8a"]="arm-v8a"
+            ["x86_64"]="x86_64"
+            ["universal"]="universal"
+          )
+          while IFS= read -r src; do
+            [ -z "$src" ] && continue
+            name=$(basename "$src")
+            base="${name#app-}"
+            base="${base%-release.apk}"
+            abi="${ABI_MAP[$base]:-$base}"
+            dst="release-artifacts/hesabyar-${VER}-${abi}.apk"
+            cp "$src" "$dst"
+            echo "APK: $dst"
+          done < <(find app/build/outputs/apk -name "*-release.apk")
+          aab_dir="app/build/outputs/bundle/release"
+          aab_files=("${aab_dir}"/*.aab)
+          if [ -e "${aab_files[0]}" ]; then
+            if [ "${#aab_files[@]}" -gt 1 ]; then
+              echo "ERROR: multiple AABs produced, destination name collision" >&2
+              exit 1
+            fi
+            cp "${aab_files[0]}" "release-artifacts/hesabyar-${VER}.aab"
+            echo "AAB: release-artifacts/hesabyar-${VER}.aab"
+          else
+            echo "No AAB produced; skipping bundle copy."
+          fi
           cd release-artifacts
           for f in *.apk *.aab; do
             if [ -f "$f" ]; then
@@ -156,9 +186,48 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.0-flash' }}
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BASE_REF: ${{ github.event.before }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Heading kept ASCII in-source (base64) to avoid non-ASCII in the workflow;
+          # decoded at runtime below. (Persian "previous releases" string.)
+          PREV_HEADING_B64: "2YbYs9iu2YfigIzZh9in24wg2YLYqNmE24w="
         run: |
-          bash scripts/generate-release-notes.sh "$NEW_VERSION" "$BASE_REF" HEAD > release-notes.md
+          PREV_HEADING=$(printf '%s' "${PREV_HEADING_B64}" | base64 -d)
+          # Current version's notes (used for both the release page and CHANGELOG).
+          bash scripts/generate-release-notes.sh "$NEW_VERSION" "$BASE_REF" HEAD > current-notes.md
+
+          # Append descriptions of the last 5 releases from the release page itself.
+          prev_section=""
+          while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            body=$(gh release view "$tag" --json body --jq '.body' 2>/dev/null || echo "")
+            [ -z "$body" ] && continue
+            # Strip the RTL wrapper and any nested "previous releases" section to avoid recursion.
+            body=$(printf '%s' "$body" | sed -e 's#^<div dir="rtl">##' -e 's#</div>$##' | sed "/^## ${PREV_HEADING}/,\$d")
+            prev_section="${prev_section}## ${tag}"$'\n'"${body}"$'\n'$'\n'
+          done < <(gh release list --limit 5 --json tagName --jq '.[].tagName' 2>/dev/null)
+
+          {
+            echo '<div dir="rtl">'
+            echo ""
+            cat current-notes.md
+            echo ""
+            if [ -n "$prev_section" ]; then
+              echo "## ${PREV_HEADING}"
+              echo ""
+              printf '%s' "$prev_section"
+            fi
+            echo ""
+            echo '</div>'
+          } > release-notes.md
           echo "notes_file=release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Update CHANGELOG with release notes
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+        run: |
+          python3 scripts/update-changelog.py "$NEW_VERSION" current-notes.md 5
 
       - name: Commit version bump
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
