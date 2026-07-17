@@ -40,7 +40,7 @@ Requirements:
 
 if [ -z "$GEMINI_API_KEY" ]; then
   echo "WARNING: GEMINI_API_KEY not set, falling back to raw commit list"
-  echo "## Release $VERSION"$'\n'"$commits"
+  echo "$commits"
   exit 0
 fi
 
@@ -71,7 +71,7 @@ body=$(echo "$response" | head -n -1)
 
 if [ "$http_code" != "200" ] || [ -z "$body" ]; then
   echo "WARNING: Gemini API call failed (HTTP $http_code), falling back to raw commit list"
-  echo "## Release $VERSION"$'\n'"$commits"
+  echo "$commits"
   exit 0
 fi
 
@@ -115,7 +115,7 @@ fi
 
 if [ -z "$notes" ]; then
   echo "WARNING: Empty response from Gemini, falling back to raw commit list"
-  echo "## Release $VERSION"$'\n'"$commits"
+  echo "$commits"
   exit 0
 fi
 
