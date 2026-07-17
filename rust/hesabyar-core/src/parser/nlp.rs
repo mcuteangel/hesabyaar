@@ -489,9 +489,14 @@ pub fn extract_person_name(sentence: &str) -> Option<String> {
     None
 }
 
-// Tehran is UTC+3:30 and has observed no DST since 1401. Aligning the day math
-// to Tehran-local time keeps results consistent with Kotlin's JalaliCalendarHelper.
+// Tehran is UTC+3:30 and has observed no DST since 1401. This app is Persian-first /
+// Tehran-local, so day math is aligned to Tehran-local time to match the Kotlin peer
+// (JalaliCalendarHelper uses device-local Calendar.getInstance()). On a non-Tehran
+// device the two sides could differ by a day; that is an accepted, documented
+// assumption for this app's audience rather than pulling in a timezone crate to read
+// the system offset.
 const TEHRAN_OFFSET_MS: i64 = 3 * 3600 * 1000 + 30 * 60 * 1000;
+const MS_PER_DAY: i64 = 86_400_000;
 
 /// Extract Jalali days from now.
 /// Ported from GeminiParser.extractJalaliDaysFromNow()
@@ -529,17 +534,17 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
             if let Ok(day) = day_str.trim().parse::<i32>() {
                 if (1..=31).contains(&day) {
                     if let Ok(target_ts) = jalali_to_gregorian(current_year, *month_num, day) {
-                        let now_date = now_ms / 86400000;
-                        let target_date = target_ts / 86400000;
+                        let now_date = now_ms / MS_PER_DAY;
+                        let target_date = target_ts / MS_PER_DAY;
                         if target_date < now_date {
                             if let Ok(next_ts) =
                                 jalali_to_gregorian(current_year + 1, *month_num, day)
                             {
-                                let next_date = next_ts / 86400000;
+                                let next_date = next_ts / MS_PER_DAY;
                                 return (next_date - now_date) as i32;
                             }
-                            // ponytail: next-year date invalid (e.g. Esfand 30 in a non-leap
-                            // year); never return negative, treat as due now.
+                            // Next-year date invalid (e.g. Esfand 30 in a non-leap year);
+                            // never return negative, treat as due now.
                             return 0;
                         }
                         return (target_date - now_date) as i32;
