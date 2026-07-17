@@ -192,15 +192,27 @@ android {
     }
   }
 
-  // Ship architecture-specific APKs (arm-v7a, arm-v8a, x86_64) alongside a
-  // universal APK so users can grab the smallest build for their device.
-  // Gated on ANDROID_NDK_HOME: without the NDK the Rust .so files aren't built,
-  // so a local `assembleRelease` would otherwise emit per-ABI APKs missing the
-  // native lib. CI sets ANDROID_NDK_HOME, so the split build runs there; local
-  // dev gets a single fat APK instead of several broken ones.
+  // Per-ABI APKs (arm-v7a, arm-v8a, x86_64) + a universal APK are shipped for
+  // direct (GitHub release) distribution so users grab the smallest build.
+  // The AAB, by contrast, must NOT use ABI splits: with them enabled AGP emits
+  // one shrunk-resources file per ABI and `buildReleasePreBundle` then fails
+  // with "Multiple shrunk-resources files found" (issuetracker.google.com/402800800).
+  // The AAB already carries every ABI, so Play splits it on delivery anyway.
+  //
+  // `enableAbiSplits` lets CI build the APKs with splits and the AAB without:
+  //   ./gradlew assembleRelease -PenableAbiSplits=true
+  //   ./gradlew bundleRelease    -PenableAbiSplits=false
+  // It defaults to NDK presence so a local `assembleRelease` (no NDK) still
+  // produces a single fat APK instead of several broken per-ABI builds missing
+  // the native lib.
+  val enableAbiSplits =
+    providers
+      .gradleProperty("enableAbiSplits")
+      .getOrElse((!System.getenv("ANDROID_NDK_HOME").isNullOrBlank()).toString())
+      .toBoolean()
   splits {
     abi {
-      isEnable = !System.getenv("ANDROID_NDK_HOME").isNullOrBlank()
+      isEnable = enableAbiSplits
       reset()
       include("armeabi-v7a", "arm64-v8a", "x86_64")
       isUniversalApk = true

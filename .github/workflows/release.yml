@@ -132,7 +132,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease bundleRelease --no-daemon
+        run: |
+          # APKs need per-ABI splits (GitHub release distribution);
+          # the AAB must be built WITHOUT splits, otherwise AGP emits
+          # multiple shrunk-resources files and buildReleasePreBundle fails.
+          ./gradlew assembleRelease -PenableAbiSplits=true --no-daemon
+          ./gradlew bundleRelease -PenableAbiSplits=false --no-daemon
 
       - name: Generate checksums
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
