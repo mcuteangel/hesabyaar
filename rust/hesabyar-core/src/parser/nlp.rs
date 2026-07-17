@@ -489,9 +489,21 @@ pub fn extract_person_name(sentence: &str) -> Option<String> {
     None
 }
 
+// Tehran is UTC+3:30 and has observed no DST since 1401. Aligning the day math
+// to Tehran-local time keeps results consistent with Kotlin's JalaliCalendarHelper.
+const TEHRAN_OFFSET_MS: i64 = 3 * 3600 * 1000 + 30 * 60 * 1000;
+
 /// Extract Jalali days from now.
 /// Ported from GeminiParser.extractJalaliDaysFromNow()
 pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    extract_jalali_days_from_now_inner(sentence, now_ms + TEHRAN_OFFSET_MS)
+}
+
+fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
     let jalali_months = [
         ("فروردین", 1),
         ("اردیبهشت", 2),
@@ -507,11 +519,6 @@ pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
         ("اسفند", 12),
     ];
 
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64;
-
     if let Ok(today) = gregorian_to_jalali(now_ms) {
         let current_year = today.year;
         for (month_name, month_num) in &jalali_months {
@@ -524,13 +531,16 @@ pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
                     if let Ok(target_ts) = jalali_to_gregorian(current_year, *month_num, day) {
                         let now_date = now_ms / 86400000;
                         let target_date = target_ts / 86400000;
-                        if target_date <= now_date {
+                        if target_date < now_date {
                             if let Ok(next_ts) =
                                 jalali_to_gregorian(current_year + 1, *month_num, day)
                             {
                                 let next_date = next_ts / 86400000;
                                 return (next_date - now_date) as i32;
                             }
+                            // ponytail: next-year date invalid (e.g. Esfand 30 in a non-leap
+                            // year); never return negative, treat as due now.
+                            return 0;
                         }
                         return (target_date - now_date) as i32;
                     }
@@ -1376,12 +1386,15 @@ mod tests {
     }
 
     #[test]
-    fn test_jalali_days_never_negative_for_past_date() {
+    fn test_jalali_days_rolls_to_next_year_for_past_date() {
         // Regression: when the specified Jalali date already passed this year,
-        // the result must roll forward to next year and stay non-negative
-        // (previously it returned a negative day count).
-        let days = extract_jalali_days_from_now("قسط ماشین ۲۵ تیر ۱۰ میلیون");
+        // the result must roll forward to next year (~365 days) and stay non-negative
+        // (previously it returned a negative day count). Fix "now" to 1405/05/01 so
+        // "تیر ۲۵" has already passed and the rollover branch is exercised deterministically.
+        let now_ms = jalali_to_gregorian(1405, 5, 1).unwrap();
+        let days = extract_jalali_days_from_now_inner("قسط ماشین ۲۵ تیر ۱۰ میلیون", now_ms);
         assert!(days >= 0, "daysFromNow must not be negative, got {days}");
+        assert!(days > 300, "past date must roll to next year, got {days}");
     }
 
     // =========================================================================
