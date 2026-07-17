@@ -58,9 +58,27 @@ Debug builds:
 ### Build Release APK
 
 ```bash
-# Build release APK
-./gradlew assembleRelease
+# Per-ABI APKs (arm-v7a, arm-v8a, x86_64) + a universal APK for direct distribution
+./gradlew assembleRelease -PenableAbiSplits=true
+
+# Universal AAB (no ABI split — required, see note below)
+./gradlew bundleRelease -PenableAbiSplits=false
 ```
+
+> **Why two separate commands with different flags?**
+> The AAB must be built **without** ABI splits. When `splits.abi` is enabled,
+> AGP emits one shrunk-resources file per ABI and `buildReleasePreBundle` fails
+> with "Multiple shrunk-resources files found" (issuetracker.google.com/402800800).
+> The AAB already carries every ABI, so Play splits it on delivery. The APKs,
+> by contrast, are shipped directly (e.g. GitHub release), so per-ABI splits let
+> users grab the smallest build for their device.
+>
+> The `enableAbiSplits` property controls this:
+> - `true`  → per-ABI APKs + universal APK.
+> - `false` → single universal build (used for the AAB).
+> - unset   → defaults to NDK presence, but **any bundle task** (e.g.
+>   `bundleRelease`) forces splits OFF regardless of the NDK. A blank value
+>   (e.g. `-PenableAbiSplits=`) is ignored and falls back to the default.
 
 Release builds:
 - Signed with release keystore
