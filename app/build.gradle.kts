@@ -551,7 +551,7 @@ fun computeCoreSourceMeta(): String {
         md.update(f.readBytes())
       }
   }
-  return md.digest().joinToString("") { b -> "%02x".format(b) }.take(7)
+  return md.digest().joinToString("") { b -> "%02x".format(b.toInt() and 0xFF) }.take(7)
 }
 
 tasks.register("syncCoreVersion") {
@@ -560,7 +560,7 @@ tasks.register("syncCoreVersion") {
     "Derive the Rust core version (base + source hash) and write it for the build"
   val genDir = file("$rustDir/hesabyar-core/src/generated")
   val genFile = file("$genDir/core_version.rs")
-  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.files(fileTree(rustDir.resolve("hesabyar-core/src")) { exclude("**/generated/**") })
   inputs.file(rustDir.resolve("Cargo.toml"))
   outputs.file(genFile)
   doLast {
