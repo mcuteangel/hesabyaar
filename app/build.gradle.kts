@@ -524,7 +524,7 @@ val rustTargets =
 fun readCoreBaseVersion(): String {
   val cargo = file("$rustDir/Cargo.toml").readText()
   val base =
-    Regex("""\[workspace\.package\][^\[]*version\s*=\s*"([^"]+)"""")
+    Regex("""\[workspace\.package\](?:\r?\n(?!\[)[^\r\n]*)*?\r?\n\s*version\s*=\s*"([^"]+)"""")
       .find(cargo)
       ?.groupValues
       ?.get(1)
@@ -544,11 +544,16 @@ fun computeCoreSourceMeta(): String {
   if (srcDir.exists()) {
     srcDir
       .walkTopDown()
-      .filter { it.isFile && it.extension == "rs" }
-      .sortedBy { it.relativeTo(srcDir).invariantSeparatorsPath }
+      .filter {
+        it.isFile &&
+          it.extension == "rs" &&
+          !it.relativeTo(srcDir).invariantSeparatorsPath.startsWith("generated/")
+      }.sortedBy { it.relativeTo(srcDir).invariantSeparatorsPath }
       .forEach { f ->
         md.update(f.relativeTo(srcDir).invariantSeparatorsPath.toByteArray())
-        md.update(f.readBytes())
+        val content =
+          f.readText(charset = Charsets.UTF_8).replace("\r\n", "\n").replace("\r", "\n")
+        md.update(content.toByteArray())
       }
   }
   return md.digest().joinToString("") { b -> "%02x".format(b.toInt() and 0xFF) }.take(7)

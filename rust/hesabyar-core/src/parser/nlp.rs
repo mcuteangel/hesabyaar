@@ -497,7 +497,6 @@ const MS_PER_DAY: i64 = 86_400_000;
 
 /// Extract Jalali days from now.
 /// Ported from GeminiParser.extractJalaliDaysFromNow()
-
 pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -534,13 +533,11 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
                     if let Ok(target_ts) = jalali_to_gregorian(current_year, *month_num, day) {
                         let now_date = now_ms / MS_PER_DAY;
                         let target_date = (target_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
-                        let target_date = target_ts / MS_PER_DAY;
                         if target_date < now_date {
                             if let Ok(next_ts) =
                                 jalali_to_gregorian(current_year + 1, *month_num, day)
                             {
                                 let next_date = (next_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
-                                let next_date = next_ts / MS_PER_DAY;
                                 return (next_date - now_date) as i32;
                             }
                             // Next-year date invalid (e.g. Esfand 30 in a non-leap year);

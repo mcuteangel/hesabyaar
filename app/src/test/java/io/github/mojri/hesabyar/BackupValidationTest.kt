@@ -195,7 +195,7 @@ class BackupValidationTest {
   @Test
   fun `BackupPayload default values`() {
     val backup = BackupPayload()
-    assertEquals(1, backup.version)
+    assertEquals(BuildConfig.BACKUP_SCHEMA_VERSION, backup.version)
     assertTrue(backup.transactions.isEmpty())
     assertTrue(backup.loans.isEmpty())
     assertTrue(backup.installments.isEmpty())

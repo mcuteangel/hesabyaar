@@ -278,7 +278,7 @@ class ManageBackupUseCaseTest {
   fun `parseBackupJson fallback returns defaults for empty object`() {
     val result = runBlocking { useCase.parseBackupJson(buildBackupJson {}) }
     assertTrue(result != null)
-    assertEquals(1, result!!.version)
+    assertEquals(BuildConfig.BACKUP_SCHEMA_VERSION, result!!.version)
     assertEquals(BuildConfig.VERSION_NAME, result.appVersion)
     assertTrue(result.transactions.isEmpty())
     assertTrue(result.loans.isEmpty())
