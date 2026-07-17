@@ -136,7 +136,7 @@ jobs:
           # APKs need per-ABI splits (GitHub release distribution);
           # the AAB must be built WITHOUT splits, otherwise AGP emits
           # multiple shrunk-resources files and buildReleasePreBundle fails.
-          ./gradlew assembleRelease -PenableAbiSplits=true --no-daemon
+          ./gradlew assembleRelease -PenableAbiSplits=true --no-daemon && \
           ./gradlew bundleRelease -PenableAbiSplits=false --no-daemon
 
       - name: Generate checksums
