@@ -201,7 +201,7 @@ class BackupValidationTest {
     assertTrue(backup.installments.isEmpty())
     assertTrue(backup.paymentHistories.isEmpty())
     assertTrue(backup.categories.isEmpty())
-    assertEquals("1.0", backup.appVersion)
+    assertEquals(BuildConfig.VERSION_NAME, backup.appVersion)
   }
 
   @Test

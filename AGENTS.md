@@ -86,6 +86,39 @@ generated into `app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
   for a daemonized run.
 - Do not manually edit the generated `hesabyar_core.kt`; it is overwritten by the task.
 
+## Rust Core Versioning
+
+The core is bundled with the app (not published separately), so it has its own
+versioning scheme, independent from the Android app version (root `VERSION` file).
+
+- **Base version** (`MAJOR.MINOR.PATCH`): lives in `rust/Cargo.toml`
+  `[workspace.package].version`. Bump it manually per SemVer:
+  - MAJOR — breaking change to the FFI surface or backup schema (`BackupPayload.version`).
+  - MINOR — backward-compatible feature/category added to the core API.
+  - PATCH — bug fix with no API/schema change.
+- **Build metadata** (`+<hash>`): auto-derived by the Gradle `:app:syncCoreVersion`
+  task from a SHA-256 of the `rust/hesabyar-core/src` tree. It is written to the
+  gitignored `rust/hesabyar-core/src/generated/core_version.rs` and embedded via
+  `build.rs` into the `CORE_VERSION` env, exposed at runtime through
+  `get_core_version()` (UniFFI). The metadata changes on every core source change
+  (committed or not), so the bundled core version always reflects the exact build.
+- **Never** hand-edit `src/generated/core_version.rs`; it is regenerated on every
+  binding/NDK build. `cargo build`/`cargo test` outside Gradle fall back to the
+  Cargo package version.
+
+### Backup schema version (`version` / `appVersion`)
+
+The backup envelope carries two version fields, kept independent from both the
+app `VERSION` file and the core `CORE_VERSION`:
+
+- `version` — backup **format/schema** version. A single source of truth in
+  `BACKUP_SCHEMA_VERSION` (Kotlin: `data/BackupModels.kt`, Rust:
+  `hesabyar-core/src/models/mod.rs`). Bump it **only** on a breaking change to
+  the serialized backup structure; the two constants must stay equal.
+- `appVersion` — the **app version** that produced the backup, written at export
+  time as `BuildConfig.VERSION_NAME` (Kotlin) / `env!("CORE_VERSION")` (Rust
+  default). Never hardcode a placeholder like `"1.0"`.
+
 ## Reference Docs
 
 - `docs/TECH_STACK.md` — official dependency list

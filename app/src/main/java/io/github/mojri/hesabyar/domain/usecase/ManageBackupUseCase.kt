@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.data.BACKUP_SCHEMA_VERSION
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
@@ -104,9 +106,9 @@ class ManageBackupUseCase(
     val root = parseRawJson(jsonString) ?: return null
     return try {
       BackupPayload(
-        version = root.optInt("version", 1),
+        version = root.optInt("version", BACKUP_SCHEMA_VERSION),
         timestamp = root.optLong("timestamp", System.currentTimeMillis()),
-        appVersion = root.optString("appVersion", "1.0"),
+        appVersion = root.optString("appVersion", BuildConfig.VERSION_NAME),
         transactions = parseTransactions(root),
         loans = parseLoans(root),
         installments = parseInstallmentsFromJson(root),
@@ -364,9 +366,9 @@ class ManageBackupUseCase(
 
   suspend fun exportBackupJson(isDarkMode: Boolean = true): JSONObject {
     val rootJson = JSONObject()
-    rootJson.put("version", 1)
+    rootJson.put("version", BACKUP_SCHEMA_VERSION)
     rootJson.put("timestamp", System.currentTimeMillis())
-    rootJson.put("appVersion", "1.0")
+    rootJson.put("appVersion", BuildConfig.VERSION_NAME)
 
     rootJson.put(
       "settings",

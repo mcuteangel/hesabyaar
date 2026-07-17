@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+/// Backup format/schema version. Bump ONLY on a breaking change to the
+/// serialized backup structure. Must stay in sync with `BACKUP_SCHEMA_VERSION`
+/// in the Kotlin side (app/.../data/BackupModels.kt).
+pub const BACKUP_SCHEMA_VERSION: i32 = 1;
+
 /// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
 /// Also accepts JSON null for compatibility with nullable exports.
 fn deserialize_zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
@@ -275,9 +280,9 @@ pub struct BackupPayload {
 impl Default for BackupPayload {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: BACKUP_SCHEMA_VERSION,
             timestamp: 0,
-            app_version: "1.0".to_string(),
+            app_version: env!("CORE_VERSION").to_string(),
             transactions: Vec::new(),
             loans: Vec::new(),
             installments: Vec::new(),

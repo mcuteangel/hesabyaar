@@ -64,6 +64,9 @@ app/src/main/jniLibs/
 # Generated UniFFI intermediate files
 rust/uniffi/
 
+# Gradle-generated Rust core version (run :app:syncCoreVersion to regenerate)
+rust/hesabyar-core/src/generated/
+
 # Generated UniFFI bindings (run ./gradlew :app:generateAndFixBindings to regenerate)
 app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
 .serena/
