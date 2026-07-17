@@ -159,11 +159,14 @@ jobs:
             echo "APK: $dst"
           done < <(find app/build/outputs/apk -name "*-release.apk")
           aab_dir="app/build/outputs/bundle/release"
-          if compgen -G "${aab_dir}/*.aab" > /dev/null; then
-            for src in "${aab_dir}"/*.aab; do
-              cp "$src" "release-artifacts/hesabyar-${VER}.aab"
-              echo "AAB: release-artifacts/hesabyar-${VER}.aab"
-            done
+          aab_files=("${aab_dir}"/*.aab)
+          if [ -e "${aab_files[0]}" ]; then
+            if [ "${#aab_files[@]}" -gt 1 ]; then
+              echo "ERROR: multiple AABs produced, destination name collision" >&2
+              exit 1
+            fi
+            cp "${aab_files[0]}" "release-artifacts/hesabyar-${VER}.aab"
+            echo "AAB: release-artifacts/hesabyar-${VER}.aab"
           else
             echo "No AAB produced; skipping bundle copy."
           fi
