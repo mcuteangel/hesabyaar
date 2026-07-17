@@ -21,13 +21,18 @@ fun HesabyarInputField(
   placeholder: String? = null,
   trailingIcon: @Composable (() -> Unit)? = null,
   isError: Boolean = false,
+  errorMessage: String? = null,
   supportingText: String? = null,
   visualTransformation: VisualTransformation = VisualTransformation.None,
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
   singleLine: Boolean = true,
+  minLines: Int = 1,
   shape: Shape = ShapeTokens.Large,
   enabled: Boolean = true
 ) {
+  val resolvedSupporting =
+    if (isError && errorMessage != null) errorMessage else supportingText
+
   OutlinedTextField(
     value = value,
     onValueChange = onValueChange,
@@ -36,17 +41,21 @@ fun HesabyarInputField(
     placeholder = placeholder?.let { { Text(it) } },
     trailingIcon = trailingIcon,
     isError = isError,
-    supportingText = supportingText?.let { { Text(it) } },
+    supportingText = resolvedSupporting?.let { { Text(it) } },
     visualTransformation = visualTransformation,
     keyboardOptions = keyboardOptions,
     singleLine = singleLine,
+    minLines = if (singleLine) 1 else minLines,
     enabled = enabled,
     shape = shape,
     colors =
       OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        errorBorderColor = MaterialTheme.colorScheme.error
+        errorBorderColor = MaterialTheme.colorScheme.error,
+        errorSupportingTextColor = MaterialTheme.colorScheme.error,
+        errorLabelColor = MaterialTheme.colorScheme.error,
+        errorTrailingIconColor = MaterialTheme.colorScheme.error
       )
   )
 }
