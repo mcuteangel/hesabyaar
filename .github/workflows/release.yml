@@ -187,6 +187,7 @@ jobs:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BASE_REF: ${{ github.event.before }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREV_HEADING: "نسخه‌های قبلی"
         run: |
           # Current version's notes (used for both the release page and CHANGELOG).
           bash scripts/generate-release-notes.sh "$NEW_VERSION" "$BASE_REF" HEAD > current-notes.md
@@ -198,7 +199,7 @@ jobs:
             body=$(gh release view "$tag" --json body --jq '.body' 2>/dev/null || echo "")
             [ -z "$body" ] && continue
             # Strip the RTL wrapper and any nested "previous releases" section to avoid recursion.
-            body=$(printf '%s' "$body" | sed -e 's#^<div dir="rtl">##' -e 's#</div>$##' | sed '/^## نسخه‌های قبلی/,$d')
+            body=$(printf '%s' "$body" | sed -e 's#^<div dir="rtl">##' -e 's#</div>$##' | sed "/^## ${PREV_HEADING}/,\$d")
             prev_section="${prev_section}## ${tag}"$'\n'"${body}"$'\n'$'\n'
           done < <(gh release list --limit 5 --json tagName --jq '.[].tagName' 2>/dev/null)
 
@@ -208,7 +209,7 @@ jobs:
             cat current-notes.md
             echo ""
             if [ -n "$prev_section" ]; then
-              echo "## نسخه‌های قبلی"
+              echo "## ${PREV_HEADING}"
               echo ""
               printf '%s' "$prev_section"
             fi

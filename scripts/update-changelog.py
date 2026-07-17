@@ -8,7 +8,7 @@ with the descriptions published on their GitHub release pages.
 Usage: update-changelog.py <version> <notes_file> [prev_limit]
 """
 import re
-import subprocess
+import subprocess  # nosec: needed to call the gh CLI; args are a fixed list, no shell
 import sys
 
 VERSION = sys.argv[1]
@@ -62,6 +62,8 @@ def is_placeholder(content: str) -> bool:
 
 def gh_body(tag: str):
     try:
+        # nosec B603,B607: fixed argument list (no shell); `tag` is a trusted
+        # version string parsed from the local CHANGELOG.md, never web input.
         out = subprocess.run(
             ["gh", "release", "view", tag, "--json", "body", "--jq", ".body"],
             capture_output=True,
@@ -70,8 +72,8 @@ def gh_body(tag: str):
         )
         if out.returncode == 0 and out.stdout.strip():
             return strip_wrapper(out.stdout)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"gh release view failed for {tag}: {exc}", file=sys.stderr)
     return None
 
 
