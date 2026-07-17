@@ -205,10 +205,11 @@ android {
   // It defaults to NDK presence so a local `assembleRelease` (no NDK) still
   // produces a single fat APK instead of several broken per-ABI builds missing
   // the native lib.
+  val ndkPresent = providers.environmentVariable("ANDROID_NDK_HOME").isPresent
   val enableAbiSplits =
     providers
       .gradleProperty("enableAbiSplits")
-      .getOrElse((!System.getenv("ANDROID_NDK_HOME").isNullOrBlank()).toString())
+      .getOrElse(ndkPresent.toString())
       .toBoolean()
   splits {
     abi {
