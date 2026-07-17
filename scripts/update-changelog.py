@@ -48,9 +48,16 @@ def strip_wrapper(text: str) -> str:
 
 
 def is_placeholder(content: str) -> bool:
-    return bool(
-        re.fullmatch(r"### Changed\s*- Release version \d+\.\d+\.\d+\s*", content.strip())
-    )
+    c = content.strip()
+    if not re.search(r"- Release version \d+\.\d+\.\d+", c):
+        return False
+    # A placeholder is ONLY the version bullet (under any ### subsection).
+    # Strip headers, bullets, and blockquotes; if nothing real remains it's a
+    # placeholder. Real (backfilled) entries keep prose/extra bullets behind.
+    cleaned = re.sub(r"(?m)^#{1,6} .*$", "", c)
+    cleaned = re.sub(r"(?m)^[-*+] .*$", "", cleaned)
+    cleaned = re.sub(r"(?m)^>.*$", "", cleaned)
+    return not cleaned.strip()
 
 
 def gh_body(tag: str):

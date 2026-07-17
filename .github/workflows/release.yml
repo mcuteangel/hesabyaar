@@ -158,10 +158,15 @@ jobs:
             cp "$src" "$dst"
             echo "APK: $dst"
           done < <(find app/build/outputs/apk -name "*-release.apk")
-          for src in app/build/outputs/bundle/release/*.aab; do
-            cp "$src" "release-artifacts/hesabyar-${VER}.aab"
-            echo "AAB: release-artifacts/hesabyar-${VER}.aab"
-          done
+          aab_dir="app/build/outputs/bundle/release"
+          if compgen -G "${aab_dir}/*.aab" > /dev/null; then
+            for src in "${aab_dir}"/*.aab; do
+              cp "$src" "release-artifacts/hesabyar-${VER}.aab"
+              echo "AAB: release-artifacts/hesabyar-${VER}.aab"
+            done
+          else
+            echo "No AAB produced; skipping bundle copy."
+          fi
           cd release-artifacts
           for f in *.apk *.aab; do
             if [ -f "$f" ]; then
