@@ -46,6 +46,10 @@ docs/uiplan.md
 .superpowers/
 docs/superpowers/
 
+# Python
+__pycache__/
+*.pyc
+
 # Rust
 /rust/target/
 **/target/
