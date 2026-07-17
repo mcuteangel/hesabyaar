@@ -190,9 +190,9 @@ jobs:
           # Heading kept ASCII in-source (base64) to avoid non-ASCII in the workflow;
           # decoded at runtime below. (Persian "previous releases" string.)
           PREV_HEADING_B64: "2YbYs9iu2YfigIzZh9in24wg2YLYqNmE24w="
-         run: |
-           PREV_HEADING=$(printf '%s' "${PREV_HEADING_B64}" | base64 -d)
-           # Current version's notes (used for both the release page and CHANGELOG).
+        run: |
+          PREV_HEADING=$(printf '%s' "${PREV_HEADING_B64}" | base64 -d)
+          # Current version's notes (used for both the release page and CHANGELOG).
           bash scripts/generate-release-notes.sh "$NEW_VERSION" "$BASE_REF" HEAD > current-notes.md
 
           # Append descriptions of the last 5 releases from the release page itself.
