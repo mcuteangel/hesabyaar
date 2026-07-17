@@ -524,6 +524,14 @@ pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
                     if let Ok(target_ts) = jalali_to_gregorian(current_year, *month_num, day) {
                         let now_date = now_ms / 86400000;
                         let target_date = target_ts / 86400000;
+                        if target_date <= now_date {
+                            if let Ok(next_ts) =
+                                jalali_to_gregorian(current_year + 1, *month_num, day)
+                            {
+                                let next_date = next_ts / 86400000;
+                                return (next_date - now_date) as i32;
+                            }
+                        }
                         return (target_date - now_date) as i32;
                     }
                 }
@@ -1365,6 +1373,15 @@ mod tests {
     fn test_jalali_month_name() {
         // Should not panic with just a month name
         let _ = extract_jalali_days_from_now("خرداد");
+    }
+
+    #[test]
+    fn test_jalali_days_never_negative_for_past_date() {
+        // Regression: when the specified Jalali date already passed this year,
+        // the result must roll forward to next year and stay non-negative
+        // (previously it returned a negative day count).
+        let days = extract_jalali_days_from_now("قسط ماشین ۲۵ تیر ۱۰ میلیون");
+        assert!(days >= 0, "daysFromNow must not be negative, got {days}");
     }
 
     // =========================================================================
