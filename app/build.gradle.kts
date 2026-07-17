@@ -202,9 +202,11 @@ android {
   // `enableAbiSplits` lets CI build the APKs with splits and the AAB without:
   //   ./gradlew assembleRelease -PenableAbiSplits=true
   //   ./gradlew bundleRelease    -PenableAbiSplits=false
-  // An explicit property always wins. The default otherwise is NDK presence,
-  // BUT a bundle task (e.g. `bundleRelease`) forces splits OFF regardless of
-  // the NDK: building an AAB with ABI splits enabled makes AGP emit multiple
+  // An explicit, non-blank property always wins. A blank/empty value (e.g.
+  // `-PenableAbiSplits=`) is ignored and falls back to the default rather than
+  // silently disabling splits. The default otherwise is NDK presence, BUT a
+  // bundle task (e.g. `bundleRelease`) forces splits OFF regardless of the NDK:
+  // building an AAB with ABI splits enabled makes AGP emit multiple
   // shrunk-resources files and `buildReleasePreBundle` fails (issuetracker
   // 402800800). This keeps `./gradlew bundleRelease` safe on an NDK-equipped
   // machine too, while a local `assembleRelease` (no NDK) still produces a
@@ -212,11 +214,10 @@ android {
   val buildingBundle =
     gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
   val ndkPresent = providers.environmentVariable("ANDROID_NDK_HOME").isPresent
+  val defaultAbiSplits = ndkPresent && !buildingBundle
+  val explicitAbiSplits = providers.gradleProperty("enableAbiSplits").getOrNull()
   val enableAbiSplits =
-    providers
-      .gradleProperty("enableAbiSplits")
-      .getOrElse((!buildingBundle && ndkPresent).toString())
-      .toBoolean()
+    if (explicitAbiSplits.isNullOrBlank()) defaultAbiSplits else explicitAbiSplits.toBoolean()
   splits {
     abi {
       isEnable = enableAbiSplits
