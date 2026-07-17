@@ -100,11 +100,11 @@ versioning scheme, independent from the Android app version (root `VERSION` file
   task from a SHA-256 of the `rust/hesabyar-core/src` tree. It is written to the
   gitignored `rust/hesabyar-core/src/generated/core_version.rs` and embedded via
   `build.rs` into the `CORE_VERSION` env, exposed at runtime through
-  `get_core_version()` (UniFFI). The metadata changes on every core source change
-  (committed or not), so the bundled core version always reflects the exact build.
-- **Never** hand-edit `src/generated/core_version.rs`; it is regenerated on every
-  binding/NDK build. `cargo build`/`cargo test` outside Gradle fall back to the
-  Cargo package version.
+   `get_core_version()` (UniFFI). The metadata changes whenever the core source
+   changes, so the bundled core version reflects the exact build.
+ - Do not hand-edit `src/generated/core_version.rs`; it is regenerated on every
+   binding/NDK build. `cargo build`/`cargo test` outside Gradle fall back to the
+   Cargo package version.
 
 ### Backup schema version (`version` / `appVersion`)
 
@@ -118,7 +118,7 @@ app `VERSION` file and the core `CORE_VERSION`:
   breaking change to the serialized backup structure.
 - `appVersion` — the **app version** that produced the backup, written at export
   time as `BuildConfig.VERSION_NAME` (Kotlin) / `env!("CORE_VERSION")` (Rust
-  default). Never hardcode a placeholder like `"1.0"`.
+   default). Do not hardcode a placeholder like `"1.0"`.
 
 ## Reference Docs
 
