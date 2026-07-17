@@ -16,6 +16,8 @@ jobs:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
     # `id-token: write` (needed for CodSpeed OIDC auth) is stripped by GitHub on
     # pull requests from forked repositories, which would make this job fail.
     # Only run on pushes and same-repo PRs; community-fork PRs skip benchmarking.
@@ -30,6 +32,11 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: "rust"
+
       - name: Cache cargo-codspeed binary
         id: cache
         # `cargo install` compiles from source on every run. Cache the installed
@@ -38,6 +45,9 @@ jobs:
         with:
           path: ~/.cargo/bin/cargo-codspeed
           key: cargo-codspeed-4.7.0
+
+      - name: Install lld linker
+        run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y lld
 
       - name: Install cargo-codspeed
         # cargo-codspeed sets CODSPEED_CARGO_WORKSPACE_ROOT and instruments the
