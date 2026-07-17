@@ -31,6 +31,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -98,25 +99,17 @@ fun LoanManagementScreen(
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
   ) {
     // Stats and trigger row
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Text(
-        text = "دفتر قرض و امور مالی اشخاص",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onBackground
-      )
-
-      HesabyarButton(
-        onClick = { showAddDialog = true },
-        text = "ثبت جدید",
-        icon = Icons.Filled.Add,
-        modifier = Modifier.testTag("add_loan_button")
-      )
-    }
+    SectionHeader(
+      title = "دفتر قرض و امور مالی اشخاص",
+      action = {
+        HesabyarButton(
+          onClick = { showAddDialog = true },
+          text = "ثبت جدید",
+          icon = Icons.Filled.Add,
+          modifier = Modifier.testTag("add_loan_button")
+        )
+      }
+    )
 
     // Tab selection (Debtors vs Creditors)
     Row(

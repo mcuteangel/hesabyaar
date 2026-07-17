@@ -30,6 +30,7 @@ import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -324,22 +325,17 @@ private fun CategoryItem(
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )
-        Row(
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Text(
-            text = category.key,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-          )
-          Text(
-            text = category.type.displayName,
-            style = MaterialTheme.typography.labelSmall,
-            color = categoryColor,
-            fontWeight = FontWeight.Medium
-          )
-        }
+        Text(
+          text = category.key,
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
+        HesabyarChip(
+          selected = true,
+          onClick = { },
+          label = category.type.displayName,
+          shape = ShapeTokens.Small
+        )
       }
 
       IconButton(

@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -141,6 +142,48 @@ fun InstallmentScreen(
         "PAID" -> paid
         else -> installments
       }
+
+    if (installments.isNotEmpty()) {
+      val paidCount = paid.size
+      val totalCount = installments.size
+      val progress = if (totalCount > 0) paidCount.toFloat() / totalCount else 0f
+      HesabyarCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = ElevationTokens.md,
+        shape = ShapeTokens.Large,
+        contentPadding = PaddingValues(SpacingTokens.md)
+      ) {
+        Column(
+          verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "پیشرفت پرداخت اقساط",
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+              text = "$paidCount / $totalCount",
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.Bold,
+              color = FinancialColors.IncomeGreen
+            )
+          }
+          LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth(),
+            color = FinancialColors.IncomeGreen,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            strokeCap = androidx.compose.material3.ProgressIndicatorDefaults.LinearStrokeCap
+          )
+        }
+      }
+    }
 
     if (displayList.isEmpty()) {
       Box(
@@ -292,6 +335,7 @@ fun InstallmentListItem(
         .fillMaxWidth()
         .clickable { expanded = !expanded },
     shape = ShapeTokens.Large,
+    elevation = ElevationTokens.md,
     cardColors =
       CardDefaults.cardColors(
         containerColor =
