@@ -62,9 +62,7 @@ def is_placeholder(content: str) -> bool:
 
 def gh_body(tag: str):
     try:
-        # nosec B603,B607: fixed argument list (no shell); `tag` is a trusted
-        # version string parsed from the local CHANGELOG.md, never web input.
-        out = subprocess.run(
+        out = subprocess.run(  # nosec B603,B607: fixed list, no shell; `tag` is a trusted local version
             ["gh", "release", "view", tag, "--json", "body", "--jq", ".body"],
             capture_output=True,
             text=True,
