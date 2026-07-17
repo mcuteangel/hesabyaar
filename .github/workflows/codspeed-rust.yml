@@ -30,6 +30,22 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
+      - name: Cache cargo-codspeed binary
+        id: cache
+        # `cargo install` compiles from source on every run. Cache the installed
+        # binary (keyed on version) so CI doesn't recompile the tool each time.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: ~/.cargo/bin/cargo-codspeed
+          key: cargo-codspeed-4.7.0
+
+      - name: Install cargo-codspeed
+        # cargo-codspeed sets CODSPEED_CARGO_WORKSPACE_ROOT and instruments the
+        # shim. Without it, cargo bench panics with the NotPresent env error.
+        # Pinned + --locked for reproducible installs; skipped when cached.
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-codspeed --version 4.7.0 --locked
+
       - name: Run benchmarks
         uses: CodSpeedHQ/action@f99becdce5e5d51fd556489ebef684f4ecfd6286 # v4
         with:
@@ -42,8 +58,17 @@ jobs:
           # NOT a permanent dependency in Cargo.toml: doing so breaks offline
           # local builds (crates.io is unreachable in the dev sandbox), which would
           # block `./gradlew :app:testDebugUnitTest` from assembling the Rust .so.
+          # `cargo codspeed run` (not plain `cargo bench`) is required so the
+          # shim runs under the instrumented harness that defines
+          # CODSPEED_CARGO_WORKSPACE_ROOT.
+          # Pinned to major v1: on runs where CodSpeed OIDC auth is unavailable
+          # (e.g. automation PRs where `id-token: write` is stripped), v1 falls
+          # back to running the suite as plain criterion instead of panicking on a
+          # missing CODSPEED_CARGO_WORKSPACE_ROOT env var. v2 hard-requires that
+          # env and crashes the job in those environments.
           run: |
             cargo remove criterion --dev -p hesabyar-core
-            cargo add codspeed-criterion-compat@2 --rename criterion --dev -p hesabyar-core
-            cargo bench -p hesabyar-core
+            cargo add codspeed-criterion-compat@1 --rename criterion --dev -p hesabyar-core
+            cargo codspeed build -p hesabyar-core -m simulation
+            cargo codspeed run -p hesabyar-core
           working-directory: rust
