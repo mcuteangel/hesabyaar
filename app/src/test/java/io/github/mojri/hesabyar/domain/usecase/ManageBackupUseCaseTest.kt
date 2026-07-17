@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.TransactionType
@@ -277,8 +278,8 @@ class ManageBackupUseCaseTest {
   fun `parseBackupJson fallback returns defaults for empty object`() {
     val result = runBlocking { useCase.parseBackupJson(buildBackupJson {}) }
     assertTrue(result != null)
-    assertEquals(1, result!!.version)
-    assertEquals("1.0", result.appVersion)
+    assertEquals(BuildConfig.BACKUP_SCHEMA_VERSION, result!!.version)
+    assertEquals(BuildConfig.VERSION_NAME, result.appVersion)
     assertTrue(result.transactions.isEmpty())
     assertTrue(result.loans.isEmpty())
     assertTrue(result.installments.isEmpty())

@@ -532,12 +532,12 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
                 if (1..=31).contains(&day) {
                     if let Ok(target_ts) = jalali_to_gregorian(current_year, *month_num, day) {
                         let now_date = now_ms / MS_PER_DAY;
-                        let target_date = target_ts / MS_PER_DAY;
+                        let target_date = (target_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
                         if target_date < now_date {
                             if let Ok(next_ts) =
                                 jalali_to_gregorian(current_year + 1, *month_num, day)
                             {
-                                let next_date = next_ts / MS_PER_DAY;
+                                let next_date = (next_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
                                 return (next_date - now_date) as i32;
                             }
                             // Next-year date invalid (e.g. Esfand 30 in a non-leap year);

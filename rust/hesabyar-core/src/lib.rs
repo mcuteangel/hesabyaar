@@ -27,6 +27,18 @@ pub use validation::*;
 
 uniffi::setup_scaffolding!();
 
+/// Returns the bundled Rust core version (SemVer base + source build metadata).
+///
+/// The core is versioned independently from the Android app (root `VERSION`
+/// file). The base `MAJOR.MINOR.PATCH` lives in `rust/Cargo.toml` and is bumped
+/// manually per SemVer; the build metadata (`+<hash>`) is derived from the core
+/// source tree by the Gradle `syncCoreVersion` task, so this reflects the exact
+/// core build that is bundled into the app.
+#[uniffi::export]
+pub fn get_core_version() -> String {
+    env!("CORE_VERSION").to_string()
+}
+
 /// Initialize the Rust core. Must be called once from Kotlin after loading the library.
 ///
 /// Installs a panic hook that ensures Rust panics never cross the FFI boundary.
