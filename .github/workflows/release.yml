@@ -159,6 +159,9 @@ jobs:
             base="${name#app-}"
             base="${base%-release.apk}"
             abi="${ABI_MAP[$base]:-universal}"
+            if [ -z "${ABI_MAP[$base]+x}" ]; then
+              echo "WARNING: unrecognized APK filename '$name' (base='$base'); labeling as universal" >&2
+            fi
             dst="release-artifacts/hesabyar-${VER}-${abi}.apk"
             cp "$src" "$dst"
             echo "APK: $dst"
