@@ -30,9 +30,19 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
+      - name: Cache cargo-codspeed binary
+        # `cargo install` compiles from source on every run. Cache the installed
+        # binary (keyed on version) so CI doesn't recompile the tool each time.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: ~/.cargo/bin/cargo-codspeed
+          key: cargo-codspeed-4.7.0
+
       - name: Install cargo-codspeed
         # cargo-codspeed sets CODSPEED_CARGO_WORKSPACE_ROOT and instruments the
         # shim. Without it, cargo bench panics with the NotPresent env error.
+        # Pinned + --locked for reproducible installs; skipped when cached.
+        if: steps.cache.outputs.cache-hit != 'true'
         run: cargo install cargo-codspeed --version 4.7.0 --locked
 
       - name: Run benchmarks
