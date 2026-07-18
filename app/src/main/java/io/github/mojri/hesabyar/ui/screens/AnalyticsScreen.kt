@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 @Composable
 fun AnalyticsScreen(
@@ -44,7 +45,8 @@ fun AnalyticsScreen(
   LazyColumn(
     modifier =
       modifier
-        .fillMaxSize()
+        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+        .fillMaxWidth()
         .padding(horizontal = SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
     contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = SpacingTokens.xl)
@@ -555,7 +557,7 @@ private fun DebtCreditSummaryCard(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -655,7 +657,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -881,7 +883,7 @@ private fun InstallmentProgressCard(
                 Modifier
                   .fillMaxWidth()
                   .clip(ShapeTokens.Small)
-                  .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                  .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                   .padding(SpacingTokens.sm),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically

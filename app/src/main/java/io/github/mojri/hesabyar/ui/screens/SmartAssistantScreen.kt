@@ -53,6 +53,7 @@ import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 import java.util.Calendar
 
@@ -130,7 +131,7 @@ fun SmartAssistantScreen(
     )
   } else {
     Column(
-      modifier = modifier.fillMaxSize(),
+      modifier = modifier.widthIn(max = WindowSizeTokens.ContentMaxWidth).fillMaxWidth(),
       verticalArrangement = Arrangement.Top,
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -139,7 +140,7 @@ fun SmartAssistantScreen(
         selectedTabIndex = activeTab,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary,
-        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) }
+        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
       ) {
         Tab(
           selected = activeTab == 0,
@@ -197,7 +198,7 @@ fun SmartAssistantScreen(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.XLarge)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(SpacingTokens.xl)
           ) {
             Row(
@@ -263,7 +264,7 @@ fun SmartAssistantScreen(
                     Modifier
                       .fillMaxWidth()
                       .clip(ShapeTokens.Small)
-                      .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                      .background(MaterialTheme.colorScheme.surfaceContainerLow)
                       .clickable {
                         inputText = ex
                         aiAssistantViewModel.parseSmartSentence(
@@ -282,7 +283,7 @@ fun SmartAssistantScreen(
                   Icon(
                     imageVector = Icons.Filled.ArrowBack,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(Dimens.IconSmall)
                   )
                 }
@@ -426,7 +427,7 @@ fun SmartAssistantScreen(
             shape = ShapeTokens.XLarge,
             cardColors =
               CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer
               ),
             contentPadding = PaddingValues(SpacingTokens.lg)
           ) {
@@ -607,7 +608,7 @@ fun SmartAssistantScreen(
                   }
 
                   HorizontalDivider(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                   )
 
                   MarkdownText(text = state.advice)
@@ -937,7 +938,7 @@ fun ParsedResultCard(
         }
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Scrollable Form Content Container
       Column(

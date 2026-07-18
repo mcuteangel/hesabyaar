@@ -656,7 +656,7 @@ fun ForecastDetailDialog(
                 Button(
                   onClick = onRefresh,
                   modifier = Modifier.fillMaxWidth(),
-                  shape = ShapeTokens.Medium
+                  shape = ShapeTokens.Full
                 ) {
                   Icon(
                     imageVector = Icons.Filled.Refresh,
@@ -664,7 +664,7 @@ fun ForecastDetailDialog(
                     modifier = Modifier.size(Dimens.IconSmall)
                   )
                   Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                  Text("بروزرسانی پیش‌بینی", fontWeight = FontWeight.Bold)
+                  Text("بروزرسانی پیش‌بینی")
                 }
               }
             }
@@ -979,7 +979,7 @@ fun ManualTransactionDialog(
             }
           }
 
-          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
           // Scrollable content
           Column(
@@ -1382,7 +1382,7 @@ fun ManualTransactionDialog(
                 visible = false
               },
               modifier = Modifier.weight(1f),
-              shape = ShapeTokens.Medium,
+              shape = ShapeTokens.Full,
               colors = ButtonDefaults.buttonColors(containerColor = typeColor)
             ) {
               Text(
@@ -1475,7 +1475,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1.3f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Medium,
+        shape = ShapeTokens.Full,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1499,7 +1499,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Medium,
+        shape = ShapeTokens.Full,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(

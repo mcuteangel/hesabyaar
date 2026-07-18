@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -41,6 +42,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 @Composable
 fun BankLoanScreen(
@@ -67,7 +69,14 @@ fun BankLoanScreen(
       }
     } else {
       LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(SpacingTokens.md),
+        modifier =
+          Modifier
+            .fillMaxSize()
+            .widthIn(
+              max = WindowSizeTokens.ContentMaxWidth
+            ).fillMaxWidth()
+            .padding(innerPadding)
+            .padding(SpacingTokens.md),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
         items(bankLoans, key = { it.id }) { loan ->
