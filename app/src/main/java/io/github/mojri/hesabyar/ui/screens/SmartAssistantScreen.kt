@@ -859,7 +859,7 @@ fun ParsedResultCard(
   HesabyarCard(
     modifier = modifier.fillMaxWidth(),
     shape = ShapeTokens.XLarge,
-    elevation = ElevationTokens.md,
+    elevation = ElevationTokens.Level2,
     contentPadding = PaddingValues(SpacingTokens.xl)
   ) {
     Column(

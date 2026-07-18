@@ -62,6 +62,7 @@ import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import kotlinx.coroutines.delay
 import java.util.*
 
@@ -147,11 +148,11 @@ fun DashboardScreen(
     LazyColumn(
       modifier =
         Modifier
-          .widthIn(max = 840.dp)
+          .widthIn(max = WindowSizeTokens.ContentMaxWidth)
           .fillMaxWidth()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
+      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.BottomNavClearance)
     ) {
       item { DashboardHeader(settingsViewModel) }
 
@@ -418,7 +419,7 @@ fun InstallmentMiniItem(
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
         shape = ShapeTokens.Small,
-        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
+        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xxs)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)
       }
@@ -537,7 +538,7 @@ fun ForecastDetailDialog(
             .fillMaxHeight(0.85f),
         shape = ShapeTokens.XLarge,
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = ElevationTokens.lg
+        tonalElevation = ElevationTokens.Level3
       ) {
         Column(
           modifier =
@@ -925,7 +926,7 @@ fun ManualTransactionDialog(
             .padding(vertical = SpacingTokens.xl),
         shape = ShapeTokens.XLarge,
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = ElevationTokens.lg
+        tonalElevation = ElevationTokens.Level3
       ) {
         Column(
           modifier =

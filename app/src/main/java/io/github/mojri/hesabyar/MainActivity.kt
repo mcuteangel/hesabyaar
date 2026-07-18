@@ -15,7 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -30,6 +32,8 @@ import io.github.mojri.hesabyar.auth.AuthManager
 import io.github.mojri.hesabyar.auth.LockScreen
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -113,28 +117,166 @@ class MainActivity : FragmentActivity() {
             } else {
               var showMoreMenu by remember { mutableStateOf(false) }
 
+              val isCompact = LocalConfiguration.current.screenWidthDp < 600
+
+              val tabs =
+                listOf(
+                  Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
+                  Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
+                  Triple("DEBTS", "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
+                )
+
+              @Composable
+              fun currentTabScreen(modifier: Modifier) {
+                when (currentTab) {
+                  "DASHBOARD" ->
+                    DashboardScreen(
+                      dashboardViewModel = dashboardViewModel,
+                      transactionViewModel = transactionViewModel,
+                      loanViewModel = loanViewModel,
+                      installmentViewModel = installmentViewModel,
+                      aiAssistantViewModel = aiAssistantViewModel,
+                      settingsViewModel = settingsViewModel,
+                      onNavigateToAssistant = { currentTab = "ASSISTANT" },
+                      modifier = Modifier
+                    )
+                  "ASSISTANT" ->
+                    SmartAssistantScreen(
+                      aiAssistantViewModel = aiAssistantViewModel,
+                      categoryViewModel = categoryViewModel,
+                      dashboardViewModel = dashboardViewModel,
+                      settingsViewModel = settingsViewModel,
+                      modifier = Modifier
+                    )
+                  "DEBTS" ->
+                    DebtHubScreen(
+                      initialSection = debtSection,
+                      installmentViewModel = installmentViewModel,
+                      bankLoanViewModel = bankLoanViewModel,
+                      loanViewModel = loanViewModel,
+                      settingsViewModel = settingsViewModel,
+                      modifier = Modifier
+                    )
+                  "ANALYTICS" ->
+                    AnalyticsScreen(
+                      analyticsViewModel = analyticsViewModel,
+                      modifier = Modifier
+                    )
+                  "REPORTS" ->
+                    ReportsScreen(
+                      dashboardViewModel = dashboardViewModel,
+                      transactionViewModel = transactionViewModel,
+                      loanViewModel = loanViewModel,
+                      installmentViewModel = installmentViewModel,
+                      aiAssistantViewModel = aiAssistantViewModel,
+                      modifier = Modifier
+                    )
+                  "SETTINGS" ->
+                    SettingsScreen(
+                      aiAssistantViewModel = aiAssistantViewModel,
+                      backupViewModel = backupViewModel,
+                      exportViewModel = exportViewModel,
+                      settingsViewModel = settingsViewModel,
+                      onNavigateToCategories = { showCategoryManagement = true },
+                      modifier = Modifier
+                    )
+                }
+              }
+
+              @OptIn(ExperimentalMaterial3Api::class)
+              @Composable
+              fun moreMenuSheet(
+                show: Boolean,
+                onDismiss: () -> Unit,
+                onSelect: (String) -> Unit
+              ) {
+                if (show) {
+                  ModalBottomSheet(onDismissRequest = onDismiss) {
+                    ListItem(
+                      headlineContent = { Text("تحلیل و آمار") },
+                      leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
+                      modifier = Modifier.clickable { onSelect("ANALYTICS") }
+                    )
+                    ListItem(
+                      headlineContent = { Text("گزارش‌ها") },
+                      leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
+                      modifier = Modifier.clickable { onSelect("REPORTS") }
+                    )
+                    ListItem(
+                      headlineContent = { Text("تنظیمات") },
+                      leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                      modifier = Modifier.clickable { onSelect("SETTINGS") }
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                  }
+                }
+              }
+
+              @Composable
+              fun mainContent(contentModifier: Modifier) {
+                Box(
+                  modifier =
+                    contentModifier
+                      .fillMaxSize()
+                      .widthIn(max = WindowSizeTokens.ContentMaxWidth),
+                  contentAlignment = Alignment.TopCenter
+                ) {
+                  currentTabScreen(Modifier)
+                }
+
+                moreMenuSheet(
+                  show = showMoreMenu,
+                  onDismiss = { showMoreMenu = false },
+                  onSelect = { tab ->
+                    currentTab = tab
+                    showMoreMenu = false
+                  }
+                )
+              }
+
               Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
-                  NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                  ) {
-                    val tabs =
-                      listOf(
-                        Triple("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
-                        Triple("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
-                        Triple("DEBTS", "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
-                      )
-
-                    tabs.forEach { (tabId, label, icon) ->
+                  if (isCompact) {
+                    NavigationBar(
+                      containerColor = MaterialTheme.colorScheme.surface,
+                      tonalElevation = ElevationTokens.Level4
+                    ) {
+                      tabs.forEach { (tabId, label, icon) ->
+                        NavigationBarItem(
+                          selected = currentTab == tabId,
+                          onClick = { currentTab = tabId },
+                          icon = { Icon(imageVector = icon, contentDescription = label) },
+                          label = {
+                            Text(
+                              label,
+                              style = MaterialTheme.typography.labelSmall,
+                              fontWeight = FontWeight.Bold
+                            )
+                          },
+                          colors =
+                            NavigationBarItemDefaults.colors(
+                              selectedIconColor = MaterialTheme.colorScheme.primary,
+                              selectedTextColor = MaterialTheme.colorScheme.primary,
+                              indicatorColor =
+                                MaterialTheme.colorScheme.primaryContainer.copy(
+                                  alpha = 0.5f
+                                )
+                            )
+                        )
+                      }
                       NavigationBarItem(
-                        selected = currentTab == tabId,
-                        onClick = { currentTab = tabId },
-                        icon = { Icon(imageVector = icon, contentDescription = label) },
+                        selected = showMoreMenu,
+                        onClick = { showMoreMenu = true },
+                        icon = {
+                          Icon(
+                            imageVector = Icons.Filled.MoreHoriz,
+                            contentDescription = "بیشتر"
+                          )
+                        },
                         label = {
                           Text(
-                            label,
+                            "بیشتر",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                           )
@@ -150,126 +292,68 @@ class MainActivity : FragmentActivity() {
                           )
                       )
                     }
-
-                    // More menu for less frequent actions
-                    val moreTabs = listOf("ANALYTICS", "REPORTS", "SETTINGS")
-                    NavigationBarItem(
-                      selected = showMoreMenu || currentTab in moreTabs,
-                      onClick = { showMoreMenu = true },
-                      icon = {
-                        Icon(
-                          imageVector = Icons.Filled.MoreHoriz,
-                          contentDescription = "بیشتر"
-                        )
-                      },
-                      label = {
-                        Text(
-                          "بیشتر",
-                          style = MaterialTheme.typography.labelSmall,
-                          fontWeight = FontWeight.Bold
-                        )
-                      },
-                      colors =
-                        NavigationBarItemDefaults.colors(
-                          selectedIconColor = MaterialTheme.colorScheme.primary,
-                          selectedTextColor = MaterialTheme.colorScheme.primary,
-                          indicatorColor =
-                            MaterialTheme.colorScheme.primaryContainer.copy(
-                              alpha = 0.5f
-                            )
-                        )
-                    )
                   }
                 }
               ) { innerPadding ->
-                val modifier = Modifier.padding(innerPadding)
-                when (currentTab) {
-                  "DASHBOARD" ->
-                    DashboardScreen(
-                      dashboardViewModel = dashboardViewModel,
-                      transactionViewModel = transactionViewModel,
-                      loanViewModel = loanViewModel,
-                      installmentViewModel = installmentViewModel,
-                      aiAssistantViewModel = aiAssistantViewModel,
-                      settingsViewModel = settingsViewModel,
-                      onNavigateToAssistant = { currentTab = "ASSISTANT" },
-                      modifier = modifier
-                    )
-                  "ASSISTANT" ->
-                    SmartAssistantScreen(
-                      aiAssistantViewModel = aiAssistantViewModel,
-                      categoryViewModel = categoryViewModel,
-                      dashboardViewModel = dashboardViewModel,
-                      settingsViewModel = settingsViewModel,
-                      modifier = modifier
-                    )
-                  "DEBTS" ->
-                    DebtHubScreen(
-                      initialSection = debtSection,
-                      installmentViewModel = installmentViewModel,
-                      bankLoanViewModel = bankLoanViewModel,
-                      loanViewModel = loanViewModel,
-                      settingsViewModel = settingsViewModel,
-                      modifier = modifier
-                    )
-                  "ANALYTICS" ->
-                    AnalyticsScreen(
-                      analyticsViewModel = analyticsViewModel,
-                      modifier = modifier
-                    )
-                  "REPORTS" ->
-                    ReportsScreen(
-                      dashboardViewModel = dashboardViewModel,
-                      transactionViewModel = transactionViewModel,
-                      loanViewModel = loanViewModel,
-                      installmentViewModel = installmentViewModel,
-                      aiAssistantViewModel = aiAssistantViewModel,
-                      modifier = modifier
-                    )
-                  "SETTINGS" ->
-                    SettingsScreen(
-                      aiAssistantViewModel = aiAssistantViewModel,
-                      backupViewModel = backupViewModel,
-                      exportViewModel = exportViewModel,
-                      settingsViewModel = settingsViewModel,
-                      onNavigateToCategories = { showCategoryManagement = true },
-                      modifier = modifier
-                    )
-                }
-
-                // More options bottom sheet
-                if (showMoreMenu) {
-                  @OptIn(ExperimentalMaterial3Api::class)
-                  val sheetState = rememberModalBottomSheetState()
-                  val sheetScope = rememberCoroutineScope()
-                  @OptIn(ExperimentalMaterial3Api::class)
-                  ModalBottomSheet(
-                    onDismissRequest = { showMoreMenu = false },
-                    sheetState = sheetState
-                  ) {
-                    fun onItemSelected(tab: String) {
-                      currentTab = tab
-                      sheetScope.launch {
-                        sheetState.hide()
-                        showMoreMenu = false
+                if (isCompact) {
+                  mainContent(Modifier.padding(innerPadding))
+                } else {
+                  Row(modifier = Modifier.fillMaxSize()) {
+                    NavigationRail(
+                      modifier = Modifier.fillMaxHeight(),
+                      containerColor = MaterialTheme.colorScheme.surface
+                    ) {
+                      tabs.forEach { (tabId, label, icon) ->
+                        NavigationRailItem(
+                          selected = currentTab == tabId,
+                          onClick = { currentTab = tabId },
+                          icon = { Icon(imageVector = icon, contentDescription = label) },
+                          label = {
+                            Text(
+                              label,
+                              style = MaterialTheme.typography.labelSmall,
+                              fontWeight = FontWeight.Bold
+                            )
+                          },
+                          colors =
+                            NavigationRailItemDefaults.colors(
+                              selectedIconColor = MaterialTheme.colorScheme.primary,
+                              selectedTextColor = MaterialTheme.colorScheme.primary,
+                              indicatorColor =
+                                MaterialTheme.colorScheme.primaryContainer.copy(
+                                  alpha = 0.5f
+                                )
+                            )
+                        )
                       }
+                      NavigationRailItem(
+                        selected = showMoreMenu,
+                        onClick = { showMoreMenu = true },
+                        icon = {
+                          Icon(
+                            imageVector = Icons.Filled.MoreHoriz,
+                            contentDescription = "بیشتر"
+                          )
+                        },
+                        label = {
+                          Text(
+                            "بیشتر",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                          )
+                        },
+                        colors =
+                          NavigationRailItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor =
+                              MaterialTheme.colorScheme.primaryContainer.copy(
+                                alpha = 0.5f
+                              )
+                          )
+                      )
                     }
-                    ListItem(
-                      headlineContent = { Text("تحلیل و آمار") },
-                      leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
-                      modifier = Modifier.clickable { onItemSelected("ANALYTICS") }
-                    )
-                    ListItem(
-                      headlineContent = { Text("گزارش‌ها") },
-                      leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-                      modifier = Modifier.clickable { onItemSelected("REPORTS") }
-                    )
-                    ListItem(
-                      headlineContent = { Text("تنظیمات") },
-                      leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                      modifier = Modifier.clickable { onItemSelected("SETTINGS") }
-                    )
-                    Spacer(modifier = Modifier.height(32.dp))
+                    mainContent(Modifier.padding(innerPadding).weight(1f))
                   }
                 }
               }

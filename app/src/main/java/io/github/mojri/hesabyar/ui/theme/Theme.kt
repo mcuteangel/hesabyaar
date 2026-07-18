@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import io.github.mojri.hesabyar.ui.designsystem.AppShapes
 
 private val DarkColorScheme =
   darkColorScheme(
@@ -99,6 +100,7 @@ fun HesabyarTheme(
   MaterialTheme(
     colorScheme = colorScheme,
     typography = Typography,
+    shapes = AppShapes,
     content = content
   )
 }

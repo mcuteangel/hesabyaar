@@ -576,6 +576,29 @@ val activeRustTargets =
   }
 
 // ---------------------------------------------------------------------------
+// forceRustRegen — when true, the Rust → Kotlin binding pipeline always runs
+// even if Gradle considers it UP-TO-DATE. We force this for CI and for any
+// release/bundle build so a stale cached native library or binding can never
+// slip into a shipped artifact. On a normal LOCAL debug build (not CI, not a
+// release task) we keep Gradle's incremental up-to-date checks so an unchanged
+// Rust core is not needlessly recompiled (cargo/uniffi are slow in this repo).
+//
+//   - CI:             GitHub Actions sets CI=true; honor it.
+//   - release/bundle: any requested task name containing "Release" or "bundle".
+// ---------------------------------------------------------------------------
+val isCI = System.getenv("CI")?.equals("true", ignoreCase = true) == true
+val isReleaseOrBundleTask =
+  gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true) || it.contains("bundle", ignoreCase = true)
+  }
+val forceRustRegen = isCI || isReleaseOrBundleTask
+if (forceRustRegen) {
+  logger.lifecycle(
+    "Rust pipeline forced to run (CI=$isCI, release/bundle task=$isReleaseOrBundleTask)."
+  )
+}
+
+// ---------------------------------------------------------------------------
 // syncCoreVersion — auto-derive the Rust core version during binding builds
 //
 // The core is bundled (not published) and versioned independently from the
@@ -632,6 +655,8 @@ tasks.register("syncCoreVersion") {
   inputs.files(fileTree(rustDir.resolve("hesabyar-core/src")) { exclude("**/generated/**") })
   inputs.file(rustDir.resolve("Cargo.toml"))
   outputs.file(genFile)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     val base = readCoreBaseVersion()
     val meta = computeCoreSourceMeta()
@@ -658,6 +683,8 @@ activeRustTargets.forEach { target ->
     inputs.file(rustDir.resolve("Cargo.lock"))
     inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
     outputs.file(outputLib)
+    // Local debug keeps incremental caching; CI/release always recompiles.
+    outputs.upToDateWhen { !forceRustRegen }
     doLast {
       val ndkHome = System.getenv("ANDROID_NDK_HOME")
       if (ndkHome.isNullOrBlank()) {
@@ -739,6 +766,8 @@ tasks.register("compileRustCore") {
   inputs.file(rustDir.resolve("Cargo.lock"))
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   outputs.dir(file("$projectDir/src/main/jniLibs"))
+  // Local debug keeps incremental caching; CI/release always recompiles.
+  outputs.upToDateWhen { !forceRustRegen }
 }
 
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
@@ -771,6 +800,8 @@ tasks.register("generateRustBindings") {
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
   outputs.dir(generatedDir)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
@@ -803,6 +834,8 @@ tasks.register("generateAndFixBindings") {
   inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
   val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
   outputs.file(dest)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
