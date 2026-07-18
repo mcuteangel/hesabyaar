@@ -1453,7 +1453,7 @@ fun JalaliDateTimePicker(
       Modifier
         .fillMaxWidth()
         .clip(ShapeTokens.Large)
-        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        .background(MaterialTheme.colorScheme.surfaceContainerLowest)
         .padding(SpacingTokens.md),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {

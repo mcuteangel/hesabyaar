@@ -76,7 +76,7 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
       onClick = { settingsViewModel.toggleDarkMode() },
       modifier =
         Modifier
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), CircleShape)
+          .background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape)
           .size(Dimens.ButtonHeight)
     ) {
       Icon(
@@ -116,7 +116,7 @@ internal fun SmartForecastCard(
         modifier =
           Modifier
             .size(Dimens.AvatarSmall)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
+            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
         contentAlignment = Alignment.Center
       ) {
         Icon(
