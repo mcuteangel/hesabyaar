@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -439,7 +438,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           Box(
             modifier =
               Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                 .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
@@ -488,7 +487,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           Box(
             modifier =
               Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                 .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(

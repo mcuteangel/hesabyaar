@@ -915,6 +915,7 @@ private fun CircularProgress(
     animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
     label = "progress"
   )
+  val outlineVariant = MaterialTheme.colorScheme.outlineVariant
 
   Canvas(modifier = modifier) {
     val diameter = minOf(size.width, size.height) - strokeWidth
@@ -927,7 +928,7 @@ private fun CircularProgress(
 
     // Background arc
     drawArc(
-          color = MaterialTheme.colorScheme.outlineVariant,
+      color = outlineVariant,
       startAngle = -90f,
       sweepAngle = 360f,
       useCenter = false,

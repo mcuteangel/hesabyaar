@@ -218,11 +218,24 @@ android {
   val explicitAbiSplits = providers.gradleProperty("enableAbiSplits").getOrNull()
   val enableAbiSplits =
     if (explicitAbiSplits.isNullOrBlank()) defaultAbiSplits else explicitAbiSplits.toBoolean()
+  // rustAbis narrows the ABIs for a lighter LOCAL debug build (e.g.
+  // -PrustAbis=arm64-v8a for a 64-bit-only phone). It is intentionally ignored
+  // for release/bundle builds so shipped artifacts always contain every ABI.
+  val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
+  val abiIncludeList =
+    if (buildingBundle ||
+      gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } ||
+      rustAbisProp.isNullOrBlank()
+    ) {
+      listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+    } else {
+      rustAbisProp.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
   splits {
     abi {
       isEnable = enableAbiSplits
       reset()
-      include("armeabi-v7a", "arm64-v8a", "x86_64")
+      include(*abiIncludeList.toTypedArray())
       isUniversalApk = true
     }
   }
@@ -546,6 +559,22 @@ val rustTargets =
     RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
   )
 
+// Subset of rustTargets actually cross-compiled. Defaults to all; override with
+// -PrustAbis=arm64-v8a to skip the 32-bit / x86 native builds on a local
+// 64-bit-only device (speeds up installDebug dramatically). Ignored for
+// release/bundle builds so shipped artifacts stay complete.
+val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
+val activeRustTargets =
+  if (gradle.startParameter.taskNames.any {
+      it.contains("bundle", ignoreCase = true) || it.contains("Release", ignoreCase = true)
+    } ||
+    rustAbisProp.isNullOrBlank()
+  ) {
+    rustTargets
+  } else {
+    rustTargets.filter { it.abi in rustAbisProp.split(",").map { a -> a.trim() } }
+  }
+
 // ---------------------------------------------------------------------------
 // syncCoreVersion — auto-derive the Rust core version during binding builds
 //
@@ -615,7 +644,7 @@ tasks.register("syncCoreVersion") {
   }
 }
 
-rustTargets.forEach { target ->
+activeRustTargets.forEach { target ->
   val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
   val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
   val outputLib = file("$outDir/${target.jniLib}")
@@ -683,7 +712,7 @@ rustTargets.forEach { target ->
 tasks.register("assembleRust") {
   group = "rust"
   description = "Cross-compile Rust shared core for all Android ABIs via cargo-ndk"
-  rustTargets.forEach { target ->
+  activeRustTargets.forEach { target ->
     val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
     dependsOn(taskName)
   }
