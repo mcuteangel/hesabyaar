@@ -59,7 +59,7 @@ fun AmountQuickFillButtons(
         text = option.label,
         modifier =
           Modifier
-            .clip(ShapeTokens.Small)
+            .clip(ShapeTokens.Full)
             .background(
               if (isEnabled) {
                 FinancialColors.WarningOrange.copy(alpha = 0.15f)

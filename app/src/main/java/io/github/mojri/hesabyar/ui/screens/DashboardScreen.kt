@@ -1457,12 +1457,23 @@ fun JalaliDateTimePicker(
         .padding(SpacingTokens.md),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
-    Text(
-      text = "📅 تنظیم تاریخ و ساعت (شمسی):",
-      style = MaterialTheme.typography.labelMedium,
-      fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.primary
-    )
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      Icon(
+        imageVector = Icons.Default.CalendarMonth,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(Dimens.IconSmall)
+      )
+      Text(
+        text = "تنظیم تاریخ و ساعت (شمسی):",
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+      )
+    }
 
     Row(
       modifier = Modifier.fillMaxWidth(),

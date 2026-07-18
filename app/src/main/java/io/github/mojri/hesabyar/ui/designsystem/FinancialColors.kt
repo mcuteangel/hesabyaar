@@ -21,11 +21,11 @@ private val LightFinancialPalette =
 
 private val DarkFinancialPalette =
   FinancialPalette(
-    incomeGreen = Color(0xFF27AE60),
-    expenseRed = Color(0xFFC0392B),
-    warningOrange = Color(0xFFF39C12),
-    infoBlue = Color(0xFF3498DB),
-    purpleAccent = Color(0xFF9B59B6)
+    incomeGreen = Color(0xFF4CAF50),
+    expenseRed = Color(0xFFEF5350),
+    warningOrange = Color(0xFFFFB300),
+    infoBlue = Color(0xFF4FC3F7),
+    purpleAccent = Color(0xFFCE93D8)
   )
 
 object FinancialColors {
