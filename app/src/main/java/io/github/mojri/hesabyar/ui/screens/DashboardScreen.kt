@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -67,6 +69,21 @@ import kotlinx.coroutines.delay
 import java.util.*
 
 private const val DIALOG_EXIT_MS = 300L
+
+@Composable
+private fun entranceCard(content: @Composable () -> Unit) {
+  AnimatedVisibility(
+    visible = true,
+    enter =
+      fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+        slideInVertically(
+          animationSpec = spring(stiffness = Spring.StiffnessMedium),
+          initialOffsetY = { it / 12 }
+        )
+  ) {
+    content()
+  }
+}
 
 private val CATEGORY_ICONS_MAP =
   mapOf(
@@ -154,35 +171,39 @@ fun DashboardScreen(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
       contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.BottomNavClearance)
     ) {
-      item { DashboardHeader(settingsViewModel) }
+      item { entranceCard { DashboardHeader(settingsViewModel) } }
 
       // Wallet Balance Card
       item {
-        BalanceCard(
-          balance = dashboardData.currentBalance,
-          income = dashboardData.monthlyIncome,
-          expense = dashboardData.monthlyExpenses,
-          modifier = Modifier.testTag("balance_card")
-        )
+        entranceCard {
+          BalanceCard(
+            balance = dashboardData.currentBalance,
+            income = dashboardData.monthlyIncome,
+            expense = dashboardData.monthlyExpenses,
+            modifier = Modifier.testTag("balance_card")
+          )
+        }
       }
 
       item {
-        SmartForecastCard(
-          forecastState = forecastState,
-          lastForecastFetchTime = lastForecastFetchTime,
-          aiAssistantViewModel = aiAssistantViewModel,
-          onShowForecast = { showFullForecast = true }
-        )
+        entranceCard {
+          SmartForecastCard(
+            forecastState = forecastState,
+            lastForecastFetchTime = lastForecastFetchTime,
+            aiAssistantViewModel = aiAssistantViewModel,
+            onShowForecast = { showFullForecast = true }
+          )
+        }
       }
 
-      item { IncomeExpenseCards(dashboardData) }
+      item { entranceCard { IncomeExpenseCards(dashboardData) } }
 
-      item { KpiCards(dashboardData) }
+      item { entranceCard { KpiCards(dashboardData) } }
 
       // Debtors and Creditors summary Row
-      item { DebtorCreditorCards(dashboardData) }
+      item { entranceCard { DebtorCreditorCards(dashboardData) } }
 
-      item { SmartParsingBanner(onNavigateToAssistant) }
+      item { entranceCard { SmartParsingBanner(onNavigateToAssistant) } }
 
       // Upcoming Installments Header
       item {
@@ -219,7 +240,7 @@ fun DashboardScreen(
       }
 
       // Bank Loans Summary
-      item { BankLoansSummaryCard(dashboardData) }
+      item { entranceCard { BankLoansSummaryCard(dashboardData) } }
 
       // Recent Activity Banner
       item {
@@ -367,7 +388,6 @@ fun InstallmentMiniItem(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
-    shape = ShapeTokens.Large,
     cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
   ) {
     Row(
@@ -418,7 +438,7 @@ fun InstallmentMiniItem(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
-        shape = ShapeTokens.Small,
+        shape = ShapeTokens.Full,
         contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xxs)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)

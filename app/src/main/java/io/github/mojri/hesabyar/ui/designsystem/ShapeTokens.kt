@@ -9,6 +9,7 @@ object ShapeTokens {
   val Medium = RoundedCornerShape(12.dp)
   val Large = RoundedCornerShape(16.dp)
   val XLarge = RoundedCornerShape(24.dp)
+  val Full = RoundedCornerShape(9999.dp)
 }
 
 // Canonical Material 3 Shapes backed by ShapeTokens, wired into MaterialTheme.
