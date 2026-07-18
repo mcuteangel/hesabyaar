@@ -145,6 +145,38 @@ plugins {
   jacoco
 }
 
+// Rust cross-compilation target table. `abi` matches Android's ABI name used in
+// split configs and jniLibs paths; `triple` is the cargo target triple.
+data class RustTarget(
+  val abi: String,
+  val triple: String,
+  val jniLib: String,
+)
+
+val rustTargets =
+  listOf(
+    RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
+    RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
+    RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
+    RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
+  )
+
+// Subset of rustTargets actually cross-compiled. Defaults to all; override with
+// -PrustAbis=arm64-v8a to skip the 32-bit / x86 native builds on a local
+// 64-bit-only device (speeds up installDebug dramatically). Ignored for
+// release/bundle builds so shipped artifacts stay complete.
+val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
+val activeRustTargets =
+  if (gradle.startParameter.taskNames.any {
+      it.contains("bundle", ignoreCase = true) || it.contains("Release", ignoreCase = true)
+    } ||
+    rustAbisProp.isNullOrBlank()
+  ) {
+    rustTargets
+  } else {
+    rustTargets.filter { it.abi in rustAbisProp.split(",").map { a -> a.trim() } }
+  }
+
 android {
   namespace = appId
   compileSdk = 37
@@ -229,7 +261,9 @@ android {
     ) {
       listOf("armeabi-v7a", "arm64-v8a", "x86_64")
     } else {
-      rustAbisProp.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+      // Derive from activeRustTargets so a typo'd/unbuilt ABI in -PrustAbis can
+      // never create a split APK with no matching native .so (UnsatisfiedLinkError).
+      activeRustTargets.map { it.abi }
     }
   splits {
     abi {
@@ -545,36 +579,6 @@ tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach {
 val rustDir = file("${rootProject.projectDir}/rust")
 val rustTargetDir = file("${rootProject.projectDir}/rust/target")
 
-data class RustTarget(
-  val abi: String,
-  val triple: String,
-  val jniLib: String,
-)
-
-val rustTargets =
-  listOf(
-    RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
-    RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
-    RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
-    RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
-  )
-
-// Subset of rustTargets actually cross-compiled. Defaults to all; override with
-// -PrustAbis=arm64-v8a to skip the 32-bit / x86 native builds on a local
-// 64-bit-only device (speeds up installDebug dramatically). Ignored for
-// release/bundle builds so shipped artifacts stay complete.
-val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
-val activeRustTargets =
-  if (gradle.startParameter.taskNames.any {
-      it.contains("bundle", ignoreCase = true) || it.contains("Release", ignoreCase = true)
-    } ||
-    rustAbisProp.isNullOrBlank()
-  ) {
-    rustTargets
-  } else {
-    rustTargets.filter { it.abi in rustAbisProp.split(",").map { a -> a.trim() } }
-  }
-
 // ---------------------------------------------------------------------------
 // forceRustRegen — when true, the Rust → Kotlin binding pipeline always runs
 // even if Gradle considers it UP-TO-DATE. We force this for CI and for any
@@ -669,6 +673,20 @@ tasks.register("syncCoreVersion") {
   }
 }
 
+// Remove stale native libs for ABIs excluded by -PrustAbis so a prior full
+// build's .so files are not packaged alongside the freshly built ones.
+val excludedRustAbis = rustTargets.map { it.abi } - activeRustTargets.map { it.abi }
+val cleanExcludedRustJniLibs by tasks.registering {
+  group = "rust"
+  description = "Delete jniLibs output for ABIs excluded by -PrustAbis"
+  doLast {
+    excludedRustAbis.forEach { abi ->
+      val dir = file("$projectDir/src/main/jniLibs/$abi")
+      if (dir.exists()) dir.deleteRecursively()
+    }
+  }
+}
+
 activeRustTargets.forEach { target ->
   val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
   val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
@@ -676,7 +694,7 @@ activeRustTargets.forEach { target ->
   tasks.register(taskName) {
     group = "rust"
     description = "Build Rust .so for ${target.abi}"
-    dependsOn("syncCoreVersion")
+    dependsOn("syncCoreVersion", cleanExcludedRustJniLibs)
     inputs.dir(rustDir.resolve("hesabyar-core/src"))
     inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
     inputs.file(rustDir.resolve("Cargo.toml"))

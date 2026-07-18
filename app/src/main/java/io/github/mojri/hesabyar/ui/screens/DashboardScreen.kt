@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -681,10 +682,11 @@ fun ForecastDetailDialog(
       }
     }
   }
+  val onDismissState = rememberUpdatedState(onDismiss)
   LaunchedEffect(visible) {
     if (!visible) {
       delay(DIALOG_EXIT_MS)
-      onDismiss()
+      onDismissState.value()
     }
   }
 }
@@ -1005,13 +1007,20 @@ fun ManualTransactionDialog(
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
               ) {
                 val types =
-                  listOf(
-                    Pair("EXPENSE", "هزینه"),
-                    Pair("INCOME", "درآمد"),
-                    Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
-                    Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-                    Pair("INSTALLMENT", "قسط")
-                  )
+                  if (isEditMode) {
+                    listOf(
+                      Pair("EXPENSE", "هزینه"),
+                      Pair("INCOME", "درآمد")
+                    )
+                  } else {
+                    listOf(
+                      Pair("EXPENSE", "هزینه"),
+                      Pair("INCOME", "درآمد"),
+                      Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
+                      Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
+                      Pair("INSTALLMENT", "قسط")
+                    )
+                  }
                 types.forEach { (typeKey, typeLabel) ->
                   val isSelected = selectedType == typeKey
                   val chipColor =
@@ -1026,12 +1035,18 @@ fun ManualTransactionDialog(
                       selectedType = typeKey
                       selectedCategoryId =
                         when (typeKey) {
-                          "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                          "INCOME" ->
+                            categories
+                              .firstOrNull { it.type == CategoryType.INCOME || it.type == CategoryType.BOTH }
+                              ?.id ?: 0L
+                          "EXPENSE" ->
+                            categories
+                              .firstOrNull { it.type == CategoryType.EXPENSE || it.type == CategoryType.BOTH }
+                              ?.id ?: 0L
                           "LOAN_DEBTOR", "LOAN_CREDITOR" ->
-                            categories.find { it.key == "Loans" }?.id
-                              ?: 1L
-                          "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
-                          else -> selectedCategoryId
+                            categories.firstOrNull { it.key == "Loans" }?.id ?: 0L
+                          "INSTALLMENT" -> categories.firstOrNull { it.key == "Installments" }?.id ?: 0L
+                          else -> 0L
                         }
                     },
                     label = {
@@ -1273,6 +1288,7 @@ fun ManualTransactionDialog(
 
             Button(
               onClick = {
+                if (!visible) return@Button
                 val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
                 if (finalAmountDisplay <= 0L) {
                   android.widget.Toast
@@ -1304,6 +1320,7 @@ fun ManualTransactionDialog(
                   return@Button
                 }
 
+                visible = false
                 when (selectedType) {
                   "INCOME", "EXPENSE" -> {
                     val selectedCategoryName =
@@ -1373,7 +1390,7 @@ fun ManualTransactionDialog(
                     installmentViewModel.addInstallment(
                       title = title,
                       amount = finalAmountRial,
-                      dueDate = customDate,
+                      dueDate = customDate + (daysFromNowText.toLongOrNull() ?: 0L) * 24 * 60 * 60 * 1000L,
                       reminderEnabled = true,
                       notes = desc
                     )
@@ -1382,6 +1399,7 @@ fun ManualTransactionDialog(
                 visible = false
               },
               modifier = Modifier.weight(1f),
+              enabled = visible,
               shape = ShapeTokens.Full,
               colors = ButtonDefaults.buttonColors(containerColor = typeColor)
             ) {
@@ -1395,10 +1413,11 @@ fun ManualTransactionDialog(
       }
     }
   }
+  val onDismissState = rememberUpdatedState(onDismiss)
   LaunchedEffect(visible) {
     if (!visible) {
       delay(DIALOG_EXIT_MS)
-      onDismiss()
+      onDismissState.value()
     }
   }
 }

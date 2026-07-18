@@ -213,6 +213,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
     maxItemsInEachRow = 2
   ) {
     HesabyarCard(
@@ -304,6 +305,7 @@ internal fun KpiCards(dashboardData: DashboardData) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
     maxItemsInEachRow = 2
   ) {
     HesabyarCard(
@@ -403,6 +405,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
     maxItemsInEachRow = 2
   ) {
     HesabyarCard(
