@@ -266,7 +266,7 @@ class MainActivity : FragmentActivity() {
                         )
                       }
                       NavigationBarItem(
-                        selected = showMoreMenu,
+                        selected = currentTab in listOf("ANALYTICS", "REPORTS", "SETTINGS"),
                         onClick = { showMoreMenu = true },
                         icon = {
                           Icon(
@@ -327,7 +327,7 @@ class MainActivity : FragmentActivity() {
                         )
                       }
                       NavigationRailItem(
-                        selected = showMoreMenu,
+                        selected = currentTab in listOf("ANALYTICS", "REPORTS", "SETTINGS"),
                         onClick = { showMoreMenu = true },
                         icon = {
                           Icon(

@@ -1,5 +1,8 @@
 package io.github.mojri.hesabyar.ui.designsystem
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 data class FinancialPalette(
@@ -29,11 +32,11 @@ private val DarkFinancialPalette =
   )
 
 object FinancialColors {
-  private var incomeGreen: Color = LightFinancialPalette.incomeGreen
-  private var expenseRed: Color = LightFinancialPalette.expenseRed
-  private var warningOrange: Color = LightFinancialPalette.warningOrange
-  private var infoBlue: Color = LightFinancialPalette.infoBlue
-  private var purpleAccent: Color = LightFinancialPalette.purpleAccent
+  private var incomeGreen: Color by mutableStateOf(LightFinancialPalette.incomeGreen)
+  private var expenseRed: Color by mutableStateOf(LightFinancialPalette.expenseRed)
+  private var warningOrange: Color by mutableStateOf(LightFinancialPalette.warningOrange)
+  private var infoBlue: Color by mutableStateOf(LightFinancialPalette.infoBlue)
+  private var purpleAccent: Color by mutableStateOf(LightFinancialPalette.purpleAccent)
 
   val IncomeGreen: Color get() = incomeGreen
   val ExpenseRed: Color get() = expenseRed

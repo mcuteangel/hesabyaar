@@ -71,10 +71,9 @@ fun BankLoanScreen(
       LazyColumn(
         modifier =
           Modifier
-            .fillMaxSize()
             .widthIn(
               max = WindowSizeTokens.ContentMaxWidth
-            ).fillMaxWidth()
+            ).fillMaxSize()
             .padding(innerPadding)
             .padding(SpacingTokens.md),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
