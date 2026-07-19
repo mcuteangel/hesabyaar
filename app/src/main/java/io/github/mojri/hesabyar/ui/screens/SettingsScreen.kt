@@ -264,7 +264,7 @@ fun SettingsScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.XLarge)
-          .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+          .background(MaterialTheme.colorScheme.surfaceContainerLow)
           .padding(SpacingTokens.xl)
     ) {
       Column(
@@ -312,7 +312,7 @@ fun SettingsScreen(
               .fillMaxWidth()
               .clickable { onNavigateToCategories() }
               .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+              .background(MaterialTheme.colorScheme.surfaceContainerLow)
               .padding(SpacingTokens.md),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
@@ -341,7 +341,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -366,7 +366,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         // Currency unit selector
         Row(
@@ -397,11 +397,11 @@ fun SettingsScreen(
           }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         ReminderSettingsSection(settingsViewModel = settingsViewModel)
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         SecuritySection(context = context, settingsViewModel = settingsViewModel)
       }
@@ -561,7 +561,7 @@ fun SecuritySection(
   }
 
   if (isPinSet) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
     Row(
       modifier =
@@ -868,10 +868,8 @@ fun DebugLogsSection() {
               .fillMaxWidth()
               .heightIn(max = 300.dp)
               .verticalScroll(rememberScrollState())
-              .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                ShapeTokens.Small
-              ).padding(SpacingTokens.sm),
+              .background(MaterialTheme.colorScheme.surfaceContainerLow, ShapeTokens.Small)
+              .padding(SpacingTokens.sm),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
         ) {
           logs.reversed().forEach { entry ->
@@ -919,7 +917,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
           Modifier
             .fillMaxWidth()
             .clip(ShapeTokens.Medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .padding(SpacingTokens.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1025,9 +1023,9 @@ fun ConfigItem(
         .clip(ShapeTokens.Medium)
         .background(
           if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.primaryContainer
           } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.surfaceContainerLow
           }
         ).clickable { onSelect() }
         .padding(SpacingTokens.md),
@@ -1500,7 +1498,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
     }
 
     if (config.masterEnabled) {
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Installment reminders toggle
       Row(
@@ -1560,7 +1558,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Days before due
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
@@ -1611,7 +1609,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         }
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Reminder time
       Row(
@@ -1700,7 +1698,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Loan reminder interval
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {

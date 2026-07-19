@@ -209,7 +209,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .clip(ShapeTokens.Medium)
                       .clickable { showQuickSelector = true }
-                      .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                      .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                       .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.Center
@@ -253,7 +253,7 @@ fun JalaliDatePickerDialog(
                   Modifier
                     .fillMaxWidth()
                     .background(
-                      color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                      color = MaterialTheme.colorScheme.surfaceContainerLow,
                       shape = ShapeTokens.Small
                     ).padding(vertical = SpacingTokens.xs),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -442,7 +442,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .weight(1.2f)
                       .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.surfaceContainerLow,
                         ShapeTokens.Medium
                       ).padding(SpacingTokens.xs),
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
@@ -498,7 +498,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .weight(1f)
                       .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.surfaceContainerLow,
                         ShapeTokens.Medium
                       ).padding(SpacingTokens.xs),
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),

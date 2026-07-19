@@ -134,7 +134,7 @@ fun CustomTimePickerDialog(
               Modifier
                 .fillMaxWidth()
                 .background(
-                  color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                  color = MaterialTheme.colorScheme.surfaceContainerLow,
                   shape = ShapeTokens.Large
                 ).padding(SpacingTokens.sm),
             horizontalArrangement = Arrangement.Center,
@@ -253,7 +253,7 @@ fun CustomTimePickerDialog(
             Modifier
               .size(240.dp)
               .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = CircleShape
               ).padding(SpacingTokens.md),
           contentAlignment = Alignment.Center

@@ -768,7 +768,7 @@ private fun BankLoanStatusCard(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -871,7 +871,7 @@ private fun InstallmentProgressCard(
         // List of unpaid installments
         val unpaid = installments.filter { !it.isPaid }.take(5)
         if (unpaid.isNotEmpty()) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
           Text(
             text = "اقساط پرداخت نشده:",
             style = MaterialTheme.typography.labelMedium,

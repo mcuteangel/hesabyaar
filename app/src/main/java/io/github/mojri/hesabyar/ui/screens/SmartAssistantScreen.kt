@@ -972,7 +972,7 @@ fun ParsedResultCard(
       if (!result.notes.isNullOrBlank()) {
         HesabyarCard(
           modifier = Modifier.fillMaxWidth(),
-          cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+          cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
           contentPadding = PaddingValues(SpacingTokens.md)
         ) {
           Text(
@@ -1357,7 +1357,7 @@ fun ConfirmationDialog(
         if (!result.notes.isNullOrBlank()) {
           HesabyarCard(
             modifier = Modifier.fillMaxWidth(),
-            cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             contentPadding = PaddingValues(SpacingTokens.sm)
           ) {
             Text(

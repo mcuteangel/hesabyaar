@@ -135,7 +135,7 @@ fun ReportsScreen(
           Modifier
             .fillMaxWidth()
             .clip(ShapeTokens.Medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .padding(SpacingTokens.sm),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
@@ -244,7 +244,7 @@ fun ReportsScreen(
             )
           }
 
-          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -277,7 +277,7 @@ fun ReportsScreen(
         shape = ShapeTokens.XLarge,
         cardColors =
           CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            containerColor = MaterialTheme.colorScheme.primaryContainer
           )
       ) {
         Column(
@@ -503,7 +503,7 @@ fun ReportsScreen(
           shape = ShapeTokens.Medium,
           cardColors =
             CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+              containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
           contentPadding = PaddingValues(SpacingTokens.xl)
         ) {
