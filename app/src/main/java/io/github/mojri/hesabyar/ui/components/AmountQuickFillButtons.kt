@@ -59,12 +59,12 @@ fun AmountQuickFillButtons(
         text = option.label,
         modifier =
           Modifier
-            .clip(ShapeTokens.Small)
+            .clip(ShapeTokens.Full)
             .background(
               if (isEnabled) {
                 FinancialColors.WarningOrange.copy(alpha = 0.15f)
               } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.surfaceContainerLow
               }
             ).clickable(enabled = isEnabled) {
               val newText = newValue.toString()
@@ -81,7 +81,7 @@ fun AmountQuickFillButtons(
           if (isEnabled) {
             FinancialColors.WarningOrange
           } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.onSurfaceVariant
           }
       )
     }

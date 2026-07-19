@@ -18,8 +18,8 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 @Composable
 fun HesabyarCard(
   modifier: Modifier = Modifier,
-  shape: Shape = ShapeTokens.Large,
-  elevation: Dp = ElevationTokens.lg,
+  shape: Shape = ShapeTokens.Medium,
+  elevation: Dp = ElevationTokens.Level0,
   cardColors: androidx.compose.material3.CardColors =
     CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surfaceContainerHigh

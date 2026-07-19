@@ -36,6 +36,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 
 @Composable
@@ -57,7 +58,8 @@ fun InstallmentScreen(
   Column(
     modifier =
       modifier
-        .fillMaxSize()
+        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+        .fillMaxWidth()
         .padding(SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
   ) {
@@ -114,7 +116,7 @@ fun InstallmentScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.Medium)
-          .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+          .background(MaterialTheme.colorScheme.surfaceContainerLow)
           .padding(SpacingTokens.xs),
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
@@ -157,7 +159,7 @@ fun InstallmentScreen(
           Icon(
             imageVector = Icons.Filled.CreditCard,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(Dimens.AvatarLarge)
           )
           Text(
@@ -168,7 +170,7 @@ fun InstallmentScreen(
                 else -> "هیچ قسطی ثبت نشده است."
               },
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -296,9 +298,7 @@ fun InstallmentListItem(
       CardDefaults.cardColors(
         containerColor =
           if (installment.isPaid) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(
-              alpha = 0.4f
-            )
+            MaterialTheme.colorScheme.surfaceContainerLow
           } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
           }
@@ -338,7 +338,7 @@ fun InstallmentListItem(
             Text(
               text = "سررسید: ${formatPersianDate(installment.dueDate)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -380,17 +380,16 @@ fun InstallmentListItem(
           onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
           colors =
             ButtonDefaults.buttonColors(
-              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
+              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceContainerLow else colorAccent,
               contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
             ),
-          shape = ShapeTokens.Small,
+          shape = ShapeTokens.Full,
           contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),
           elevation = null
         ) {
           Text(
             text = if (installment.isPaid) "پرداخت شده" else "علامت پرداخت",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.labelSmall
           )
         }
       }
@@ -404,13 +403,13 @@ fun InstallmentListItem(
           modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
           if (installment.notes.isNotBlank()) {
             Text(
               text = "📝 یادداشت: ${installment.notes}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
               lineHeight = 16.sp
             )
           }

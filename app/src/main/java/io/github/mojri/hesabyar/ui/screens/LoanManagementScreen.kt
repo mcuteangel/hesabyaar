@@ -35,6 +35,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 
 @Composable
@@ -48,7 +49,7 @@ private fun LoanTypeSelector(
       modifier
         .fillMaxWidth()
         .clip(ShapeTokens.Small)
-        .background(MaterialTheme.colorScheme.surfaceVariant)
+        .background(MaterialTheme.colorScheme.surfaceContainerLow)
         .padding(SpacingTokens.xs)
   ) {
     HesabyarButton(
@@ -93,7 +94,8 @@ fun LoanManagementScreen(
   Column(
     modifier =
       modifier
-        .fillMaxSize()
+        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+        .fillMaxWidth()
         .padding(SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
   ) {
@@ -162,13 +164,13 @@ fun LoanManagementScreen(
                 Icons.Filled.ArrowCircleUp
               },
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(64.dp)
           )
           Text(
             text = if (termState == LoanType.DEBTOR) "هیچ طلبی ثبت نشده است." else "هیچ بدهی‌ای ثبت نشده است.",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -398,9 +400,7 @@ fun LoanListItem(
       CardDefaults.cardColors(
         containerColor =
           if (loan.isSettled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(
-              alpha = 0.4f
-            )
+            MaterialTheme.colorScheme.surfaceContainerLow
           } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
           }
@@ -447,7 +447,7 @@ fun LoanListItem(
             Text(
               text = "بابت: ${loan.description}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -462,7 +462,7 @@ fun LoanListItem(
           Text(
             text = "کل: " + CurrencyFormatter.format(loan.originalAmount),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -476,7 +476,7 @@ fun LoanListItem(
         Text(
           text = "تاریخ ثبت: ${formatPersianDate(loan.date)}",
           style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Box(
@@ -508,7 +508,7 @@ fun LoanListItem(
               .padding(top = SpacingTokens.md),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
           Text(
             text = "📝 تاریخچه بازپرداخت‌ها:",
@@ -521,7 +521,7 @@ fun LoanListItem(
             Text(
               text = "تاکنون هیچ برگی از بازپرداخت ثبت نشده است.",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           } else {
             paymentHistory.forEach { pm ->
@@ -530,7 +530,7 @@ fun LoanListItem(
                   Modifier
                     .fillMaxWidth()
                     .clip(ShapeTokens.Small)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(SpacingTokens.sm),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -546,7 +546,7 @@ fun LoanListItem(
                     Text(
                       text = pm.notes,
                       style = MaterialTheme.typography.labelSmall,
-                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                   }
                 }
@@ -554,7 +554,7 @@ fun LoanListItem(
                 Text(
                   text = formatPersianDate(pm.date),
                   style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
             }
@@ -584,13 +584,13 @@ fun LoanListItem(
               onClick = onEdit,
               modifier =
                 Modifier
-                  .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape)
+                  .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                   .size(Dimens.AvatarMedium)
             ) {
               Icon(
                 imageVector = Icons.Filled.Edit,
                 contentDescription = "ویرایش قرض",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
               )
             }
 

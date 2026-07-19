@@ -35,6 +35,7 @@ import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 private val CATEGORY_ICONS =
   mapOf(
@@ -159,7 +160,7 @@ fun CategoryManagementScreen(
         Text(
           text = "هنوز دسته‌بندی‌ای ثبت نشده است.",
           style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     } else {
@@ -169,7 +170,8 @@ fun CategoryManagementScreen(
       LazyColumn(
         modifier =
           modifier
-            .fillMaxSize()
+            .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+            .fillMaxWidth()
             .padding(innerPadding),
         contentPadding = PaddingValues(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
@@ -331,7 +333,7 @@ private fun CategoryItem(
           Text(
             text = category.key,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = category.type.displayName,
@@ -424,7 +426,7 @@ private fun CategoryDialog(
           Text(
             text = "نوع:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           ExposedDropdownMenuBox(
             expanded = typeDropdownExpanded,
@@ -471,7 +473,7 @@ private fun CategoryDialog(
           Text(
             text = "رنگ:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           LazyVerticalGrid(
             columns = GridCells.Fixed(8),
@@ -506,7 +508,7 @@ private fun CategoryDialog(
           Text(
             text = "آیکون:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           LazyVerticalGrid(
             columns = GridCells.Fixed(7),
@@ -523,9 +525,9 @@ private fun CategoryDialog(
                     .clip(ShapeTokens.Small)
                     .background(
                       if (isSelected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        MaterialTheme.colorScheme.primaryContainer
                       } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        MaterialTheme.colorScheme.surfaceContainerLowest
                       }
                     ).clickable { selectedIcon = iconName },
                 contentAlignment = Alignment.Center
@@ -538,7 +540,7 @@ private fun CategoryDialog(
                     if (isSelected) {
                       MaterialTheme.colorScheme.primary
                     } else {
-                      MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                      MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
               }
@@ -551,7 +553,7 @@ private fun CategoryDialog(
             Modifier
               .fillMaxWidth()
               .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+              .background(MaterialTheme.colorScheme.surfaceContainerLowest)
               .padding(SpacingTokens.md),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)

@@ -71,22 +71,3 @@ val DarkOnErrorContainer = Color(0xFFFFDAD6)
 val DarkOutline = Color(0xFF8E9099)
 val DarkOutlineVariant = Color(0xFF44474E)
 val DarkScrim = Color(0xFF000000)
-
-// Financial Colors (kept for backward compatibility — prefer FinancialColors.*)
-@Deprecated(
-  "Use FinancialColors.IncomeGreen",
-  ReplaceWith("FinancialColors.IncomeGreen", "io.github.mojri.hesabyar.ui.designsystem.FinancialColors")
-)
-val IncomeGreen = Color(0xFF2ECC71)
-
-@Deprecated(
-  "Use FinancialColors.ExpenseRed",
-  ReplaceWith("FinancialColors.ExpenseRed", "io.github.mojri.hesabyar.ui.designsystem.FinancialColors")
-)
-val ExpenseRed = Color(0xFFE74C3C)
-
-@Deprecated(
-  "Use FinancialColors.WarningOrange",
-  ReplaceWith("FinancialColors.WarningOrange", "io.github.mojri.hesabyar.ui.designsystem.FinancialColors")
-)
-val WarningOrange = Color(0xFFF39C12)
