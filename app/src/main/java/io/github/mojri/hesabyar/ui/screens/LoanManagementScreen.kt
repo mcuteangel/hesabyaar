@@ -590,7 +590,7 @@ fun LoanListItem(
               Icon(
                 imageVector = Icons.Filled.Edit,
                 contentDescription = "ویرایش قرض",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
               )
             }
 

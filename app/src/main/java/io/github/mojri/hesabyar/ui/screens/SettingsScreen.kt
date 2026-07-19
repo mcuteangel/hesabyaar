@@ -285,7 +285,7 @@ fun SettingsScreen(
           color = MaterialTheme.colorScheme.primary
         )
         Text(
-          text = "نسخه ۱.۰ | توسعه‌دهنده: mcuteangel",
+          text = "نسخه ${BuildConfig.VERSION_NAME} | توسعه‌دهنده: mcuteangel",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )

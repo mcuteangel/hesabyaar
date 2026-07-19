@@ -33,7 +33,6 @@ import io.github.mojri.hesabyar.auth.LockScreen
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import io.github.mojri.hesabyar.ui.screens.*
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -138,7 +137,7 @@ class MainActivity : FragmentActivity() {
                       aiAssistantViewModel = aiAssistantViewModel,
                       settingsViewModel = settingsViewModel,
                       onNavigateToAssistant = { currentTab = "ASSISTANT" },
-                      modifier = Modifier
+                      modifier = modifier
                     )
                   "ASSISTANT" ->
                     SmartAssistantScreen(
@@ -146,7 +145,7 @@ class MainActivity : FragmentActivity() {
                       categoryViewModel = categoryViewModel,
                       dashboardViewModel = dashboardViewModel,
                       settingsViewModel = settingsViewModel,
-                      modifier = Modifier
+                      modifier = modifier
                     )
                   "DEBTS" ->
                     DebtHubScreen(
@@ -155,12 +154,12 @@ class MainActivity : FragmentActivity() {
                       bankLoanViewModel = bankLoanViewModel,
                       loanViewModel = loanViewModel,
                       settingsViewModel = settingsViewModel,
-                      modifier = Modifier
+                      modifier = modifier
                     )
                   "ANALYTICS" ->
                     AnalyticsScreen(
                       analyticsViewModel = analyticsViewModel,
-                      modifier = Modifier
+                      modifier = modifier
                     )
                   "REPORTS" ->
                     ReportsScreen(
@@ -169,7 +168,7 @@ class MainActivity : FragmentActivity() {
                       loanViewModel = loanViewModel,
                       installmentViewModel = installmentViewModel,
                       aiAssistantViewModel = aiAssistantViewModel,
-                      modifier = Modifier
+                      modifier = modifier
                     )
                   "SETTINGS" ->
                     SettingsScreen(
@@ -178,7 +177,7 @@ class MainActivity : FragmentActivity() {
                       exportViewModel = exportViewModel,
                       settingsViewModel = settingsViewModel,
                       onNavigateToCategories = { showCategoryManagement = true },
-                      modifier = Modifier
+                      modifier = modifier
                     )
                 }
               }
@@ -217,8 +216,7 @@ class MainActivity : FragmentActivity() {
                 Box(
                   modifier =
                     contentModifier
-                      .fillMaxSize()
-                      .widthIn(max = WindowSizeTokens.ContentMaxWidth),
+                      .fillMaxSize(),
                   contentAlignment = Alignment.TopCenter
                 ) {
                   currentTabScreen(Modifier)

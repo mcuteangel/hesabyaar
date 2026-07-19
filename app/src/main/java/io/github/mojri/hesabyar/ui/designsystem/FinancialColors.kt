@@ -32,24 +32,24 @@ private val DarkFinancialPalette =
   )
 
 object FinancialColors {
-  private var incomeGreen: Color by mutableStateOf(LightFinancialPalette.incomeGreen)
-  private var expenseRed: Color by mutableStateOf(LightFinancialPalette.expenseRed)
-  private var warningOrange: Color by mutableStateOf(LightFinancialPalette.warningOrange)
-  private var infoBlue: Color by mutableStateOf(LightFinancialPalette.infoBlue)
-  private var purpleAccent: Color by mutableStateOf(LightFinancialPalette.purpleAccent)
+  private val incomeGreenState = mutableStateOf(LightFinancialPalette.incomeGreen)
+  private val expenseRedState = mutableStateOf(LightFinancialPalette.expenseRed)
+  private val warningOrangeState = mutableStateOf(LightFinancialPalette.warningOrange)
+  private val infoBlueState = mutableStateOf(LightFinancialPalette.infoBlue)
+  private val purpleAccentState = mutableStateOf(LightFinancialPalette.purpleAccent)
 
-  val IncomeGreen: Color get() = incomeGreen
-  val ExpenseRed: Color get() = expenseRed
-  val WarningOrange: Color get() = warningOrange
-  val InfoBlue: Color get() = infoBlue
-  val PurpleAccent: Color get() = purpleAccent
+  val IncomeGreen: Color get() = incomeGreenState.value
+  val ExpenseRed: Color get() = expenseRedState.value
+  val WarningOrange: Color get() = warningOrangeState.value
+  val InfoBlue: Color get() = infoBlueState.value
+  val PurpleAccent: Color get() = purpleAccentState.value
 
   internal fun setPalette(palette: FinancialPalette) {
-    incomeGreen = palette.incomeGreen
-    expenseRed = palette.expenseRed
-    warningOrange = palette.warningOrange
-    infoBlue = palette.infoBlue
-    purpleAccent = palette.purpleAccent
+    incomeGreenState.value = palette.incomeGreen
+    expenseRedState.value = palette.expenseRed
+    warningOrangeState.value = palette.warningOrange
+    infoBlueState.value = palette.infoBlue
+    purpleAccentState.value = palette.purpleAccent
   }
 }
 
