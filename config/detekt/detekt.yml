@@ -5,6 +5,11 @@
 # rust/hesabyar_core.kt). Per-rule excludes below also suppress generated code
 # so they remain available to resolve types referenced by handwritten code.
 
+naming:
+  FunctionNaming:
+    active: true
+    ignoreAnnotated: ['Composable']
+
 style:
   UnnecessaryParentheses:
     active: true

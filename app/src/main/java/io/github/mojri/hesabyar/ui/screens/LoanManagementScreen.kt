@@ -31,6 +31,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -415,27 +416,13 @@ fun LoanListItem(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(36.dp)
-                .background(statusColor.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector =
-                if (loan.type ==
-                  LoanType.DEBTOR
-                ) {
-                  Icons.Filled.ArrowCircleDown
-                } else {
-                  Icons.Filled.ArrowCircleUp
-                },
-              contentDescription = null,
-              tint = statusColor,
-              modifier = Modifier.size(20.dp)
-            )
-          }
+          IconCircle(
+            icon = if (loan.type == LoanType.DEBTOR) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
+            tint = statusColor,
+            backgroundColor = statusColor,
+            containerSize = 36.dp,
+            iconSize = 20.dp
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.md))
           Column {
             Text(

@@ -32,6 +32,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -313,20 +314,11 @@ fun InstallmentListItem(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(Dimens.AvatarSmall)
-                .background(colorAccent.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
-              contentDescription = null,
-              tint = colorAccent,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
+            tint = colorAccent,
+            backgroundColor = colorAccent
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.md))
           Column {
             Text(

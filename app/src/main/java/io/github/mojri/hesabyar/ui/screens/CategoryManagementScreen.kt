@@ -28,9 +28,11 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.ui.CategoryViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -240,39 +242,15 @@ fun CategoryManagementScreen(
   }
 
   if (showDeleteConfirmation != null) {
-    AlertDialog(
-      onDismissRequest = { showDeleteConfirmation = null },
-      title = {
-        Text(
-          text = "حذف دسته‌بندی",
-          fontWeight = FontWeight.Bold
-        )
-      },
-      text = {
-        Text(
-          text = "آیا از حذف دسته‌بندی «${showDeleteConfirmation!!.name}» اطمینان دارید؟"
-        )
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            categoryViewModel.deleteCategory(showDeleteConfirmation!!)
-            showDeleteConfirmation = null
-          },
-          text = "حذف",
-          variant = ButtonVariant.Filled,
-          colors =
-            ButtonDefaults.buttonColors(
-              containerColor = MaterialTheme.colorScheme.error
-            )
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { showDeleteConfirmation = null },
-          text = "انصراف",
-          variant = ButtonVariant.Text
-        )
+    ConfirmDialog(
+      title = "حذف دسته‌بندی",
+      message = "آیا از حذف دسته‌بندی «${showDeleteConfirmation!!.name}» اطمینان دارید؟",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { showDeleteConfirmation = null },
+      onConfirm = {
+        categoryViewModel.deleteCategory(showDeleteConfirmation!!)
+        showDeleteConfirmation = null
       }
     )
   }
@@ -301,20 +279,13 @@ private fun CategoryItem(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
-      Box(
-        modifier =
-          Modifier
-            .size(Dimens.AvatarMedium)
-            .background(categoryColor.copy(alpha = 0.15f), CircleShape),
-        contentAlignment = Alignment.Center
-      ) {
-        Icon(
-          imageVector = icon,
-          contentDescription = null,
-          tint = categoryColor,
-          modifier = Modifier.size(20.dp)
-        )
-      }
+      IconCircle(
+        icon = icon,
+        tint = categoryColor,
+        backgroundColor = categoryColor,
+        containerSize = Dimens.AvatarMedium,
+        iconSize = 20.dp
+      )
 
       Column(modifier = Modifier.weight(1f)) {
         Text(
@@ -558,20 +529,13 @@ private fun CategoryDialog(
         ) {
           val previewIcon = CATEGORY_ICONS[selectedIcon] ?: Icons.Filled.Paid
           val previewColor = Color(selectedColor)
-          Box(
-            modifier =
-              Modifier
-                .size(Dimens.AvatarMedium)
-                .background(previewColor.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = previewIcon,
-              contentDescription = null,
-              tint = previewColor,
-              modifier = Modifier.size(20.dp)
-            )
-          }
+          IconCircle(
+            icon = previewIcon,
+            tint = previewColor,
+            backgroundColor = previewColor,
+            containerSize = Dimens.AvatarMedium,
+            iconSize = 20.dp
+          )
           Column {
             Text(
               text = name.ifBlank { "نام دسته‌بندی" },

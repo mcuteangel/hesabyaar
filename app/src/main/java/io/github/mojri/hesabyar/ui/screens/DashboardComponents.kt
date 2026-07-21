@@ -25,6 +25,7 @@ import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.ForecastUIState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -45,20 +46,14 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
-      Box(
-        modifier =
-          Modifier
-            .size(44.dp)
-            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-        contentAlignment = Alignment.Center
-      ) {
-        Icon(
-          imageVector = Icons.Filled.AccountBalanceWallet,
-          contentDescription = null,
-          tint = MaterialTheme.colorScheme.onPrimaryContainer,
-          modifier = Modifier.size(Dimens.IconMedium)
-        )
-      }
+      IconCircle(
+        icon = Icons.Filled.AccountBalanceWallet,
+        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+        backgroundAlpha = 1.0f,
+        iconSize = Dimens.IconMedium,
+        containerSize = 44.dp
+      )
       Column {
         Text(
           text = "حسابیار هوشمند",
@@ -115,20 +110,11 @@ internal fun SmartForecastCard(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
-      Box(
-        modifier =
-          Modifier
-            .size(Dimens.AvatarSmall)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
-        contentAlignment = Alignment.Center
-      ) {
-        Icon(
-          imageVector = Icons.Filled.AutoAwesome,
-          contentDescription = null,
-          tint = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.size(18.dp)
-        )
-      }
+      IconCircle(
+        icon = Icons.Filled.AutoAwesome,
+        backgroundAlpha = 0.12f,
+        iconSize = 18.dp
+      )
       Column(modifier = Modifier.weight(1f)) {
         Text(
           text = "پیش‌بینی بودجه ماه آینده",
@@ -228,20 +214,12 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(28.dp)
-                .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Filled.TrendingUp,
-              contentDescription = null,
-              tint = FinancialColors.IncomeGreen,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = Icons.Filled.TrendingUp,
+            tint = FinancialColors.IncomeGreen,
+            backgroundColor = FinancialColors.IncomeGreen,
+            containerSize = 28.dp
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
             text = "درآمد ۳۰ روزه",
@@ -270,20 +248,12 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(28.dp)
-                .background(FinancialColors.ExpenseRed.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Filled.TrendingDown,
-              contentDescription = null,
-              tint = FinancialColors.ExpenseRed,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = Icons.Filled.TrendingDown,
+            tint = FinancialColors.ExpenseRed,
+            backgroundColor = FinancialColors.ExpenseRed,
+            containerSize = 28.dp
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
             text = "مخارج ۳۰ روزه",
@@ -320,20 +290,12 @@ internal fun KpiCards(dashboardData: DashboardData) {
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(28.dp)
-                .background(FinancialColors.IncomeGreen.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Filled.Savings,
-              contentDescription = null,
-              tint = FinancialColors.IncomeGreen,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = Icons.Filled.Savings,
+            tint = FinancialColors.IncomeGreen,
+            backgroundColor = FinancialColors.IncomeGreen,
+            containerSize = 28.dp
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
             text = "نرخ پس‌انداز",
@@ -366,20 +328,12 @@ internal fun KpiCards(dashboardData: DashboardData) {
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(28.dp)
-                .background(FinancialColors.InfoBlue.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Filled.AccountBalance,
-              contentDescription = null,
-              tint = FinancialColors.InfoBlue,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = Icons.Filled.AccountBalance,
+            tint = FinancialColors.InfoBlue,
+            backgroundColor = FinancialColors.InfoBlue,
+            containerSize = 28.dp
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
             text = "نسبت بدهی",
@@ -532,20 +486,14 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f)
       ) {
-        Box(
-          modifier =
-            Modifier
-              .size(40.dp)
-              .background(MaterialTheme.colorScheme.primary, CircleShape),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Filled.AutoAwesome,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp)
-          )
-        }
+        IconCircle(
+          icon = Icons.Filled.AutoAwesome,
+          tint = MaterialTheme.colorScheme.onPrimary,
+          backgroundColor = MaterialTheme.colorScheme.primary,
+          backgroundAlpha = 1.0f,
+          iconSize = 20.dp,
+          containerSize = 40.dp
+        )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {
           Text(

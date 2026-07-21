@@ -31,6 +31,7 @@ import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.SectionHeader
@@ -732,7 +733,10 @@ fun ReportsScreen(
   }
 
   if (deletingTransaction != null) {
-    DeleteConfirmationDialog(
+    ConfirmDialog(
+      title = "حذف تراکنش",
+      message = "آیا از حذف این تراکنش اطمینان دارید؟",
+      confirmText = "حذف",
       onConfirm = {
         transactionViewModel.deleteTransaction(deletingTransaction!!)
         deletingTransaction = null

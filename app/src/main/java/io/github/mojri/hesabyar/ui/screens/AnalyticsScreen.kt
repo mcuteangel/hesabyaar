@@ -21,13 +21,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.components.CardEmptyHint
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
@@ -159,16 +159,7 @@ private fun MonthlyTrendCard(
       )
 
       if (data.isEmpty()) {
-        Text(
-          text = "داده‌ای موجود نیست",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.xl),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = "داده‌ای موجود نیست")
       } else {
         // Bar chart
         BarChart(
@@ -394,16 +385,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
       )
 
       if (categoryBreakdown.isEmpty()) {
-        Text(
-          text = "هزینه‌ای ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.xl),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = "هزینه‌ای ثبت نشده")
       } else {
         // Donut chart
         DonutChart(
@@ -538,16 +520,7 @@ private fun DebtCreditSummaryCard(
       }
 
       if (items.isEmpty()) {
-        Text(
-          text = emptyMessage,
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = emptyMessage)
       } else {
         items.forEach { item ->
           Column(
@@ -631,16 +604,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
       )
 
       if (loans.isEmpty()) {
-        Text(
-          text = "وام فعالی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = "وام فعالی ثبت نشده")
       } else {
         loans.forEach { loan ->
           val progress =
@@ -749,16 +713,7 @@ private fun BankLoanStatusCard(
       }
 
       if (bankLoans.isEmpty()) {
-        Text(
-          text = "وام بانکی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = "وام بانکی ثبت نشده")
       } else {
         bankLoans.forEach { bl ->
           Column(
@@ -828,16 +783,7 @@ private fun InstallmentProgressCard(
       )
 
       if (total == 0) {
-        Text(
-          text = "قسطی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        )
+        CardEmptyHint(message = "قسطی ثبت نشده")
       } else {
         // Progress ring
         Row(
