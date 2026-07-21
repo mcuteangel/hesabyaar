@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -19,10 +21,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -62,7 +64,26 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
+import kotlinx.coroutines.delay
 import java.util.*
+
+private const val DIALOG_EXIT_MS = 300L
+
+@Composable
+private fun entranceCard(content: @Composable () -> Unit) {
+  AnimatedVisibility(
+    visible = true,
+    enter =
+      fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+        slideInVertically(
+          animationSpec = spring(stiffness = Spring.StiffnessMedium),
+          initialOffsetY = { it / 12 }
+        )
+  ) {
+    content()
+  }
+}
 
 private val CATEGORY_ICONS_MAP =
   mapOf(
@@ -137,44 +158,52 @@ fun DashboardScreen(
     aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
-  Box(modifier = modifier.fillMaxSize()) {
+  Box(
+    modifier = modifier.fillMaxSize(),
+    contentAlignment = Alignment.TopCenter
+  ) {
     LazyColumn(
       modifier =
         Modifier
-          .fillMaxSize()
+          .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+          .fillMaxWidth()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
+      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.BottomNavClearance)
     ) {
-      item { DashboardHeader(settingsViewModel) }
+      item { entranceCard { DashboardHeader(settingsViewModel) } }
 
       // Wallet Balance Card
       item {
-        BalanceCard(
-          balance = dashboardData.currentBalance,
-          income = dashboardData.monthlyIncome,
-          expense = dashboardData.monthlyExpenses,
-          modifier = Modifier.testTag("balance_card")
-        )
+        entranceCard {
+          BalanceCard(
+            balance = dashboardData.currentBalance,
+            income = dashboardData.monthlyIncome,
+            expense = dashboardData.monthlyExpenses,
+            modifier = Modifier.testTag("balance_card")
+          )
+        }
       }
 
       item {
-        SmartForecastCard(
-          forecastState = forecastState,
-          lastForecastFetchTime = lastForecastFetchTime,
-          aiAssistantViewModel = aiAssistantViewModel,
-          onShowForecast = { showFullForecast = true }
-        )
+        entranceCard {
+          SmartForecastCard(
+            forecastState = forecastState,
+            lastForecastFetchTime = lastForecastFetchTime,
+            aiAssistantViewModel = aiAssistantViewModel,
+            onShowForecast = { showFullForecast = true }
+          )
+        }
       }
 
-      item { IncomeExpenseCards(dashboardData) }
+      item { entranceCard { IncomeExpenseCards(dashboardData) } }
 
-      item { KpiCards(dashboardData) }
+      item { entranceCard { KpiCards(dashboardData) } }
 
       // Debtors and Creditors summary Row
-      item { DebtorCreditorCards(dashboardData) }
+      item { entranceCard { DebtorCreditorCards(dashboardData) } }
 
-      item { SmartParsingBanner(onNavigateToAssistant) }
+      item { entranceCard { SmartParsingBanner(onNavigateToAssistant) } }
 
       // Upcoming Installments Header
       item {
@@ -211,7 +240,7 @@ fun DashboardScreen(
       }
 
       // Bank Loans Summary
-      item { BankLoansSummaryCard(dashboardData) }
+      item { entranceCard { BankLoansSummaryCard(dashboardData) } }
 
       // Recent Activity Banner
       item {
@@ -362,7 +391,6 @@ fun InstallmentMiniItem(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
-    shape = ShapeTokens.Large,
     cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
   ) {
     Row(
@@ -393,7 +421,7 @@ fun InstallmentMiniItem(
               installment.dueDate
             )} | ${CurrencyFormatter.format(installment.amount)}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -405,8 +433,8 @@ fun InstallmentMiniItem(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
-        shape = ShapeTokens.Small,
-        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
+        shape = ShapeTokens.Full,
+        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xxs)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)
       }
@@ -433,7 +461,7 @@ fun TransactionMiniItem(
         .fillMaxWidth()
         .clickable(onClick = onClick),
     shape = ShapeTokens.Medium,
-    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -464,7 +492,7 @@ fun TransactionMiniItem(
           Text(
             text = "${formatPersianDate(transaction.date)} | ${category?.name ?: "سایر"}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
@@ -476,7 +504,7 @@ fun TransactionMiniItem(
           fontWeight = FontWeight.Bold,
           color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
         )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
@@ -584,6 +612,13 @@ fun ForecastDetailDialog(
       }
     }
   }
+  val onDismissState = rememberUpdatedState(onDismiss)
+  LaunchedEffect(visible) {
+    if (!visible) {
+      delay(DIALOG_EXIT_MS)
+      onDismissState.value()
+    }
+  }
 }
 
 @Composable
@@ -620,7 +655,7 @@ fun TransactionDetailDialog(
           Text(
             text = "نوع:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = if (isIncome) "درآمد" else "هزینه",
@@ -640,7 +675,7 @@ fun TransactionDetailDialog(
           Text(
             text = "مبلغ:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = CurrencyFormatter.format(transaction.amount),
@@ -660,7 +695,7 @@ fun TransactionDetailDialog(
           Text(
             text = "دسته‌بندی:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = category?.name ?: "سایر",
@@ -679,7 +714,7 @@ fun TransactionDetailDialog(
           Text(
             text = "تاریخ:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = formatPersianDate(transaction.date),
@@ -698,7 +733,7 @@ fun TransactionDetailDialog(
           Text(
             text = "توضیحات:",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
             text = transaction.description,
@@ -759,6 +794,7 @@ fun ManualTransactionDialog(
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
 ) {
+  var visible by remember { mutableStateOf(true) }
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
@@ -1223,6 +1259,13 @@ fun ManualTransactionDialog(
       )
     }
   }
+  val onDismissState = rememberUpdatedState(onDismiss)
+  LaunchedEffect(visible) {
+    if (!visible) {
+      delay(DIALOG_EXIT_MS)
+      onDismissState.value()
+    }
+  }
 }
 
 @Composable
@@ -1274,17 +1317,26 @@ fun JalaliDateTimePicker(
     modifier =
       Modifier
         .fillMaxWidth()
-        .clip(ShapeTokens.Large)
-        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
         .padding(SpacingTokens.md),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
-    Text(
-      text = "📅 تنظیم تاریخ و ساعت (شمسی):",
-      style = MaterialTheme.typography.labelMedium,
-      fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.primary
-    )
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      Icon(
+        imageVector = Icons.Default.CalendarMonth,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(Dimens.IconSmall)
+      )
+      Text(
+        text = "تنظیم تاریخ و ساعت (شمسی):",
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+      )
+    }
 
     Row(
       modifier = Modifier.fillMaxWidth(),
@@ -1297,7 +1349,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1.3f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Medium,
+        shape = ShapeTokens.Full,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1321,7 +1373,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Medium,
+        shape = ShapeTokens.Full,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(

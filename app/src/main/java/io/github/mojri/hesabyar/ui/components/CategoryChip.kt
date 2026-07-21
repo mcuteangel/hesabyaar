@@ -38,7 +38,7 @@ fun CategoryFilterChip(
   selected: Boolean,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
-  shape: Shape = ShapeTokens.Medium
+  shape: Shape = ShapeTokens.Full
 ) {
   val categoryColor = category?.let { Color(it.color) } ?: Color.Gray
   val categoryInitial = category?.name?.firstOrNull()?.toString() ?: ""

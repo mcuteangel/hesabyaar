@@ -145,6 +145,38 @@ plugins {
   jacoco
 }
 
+// Rust cross-compilation target table. `abi` matches Android's ABI name used in
+// split configs and jniLibs paths; `triple` is the cargo target triple.
+data class RustTarget(
+  val abi: String,
+  val triple: String,
+  val jniLib: String,
+)
+
+val rustTargets =
+  listOf(
+    RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
+    RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
+    RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
+    RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
+  )
+
+// Subset of rustTargets actually cross-compiled. Defaults to all; override with
+// -PrustAbis=arm64-v8a to skip the 32-bit / x86 native builds on a local
+// 64-bit-only device (speeds up installDebug dramatically). Ignored for
+// release/bundle builds so shipped artifacts stay complete.
+val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
+val activeRustTargets =
+  if (gradle.startParameter.taskNames.any {
+      it.contains("bundle", ignoreCase = true) || it.contains("Release", ignoreCase = true)
+    } ||
+    rustAbisProp.isNullOrBlank()
+  ) {
+    rustTargets
+  } else {
+    rustTargets.filter { it.abi in rustAbisProp.split(",").map { a -> a.trim() } }
+  }
+
 android {
   namespace = appId
   compileSdk = 37
@@ -218,11 +250,26 @@ android {
   val explicitAbiSplits = providers.gradleProperty("enableAbiSplits").getOrNull()
   val enableAbiSplits =
     if (explicitAbiSplits.isNullOrBlank()) defaultAbiSplits else explicitAbiSplits.toBoolean()
+  // rustAbis narrows the ABIs for a lighter LOCAL debug build (e.g.
+  // -PrustAbis=arm64-v8a for a 64-bit-only phone). It is intentionally ignored
+  // for release/bundle builds so shipped artifacts always contain every ABI.
+  val rustAbisProp = providers.gradleProperty("rustAbis").getOrNull()
+  val abiIncludeList =
+    if (buildingBundle ||
+      gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } ||
+      rustAbisProp.isNullOrBlank()
+    ) {
+      listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+    } else {
+      // Derive from activeRustTargets so a typo'd/unbuilt ABI in -PrustAbis can
+      // never create a split APK with no matching native .so (UnsatisfiedLinkError).
+      activeRustTargets.map { it.abi }
+    }
   splits {
     abi {
       isEnable = enableAbiSplits
       reset()
-      include("armeabi-v7a", "arm64-v8a", "x86_64")
+      include(*abiIncludeList.toTypedArray())
       isUniversalApk = true
     }
   }
@@ -532,19 +579,28 @@ tasks.withType<dev.detekt.gradle.DetektCreateBaselineTask>().configureEach {
 val rustDir = file("${rootProject.projectDir}/rust")
 val rustTargetDir = file("${rootProject.projectDir}/rust/target")
 
-data class RustTarget(
-  val abi: String,
-  val triple: String,
-  val jniLib: String,
-)
-
-val rustTargets =
-  listOf(
-    RustTarget("arm64-v8a", "aarch64-linux-android", "libhesabyar_core.so"),
-    RustTarget("armeabi-v7a", "armv7-linux-androideabi", "libhesabyar_core.so"),
-    RustTarget("x86_64", "x86_64-linux-android", "libhesabyar_core.so"),
-    RustTarget("x86", "i686-linux-android", "libhesabyar_core.so"),
+// ---------------------------------------------------------------------------
+// forceRustRegen — when true, the Rust → Kotlin binding pipeline always runs
+// even if Gradle considers it UP-TO-DATE. We force this for CI and for any
+// release/bundle build so a stale cached native library or binding can never
+// slip into a shipped artifact. On a normal LOCAL debug build (not CI, not a
+// release task) we keep Gradle's incremental up-to-date checks so an unchanged
+// Rust core is not needlessly recompiled (cargo/uniffi are slow in this repo).
+//
+//   - CI:             GitHub Actions sets CI=true; honor it.
+//   - release/bundle: any requested task name containing "Release" or "bundle".
+// ---------------------------------------------------------------------------
+val isCI = System.getenv("CI")?.equals("true", ignoreCase = true) == true
+val isReleaseOrBundleTask =
+  gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true) || it.contains("bundle", ignoreCase = true)
+  }
+val forceRustRegen = isCI || isReleaseOrBundleTask
+if (forceRustRegen) {
+  logger.lifecycle(
+    "Rust pipeline forced to run (CI=$isCI, release/bundle task=$isReleaseOrBundleTask)."
   )
+}
 
 // ---------------------------------------------------------------------------
 // syncCoreVersion — auto-derive the Rust core version during binding builds
@@ -603,6 +659,8 @@ tasks.register("syncCoreVersion") {
   inputs.files(fileTree(rustDir.resolve("hesabyar-core/src")) { exclude("**/generated/**") })
   inputs.file(rustDir.resolve("Cargo.toml"))
   outputs.file(genFile)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     val base = readCoreBaseVersion()
     val meta = computeCoreSourceMeta()
@@ -615,20 +673,36 @@ tasks.register("syncCoreVersion") {
   }
 }
 
-rustTargets.forEach { target ->
+// Remove stale native libs for ABIs excluded by -PrustAbis so a prior full
+// build's .so files are not packaged alongside the freshly built ones.
+val excludedRustAbis = rustTargets.map { it.abi } - activeRustTargets.map { it.abi }
+val cleanExcludedRustJniLibs by tasks.registering {
+  group = "rust"
+  description = "Delete jniLibs output for ABIs excluded by -PrustAbis"
+  doLast {
+    excludedRustAbis.forEach { abi ->
+      val dir = file("$projectDir/src/main/jniLibs/$abi")
+      if (dir.exists()) dir.deleteRecursively()
+    }
+  }
+}
+
+activeRustTargets.forEach { target ->
   val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
   val outDir = file("$projectDir/src/main/jniLibs/${target.abi}")
   val outputLib = file("$outDir/${target.jniLib}")
   tasks.register(taskName) {
     group = "rust"
     description = "Build Rust .so for ${target.abi}"
-    dependsOn("syncCoreVersion")
+    dependsOn("syncCoreVersion", cleanExcludedRustJniLibs)
     inputs.dir(rustDir.resolve("hesabyar-core/src"))
     inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
     inputs.file(rustDir.resolve("Cargo.toml"))
     inputs.file(rustDir.resolve("Cargo.lock"))
     inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
     outputs.file(outputLib)
+    // Local debug keeps incremental caching; CI/release always recompiles.
+    outputs.upToDateWhen { !forceRustRegen }
     doLast {
       val ndkHome = System.getenv("ANDROID_NDK_HOME")
       if (ndkHome.isNullOrBlank()) {
@@ -683,7 +757,7 @@ rustTargets.forEach { target ->
 tasks.register("assembleRust") {
   group = "rust"
   description = "Cross-compile Rust shared core for all Android ABIs via cargo-ndk"
-  rustTargets.forEach { target ->
+  activeRustTargets.forEach { target ->
     val taskName = "assembleRust_${target.abi.replace("-", "_").replace(".", "_")}"
     dependsOn(taskName)
   }
@@ -710,6 +784,8 @@ tasks.register("compileRustCore") {
   inputs.file(rustDir.resolve("Cargo.lock"))
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   outputs.dir(file("$projectDir/src/main/jniLibs"))
+  // Local debug keeps incremental caching; CI/release always recompiles.
+  outputs.upToDateWhen { !forceRustRegen }
 }
 
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
@@ -742,6 +818,8 @@ tasks.register("generateRustBindings") {
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
   val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
   outputs.dir(generatedDir)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
@@ -774,6 +852,8 @@ tasks.register("generateAndFixBindings") {
   inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
   val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
   outputs.file(dest)
+  // Local debug keeps incremental caching; CI/release always regenerates.
+  outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()

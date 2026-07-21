@@ -52,7 +52,7 @@ fun HesabyarButton(
         onClick = onClick,
         modifier = buttonModifier,
         enabled = enabled && !loading,
-        shape = ShapeTokens.Small,
+        shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
 
@@ -61,7 +61,7 @@ fun HesabyarButton(
         onClick = onClick,
         modifier = buttonModifier,
         enabled = enabled && !loading,
-        shape = ShapeTokens.Small,
+        shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
 
@@ -70,7 +70,7 @@ fun HesabyarButton(
         onClick = onClick,
         modifier = buttonModifier,
         enabled = enabled && !loading,
-        shape = ShapeTokens.Small,
+        shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
   }

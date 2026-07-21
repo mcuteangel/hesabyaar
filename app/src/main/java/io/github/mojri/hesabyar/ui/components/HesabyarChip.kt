@@ -17,7 +17,7 @@ fun HesabyarChip(
   modifier: Modifier = Modifier,
   leadingIcon: @Composable (() -> Unit)? = null,
   enabled: Boolean = true,
-  shape: Shape = ShapeTokens.Medium
+  shape: Shape = ShapeTokens.Full
 ) {
   FilterChip(
     selected = selected,

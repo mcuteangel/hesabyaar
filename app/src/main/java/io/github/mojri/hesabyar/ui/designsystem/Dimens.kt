@@ -17,6 +17,8 @@ object Dimens {
 
   val DividerThickness = 1.dp
 
+  val BottomNavClearance = 80.dp
+
   val ChipHeight = 36.dp
   val TabHeight = 48.dp
 }

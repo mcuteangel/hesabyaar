@@ -8,7 +8,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
+import io.github.mojri.hesabyar.ui.designsystem.AppShapes
+import io.github.mojri.hesabyar.ui.designsystem.applyFinancialPalette
 
 private val DarkColorScheme =
   darkColorScheme(
@@ -96,9 +99,12 @@ fun HesabyarTheme(
       else -> LightColorScheme
     }
 
+  SideEffect { applyFinancialPalette(darkTheme) }
+
   MaterialTheme(
     colorScheme = colorScheme,
     typography = Typography,
+    shapes = AppShapes,
     content = content
   )
 }

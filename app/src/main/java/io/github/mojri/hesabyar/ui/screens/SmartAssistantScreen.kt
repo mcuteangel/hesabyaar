@@ -6,6 +6,7 @@ import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -53,8 +54,11 @@ import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 import java.util.Calendar
+
+private const val TAB_TRANSITION_MILLIS = 300
 
 @Composable
 fun SmartAssistantScreen(
@@ -130,7 +134,7 @@ fun SmartAssistantScreen(
     )
   } else {
     Column(
-      modifier = modifier.fillMaxSize(),
+      modifier = modifier.widthIn(max = WindowSizeTokens.ContentMaxWidth).fillMaxWidth(),
       verticalArrangement = Arrangement.Top,
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -139,7 +143,7 @@ fun SmartAssistantScreen(
         selectedTabIndex = activeTab,
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary,
-        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) }
+        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
       ) {
         Tab(
           selected = activeTab == 0,
@@ -179,519 +183,550 @@ fun SmartAssistantScreen(
         )
       }
 
-      if (activeTab == 0) {
-        // Main Transaction Entry Scrollable Form Screen
-        Column(
-          modifier =
-            Modifier
-              .weight(1f)
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg)
-              .verticalScroll(scrollState),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-          horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-          // AI Title / Visual Identity Header
-          Box(
+      AnimatedContent(
+        targetState = activeTab,
+        label = "TabSwitch",
+        transitionSpec = {
+          fadeIn(animationSpec = tween(TAB_TRANSITION_MILLIS)) togetherWith
+            fadeOut(animationSpec = tween(TAB_TRANSITION_MILLIS))
+        }
+      ) { tab ->
+        if (tab == 0) {
+          // Main Transaction Entry Scrollable Form Screen
+          Column(
             modifier =
               Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .clip(ShapeTokens.XLarge)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
-                .padding(SpacingTokens.xl)
+                .padding(SpacingTokens.lg)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
+            horizontalAlignment = Alignment.CenterHorizontally
           ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+            // AI Title / Visual Identity Header
+            Box(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .clip(ShapeTokens.XLarge)
+                  .background(MaterialTheme.colorScheme.primaryContainer)
+                  .padding(SpacingTokens.xl)
             ) {
-              Box(
-                modifier =
-                  Modifier
-                    .size(Dimens.ButtonHeight)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.AutoAwesome,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onPrimary,
-                  modifier = Modifier.size(Dimens.IconMedium)
-                )
-              }
-              Column {
-                Text(
-                  text = "دستیار صوتی و متنی هوشمند",
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                  text = "جمله خود را به زبان فارسی ساده تایپ کنید یا بگویید تا هوش مصنوعی آن را تحلیل کند.",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                  lineHeight = 18.sp
-                )
-              }
-            }
-          }
-
-          // Suggested Examples Card
-          HesabyarCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = ShapeTokens.Large
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-            ) {
-              Text(
-                text = "💡 عبارت‌های نمونه جهت آزمایش:",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-              )
-              val examples =
-                listOf(
-                  "۵۰۰ هزار تومن بابت برق",
-                  "امروز حقوق گرفتم ۲۰ میلیون",
-                  "به علی ۲ میلیون قرض دادم",
-                  "از رضا ۳ میلیون طلب دارم",
-                  "قسط وام مسکن رو پرداخت کردم"
-                )
-              examples.forEach { ex ->
-                Row(
-                  modifier =
-                    Modifier
-                      .fillMaxWidth()
-                      .clip(ShapeTokens.Small)
-                      .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                      .clickable {
-                        inputText = ex
-                        aiAssistantViewModel.parseSmartSentence(
-                          ex,
-                          aiAssistantViewModel.isOnlineMode.value
-                        )
-                      }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
-                  horizontalArrangement = Arrangement.SpaceBetween,
-                  verticalAlignment = Alignment.CenterVertically
-                ) {
-                  Text(
-                    text = ex,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                  )
-                  Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-              }
-            }
-          }
-
-          // Input Area
-          HesabyarCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = ShapeTokens.XLarge
-          ) {
-            Column(
-              verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-            ) {
-              HesabyarInputField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                modifier =
-                  Modifier
-                    .height(110.dp)
-                    .testTag("sentence_input"),
-                placeholder = "عبارت مالی خود را اینجا بنویسید...",
-                shape = ShapeTokens.Medium,
-                singleLine = false
-              )
-
               Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
               ) {
-                // Voice Mic button (Aggressive support for speech)
-                IconButton(
-                  onClick = { startVoiceInput() },
+                Box(
                   modifier =
                     Modifier
-                      .size(52.dp)
-                      .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                      .testTag("voice_input_button")
+                      .size(Dimens.ButtonHeight)
+                      .background(MaterialTheme.colorScheme.primary, CircleShape),
+                  contentAlignment = Alignment.Center
                 ) {
                   Icon(
-                    imageVector = Icons.Filled.Mic,
-                    contentDescription = "ثبت صوتی",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    imageVector = Icons.Filled.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(Dimens.IconMedium)
                   )
                 }
-
-                // Main Text Parse Submit Button
-                HesabyarButton(
-                  onClick = {
-                    if (inputText.isNotBlank()) {
-                      aiAssistantViewModel.parseSmartSentence(
-                        inputText,
-                        aiAssistantViewModel.isOnlineMode.value
-                      )
-                    } else {
-                      settingsViewModel.showMessage("لطفا متنی را جهت تحلیل وارد کنید")
-                    }
-                  },
-                  modifier =
-                    Modifier
-                      .weight(1f)
-                      .testTag("submit_assistant_button"),
-                  text = "آماده‌سازی تراکنش با هوش مصنوعی",
-                  icon = Icons.Filled.NavigateNext
-                )
-              }
-            }
-          }
-
-          // Parser State Outputs (Interactive Results Card)
-          AnimatedContent(
-            targetState = parserState,
-            label = "ParserState"
-          ) { state ->
-            when (state) {
-              is ParserUIState.Idle -> {
-                // Say nothing or idle tip
-              }
-              is ParserUIState.Loading -> {
-                Column(
-                  modifier = Modifier.fillMaxWidth().padding(SpacingTokens.xl),
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-                ) {
-                  CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                Column {
                   Text(
-                    text = "درحال تحلیل ساختاری توسط حسابیار هوشمند...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                }
-              }
-              is ParserUIState.Error -> {
-                HesabyarCard(
-                  modifier = Modifier.fillMaxWidth(),
-                  cardColors =
-                    CardDefaults.cardColors(
-                      containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                  contentPadding = PaddingValues(SpacingTokens.lg)
-                ) {
-                  Text(
-                    text =
-                      state.message +
-                        "\nتلاش برای استخراج خودکار انجام نشد. لطفا واضح‌تر وارد کنید.",
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium
-                  )
-                }
-              }
-              is ParserUIState.Confirming -> {
-                // Handled at top-level
-              }
-              is ParserUIState.Success -> {
-                // Handled at top-level
-              }
-            }
-          }
-        }
-      } else {
-        // Budget Advice Tab (Gemini/Offline)
-        val advisorState by aiAssistantViewModel.advisorState.collectAsState()
-        val isApiKeyReady = aiAssistantViewModel.isAiConfigured()
-
-        Column(
-          modifier =
-            Modifier
-              .weight(1f)
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg)
-              .verticalScroll(rememberScrollState()),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-          horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-          // Advice Header Banner
-          HesabyarCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = ShapeTokens.XLarge,
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-              ),
-            contentPadding = PaddingValues(SpacingTokens.lg)
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-            ) {
-              Box(
-                modifier =
-                  Modifier
-                    .size(52.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.TipsAndUpdates,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onPrimary,
-                  modifier = Modifier.size(26.dp)
-                )
-              }
-              Column(modifier = Modifier.weight(1f)) {
-                Text(
-                  text = "مشاور مدیریت هوشمند بودجه",
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                  text =
-                    if (isApiKeyReady) {
-                      "طراحی شده با مدل هوش مصنوعی ابری (${aiAssistantViewModel.getProviderStatusText()})"
-                    } else {
-                      "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
-                    },
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-              }
-            }
-          }
-
-          // Main recommendations body state machine
-          when (val state = advisorState) {
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Idle -> {
-              HesabyarCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ShapeTokens.XLarge,
-                contentPadding = PaddingValues(SpacingTokens.xl)
-              ) {
-                Column(
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
-                ) {
-                  Box(
-                    modifier =
-                      Modifier
-                        .size(72.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Icon(
-                      imageVector = Icons.Filled.Analytics,
-                      contentDescription = null,
-                      tint = MaterialTheme.colorScheme.primary,
-                      modifier = Modifier.size(Dimens.IconLarge)
-                    )
-                  }
-
-                  Text(
-                    text = "آماده دریافت توصیه‌های مالی هستید؟",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                  )
-
-                  Text(
-                    text =
-                      "دستیار مالی حسابیار با پایش ریز تراکنش‌ها، مبالغ اقساط و روند" +
-                        " تراز دریافتی و پرداختی‌های شما، بهترین نکات کلیدی کاهش مخارج و" +
-                        " بهبود نرخ ثروت‌آفرینی را ارزیابی می‌کند.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 22.sp
-                  )
-
-                  HesabyarButton(
-                    onClick = {
-                      aiAssistantViewModel.fetchBudgetAdvice(
-                        dashboardViewModel.transactions.value,
-                        dashboardViewModel.loans.value,
-                        dashboardViewModel.installments.value,
-                        dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value,
-                        dashboardViewModel.bankLoans.value
-                      )
-                    },
-                    text = "تحلیل هوشمند بودجه و مخارج",
-                    icon = Icons.Filled.AutoAwesome,
-                    modifier = Modifier.fillMaxWidth()
-                  )
-                }
-              }
-            }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Loading -> {
-              HesabyarCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ShapeTokens.XLarge,
-                contentPadding = PaddingValues(SpacingTokens.xxl)
-              ) {
-                Column(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
-                ) {
-                  CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(Dimens.ButtonHeight)
-                  )
-                  Text(
-                    text = "حسابیار با طعم هوش مصنوعی...",
+                    text = "دستیار صوتی و متنی هوشمند",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                   )
                   Text(
-                    text =
-                      "در حال تجمیع اطلاعات حساب‌ها، مخارج جاری، تراز اقساط و کشف" +
-                        " الگوهای مخارج پنهان شما برای نگارش گزارش مشورتی شخصی...",
+                    text = "جمله خود را به زبان فارسی ساده تایپ کنید یا بگویید تا هوش مصنوعی آن را تحلیل کند.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                   )
                 }
               }
             }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Success -> {
-              val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
-              HesabyarCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ShapeTokens.XLarge,
-                contentPadding = PaddingValues(SpacingTokens.lg)
+
+            // Suggested Examples Card
+            HesabyarCard(
+              modifier = Modifier.fillMaxWidth(),
+              shape = ShapeTokens.Large
+            ) {
+              Column(
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
               ) {
-                Column(
-                  verticalArrangement = Arrangement.spacedBy(14.dp)
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
                 ) {
+                  Icon(
+                    imageVector = Icons.Filled.Lightbulb,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(Dimens.IconSmall)
+                  )
+                  Text(
+                    text = "عبارت‌های نمونه جهت آزمایش:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                }
+                val examples =
+                  listOf(
+                    "۵۰۰ هزار تومن بابت برق",
+                    "امروز حقوق گرفتم ۲۰ میلیون",
+                    "به علی ۲ میلیون قرض دادم",
+                    "از رضا ۳ میلیون طلب دارم",
+                    "قسط وام مسکن رو پرداخت کردم"
+                  )
+                examples.forEach { ex ->
                   Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                      Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeTokens.Small)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .clickable {
+                          inputText = ex
+                          aiAssistantViewModel.parseSmartSentence(
+                            ex,
+                            aiAssistantViewModel.isOnlineMode.value
+                          )
+                        }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                   ) {
                     Text(
-                      text = "💡 نتایج مشاوره و توصیه‌های بودجه",
-                      style = MaterialTheme.typography.titleMedium,
-                      fontWeight = FontWeight.Bold,
-                      color = MaterialTheme.colorScheme.primary
+                      text = ex,
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onSurface
                     )
-                    IconButton(onClick = {
-                      aiAssistantViewModel.fetchBudgetAdvice(
-                        dashboardViewModel.transactions.value,
-                        dashboardViewModel.loans.value,
-                        dashboardViewModel.installments.value,
-                        dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value,
-                        dashboardViewModel.bankLoans.value,
-                        forceRefresh = true
-                      )
-                    }) {
-                      Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = "بروزرسانی گزارش",
-                        tint = MaterialTheme.colorScheme.primary
-                      )
-                    }
+                    Icon(
+                      imageVector = Icons.Filled.ArrowBack,
+                      contentDescription = null,
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(Dimens.IconSmall)
+                    )
+                  }
+                }
+              }
+            }
+
+            // Input Area
+            HesabyarCard(
+              modifier = Modifier.fillMaxWidth(),
+              shape = ShapeTokens.XLarge
+            ) {
+              Column(
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+              ) {
+                HesabyarInputField(
+                  value = inputText,
+                  onValueChange = { inputText = it },
+                  modifier =
+                    Modifier
+                      .height(110.dp)
+                      .testTag("sentence_input"),
+                  placeholder = "عبارت مالی خود را اینجا بنویسید...",
+                  shape = ShapeTokens.Medium,
+                  singleLine = false
+                )
+
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+                ) {
+                  // Voice Mic button (Aggressive support for speech)
+                  IconButton(
+                    onClick = { startVoiceInput() },
+                    modifier =
+                      Modifier
+                        .size(52.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                        .testTag("voice_input_button")
+                  ) {
+                    Icon(
+                      imageVector = Icons.Filled.Mic,
+                      contentDescription = "ثبت صوتی",
+                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                      modifier = Modifier.size(Dimens.IconMedium)
+                    )
                   }
 
-                  HorizontalDivider(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                  )
-
-                  MarkdownText(text = state.advice)
-
-                  Text(
-                    text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(
-                      lastAdviceFetchTime
-                    )}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                  )
-
-                  Spacer(modifier = Modifier.height(SpacingTokens.md))
-
+                  // Main Text Parse Submit Button
                   HesabyarButton(
                     onClick = {
-                      aiAssistantViewModel.fetchBudgetAdvice(
-                        dashboardViewModel.transactions.value,
-                        dashboardViewModel.loans.value,
-                        dashboardViewModel.installments.value,
-                        dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value,
-                        dashboardViewModel.bankLoans.value,
-                        forceRefresh = true
-                      )
+                      if (inputText.isNotBlank()) {
+                        aiAssistantViewModel.parseSmartSentence(
+                          inputText,
+                          aiAssistantViewModel.isOnlineMode.value
+                        )
+                      } else {
+                        settingsViewModel.showMessage("لطفا متنی را جهت تحلیل وارد کنید")
+                      }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    text = "به‌روزرسانی مشاوره",
-                    icon = Icons.Filled.Refresh
+                    modifier =
+                      Modifier
+                        .weight(1f)
+                        .testTag("submit_assistant_button"),
+                    text = "آماده‌سازی تراکنش با هوش مصنوعی",
+                    icon = Icons.Filled.NavigateNext
                   )
                 }
               }
             }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Error -> {
-              HesabyarCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = ShapeTokens.XLarge,
-                cardColors =
-                  CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                  ),
-                contentPadding = PaddingValues(SpacingTokens.xl)
+
+            // Parser State Outputs (Interactive Results Card)
+            AnimatedContent(
+              targetState = parserState,
+              label = "ParserState"
+            ) { state ->
+              when (state) {
+                is ParserUIState.Idle -> {
+                  // Say nothing or idle tip
+                }
+                is ParserUIState.Loading -> {
+                  Column(
+                    modifier = Modifier.fillMaxWidth().padding(SpacingTokens.xl),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+                  ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Text(
+                      text = "درحال تحلیل ساختاری توسط حسابیار هوشمند...",
+                      style = MaterialTheme.typography.bodyMedium,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  }
+                }
+                is ParserUIState.Error -> {
+                  HesabyarCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cardColors =
+                      CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                      ),
+                    contentPadding = PaddingValues(SpacingTokens.lg)
+                  ) {
+                    Text(
+                      text =
+                        state.message +
+                          "\nتلاش برای استخراج خودکار انجام نشد. لطفا واضح‌تر وارد کنید.",
+                      color = MaterialTheme.colorScheme.onErrorContainer,
+                      textAlign = TextAlign.Center,
+                      style = MaterialTheme.typography.bodyMedium
+                    )
+                  }
+                }
+                is ParserUIState.Confirming -> {
+                  // Handled at top-level
+                }
+                is ParserUIState.Success -> {
+                  // Handled at top-level
+                }
+              }
+            }
+          }
+        } else {
+          // Budget Advice Tab (Gemini/Offline)
+          val advisorState by aiAssistantViewModel.advisorState.collectAsState()
+          val isApiKeyReady = aiAssistantViewModel.isAiConfigured()
+
+          Column(
+            modifier =
+              Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(SpacingTokens.lg)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            // Advice Header Banner
+            HesabyarCard(
+              modifier = Modifier.fillMaxWidth(),
+              shape = ShapeTokens.XLarge,
+              cardColors =
+                CardDefaults.cardColors(
+                  containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+              contentPadding = PaddingValues(SpacingTokens.lg)
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
               ) {
-                Column(
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+                Box(
+                  modifier =
+                    Modifier
+                      .size(52.dp)
+                      .background(MaterialTheme.colorScheme.primary, CircleShape),
+                  contentAlignment = Alignment.Center
                 ) {
                   Icon(
-                    imageVector = Icons.Filled.Error,
+                    imageVector = Icons.Filled.TipsAndUpdates,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(44.dp)
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(26.dp)
                   )
+                }
+                Column(modifier = Modifier.weight(1f)) {
                   Text(
-                    text = "خطا در تنظیم و ارزیابی عادات مالی",
+                    text = "مشاور مدیریت هوشمند بودجه",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = MaterialTheme.colorScheme.primary
                   )
+                  Spacer(modifier = Modifier.height(2.dp))
                   Text(
-                    text = state.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center
+                    text =
+                      if (isApiKeyReady) {
+                        "طراحی شده با مدل هوش مصنوعی ابری (${aiAssistantViewModel.getProviderStatusText()})"
+                      } else {
+                        "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
+                      },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                   )
-                  HesabyarButton(
-                    onClick = {
-                      aiAssistantViewModel.fetchBudgetAdvice(
-                        dashboardViewModel.transactions.value,
-                        dashboardViewModel.loans.value,
-                        dashboardViewModel.installments.value,
-                        dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value,
-                        dashboardViewModel.bankLoans.value,
-                        forceRefresh = true
+                }
+              }
+            }
+
+            // Main recommendations body state machine
+            when (val state = advisorState) {
+              is io.github.mojri.hesabyar.ui.AdvisorUIState.Idle -> {
+                HesabyarCard(
+                  modifier = Modifier.fillMaxWidth(),
+                  shape = ShapeTokens.XLarge,
+                  contentPadding = PaddingValues(SpacingTokens.xl)
+                ) {
+                  Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+                  ) {
+                    Box(
+                      modifier =
+                        Modifier
+                          .size(72.dp)
+                          .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                      contentAlignment = Alignment.Center
+                    ) {
+                      Icon(
+                        imageVector = Icons.Filled.Analytics,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(Dimens.IconLarge)
                       )
-                    },
-                    text = "تلاش مجدد",
+                    }
+
+                    Text(
+                      text = "آماده دریافت توصیه‌های مالی هستید؟",
+                      style = MaterialTheme.typography.titleMedium,
+                      fontWeight = FontWeight.Bold,
+                      textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                      text =
+                        "دستیار مالی حسابیار با پایش ریز تراکنش‌ها، مبالغ اقساط و روند" +
+                          " تراز دریافتی و پرداختی‌های شما، بهترین نکات کلیدی کاهش مخارج و" +
+                          " بهبود نرخ ثروت‌آفرینی را ارزیابی می‌کند.",
+                      style = MaterialTheme.typography.bodyMedium,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      textAlign = TextAlign.Center,
+                      lineHeight = 22.sp
+                    )
+
+                    HesabyarButton(
+                      onClick = {
+                        aiAssistantViewModel.fetchBudgetAdvice(
+                          dashboardViewModel.transactions.value,
+                          dashboardViewModel.loans.value,
+                          dashboardViewModel.installments.value,
+                          dashboardViewModel.categories.value,
+                          aiAssistantViewModel.isOnlineMode.value,
+                          dashboardViewModel.bankLoans.value
+                        )
+                      },
+                      text = "تحلیل هوشمند بودجه و مخارج",
+                      icon = Icons.Filled.AutoAwesome,
+                      modifier = Modifier.fillMaxWidth()
+                    )
+                  }
+                }
+              }
+              is io.github.mojri.hesabyar.ui.AdvisorUIState.Loading -> {
+                HesabyarCard(
+                  modifier = Modifier.fillMaxWidth(),
+                  shape = ShapeTokens.XLarge,
+                  contentPadding = PaddingValues(SpacingTokens.xxl)
+                ) {
+                  Column(
                     modifier = Modifier.fillMaxWidth(),
-                    colors =
-                      ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                      )
-                  )
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+                  ) {
+                    CircularProgressIndicator(
+                      color = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(Dimens.ButtonHeight)
+                    )
+                    Text(
+                      text = "حسابیار با طعم هوش مصنوعی...",
+                      style = MaterialTheme.typography.titleMedium,
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                      text =
+                        "در حال تجمیع اطلاعات حساب‌ها، مخارج جاری، تراز اقساط و کشف" +
+                          " الگوهای مخارج پنهان شما برای نگارش گزارش مشورتی شخصی...",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      textAlign = TextAlign.Center,
+                      lineHeight = 18.sp
+                    )
+                  }
+                }
+              }
+              is io.github.mojri.hesabyar.ui.AdvisorUIState.Success -> {
+                val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
+                HesabyarCard(
+                  modifier = Modifier.fillMaxWidth(),
+                  shape = ShapeTokens.XLarge,
+                  contentPadding = PaddingValues(SpacingTokens.lg)
+                ) {
+                  Column(
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                  ) {
+                    Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.SpaceBetween,
+                      verticalAlignment = Alignment.CenterVertically
+                    ) {
+                      Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+                      ) {
+                        Icon(
+                          imageVector = Icons.Filled.Lightbulb,
+                          contentDescription = null,
+                          tint = MaterialTheme.colorScheme.primary,
+                          modifier = Modifier.size(Dimens.IconMedium)
+                        )
+                        Text(
+                          text = "نتایج مشاوره و توصیه‌های بودجه",
+                          style = MaterialTheme.typography.titleMedium,
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.primary
+                        )
+                      }
+                      IconButton(onClick = {
+                        aiAssistantViewModel.fetchBudgetAdvice(
+                          dashboardViewModel.transactions.value,
+                          dashboardViewModel.loans.value,
+                          dashboardViewModel.installments.value,
+                          dashboardViewModel.categories.value,
+                          aiAssistantViewModel.isOnlineMode.value,
+                          dashboardViewModel.bankLoans.value,
+                          forceRefresh = true
+                        )
+                      }) {
+                        Icon(
+                          imageVector = Icons.Filled.Refresh,
+                          contentDescription = "بروزرسانی گزارش",
+                          tint = MaterialTheme.colorScheme.primary
+                        )
+                      }
+                    }
+
+                    HorizontalDivider(
+                      color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    MarkdownText(text = state.advice)
+
+                    Text(
+                      text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(
+                        lastAdviceFetchTime
+                      )}",
+                      style = MaterialTheme.typography.labelSmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(SpacingTokens.md))
+
+                    HesabyarButton(
+                      onClick = {
+                        aiAssistantViewModel.fetchBudgetAdvice(
+                          dashboardViewModel.transactions.value,
+                          dashboardViewModel.loans.value,
+                          dashboardViewModel.installments.value,
+                          dashboardViewModel.categories.value,
+                          aiAssistantViewModel.isOnlineMode.value,
+                          dashboardViewModel.bankLoans.value,
+                          forceRefresh = true
+                        )
+                      },
+                      modifier = Modifier.fillMaxWidth(),
+                      text = "به‌روزرسانی مشاوره",
+                      icon = Icons.Filled.Refresh
+                    )
+                  }
+                }
+              }
+              is io.github.mojri.hesabyar.ui.AdvisorUIState.Error -> {
+                HesabyarCard(
+                  modifier = Modifier.fillMaxWidth(),
+                  shape = ShapeTokens.XLarge,
+                  cardColors =
+                    CardDefaults.cardColors(
+                      containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                  contentPadding = PaddingValues(SpacingTokens.xl)
+                ) {
+                  Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+                  ) {
+                    Icon(
+                      imageVector = Icons.Filled.Error,
+                      contentDescription = null,
+                      tint = MaterialTheme.colorScheme.onErrorContainer,
+                      modifier = Modifier.size(44.dp)
+                    )
+                    Text(
+                      text = "خطا در تنظیم و ارزیابی عادات مالی",
+                      style = MaterialTheme.typography.titleMedium,
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                      text = state.message,
+                      style = MaterialTheme.typography.bodyMedium,
+                      color = MaterialTheme.colorScheme.onErrorContainer,
+                      textAlign = TextAlign.Center
+                    )
+                    HesabyarButton(
+                      onClick = {
+                        aiAssistantViewModel.fetchBudgetAdvice(
+                          dashboardViewModel.transactions.value,
+                          dashboardViewModel.loans.value,
+                          dashboardViewModel.installments.value,
+                          dashboardViewModel.categories.value,
+                          aiAssistantViewModel.isOnlineMode.value,
+                          dashboardViewModel.bankLoans.value,
+                          forceRefresh = true
+                        )
+                      },
+                      text = "تلاش مجدد",
+                      modifier = Modifier.fillMaxWidth(),
+                      colors =
+                        ButtonDefaults.buttonColors(
+                          containerColor = MaterialTheme.colorScheme.error
+                        )
+                    )
+                  }
                 }
               }
             }
@@ -859,7 +894,7 @@ fun ParsedResultCard(
   HesabyarCard(
     modifier = modifier.fillMaxWidth(),
     shape = ShapeTokens.XLarge,
-    elevation = ElevationTokens.md,
+    elevation = ElevationTokens.Level0,
     contentPadding = PaddingValues(SpacingTokens.xl)
   ) {
     Column(
@@ -872,12 +907,23 @@ fun ParsedResultCard(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text(
-          text = "✏️ ویرایش و تایید نهایی تراکنش",
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary
-        )
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+        ) {
+          Icon(
+            imageVector = Icons.Filled.Edit,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(Dimens.IconMedium)
+          )
+          Text(
+            text = "ویرایش و تایید نهایی تراکنش",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+          )
+        }
 
         IconButton(
           onClick = onCancel,
@@ -926,7 +972,7 @@ fun ParsedResultCard(
       if (!result.notes.isNullOrBlank()) {
         HesabyarCard(
           modifier = Modifier.fillMaxWidth(),
-          cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+          cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
           contentPadding = PaddingValues(SpacingTokens.md)
         ) {
           Text(
@@ -937,7 +983,7 @@ fun ParsedResultCard(
         }
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
       // Scrollable Form Content Container
       Column(
@@ -953,7 +999,7 @@ fun ParsedResultCard(
           Text(
             text = "نوع تراکنش شناسایی شده:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Row(
             modifier =
@@ -992,11 +1038,6 @@ fun ParsedResultCard(
 
         // 2. Amount Input Field
         Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          Text(
-            text = "مبلغ استخراج شده (${CurrencyFormatter.unitLabel}):",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-          )
           OutlinedTextField(
             value = amountValue,
             onValueChange = { amountValue = it },
@@ -1005,6 +1046,7 @@ fun ParsedResultCard(
                 .fillMaxWidth()
                 .testTag("parsed_amount_input"),
             shape = ShapeTokens.Medium,
+            label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
             leadingIcon = {
               Icon(
                 imageVector = Icons.Filled.AttachMoney,
@@ -1043,7 +1085,7 @@ fun ParsedResultCard(
           Text(
             text = "دسته‌بندی مربوطه:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Row(
             modifier =
@@ -1065,15 +1107,11 @@ fun ParsedResultCard(
 
         // 4. Description Field
         Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          Text(
-            text = "شرح یا توضیح تراکنش:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-          )
           HesabyarInputField(
             value = descriptionText,
             onValueChange = { descriptionText = it },
             modifier = Modifier.testTag("parsed_description_input"),
+            label = "شرح یا توضیح تراکنش",
             shape = ShapeTokens.Medium
           )
         }
@@ -1087,15 +1125,11 @@ fun ParsedResultCard(
         // 5. Conditional Person Name Field (Loans)
         if (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") {
           Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-            Text(
-              text = "طرف حساب (شخص مربوطه):",
-              style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
             HesabyarInputField(
               value = personNameText,
               onValueChange = { personNameText = it },
               modifier = Modifier.testTag("parsed_person_input"),
+              label = "طرف حساب (شخص مربوطه)",
               placeholder = "مثلا: علی محمودی",
               shape = ShapeTokens.Medium
             )
@@ -1106,30 +1140,22 @@ fun ParsedResultCard(
         if (selectedType == "INSTALLMENT") {
           Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
             Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-              Text(
-                text = "عنوان قسط:",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-              )
               HesabyarInputField(
                 value = titleText,
                 onValueChange = { titleText = it },
                 modifier = Modifier.testTag("parsed_title_input"),
+                label = "عنوان قسط",
                 placeholder = "مثلا: قسط بانک مسکن",
                 shape = ShapeTokens.Medium
               )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-              Text(
-                text = "فاصله تا موعد پرداخت (روز):",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-              )
               HesabyarInputField(
                 value = daysFromNowText,
                 onValueChange = { daysFromNowText = it },
                 modifier = Modifier.testTag("parsed_days_input"),
+                label = "فاصله تا موعد پرداخت (روز)",
                 placeholder = "پیش‌فرض ۳۰ روز دیگر",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = ShapeTokens.Medium
@@ -1331,7 +1357,7 @@ fun ConfirmationDialog(
         if (!result.notes.isNullOrBlank()) {
           HesabyarCard(
             modifier = Modifier.fillMaxWidth(),
-            cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             contentPadding = PaddingValues(SpacingTokens.sm)
           ) {
             Text(
@@ -1351,12 +1377,23 @@ fun ConfirmationDialog(
               ),
             contentPadding = PaddingValues(SpacingTokens.sm)
           ) {
-            Text(
-              text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
-              color = FinancialColors.ExpenseRed,
-              style = MaterialTheme.typography.bodySmall,
-              fontWeight = FontWeight.Bold
-            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+            ) {
+              Icon(
+                imageVector = Icons.Filled.Warning,
+                contentDescription = null,
+                tint = FinancialColors.ExpenseRed,
+                modifier = Modifier.size(Dimens.IconSmall)
+              )
+              Text(
+                text = "اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
+                color = FinancialColors.ExpenseRed,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+              )
+            }
           }
         }
       }
