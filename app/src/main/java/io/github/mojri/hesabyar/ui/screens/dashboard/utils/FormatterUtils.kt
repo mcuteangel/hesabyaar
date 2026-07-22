@@ -3,6 +3,9 @@ package io.github.mojri.hesabyar.ui.screens.dashboard.utils
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import java.util.*
 
+private const val LINE_PREVIEW_MAX_LENGTH = 60
+private const val PREVIEW_MAX_LENGTH = 150
+
 internal fun formatPersianDate(timestamp: Long): String {
   val jalali = JalaliCalendarHelper.gregorianToJalali(timestamp)
   val cal = Calendar.getInstance()
@@ -31,11 +34,15 @@ internal fun extractForecastPreview(forecast: String): String {
 
   val preview =
     contentLines.take(3).joinToString(" | ") { line ->
-      if (line.length > 60) line.substring(0, 60).substringBeforeLast(" ") + "..." else line
+      if (line.length > LINE_PREVIEW_MAX_LENGTH) {
+        line.substring(0, LINE_PREVIEW_MAX_LENGTH).substringBeforeLast(" ") + "..."
+      } else {
+        line
+      }
     }
 
-  return if (preview.length > 150) {
-    preview.substring(0, 150).substringBeforeLast(" ") + "..."
+  return if (preview.length > PREVIEW_MAX_LENGTH) {
+    preview.substring(0, PREVIEW_MAX_LENGTH).substringBeforeLast(" ") + "..."
   } else {
     preview
   }

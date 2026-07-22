@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.runtime.Composable
 
 @Composable

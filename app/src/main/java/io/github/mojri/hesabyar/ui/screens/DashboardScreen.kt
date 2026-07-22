@@ -1,12 +1,27 @@
 package io.github.mojri.hesabyar.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -24,8 +39,19 @@ import io.github.mojri.hesabyar.ui.components.EmptyState
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.components.*
-import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.*
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.BankLoansSummaryCard
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.DashboardHeader
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.DebtorCreditorCards
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.IncomeExpenseCards
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.InstallmentMiniItem
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.KpiCards
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.SmartForecastCard
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.SmartParsingBanner
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.TransactionMiniItem
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.entranceCard
+import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ForecastDetailDialog
+import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ManualTransactionDialog
+import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDialog
 
 @Composable
 fun DashboardScreen(
