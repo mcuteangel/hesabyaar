@@ -136,7 +136,7 @@ fun ReportsScreen(
           Modifier
             .fillMaxWidth()
             .clip(ShapeTokens.Medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(SpacingTokens.sm),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
@@ -245,7 +245,7 @@ fun ReportsScreen(
             )
           }
 
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
           Row(
             modifier = Modifier.fillMaxWidth(),
@@ -278,7 +278,7 @@ fun ReportsScreen(
         shape = ShapeTokens.XLarge,
         cardColors =
           CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
           )
       ) {
         Column(
@@ -504,7 +504,7 @@ fun ReportsScreen(
           shape = ShapeTokens.Medium,
           cardColors =
             CardDefaults.cardColors(
-              containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+              containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
           contentPadding = PaddingValues(SpacingTokens.xl)
         ) {
@@ -573,7 +573,7 @@ fun ReportsScreen(
               Text(
                 text = "$percent٪ | " + CurrencyFormatter.format(total),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
               )
             }
 
@@ -691,7 +691,7 @@ fun ReportsScreen(
                   FinancialColors.ExpenseRed
                 }
             )
-            IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف تراکنش",

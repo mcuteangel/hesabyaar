@@ -123,19 +123,13 @@ fun HesabyarDialog(
         }
 
         HorizontalDivider(
-          color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+          color = MaterialTheme.colorScheme.surfaceContainer
         )
-
-        val bodyModifier =
-          if (heightFraction != null) {
-            Modifier.weight(1f, fill = false)
-          } else {
-            Modifier
-          }
 
         Column(
           modifier =
-            bodyModifier
+            Modifier
+              .weight(1f, fill = false)
               .fillMaxWidth()
               .verticalScroll(rememberScrollState())
               .padding(vertical = SpacingTokens.lg),

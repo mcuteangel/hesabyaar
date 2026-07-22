@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +50,7 @@ fun ConfirmDialog(
     },
     text = { Text(text = message) },
     confirmButton = {
-      TextButton(onClick = onConfirm) {
+      OutlinedButton(onClick = onConfirm) {
         Text(text = confirmText, color = confirmColor)
       }
     },

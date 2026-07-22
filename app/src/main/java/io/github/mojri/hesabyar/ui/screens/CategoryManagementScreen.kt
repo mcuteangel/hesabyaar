@@ -37,7 +37,6 @@ import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 private val CATEGORY_ICONS =
   mapOf(
@@ -172,8 +171,7 @@ fun CategoryManagementScreen(
       LazyColumn(
         modifier =
           modifier
-            .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(innerPadding),
         contentPadding = PaddingValues(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
@@ -496,9 +494,9 @@ private fun CategoryDialog(
                     .clip(ShapeTokens.Small)
                     .background(
                       if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                       } else {
-                        MaterialTheme.colorScheme.surfaceContainerLowest
+                        MaterialTheme.colorScheme.surfaceContainerLow
                       }
                     ).clickable { selectedIcon = iconName },
                 contentAlignment = Alignment.Center
@@ -524,7 +522,7 @@ private fun CategoryDialog(
             Modifier
               .fillMaxWidth()
               .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+              .background(MaterialTheme.colorScheme.surfaceContainerLow)
               .padding(SpacingTokens.md),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)

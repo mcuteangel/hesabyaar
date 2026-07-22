@@ -1,8 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -11,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,10 +18,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -64,26 +61,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
-import kotlinx.coroutines.delay
 import java.util.*
-
-private const val DIALOG_EXIT_MS = 300L
-
-@Composable
-private fun entranceCard(content: @Composable () -> Unit) {
-  AnimatedVisibility(
-    visible = true,
-    enter =
-      fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-        slideInVertically(
-          animationSpec = spring(stiffness = Spring.StiffnessMedium),
-          initialOffsetY = { it / 12 }
-        )
-  ) {
-    content()
-  }
-}
 
 private val CATEGORY_ICONS_MAP =
   mapOf(
@@ -158,20 +136,16 @@ fun DashboardScreen(
     aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
-  Box(
-    modifier = modifier.fillMaxSize(),
-    contentAlignment = Alignment.TopCenter
-  ) {
+  Box(modifier = modifier.fillMaxSize()) {
     LazyColumn(
       modifier =
         Modifier
-          .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-          .fillMaxWidth()
+          .fillMaxSize()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.BottomNavClearance)
+      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
     ) {
-      item { entranceCard { DashboardHeader(settingsViewModel) } }
+      item { DashboardHeader(settingsViewModel) }
 
       // Wallet Balance Card
       item {
@@ -196,14 +170,30 @@ fun DashboardScreen(
         }
       }
 
-      item { entranceCard { IncomeExpenseCards(dashboardData) } }
+      item {
+        entranceCard {
+          IncomeExpenseCards(dashboardData)
+        }
+      }
 
-      item { entranceCard { KpiCards(dashboardData) } }
+      item {
+        entranceCard {
+          KpiCards(dashboardData)
+        }
+      }
 
       // Debtors and Creditors summary Row
-      item { entranceCard { DebtorCreditorCards(dashboardData) } }
+      item {
+        entranceCard {
+          DebtorCreditorCards(dashboardData)
+        }
+      }
 
-      item { entranceCard { SmartParsingBanner(onNavigateToAssistant) } }
+      item {
+        entranceCard {
+          SmartParsingBanner(onNavigateToAssistant)
+        }
+      }
 
       // Upcoming Installments Header
       item {
@@ -240,7 +230,7 @@ fun DashboardScreen(
       }
 
       // Bank Loans Summary
-      item { entranceCard { BankLoansSummaryCard(dashboardData) } }
+      item { BankLoansSummaryCard(dashboardData) }
 
       // Recent Activity Banner
       item {
@@ -391,6 +381,7 @@ fun InstallmentMiniItem(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
+    shape = ShapeTokens.Large,
     cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
   ) {
     Row(
@@ -433,8 +424,8 @@ fun InstallmentMiniItem(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
-        shape = ShapeTokens.Full,
-        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xxs)
+        shape = ShapeTokens.Small,
+        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)
       }
@@ -461,7 +452,7 @@ fun TransactionMiniItem(
         .fillMaxWidth()
         .clickable(onClick = onClick),
     shape = ShapeTokens.Medium,
-    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -504,7 +495,7 @@ fun TransactionMiniItem(
           fontWeight = FontWeight.Bold,
           color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
         )
-        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
@@ -548,7 +539,7 @@ fun ForecastDetailDialog(
             Text(
               text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
               style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+              color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
@@ -568,7 +559,7 @@ fun ForecastDetailDialog(
           Text(
             text = state.message,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Spacer(modifier = Modifier.height(SpacingTokens.lg))
           Button(onClick = onRefresh) {
@@ -578,12 +569,7 @@ fun ForecastDetailDialog(
       }
       is ForecastUIState.Success -> {
         Column(modifier = Modifier.fillMaxSize()) {
-          Column(
-            modifier =
-              Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-          ) {
+          Column(modifier = Modifier.weight(1f)) {
             MarkdownText(text = state.forecast)
           }
           Spacer(modifier = Modifier.height(SpacingTokens.md))
@@ -610,13 +596,6 @@ fun ForecastDetailDialog(
           HesabyarButton(onClick = onRefresh, text = "دریافت پیش‌بینی")
         }
       }
-    }
-  }
-  val onDismissState = rememberUpdatedState(onDismiss)
-  LaunchedEffect(visible) {
-    if (!visible) {
-      delay(DIALOG_EXIT_MS)
-      onDismissState.value()
     }
   }
 }
@@ -794,7 +773,6 @@ fun ManualTransactionDialog(
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
 ) {
-  var visible by remember { mutableStateOf(true) }
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
@@ -949,10 +927,17 @@ fun ManualTransactionDialog(
                 return@Button
               }
               val desc = descriptionText.trim()
+              val daysOffset = daysFromNowText.toLongOrNull()
+              val dueDate =
+                if (daysOffset != null && daysOffset > 0) {
+                  System.currentTimeMillis() + daysOffset * 24 * 60 * 60 * 1000
+                } else {
+                  customDate
+                }
               installmentViewModel.addInstallment(
                 title = title,
                 amount = finalAmountRial,
-                dueDate = customDate,
+                dueDate = dueDate,
                 reminderEnabled = true,
                 notes = desc
               )
@@ -976,7 +961,7 @@ fun ManualTransactionDialog(
       Text(
         text = "نوع تراکنش / تعهد مالی:",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
       Row(
         modifier =
@@ -986,13 +971,20 @@ fun ManualTransactionDialog(
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
         val types =
-          listOf(
-            Pair("EXPENSE", "هزینه"),
-            Pair("INCOME", "درآمد"),
-            Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
-            Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-            Pair("INSTALLMENT", "قسط")
-          )
+          if (isEditMode) {
+            listOf(
+              Pair("EXPENSE", "هزینه"),
+              Pair("INCOME", "درآمد")
+            )
+          } else {
+            listOf(
+              Pair("EXPENSE", "هزینه"),
+              Pair("INCOME", "درآمد"),
+              Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
+              Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
+              Pair("INSTALLMENT", "قسط")
+            )
+          }
         types.forEach { (typeKey, typeLabel) ->
           val isSelected = selectedType == typeKey
           val chipColor =
@@ -1048,7 +1040,7 @@ fun ManualTransactionDialog(
       Text(
         text = "مبلغ (${CurrencyFormatter.unitLabel}):",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
       OutlinedTextField(
         value = amountValue,
@@ -1106,7 +1098,7 @@ fun ManualTransactionDialog(
         Text(
           text = "دسته‌بندی مربوطه:",
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(
           modifier =
@@ -1156,7 +1148,7 @@ fun ManualTransactionDialog(
         Text(
           text = "طرف حساب (شخص مربوطه):",
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         OutlinedTextField(
           value = personNameText,
@@ -1186,7 +1178,7 @@ fun ManualTransactionDialog(
           Text(
             text = "عنوان قسط:",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           OutlinedTextField(
             value = titleText,
@@ -1209,7 +1201,7 @@ fun ManualTransactionDialog(
           Text(
             text = "فاصله تا موعد پرداخت (روز):",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           OutlinedTextField(
             value = daysFromNowText,
@@ -1238,7 +1230,7 @@ fun ManualTransactionDialog(
       Text(
         text = "شرح یا توضیح تراکنش:",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
       OutlinedTextField(
         value = descriptionText,
@@ -1257,13 +1249,6 @@ fun ManualTransactionDialog(
         },
         singleLine = true
       )
-    }
-  }
-  val onDismissState = rememberUpdatedState(onDismiss)
-  LaunchedEffect(visible) {
-    if (!visible) {
-      delay(DIALOG_EXIT_MS)
-      onDismissState.value()
     }
   }
 }
@@ -1317,26 +1302,17 @@ fun JalaliDateTimePicker(
     modifier =
       Modifier
         .fillMaxWidth()
+        .clip(ShapeTokens.Large)
+        .background(MaterialTheme.colorScheme.surfaceContainerLow)
         .padding(SpacingTokens.md),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
-    Row(
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-    ) {
-      Icon(
-        imageVector = Icons.Default.CalendarMonth,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(Dimens.IconSmall)
-      )
-      Text(
-        text = "تنظیم تاریخ و ساعت (شمسی):",
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-      )
-    }
+    Text(
+      text = "📅 تنظیم تاریخ و ساعت (شمسی):",
+      style = MaterialTheme.typography.labelMedium,
+      fontWeight = FontWeight.Bold,
+      color = MaterialTheme.colorScheme.primary
+    )
 
     Row(
       modifier = Modifier.fillMaxWidth(),
@@ -1349,7 +1325,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1.3f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Full,
+        shape = ShapeTokens.Medium,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1373,7 +1349,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Full,
+        shape = ShapeTokens.Medium,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1390,5 +1366,15 @@ fun JalaliDateTimePicker(
         )
       }
     }
+  }
+}
+
+@Composable
+private fun entranceCard(content: @Composable () -> Unit) {
+  AnimatedVisibility(
+    visible = true,
+    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 12 })
+  ) {
+    content()
   }
 }

@@ -33,7 +33,6 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 @Composable
 fun AnalyticsScreen(
@@ -45,8 +44,7 @@ fun AnalyticsScreen(
   LazyColumn(
     modifier =
       modifier
-        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-        .fillMaxWidth()
+        .fillMaxSize()
         .padding(horizontal = SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
     contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = SpacingTokens.xl)
@@ -426,7 +424,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
             Text(
               text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
           }
         }
@@ -530,7 +528,7 @@ private fun DebtCreditSummaryCard(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -621,7 +619,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -817,7 +815,7 @@ private fun InstallmentProgressCard(
         // List of unpaid installments
         val unpaid = installments.filter { !it.isPaid }.take(5)
         if (unpaid.isNotEmpty()) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
           Text(
             text = "اقساط پرداخت نشده:",
             style = MaterialTheme.typography.labelMedium,
@@ -829,7 +827,7 @@ private fun InstallmentProgressCard(
                 Modifier
                   .fillMaxWidth()
                   .clip(ShapeTokens.Small)
-                  .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                  .background(MaterialTheme.colorScheme.surfaceContainerLow)
                   .padding(SpacingTokens.sm),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
@@ -863,7 +861,6 @@ private fun CircularProgress(
     animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
     label = "progress"
   )
-  val outlineVariant = MaterialTheme.colorScheme.outlineVariant
 
   Canvas(modifier = modifier) {
     val diameter = minOf(size.width, size.height) - strokeWidth
@@ -876,7 +873,7 @@ private fun CircularProgress(
 
     // Background arc
     drawArc(
-      color = outlineVariant,
+      color = Color.LightGray.copy(alpha = 0.3f),
       startAngle = -90f,
       sweepAngle = 360f,
       useCenter = false,

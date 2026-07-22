@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -57,12 +59,13 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
         Text(
           text = "حسابیار هوشمند",
           style = MaterialTheme.typography.titleMedium,
-          color = MaterialTheme.colorScheme.onSurface
+          fontWeight = FontWeight.Bold,
+          color = MaterialTheme.colorScheme.onBackground
         )
         Text(
           text = "دستیار مالی هوشمند شما",
           style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
+          color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
         )
       }
     }
@@ -71,7 +74,7 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
       onClick = { settingsViewModel.toggleDarkMode() },
       modifier =
         Modifier
-          .background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape)
+          .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape)
           .size(Dimens.ButtonHeight)
     ) {
       Icon(
@@ -97,9 +100,10 @@ internal fun SmartForecastCard(
         .fillMaxWidth()
         .testTag("budget_forecast_alert_card")
         .clickable { onShowForecast() },
+    shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.secondaryContainer
+        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
       )
   ) {
     Row(
@@ -116,6 +120,7 @@ internal fun SmartForecastCard(
         Text(
           text = "پیش‌بینی بودجه ماه آینده",
           style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.primary
         )
         when (val state = forecastState) {
@@ -140,7 +145,7 @@ internal fun SmartForecastCard(
               Text(
                 text = preview,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
               )
@@ -180,7 +185,7 @@ internal fun SmartForecastCard(
     Button(
       onClick = onShowForecast,
       modifier = Modifier.fillMaxWidth(),
-      shape = ShapeTokens.Full,
+      shape = ShapeTokens.Medium,
       colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
       Icon(
@@ -189,7 +194,7 @@ internal fun SmartForecastCard(
         modifier = Modifier.size(Dimens.IconSmall)
       )
       Spacer(modifier = Modifier.width(SpacingTokens.sm))
-      Text("مشاهده گزارش کامل")
+      Text("مشاهده گزارش کامل", fontWeight = FontWeight.Bold)
     }
   }
 }
@@ -204,6 +209,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
   ) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -237,6 +243,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
 
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -272,17 +279,16 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
 
 @Composable
 internal fun KpiCards(dashboardData: DashboardData) {
-  FlowRow(
+  Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
-    maxItemsInEachRow = 2
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+          containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
@@ -317,9 +323,10 @@ internal fun KpiCards(dashboardData: DashboardData) {
 
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+          containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
@@ -356,17 +363,16 @@ internal fun KpiCards(dashboardData: DashboardData) {
 
 @Composable
 internal fun DebtorCreditorCards(dashboardData: DashboardData) {
-  FlowRow(
+  Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
-    maxItemsInEachRow = 2
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+          containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
       Column(
@@ -387,21 +393,22 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           Box(
             modifier =
               Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
                 .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
               text = "بدهکاران",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurface
+              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+              color = MaterialTheme.colorScheme.onSurface,
+              fontWeight = FontWeight.Bold
             )
           }
         }
         Spacer(modifier = Modifier.height(SpacingTokens.lg))
         Text(
           text = CurrencyFormatter.format(dashboardData.debtorsTotal),
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
+          style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+          fontWeight = FontWeight.ExtraBold,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
@@ -411,9 +418,10 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
 
     HesabyarCard(
       modifier = Modifier.weight(1f),
+      shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+          containerColor = FinancialColors.WarningOrange.copy(alpha = 0.15f)
         )
     ) {
       Column(
@@ -434,21 +442,22 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           Box(
             modifier =
               Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
                 .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
               text = "طلبکاران",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurface
+              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+              color = MaterialTheme.colorScheme.onSurface,
+              fontWeight = FontWeight.Bold
             )
           }
         }
         Spacer(modifier = Modifier.height(SpacingTokens.lg))
         Text(
           text = CurrencyFormatter.format(dashboardData.creditorsTotal),
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
+          style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+          fontWeight = FontWeight.ExtraBold,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
@@ -465,9 +474,10 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
       Modifier
         .fillMaxWidth()
         .clickable { onNavigateToAssistant() },
+    shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
       )
   ) {
     Row(
@@ -492,12 +502,13 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
           Text(
             text = "تحلیل هوشمند تراکنش",
             style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
           )
           Text(
             text = "جمله بنویسید یا صحبت کنید تا خودکار ثبت شود!",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
           )
         }
       }
@@ -522,7 +533,8 @@ internal fun BankLoansSummaryCard(dashboardData: DashboardData) {
       ) {
         Text(
           text = "بدهی وام‌های بانکی",
-          style = MaterialTheme.typography.titleMedium
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.Bold
         )
         Text(
           text = CurrencyFormatter.format(dashboardData.bankLoansTotal),

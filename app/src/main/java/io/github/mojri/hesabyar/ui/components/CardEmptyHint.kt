@@ -36,6 +36,6 @@ fun CardEmptyHint(
         .padding(SpacingTokens.lg),
     textAlign = TextAlign.Center,
     style = MaterialTheme.typography.bodyMedium,
-    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+    color = MaterialTheme.colorScheme.onSurfaceVariant
   )
 }

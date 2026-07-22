@@ -36,7 +36,6 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 
 @Composable
@@ -50,7 +49,7 @@ private fun LoanTypeSelector(
       modifier
         .fillMaxWidth()
         .clip(ShapeTokens.Small)
-        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+        .background(MaterialTheme.colorScheme.surfaceVariant)
         .padding(SpacingTokens.xs)
   ) {
     HesabyarButton(
@@ -95,8 +94,7 @@ fun LoanManagementScreen(
   Column(
     modifier =
       modifier
-        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-        .fillMaxWidth()
+        .fillMaxSize()
         .padding(SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
   ) {
@@ -165,7 +163,7 @@ fun LoanManagementScreen(
                 Icons.Filled.ArrowCircleUp
               },
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
             modifier = Modifier.size(64.dp)
           )
           Text(
@@ -401,7 +399,7 @@ fun LoanListItem(
       CardDefaults.cardColors(
         containerColor =
           if (loan.isSettled) {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainer
           } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
           }
@@ -495,7 +493,7 @@ fun LoanListItem(
               .padding(top = SpacingTokens.md),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
           Text(
             text = "📝 تاریخچه بازپرداخت‌ها:",
@@ -517,7 +515,7 @@ fun LoanListItem(
                   Modifier
                     .fillMaxWidth()
                     .clip(ShapeTokens.Small)
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding(SpacingTokens.sm),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -571,13 +569,13 @@ fun LoanListItem(
               onClick = onEdit,
               modifier =
                 Modifier
-                  .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                  .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape)
                   .size(Dimens.AvatarMedium)
             ) {
               Icon(
                 imageVector = Icons.Filled.Edit,
                 contentDescription = "ویرایش قرض",
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = MaterialTheme.colorScheme.primary
               )
             }
 

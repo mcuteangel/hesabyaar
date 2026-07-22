@@ -107,7 +107,7 @@ fun CustomTimePickerDialog(
           .fillMaxWidth()
           .widthIn(max = 350.dp),
       shape = ShapeTokens.XLarge,
-      elevation = ElevationTokens.Level3,
+      elevation = ElevationTokens.md,
       contentPadding = PaddingValues(0.dp)
     ) {
       Column(
@@ -134,7 +134,7 @@ fun CustomTimePickerDialog(
               Modifier
                 .fillMaxWidth()
                 .background(
-                  color = MaterialTheme.colorScheme.surfaceContainerLow,
+                  color = MaterialTheme.colorScheme.surfaceContainer,
                   shape = ShapeTokens.Large
                 ).padding(SpacingTokens.sm),
             horizontalArrangement = Arrangement.Center,

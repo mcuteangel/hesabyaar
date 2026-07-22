@@ -265,7 +265,7 @@ fun SettingsScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.XLarge)
-          .background(MaterialTheme.colorScheme.surfaceContainerLow)
+          .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
           .padding(SpacingTokens.xl)
     ) {
       Column(
@@ -286,7 +286,7 @@ fun SettingsScreen(
           color = MaterialTheme.colorScheme.primary
         )
         Text(
-          text = "نسخه ${BuildConfig.VERSION_NAME} | توسعه‌دهنده: mcuteangel",
+          text = "نسخه ${BuildConfig.VERSION_NAME} | توسعهدهنده: mcuteangel",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -313,7 +313,7 @@ fun SettingsScreen(
               .fillMaxWidth()
               .clickable { onNavigateToCategories() }
               .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerLow)
+              .background(MaterialTheme.colorScheme.surfaceContainerLowest)
               .padding(SpacingTokens.md),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
@@ -342,7 +342,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -367,7 +367,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         // Currency unit selector
         Row(
@@ -398,11 +398,11 @@ fun SettingsScreen(
           }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         ReminderSettingsSection(settingsViewModel = settingsViewModel)
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         SecuritySection(context = context, settingsViewModel = settingsViewModel)
       }
@@ -562,7 +562,7 @@ fun SecuritySection(
   }
 
   if (isPinSet) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
     Row(
       modifier =
@@ -869,8 +869,10 @@ fun DebugLogsSection() {
               .fillMaxWidth()
               .heightIn(max = 300.dp)
               .verticalScroll(rememberScrollState())
-              .background(MaterialTheme.colorScheme.surfaceContainerLow, ShapeTokens.Small)
-              .padding(SpacingTokens.sm),
+              .background(
+                MaterialTheme.colorScheme.surfaceContainerLow,
+                ShapeTokens.Small
+              ).padding(SpacingTokens.sm),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
         ) {
           logs.reversed().forEach { entry ->
@@ -879,7 +881,7 @@ fun DebugLogsSection() {
                 "E" -> MaterialTheme.colorScheme.error
                 "W" -> MaterialTheme.colorScheme.tertiary
                 "I" -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
               }
             Text(
               text = entry.formatted(),
@@ -1024,9 +1026,9 @@ fun ConfigItem(
         .clip(ShapeTokens.Medium)
         .background(
           if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
           } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainerLowest
           }
         ).clickable { onSelect() }
         .padding(SpacingTokens.md),
@@ -1172,7 +1174,7 @@ fun AiConfigDialog(
       Text(
         text = "ارائه‌دهنده:",
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
       ExposedDropdownMenuBox(
         expanded = providerDropdownExpanded,
@@ -1281,7 +1283,7 @@ fun AiConfigDialog(
         Text(
           text = "انتخاب مدل (${fetchedModels.size} مدل موجود):",
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         // Search field
@@ -1486,7 +1488,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
     }
 
     if (config.masterEnabled) {
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Installment reminders toggle
       Row(
@@ -1546,7 +1548,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Days before due
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
@@ -1597,7 +1599,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         }
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Reminder time
       Row(
@@ -1686,7 +1688,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Loan reminder interval
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
