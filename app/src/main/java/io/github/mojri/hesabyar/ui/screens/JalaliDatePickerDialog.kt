@@ -112,7 +112,7 @@ fun JalaliDatePickerDialog(
           .fillMaxWidth()
           .widthIn(max = 380.dp),
       shape = ShapeTokens.XLarge,
-      elevation = ElevationTokens.md,
+      elevation = ElevationTokens.Level2,
       contentPadding = PaddingValues(0.dp)
     ) {
       Column(
