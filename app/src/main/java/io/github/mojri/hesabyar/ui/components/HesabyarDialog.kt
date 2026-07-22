@@ -83,7 +83,7 @@ fun HesabyarDialog(
           ),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
-      tonalElevation = ElevationTokens.Level4
+      tonalElevation = ElevationTokens.Level3
     ) {
       Column(
         modifier = Modifier.padding(SpacingTokens.xl)
