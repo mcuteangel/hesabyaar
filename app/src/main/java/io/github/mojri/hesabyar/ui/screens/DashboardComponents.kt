@@ -113,7 +113,7 @@ internal fun SmartForecastCard(
     ) {
       IconCircle(
         icon = Icons.Filled.AutoAwesome,
-        backgroundAlpha = 0.12f,
+        backgroundColor = MaterialTheme.colorScheme.primaryContainer,
         iconSize = 18.dp
       )
       Column(modifier = Modifier.weight(1f)) {
@@ -279,9 +279,11 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
 
 @Composable
 internal fun KpiCards(dashboardData: DashboardData) {
-  Row(
+  FlowRow(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    maxItemsInEachRow = 2
   ) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
@@ -363,9 +365,11 @@ internal fun KpiCards(dashboardData: DashboardData) {
 
 @Composable
 internal fun DebtorCreditorCards(dashboardData: DashboardData) {
-  Row(
+  FlowRow(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+    maxItemsInEachRow = 2
   ) {
     HesabyarCard(
       modifier = Modifier.weight(1f),

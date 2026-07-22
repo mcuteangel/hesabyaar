@@ -1011,6 +1011,7 @@ fun ManualTransactionDialog(
                   selectedCategoryId =
                     when (typeKey) {
                       "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                      "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
                       "LOAN_DEBTOR", "LOAN_CREDITOR" ->
                         categories.find { it.key == "Loans" }?.id
                           ?: 1L

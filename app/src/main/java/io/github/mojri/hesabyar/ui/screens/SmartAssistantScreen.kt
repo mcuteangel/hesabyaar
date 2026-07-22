@@ -1128,7 +1128,13 @@ fun ParsedResultCard(
               )
               HesabyarInputField(
                 value = daysFromNowText,
-                onValueChange = { daysFromNowText = it },
+                onValueChange = {
+                  daysFromNowText = it
+                  val days = it.toLongOrNull()
+                  if (days != null && days > 0) {
+                    customDate = System.currentTimeMillis() + days * 24 * 60 * 60 * 1000
+                  }
+                },
                 modifier = Modifier.testTag("parsed_days_input"),
                 placeholder = "پیش‌فرض ۳۰ روز دیگر",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
