@@ -39,6 +39,7 @@ import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
@@ -110,7 +111,11 @@ private fun BankLoanItem(
 ) {
   var showDeleteConfirm by remember { mutableStateOf(false) }
   if (showDeleteConfirm) {
-    bankLoanDeleteConfirmDialog(
+    ConfirmDialog(
+      title = "حذف وام بانکی",
+      message = "آیا از حذف این وام و اقساط تولید شده اطمینان دارید؟ این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
       onDismiss = { showDeleteConfirm = false },
       onConfirm = {
         showDeleteConfirm = false
@@ -182,24 +187,6 @@ private fun bankLoanDetailRows(loan: BankLoan) {
   if (loan.description.isNotBlank()) {
     Text("توضیحات: ${loan.description}", style = MaterialTheme.typography.bodySmall)
   }
-}
-
-@Composable
-private fun bankLoanDeleteConfirmDialog(
-  onDismiss: () -> Unit,
-  onConfirm: () -> Unit
-) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    confirmButton = {
-      HesabyarButton(onClick = onConfirm, text = "حذف", variant = ButtonVariant.Outlined)
-    },
-    dismissButton = {
-      HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
-    },
-    title = { Text("حذف وام بانکی") },
-    text = { Text("آیا از حذف این وام و اقساط تولید شده اطمینان دارید؟ این عمل قابل بازگشت نیست.") }
-  )
 }
 
 @Composable

@@ -32,11 +32,11 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import java.util.*
 
 @Composable
@@ -58,8 +58,7 @@ fun InstallmentScreen(
   Column(
     modifier =
       modifier
-        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-        .fillMaxWidth()
+        .fillMaxSize()
         .padding(SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
   ) {
@@ -116,7 +115,7 @@ fun InstallmentScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.Medium)
-          .background(MaterialTheme.colorScheme.surfaceContainerLow)
+          .background(MaterialTheme.colorScheme.surfaceContainer)
           .padding(SpacingTokens.xs),
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
@@ -159,7 +158,7 @@ fun InstallmentScreen(
           Icon(
             imageVector = Icons.Filled.CreditCard,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
             modifier = Modifier.size(Dimens.AvatarLarge)
           )
           Text(
@@ -298,7 +297,7 @@ fun InstallmentListItem(
       CardDefaults.cardColors(
         containerColor =
           if (installment.isPaid) {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainer
           } else {
             MaterialTheme.colorScheme.surfaceContainerHigh
           }
@@ -313,20 +312,11 @@ fun InstallmentListItem(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Box(
-            modifier =
-              Modifier
-                .size(Dimens.AvatarSmall)
-                .background(colorAccent.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
-              contentDescription = null,
-              tint = colorAccent,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
-          }
+          IconCircle(
+            icon = if (installment.isPaid) Icons.Filled.CheckCircle else Icons.Filled.PendingActions,
+            tint = colorAccent,
+            backgroundColor = colorAccent
+          )
           Spacer(modifier = Modifier.width(SpacingTokens.md))
           Column {
             Text(
@@ -380,16 +370,17 @@ fun InstallmentListItem(
           onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
           colors =
             ButtonDefaults.buttonColors(
-              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceContainerLow else colorAccent,
+              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
               contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
             ),
-          shape = ShapeTokens.Full,
+          shape = ShapeTokens.Small,
           contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),
           elevation = null
         ) {
           Text(
             text = if (installment.isPaid) "پرداخت شده" else "علامت پرداخت",
-            style = MaterialTheme.typography.labelSmall
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
           )
         }
       }
@@ -403,13 +394,13 @@ fun InstallmentListItem(
           modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
           if (installment.notes.isNotBlank()) {
             Text(
               text = "📝 یادداشت: ${installment.notes}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
               lineHeight = 16.sp
             )
           }

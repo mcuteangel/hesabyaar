@@ -1,8 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -10,9 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,10 +18,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -35,7 +31,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
@@ -55,35 +50,18 @@ import io.github.mojri.hesabyar.ui.TransactionAmountResolver
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.BalanceCard
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.EmptyState
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
-import kotlinx.coroutines.delay
 import java.util.*
-
-private const val DIALOG_EXIT_MS = 300L
-
-@Composable
-private fun entranceCard(content: @Composable () -> Unit) {
-  AnimatedVisibility(
-    visible = true,
-    enter =
-      fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-        slideInVertically(
-          animationSpec = spring(stiffness = Spring.StiffnessMedium),
-          initialOffsetY = { it / 12 }
-        )
-  ) {
-    content()
-  }
-}
 
 private val CATEGORY_ICONS_MAP =
   mapOf(
@@ -158,20 +136,16 @@ fun DashboardScreen(
     aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
-  Box(
-    modifier = modifier.fillMaxSize(),
-    contentAlignment = Alignment.TopCenter
-  ) {
+  Box(modifier = modifier.fillMaxSize()) {
     LazyColumn(
       modifier =
         Modifier
-          .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-          .fillMaxWidth()
+          .fillMaxSize()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.BottomNavClearance)
+      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
     ) {
-      item { entranceCard { DashboardHeader(settingsViewModel) } }
+      item { DashboardHeader(settingsViewModel) }
 
       // Wallet Balance Card
       item {
@@ -196,14 +170,30 @@ fun DashboardScreen(
         }
       }
 
-      item { entranceCard { IncomeExpenseCards(dashboardData) } }
+      item {
+        entranceCard {
+          IncomeExpenseCards(dashboardData)
+        }
+      }
 
-      item { entranceCard { KpiCards(dashboardData) } }
+      item {
+        entranceCard {
+          KpiCards(dashboardData)
+        }
+      }
 
       // Debtors and Creditors summary Row
-      item { entranceCard { DebtorCreditorCards(dashboardData) } }
+      item {
+        entranceCard {
+          DebtorCreditorCards(dashboardData)
+        }
+      }
 
-      item { entranceCard { SmartParsingBanner(onNavigateToAssistant) } }
+      item {
+        entranceCard {
+          SmartParsingBanner(onNavigateToAssistant)
+        }
+      }
 
       // Upcoming Installments Header
       item {
@@ -240,7 +230,7 @@ fun DashboardScreen(
       }
 
       // Bank Loans Summary
-      item { entranceCard { BankLoansSummaryCard(dashboardData) } }
+      item { BankLoansSummaryCard(dashboardData) }
 
       // Recent Activity Banner
       item {
@@ -308,7 +298,10 @@ fun DashboardScreen(
   }
 
   if (deletingTransaction != null) {
-    DeleteConfirmationDialog(
+    ConfirmDialog(
+      title = "حذف تراکنش",
+      message = "آیا از حذف این تراکنش اطمینان دارید؟",
+      confirmText = "حذف",
       onConfirm = {
         transactionViewModel.deleteTransaction(deletingTransaction!!)
         deletingTransaction = null
@@ -388,6 +381,7 @@ fun InstallmentMiniItem(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
+    shape = ShapeTokens.Large,
     cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
   ) {
     Row(
@@ -399,20 +393,12 @@ fun InstallmentMiniItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f)
       ) {
-        Box(
-          modifier =
-            Modifier
-              .size(Dimens.AvatarSmall)
-              .background(FinancialColors.WarningOrange.copy(alpha = 0.15f), CircleShape),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Filled.DateRange,
-            contentDescription = null,
-            tint = FinancialColors.WarningOrange,
-            modifier = Modifier.size(18.dp)
-          )
-        }
+        IconCircle(
+          icon = Icons.Filled.DateRange,
+          tint = FinancialColors.WarningOrange,
+          backgroundColor = FinancialColors.WarningOrange,
+          iconSize = 18.dp
+        )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {
           Text(
@@ -438,8 +424,8 @@ fun InstallmentMiniItem(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
-        shape = ShapeTokens.Full,
-        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xxs)
+        shape = ShapeTokens.Small,
+        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)
       }
@@ -466,7 +452,7 @@ fun TransactionMiniItem(
         .fillMaxWidth()
         .clickable(onClick = onClick),
     shape = ShapeTokens.Medium,
-    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -478,23 +464,12 @@ fun TransactionMiniItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f)
       ) {
-        Box(
-          modifier =
-            Modifier
-              .size(Dimens.AvatarSmall)
-              .background(
-                categoryColor.copy(alpha = 0.15f),
-                CircleShape
-              ),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = categoryColor,
-            modifier = Modifier.size(18.dp)
-          )
-        }
+        IconCircle(
+          icon = icon,
+          tint = categoryColor,
+          backgroundColor = categoryColor,
+          iconSize = 18.dp
+        )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {
           Text(
@@ -520,7 +495,7 @@ fun TransactionMiniItem(
           fontWeight = FontWeight.Bold,
           color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
         )
-        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
@@ -539,153 +514,88 @@ fun ForecastDetailDialog(
   onDismiss: () -> Unit,
   onRefresh: () -> Unit
 ) {
-  var visible by remember { mutableStateOf(true) }
-  Dialog(
-    onDismissRequest = { visible = false },
-    properties =
-      androidx.compose.ui.window
-        .DialogProperties(usePlatformDefaultWidth = false)
+  HesabyarDialog(
+    title = "پیش‌بینی وضعیت بودجه ماه آینده",
+    onDismissRequest = onDismiss,
+    widthFraction = 0.95f,
+    heightFraction = 0.85f,
+    leadingIcon = Icons.Filled.AutoAwesome,
+    showCloseButton = true
   ) {
-    AnimatedVisibility(
-      visible = visible,
-      enter = expandVertically() + fadeIn(),
-      exit = shrinkVertically() + fadeOut()
-    ) {
-      Surface(
-        modifier =
-          Modifier
-            .fillMaxWidth(0.95f)
-            .fillMaxHeight(0.85f),
-        shape = ShapeTokens.XLarge,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = ElevationTokens.Level3
-      ) {
-        Column(
-          modifier =
-            Modifier
-              .fillMaxSize()
-              .padding(SpacingTokens.xl)
+    when (val state = forecastState) {
+      is ForecastUIState.Loading -> {
+        Box(
+          modifier = Modifier.fillMaxSize(),
+          contentAlignment = Alignment.Center
         ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
           ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Icon(
-                imageVector = Icons.Filled.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-              )
-              Text(
-                text = "پیش‌بینی وضعیت بودجه ماه آینده",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-              )
-            }
-            IconButton(onClick = { visible = false }) {
-              Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "بستن"
-              )
-            }
-          }
-
-          HorizontalDivider(modifier = Modifier.padding(vertical = SpacingTokens.sm))
-
-          when (val state = forecastState) {
-            is ForecastUIState.Loading -> {
-              Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-              ) {
-                Column(
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-                ) {
-                  CircularProgressIndicator(
-                    modifier = Modifier.size(Dimens.IconLarge),
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                  Text(
-                    text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                }
-              }
-            }
-            is ForecastUIState.Error -> {
-              Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-              ) {
-                Text(
-                  text = "⚠️ خطا در دریافت پیش‌بینی",
-                  style = MaterialTheme.typography.titleMedium,
-                  color = MaterialTheme.colorScheme.error
-                )
-                Spacer(modifier = Modifier.height(SpacingTokens.sm))
-                Text(
-                  text = state.message,
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(SpacingTokens.lg))
-                Button(onClick = onRefresh) {
-                  Text("تلاش مجدد")
-                }
-              }
-            }
-            is ForecastUIState.Success -> {
-              Column(modifier = Modifier.fillMaxSize()) {
-                Column(
-                  modifier =
-                    Modifier
-                      .weight(1f)
-                      .verticalScroll(rememberScrollState())
-                ) {
-                  MarkdownText(text = state.forecast)
-                }
-                Spacer(modifier = Modifier.height(SpacingTokens.md))
-                Button(
-                  onClick = onRefresh,
-                  modifier = Modifier.fillMaxWidth(),
-                  shape = ShapeTokens.Full
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                  Spacer(modifier = Modifier.width(SpacingTokens.sm))
-                  Text("بروزرسانی پیش‌بینی")
-                }
-              }
-            }
-            is ForecastUIState.Idle -> {
-              Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-              ) {
-                HesabyarButton(onClick = onRefresh, text = "دریافت پیش‌بینی")
-              }
-            }
+            CircularProgressIndicator(
+              modifier = Modifier.size(Dimens.IconLarge),
+              color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+              text = "در حال تحلیل و پیش‌بینی وضعیت بودجه...",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
           }
         }
       }
-    }
-  }
-  val onDismissState = rememberUpdatedState(onDismiss)
-  LaunchedEffect(visible) {
-    if (!visible) {
-      delay(DIALOG_EXIT_MS)
-      onDismissState.value()
+      is ForecastUIState.Error -> {
+        Column(
+          modifier = Modifier.fillMaxSize(),
+          verticalArrangement = Arrangement.Center,
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Text(
+            text = "⚠️ خطا در دریافت پیش‌بینی",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.error
+          )
+          Spacer(modifier = Modifier.height(SpacingTokens.sm))
+          Text(
+            text = state.message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Spacer(modifier = Modifier.height(SpacingTokens.lg))
+          Button(onClick = onRefresh) {
+            Text("تلاش مجدد")
+          }
+        }
+      }
+      is ForecastUIState.Success -> {
+        Column(modifier = Modifier.fillMaxSize()) {
+          Column(modifier = Modifier.weight(1f)) {
+            MarkdownText(text = state.forecast)
+          }
+          Spacer(modifier = Modifier.height(SpacingTokens.md))
+          Button(
+            onClick = onRefresh,
+            modifier = Modifier.fillMaxWidth(),
+            shape = ShapeTokens.Medium
+          ) {
+            Icon(
+              imageVector = Icons.Filled.Refresh,
+              contentDescription = null,
+              modifier = Modifier.size(Dimens.IconSmall)
+            )
+            Spacer(modifier = Modifier.width(SpacingTokens.sm))
+            Text("بروزرسانی پیش‌بینی", fontWeight = FontWeight.Bold)
+          }
+        }
+      }
+      is ForecastUIState.Idle -> {
+        Box(
+          modifier = Modifier.fillMaxSize(),
+          contentAlignment = Alignment.Center
+        ) {
+          HesabyarButton(onClick = onRefresh, text = "دریافت پیش‌بینی")
+        }
+      }
     }
   }
 }
@@ -855,28 +765,6 @@ fun TransactionDetailDialog(
 }
 
 @Composable
-fun DeleteConfirmationDialog(
-  onConfirm: () -> Unit,
-  onDismiss: () -> Unit
-) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("حذف تراکنش") },
-    text = { Text("آیا از حذف این تراکنش اطمینان دارید؟") },
-    confirmButton = {
-      TextButton(onClick = onConfirm) {
-        Text("حذف", color = FinancialColors.ExpenseRed)
-      }
-    },
-    dismissButton = {
-      TextButton(onClick = onDismiss) {
-        Text("لغو")
-      }
-    }
-  )
-}
-
-@Composable
 fun ManualTransactionDialog(
   transactionViewModel: TransactionViewModel,
   loanViewModel: LoanViewModel,
@@ -885,7 +773,6 @@ fun ManualTransactionDialog(
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
 ) {
-  var visible by remember { mutableStateOf(true) }
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
@@ -928,495 +815,441 @@ fun ManualTransactionDialog(
       else -> FinancialColors.WarningOrange
     }
 
-  Dialog(
-    onDismissRequest = { visible = false },
-    properties =
-      androidx.compose.ui.window
-        .DialogProperties(usePlatformDefaultWidth = false)
+  HesabyarDialog(
+    title = if (isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
+    onDismissRequest = onDismiss,
+    widthFraction = 0.92f,
+    actions = {
+      OutlinedButton(
+        onClick = onDismiss,
+        modifier = Modifier.weight(1f),
+        shape = ShapeTokens.Medium
+      ) {
+        Text("انصراف")
+      }
+
+      Button(
+        onClick = {
+          val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
+          if (finalAmountDisplay <= 0L) {
+            android.widget.Toast
+              .makeText(
+                context,
+                "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید",
+                android.widget.Toast.LENGTH_SHORT
+              ).show()
+            return@Button
+          }
+          val resolutionResult =
+            TransactionAmountResolver.resolveAmount(
+              AmountResolutionInput(
+                displayedAmount = finalAmountDisplay,
+                isEditMode = isEditMode,
+                originalRialAmount = originalAmountRial,
+                userModifiedAmount = amountModified
+              )
+            )
+          val finalAmountRial = resolutionResult.rialAmount
+
+          if ((selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L) {
+            android.widget.Toast
+              .makeText(
+                context,
+                "لطفا دسته‌بندی را انتخاب کنید",
+                android.widget.Toast.LENGTH_SHORT
+              ).show()
+            return@Button
+          }
+
+          when (selectedType) {
+            "INCOME", "EXPENSE" -> {
+              val selectedCategoryName =
+                categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
+              val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
+              if (isEditMode) {
+                val updatedTransaction =
+                  transactionToEdit.copy(
+                    type = TransactionType.valueOf(selectedType),
+                    categoryId = selectedCategoryId,
+                    amount = finalAmountRial,
+                    description = desc,
+                    date = customDate
+                  )
+                transactionViewModel.updateTransaction(updatedTransaction)
+              } else {
+                transactionViewModel.addTransaction(
+                  type = TransactionType.valueOf(selectedType),
+                  categoryId = selectedCategoryId,
+                  amount = finalAmountRial,
+                  description = desc,
+                  customDate = customDate
+                )
+              }
+            }
+            "LOAN_DEBTOR", "LOAN_CREDITOR" -> {
+              val person = personNameText.trim()
+              if (person.isEmpty()) {
+                android.widget.Toast
+                  .makeText(
+                    context,
+                    "لطفا نام شخص مربوطه را وارد کنید",
+                    android.widget.Toast.LENGTH_SHORT
+                  ).show()
+                return@Button
+              }
+              val desc =
+                descriptionText.trim().ifEmpty {
+                  if (selectedType ==
+                    "LOAN_DEBTOR"
+                  ) {
+                    "قرض دادن به $person"
+                  } else {
+                    "قرض گرفتن از $person"
+                  }
+                }
+              loanViewModel.addLoan(
+                personName = person,
+                type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
+                amount = finalAmountRial,
+                description = desc,
+                customDate = customDate
+              )
+            }
+            "INSTALLMENT" -> {
+              val title = titleText.trim()
+              if (title.isEmpty()) {
+                android.widget.Toast
+                  .makeText(
+                    context,
+                    "لطفا عنوان قسط را وارد کنید",
+                    android.widget.Toast.LENGTH_SHORT
+                  ).show()
+                return@Button
+              }
+              val desc = descriptionText.trim()
+              val daysOffset = daysFromNowText.toLongOrNull()
+              val dueDate =
+                if (daysOffset != null && daysOffset > 0) {
+                  System.currentTimeMillis() + daysOffset * 24 * 60 * 60 * 1000
+                } else {
+                  customDate
+                }
+              installmentViewModel.addInstallment(
+                title = title,
+                amount = finalAmountRial,
+                dueDate = dueDate,
+                reminderEnabled = true,
+                notes = desc
+              )
+            }
+          }
+          onDismiss()
+        },
+        modifier = Modifier.weight(1f),
+        shape = ShapeTokens.Medium,
+        colors = ButtonDefaults.buttonColors(containerColor = typeColor)
+      ) {
+        Text(
+          if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش",
+          color = MaterialTheme.colorScheme.onPrimary
+        )
+      }
+    }
   ) {
-    AnimatedVisibility(
-      visible = visible,
-      enter = expandVertically() + fadeIn(),
-      exit = shrinkVertically() + fadeOut()
-    ) {
-      Surface(
+    // Type selector
+    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+      Text(
+        text = "نوع تراکنش / تعهد مالی:",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      Row(
         modifier =
           Modifier
-            .fillMaxWidth(0.92f)
-            .wrapContentHeight()
-            .padding(vertical = SpacingTokens.xl),
-        shape = ShapeTokens.XLarge,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = ElevationTokens.Level3
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
-        Column(
+        val types =
+          if (isEditMode) {
+            listOf(
+              Pair("EXPENSE", "هزینه"),
+              Pair("INCOME", "درآمد")
+            )
+          } else {
+            listOf(
+              Pair("EXPENSE", "هزینه"),
+              Pair("INCOME", "درآمد"),
+              Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
+              Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
+              Pair("INSTALLMENT", "قسط")
+            )
+          }
+        types.forEach { (typeKey, typeLabel) ->
+          val isSelected = selectedType == typeKey
+          val chipColor =
+            when (typeKey) {
+              "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
+              "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
+              else -> FinancialColors.WarningOrange
+            }
+          Box(
+            modifier =
+              Modifier
+                .clip(ShapeTokens.Medium)
+                .background(
+                  if (isSelected) {
+                    chipColor
+                  } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                      .copy(
+                        alpha = 0.5f
+                      )
+                  }
+                ).clickable {
+                  selectedType = typeKey
+                  selectedCategoryId =
+                    when (typeKey) {
+                      "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                      "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
+                      "LOAN_DEBTOR", "LOAN_CREDITOR" ->
+                        categories.find { it.key == "Loans" }?.id
+                          ?: 1L
+                      "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                      else -> selectedCategoryId
+                    }
+                }.padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
+          ) {
+            Text(
+              text = typeLabel,
+              color =
+                if (isSelected) {
+                  MaterialTheme.colorScheme.onPrimary
+                } else {
+                  MaterialTheme.colorScheme.onSurfaceVariant
+                },
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.Bold
+            )
+          }
+        }
+      }
+    }
+
+    // Amount input
+    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+      Text(
+        text = "مبلغ (${CurrencyFormatter.unitLabel}):",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      OutlinedTextField(
+        value = amountValue,
+        onValueChange = {
+          if (isEditMode && it.text != amountValue.text) {
+            amountModified = true
+          }
+          amountValue = it
+        },
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .testTag("manual_amount_input"),
+        shape = ShapeTokens.Medium,
+        leadingIcon = {
+          Icon(
+            imageVector = Icons.Filled.Paid,
+            contentDescription = null,
+            tint = typeColor
+          )
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        colors =
+          OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = typeColor,
+            focusedLabelColor = typeColor
+          )
+      )
+      AmountQuickFillButtons(
+        amountValue = amountValue,
+        onValueChanged = {
+          amountValue = it
+          if (isEditMode) {
+            amountModified = true
+          }
+        }
+      )
+      val amtDisplay = amountValue.text.toLongOrNull() ?: 0L
+      if (amtDisplay > 0L) {
+        val amtRial = CurrencyFormatter.toRial(amtDisplay)
+        Text(
+          text = "معادل: ${CurrencyFormatter.format(amtRial)}",
+          style = MaterialTheme.typography.bodySmall,
+          color = typeColor,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.padding(horizontal = SpacingTokens.xs)
+        )
+      }
+    }
+
+    // Category Selector
+    if (selectedType == "EXPENSE" || selectedType == "INCOME") {
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+        Text(
+          text = "دسته‌بندی مربوطه:",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
           modifier =
             Modifier
               .fillMaxWidth()
-              .padding(SpacingTokens.xl),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+              .horizontalScroll(rememberScrollState()),
+          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
         ) {
-          // Header
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = if (isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-            IconButton(
-              onClick = { visible = false },
-              modifier = Modifier.size(48.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "بستن",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            }
-          }
-
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-          // Scrollable content
-          Column(
-            modifier =
-              Modifier
-                .fillMaxWidth()
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
-          ) {
-            // Type selector
-            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-              Text(
-                text = "نوع تراکنش / تعهد مالی:",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-              Row(
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-              ) {
-                val types =
-                  if (isEditMode) {
-                    listOf(
-                      Pair("EXPENSE", "هزینه"),
-                      Pair("INCOME", "درآمد")
-                    )
-                  } else {
-                    listOf(
-                      Pair("EXPENSE", "هزینه"),
-                      Pair("INCOME", "درآمد"),
-                      Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
-                      Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-                      Pair("INSTALLMENT", "قسط")
-                    )
-                  }
-                types.forEach { (typeKey, typeLabel) ->
-                  val isSelected = selectedType == typeKey
-                  val chipColor =
-                    when (typeKey) {
-                      "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
-                      "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
-                      else -> FinancialColors.WarningOrange
-                    }
-                  FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                      selectedType = typeKey
-                      selectedCategoryId =
-                        when (typeKey) {
-                          "INCOME" ->
-                            categories
-                              .firstOrNull { it.type == CategoryType.INCOME || it.type == CategoryType.BOTH }
-                              ?.id ?: 0L
-                          "EXPENSE" ->
-                            categories
-                              .firstOrNull { it.type == CategoryType.EXPENSE || it.type == CategoryType.BOTH }
-                              ?.id ?: 0L
-                          "LOAN_DEBTOR", "LOAN_CREDITOR" ->
-                            categories.firstOrNull { it.key == "Loans" }?.id ?: 0L
-                          "INSTALLMENT" -> categories.firstOrNull { it.key == "Installments" }?.id ?: 0L
-                          else -> 0L
-                        }
-                    },
-                    label = {
-                      Text(
-                        text = typeLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                      )
-                    },
-                    colors =
-                      FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = chipColor,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                      )
-                  )
-                }
-              }
-            }
-
-            // Amount input
-            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-              Text(
-                text = "مبلغ (${CurrencyFormatter.unitLabel}):",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-              OutlinedTextField(
-                value = amountValue,
-                onValueChange = {
-                  if (isEditMode && it.text != amountValue.text) {
-                    amountModified = true
-                  }
-                  amountValue = it
-                },
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .testTag("manual_amount_input"),
-                shape = ShapeTokens.Medium,
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.Filled.Paid,
-                    contentDescription = null,
-                    tint = typeColor
-                  )
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                colors =
-                  OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = typeColor,
-                    focusedLabelColor = typeColor
-                  )
-              )
-              AmountQuickFillButtons(
-                amountValue = amountValue,
-                onValueChanged = {
-                  amountValue = it
-                  if (isEditMode) {
-                    amountModified = true
-                  }
-                }
-              )
-              val amtDisplay = amountValue.text.toLongOrNull() ?: 0L
-              if (amtDisplay > 0L) {
-                val amtRial = CurrencyFormatter.toRial(amtDisplay)
-                Text(
-                  text = "معادل: ${CurrencyFormatter.format(amtRial)}",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = typeColor,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.padding(horizontal = SpacingTokens.xs)
-                )
-              }
-            }
-
-            // Category Selector
-            if (selectedType == "EXPENSE" || selectedType == "INCOME") {
-              Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-                Text(
-                  text = "دسته‌بندی مربوطه:",
-                  style = MaterialTheme.typography.labelMedium,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(
-                  modifier =
-                    Modifier
-                      .fillMaxWidth()
-                      .horizontalScroll(rememberScrollState()),
-                  horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-                ) {
-                  filteredCategories.forEach { cat ->
-                    val isSelected = selectedCategoryId == cat.id
-                    FilterChip(
-                      selected = isSelected,
-                      onClick = { selectedCategoryId = cat.id },
-                      label = {
-                        Text(
-                          text = cat.name,
-                          style = MaterialTheme.typography.labelMedium,
-                          fontWeight = FontWeight.Medium
-                        )
-                      },
-                      colors =
-                        FilterChipDefaults.filterChipColors(
-                          selectedContainerColor = MaterialTheme.colorScheme.primary,
-                          selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                  }
-                }
-              }
-            }
-
-            // Conditional Person Name for loans
-            if (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") {
-              Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-                Text(
-                  text = "طرف حساب (شخص مربوطه):",
-                  style = MaterialTheme.typography.labelMedium,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                  value = personNameText,
-                  onValueChange = { personNameText = it },
-                  modifier =
-                    Modifier
-                      .fillMaxWidth()
-                      .testTag("manual_person_input"),
-                  shape = ShapeTokens.Medium,
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.Filled.Person,
-                      contentDescription = null,
-                      tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                  },
-                  placeholder = { Text("مثلا: علی محمودی", style = MaterialTheme.typography.bodyMedium) },
-                  singleLine = true
-                )
-              }
-            }
-
-            // Conditional Installment fields
-            if (selectedType == "INSTALLMENT") {
-              Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
-                Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-                  Text(
-                    text = "عنوان قسط:",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                  OutlinedTextField(
-                    value = titleText,
-                    onValueChange = { titleText = it },
-                    modifier =
-                      Modifier
-                        .fillMaxWidth()
-                        .testTag("manual_title_input"),
-                    shape = ShapeTokens.Medium,
-                    placeholder = {
-                      Text(
-                        "مثلا: قسط بانک مسکن",
-                        style = MaterialTheme.typography.bodyMedium
-                      )
-                    },
-                    singleLine = true
-                  )
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-                  Text(
-                    text = "فاصله تا موعد پرداخت (روز):",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                  OutlinedTextField(
-                    value = daysFromNowText,
-                    onValueChange = { daysFromNowText = it },
-                    modifier =
-                      Modifier
-                        .fillMaxWidth()
-                        .testTag("manual_days_input"),
-                    shape = ShapeTokens.Medium,
-                    placeholder = { Text("مثلا: ۳۰", style = MaterialTheme.typography.bodyMedium) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                  )
-                }
-              }
-            }
-
-            // Shamsi Date & Time Picker
-            JalaliDateTimePicker(
-              initialTimestamp = customDate,
-              onTimestampChanged = { customDate = it }
-            )
-
-            // Description text field
-            Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-              Text(
-                text = "شرح یا توضیح تراکنش:",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-              OutlinedTextField(
-                value = descriptionText,
-                onValueChange = { descriptionText = it },
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .testTag("manual_description_input"),
-                shape = ShapeTokens.Medium,
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.Filled.Description,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                },
-                singleLine = true
-              )
-            }
-          }
-
-          Spacer(modifier = Modifier.height(SpacingTokens.sm))
-
-          // Actions block
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-          ) {
-            OutlinedButton(
-              onClick = { visible = false },
-              modifier = Modifier.weight(1f),
-              shape = ShapeTokens.Medium
-            ) {
-              Text("انصراف")
-            }
-
-            Button(
-              onClick = {
-                if (!visible) return@Button
-                val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
-                if (finalAmountDisplay <= 0L) {
-                  android.widget.Toast
-                    .makeText(
-                      context,
-                      "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید",
-                      android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                  return@Button
-                }
-                val resolutionResult =
-                  TransactionAmountResolver.resolveAmount(
-                    AmountResolutionInput(
-                      displayedAmount = finalAmountDisplay,
-                      isEditMode = isEditMode,
-                      originalRialAmount = originalAmountRial,
-                      userModifiedAmount = amountModified
-                    )
-                  )
-                val finalAmountRial = resolutionResult.rialAmount
-
-                if ((selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L) {
-                  android.widget.Toast
-                    .makeText(
-                      context,
-                      "لطفا دسته‌بندی را انتخاب کنید",
-                      android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                  return@Button
-                }
-
-                visible = false
-                when (selectedType) {
-                  "INCOME", "EXPENSE" -> {
-                    val selectedCategoryName =
-                      categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
-                    val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
-                    if (isEditMode) {
-                      val updatedTransaction =
-                        transactionToEdit.copy(
-                          type = TransactionType.valueOf(selectedType),
-                          categoryId = selectedCategoryId,
-                          amount = finalAmountRial,
-                          description = desc,
-                          date = customDate
-                        )
-                      transactionViewModel.updateTransaction(updatedTransaction)
+          filteredCategories.forEach { cat ->
+            val isSelected = selectedCategoryId == cat.id
+            Box(
+              modifier =
+                Modifier
+                  .clip(ShapeTokens.Medium)
+                  .background(
+                    if (isSelected) {
+                      MaterialTheme.colorScheme.primary
                     } else {
-                      transactionViewModel.addTransaction(
-                        type = TransactionType.valueOf(selectedType),
-                        categoryId = selectedCategoryId,
-                        amount = finalAmountRial,
-                        description = desc,
-                        customDate = customDate
-                      )
+                      MaterialTheme.colorScheme.surfaceVariant
+                        .copy(
+                          alpha = 0.5f
+                        )
                     }
-                  }
-                  "LOAN_DEBTOR", "LOAN_CREDITOR" -> {
-                    val person = personNameText.trim()
-                    if (person.isEmpty()) {
-                      android.widget.Toast
-                        .makeText(
-                          context,
-                          "لطفا نام شخص مربوطه را وارد کنید",
-                          android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                      return@Button
-                    }
-                    val desc =
-                      descriptionText.trim().ifEmpty {
-                        if (selectedType ==
-                          "LOAN_DEBTOR"
-                        ) {
-                          "قرض دادن به $person"
-                        } else {
-                          "قرض گرفتن از $person"
-                        }
-                      }
-                    loanViewModel.addLoan(
-                      personName = person,
-                      type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
-                      amount = finalAmountRial,
-                      description = desc,
-                      customDate = customDate
-                    )
-                  }
-                  "INSTALLMENT" -> {
-                    val title = titleText.trim()
-                    if (title.isEmpty()) {
-                      android.widget.Toast
-                        .makeText(
-                          context,
-                          "لطفا عنوان قسط را وارد کنید",
-                          android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                      return@Button
-                    }
-                    val desc = descriptionText.trim()
-                    installmentViewModel.addInstallment(
-                      title = title,
-                      amount = finalAmountRial,
-                      dueDate = customDate + (daysFromNowText.toLongOrNull() ?: 0L) * 24 * 60 * 60 * 1000L,
-                      reminderEnabled = true,
-                      notes = desc
-                    )
-                  }
-                }
-                visible = false
-              },
-              modifier = Modifier.weight(1f),
-              enabled = visible,
-              shape = ShapeTokens.Full,
-              colors = ButtonDefaults.buttonColors(containerColor = typeColor)
+                  ).clickable { selectedCategoryId = cat.id }
+                  .padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
             ) {
               Text(
-                if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش",
-                color = MaterialTheme.colorScheme.onPrimary
+                text = cat.name,
+                color =
+                  if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimary
+                  } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                  },
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
               )
             }
           }
         }
       }
     }
-  }
-  val onDismissState = rememberUpdatedState(onDismiss)
-  LaunchedEffect(visible) {
-    if (!visible) {
-      delay(DIALOG_EXIT_MS)
-      onDismissState.value()
+
+    // Conditional Person Name for loans
+    if (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") {
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+        Text(
+          text = "طرف حساب (شخص مربوطه):",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+          value = personNameText,
+          onValueChange = { personNameText = it },
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .testTag("manual_person_input"),
+          shape = ShapeTokens.Medium,
+          leadingIcon = {
+            Icon(
+              imageVector = Icons.Filled.Person,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          },
+          placeholder = { Text("مثلا: علی محمودی", style = MaterialTheme.typography.bodyMedium) },
+          singleLine = true
+        )
+      }
+    }
+
+    // Conditional Installment fields
+    if (selectedType == "INSTALLMENT") {
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          Text(
+            text = "عنوان قسط:",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          OutlinedTextField(
+            value = titleText,
+            onValueChange = { titleText = it },
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .testTag("manual_title_input"),
+            shape = ShapeTokens.Medium,
+            placeholder = {
+              Text(
+                "مثلا: قسط بانک مسکن",
+                style = MaterialTheme.typography.bodyMedium
+              )
+            },
+            singleLine = true
+          )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          Text(
+            text = "فاصله تا موعد پرداخت (روز):",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          OutlinedTextField(
+            value = daysFromNowText,
+            onValueChange = { daysFromNowText = it },
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .testTag("manual_days_input"),
+            shape = ShapeTokens.Medium,
+            placeholder = { Text("مثلا: ۳۰", style = MaterialTheme.typography.bodyMedium) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true
+          )
+        }
+      }
+    }
+
+    // Shamsi Date & Time Picker
+    JalaliDateTimePicker(
+      initialTimestamp = customDate,
+      onTimestampChanged = { customDate = it }
+    )
+
+    // Description text field
+    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+      Text(
+        text = "شرح یا توضیح تراکنش:",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      OutlinedTextField(
+        value = descriptionText,
+        onValueChange = { descriptionText = it },
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .testTag("manual_description_input"),
+        shape = ShapeTokens.Medium,
+        leadingIcon = {
+          Icon(
+            imageVector = Icons.Filled.Description,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        },
+        singleLine = true
+      )
     }
   }
 }
@@ -1470,26 +1303,17 @@ fun JalaliDateTimePicker(
     modifier =
       Modifier
         .fillMaxWidth()
+        .clip(ShapeTokens.Large)
+        .background(MaterialTheme.colorScheme.surfaceContainerLow)
         .padding(SpacingTokens.md),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
-    Row(
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-    ) {
-      Icon(
-        imageVector = Icons.Default.CalendarMonth,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(Dimens.IconSmall)
-      )
-      Text(
-        text = "تنظیم تاریخ و ساعت (شمسی):",
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-      )
-    }
+    Text(
+      text = "📅 تنظیم تاریخ و ساعت (شمسی):",
+      style = MaterialTheme.typography.labelMedium,
+      fontWeight = FontWeight.Bold,
+      color = MaterialTheme.colorScheme.primary
+    )
 
     Row(
       modifier = Modifier.fillMaxWidth(),
@@ -1502,7 +1326,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1.3f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Full,
+        shape = ShapeTokens.Medium,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1526,7 +1350,7 @@ fun JalaliDateTimePicker(
           Modifier
             .weight(1f)
             .height(Dimens.ButtonHeight),
-        shape = ShapeTokens.Full,
+        shape = ShapeTokens.Medium,
         contentPadding = PaddingValues(horizontal = SpacingTokens.sm)
       ) {
         Icon(
@@ -1543,5 +1367,15 @@ fun JalaliDateTimePicker(
         )
       }
     }
+  }
+}
+
+@Composable
+private fun entranceCard(content: @Composable () -> Unit) {
+  AnimatedVisibility(
+    visible = true,
+    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 12 })
+  ) {
+    content()
   }
 }

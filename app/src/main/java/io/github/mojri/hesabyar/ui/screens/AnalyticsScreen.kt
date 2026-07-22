@@ -21,19 +21,18 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.components.CardEmptyHint
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 @Composable
 fun AnalyticsScreen(
@@ -45,8 +44,7 @@ fun AnalyticsScreen(
   LazyColumn(
     modifier =
       modifier
-        .widthIn(max = WindowSizeTokens.ContentMaxWidth)
-        .fillMaxWidth()
+        .fillMaxSize()
         .padding(horizontal = SpacingTokens.lg),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
     contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = SpacingTokens.xl)
@@ -161,16 +159,7 @@ private fun MonthlyTrendCard(
       )
 
       if (data.isEmpty()) {
-        Text(
-          text = "داده‌ای موجود نیست",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.xl),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = "داده‌ای موجود نیست")
       } else {
         // Bar chart
         BarChart(
@@ -396,16 +385,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
       )
 
       if (categoryBreakdown.isEmpty()) {
-        Text(
-          text = "هزینه‌ای ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.xl),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = "هزینه‌ای ثبت نشده")
       } else {
         // Donut chart
         DonutChart(
@@ -444,7 +424,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
             Text(
               text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
           }
         }
@@ -540,16 +520,7 @@ private fun DebtCreditSummaryCard(
       }
 
       if (items.isEmpty()) {
-        Text(
-          text = emptyMessage,
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = emptyMessage)
       } else {
         items.forEach { item ->
           Column(
@@ -557,7 +528,7 @@ private fun DebtCreditSummaryCard(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -633,16 +604,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
       )
 
       if (loans.isEmpty()) {
-        Text(
-          text = "وام فعالی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = "وام فعالی ثبت نشده")
       } else {
         loans.forEach { loan ->
           val progress =
@@ -657,7 +619,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.Medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(SpacingTokens.md),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
@@ -751,16 +713,7 @@ private fun BankLoanStatusCard(
       }
 
       if (bankLoans.isEmpty()) {
-        Text(
-          text = "وام بانکی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = "وام بانکی ثبت نشده")
       } else {
         bankLoans.forEach { bl ->
           Column(
@@ -830,16 +783,7 @@ private fun InstallmentProgressCard(
       )
 
       if (total == 0) {
-        Text(
-          text = "قسطی ثبت نشده",
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(SpacingTokens.lg),
-          textAlign = TextAlign.Center,
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        CardEmptyHint(message = "قسطی ثبت نشده")
       } else {
         // Progress ring
         Row(
@@ -871,7 +815,7 @@ private fun InstallmentProgressCard(
         // List of unpaid installments
         val unpaid = installments.filter { !it.isPaid }.take(5)
         if (unpaid.isNotEmpty()) {
-          HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+          HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
           Text(
             text = "اقساط پرداخت نشده:",
             style = MaterialTheme.typography.labelMedium,
@@ -883,7 +827,7 @@ private fun InstallmentProgressCard(
                 Modifier
                   .fillMaxWidth()
                   .clip(ShapeTokens.Small)
-                  .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                  .background(MaterialTheme.colorScheme.surfaceContainerLow)
                   .padding(SpacingTokens.sm),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
@@ -917,7 +861,6 @@ private fun CircularProgress(
     animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
     label = "progress"
   )
-  val outlineVariant = MaterialTheme.colorScheme.outlineVariant
 
   Canvas(modifier = modifier) {
     val diameter = minOf(size.width, size.height) - strokeWidth
@@ -930,7 +873,7 @@ private fun CircularProgress(
 
     // Background arc
     drawArc(
-      color = outlineVariant,
+      color = Color.LightGray.copy(alpha = 0.3f),
       startAngle = -90f,
       sweepAngle = 360f,
       useCenter = false,

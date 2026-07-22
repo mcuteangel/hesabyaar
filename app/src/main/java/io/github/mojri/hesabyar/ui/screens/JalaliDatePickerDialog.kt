@@ -112,7 +112,7 @@ fun JalaliDatePickerDialog(
           .fillMaxWidth()
           .widthIn(max = 380.dp),
       shape = ShapeTokens.XLarge,
-      elevation = ElevationTokens.Level3,
+      elevation = ElevationTokens.Level2,
       contentPadding = PaddingValues(0.dp)
     ) {
       Column(
@@ -209,7 +209,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .clip(ShapeTokens.Medium)
                       .clickable { showQuickSelector = true }
-                      .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                      .background(MaterialTheme.colorScheme.surfaceContainer)
                       .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs),
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.Center
@@ -253,7 +253,7 @@ fun JalaliDatePickerDialog(
                   Modifier
                     .fillMaxWidth()
                     .background(
-                      color = MaterialTheme.colorScheme.surfaceContainerLow,
+                      color = MaterialTheme.colorScheme.surfaceContainerLowest,
                       shape = ShapeTokens.Small
                     ).padding(vertical = SpacingTokens.xs),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -442,7 +442,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .weight(1.2f)
                       .background(
-                        MaterialTheme.colorScheme.surfaceContainerLow,
+                        MaterialTheme.colorScheme.surfaceContainerLowest,
                         ShapeTokens.Medium
                       ).padding(SpacingTokens.xs),
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
@@ -498,7 +498,7 @@ fun JalaliDatePickerDialog(
                     Modifier
                       .weight(1f)
                       .background(
-                        MaterialTheme.colorScheme.surfaceContainerLow,
+                        MaterialTheme.colorScheme.surfaceContainerLowest,
                         ShapeTokens.Medium
                       ).padding(SpacingTokens.xs),
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),

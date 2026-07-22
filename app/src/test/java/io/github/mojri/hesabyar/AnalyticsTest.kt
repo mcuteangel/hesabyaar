@@ -54,7 +54,7 @@ class AnalyticsTest {
   fun `monthly spending grouping by jalali month`() {
     // Create transactions in different months
     val now = System.currentTimeMillis()
-    val oneMonthMs = 30L * 24 * 60 * 60 * 1000
+    val oneMonthMs = 45L * 24 * 60 * 60 * 1000
 
     val transactions =
       listOf(

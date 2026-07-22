@@ -50,6 +50,7 @@ import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -264,7 +265,7 @@ fun SettingsScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.XLarge)
-          .background(MaterialTheme.colorScheme.surfaceContainerLow)
+          .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
           .padding(SpacingTokens.xl)
     ) {
       Column(
@@ -312,7 +313,7 @@ fun SettingsScreen(
               .fillMaxWidth()
               .clickable { onNavigateToCategories() }
               .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerLow)
+              .background(MaterialTheme.colorScheme.surfaceContainerLowest)
               .padding(SpacingTokens.md),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
@@ -341,7 +342,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -366,7 +367,7 @@ fun SettingsScreen(
           )
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         // Currency unit selector
         Row(
@@ -397,11 +398,11 @@ fun SettingsScreen(
           }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         ReminderSettingsSection(settingsViewModel = settingsViewModel)
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         SecuritySection(context = context, settingsViewModel = settingsViewModel)
       }
@@ -561,7 +562,7 @@ fun SecuritySection(
   }
 
   if (isPinSet) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
     Row(
       modifier =
@@ -868,8 +869,10 @@ fun DebugLogsSection() {
               .fillMaxWidth()
               .heightIn(max = 300.dp)
               .verticalScroll(rememberScrollState())
-              .background(MaterialTheme.colorScheme.surfaceContainerLow, ShapeTokens.Small)
-              .padding(SpacingTokens.sm),
+              .background(
+                MaterialTheme.colorScheme.surfaceContainerLow,
+                ShapeTokens.Small
+              ).padding(SpacingTokens.sm),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
         ) {
           logs.reversed().forEach { entry ->
@@ -878,7 +881,7 @@ fun DebugLogsSection() {
                 "E" -> MaterialTheme.colorScheme.error
                 "W" -> MaterialTheme.colorScheme.tertiary
                 "I" -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
               }
             Text(
               text = entry.formatted(),
@@ -1023,9 +1026,9 @@ fun ConfigItem(
         .clip(ShapeTokens.Medium)
         .background(
           if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
           } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainerLowest
           }
         ).clickable { onSelect() }
         .padding(SpacingTokens.md),
@@ -1125,310 +1128,13 @@ fun AiConfigDialog(
       model.split("/").firstOrNull() ?: "Unknown"
     }
 
-  AlertDialog(
+  HesabyarDialog(
+    title = if (isEditing) "ویرایش تنظیمات" else "افزودن تنظیمات جدید",
     onDismissRequest = {
       onClearModelFetchState()
       onDismiss()
     },
-    title = {
-      Text(
-        text = if (isEditing) "ویرایش تنظیمات" else "افزودن تنظیمات جدید",
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-      ) {
-        // Label
-        HesabyarInputField(
-          value = label,
-          onValueChange = { label = it },
-          label = "نام اختصاصی (اختیاری)",
-          placeholder = "مثلاً: کلید اصلی Gemini"
-        )
-
-        // Provider Dropdown
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
-          Text(
-            text = "ارائه‌دهنده:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-          ExposedDropdownMenuBox(
-            expanded = providerDropdownExpanded,
-            onExpandedChange = { providerDropdownExpanded = it }
-          ) {
-            OutlinedTextField(
-              value = selectedProvider.displayName,
-              onValueChange = {},
-              modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-              readOnly = true,
-              shape = ShapeTokens.Large,
-              trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(
-                  expanded = providerDropdownExpanded
-                )
-              }
-            )
-            ExposedDropdownMenu(
-              expanded = providerDropdownExpanded,
-              onDismissRequest = { providerDropdownExpanded = false }
-            ) {
-              AiProviderType.entries.forEach { type ->
-                DropdownMenuItem(
-                  text = { Text(type.displayName) },
-                  onClick = {
-                    selectedProvider = type
-                    model = ""
-                    baseUrl =
-                      when (type) {
-                        AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
-                        else -> ""
-                      }
-                    providerDropdownExpanded = false
-                    onClearModelFetchState()
-                  }
-                )
-              }
-            }
-          }
-        }
-
-        // API Key
-        HesabyarInputField(
-          value = apiKey,
-          onValueChange = { apiKey = it },
-          label = "کلید API Key",
-          placeholder =
-            when (selectedProvider) {
-              AiProviderType.GEMINI -> "AIza..."
-              AiProviderType.OPENROUTER -> "sk-or-..."
-              AiProviderType.CUSTOM -> "your-api-key"
-            },
-          trailingIcon = {
-            IconButton(onClick = { showApiKey = !showApiKey }) {
-              Icon(
-                imageVector = if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                contentDescription = if (showApiKey) "مخفی" else "نمایش"
-              )
-            }
-          },
-          visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation()
-        )
-
-        // Base URL (for OpenRouter and Custom)
-        if (selectedProvider != AiProviderType.GEMINI) {
-          HesabyarInputField(
-            value = baseUrl,
-            onValueChange = { baseUrl = it },
-            label = "آدرس API (Base URL)",
-            placeholder =
-              when (selectedProvider) {
-                AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
-                AiProviderType.CUSTOM -> "https://api.example.com/v1"
-                else -> ""
-              }
-          )
-        }
-
-        // Fetch Models Button
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-        ) {
-          HesabyarButton(
-            onClick = { onFetchModels(selectedProvider, apiKey, baseUrl.ifBlank { null }) },
-            modifier = Modifier.weight(1f),
-            text = "دریافت مدل‌ها",
-            icon = Icons.Filled.Refresh,
-            loading = modelFetchState is ModelFetchState.Loading,
-            enabled = apiKey.isNotBlank() && modelFetchState !is ModelFetchState.Loading
-          )
-
-          if (modelFetchState is ModelFetchState.Error) {
-            Text(
-              text = modelFetchState.message,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.error,
-              modifier = Modifier.align(Alignment.CenterVertically)
-            )
-          }
-        }
-
-        // Model Dropdown with search
-        if (fetchedModels.isNotEmpty()) {
-          Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
-            Text(
-              text = "انتخاب مدل (${fetchedModels.size} مدل موجود):",
-              style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Search field
-            HesabyarInputField(
-              value = modelSearchQuery,
-              onValueChange = { modelSearchQuery = it },
-              placeholder = "جستجوی مدل...",
-              singleLine = true
-            )
-
-            ExposedDropdownMenuBox(
-              expanded = modelDropdownExpanded,
-              onExpandedChange = { modelDropdownExpanded = it }
-            ) {
-              OutlinedTextField(
-                value = model,
-                onValueChange = { model = it },
-                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
-                shape = ShapeTokens.Large,
-                placeholder = { Text("نام مدل را تایپ یا انتخاب کنید") },
-                trailingIcon = {
-                  ExposedDropdownMenuDefaults.TrailingIcon(
-                    expanded = modelDropdownExpanded
-                  )
-                }
-              )
-
-              ExposedDropdownMenu(
-                expanded = modelDropdownExpanded,
-                onDismissRequest = { modelDropdownExpanded = false }
-              ) {
-                if (selectedProvider == AiProviderType.GEMINI) {
-                  geminiFamilies.forEach { (family, models) ->
-                    DropdownMenuItem(
-                      text = {
-                        Text(
-                          "📁 $family (${models.size})",
-                          fontWeight = FontWeight.Bold,
-                          color = MaterialTheme.colorScheme.primary
-                        )
-                      },
-                      onClick = { }
-                    )
-                    models.take(10).forEach { m ->
-                      DropdownMenuItem(
-                        text = {
-                          Text(
-                            "  $m",
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                          )
-                        },
-                        onClick = {
-                          model = m
-                          modelDropdownExpanded = false
-                          modelSearchQuery = ""
-                        }
-                      )
-                    }
-                    if (models.size > 10) {
-                      DropdownMenuItem(
-                        text = {
-                          Text(
-                            "  ... و ${models.size - 10} مدل دیگر",
-                            style = MaterialTheme.typography.bodySmall
-                          )
-                        },
-                        onClick = { }
-                      )
-                    }
-                  }
-                } else if (selectedProvider == AiProviderType.OPENROUTER) {
-                  openRouterGroups.forEach { (provider, models) ->
-                    val freeCount = models.count { it.endsWith(":free") }
-                    DropdownMenuItem(
-                      text = {
-                        Text(
-                          "📁 $provider (${models.size}${if (freeCount > 0) ", $freeCount رایگان" else ""})",
-                          fontWeight = FontWeight.Bold,
-                          color = MaterialTheme.colorScheme.primary
-                        )
-                      },
-                      onClick = { }
-                    )
-                    models.take(8).forEach { m ->
-                      val isFree = m.endsWith(":free")
-                      DropdownMenuItem(
-                        text = {
-                          Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                              "  $m",
-                              style = MaterialTheme.typography.bodySmall,
-                              maxLines = 1,
-                              overflow = TextOverflow.Ellipsis,
-                              modifier = Modifier.weight(1f)
-                            )
-                            if (isFree) {
-                              Spacer(modifier = Modifier.width(SpacingTokens.xs))
-                              Text(
-                                "رایگان",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                              )
-                            }
-                          }
-                        },
-                        onClick = {
-                          model = m
-                          modelDropdownExpanded = false
-                          modelSearchQuery = ""
-                        }
-                      )
-                    }
-                    if (models.size > 8) {
-                      DropdownMenuItem(
-                        text = {
-                          Text(
-                            "  ... و ${models.size - 8} مدل دیگر",
-                            style = MaterialTheme.typography.bodySmall
-                          )
-                        },
-                        onClick = { }
-                      )
-                    }
-                  }
-                } else {
-                  filteredModels.take(20).forEach { m ->
-                    DropdownMenuItem(
-                      text = {
-                        Text(
-                          m,
-                          style = MaterialTheme.typography.bodySmall,
-                          maxLines = 1,
-                          overflow = TextOverflow.Ellipsis
-                        )
-                      },
-                      onClick = {
-                        model = m
-                        modelDropdownExpanded = false
-                        modelSearchQuery = ""
-                      }
-                    )
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          // Manual model input
-          HesabyarInputField(
-            value = model,
-            onValueChange = { model = it },
-            label = "نام مدل (Model)",
-            placeholder =
-              when (selectedProvider) {
-                AiProviderType.GEMINI -> "gemini-2.0-flash"
-                AiProviderType.OPENROUTER -> "google/gemini-2.0-flash-001"
-                AiProviderType.CUSTOM -> "model-name"
-              }
-          )
-        }
-      }
-    },
-    confirmButton = {
+    actions = {
       HesabyarButton(
         onClick = {
           onSave(
@@ -1445,8 +1151,6 @@ fun AiConfigDialog(
         },
         text = "ذخیره"
       )
-    },
-    dismissButton = {
       HesabyarButton(
         onClick = {
           onClearModelFetchState()
@@ -1456,7 +1160,293 @@ fun AiConfigDialog(
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    // Label
+    HesabyarInputField(
+      value = label,
+      onValueChange = { label = it },
+      label = "نام اختصاصی (اختیاری)",
+      placeholder = "مثلاً: کلید اصلی Gemini"
+    )
+
+    // Provider Dropdown
+    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
+      Text(
+        text = "ارائه‌دهنده:",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      ExposedDropdownMenuBox(
+        expanded = providerDropdownExpanded,
+        onExpandedChange = { providerDropdownExpanded = it }
+      ) {
+        OutlinedTextField(
+          value = selectedProvider.displayName,
+          onValueChange = {},
+          modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+          readOnly = true,
+          shape = ShapeTokens.Large,
+          trailingIcon = {
+            ExposedDropdownMenuDefaults.TrailingIcon(
+              expanded = providerDropdownExpanded
+            )
+          }
+        )
+        ExposedDropdownMenu(
+          expanded = providerDropdownExpanded,
+          onDismissRequest = { providerDropdownExpanded = false }
+        ) {
+          AiProviderType.entries.forEach { type ->
+            DropdownMenuItem(
+              text = { Text(type.displayName) },
+              onClick = {
+                selectedProvider = type
+                model = ""
+                baseUrl =
+                  when (type) {
+                    AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
+                    else -> ""
+                  }
+                providerDropdownExpanded = false
+                onClearModelFetchState()
+              }
+            )
+          }
+        }
+      }
+    }
+
+    // API Key
+    HesabyarInputField(
+      value = apiKey,
+      onValueChange = { apiKey = it },
+      label = "کلید API Key",
+      placeholder =
+        when (selectedProvider) {
+          AiProviderType.GEMINI -> "AIza..."
+          AiProviderType.OPENROUTER -> "sk-or-..."
+          AiProviderType.CUSTOM -> "your-api-key"
+        },
+      trailingIcon = {
+        IconButton(onClick = { showApiKey = !showApiKey }) {
+          Icon(
+            imageVector = if (showApiKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+            contentDescription = if (showApiKey) "مخفی" else "نمایش"
+          )
+        }
+      },
+      visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation()
+    )
+
+    // Base URL (for OpenRouter and Custom)
+    if (selectedProvider != AiProviderType.GEMINI) {
+      HesabyarInputField(
+        value = baseUrl,
+        onValueChange = { baseUrl = it },
+        label = "آدرس API (Base URL)",
+        placeholder =
+          when (selectedProvider) {
+            AiProviderType.OPENROUTER -> "https://openrouter.ai/api/v1"
+            AiProviderType.CUSTOM -> "https://api.example.com/v1"
+            else -> ""
+          }
+      )
+    }
+
+    // Fetch Models Button
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      HesabyarButton(
+        onClick = { onFetchModels(selectedProvider, apiKey, baseUrl.ifBlank { null }) },
+        modifier = Modifier.weight(1f),
+        text = "دریافت مدل‌ها",
+        icon = Icons.Filled.Refresh,
+        loading = modelFetchState is ModelFetchState.Loading,
+        enabled = apiKey.isNotBlank() && modelFetchState !is ModelFetchState.Loading
+      )
+
+      if (modelFetchState is ModelFetchState.Error) {
+        Text(
+          text = modelFetchState.message,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.error,
+          modifier = Modifier.align(Alignment.CenterVertically)
+        )
+      }
+    }
+
+    // Model Dropdown with search
+    if (fetchedModels.isNotEmpty()) {
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
+        Text(
+          text = "انتخاب مدل (${fetchedModels.size} مدل موجود):",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        // Search field
+        HesabyarInputField(
+          value = modelSearchQuery,
+          onValueChange = { modelSearchQuery = it },
+          placeholder = "جستجوی مدل...",
+          singleLine = true
+        )
+
+        ExposedDropdownMenuBox(
+          expanded = modelDropdownExpanded,
+          onExpandedChange = { modelDropdownExpanded = it }
+        ) {
+          OutlinedTextField(
+            value = model,
+            onValueChange = { model = it },
+            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+            shape = ShapeTokens.Large,
+            placeholder = { Text("نام مدل را تایپ یا انتخاب کنید") },
+            trailingIcon = {
+              ExposedDropdownMenuDefaults.TrailingIcon(
+                expanded = modelDropdownExpanded
+              )
+            }
+          )
+
+          ExposedDropdownMenu(
+            expanded = modelDropdownExpanded,
+            onDismissRequest = { modelDropdownExpanded = false }
+          ) {
+            if (selectedProvider == AiProviderType.GEMINI) {
+              geminiFamilies.forEach { (family, models) ->
+                DropdownMenuItem(
+                  text = {
+                    Text(
+                      "📁 $family (${models.size})",
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  },
+                  onClick = { }
+                )
+                models.take(10).forEach { m ->
+                  DropdownMenuItem(
+                    text = {
+                      Text(
+                        "  $m",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                      )
+                    },
+                    onClick = {
+                      model = m
+                      modelDropdownExpanded = false
+                      modelSearchQuery = ""
+                    }
+                  )
+                }
+                if (models.size > 10) {
+                  DropdownMenuItem(
+                    text = {
+                      Text(
+                        "  ... و ${models.size - 10} مدل دیگر",
+                        style = MaterialTheme.typography.bodySmall
+                      )
+                    },
+                    onClick = { }
+                  )
+                }
+              }
+            } else if (selectedProvider == AiProviderType.OPENROUTER) {
+              openRouterGroups.forEach { (provider, models) ->
+                val freeCount = models.count { it.endsWith(":free") }
+                DropdownMenuItem(
+                  text = {
+                    Text(
+                      "📁 $provider (${models.size}${if (freeCount > 0) ", $freeCount رایگان" else ""})",
+                      fontWeight = FontWeight.Bold,
+                      color = MaterialTheme.colorScheme.primary
+                    )
+                  },
+                  onClick = { }
+                )
+                models.take(8).forEach { m ->
+                  val isFree = m.endsWith(":free")
+                  DropdownMenuItem(
+                    text = {
+                      Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                          "  $m",
+                          style = MaterialTheme.typography.bodySmall,
+                          maxLines = 1,
+                          overflow = TextOverflow.Ellipsis,
+                          modifier = Modifier.weight(1f)
+                        )
+                        if (isFree) {
+                          Spacer(modifier = Modifier.width(SpacingTokens.xs))
+                          Text(
+                            "رایگان",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                          )
+                        }
+                      }
+                    },
+                    onClick = {
+                      model = m
+                      modelDropdownExpanded = false
+                      modelSearchQuery = ""
+                    }
+                  )
+                }
+                if (models.size > 8) {
+                  DropdownMenuItem(
+                    text = {
+                      Text(
+                        "  ... و ${models.size - 8} مدل دیگر",
+                        style = MaterialTheme.typography.bodySmall
+                      )
+                    },
+                    onClick = { }
+                  )
+                }
+              }
+            } else {
+              filteredModels.take(20).forEach { m ->
+                DropdownMenuItem(
+                  text = {
+                    Text(
+                      m,
+                      style = MaterialTheme.typography.bodySmall,
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis
+                    )
+                  },
+                  onClick = {
+                    model = m
+                    modelDropdownExpanded = false
+                    modelSearchQuery = ""
+                  }
+                )
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Manual model input
+      HesabyarInputField(
+        value = model,
+        onValueChange = { model = it },
+        label = "نام مدل (Model)",
+        placeholder =
+          when (selectedProvider) {
+            AiProviderType.GEMINI -> "gemini-2.0-flash"
+            AiProviderType.OPENROUTER -> "google/gemini-2.0-flash-001"
+            AiProviderType.CUSTOM -> "model-name"
+          }
+      )
+    }
+  }
 }
 
 @Composable
@@ -1498,7 +1488,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
     }
 
     if (config.masterEnabled) {
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Installment reminders toggle
       Row(
@@ -1558,7 +1548,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Days before due
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
@@ -1609,7 +1599,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         }
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Reminder time
       Row(
@@ -1698,7 +1688,7 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         )
       }
 
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+      HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
       // Loan reminder interval
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
