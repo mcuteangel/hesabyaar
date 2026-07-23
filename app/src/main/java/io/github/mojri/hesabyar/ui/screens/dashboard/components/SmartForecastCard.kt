@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,11 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -30,7 +28,6 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.ForecastUIState
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
@@ -47,7 +44,8 @@ internal fun SmartForecastCard(
     modifier =
       Modifier
         .fillMaxWidth()
-        .testTag("budget_forecast_alert_card"),
+        .testTag("budget_forecast_alert_card")
+        .clickable(onClick = onShowForecast),
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
@@ -129,20 +127,6 @@ internal fun SmartForecastCard(
         contentDescription = "مشاهده گزارش",
         tint = MaterialTheme.colorScheme.primary
       )
-    }
-    Button(
-      onClick = onShowForecast,
-      modifier = Modifier.fillMaxWidth(),
-      shape = ShapeTokens.Medium,
-      colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-    ) {
-      Icon(
-        imageVector = Icons.Filled.Assignment,
-        contentDescription = null,
-        modifier = Modifier.size(Dimens.IconSmall)
-      )
-      Spacer(modifier = Modifier.width(SpacingTokens.sm))
-      Text("مشاهده گزارش کامل", fontWeight = FontWeight.Bold)
     }
   }
 }

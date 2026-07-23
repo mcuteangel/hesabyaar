@@ -175,8 +175,9 @@ fun DashboardScreen(
         }
       }
 
-      // Bank Loans Summary
-      item { BankLoansSummaryCard(dashboardData) }
+      if (dashboardData.bankLoans.isNotEmpty()) {
+        item { BankLoansSummaryCard(dashboardData) }
+      }
 
       // Recent Activity Banner
       item {

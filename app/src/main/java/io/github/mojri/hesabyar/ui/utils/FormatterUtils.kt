@@ -34,16 +34,18 @@ internal fun extractForecastPreview(forecast: String): String {
 
   val preview =
     contentLines.take(3).joinToString(" | ") { line ->
-      if (line.length > LINE_PREVIEW_MAX_LENGTH) {
-        line.substring(0, LINE_PREVIEW_MAX_LENGTH).substringBeforeLast(" ") + "..."
-      } else {
-        line
-      }
+      truncateWithEllipsis(line, LINE_PREVIEW_MAX_LENGTH)
     }
 
-  return if (preview.length > PREVIEW_MAX_LENGTH) {
-    preview.substring(0, PREVIEW_MAX_LENGTH).substringBeforeLast(" ") + "..."
-  } else {
-    preview
-  }
+  return truncateWithEllipsis(preview, PREVIEW_MAX_LENGTH)
 }
+
+private fun truncateWithEllipsis(
+  text: String,
+  maxLength: Int
+): String =
+  if (text.length > maxLength) {
+    text.substring(0, maxLength).substringBeforeLast(" ") + "..."
+  } else {
+    text
+  }

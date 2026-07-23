@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.CustomTimePickerDialog
 import io.github.mojri.hesabyar.ui.screens.JalaliDatePickerDialog
 import java.util.Calendar
+import java.util.Locale
 
 private const val DATE_PICKER_WEIGHT = 1.3f
 
@@ -144,7 +145,7 @@ internal fun JalaliDateTimePicker(
         )
         Spacer(modifier = Modifier.width(SpacingTokens.sm))
         Text(
-          text = String.format("%02d:%02d", hour, minute),
+          text = String.format(Locale.US, "%02d:%02d", hour, minute),
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Bold
         )

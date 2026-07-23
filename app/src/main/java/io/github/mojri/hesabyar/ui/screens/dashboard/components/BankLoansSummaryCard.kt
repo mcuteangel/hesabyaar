@@ -18,7 +18,6 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
 internal fun BankLoansSummaryCard(dashboardData: DashboardData) {
-  if (dashboardData.bankLoans.isEmpty()) return
   HesabyarCard {
     Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
       Row(

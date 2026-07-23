@@ -289,11 +289,13 @@ private fun resolveTypeColor(typeKey: String) =
 private fun resolveDefaultCategoryId(
   typeKey: String,
   categories: List<Category>
-): Long =
-  when (typeKey) {
-    "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
-    "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
-    "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
-    "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
-    else -> 1L
+): Long {
+  val defaultId = 1L
+  return when (typeKey) {
+    "INCOME" -> categories.find { it.key == "Income" }?.id ?: defaultId
+    "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: defaultId
+    "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: defaultId
+    "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: defaultId
+    else -> defaultId
   }
+}

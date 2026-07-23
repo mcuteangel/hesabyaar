@@ -178,10 +178,11 @@ object ManualTransactionSubmitter {
     customDate: Long,
     installmentViewModel: InstallmentViewModel
   ): SubmitResult {
+    val millisPerDay = 24L * 60 * 60 * 1000
     val daysOffset = daysFromNowText.toLongOrNull()
     val dueDate =
       if (daysOffset != null && daysOffset > 0) {
-        System.currentTimeMillis() + daysOffset * 24 * 60 * 60 * 1000
+        System.currentTimeMillis() + daysOffset * millisPerDay
       } else {
         customDate
       }
