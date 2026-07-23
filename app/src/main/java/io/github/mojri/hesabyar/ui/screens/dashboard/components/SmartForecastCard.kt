@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,7 +33,7 @@ import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.extractForecastPreview
+import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
 
 @Suppress("LongMethod")
 @Composable
@@ -48,8 +47,7 @@ internal fun SmartForecastCard(
     modifier =
       Modifier
         .fillMaxWidth()
-        .testTag("budget_forecast_alert_card")
-        .clickable { onShowForecast() },
+        .testTag("budget_forecast_alert_card"),
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(

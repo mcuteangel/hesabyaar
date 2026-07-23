@@ -1,4 +1,4 @@
-package io.github.mojri.hesabyar.ui.screens.dashboard.utils
+package io.github.mojri.hesabyar.ui.utils
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance

@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,11 +32,11 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
 @Composable
@@ -371,8 +370,18 @@ fun InstallmentListItem(
           onClick = { installmentViewModel.toggleInstallmentPaid(installment) },
           colors =
             ButtonDefaults.buttonColors(
-              containerColor = if (installment.isPaid) MaterialTheme.colorScheme.surfaceVariant else colorAccent,
-              contentColor = if (installment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
+              containerColor =
+                if (installment.isPaid) {
+                  MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                  colorAccent
+                },
+              contentColor =
+                if (installment.isPaid) {
+                  MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                  MaterialTheme.colorScheme.onTertiary
+                }
             ),
           shape = ShapeTokens.Small,
           contentPadding = PaddingValues(horizontal = SpacingTokens.lg, vertical = SpacingTokens.xs),

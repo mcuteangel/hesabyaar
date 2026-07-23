@@ -563,7 +563,13 @@ private fun DebtCreditSummaryCard(
                   .fillMaxWidth()
                   .height(6.dp)
                   .clip(ShapeTokens.Small),
-              color = MaterialTheme.colorScheme.primary,
+              color =
+                if (item.type == LoanType.DEBTOR.name
+                ) {
+                  MaterialTheme.colorScheme.primary
+                } else {
+                  MaterialTheme.colorScheme.error
+                },
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 

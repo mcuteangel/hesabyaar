@@ -25,7 +25,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 
 @Composable
 internal fun InstallmentMiniItem(

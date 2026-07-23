@@ -1,4 +1,4 @@
-package io.github.mojri.hesabyar.ui.screens.dashboard.utils
+package io.github.mojri.hesabyar.ui.utils
 
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import java.util.*
@@ -12,7 +12,7 @@ internal fun formatPersianDate(timestamp: Long): String {
   cal.timeInMillis = timestamp
   val hour = cal.get(Calendar.HOUR_OF_DAY)
   val minute = cal.get(Calendar.MINUTE)
-  return String.format("%s - %02d:%02d", jalali.toString(), hour, minute)
+  return String.format(Locale.US, "%s - %02d:%02d", jalali.toString(), hour, minute)
 }
 
 internal fun extractForecastPreview(forecast: String): String {

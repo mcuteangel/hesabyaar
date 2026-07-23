@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,8 +30,8 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.CATEGORY_ICONS_MAP
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.resolveCategoryIcon
 
 @Suppress("LongMethod")
 @Composable
@@ -47,7 +46,7 @@ internal fun TransactionMiniItem(
   val categoryColor =
     category?.let { Color(it.color) }
       ?: if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-  val icon = CATEGORY_ICONS_MAP[category?.icon] ?: Icons.Filled.Paid
+  val icon = resolveCategoryIcon(category?.icon)
 
   HesabyarCard(
     modifier =

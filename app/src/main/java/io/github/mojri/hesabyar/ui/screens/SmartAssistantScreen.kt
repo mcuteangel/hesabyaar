@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package io.github.mojri.hesabyar.ui.screens
 
 import android.app.Activity
@@ -48,13 +50,16 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
 import java.util.*
 import java.util.Calendar
+
+private const val CONFIDENCE_HIGH_THRESHOLD = 0.9f
+private const val CONFIDENCE_MEDIUM_THRESHOLD = 0.7f
 
 @Composable
 fun SmartAssistantScreen(
@@ -1219,22 +1224,9 @@ fun ConfirmationDialog(
   onConfirm: () -> Unit,
   onCancel: () -> Unit
 ) {
-  val confidenceColor =
-    when {
-      result.confidence >= 0.9f -> MaterialTheme.colorScheme.primary
-      result.confidence >= 0.7f -> MaterialTheme.colorScheme.tertiary
-      else -> MaterialTheme.colorScheme.error
-    }
-
-  val typeLabel =
-    when (result.type) {
-      "EXPENSE" -> "هزینه"
-      "INCOME" -> "درآمد"
-      "LOAN_DEBTOR" -> "طلب (قرض دادم)"
-      "LOAN_CREDITOR" -> "بدهی (قرض گرفتم)"
-      "INSTALLMENT" -> "قسط"
-      else -> result.type
-    }
+  val confidenceColor = resolveConfidenceColor(result.confidence)
+  val typeLabel = resolveTypeLabel(result.type)
+  val amountColor = resolveAmountColor(result.type)
 
   AlertDialog(
     onDismissRequest = onCancel,
@@ -1246,126 +1238,12 @@ fun ConfirmationDialog(
       )
     },
     text = {
-      Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-      ) {
-        // Confidence Score
-        HesabyarCard(
-          modifier = Modifier.fillMaxWidth(),
-          cardColors = CardDefaults.cardColors(containerColor = confidenceColor.copy(alpha = 0.1f)),
-          contentPadding = PaddingValues(SpacingTokens.md)
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = "اطمینان:",
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Bold
-            )
-            Text(
-              text = "${(result.confidence * 100).toInt()}%",
-              style = MaterialTheme.typography.bodyLarge,
-              fontWeight = FontWeight.Bold,
-              color = confidenceColor
-            )
-          }
-        }
-
-        // Transaction Type
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text("نوع:", style = MaterialTheme.typography.bodyMedium)
-          Text(typeLabel, fontWeight = FontWeight.Bold)
-        }
-
-        // Amount
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text("مبلغ:", style = MaterialTheme.typography.bodyMedium)
-          Text(
-            text = CurrencyFormatter.format(result.amount),
-            fontWeight = FontWeight.Bold,
-            color =
-              if (result.type ==
-                TransactionType.INCOME.name
-              ) {
-                MaterialTheme.colorScheme.primary
-              } else {
-                MaterialTheme.colorScheme.error
-              }
-          )
-        }
-
-        // Category
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text("دسته:", style = MaterialTheme.typography.bodyMedium)
-          Text(result.category, fontWeight = FontWeight.Bold)
-        }
-
-        // Description
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text("شرح:", style = MaterialTheme.typography.bodyMedium)
-          Text(result.description, fontWeight = FontWeight.Bold)
-        }
-
-        // Person Name (if exists)
-        if (!result.personName.isNullOrBlank()) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text("شخص:", style = MaterialTheme.typography.bodyMedium)
-            Text(result.personName, fontWeight = FontWeight.Bold)
-          }
-        }
-
-        // Notes (if exists)
-        if (!result.notes.isNullOrBlank()) {
-          HesabyarCard(
-            modifier = Modifier.fillMaxWidth(),
-            cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            contentPadding = PaddingValues(SpacingTokens.sm)
-          ) {
-            Text(
-              text = result.notes,
-              style = MaterialTheme.typography.bodySmall
-            )
-          }
-        }
-
-        // Warning for low confidence
-        if (result.confidence < 0.7f) {
-          HesabyarCard(
-            modifier = Modifier.fillMaxWidth(),
-            cardColors =
-              CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-              ),
-            contentPadding = PaddingValues(SpacingTokens.sm)
-          ) {
-            Text(
-              text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
-              color = MaterialTheme.colorScheme.error,
-              style = MaterialTheme.typography.bodySmall,
-              fontWeight = FontWeight.Bold
-            )
-          }
-        }
-      }
+      ConfirmationDialogContent(
+        result = result,
+        confidenceColor = confidenceColor,
+        typeLabel = typeLabel,
+        amountColor = amountColor
+      )
     },
     confirmButton = {
       HesabyarButton(
@@ -1385,3 +1263,139 @@ fun ConfirmationDialog(
     }
   )
 }
+
+@Composable
+private fun ConfirmationDialogContent(
+  result: ParsedResult,
+  confidenceColor: Color,
+  typeLabel: String,
+  amountColor: Color
+) {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(12.dp)
+  ) {
+    ConfidenceScoreCard(confidence = result.confidence, color = confidenceColor)
+    DetailRow("نوع:", typeLabel)
+    DetailRow("مبلغ:", CurrencyFormatter.format(result.amount), amountColor)
+    DetailRow("دسته:", result.category)
+    DetailRow("شرح:", result.description)
+
+    if (!result.personName.isNullOrBlank()) {
+      DetailRow("شخص:", result.personName)
+    }
+
+    if (!result.notes.isNullOrBlank()) {
+      NotesCard(notes = result.notes)
+    }
+
+    if (result.confidence < CONFIDENCE_MEDIUM_THRESHOLD) {
+      LowConfidenceWarning()
+    }
+  }
+}
+
+@Composable
+private fun ConfidenceScoreCard(
+  confidence: Float,
+  color: Color
+) {
+  HesabyarCard(
+    modifier = Modifier.fillMaxWidth(),
+    cardColors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+    contentPadding = PaddingValues(SpacingTokens.md)
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = "اطمینان:",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold
+      )
+      Text(
+        text = "${(confidence * 100).toInt()}%",
+        style = MaterialTheme.typography.bodyLarge,
+        fontWeight = FontWeight.Bold,
+        color = color
+      )
+    }
+  }
+}
+
+@Composable
+private fun DetailRow(
+  label: String,
+  value: String,
+  valueColor: Color = Color.Unspecified
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween
+  ) {
+    Text(label, style = MaterialTheme.typography.bodyMedium)
+    Text(
+      text = value,
+      fontWeight = FontWeight.Bold,
+      color = if (valueColor != Color.Unspecified) valueColor else Color.Unspecified
+    )
+  }
+}
+
+@Composable
+private fun NotesCard(notes: String) {
+  HesabyarCard(
+    modifier = Modifier.fillMaxWidth(),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    contentPadding = PaddingValues(SpacingTokens.sm)
+  ) {
+    Text(text = notes, style = MaterialTheme.typography.bodySmall)
+  }
+}
+
+@Composable
+private fun LowConfidenceWarning() {
+  HesabyarCard(
+    modifier = Modifier.fillMaxWidth(),
+    cardColors =
+      CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+      ),
+    contentPadding = PaddingValues(SpacingTokens.sm)
+  ) {
+    Text(
+      text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
+      color = MaterialTheme.colorScheme.error,
+      style = MaterialTheme.typography.bodySmall,
+      fontWeight = FontWeight.Bold
+    )
+  }
+}
+
+@Composable
+private fun resolveConfidenceColor(confidence: Float) =
+  when {
+    confidence >= CONFIDENCE_HIGH_THRESHOLD -> MaterialTheme.colorScheme.primary
+    confidence >= CONFIDENCE_MEDIUM_THRESHOLD -> MaterialTheme.colorScheme.tertiary
+    else -> MaterialTheme.colorScheme.error
+  }
+
+private fun resolveTypeLabel(type: String) =
+  when (type) {
+    "EXPENSE" -> "هزینه"
+    "INCOME" -> "درآمد"
+    "LOAN_DEBTOR" -> "طلب (قرض دادم)"
+    "LOAN_CREDITOR" -> "بدهی (قرض گرفتم)"
+    "INSTALLMENT" -> "قسط"
+    else -> type
+  }
+
+@Composable
+private fun resolveAmountColor(type: String) =
+  when (type) {
+    TransactionType.INCOME.name, "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
+    TransactionType.EXPENSE.name, "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.tertiary
+  }

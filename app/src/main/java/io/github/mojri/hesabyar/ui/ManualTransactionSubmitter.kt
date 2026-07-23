@@ -1,0 +1,197 @@
+package io.github.mojri.hesabyar.ui
+
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+
+/**
+ * Encapsulates the business logic for validating and submitting a manual transaction form.
+ * Keeps the UI composable limited to input collection and display.
+ */
+object ManualTransactionSubmitter {
+  sealed class ValidationResult {
+    data object Valid : ValidationResult()
+
+    data class Error(
+      val message: String
+    ) : ValidationResult()
+  }
+
+  data class SubmitResult(
+    val success: Boolean,
+    val errorMessage: String? = null
+  )
+
+  fun validate(
+    amountDisplay: Long,
+    selectedType: String,
+    selectedCategoryId: Long,
+    personName: String,
+    title: String
+  ): ValidationResult {
+    val error =
+      when {
+        amountDisplay <= 0L -> "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید"
+        (selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L ->
+          "لطفا دسته‌بندی را انتخاب کنید"
+        (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") && personName.isBlank() ->
+          "لطفا نام شخص مربوطه را وارد کنید"
+        selectedType == "INSTALLMENT" && title.isBlank() -> "لطفا عنوان قسط را وارد کنید"
+        else -> null
+      }
+    return if (error != null) ValidationResult.Error(error) else ValidationResult.Valid
+  }
+
+  fun submit(
+    selectedType: String,
+    amountDisplay: Long,
+    isEditMode: Boolean,
+    originalAmountRial: Long,
+    amountModified: Boolean,
+    selectedCategoryId: Long,
+    descriptionText: String,
+    personName: String,
+    title: String,
+    daysFromNowText: String,
+    customDate: Long,
+    categories: List<Category>,
+    transactionViewModel: TransactionViewModel,
+    loanViewModel: LoanViewModel,
+    installmentViewModel: InstallmentViewModel,
+    transactionToEdit: Transaction?
+  ): SubmitResult {
+    val finalAmountRial = resolveAmount(amountDisplay, isEditMode, originalAmountRial, amountModified)
+    return when (selectedType) {
+      "INCOME", "EXPENSE" ->
+        submitTransaction(
+          selectedType,
+          finalAmountRial,
+          selectedCategoryId,
+          descriptionText,
+          customDate,
+          isEditMode,
+          transactionToEdit,
+          categories,
+          transactionViewModel
+        )
+      "LOAN_DEBTOR", "LOAN_CREDITOR" ->
+        submitLoan(
+          selectedType,
+          finalAmountRial,
+          personName,
+          descriptionText,
+          customDate,
+          loanViewModel
+        )
+      "INSTALLMENT" ->
+        submitInstallment(
+          finalAmountRial,
+          title,
+          descriptionText,
+          daysFromNowText,
+          customDate,
+          installmentViewModel
+        )
+      else -> SubmitResult(success = false, errorMessage = "نوع تراکنش نامعتبر است")
+    }
+  }
+
+  private fun resolveAmount(
+    amountDisplay: Long,
+    isEditMode: Boolean,
+    originalAmountRial: Long,
+    amountModified: Boolean
+  ): Long {
+    val result =
+      TransactionAmountResolver.resolveAmount(
+        AmountResolutionInput(
+          displayedAmount = amountDisplay,
+          isEditMode = isEditMode,
+          originalRialAmount = originalAmountRial,
+          userModifiedAmount = amountModified
+        )
+      )
+    return result.rialAmount
+  }
+
+  private fun submitTransaction(
+    selectedType: String,
+    finalAmountRial: Long,
+    selectedCategoryId: Long,
+    descriptionText: String,
+    customDate: Long,
+    isEditMode: Boolean,
+    transactionToEdit: Transaction?,
+    categories: List<Category>,
+    transactionViewModel: TransactionViewModel
+  ): SubmitResult {
+    val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
+    val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
+    if (isEditMode && transactionToEdit != null) {
+      val updated =
+        transactionToEdit.copy(
+          type = TransactionType.valueOf(selectedType),
+          categoryId = selectedCategoryId,
+          amount = finalAmountRial,
+          description = desc,
+          date = customDate
+        )
+      transactionViewModel.updateTransaction(updated)
+    } else {
+      transactionViewModel.addTransaction(
+        type = TransactionType.valueOf(selectedType),
+        categoryId = selectedCategoryId,
+        amount = finalAmountRial,
+        description = desc,
+        customDate = customDate
+      )
+    }
+    return SubmitResult(success = true)
+  }
+
+  private fun submitLoan(
+    selectedType: String,
+    finalAmountRial: Long,
+    personName: String,
+    descriptionText: String,
+    customDate: Long,
+    loanViewModel: LoanViewModel
+  ): SubmitResult {
+    val defaultDesc = if (selectedType == "LOAN_DEBTOR") "قرض دادن به $personName" else "قرض گرفتن از $personName"
+    val desc = descriptionText.trim().ifEmpty { defaultDesc }
+    loanViewModel.addLoan(
+      personName = personName,
+      type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
+      amount = finalAmountRial,
+      description = desc,
+      customDate = customDate
+    )
+    return SubmitResult(success = true)
+  }
+
+  private fun submitInstallment(
+    finalAmountRial: Long,
+    title: String,
+    descriptionText: String,
+    daysFromNowText: String,
+    customDate: Long,
+    installmentViewModel: InstallmentViewModel
+  ): SubmitResult {
+    val daysOffset = daysFromNowText.toLongOrNull()
+    val dueDate =
+      if (daysOffset != null && daysOffset > 0) {
+        System.currentTimeMillis() + daysOffset * 24 * 60 * 60 * 1000
+      } else {
+        customDate
+      }
+    installmentViewModel.addInstallment(
+      title = title,
+      amount = finalAmountRial,
+      dueDate = dueDate,
+      reminderEnabled = true,
+      notes = descriptionText.trim()
+    )
+    return SubmitResult(success = true)
+  }
+}

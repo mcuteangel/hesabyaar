@@ -1,4 +1,4 @@
-package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
+package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

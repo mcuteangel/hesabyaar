@@ -32,11 +32,11 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
 @Composable
@@ -59,8 +59,18 @@ private fun LoanTypeSelector(
       text = stringResource(R.string.loan_type_debtor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == LoanType.DEBTOR) MaterialTheme.colorScheme.primary else Color.Transparent,
-          contentColor = if (loanType == LoanType.DEBTOR) Color.White else MaterialTheme.colorScheme.onSurface
+          containerColor =
+            if (loanType == LoanType.DEBTOR) {
+              MaterialTheme.colorScheme.primary
+            } else {
+              Color.Transparent
+            },
+          contentColor =
+            if (loanType == LoanType.DEBTOR) {
+              MaterialTheme.colorScheme.onPrimary
+            } else {
+              MaterialTheme.colorScheme.onSurface
+            }
         )
     )
     HesabyarButton(
@@ -69,8 +79,18 @@ private fun LoanTypeSelector(
       text = stringResource(R.string.loan_type_creditor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == LoanType.CREDITOR) MaterialTheme.colorScheme.error else Color.Transparent,
-          contentColor = if (loanType == LoanType.CREDITOR) Color.White else MaterialTheme.colorScheme.onSurface
+          containerColor =
+            if (loanType == LoanType.CREDITOR) {
+              MaterialTheme.colorScheme.error
+            } else {
+              Color.Transparent
+            },
+          contentColor =
+            if (loanType == LoanType.CREDITOR) {
+              MaterialTheme.colorScheme.onError
+            } else {
+              MaterialTheme.colorScheme.onSurface
+            }
         )
     )
   }

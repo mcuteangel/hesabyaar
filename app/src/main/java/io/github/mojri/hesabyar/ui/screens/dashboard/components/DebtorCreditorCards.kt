@@ -110,19 +110,19 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           Icon(
             imageVector = Icons.Filled.Payments,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.size(Dimens.IconMedium)
           )
           Box(
             modifier =
               Modifier
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
+                .background(MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.12f), CircleShape)
                 .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
               text = "طلبکاران",
               style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurface,
+              color = MaterialTheme.colorScheme.onTertiaryContainer,
               fontWeight = FontWeight.Bold
             )
           }
@@ -132,7 +132,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           text = CurrencyFormatter.format(dashboardData.creditorsTotal),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.ExtraBold,
-          color = MaterialTheme.colorScheme.onSurface,
+          color = MaterialTheme.colorScheme.onTertiaryContainer,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )

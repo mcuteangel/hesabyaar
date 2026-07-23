@@ -30,7 +30,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 
 @Suppress("LongMethod")
 @Composable
