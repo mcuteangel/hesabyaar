@@ -38,14 +38,23 @@ internal fun SmartForecastCard(
   forecastState: ForecastUIState,
   lastForecastFetchTime: Long,
   aiAssistantViewModel: AiAssistantViewModel,
-  onShowForecast: () -> Unit
+  onShowForecast: () -> Unit,
+  onFetchForecast: () -> Unit
 ) {
   HesabyarCard(
     modifier =
       Modifier
         .fillMaxWidth()
         .testTag("budget_forecast_alert_card")
-        .clickable(onClick = onShowForecast),
+        .clickable(
+          onClick = {
+            when (forecastState) {
+              is ForecastUIState.Idle, is ForecastUIState.Error -> onFetchForecast()
+              else -> onShowForecast()
+            }
+          },
+          enabled = forecastState != ForecastUIState.Loading
+        ),
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(

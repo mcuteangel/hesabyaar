@@ -74,10 +74,9 @@ class GetDashboardDataUseCase(
       transactions: List<Transaction>,
       loans: List<Loan>,
       installments: List<Installment>,
-      bankLoans: List<BankLoan> = emptyList()
+      bankLoans: List<BankLoan> = emptyList(),
+      now: Long = System.currentTimeMillis()
     ): DashboardData {
-      val now = System.currentTimeMillis()
-
       // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
       // matching the Rust core's compute_dashboard_data (which interprets
       // timestamps in UTC). Centralized in JalaliCalendarHelper so the fallback

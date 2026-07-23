@@ -78,8 +78,8 @@ Data flow: `Screen → ViewModel → Repository → Room/Network`
 Before writing or refactoring any code, ALWAYS verify the implementation against the following core principles:
 
 ### 1. Modular & Reusable Architecture (DRY - Don't Repeat Yourself)
-- **Global Reusability:** Methods, utility functions, components, state formatters, and models MUST be defined once in a shared package (e.g., `ui/components/`, `ui/utils/`, `core/`) and reused across all screens.
-- **No In-Screen Duplication:** Never duplicate helper functions or UI elements inside individual screens. If a logic or UI piece is needed in more than one place, extract it immediately into a shared reusable module.
+- **Global Reusability (when applicable):** Methods, utility functions, components, state formatters, and models that are genuinely shared across screens MUST be defined once in a shared package (e.g., `ui/components/`, `ui/utils/`, `core/`) and reused everywhere. One-off local logic, tests, documentation, and configuration changes are exempt.
+- **No In-Screen Duplication:** Never duplicate shared helper functions or UI elements inside individual screens. If a logic or UI piece is needed in more than one place, extract it immediately into a shared reusable module.
 
 ### 2. Strict Material Design 3 (M3) Standards
 - **Token-Based Design:** ALWAYS use semantic Material3 color and typography tokens (`MaterialTheme.colorScheme.onSurfaceVariant`, `surfaceContainerLowest`, `MaterialTheme.typography.*`, etc.).

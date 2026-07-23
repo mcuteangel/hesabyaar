@@ -71,7 +71,13 @@ class GetDashboardDataUseCaseTest {
         tx(TransactionType.INCOME, 10_000_000, old) // should be excluded
       )
 
-    val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        now = now
+      )
 
     assertEquals(5_000_000L, result.monthlyIncome)
     assertEquals(2_000_000L, result.monthlyExpenses)
