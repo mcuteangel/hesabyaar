@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
@@ -30,7 +29,6 @@ import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.utils.CATEGORY_ICONS_MAP
@@ -47,7 +45,8 @@ internal fun TransactionMiniItem(
   val isIncome = transaction.type == TransactionType.INCOME
   val category = categories.find { it.id == transaction.categoryId }
   val categoryColor =
-    category?.let { Color(it.color) } ?: if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+    category?.let { Color(it.color) }
+      ?: if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
   val icon = CATEGORY_ICONS_MAP[category?.icon] ?: Icons.Filled.Paid
 
   HesabyarCard(
@@ -56,7 +55,7 @@ internal fun TransactionMiniItem(
         .fillMaxWidth()
         .clickable(onClick = onClick),
     shape = ShapeTokens.Medium,
-    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+    cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -79,7 +78,6 @@ internal fun TransactionMiniItem(
           Text(
             text = transaction.description,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -96,14 +94,13 @@ internal fun TransactionMiniItem(
         Text(
           text = (if (isIncome) "+" else "-") + CurrencyFormatter.format(transaction.amount),
           style = MaterialTheme.typography.bodyMedium,
-          fontWeight = FontWeight.Bold,
-          color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+          color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
         )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
-            tint = FinancialColors.ExpenseRed.copy(alpha = 0.7f),
+            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
             modifier = Modifier.size(18.dp)
           )
         }

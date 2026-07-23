@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -46,8 +45,8 @@ internal fun KpiCards(dashboardData: DashboardData) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconCircle(
             icon = Icons.Filled.Savings,
-            tint = FinancialColors.IncomeGreen,
-            backgroundColor = FinancialColors.IncomeGreen,
+            tint = MaterialTheme.colorScheme.primary,
+            backgroundColor = MaterialTheme.colorScheme.primary,
             containerSize = 28.dp
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
@@ -64,9 +63,9 @@ internal fun KpiCards(dashboardData: DashboardData) {
           fontWeight = FontWeight.Bold,
           color =
             when {
-              savingsPct >= 20 -> FinancialColors.IncomeGreen
-              savingsPct >= 0 -> FinancialColors.WarningOrange
-              else -> FinancialColors.ExpenseRed
+              savingsPct >= 20 -> MaterialTheme.colorScheme.primary
+              savingsPct >= 0 -> MaterialTheme.colorScheme.tertiary
+              else -> MaterialTheme.colorScheme.error
             }
         )
       }
@@ -84,8 +83,8 @@ internal fun KpiCards(dashboardData: DashboardData) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconCircle(
             icon = Icons.Filled.AccountBalance,
-            tint = FinancialColors.InfoBlue,
-            backgroundColor = FinancialColors.InfoBlue,
+            tint = MaterialTheme.colorScheme.secondary,
+            backgroundColor = MaterialTheme.colorScheme.secondary,
             containerSize = 28.dp
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
@@ -102,9 +101,9 @@ internal fun KpiCards(dashboardData: DashboardData) {
           fontWeight = FontWeight.Bold,
           color =
             when {
-              debtPct > 40 -> FinancialColors.ExpenseRed
-              debtPct > 20 -> FinancialColors.WarningOrange
-              else -> FinancialColors.InfoBlue
+              debtPct > 40 -> MaterialTheme.colorScheme.error
+              debtPct > 20 -> MaterialTheme.colorScheme.tertiary
+              else -> MaterialTheme.colorScheme.secondary
             }
         )
       }

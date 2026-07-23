@@ -1,10 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +14,9 @@ import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,13 +29,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.LoanType
@@ -49,10 +47,10 @@ import io.github.mojri.hesabyar.ui.TransactionAmountResolver
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 internal fun ManualTransactionDialog(
@@ -100,9 +98,9 @@ internal fun ManualTransactionDialog(
 
   val typeColor =
     when (selectedType) {
-      "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
-      "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
-      else -> FinancialColors.WarningOrange
+      "INCOME", "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
+      "EXPENSE", "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+      else -> MaterialTheme.colorScheme.tertiary
     }
 
   HesabyarDialog(
@@ -279,49 +277,37 @@ internal fun ManualTransactionDialog(
           val isSelected = selectedType == typeKey
           val chipColor =
             when (typeKey) {
-              "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
-              "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
-              else -> FinancialColors.WarningOrange
+              "INCOME", "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
+              "EXPENSE", "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+              else -> MaterialTheme.colorScheme.tertiary
             }
-          Box(
-            modifier =
-              Modifier
-                .clip(ShapeTokens.Medium)
-                .background(
-                  if (isSelected) {
-                    chipColor
-                  } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                      .copy(
-                        alpha = 0.5f
-                      )
-                  }
-                ).clickable {
-                  selectedType = typeKey
-                  selectedCategoryId =
-                    when (typeKey) {
-                      "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
-                      "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
-                      "LOAN_DEBTOR", "LOAN_CREDITOR" ->
-                        categories.find { it.key == "Loans" }?.id
-                          ?: 1L
-                      "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
-                      else -> selectedCategoryId
-                    }
-                }.padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
-          ) {
-            Text(
-              text = typeLabel,
-              color =
-                if (isSelected) {
-                  MaterialTheme.colorScheme.onPrimary
-                } else {
-                  MaterialTheme.colorScheme.onSurfaceVariant
-                },
-              style = MaterialTheme.typography.labelMedium,
-              fontWeight = FontWeight.Bold
-            )
-          }
+          FilterChip(
+            selected = isSelected,
+            onClick = {
+              selectedType = typeKey
+              selectedCategoryId =
+                when (typeKey) {
+                  "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+                  "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
+                  "LOAN_DEBTOR", "LOAN_CREDITOR" ->
+                    categories.find { it.key == "Loans" }?.id
+                      ?: 1L
+                  "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+                  else -> selectedCategoryId
+                }
+            },
+            label = {
+              Text(
+                text = typeLabel,
+                fontWeight = FontWeight.Bold
+              )
+            },
+            colors =
+              FilterChipDefaults.filterChipColors(
+                selectedContainerColor = chipColor,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+              )
+          )
         }
       }
     }
@@ -400,34 +386,21 @@ internal fun ManualTransactionDialog(
         ) {
           filteredCategories.forEach { cat ->
             val isSelected = selectedCategoryId == cat.id
-            Box(
-              modifier =
-                Modifier
-                  .clip(ShapeTokens.Medium)
-                  .background(
-                    if (isSelected) {
-                      MaterialTheme.colorScheme.primary
-                    } else {
-                      MaterialTheme.colorScheme.surfaceVariant
-                        .copy(
-                          alpha = 0.5f
-                        )
-                    }
-                  ).clickable { selectedCategoryId = cat.id }
-                  .padding(horizontal = 14.dp, vertical = SpacingTokens.sm)
-            ) {
-              Text(
-                text = cat.name,
-                color =
-                  if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimary
-                  } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                  },
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
-              )
-            }
+            FilterChip(
+              selected = isSelected,
+              onClick = { selectedCategoryId = cat.id },
+              label = {
+                Text(
+                  text = cat.name,
+                  fontWeight = FontWeight.Medium
+                )
+              },
+              colors =
+                FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = MaterialTheme.colorScheme.primary,
+                  selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
           }
         }
       }

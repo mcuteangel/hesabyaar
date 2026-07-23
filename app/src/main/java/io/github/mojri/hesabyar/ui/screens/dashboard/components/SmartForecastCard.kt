@@ -95,7 +95,7 @@ internal fun SmartForecastCard(
               Text(
                 text = preview,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
               )
@@ -128,7 +128,7 @@ internal fun SmartForecastCard(
       }
       Icon(
         imageVector = Icons.Filled.ChevronLeft,
-        contentDescription = null,
+        contentDescription = "مشاهده گزارش",
         tint = MaterialTheme.colorScheme.primary
       )
     }

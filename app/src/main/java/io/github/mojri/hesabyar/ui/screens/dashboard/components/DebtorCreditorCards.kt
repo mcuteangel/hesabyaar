@@ -25,12 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -74,7 +72,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           ) {
             Text(
               text = "بدهکاران",
-              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+              style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.onSurface,
               fontWeight = FontWeight.Bold
             )
@@ -83,7 +81,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
         Spacer(modifier = Modifier.height(SpacingTokens.lg))
         Text(
           text = CurrencyFormatter.format(dashboardData.debtorsTotal),
-          style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+          style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.ExtraBold,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,
@@ -97,7 +95,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
       shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
-          containerColor = FinancialColors.WarningOrange.copy(alpha = 0.15f)
+          containerColor = MaterialTheme.colorScheme.tertiaryContainer
         )
     ) {
       Column(
@@ -123,7 +121,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
           ) {
             Text(
               text = "طلبکاران",
-              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+              style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.onSurface,
               fontWeight = FontWeight.Bold
             )
@@ -132,7 +130,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
         Spacer(modifier = Modifier.height(SpacingTokens.lg))
         Text(
           text = CurrencyFormatter.format(dashboardData.creditorsTotal),
-          style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+          style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.ExtraBold,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,

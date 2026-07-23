@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,7 +23,6 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -49,8 +47,8 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconCircle(
             icon = Icons.Filled.TrendingUp,
-            tint = FinancialColors.IncomeGreen,
-            backgroundColor = FinancialColors.IncomeGreen,
+            tint = MaterialTheme.colorScheme.primary,
+            backgroundColor = MaterialTheme.colorScheme.primary,
             containerSize = 28.dp
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
@@ -64,7 +62,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
           text = CurrencyFormatter.format(dashboardData.monthlyIncome),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
-          color = FinancialColors.IncomeGreen,
+          color = MaterialTheme.colorScheme.primary,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )
@@ -83,8 +81,8 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconCircle(
             icon = Icons.Filled.TrendingDown,
-            tint = FinancialColors.ExpenseRed,
-            backgroundColor = FinancialColors.ExpenseRed,
+            tint = MaterialTheme.colorScheme.error,
+            backgroundColor = MaterialTheme.colorScheme.error,
             containerSize = 28.dp
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
@@ -98,7 +96,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
           text = CurrencyFormatter.format(dashboardData.monthlyExpenses),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
-          color = FinancialColors.ExpenseRed,
+          color = MaterialTheme.colorScheme.error,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )

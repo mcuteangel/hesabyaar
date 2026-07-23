@@ -30,7 +30,6 @@ import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.components.CardEmptyHint
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -65,7 +64,7 @@ fun AnalyticsScreen(
         title = "📈 روند هزینه‌های ماهانه",
         data = analyticsData.monthlySpending,
         getValue = { it.expense },
-        color = FinancialColors.ExpenseRed
+        color = MaterialTheme.colorScheme.error
       )
     }
 
@@ -75,7 +74,7 @@ fun AnalyticsScreen(
         title = "💰 روند درآمدهای ماهانه",
         data = analyticsData.monthlyIncome,
         getValue = { it.income },
-        color = FinancialColors.IncomeGreen
+        color = MaterialTheme.colorScheme.primary
       )
     }
 
@@ -226,6 +225,8 @@ private fun CombinedLineChartCard(
       val incomeValues = allLabels.map { label -> incomeByLabel[label]?.income ?: 0L }
       val allValues = spendValues + incomeValues
       val maxValue = allValues.maxOrNull()?.coerceAtLeast(1) ?: 1L
+      val incomeColor = MaterialTheme.colorScheme.primary
+      val expenseColor = MaterialTheme.colorScheme.error
 
       Canvas(
         modifier =
@@ -256,7 +257,7 @@ private fun CombinedLineChartCard(
             }
           for (i in 0 until points.size - 1) {
             drawLine(
-              color = FinancialColors.IncomeGreen,
+              color = incomeColor,
               start = points[i],
               end = points[i + 1],
               strokeWidth = 4f,
@@ -264,7 +265,7 @@ private fun CombinedLineChartCard(
             )
           }
           points.forEach { pt ->
-            drawCircle(color = FinancialColors.IncomeGreen, radius = 6f, center = pt)
+            drawCircle(color = incomeColor, radius = 6f, center = pt)
           }
         }
 
@@ -278,7 +279,7 @@ private fun CombinedLineChartCard(
             }
           for (i in 0 until points.size - 1) {
             drawLine(
-              color = FinancialColors.ExpenseRed,
+              color = expenseColor,
               start = points[i],
               end = points[i + 1],
               strokeWidth = 4f,
@@ -286,7 +287,7 @@ private fun CombinedLineChartCard(
             )
           }
           points.forEach { pt ->
-            drawCircle(color = FinancialColors.ExpenseRed, radius = 6f, center = pt)
+            drawCircle(color = expenseColor, radius = 6f, center = pt)
           }
         }
 
@@ -312,11 +313,11 @@ private fun CombinedLineChartCard(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Box(modifier = Modifier.size(12.dp).background(FinancialColors.IncomeGreen, CircleShape))
+        Box(modifier = Modifier.size(12.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
         Spacer(modifier = Modifier.width(SpacingTokens.xs))
         Text("درآمد", style = MaterialTheme.typography.labelSmall)
         Spacer(modifier = Modifier.width(SpacingTokens.lg))
-        Box(modifier = Modifier.size(12.dp).background(FinancialColors.ExpenseRed, CircleShape))
+        Box(modifier = Modifier.size(12.dp).background(MaterialTheme.colorScheme.error, CircleShape))
         Spacer(modifier = Modifier.width(SpacingTokens.xs))
         Text("هزینه", style = MaterialTheme.typography.labelSmall)
       }
@@ -512,9 +513,9 @@ private fun DebtCreditSummaryCard(
               MaterialTheme.colorScheme.onSurfaceVariant
             } else if (items.first().type == LoanType.DEBTOR.name
             ) {
-              FinancialColors.IncomeGreen
+              MaterialTheme.colorScheme.primary
             } else {
-              FinancialColors.ExpenseRed
+              MaterialTheme.colorScheme.error
             }
         )
       }
@@ -548,9 +549,9 @@ private fun DebtCreditSummaryCard(
                 color =
                   if (item.type == LoanType.DEBTOR.name
                   ) {
-                    FinancialColors.IncomeGreen
+                    MaterialTheme.colorScheme.primary
                   } else {
-                    FinancialColors.ExpenseRed
+                    MaterialTheme.colorScheme.error
                   }
               )
             }
@@ -562,7 +563,7 @@ private fun DebtCreditSummaryCard(
                   .fillMaxWidth()
                   .height(6.dp)
                   .clip(ShapeTokens.Small),
-              color = FinancialColors.IncomeGreen,
+              color = MaterialTheme.colorScheme.primary,
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
@@ -640,9 +641,9 @@ private fun LoanStatusCard(loans: List<Loan>) {
                   if (loan.type ==
                     LoanType.DEBTOR
                   ) {
-                    FinancialColors.IncomeGreen
+                    MaterialTheme.colorScheme.primary
                   } else {
-                    FinancialColors.ExpenseRed
+                    MaterialTheme.colorScheme.error
                   }
               )
             }
@@ -657,9 +658,9 @@ private fun LoanStatusCard(loans: List<Loan>) {
               color =
                 if (loan.type == LoanType.DEBTOR
                 ) {
-                  FinancialColors.IncomeGreen
+                  MaterialTheme.colorScheme.primary
                 } else {
-                  FinancialColors.ExpenseRed
+                  MaterialTheme.colorScheme.error
                 },
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -708,7 +709,7 @@ private fun BankLoanStatusCard(
           text = CurrencyFormatter.format(totalDebt),
           style = MaterialTheme.typography.titleSmall,
           fontWeight = FontWeight.Bold,
-          color = FinancialColors.ExpenseRed
+          color = MaterialTheme.colorScheme.error
         )
       }
 
@@ -742,7 +743,7 @@ private fun BankLoanStatusCard(
                 Text(
                   text = "تسویه شده",
                   style = MaterialTheme.typography.labelSmall,
-                  color = FinancialColors.IncomeGreen
+                  color = MaterialTheme.colorScheme.primary
                 )
               }
             }
@@ -807,7 +808,7 @@ private fun InstallmentProgressCard(
             Text(
               text = "${if (total > 0) (paid * 100 / total) else 0}٪ تکمیل شده",
               style = MaterialTheme.typography.bodySmall,
-              color = FinancialColors.IncomeGreen
+              color = MaterialTheme.colorScheme.primary
             )
           }
         }
@@ -839,7 +840,7 @@ private fun InstallmentProgressCard(
               Text(
                 text = CurrencyFormatter.format(inst.amount),
                 style = MaterialTheme.typography.labelSmall,
-                color = FinancialColors.ExpenseRed
+                color = MaterialTheme.colorScheme.error
               )
             }
           }
@@ -853,7 +854,7 @@ private fun InstallmentProgressCard(
 private fun CircularProgress(
   progress: Float,
   modifier: Modifier = Modifier,
-  color: Color = FinancialColors.IncomeGreen,
+  color: Color = MaterialTheme.colorScheme.primary,
   strokeWidth: Float = 12f
 ) {
   val animatedProgress by animateFloatAsState(

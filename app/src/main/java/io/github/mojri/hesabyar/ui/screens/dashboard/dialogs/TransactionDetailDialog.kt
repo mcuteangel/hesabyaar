@@ -23,13 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
@@ -75,7 +73,7 @@ internal fun TransactionDetailDialog(
             text = if (isIncome) "درآمد" else "هزینه",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+            color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
           )
         }
 
@@ -95,7 +93,7 @@ internal fun TransactionDetailDialog(
             text = CurrencyFormatter.format(transaction.amount),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
-            color = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+            color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
           )
         }
 
@@ -179,7 +177,11 @@ internal fun TransactionDetailDialog(
           onClick = onDelete,
           modifier = Modifier.weight(1f),
           shape = ShapeTokens.Small,
-          colors = ButtonDefaults.buttonColors(containerColor = FinancialColors.ExpenseRed)
+          colors =
+            ButtonDefaults.buttonColors(
+              containerColor = MaterialTheme.colorScheme.error,
+              contentColor = MaterialTheme.colorScheme.onError
+            )
         ) {
           Icon(
             imageVector = Icons.Filled.Delete,

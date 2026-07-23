@@ -50,7 +50,6 @@ import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
@@ -852,9 +851,9 @@ fun ParsedResultCard(
 
   val typeColor =
     when (selectedType) {
-      "INCOME", "LOAN_DEBTOR" -> FinancialColors.IncomeGreen
-      "EXPENSE", "LOAN_CREDITOR" -> FinancialColors.ExpenseRed
-      else -> FinancialColors.WarningOrange
+      "INCOME", "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
+      "EXPENSE", "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+      else -> MaterialTheme.colorScheme.tertiary
     }
 
   HesabyarCard(
@@ -895,9 +894,9 @@ fun ParsedResultCard(
       // Confidence Score Display
       val confidenceColor =
         when {
-          result.confidence >= 0.9f -> FinancialColors.IncomeGreen
-          result.confidence >= 0.7f -> FinancialColors.WarningOrange
-          else -> FinancialColors.ExpenseRed
+          result.confidence >= 0.9f -> MaterialTheme.colorScheme.primary
+          result.confidence >= 0.7f -> MaterialTheme.colorScheme.tertiary
+          else -> MaterialTheme.colorScheme.error
         }
       HesabyarCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1222,9 +1221,9 @@ fun ConfirmationDialog(
 ) {
   val confidenceColor =
     when {
-      result.confidence >= 0.9f -> FinancialColors.IncomeGreen
-      result.confidence >= 0.7f -> FinancialColors.WarningOrange
-      else -> FinancialColors.ExpenseRed
+      result.confidence >= 0.9f -> MaterialTheme.colorScheme.primary
+      result.confidence >= 0.7f -> MaterialTheme.colorScheme.tertiary
+      else -> MaterialTheme.colorScheme.error
     }
 
   val typeLabel =
@@ -1298,9 +1297,9 @@ fun ConfirmationDialog(
               if (result.type ==
                 TransactionType.INCOME.name
               ) {
-                FinancialColors.IncomeGreen
+                MaterialTheme.colorScheme.primary
               } else {
-                FinancialColors.ExpenseRed
+                MaterialTheme.colorScheme.error
               }
           )
         }
@@ -1354,13 +1353,13 @@ fun ConfirmationDialog(
             modifier = Modifier.fillMaxWidth(),
             cardColors =
               CardDefaults.cardColors(
-                containerColor = FinancialColors.ExpenseRed.copy(alpha = 0.1f)
+                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
               ),
             contentPadding = PaddingValues(SpacingTokens.sm)
           ) {
             Text(
               text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
-              color = FinancialColors.ExpenseRed,
+              color = MaterialTheme.colorScheme.error,
               style = MaterialTheme.typography.bodySmall,
               fontWeight = FontWeight.Bold
             )
@@ -1373,7 +1372,7 @@ fun ConfirmationDialog(
         onClick = onConfirm,
         modifier = Modifier.fillMaxWidth(),
         text = "تایید و ادامه",
-        colors = ButtonDefaults.buttonColors(containerColor = FinancialColors.IncomeGreen)
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
       )
     },
     dismissButton = {

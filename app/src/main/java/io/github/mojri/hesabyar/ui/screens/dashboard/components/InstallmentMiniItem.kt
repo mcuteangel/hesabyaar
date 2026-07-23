@@ -23,7 +23,6 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.utils.formatPersianDate
@@ -49,8 +48,8 @@ internal fun InstallmentMiniItem(
       ) {
         IconCircle(
           icon = Icons.Filled.DateRange,
-          tint = FinancialColors.WarningOrange,
-          backgroundColor = FinancialColors.WarningOrange,
+          tint = MaterialTheme.colorScheme.tertiary,
+          backgroundColor = MaterialTheme.colorScheme.tertiary,
           iconSize = 18.dp
         )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
@@ -79,7 +78,7 @@ internal fun InstallmentMiniItem(
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
           ),
         shape = ShapeTokens.Small,
-        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = 2.dp)
+        contentPadding = PaddingValues(horizontal = SpacingTokens.md, vertical = SpacingTokens.xs)
       ) {
         Text("پرداخت", style = MaterialTheme.typography.labelSmall)
       }

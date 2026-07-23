@@ -58,7 +58,7 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
         Text(
           text = "دستیار مالی هوشمند شما",
           style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
     }

@@ -37,7 +37,6 @@ import io.github.mojri.hesabyar.ui.components.BalanceCard
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.EmptyState
 import io.github.mojri.hesabyar.ui.components.SectionHeader
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.BankLoansSummaryCard
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.DashboardHeader
@@ -152,7 +151,7 @@ fun DashboardScreen(
               Text(
                 text = "باقی مانده: ${dashboardData.upcomingInstallments.size} مورد",
                 style = MaterialTheme.typography.bodySmall,
-                color = FinancialColors.WarningOrange
+                color = MaterialTheme.colorScheme.tertiary
               )
             }
           }

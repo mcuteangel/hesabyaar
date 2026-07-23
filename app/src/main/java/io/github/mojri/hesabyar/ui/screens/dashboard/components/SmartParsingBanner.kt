@@ -65,13 +65,13 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
           Text(
             text = "جمله بنویسید یا صحبت کنید تا خودکار ثبت شود!",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
       }
       Icon(
         imageVector = Icons.Filled.ChevronLeft,
-        contentDescription = null,
+        contentDescription = "رفتن به دستیار هوشمند",
         tint = MaterialTheme.colorScheme.primary
       )
     }

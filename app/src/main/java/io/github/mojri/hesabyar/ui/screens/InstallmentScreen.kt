@@ -34,7 +34,6 @@ import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
@@ -287,7 +286,7 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
-  val colorAccent = if (installment.isPaid) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
+  val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
   HesabyarCard(
     modifier =
@@ -415,14 +414,14 @@ fun InstallmentListItem(
               onClick = { installmentViewModel.deleteInstallment(installment) },
               modifier =
                 Modifier
-                  .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
+                  .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
                   .size(Dimens.AvatarSmall)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف قسط",
                 modifier = Modifier.size(18.dp),
-                tint = FinancialColors.ExpenseRed
+                tint = MaterialTheme.colorScheme.error
               )
             }
           }

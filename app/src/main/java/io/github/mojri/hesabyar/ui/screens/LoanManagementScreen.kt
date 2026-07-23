@@ -33,7 +33,6 @@ import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.JalaliDateTimePicker
@@ -60,7 +59,7 @@ private fun LoanTypeSelector(
       text = stringResource(R.string.loan_type_debtor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == LoanType.DEBTOR) FinancialColors.IncomeGreen else Color.Transparent,
+          containerColor = if (loanType == LoanType.DEBTOR) MaterialTheme.colorScheme.primary else Color.Transparent,
           contentColor = if (loanType == LoanType.DEBTOR) Color.White else MaterialTheme.colorScheme.onSurface
         )
     )
@@ -70,7 +69,7 @@ private fun LoanTypeSelector(
       text = stringResource(R.string.loan_type_creditor),
       colors =
         ButtonDefaults.buttonColors(
-          containerColor = if (loanType == LoanType.CREDITOR) FinancialColors.ExpenseRed else Color.Transparent,
+          containerColor = if (loanType == LoanType.CREDITOR) MaterialTheme.colorScheme.error else Color.Transparent,
           contentColor = if (loanType == LoanType.CREDITOR) Color.White else MaterialTheme.colorScheme.onSurface
         )
     )
@@ -377,9 +376,9 @@ fun LoanListItem(
       MaterialTheme.colorScheme.primary
     } else if (loan.type == LoanType.DEBTOR
     ) {
-      FinancialColors.IncomeGreen
+      MaterialTheme.colorScheme.primary
     } else {
-      FinancialColors.ExpenseRed
+      MaterialTheme.colorScheme.error
     }
   val statusText =
     if (loan.isSettled) {
@@ -557,13 +556,13 @@ fun LoanListItem(
               onClick = onDelete,
               modifier =
                 Modifier
-                  .background(FinancialColors.ExpenseRed.copy(alpha = 0.1f), CircleShape)
+                  .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
                   .size(Dimens.AvatarMedium)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف قرض",
-                tint = FinancialColors.ExpenseRed
+                tint = MaterialTheme.colorScheme.error
               )
             }
 

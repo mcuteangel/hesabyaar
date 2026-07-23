@@ -14,7 +14,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
@@ -36,7 +35,7 @@ internal fun BankLoansSummaryCard(dashboardData: DashboardData) {
           text = CurrencyFormatter.format(dashboardData.bankLoansTotal),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
-          color = FinancialColors.ExpenseRed
+          color = MaterialTheme.colorScheme.error
         )
       }
       dashboardData.bankLoans.forEach { bl ->
