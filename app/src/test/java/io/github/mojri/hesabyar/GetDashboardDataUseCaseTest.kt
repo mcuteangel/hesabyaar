@@ -57,8 +57,12 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun `fallback computes monthly income and expenses from recent transactions`() {
     val now = System.currentTimeMillis()
-    val recent = now - 10L * 24 * 60 * 60 * 1000 // 10 days ago
-    val old = now - 60L * 24 * 60 * 60 * 1000 // 60 days ago (outside 30-day window)
+    val (jalaliMonthStart, jalaliMonthEndExclusive) =
+      JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
+    // Place transaction safely inside the current Jalali month (1 day after start).
+    val recent = jalaliMonthStart + 1L * 24 * 60 * 60 * 1000
+    // Place transaction before the current Jalali month (excluded).
+    val old = jalaliMonthStart - 1L
 
     val transactions =
       listOf(
@@ -67,11 +71,17 @@ class GetDashboardDataUseCaseTest {
         tx(TransactionType.INCOME, 10_000_000, old) // should be excluded
       )
 
-    val result = GetDashboardDataUseCase.computeFallbackDashboardData(transactions, emptyList(), emptyList())
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        now = now
+      )
 
     assertEquals(5_000_000L, result.monthlyIncome)
     assertEquals(2_000_000L, result.monthlyExpenses)
-    // currentBalance now uses ALL transactions (not just 30-day window):
+    // currentBalance uses ALL transactions (lifetime), not just the Jalali month:
     // total income = 5M (recent) + 10M (old) = 15M, total expense = 2M → 13M
     assertEquals(13_000_000L, result.currentBalance)
   }

@@ -73,6 +73,22 @@ Data flow: `Screen → ViewModel → Repository → Room/Network`
 4. Does this require a Room migration?
 5. Are local backups still compatible?
 
+## Mandatory Development Guidelines
+
+Before writing or refactoring any code, ALWAYS verify the implementation against the following core principles:
+
+### 1. Modular & Reusable Architecture (DRY - Don't Repeat Yourself)
+- **Global Reusability (when applicable):** Methods, utility functions, components, state formatters, and models that are genuinely shared across screens MUST be defined once in a shared package (e.g., `ui/components/`, `ui/utils/`, `core/`) and reused everywhere. One-off local logic, tests, documentation, and configuration changes are exempt.
+- **No In-Screen Duplication:** Never duplicate shared helper functions or UI elements inside individual screens. If a logic or UI piece is needed in more than one place, extract it immediately into a shared reusable module.
+
+### 2. Strict Material Design 3 (M3) Standards
+- **Token-Based Design:** ALWAYS use semantic Material3 color and typography tokens (`MaterialTheme.colorScheme.onSurfaceVariant`, `surfaceContainerLowest`, `MaterialTheme.typography.*`, etc.).
+- **No Hardcoded Values/Alphas:** Avoid hardcoding manual colors, magic numbers, or arbitrary color alphas (like `onSurface.copy(alpha = 0.5f)`). If a specific design token is missing, define it centrally in the design system / theme module (e.g., `Theme.kt` or `Color.kt`) so that all screens maintain absolute visual consistency across Light and Dark themes.
+
+### 3. Minimalist Code & Zero Redundancy
+- **Eliminate Boilerplate:** Keep implementations clean, minimal, and free of redundant wrapper code or dead logic.
+- **Refactor On-The-Fly:** When modifying any existing file, actively scan for pre-existing code duplication or anti-patterns and refactor/optimize them as part of the task.
+
 ## Rust Changes Require Binding Regeneration
 
 The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through UniFFI bindings

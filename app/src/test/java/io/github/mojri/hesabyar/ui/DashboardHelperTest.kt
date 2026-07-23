@@ -1,6 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
-import io.github.mojri.hesabyar.ui.screens.extractForecastPreview
+import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

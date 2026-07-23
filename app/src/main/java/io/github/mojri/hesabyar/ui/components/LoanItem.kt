@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
@@ -23,9 +22,9 @@ fun LoanItem(
   modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null
 ) {
-  val statusColor = if (isSettled) FinancialColors.IncomeGreen else FinancialColors.WarningOrange
+  val statusColor = if (isSettled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
   val statusText = if (isSettled) "تسویه شده" else "در انتظار"
-  val amountColor = if (isDebt) FinancialColors.ExpenseRed else FinancialColors.IncomeGreen
+  val amountColor = if (isDebt) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
   Row(
     modifier =

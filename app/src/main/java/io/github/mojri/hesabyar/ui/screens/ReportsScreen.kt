@@ -36,9 +36,11 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ManualTransactionDialog
+import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDialog
+import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
 @Composable
@@ -227,7 +229,7 @@ fun ReportsScreen(
             Text("مجموع کل دریافتی‌ها (درآمد):", style = MaterialTheme.typography.bodyMedium)
             Text(
               CurrencyFormatter.format(totalIncome),
-              color = FinancialColors.IncomeGreen,
+              color = MaterialTheme.colorScheme.primary,
               fontWeight = FontWeight.Bold
             )
           }
@@ -240,7 +242,7 @@ fun ReportsScreen(
             Text("مجموع کل پرداختی‌ها (مخارج):", style = MaterialTheme.typography.bodyMedium)
             Text(
               CurrencyFormatter.format(totalExpense),
-              color = FinancialColors.ExpenseRed,
+              color = MaterialTheme.colorScheme.error,
               fontWeight = FontWeight.Bold
             )
           }
@@ -259,7 +261,7 @@ fun ReportsScreen(
             )
             Text(
               text = (if (balance >= 0) "+" else "") + CurrencyFormatter.format(balance),
-              color = if (balance >= 0) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed,
+              color = if (balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
               style = MaterialTheme.typography.titleMedium,
               fontWeight = FontWeight.Bold
             )
@@ -686,16 +688,16 @@ fun ReportsScreen(
                 if (transaction.type ==
                   TransactionType.INCOME
                 ) {
-                  FinancialColors.IncomeGreen
+                  MaterialTheme.colorScheme.primary
                 } else {
-                  FinancialColors.ExpenseRed
+                  MaterialTheme.colorScheme.error
                 }
             )
             IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف تراکنش",
-                tint = FinancialColors.ExpenseRed.copy(alpha = 0.7f),
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                 modifier = Modifier.size(18.dp)
               )
             }
