@@ -79,7 +79,6 @@ class HesabyarRepository(
       val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
       val isSettled = newRemaining == 0L
       val effectiveAmount = loan.remainingAmount - newRemaining
-      if (effectiveAmount <= 0L) return@withTransaction false
       val date = customDate ?: System.currentTimeMillis()
 
       val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)

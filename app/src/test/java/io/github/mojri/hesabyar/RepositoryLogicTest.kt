@@ -312,7 +312,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun addPaymentToLoanOverpaymentRecordsEffectiveAmountNotFullOverpayment() =
+  fun `addPaymentToLoan - overpayment records effective amount`() =
     runTest {
       val repo = createRepository()
 
@@ -346,6 +346,127 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(1, transactions.size)
       assertEquals(5_000L, transactions[0].amount)
+
+      val updatedLoan = database.loanDao().getLoanById(loanId)
+      assertTrue(updatedLoan != null)
+      assertEquals(0L, updatedLoan!!.remainingAmount)
+      assertTrue(updatedLoan.isSettled)
+    }
+
+  @Test
+  fun `addPaymentToLoan - rejects zero amount`() =
+    runTest {
+      val repo = createRepository()
+
+      val loansCategory =
+        Category(
+          name = "Loans",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 0xFF4CAF50L,
+          type = CategoryType.BOTH
+        )
+      repo.insertCategory(loansCategory)
+
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 5_000L,
+          remainingAmount = 5_000L,
+          description = "test"
+        )
+      val loanId = repo.insertLoan(loan)
+
+      val success = repo.addPaymentToLoan(loanId, 0L, "zero payment")
+      assertFalse(success)
+
+      val paymentHistories = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(0, paymentHistories.size)
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(0, transactions.size)
+
+      val updatedLoan = database.loanDao().getLoanById(loanId)
+      assertTrue(updatedLoan != null)
+      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      assertFalse(updatedLoan.isSettled)
+    }
+
+  @Test
+  fun `addPaymentToLoan - rejects negative amount`() =
+    runTest {
+      val repo = createRepository()
+
+      val loansCategory =
+        Category(
+          name = "Loans",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 0xFF4CAF50L,
+          type = CategoryType.BOTH
+        )
+      repo.insertCategory(loansCategory)
+
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 5_000L,
+          remainingAmount = 5_000L,
+          description = "test"
+        )
+      val loanId = repo.insertLoan(loan)
+
+      val success = repo.addPaymentToLoan(loanId, -1_000L, "negative payment")
+      assertFalse(success)
+
+      val paymentHistories = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(0, paymentHistories.size)
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(0, transactions.size)
+
+      val updatedLoan = database.loanDao().getLoanById(loanId)
+      assertTrue(updatedLoan != null)
+      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      assertFalse(updatedLoan.isSettled)
+    }
+
+  @Test
+  fun `addPaymentToLoan - rejects payment on settled loan`() =
+    runTest {
+      val repo = createRepository()
+
+      val loansCategory =
+        Category(
+          name = "Loans",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 0xFF4CAF50L,
+          type = CategoryType.BOTH
+        )
+      repo.insertCategory(loansCategory)
+
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 5_000L,
+          remainingAmount = 0L,
+          description = "test",
+          isSettled = true
+        )
+      val loanId = repo.insertLoan(loan)
+
+      val success = repo.addPaymentToLoan(loanId, 1_000L, "payment on settled loan")
+      assertFalse(success)
+
+      val paymentHistories = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(0, paymentHistories.size)
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(0, transactions.size)
 
       val updatedLoan = database.loanDao().getLoanById(loanId)
       assertTrue(updatedLoan != null)
