@@ -1,15 +1,17 @@
-package io.github.mojri.hesabyar.ui
+package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.AmountResolutionInput
+import io.github.mojri.hesabyar.ui.TransactionAmountResolver
 
-/**
- * Encapsulates the business logic for validating and submitting a manual transaction form.
- * Keeps the UI composable limited to input collection and display.
- */
-object ManualTransactionSubmitter {
+class SubmitManualTransactionUseCase(
+  private val manageTransaction: ManageTransactionUseCase,
+  private val manageLoan: ManageLoanUseCase,
+  private val manageInstallment: ManageInstallmentUseCase
+) {
   sealed class ValidationResult {
     data object Valid : ValidationResult()
 
@@ -43,7 +45,7 @@ object ManualTransactionSubmitter {
     return if (error != null) ValidationResult.Error(error) else ValidationResult.Valid
   }
 
-  fun submit(
+  suspend fun submit(
     selectedType: String,
     amountDisplay: Long,
     isEditMode: Boolean,
@@ -56,9 +58,6 @@ object ManualTransactionSubmitter {
     daysFromNowText: String,
     customDate: Long,
     categories: List<Category>,
-    transactionViewModel: TransactionViewModel,
-    loanViewModel: LoanViewModel,
-    installmentViewModel: InstallmentViewModel,
     transactionToEdit: Transaction?
   ): SubmitResult {
     val finalAmountRial = resolveAmount(amountDisplay, isEditMode, originalAmountRial, amountModified)
@@ -72,29 +71,107 @@ object ManualTransactionSubmitter {
           customDate,
           isEditMode,
           transactionToEdit,
-          categories,
-          transactionViewModel
+          categories
         )
+
       "LOAN_DEBTOR", "LOAN_CREDITOR" ->
         submitLoan(
           selectedType,
           finalAmountRial,
           personName,
           descriptionText,
-          customDate,
-          loanViewModel
+          customDate
         )
+
       "INSTALLMENT" ->
         submitInstallment(
           finalAmountRial,
           title,
           descriptionText,
           daysFromNowText,
-          customDate,
-          installmentViewModel
+          customDate
         )
+
       else -> SubmitResult(success = false, errorMessage = "نوع تراکنش نامعتبر است")
     }
+  }
+
+  private suspend fun submitTransaction(
+    selectedType: String,
+    finalAmountRial: Long,
+    selectedCategoryId: Long,
+    descriptionText: String,
+    customDate: Long,
+    isEditMode: Boolean,
+    transactionToEdit: Transaction?,
+    categories: List<Category>
+  ): SubmitResult {
+    val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
+    val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
+    if (isEditMode && transactionToEdit != null) {
+      val updated =
+        transactionToEdit.copy(
+          type = TransactionType.valueOf(selectedType),
+          categoryId = selectedCategoryId,
+          amount = finalAmountRial,
+          description = desc,
+          date = customDate
+        )
+      manageTransaction.updateTransaction(updated)
+    } else {
+      manageTransaction.addTransaction(
+        type = TransactionType.valueOf(selectedType),
+        categoryId = selectedCategoryId,
+        amount = finalAmountRial,
+        description = desc,
+        customDate = customDate
+      )
+    }
+    return SubmitResult(success = true)
+  }
+
+  private suspend fun submitLoan(
+    selectedType: String,
+    finalAmountRial: Long,
+    personName: String,
+    descriptionText: String,
+    customDate: Long
+  ): SubmitResult {
+    val defaultDesc = if (selectedType == "LOAN_DEBTOR") "قرض دادن به $personName" else "قرض گرفتن از $personName"
+    val desc = descriptionText.trim().ifEmpty { defaultDesc }
+    manageLoan.addLoan(
+      personName = personName,
+      type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
+      amount = finalAmountRial,
+      description = desc,
+      customDate = customDate
+    )
+    return SubmitResult(success = true)
+  }
+
+  private suspend fun submitInstallment(
+    finalAmountRial: Long,
+    title: String,
+    descriptionText: String,
+    daysFromNowText: String,
+    customDate: Long
+  ): SubmitResult {
+    val millisPerDay = 24L * 60 * 60 * 1000
+    val daysOffset = daysFromNowText.toLongOrNull()
+    val dueDate =
+      if (daysOffset != null && daysOffset > 0) {
+        System.currentTimeMillis() + daysOffset * millisPerDay
+      } else {
+        customDate
+      }
+    manageInstallment.addInstallment(
+      title = title,
+      amount = finalAmountRial,
+      dueDate = dueDate,
+      reminderEnabled = true,
+      notes = descriptionText.trim()
+    )
+    return SubmitResult(success = true)
   }
 
   private fun resolveAmount(
@@ -113,86 +190,5 @@ object ManualTransactionSubmitter {
         )
       )
     return result.rialAmount
-  }
-
-  private fun submitTransaction(
-    selectedType: String,
-    finalAmountRial: Long,
-    selectedCategoryId: Long,
-    descriptionText: String,
-    customDate: Long,
-    isEditMode: Boolean,
-    transactionToEdit: Transaction?,
-    categories: List<Category>,
-    transactionViewModel: TransactionViewModel
-  ): SubmitResult {
-    val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
-    val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
-    if (isEditMode && transactionToEdit != null) {
-      val updated =
-        transactionToEdit.copy(
-          type = TransactionType.valueOf(selectedType),
-          categoryId = selectedCategoryId,
-          amount = finalAmountRial,
-          description = desc,
-          date = customDate
-        )
-      transactionViewModel.updateTransaction(updated)
-    } else {
-      transactionViewModel.addTransaction(
-        type = TransactionType.valueOf(selectedType),
-        categoryId = selectedCategoryId,
-        amount = finalAmountRial,
-        description = desc,
-        customDate = customDate
-      )
-    }
-    return SubmitResult(success = true)
-  }
-
-  private fun submitLoan(
-    selectedType: String,
-    finalAmountRial: Long,
-    personName: String,
-    descriptionText: String,
-    customDate: Long,
-    loanViewModel: LoanViewModel
-  ): SubmitResult {
-    val defaultDesc = if (selectedType == "LOAN_DEBTOR") "قرض دادن به $personName" else "قرض گرفتن از $personName"
-    val desc = descriptionText.trim().ifEmpty { defaultDesc }
-    loanViewModel.addLoan(
-      personName = personName,
-      type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
-      amount = finalAmountRial,
-      description = desc,
-      customDate = customDate
-    )
-    return SubmitResult(success = true)
-  }
-
-  private fun submitInstallment(
-    finalAmountRial: Long,
-    title: String,
-    descriptionText: String,
-    daysFromNowText: String,
-    customDate: Long,
-    installmentViewModel: InstallmentViewModel
-  ): SubmitResult {
-    val millisPerDay = 24L * 60 * 60 * 1000
-    val daysOffset = daysFromNowText.toLongOrNull()
-    val dueDate =
-      if (daysOffset != null && daysOffset > 0) {
-        System.currentTimeMillis() + daysOffset * millisPerDay
-      } else {
-        customDate
-      }
-    installmentViewModel.addInstallment(
-      title = title,
-      amount = finalAmountRial,
-      dueDate = dueDate,
-      reminderEnabled = true,
-      notes = descriptionText.trim()
-    )
-    return SubmitResult(success = true)
   }
 }

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -18,22 +19,18 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
-import io.github.mojri.hesabyar.ui.InstallmentViewModel
-import io.github.mojri.hesabyar.ui.LoanViewModel
-import io.github.mojri.hesabyar.ui.ManualTransactionSubmitter
-import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 internal fun ManualTransactionDialog(
-  transactionViewModel: TransactionViewModel,
-  loanViewModel: LoanViewModel,
-  installmentViewModel: InstallmentViewModel,
+  submitTransaction: SubmitManualTransactionUseCase,
   categories: List<Category>,
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
@@ -68,6 +65,8 @@ internal fun ManualTransactionDialog(
 
   val typeColor = resolveDialogTypeColor(selectedType)
 
+  val coroutineScope = rememberCoroutineScope()
+
   HesabyarDialog(
     title = if (isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
     onDismissRequest = onDismiss,
@@ -83,45 +82,44 @@ internal fun ManualTransactionDialog(
 
       Button(
         onClick = {
-          val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
-          val validationResult =
-            ManualTransactionSubmitter.validate(
-              amountDisplay = finalAmountDisplay,
-              selectedType = selectedType,
-              selectedCategoryId = selectedCategoryId,
-              personName = personNameText,
-              title = titleText
-            )
+          coroutineScope.launch {
+            val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
+            val validationResult =
+              submitTransaction.validate(
+                amountDisplay = finalAmountDisplay,
+                selectedType = selectedType,
+                selectedCategoryId = selectedCategoryId,
+                personName = personNameText,
+                title = titleText
+              )
 
-          if (validationResult is ManualTransactionSubmitter.ValidationResult.Error) {
-            showToast(context, validationResult.message)
-            return@Button
-          }
+            if (validationResult is SubmitManualTransactionUseCase.ValidationResult.Error) {
+              showToast(context, validationResult.message)
+              return@launch
+            }
 
-          val submitResult =
-            ManualTransactionSubmitter.submit(
-              selectedType = selectedType,
-              amountDisplay = finalAmountDisplay,
-              isEditMode = isEditMode,
-              originalAmountRial = originalAmountRial,
-              amountModified = amountModified,
-              selectedCategoryId = selectedCategoryId,
-              descriptionText = descriptionText,
-              personName = personNameText,
-              title = titleText,
-              daysFromNowText = daysFromNowText,
-              customDate = customDate,
-              categories = categories,
-              transactionViewModel = transactionViewModel,
-              loanViewModel = loanViewModel,
-              installmentViewModel = installmentViewModel,
-              transactionToEdit = transactionToEdit
-            )
+            val submitResult =
+              submitTransaction.submit(
+                selectedType = selectedType,
+                amountDisplay = finalAmountDisplay,
+                isEditMode = isEditMode,
+                originalAmountRial = originalAmountRial,
+                amountModified = amountModified,
+                selectedCategoryId = selectedCategoryId,
+                descriptionText = descriptionText,
+                personName = personNameText,
+                title = titleText,
+                daysFromNowText = daysFromNowText,
+                customDate = customDate,
+                categories = categories,
+                transactionToEdit = transactionToEdit
+              )
 
-          if (submitResult.success) {
-            onDismiss()
-          } else {
-            submitResult.errorMessage?.let { showToast(context, it) }
+            if (submitResult.success) {
+              onDismiss()
+            } else {
+              submitResult.errorMessage?.let { showToast(context, it) }
+            }
           }
         },
         modifier = Modifier.weight(1f),
