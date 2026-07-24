@@ -70,37 +70,40 @@ class HesabyarRepository(
     notes: String,
     customDate: Long?
   ): Boolean {
-    val loan = loanDao.getLoanById(loanId) ?: return false
-    val loansCategory = getCategoryByKey("Loans") ?: return false
-    val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
-    val isSettled = newRemaining <= 0L
-    val effectiveAmount = amount.coerceAtMost(loan.remainingAmount)
-    val date = customDate ?: System.currentTimeMillis()
+    if (amount <= 0L) return false
 
-    val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
-    val desc =
-      if (loan.type == LoanType.CREDITOR) {
-        "بازپرداخت بدهی به ${loan.personName} - $notes"
-      } else {
-        "دریافت بازپرداخت از ${loan.personName} - $notes"
-      }
-    val tx =
-      Transaction(
-        type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
-        categoryId = loansCategory.id,
-        amount = effectiveAmount,
-        description = desc,
-        personName = loan.personName,
-        date = date
-      )
-    val payment = PaymentHistory(loanId = loanId, amount = effectiveAmount, notes = notes, date = date)
+    return database.withTransaction {
+      val loan = loanDao.getLoanById(loanId) ?: return@withTransaction false
+      val loansCategory = getCategoryByKey("Loans") ?: return@withTransaction false
+      if (loan.remainingAmount <= 0L) return@withTransaction false
+      val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
+      val isSettled = newRemaining == 0L
+      val effectiveAmount = loan.remainingAmount - newRemaining
+      val date = customDate ?: System.currentTimeMillis()
 
-    database.withTransaction {
+      val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
+      val desc =
+        if (loan.type == LoanType.CREDITOR) {
+          "بازپرداخت بدهی به ${loan.personName} - $notes"
+        } else {
+          "دریافت بازپرداخت از ${loan.personName} - $notes"
+        }
+      val tx =
+        Transaction(
+          type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
+          categoryId = loansCategory.id,
+          amount = effectiveAmount,
+          description = desc,
+          personName = loan.personName,
+          date = date
+        )
+      val payment = PaymentHistory(loanId = loanId, amount = effectiveAmount, notes = notes, date = date)
+
       loanDao.updateLoan(updatedLoan)
       paymentHistoryDao.insertPayment(payment)
       transactionDao.insertTransaction(tx)
+      true
     }
-    return true
   }
 
   // Installments
