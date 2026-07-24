@@ -324,7 +324,7 @@ class RepositoryLogicTest {
           color = 0xFF4CAF50L,
           type = CategoryType.BOTH
         )
-      val categoryId = repo.insertCategory(loansCategory)
+      repo.insertCategory(loansCategory)
 
       val loan =
         Loan(
