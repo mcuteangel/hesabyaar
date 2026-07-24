@@ -40,10 +40,5 @@ object TransactionAmountResolver {
   private fun safeToRial(
     displayedAmount: Long,
     toRial: (Long) -> Long
-  ): Long {
-    val clampedAmount = displayedAmount.coerceAtMost(MAX_SAFE_DISPLAY_AMOUNT)
-    return toRial(clampedAmount)
-  }
-
-  private const val MAX_SAFE_DISPLAY_AMOUNT = 999_999_999_999L
+  ): Long = toRial(displayedAmount)
 }

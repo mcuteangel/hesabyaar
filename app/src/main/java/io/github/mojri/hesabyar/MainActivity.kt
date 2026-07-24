@@ -30,7 +30,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.mojri.hesabyar.auth.AuthManager
 import io.github.mojri.hesabyar.auth.LockScreen
-import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
@@ -44,9 +43,6 @@ import javax.inject.Inject
 class MainActivity : FragmentActivity() {
   @Inject
   lateinit var authManager: AuthManager
-
-  @Inject
-  lateinit var submitTransaction: SubmitManualTransactionUseCase
 
   private val settingsViewModel: SettingsViewModel by viewModels()
   private val dashboardViewModel: DashboardViewModel by viewModels()
@@ -139,7 +135,6 @@ class MainActivity : FragmentActivity() {
                       installmentViewModel = installmentViewModel,
                       aiAssistantViewModel = aiAssistantViewModel,
                       settingsViewModel = settingsViewModel,
-                      submitTransaction = submitTransaction,
                       onNavigateToAssistant = { currentTab = "ASSISTANT" },
                       modifier = modifier
                     )
@@ -170,7 +165,6 @@ class MainActivity : FragmentActivity() {
                       dashboardViewModel = dashboardViewModel,
                       transactionViewModel = transactionViewModel,
                       aiAssistantViewModel = aiAssistantViewModel,
-                      submitTransaction = submitTransaction,
                       modifier = modifier
                     )
                   "SETTINGS" ->

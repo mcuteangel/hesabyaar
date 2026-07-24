@@ -17,6 +17,22 @@ class TransactionAmountResolverTest {
   }
 
   @Test
+  fun newTransaction_usesInjectedConverter() {
+    val input =
+      AmountResolutionInput(
+        displayedAmount = 100L,
+        isEditMode = false,
+        originalRialAmount = 0L,
+        userModifiedAmount = false
+      )
+
+    val result = TransactionAmountResolver.resolveAmount(input) { it * 7L }
+
+    assertEquals(700L, result.rialAmount)
+    assertFalse(result.preservedOriginal)
+  }
+
+  @Test
   fun newTransaction_convertsDisplayUnitToRial() {
     val input =
       AmountResolutionInput(

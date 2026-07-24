@@ -30,7 +30,9 @@ import kotlinx.coroutines.launch
 @Suppress("CyclomaticComplexMethod", "LongMethod")
 @Composable
 internal fun ManualTransactionDialog(
-  submitTransaction: SubmitManualTransactionUseCase,
+  onSubmit: suspend (
+    SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+  ) -> SubmitManualTransactionUseCase.SubmitResult,
   categories: List<Category>,
   transactionToEdit: Transaction? = null,
   onDismiss: () -> Unit
@@ -109,14 +111,7 @@ internal fun ManualTransactionDialog(
                   transactionToEdit = transactionToEdit
                 )
 
-              val validationResult = submitTransaction.validate(request)
-
-              if (validationResult is SubmitManualTransactionUseCase.ValidationResult.Error) {
-                showToast(context, validationResult.message)
-                return@launch
-              }
-
-              val submitResult = submitTransaction.submit(request)
+              val submitResult = onSubmit(request)
 
               if (submitResult.success) {
                 onDismiss()

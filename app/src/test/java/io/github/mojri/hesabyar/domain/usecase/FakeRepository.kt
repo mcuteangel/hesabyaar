@@ -47,6 +47,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun insertTransaction(transaction: Transaction): Long {
     val id = if (transaction.id != 0L) transaction.id else nextId++
+    nextId = maxOf(nextId, id + 1)
     _allTransactions.value = _allTransactions.value + transaction.copy(id = id)
     return id
   }
@@ -63,6 +64,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun insertLoan(loan: Loan): Long {
     val id = if (loan.id != 0L) loan.id else nextId++
+    nextId = maxOf(nextId, id + 1)
     _allLoans.value = _allLoans.value + loan.copy(id = id)
     return id
   }

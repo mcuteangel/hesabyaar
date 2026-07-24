@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
@@ -188,6 +189,48 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
+  fun validateReturnsErrorWhenAmountRialIsZeroOrNegative() =
+    runTest {
+      val result =
+        useCase.validate(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "Invalid rial",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 0L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
+        )
+      assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
+
+      useCase.submit(
+        SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+          amountDisplay = 1000L,
+          selectedType = "INCOME",
+          selectedCategoryId = 1L,
+          descriptionText = "Invalid rial",
+          personName = "",
+          title = "",
+          daysFromNowText = "",
+          amountRial = -1L,
+          customDate = System.currentTimeMillis(),
+          categories = emptyList(),
+          transactionToEdit = null
+        )
+      )
+
+      assertEquals(0, fake.allTransactions.first().size)
+      assertEquals(0, fake.allLoans.first().size)
+      assertEquals(0, fake.allInstallments.first().size)
+    }
+
+  @Test
   fun submitReturnsSuccessForValidIncomeTransaction() =
     runTest {
       val categories =
@@ -344,5 +387,71 @@ class SubmitManualTransactionUseCaseTest {
       assertEquals(1500L, updated.amount)
       assertEquals("Updated", updated.description)
       assertEquals(TransactionType.EXPENSE, updated.type)
+    }
+
+  @Test
+  fun fakeRepository_advancesNextIdAfterExplicitInsert() =
+    runTest {
+      val explicit =
+        Transaction(
+          id = 50L,
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1000L,
+          description = "Explicit",
+          date = System.currentTimeMillis()
+        )
+      fake.insertTransaction(explicit)
+
+      val auto =
+        Transaction(
+          id = 0L,
+          type = TransactionType.EXPENSE,
+          categoryId = 2L,
+          amount = 2000L,
+          description = "Auto",
+          date = System.currentTimeMillis()
+        )
+      val autoId = fake.insertTransaction(auto)
+
+      assertTrue(autoId > 50L)
+
+      val stored = fake.allTransactions.first()
+      assertEquals(2, stored.size)
+      assertEquals(50L, stored.first().id)
+      assertEquals(autoId, stored.last().id)
+    }
+
+  @Test
+  fun fakeRepository_advancesLoanNextIdAfterExplicitInsert() =
+    runTest {
+      val explicit =
+        Loan(
+          id = 25L,
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 1000L,
+          remainingAmount = 1000L,
+          description = "Explicit"
+        )
+      fake.insertLoan(explicit)
+
+      val auto =
+        Loan(
+          id = 0L,
+          personName = "Reza",
+          type = LoanType.CREDITOR,
+          originalAmount = 2000L,
+          remainingAmount = 2000L,
+          description = "Auto"
+        )
+      val autoId = fake.insertLoan(auto)
+
+      assertTrue(autoId > 25L)
+
+      val stored = fake.allLoans.first()
+      assertEquals(2, stored.size)
+      assertEquals(25L, stored.first().id)
+      assertEquals(autoId, stored.last().id)
     }
 }

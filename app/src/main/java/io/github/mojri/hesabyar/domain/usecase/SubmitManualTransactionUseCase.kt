@@ -50,7 +50,7 @@ class SubmitManualTransactionUseCase(
   }
 
   private fun amountError(request: SubmitManualTransactionRequest): String? =
-    if (request.amountDisplay <= 0L) "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید" else null
+    if (request.amountDisplay <= 0L || request.amountRial <= 0L) "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید" else null
 
   private fun categoryError(request: SubmitManualTransactionRequest): String? =
     if ((request.selectedType == "INCOME" || request.selectedType == "EXPENSE") && request.selectedCategoryId == 0L) {

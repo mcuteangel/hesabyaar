@@ -59,7 +59,13 @@ fun DashboardScreen(
   installmentViewModel: InstallmentViewModel,
   aiAssistantViewModel: AiAssistantViewModel,
   settingsViewModel: SettingsViewModel,
-  submitTransaction: SubmitManualTransactionUseCase,
+  onSubmitTransaction: (
+  suspend (
+    SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+  ) -> SubmitManualTransactionUseCase.SubmitResult
+  ) = { request ->
+    transactionViewModel.submitManualTransaction(request)
+  },
   onNavigateToAssistant: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -236,7 +242,7 @@ fun DashboardScreen(
 
   if (showManualAddDialog) {
     ManualTransactionDialog(
-      submitTransaction = submitTransaction,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       onDismiss = { showManualAddDialog = false }
     )
@@ -244,7 +250,7 @@ fun DashboardScreen(
 
   if (editingTransaction != null) {
     ManualTransactionDialog(
-      submitTransaction = submitTransaction,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
       onDismiss = { editingTransaction = null }

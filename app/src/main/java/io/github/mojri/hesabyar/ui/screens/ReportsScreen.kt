@@ -47,7 +47,13 @@ fun ReportsScreen(
   dashboardViewModel: DashboardViewModel,
   transactionViewModel: TransactionViewModel,
   aiAssistantViewModel: AiAssistantViewModel,
-  submitTransaction: SubmitManualTransactionUseCase,
+  onSubmitTransaction: (
+  suspend (
+    SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+  ) -> SubmitManualTransactionUseCase.SubmitResult
+  ) = { request ->
+    transactionViewModel.submitManualTransaction(request)
+  },
   modifier: Modifier = Modifier
 ) {
   val transactions by dashboardViewModel.transactions.collectAsState()
@@ -723,7 +729,7 @@ fun ReportsScreen(
 
   if (editingTransaction != null) {
     ManualTransactionDialog(
-      submitTransaction = submitTransaction,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
       onDismiss = { editingTransaction = null }
