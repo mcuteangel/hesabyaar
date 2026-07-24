@@ -312,7 +312,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan overpayment records effective amount, not full overpayment`() =
+  fun addPaymentToLoanOverpaymentRecordsEffectiveAmountNotFullOverpayment() =
     runTest {
       val repo = createRepository()
 
