@@ -12,6 +12,10 @@ class SubmitManualTransactionUseCase(
   private val manageLoan: ManageLoanUseCase,
   private val manageInstallment: ManageInstallmentUseCase
 ) {
+  companion object {
+    private const val MAX_SAFE_DISPLAY_AMOUNT = Long.MAX_VALUE / 10
+  }
+
   sealed class ValidationResult {
     data object Valid : ValidationResult()
 
@@ -49,8 +53,13 @@ class SubmitManualTransactionUseCase(
     return if (error != null) ValidationResult.Error(error) else ValidationResult.Valid
   }
 
-  private fun amountError(request: SubmitManualTransactionRequest): String? =
-    if (request.amountDisplay <= 0L || request.amountRial <= 0L) "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید" else null
+  private fun amountError(request: SubmitManualTransactionRequest): String? {
+    val invalid =
+      request.amountDisplay <= 0L ||
+        request.amountRial <= 0L ||
+        request.amountDisplay > MAX_SAFE_DISPLAY_AMOUNT
+    return if (invalid) "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید" else null
+  }
 
   private fun categoryError(request: SubmitManualTransactionRequest): String? =
     if ((request.selectedType == "INCOME" || request.selectedType == "EXPENSE") && request.selectedCategoryId == 0L) {

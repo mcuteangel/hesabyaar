@@ -37,8 +37,17 @@ object TransactionAmountResolver {
     }
   }
 
+  @Suppress("SwallowedException")
   private fun safeToRial(
     displayedAmount: Long,
     toRial: (Long) -> Long
-  ): Long = toRial(displayedAmount)
+  ): Long {
+    if (displayedAmount <= 0L) return 0L
+    return try {
+      val result = toRial(displayedAmount)
+      if (result <= 0L) 0L else result
+    } catch (e: ArithmeticException) {
+      0L
+    }
+  }
 }

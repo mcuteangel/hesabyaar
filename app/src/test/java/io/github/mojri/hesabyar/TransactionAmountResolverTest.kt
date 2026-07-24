@@ -17,7 +17,7 @@ class TransactionAmountResolverTest {
   }
 
   @Test
-  fun newTransaction_usesInjectedConverter() {
+  fun newTransactionUsesInjectedConverter() {
     val input =
       AmountResolutionInput(
         displayedAmount = 100L,
@@ -198,5 +198,20 @@ class TransactionAmountResolverTest {
 
     assertEquals(100L, result.rialAmount)
     assertFalse(result.preservedOriginal)
+  }
+
+  @Test
+  fun extremeAmount_nearLongMaxValue_doesNotOverflowToNegative() {
+    val input =
+      AmountResolutionInput(
+        displayedAmount = Long.MAX_VALUE / 10 + 1,
+        isEditMode = false,
+        originalRialAmount = 0L,
+        userModifiedAmount = false
+      )
+
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
+
+    assertTrue(result.rialAmount >= 0)
   }
 }

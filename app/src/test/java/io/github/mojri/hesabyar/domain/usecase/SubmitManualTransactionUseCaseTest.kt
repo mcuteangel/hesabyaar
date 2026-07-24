@@ -209,21 +209,23 @@ class SubmitManualTransactionUseCaseTest {
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
 
-      useCase.submit(
-        SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
-          amountDisplay = 1000L,
-          selectedType = "INCOME",
-          selectedCategoryId = 1L,
-          descriptionText = "Invalid rial",
-          personName = "",
-          title = "",
-          daysFromNowText = "",
-          amountRial = -1L,
-          customDate = System.currentTimeMillis(),
-          categories = emptyList(),
-          transactionToEdit = null
+      val submitResult =
+        useCase.submit(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "Invalid rial",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = -1L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
         )
-      )
+      assertFalse(submitResult.success)
 
       assertEquals(0, fake.allTransactions.first().size)
       assertEquals(0, fake.allLoans.first().size)
@@ -390,7 +392,7 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun fakeRepository_advancesNextIdAfterExplicitInsert() =
+  fun fakeRepositoryAdvancesNextIdAfterExplicitInsert() =
     runTest {
       val explicit =
         Transaction(
@@ -423,7 +425,7 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun fakeRepository_advancesLoanNextIdAfterExplicitInsert() =
+  fun fakeRepositoryAdvancesLoanNextIdAfterExplicitInsert() =
     runTest {
       val explicit =
         Loan(
@@ -453,5 +455,27 @@ class SubmitManualTransactionUseCaseTest {
       assertEquals(2, stored.size)
       assertEquals(25L, stored.first().id)
       assertEquals(autoId, stored.last().id)
+    }
+
+  @Test
+  fun validateReturnsErrorWhenAmountDisplayOverflowsLongMaxValue() =
+    runTest {
+      val result =
+        useCase.validate(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = Long.MAX_VALUE / 10 + 1,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "Overflow",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 0L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
+        )
+      assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
     }
 }
