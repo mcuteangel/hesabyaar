@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
@@ -110,5 +111,31 @@ class GetAnalyticsUseCaseRustTest {
     assertTrue(result.totalDebt >= 0L)
     assertTrue(result.totalCredit >= 0L)
     assertTrue(result.categoryBreakdown.all { it.percentage >= 0f })
+  }
+
+  @Test
+  fun `rust path returns non-empty bank loan summaries`() {
+    assertTrue(RustBridge.isAvailable)
+    val bankLoans =
+      listOf(
+        BankLoan(
+          bankName = "بانک ملت",
+          loanName = "وام خودرو",
+          receivedAmount = 100_000_000L,
+          monthlyInstallmentAmount = 10_000_000L,
+          numberOfInstallments = 12,
+          totalRepayableAmount = 120_000_000L,
+          totalInterest = 20_000_000L,
+          startDate = 1_700_000_000_000L,
+          description = "test"
+        )
+      )
+    val result =
+      useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
+
+    assertEquals(1, result.bankLoans.size)
+    assertEquals("بانک ملت", result.bankLoans[0].bankName)
+    assertEquals(120_000_000L, result.bankLoans[0].totalRepayableAmount)
+    assertTrue(result.bankLoansTotalDebt > 0L)
   }
 }

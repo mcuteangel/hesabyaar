@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.domain.usecase.FakeRepository
 import io.github.mojri.hesabyar.domain.usecase.ManageBankLoanUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BankLoanTest {
@@ -69,5 +70,27 @@ class BankLoanTest {
       val installments = repo.getInstallmentsByBankLoanId(id)
       assertEquals(1, installments.size)
       assertEquals(1_000_000L, installments.first().amount)
+    }
+
+  @Test
+  fun `deleteBankLoan cascades to remove linked installments`() =
+    runBlocking {
+      val (useCase, repo) = buildUseCase()
+      val id =
+        useCase.addBankLoan(
+          bankName = "بانک ملت",
+          loanName = "وام خودرو",
+          receivedAmount = 100_000_000L,
+          monthlyInstallmentAmount = 10_000_000L,
+          numberOfInstallments = 12,
+          startDate = 1_700_000_000_000L,
+          description = ""
+        )
+      assertEquals(12, repo.getInstallmentsByBankLoanId(id).size)
+
+      val bankLoan = repo.getBankLoanById(id)!!
+      repo.deleteBankLoan(bankLoan)
+
+      assertTrue(repo.getInstallmentsByBankLoanId(id).isEmpty())
     }
 }
