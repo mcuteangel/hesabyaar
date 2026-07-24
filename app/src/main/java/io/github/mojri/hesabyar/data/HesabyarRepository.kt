@@ -73,8 +73,9 @@ class HesabyarRepository(
     val loan = loanDao.getLoanById(loanId) ?: return false
     val loansCategory = getCategoryByKey("Loans") ?: return false
     val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
-    val isSettled = newRemaining <= 0L
-    val effectiveAmount = amount.coerceAtMost(loan.remainingAmount)
+    val isSettled = newRemaining == 0L
+    val effectiveAmount = loan.remainingAmount - newRemaining
+    if (effectiveAmount <= 0L) return false
     val date = customDate ?: System.currentTimeMillis()
 
     val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)

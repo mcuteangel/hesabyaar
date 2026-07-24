@@ -15,7 +15,6 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -30,7 +29,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class RepositoryLogicTest {
-  private var database: AppDatabase? = null
+  private lateinit var database: AppDatabase
 
   @Before
   fun setUp() {
@@ -44,22 +43,19 @@ class RepositoryLogicTest {
 
   @After
   fun tearDown() {
-    database?.close()
-    database = null
+    database.close()
   }
 
-  private fun createRepository(): HesabyarRepository {
-    val db = database!!
-    return HesabyarRepository(
-      db.transactionDao(),
-      db.loanDao(),
-      db.installmentDao(),
-      db.paymentHistoryDao(),
-      db.categoryDao(),
-      db.bankLoanDao(),
-      db
+  private fun createRepository(): HesabyarRepository =
+    HesabyarRepository(
+      database.transactionDao(),
+      database.loanDao(),
+      database.installmentDao(),
+      database.paymentHistoryDao(),
+      database.categoryDao(),
+      database.bankLoanDao(),
+      database
     )
-  }
 
   @Test
   fun `addPaymentToLoan - reduces remaining amount`() {
@@ -317,7 +313,7 @@ class RepositoryLogicTest {
 
   @Test
   fun `addPaymentToLoan overpayment records effective amount, not full overpayment`() =
-    runTest(StandardTestDispatcher()) {
+    runTest {
       val repo = createRepository()
 
       val loansCategory =
@@ -343,15 +339,15 @@ class RepositoryLogicTest {
       val success = repo.addPaymentToLoan(loanId, 10_000L, "overpayment test")
       assertTrue(success)
 
-      val paymentHistories = database!!.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      val paymentHistories = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
       assertEquals(1, paymentHistories.size)
       assertEquals(5_000L, paymentHistories[0].amount)
 
-      val transactions = database!!.transactionDao().getAllTransactionsBlocking()
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(1, transactions.size)
       assertEquals(5_000L, transactions[0].amount)
 
-      val updatedLoan = database!!.loanDao().getLoanById(loanId)
+      val updatedLoan = database.loanDao().getLoanById(loanId)
       assertTrue(updatedLoan != null)
       assertEquals(0L, updatedLoan!!.remainingAmount)
       assertTrue(updatedLoan.isSettled)
