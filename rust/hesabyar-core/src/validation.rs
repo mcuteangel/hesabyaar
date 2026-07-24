@@ -282,16 +282,15 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_installment_batch(&payload.installments).errors);
     errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     errors.extend(validate_payment_history_batch(&payload.payment_histories).errors);
-    // PaymentHistory cross-reference: loan_id must point to an existing loan.
-    if !payload.loans.is_empty() {
-        let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
-        for (i, ph) in payload.payment_histories.iter().enumerate() {
-            if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
-                errors.push(format!(
-                    "PaymentHistory[{}] references non-existent loan {}",
-                    i, ph.loan_id
-                ));
-            }
+    // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
+    // Zero is a legacy default tolerated in all cases.
+    let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
+    for (i, ph) in payload.payment_histories.iter().enumerate() {
+        if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
+            errors.push(format!(
+                "PaymentHistory[{}] references non-existent loan {}",
+                i, ph.loan_id
+            ));
         }
     }
     ValidationResult {
@@ -887,8 +886,9 @@ mod tests {
     }
 
     #[test]
-    fn test_backup_payment_history_loan_cross_reference_tolerates_empty_loans() {
-        // If no loans are present in the backup, skip cross-reference check
+    fn test_backup_payment_history_loan_cross_reference_rejects_orphan_when_no_loans() {
+        // Even with no loans in the backup, a positive loan_id in payment_histories
+        // is always an orphan and must be rejected.
         let payload = BackupPayload {
             version: 1,
             timestamp: 1710000000000,
@@ -901,8 +901,7 @@ mod tests {
             categories: vec![],
         };
         let result = validate_backup_payload(&payload);
-        // Loan cross-reference is skipped when no loans exist; amount+date+loan_id still valid
-        let ph_errors: Vec<_> = result.errors.iter().filter(|e| e.contains("PaymentHistory")).collect();
-        assert!(ph_errors.is_empty());
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
     }
 }
