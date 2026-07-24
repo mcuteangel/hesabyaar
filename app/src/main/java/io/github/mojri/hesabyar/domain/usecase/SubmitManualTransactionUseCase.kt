@@ -4,8 +4,8 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import io.github.mojri.hesabyar.ui.AmountResolutionInput
-import io.github.mojri.hesabyar.ui.TransactionAmountResolver
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class SubmitManualTransactionUseCase(
   private val manageTransaction: ManageTransactionUseCase,
@@ -25,71 +25,100 @@ class SubmitManualTransactionUseCase(
     val errorMessage: String? = null
   )
 
-  fun validate(
-    amountDisplay: Long,
-    selectedType: String,
-    selectedCategoryId: Long,
-    personName: String,
-    title: String
-  ): ValidationResult {
+  data class SubmitManualTransactionRequest(
+    val amountDisplay: Long,
+    val selectedType: String,
+    val selectedCategoryId: Long,
+    val descriptionText: String,
+    val personName: String,
+    val title: String,
+    val daysFromNowText: String,
+    val amountRial: Long,
+    val customDate: Long,
+    val categories: List<Category>,
+    val transactionToEdit: Transaction? = null
+  )
+
+  fun validate(request: SubmitManualTransactionRequest): ValidationResult {
     val error =
-      when {
-        amountDisplay <= 0L -> "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید"
-        (selectedType == "INCOME" || selectedType == "EXPENSE") && selectedCategoryId == 0L ->
-          "لطفا دسته‌بندی را انتخاب کنید"
-        (selectedType == "LOAN_DEBTOR" || selectedType == "LOAN_CREDITOR") && personName.isBlank() ->
-          "لطفا نام شخص مربوطه را وارد کنید"
-        selectedType == "INSTALLMENT" && title.isBlank() -> "لطفا عنوان قسط را وارد کنید"
-        else -> null
-      }
+      amountError(request)
+        ?: categoryError(request)
+        ?: loanError(request)
+        ?: installmentTitleError(request)
+        ?: installmentDaysError(request)
     return if (error != null) ValidationResult.Error(error) else ValidationResult.Valid
   }
 
-  suspend fun submit(
-    selectedType: String,
-    amountDisplay: Long,
-    isEditMode: Boolean,
-    originalAmountRial: Long,
-    amountModified: Boolean,
-    selectedCategoryId: Long,
-    descriptionText: String,
-    personName: String,
-    title: String,
-    daysFromNowText: String,
-    customDate: Long,
-    categories: List<Category>,
-    transactionToEdit: Transaction?
-  ): SubmitResult {
-    val finalAmountRial = resolveAmount(amountDisplay, isEditMode, originalAmountRial, amountModified)
-    return when (selectedType) {
+  private fun amountError(request: SubmitManualTransactionRequest): String? =
+    if (request.amountDisplay <= 0L) "لطفا مبلغ معتبر و بزرگتر از صفر وارد کنید" else null
+
+  private fun categoryError(request: SubmitManualTransactionRequest): String? =
+    if ((request.selectedType == "INCOME" || request.selectedType == "EXPENSE") && request.selectedCategoryId == 0L) {
+      "لطفا دسته‌بندی را انتخاب کنید"
+    } else {
+      null
+    }
+
+  private fun loanError(request: SubmitManualTransactionRequest): String? =
+    if ((request.selectedType == "LOAN_DEBTOR" || request.selectedType == "LOAN_CREDITOR") &&
+      request.personName.isBlank()
+    ) {
+      "لطفا نام شخص مربوطه را وارد کنید"
+    } else {
+      null
+    }
+
+  private fun installmentTitleError(request: SubmitManualTransactionRequest): String? =
+    if (request.selectedType == "INSTALLMENT" && request.title.isBlank()) {
+      "لطفا عنوان قسط را وارد کنید"
+    } else {
+      null
+    }
+
+  private fun installmentDaysError(request: SubmitManualTransactionRequest): String? =
+    if (request.selectedType == "INSTALLMENT" &&
+      request.daysFromNowText.isNotBlank() &&
+      request.daysFromNowText.toLongOrNull() == null
+    ) {
+      "لطفا تعداد روزها را به صورت عدد وارد کنید"
+    } else {
+      null
+    }
+
+  suspend fun submit(request: SubmitManualTransactionRequest): SubmitResult {
+    val validationResult = validate(request)
+    if (validationResult is ValidationResult.Error) {
+      return SubmitResult(success = false, errorMessage = validationResult.message)
+    }
+
+    return when (request.selectedType) {
       "INCOME", "EXPENSE" ->
         submitTransaction(
-          selectedType,
-          finalAmountRial,
-          selectedCategoryId,
-          descriptionText,
-          customDate,
-          isEditMode,
-          transactionToEdit,
-          categories
+          request.selectedType,
+          request.amountRial,
+          request.selectedCategoryId,
+          request.descriptionText,
+          request.customDate,
+          request.transactionToEdit,
+          request.categories
         )
 
       "LOAN_DEBTOR", "LOAN_CREDITOR" ->
         submitLoan(
-          selectedType,
-          finalAmountRial,
-          personName,
-          descriptionText,
-          customDate
+          request.selectedType,
+          request.amountRial,
+          request.personName,
+          request.descriptionText,
+          request.customDate
         )
 
       "INSTALLMENT" ->
         submitInstallment(
-          finalAmountRial,
-          title,
-          descriptionText,
-          daysFromNowText,
-          customDate
+          request.amountRial,
+          request.title,
+          request.descriptionText,
+          request.daysFromNowText,
+          request.customDate
         )
 
       else -> SubmitResult(success = false, errorMessage = "نوع تراکنش نامعتبر است")
@@ -102,13 +131,12 @@ class SubmitManualTransactionUseCase(
     selectedCategoryId: Long,
     descriptionText: String,
     customDate: Long,
-    isEditMode: Boolean,
     transactionToEdit: Transaction?,
     categories: List<Category>
   ): SubmitResult {
     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
-    if (isEditMode && transactionToEdit != null) {
+    if (transactionToEdit != null) {
       val updated =
         transactionToEdit.copy(
           type = TransactionType.valueOf(selectedType),
@@ -117,15 +145,17 @@ class SubmitManualTransactionUseCase(
           description = desc,
           date = customDate
         )
-      manageTransaction.updateTransaction(updated)
+      withContext(NonCancellable) { manageTransaction.updateTransaction(updated) }
     } else {
-      manageTransaction.addTransaction(
-        type = TransactionType.valueOf(selectedType),
-        categoryId = selectedCategoryId,
-        amount = finalAmountRial,
-        description = desc,
-        customDate = customDate
-      )
+      withContext(NonCancellable) {
+        manageTransaction.addTransaction(
+          type = TransactionType.valueOf(selectedType),
+          categoryId = selectedCategoryId,
+          amount = finalAmountRial,
+          description = desc,
+          customDate = customDate
+        )
+      }
     }
     return SubmitResult(success = true)
   }
@@ -139,13 +169,15 @@ class SubmitManualTransactionUseCase(
   ): SubmitResult {
     val defaultDesc = if (selectedType == "LOAN_DEBTOR") "قرض دادن به $personName" else "قرض گرفتن از $personName"
     val desc = descriptionText.trim().ifEmpty { defaultDesc }
-    manageLoan.addLoan(
-      personName = personName,
-      type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
-      amount = finalAmountRial,
-      description = desc,
-      customDate = customDate
-    )
+    withContext(NonCancellable) {
+      manageLoan.addLoan(
+        personName = personName,
+        type = if (selectedType == "LOAN_DEBTOR") LoanType.DEBTOR else LoanType.CREDITOR,
+        amount = finalAmountRial,
+        description = desc,
+        customDate = customDate
+      )
+    }
     return SubmitResult(success = true)
   }
 
@@ -157,38 +189,22 @@ class SubmitManualTransactionUseCase(
     customDate: Long
   ): SubmitResult {
     val millisPerDay = 24L * 60 * 60 * 1000
-    val daysOffset = daysFromNowText.toLongOrNull()
+    val daysOffset = daysFromNowText.toLongOrNull() ?: 0L
     val dueDate =
-      if (daysOffset != null && daysOffset > 0) {
+      if (daysOffset > 0) {
         System.currentTimeMillis() + daysOffset * millisPerDay
       } else {
         customDate
       }
-    manageInstallment.addInstallment(
-      title = title,
-      amount = finalAmountRial,
-      dueDate = dueDate,
-      reminderEnabled = true,
-      notes = descriptionText.trim()
-    )
-    return SubmitResult(success = true)
-  }
-
-  private fun resolveAmount(
-    amountDisplay: Long,
-    isEditMode: Boolean,
-    originalAmountRial: Long,
-    amountModified: Boolean
-  ): Long {
-    val result =
-      TransactionAmountResolver.resolveAmount(
-        AmountResolutionInput(
-          displayedAmount = amountDisplay,
-          isEditMode = isEditMode,
-          originalRialAmount = originalAmountRial,
-          userModifiedAmount = amountModified
-        )
+    withContext(NonCancellable) {
+      manageInstallment.addInstallment(
+        title = title,
+        amount = finalAmountRial,
+        dueDate = dueDate,
+        reminderEnabled = true,
+        notes = descriptionText.trim()
       )
-    return result.rialAmount
+    }
+    return SubmitResult(success = true)
   }
 }

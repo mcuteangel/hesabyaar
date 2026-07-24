@@ -94,7 +94,7 @@ In scope:
 
 Out of scope:
 - Any balance-screening, overpayment, or loan business logic (see Plan 001). Keep this plan one refactor only.
-- ViewModel internals beyond parameterlists / call site wiring.
+- ViewModel internals beyond parameter lists / call site wiring.
 
 ## Steps
 
@@ -139,7 +139,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import io.github.mojri.hesabyar.ui.TransactionAmountResolver
+import io.github.mojri.hesabyar.domain.utils.TransactionAmountResolver
 
 class SubmitManualTransactionUseCase(
   private val manageTransaction: ManageTransactionUseCase,
@@ -159,7 +159,7 @@ class SubmitManualTransactionUseCase(
 }
 ```
 
-Body of `submit` and `validate` must be verbatim copies of `ManualTransactionSubmitter`, except ViewModel calls must be replaced with `useCase` calls. Keep `TransactionAmountResolver` as a pure static helper.
+Body of `submit` and `validate` must be verbatim copies of `ManualTransactionSubmitter`, except ViewModel calls must be replaced with `useCase` calls. Keep `TransactionAmountResolver` in `domain.utils` as a pure helper.
 
 **Verify**: `./gradlew ktlintCheck detekt --no-daemon` → exit 0.
 
@@ -237,7 +237,7 @@ In `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/SubmitManualTransa
 - `ManualTransactionSubmitter.kt` or the call sites don't match the excerpts.
 - `ManageLoanUseCase`/`ManageInstallmentUseCase` are `@Singleton`-scoped and require constructor injection changes unavailable to unit tests.
 - The new use case test fails twice after a reasonable fix attempt.
-- The dirties the dialog contract beyond parameter rename (e.g., state hoisting).
+- This dirties the dialog contract beyond parameter rename (e.g., state hoisting).
 
 ## Maintenance notes
 

@@ -2,10 +2,9 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import io.github.mojri.hesabyar.ui.AmountResolutionInput
-import io.github.mojri.hesabyar.ui.TransactionAmountResolver
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,15 +21,22 @@ class SubmitManualTransactionUseCaseTest {
     SubmitManualTransactionUseCase(manageTransaction, manageLoan, manageInstallment)
 
   @Test
-  fun `validate returns error when amount is zero or negative`() =
+  fun validateReturnsErrorWhenAmountIsZeroOrNegative() =
     runTest {
       val result =
         useCase.validate(
-          amountDisplay = 0L,
-          selectedType = "INCOME",
-          selectedCategoryId = 1L,
-          personName = "",
-          title = ""
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 0L,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 0L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
       assertEquals(
@@ -40,15 +46,22 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun `validate returns error when income or expense has no category`() =
+  fun validateReturnsErrorWhenIncomeOrExpenseHasNoCategory() =
     runTest {
       val result =
         useCase.validate(
-          amountDisplay = 1000L,
-          selectedType = "EXPENSE",
-          selectedCategoryId = 0L,
-          personName = "",
-          title = ""
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "EXPENSE",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
       assertEquals(
@@ -58,15 +71,22 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun `validate returns error when loan type has no person name`() =
+  fun validateReturnsErrorWhenLoanTypeHasNoPersonName() =
     runTest {
       val result =
         useCase.validate(
-          amountDisplay = 1000L,
-          selectedType = "LOAN_DEBTOR",
-          selectedCategoryId = 0L,
-          personName = "  ",
-          title = ""
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "LOAN_DEBTOR",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "  ",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
       assertEquals(
@@ -76,15 +96,22 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun `validate returns error when installment has no title`() =
+  fun validateReturnsErrorWhenInstallmentHasNoTitle() =
     runTest {
       val result =
         useCase.validate(
-          amountDisplay = 1000L,
-          selectedType = "INSTALLMENT",
-          selectedCategoryId = 0L,
-          personName = "",
-          title = "   "
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INSTALLMENT",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "",
+            title = "   ",
+            daysFromNowText = "30",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
       assertEquals(
@@ -94,85 +121,152 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
-  fun `validate returns valid for acceptable input`() =
+  fun validateReturnsErrorWhenInstallmentHasInvalidDaysText() =
     runTest {
       val result =
         useCase.validate(
-          amountDisplay = 1000L,
-          selectedType = "INCOME",
-          selectedCategoryId = 1L,
-          personName = "علی",
-          title = "قسط"
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INSTALLMENT",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "",
+            title = "Car installment",
+            daysFromNowText = "abc",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
+        )
+      assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
+      assertEquals(
+        "لطفا تعداد روزها را به صورت عدد وارد کنید",
+        (result as SubmitManualTransactionUseCase.ValidationResult.Error).message
+      )
+    }
+
+  @Test
+  fun validateReturnsValidForInstallmentWithEmptyDaysText() =
+    runTest {
+      val result =
+        useCase.validate(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INSTALLMENT",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "",
+            title = "Car installment",
+            daysFromNowText = "",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Valid)
     }
 
   @Test
-  fun `submit returns success for valid income transaction`() =
+  fun validateReturnsValidForAcceptableInput() =
+    runTest {
+      val result =
+        useCase.validate(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "",
+            personName = "علی",
+            title = "قسط",
+            daysFromNowText = "",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList()
+          )
+        )
+      assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Valid)
+    }
+
+  @Test
+  fun submitReturnsSuccessForValidIncomeTransaction() =
     runTest {
       val categories =
         listOf(Category(id = 1L, name = "Salary", key = "Income", icon = "", color = 0L, type = CategoryType.INCOME))
       val result =
         useCase.submit(
-          selectedType = "INCOME",
-          amountDisplay = 1000L,
-          isEditMode = false,
-          originalAmountRial = 0L,
-          amountModified = false,
-          selectedCategoryId = 1L,
-          descriptionText = "Test income",
-          personName = "",
-          title = "",
-          daysFromNowText = "30",
-          customDate = System.currentTimeMillis(),
-          categories = categories,
-          transactionToEdit = null
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "INCOME",
+            selectedCategoryId = 1L,
+            descriptionText = "Test income",
+            personName = "",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = categories,
+            transactionToEdit = null
+          )
         )
       assertTrue(result.success)
       assertEquals(null, result.errorMessage)
+
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      assertEquals(TransactionType.INCOME, stored.first().type)
+      assertEquals(1000L, stored.first().amount)
+      assertEquals("Test income", stored.first().description)
+      assertEquals(1L, stored.first().categoryId)
     }
 
   @Test
-  fun `submit returns success for valid loan`() =
+  fun submitReturnsSuccessForValidLoan() =
     runTest {
       val result =
         useCase.submit(
-          selectedType = "LOAN_DEBTOR",
-          amountDisplay = 2000L,
-          isEditMode = false,
-          originalAmountRial = 0L,
-          amountModified = false,
-          selectedCategoryId = 0L,
-          descriptionText = "Loan desc",
-          personName = "رضا",
-          title = "",
-          daysFromNowText = "30",
-          customDate = System.currentTimeMillis(),
-          categories = emptyList(),
-          transactionToEdit = null
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 2000L,
+            selectedType = "LOAN_DEBTOR",
+            selectedCategoryId = 0L,
+            descriptionText = "Loan desc",
+            personName = "رضا",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 2000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
         )
       assertTrue(result.success)
       assertEquals(null, result.errorMessage)
+
+      val stored = fake.allLoans.first()
+      assertEquals(1, stored.size)
+      assertEquals(LoanType.DEBTOR, stored.first().type)
+      assertEquals(2000L, stored.first().originalAmount)
+      assertEquals("Loan desc", stored.first().description)
+      assertEquals("رضا", stored.first().personName)
     }
 
   @Test
-  fun `submit returns success for valid installment`() =
+  fun submitReturnsSuccessForValidInstallment() =
     runTest {
       val result =
         useCase.submit(
-          selectedType = "INSTALLMENT",
-          amountDisplay = 3000L,
-          isEditMode = false,
-          originalAmountRial = 0L,
-          amountModified = false,
-          selectedCategoryId = 0L,
-          descriptionText = "Installment notes",
-          personName = "",
-          title = "Car installment",
-          daysFromNowText = "30",
-          customDate = System.currentTimeMillis(),
-          categories = emptyList(),
-          transactionToEdit = null
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 30000L,
+            selectedType = "INSTALLMENT",
+            selectedCategoryId = 0L,
+            descriptionText = "Installment notes",
+            personName = "",
+            title = "Car installment",
+            daysFromNowText = "30",
+            amountRial = 30000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
         )
       assertTrue(result.success)
       assertEquals(null, result.errorMessage)
@@ -182,33 +276,34 @@ class SubmitManualTransactionUseCaseTest {
       assertEquals("Car installment", installments.first().title)
       assertEquals(30000L, installments.first().amount)
       assertEquals(true, installments.first().reminderEnabled)
+      assertEquals("Installment notes", installments.first().notes)
     }
 
   @Test
-  fun `submit returns error for invalid transaction type`() =
+  fun submitReturnsErrorForInvalidTransactionType() =
     runTest {
       val result =
         useCase.submit(
-          selectedType = "UNKNOWN_TYPE",
-          amountDisplay = 1000L,
-          isEditMode = false,
-          originalAmountRial = 0L,
-          amountModified = false,
-          selectedCategoryId = 0L,
-          descriptionText = "",
-          personName = "",
-          title = "",
-          daysFromNowText = "30",
-          customDate = System.currentTimeMillis(),
-          categories = emptyList(),
-          transactionToEdit = null
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1000L,
+            selectedType = "UNKNOWN_TYPE",
+            selectedCategoryId = 0L,
+            descriptionText = "",
+            personName = "",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 1000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = null
+          )
         )
       assertFalse(result.success)
       assertEquals("نوع تراکنش نامعتبر است", result.errorMessage)
     }
 
   @Test
-  fun `submit update path uses edit mode values`() =
+  fun submitUpdatePathUsesEditModeValues() =
     runTest {
       val categories =
         listOf(Category(id = 1L, name = "Food", key = "Food", icon = "", color = 0L, type = CategoryType.EXPENSE))
@@ -222,37 +317,32 @@ class SubmitManualTransactionUseCaseTest {
           personName = null,
           date = System.currentTimeMillis()
         )
+      fake.insertTransaction(original)
+
       val result =
         useCase.submit(
-          selectedType = "EXPENSE",
-          amountDisplay = 1500L,
-          isEditMode = true,
-          originalAmountRial = 5000L,
-          amountModified = true,
-          selectedCategoryId = 1L,
-          descriptionText = "Updated",
-          personName = "",
-          title = "",
-          daysFromNowText = "30",
-          customDate = System.currentTimeMillis(),
-          categories = categories,
-          transactionToEdit = original
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 1500L,
+            selectedType = "EXPENSE",
+            selectedCategoryId = 1L,
+            descriptionText = "Updated",
+            personName = "",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 1500L,
+            customDate = System.currentTimeMillis(),
+            categories = categories,
+            transactionToEdit = original
+          )
         )
       assertTrue(result.success)
-    }
 
-  @Test
-  fun `resolveAmount preserves original when not modified in edit mode`() =
-    runTest {
-      val input =
-        AmountResolutionInput(
-          displayedAmount = 0L,
-          isEditMode = true,
-          originalRialAmount = 7500L,
-          userModifiedAmount = false
-        )
-      val resolved = TransactionAmountResolver.resolveAmount(input)
-      assertEquals(7500L, resolved.rialAmount)
-      assertEquals(true, resolved.preservedOriginal)
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      val updated = stored.first()
+      assertEquals(10L, updated.id)
+      assertEquals(1500L, updated.amount)
+      assertEquals("Updated", updated.description)
+      assertEquals(TransactionType.EXPENSE, updated.type)
     }
 }

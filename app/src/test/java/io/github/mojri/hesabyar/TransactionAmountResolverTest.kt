@@ -1,9 +1,9 @@
 package io.github.mojri.hesabyar
 
-import io.github.mojri.hesabyar.ui.AmountResolutionInput
+import io.github.mojri.hesabyar.domain.utils.AmountResolutionInput
+import io.github.mojri.hesabyar.domain.utils.TransactionAmountResolver
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
-import io.github.mojri.hesabyar.ui.TransactionAmountResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,10 +22,11 @@ class TransactionAmountResolverTest {
       AmountResolutionInput(
         displayedAmount = 100L,
         isEditMode = false,
-        originalRialAmount = 0L
+        originalRialAmount = 0L,
+        userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(1000L, result.rialAmount)
     assertFalse(result.preservedOriginal)
@@ -44,7 +45,7 @@ class TransactionAmountResolverTest {
         userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(originalRial, result.rialAmount)
     assertTrue(result.preservedOriginal)
@@ -59,10 +60,11 @@ class TransactionAmountResolverTest {
       AmountResolutionInput(
         displayedAmount = newDisplayedAmount,
         isEditMode = true,
-        originalRialAmount = originalRial
+        originalRialAmount = originalRial,
+        userModifiedAmount = true
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(200L, result.rialAmount)
     assertFalse(result.preservedOriginal)
@@ -81,7 +83,7 @@ class TransactionAmountResolverTest {
         userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(1005L, result.rialAmount)
     assertTrue(result.preservedOriginal)
@@ -102,7 +104,7 @@ class TransactionAmountResolverTest {
         userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(105L, result.rialAmount)
     assertTrue(result.preservedOriginal)
@@ -118,10 +120,11 @@ class TransactionAmountResolverTest {
       AmountResolutionInput(
         displayedAmount = newDisplayedAmount,
         isEditMode = true,
-        originalRialAmount = originalRial
+        originalRialAmount = originalRial,
+        userModifiedAmount = true
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(500L, result.rialAmount)
     assertFalse(result.preservedOriginal)
@@ -133,10 +136,11 @@ class TransactionAmountResolverTest {
       AmountResolutionInput(
         displayedAmount = 0L,
         isEditMode = false,
-        originalRialAmount = 0L
+        originalRialAmount = 0L,
+        userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(0L, result.rialAmount)
     assertFalse(result.preservedOriginal)
@@ -155,7 +159,7 @@ class TransactionAmountResolverTest {
         userModifiedAmount = false
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(1_000_000_005L, result.rialAmount)
     assertTrue(result.preservedOriginal)
@@ -174,7 +178,7 @@ class TransactionAmountResolverTest {
         userModifiedAmount = true
       )
 
-    val result = TransactionAmountResolver.resolveAmount(input)
+    val result = TransactionAmountResolver.resolveAmount(input, CurrencyFormatter::toRial)
 
     assertEquals(100L, result.rialAmount)
     assertFalse(result.preservedOriginal)

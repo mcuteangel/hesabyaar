@@ -1,10 +1,10 @@
-package io.github.mojri.hesabyar.ui
+package io.github.mojri.hesabyar.domain.utils
 
 data class AmountResolutionInput(
   val displayedAmount: Long,
   val isEditMode: Boolean,
   val originalRialAmount: Long,
-  val userModifiedAmount: Boolean = true
+  val userModifiedAmount: Boolean
 )
 
 data class AmountResolutionResult(
@@ -13,24 +13,20 @@ data class AmountResolutionResult(
 )
 
 object TransactionAmountResolver {
-  private const val MAX_SAFE_DISPLAY_AMOUNT = Long.MAX_VALUE / 10
-
-  private fun safeToRial(displayedAmount: Long): Long {
-    val clampedAmount = displayedAmount.coerceAtMost(MAX_SAFE_DISPLAY_AMOUNT)
-    return CurrencyFormatter.toRial(clampedAmount)
-  }
-
-  fun resolveAmount(input: AmountResolutionInput): AmountResolutionResult {
+  fun resolveAmount(
+    input: AmountResolutionInput,
+    toRial: (Long) -> Long
+  ): AmountResolutionResult {
     if (!input.isEditMode) {
       return AmountResolutionResult(
-        rialAmount = safeToRial(input.displayedAmount),
+        rialAmount = safeToRial(input.displayedAmount, toRial),
         preservedOriginal = false
       )
     }
 
     return if (input.userModifiedAmount) {
       AmountResolutionResult(
-        rialAmount = safeToRial(input.displayedAmount),
+        rialAmount = safeToRial(input.displayedAmount, toRial),
         preservedOriginal = false
       )
     } else {
@@ -40,4 +36,14 @@ object TransactionAmountResolver {
       )
     }
   }
+
+  private fun safeToRial(
+    displayedAmount: Long,
+    toRial: (Long) -> Long
+  ): Long {
+    val clampedAmount = displayedAmount.coerceAtMost(MAX_SAFE_DISPLAY_AMOUNT)
+    return toRial(clampedAmount)
+  }
+
+  private const val MAX_SAFE_DISPLAY_AMOUNT = 999_999_999_999L
 }

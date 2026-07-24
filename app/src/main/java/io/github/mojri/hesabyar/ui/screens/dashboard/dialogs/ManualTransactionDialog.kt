@@ -53,6 +53,7 @@ internal fun ManualTransactionDialog(
   var titleText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
   var daysFromNowText by remember { mutableStateOf("30") }
   var customDate by remember { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
+  var isSubmitting by remember { mutableStateOf(false) }
 
   val filteredCategories =
     categories.filter { cat ->
@@ -82,49 +83,55 @@ internal fun ManualTransactionDialog(
 
       Button(
         onClick = {
+          isSubmitting = true
           coroutineScope.launch {
-            val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
-            val validationResult =
-              submitTransaction.validate(
-                amountDisplay = finalAmountDisplay,
-                selectedType = selectedType,
-                selectedCategoryId = selectedCategoryId,
-                personName = personNameText,
-                title = titleText
-              )
+            try {
+              val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
+              val finalAmountRial =
+                if (isEditMode && !amountModified) {
+                  originalAmountRial
+                } else {
+                  CurrencyFormatter.toRial(finalAmountDisplay)
+                }
 
-            if (validationResult is SubmitManualTransactionUseCase.ValidationResult.Error) {
-              showToast(context, validationResult.message)
-              return@launch
-            }
+              val request =
+                SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+                  amountDisplay = finalAmountDisplay,
+                  selectedType = selectedType,
+                  selectedCategoryId = selectedCategoryId,
+                  descriptionText = descriptionText,
+                  personName = personNameText,
+                  title = titleText,
+                  daysFromNowText = daysFromNowText,
+                  amountRial = finalAmountRial,
+                  customDate = customDate,
+                  categories = categories,
+                  transactionToEdit = transactionToEdit
+                )
 
-            val submitResult =
-              submitTransaction.submit(
-                selectedType = selectedType,
-                amountDisplay = finalAmountDisplay,
-                isEditMode = isEditMode,
-                originalAmountRial = originalAmountRial,
-                amountModified = amountModified,
-                selectedCategoryId = selectedCategoryId,
-                descriptionText = descriptionText,
-                personName = personNameText,
-                title = titleText,
-                daysFromNowText = daysFromNowText,
-                customDate = customDate,
-                categories = categories,
-                transactionToEdit = transactionToEdit
-              )
+              val validationResult = submitTransaction.validate(request)
 
-            if (submitResult.success) {
-              onDismiss()
-            } else {
-              submitResult.errorMessage?.let { showToast(context, it) }
+              if (validationResult is SubmitManualTransactionUseCase.ValidationResult.Error) {
+                showToast(context, validationResult.message)
+                return@launch
+              }
+
+              val submitResult = submitTransaction.submit(request)
+
+              if (submitResult.success) {
+                onDismiss()
+              } else {
+                submitResult.errorMessage?.let { showToast(context, it) }
+              }
+            } finally {
+              isSubmitting = false
             }
           }
         },
         modifier = Modifier.weight(1f),
         shape = ShapeTokens.Medium,
-        colors = ButtonDefaults.buttonColors(containerColor = typeColor)
+        colors = ButtonDefaults.buttonColors(containerColor = typeColor),
+        enabled = !isSubmitting,
       ) {
         Text(
           if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش",
