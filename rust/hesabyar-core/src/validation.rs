@@ -618,6 +618,7 @@ mod tests {
             loans: vec![make_loan(5000000, 3000000, "DEBTOR")],
             installments: vec![make_inst(2000000, "Car loan")],
             bank_loans: vec![],
+            payment_histories: vec![],
             categories: vec![],
         };
         let result = validate_backup_payload(&payload);
@@ -644,8 +645,9 @@ mod tests {
             transactions: vec![make_tx(0, "bad", 1)],
             loans: vec![make_loan(0, 0, "INVALID")],
             installments: vec![make_inst(0, "")],
-        bank_loans: vec![],
-        categories: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
     };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -672,8 +674,9 @@ mod tests {
             ],
             loans: vec![],
             installments: vec![],
-        bank_loans: vec![],
-        categories: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
     };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -692,6 +695,7 @@ mod tests {
             loans: vec![],
             installments: vec![],
             bank_loans: vec![],
+            payment_histories: vec![],
             categories: vec![Category {
                 id: 1,
                 name: "Food".into(),

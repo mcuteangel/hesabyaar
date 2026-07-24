@@ -133,6 +133,16 @@ pub struct BankLoan {
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 #[serde(rename_all = "camelCase")]
+pub struct PaymentHistory {
+    pub id: i64,
+    pub loanId: i64,
+    pub amount: i64,
+    pub date: i64,
+    pub notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
 pub struct BankLoanSummary {
     pub bank_name: String,
     pub loan_name: String,
@@ -275,6 +285,8 @@ pub struct BackupPayload {
     #[serde(default)]
     pub bank_loans: Vec<BankLoan>,
     #[serde(default)]
+    pub payment_histories: Vec<PaymentHistory>,
+    #[serde(default)]
     pub categories: Vec<Category>,
 }
 
@@ -288,6 +300,7 @@ impl Default for BackupPayload {
             loans: Vec::new(),
             installments: Vec::new(),
             bank_loans: Vec::new(),
+            payment_histories: Vec::new(),
             categories: Vec::new(),
         }
     }
@@ -332,8 +345,8 @@ mod tests {
 
     #[test]
     fn test_backup_payload_ignores_unknown_fields() {
-        // Kotlin may include `paymentHistories` or other future fields.
-        // Rust must parse without error — extra fields are silently discarded.
+        // Kotlin may include future fields. Rust must parse without error;
+        // extra fields are silently discarded.
         let json = r#"{
             "version": 1,
             "timestamp": 1710000000000,
@@ -342,7 +355,7 @@ mod tests {
             "loans": [],
             "installments": [],
             "categories": [],
-            "paymentHistories": [{"id": 1, "amount": 50000}],
+            "paymentHistories": [{"id": 1, "loanId": 1, "amount": 50000, "date": 1710000000000, "notes": "x"}],
             "budgets": [{"monthly_limit": 1000000}],
             "futureField": "hello"
         }"#;
@@ -350,6 +363,7 @@ mod tests {
         assert_eq!(payload.version, 1);
         assert_eq!(payload.app_version, "1.0.0");
         assert!(payload.transactions.is_empty());
+        assert_eq!(payload.payment_histories.len(), 1);
     }
 
     #[test]
@@ -365,6 +379,8 @@ mod tests {
         assert!(payload.transactions.is_empty());
         assert!(payload.loans.is_empty());
         assert!(payload.installments.is_empty());
+        assert!(payload.bank_loans.is_empty());
+        assert!(payload.payment_histories.is_empty());
         assert!(payload.categories.is_empty());
     }
 
@@ -388,6 +404,13 @@ mod tests {
             loans: vec![],
             installments: vec![],
             bank_loans: vec![],
+            payment_histories: vec![PaymentHistory {
+                id: 1,
+                loanId: 10,
+                amount: 200000,
+                date: 1710000000000,
+                notes: "Paid".to_string(),
+            }],
             categories: vec![],
         };
         let json = serde_json::to_string(&original).unwrap();
@@ -395,6 +418,8 @@ mod tests {
         assert_eq!(restored.version, original.version);
         assert_eq!(restored.transactions.len(), 1);
         assert_eq!(restored.transactions[0].amount, 50000);
+        assert_eq!(restored.payment_histories.len(), 1);
+        assert_eq!(restored.payment_histories[0].amount, 200000);
     }
 
     #[test]
@@ -416,6 +441,9 @@ mod tests {
             ],
             "installments": [
                 {"id": 3, "title": "Rent", "amount": 2000000, "dueDate": 1710000000000, "isPaid": false, "reminderEnabled": true, "notes": ""}
+            ],
+            "paymentHistories": [
+                {"id": 5, "loanId": 2, "amount": 30000, "date": 1710000000000, "notes": "First"}
             ]
         }"#;
         let payload: BackupPayload = serde_json::from_str(json).unwrap();
@@ -424,6 +452,8 @@ mod tests {
         assert_eq!(payload.loans[0].loan_type, "DEBTOR");
         assert_eq!(payload.loans[0].original_amount, 100000);
         assert!(!payload.installments[0].is_paid);
+        assert_eq!(payload.payment_histories.len(), 1);
+        assert_eq!(payload.payment_histories[0].loanId, 2);
     }
 
     #[test]
@@ -459,6 +489,13 @@ mod tests {
                 description: "".to_string(),
                 is_settled: false,
             }],
+            payment_histories: vec![PaymentHistory {
+                id: 7,
+                loanId: 1,
+                amount: 1500000,
+                date: 1710000000000,
+                notes: "Installment".to_string(),
+            }],
             categories: vec![],
         };
         let json = serde_json::to_string(&payload).unwrap();
@@ -466,6 +503,8 @@ mod tests {
         assert_eq!(restored.bank_loans.len(), 1);
         assert_eq!(restored.bank_loans[0].bank_name, "بانک ملت");
         assert_eq!(restored.bank_loans[0].total_repayable_amount, 120_000_000);
+        assert_eq!(restored.payment_histories.len(), 1);
+        assert_eq!(restored.payment_histories[0].amount, 1500000);
     }
 
     #[test]
@@ -481,5 +520,42 @@ mod tests {
         }"#;
         let payload: BackupPayload = serde_json::from_str(json).unwrap();
         assert!(payload.bank_loans.is_empty());
+        assert!(payload.payment_histories.is_empty());
+    }
+
+    #[test]
+    fn test_backup_payload_round_trips_payment_histories() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![
+                PaymentHistory {
+                    id: 1,
+                    loanId: 10,
+                    amount: 50000,
+                    date: 1710000000000,
+                    notes: "First".to_string(),
+                },
+                PaymentHistory {
+                    id: 2,
+                    loanId: 10,
+                    amount: 75000,
+                    date: 1710001000000,
+                    notes: "Second".to_string(),
+                },
+            ],
+            categories: vec![],
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.payment_histories.len(), 2);
+        assert_eq!(restored.payment_histories[0].amount, 50000);
+        assert_eq!(restored.payment_histories[1].notes, "Second");
+        assert_eq!(restored.payment_histories[1].loanId, 10);
     }
 }
