@@ -227,6 +227,36 @@ pub fn validate_bank_loan_batch(bank_loans: &[BankLoan]) -> ValidationResult {
     }
 }
 
+/// Validate a single payment history entry.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_payment_history(ph: &PaymentHistory) -> Result<(), String> {
+    if ph.amount <= 0 {
+        return Err("PaymentHistory amount must be positive".into());
+    }
+    if ph.date <= 0 {
+        return Err("PaymentHistory date must be positive".into());
+    }
+    if ph.loan_id <= 0 {
+        return Err("PaymentHistory loan_id must be positive".into());
+    }
+    Ok(())
+}
+
+/// Validate a batch of payment histories. Collects all errors.
+pub fn validate_payment_history_batch(payment_histories: &[PaymentHistory]) -> ValidationResult {
+    let mut errors = Vec::new();
+    for (i, ph) in payment_histories.iter().enumerate() {
+        if let Err(e) = validate_payment_history(ph) {
+            errors.push(format!("PaymentHistory[{}]: {}", i, e));
+        }
+    }
+    ValidationResult {
+        is_valid: errors.is_empty(),
+        errors,
+    }
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
@@ -251,6 +281,19 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_loan_batch(&payload.loans).errors);
     errors.extend(validate_installment_batch(&payload.installments).errors);
     errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
+    errors.extend(validate_payment_history_batch(&payload.payment_histories).errors);
+    // PaymentHistory cross-reference: loan_id must point to an existing loan.
+    if !payload.loans.is_empty() {
+        let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
+        for (i, ph) in payload.payment_histories.iter().enumerate() {
+            if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
+                errors.push(format!(
+                    "PaymentHistory[{}] references non-existent loan {}",
+                    i, ph.loan_id
+                ));
+            }
+        }
+    }
     ValidationResult {
         is_valid: errors.is_empty(),
         errors,
@@ -297,6 +340,16 @@ mod tests {
             is_paid: false,
             reminder_enabled: true,
             notes: String::new(),
+        }
+    }
+
+    fn make_payment_history(amount: i64, loan_id: i64) -> PaymentHistory {
+        PaymentHistory {
+            id: 1,
+            loan_id,
+            amount,
+            date: 1710000000000,
+            notes: None,
         }
     }
 
@@ -646,13 +699,13 @@ mod tests {
             loans: vec![make_loan(0, 0, "INVALID")],
             installments: vec![make_inst(0, "")],
             bank_loans: vec![],
-            payment_histories: vec![],
+            payment_histories: vec![make_payment_history(0, 1)],
             categories: vec![],
     };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         // At least one error from each entity type
-        assert!(result.errors.len() >= 3);
+        assert!(result.errors.len() >= 4);
     }
 
     #[test]
@@ -761,5 +814,95 @@ mod tests {
         bl.received_amount = 20_000_000;
         bl.total_interest = bl.total_repayable_amount - bl.received_amount;
         assert!(validate_bank_loan(&bl).is_err());
+    }
+
+    // ====================================================================
+    // PaymentHistory validation
+    // ====================================================================
+
+    #[test]
+    fn test_valid_payment_history() {
+        assert!(validate_payment_history(&make_payment_history(50000, 1)).is_ok());
+    }
+
+    #[test]
+    fn test_payment_history_zero_amount_rejected() {
+        let err = validate_payment_history(&make_payment_history(0, 1)).unwrap_err();
+        assert!(err.contains("amount"));
+    }
+
+    #[test]
+    fn test_payment_history_negative_amount_rejected() {
+        let err = validate_payment_history(&make_payment_history(-500, 1)).unwrap_err();
+        assert!(err.contains("amount"));
+    }
+
+    #[test]
+    fn test_payment_history_zero_date_rejected() {
+        let mut ph = make_payment_history(50000, 1);
+        ph.date = 0;
+        let err = validate_payment_history(&ph).unwrap_err();
+        assert!(err.contains("date"));
+    }
+
+    #[test]
+    fn test_payment_history_zero_loan_id_rejected() {
+        let mut ph = make_payment_history(50000, 1);
+        ph.loan_id = 0;
+        let err = validate_payment_history(&ph).unwrap_err();
+        assert!(err.contains("loan_id"));
+    }
+
+    #[test]
+    fn test_payment_history_batch_collects_errors() {
+        let histories = vec![
+            make_payment_history(50000, 1),
+            make_payment_history(0, 1),
+            make_payment_history(50000, 0),
+        ];
+        let result = validate_payment_history_batch(&histories);
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 2);
+    }
+
+    #[test]
+    fn test_backup_payment_history_loan_cross_reference() {
+        // paymentHistory referencing a loan that does not exist in the backup
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![make_loan(100000, 40000, "DEBTOR")],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![
+                make_payment_history(50000, 99), // loan 99 does not exist
+            ],
+            categories: vec![],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+    }
+
+    #[test]
+    fn test_backup_payment_history_loan_cross_reference_tolerates_empty_loans() {
+        // If no loans are present in the backup, skip cross-reference check
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![make_payment_history(50000, 99)],
+            categories: vec![],
+        };
+        let result = validate_backup_payload(&payload);
+        // Loan cross-reference is skipped when no loans exist; amount+date+loan_id still valid
+        let ph_errors: Vec<_> = result.errors.iter().filter(|e| e.contains("PaymentHistory")).collect();
+        assert!(ph_errors.is_empty());
     }
 }

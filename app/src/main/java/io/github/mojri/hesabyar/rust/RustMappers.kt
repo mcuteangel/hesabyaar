@@ -296,4 +296,16 @@ object RustMappers {
       type = CategoryType.valueOf(cat.categoryType),
       isDefault = cat.isDefault
     )
+
+  fun fromRustPaymentHistory(ph: io.github.mojri.hesabyar.rust.PaymentHistory): PaymentHistory =
+    PaymentHistory(
+      id = ph.id,
+      loanId = ph.loanId,
+      amount = ph.amount,
+      date = ph.date,
+      notes = ph.notes ?: ""
+    )
+
+  fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =
+    list.map { fromRustPaymentHistory(it) }
 }

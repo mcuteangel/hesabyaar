@@ -135,10 +135,11 @@ pub struct BankLoan {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentHistory {
     pub id: i64,
-    pub loanId: i64,
+    pub loan_id: i64,
     pub amount: i64,
     pub date: i64,
-    pub notes: String,
+    #[serde(default)]
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -406,10 +407,10 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![PaymentHistory {
                 id: 1,
-                loanId: 10,
+                loan_id: 10,
                 amount: 200000,
                 date: 1710000000000,
-                notes: "Paid".to_string(),
+                notes: Some("Paid".to_string()),
             }],
             categories: vec![],
         };
@@ -453,7 +454,7 @@ mod tests {
         assert_eq!(payload.loans[0].original_amount, 100000);
         assert!(!payload.installments[0].is_paid);
         assert_eq!(payload.payment_histories.len(), 1);
-        assert_eq!(payload.payment_histories[0].loanId, 2);
+        assert_eq!(payload.payment_histories[0].loan_id, 2);
     }
 
     #[test]
@@ -491,10 +492,10 @@ mod tests {
             }],
             payment_histories: vec![PaymentHistory {
                 id: 7,
-                loanId: 1,
+                loan_id: 1,
                 amount: 1500000,
                 date: 1710000000000,
-                notes: "Installment".to_string(),
+                notes: Some("Installment".to_string()),
             }],
             categories: vec![],
         };
@@ -536,17 +537,17 @@ mod tests {
             payment_histories: vec![
                 PaymentHistory {
                     id: 1,
-                    loanId: 10,
+                    loan_id: 10,
                     amount: 50000,
                     date: 1710000000000,
-                    notes: "First".to_string(),
+                    notes: Some("First".to_string()),
                 },
                 PaymentHistory {
                     id: 2,
-                    loanId: 10,
+                    loan_id: 10,
                     amount: 75000,
                     date: 1710001000000,
-                    notes: "Second".to_string(),
+                    notes: Some("Second".to_string()),
                 },
             ],
             categories: vec![],
@@ -555,7 +556,7 @@ mod tests {
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.payment_histories.len(), 2);
         assert_eq!(restored.payment_histories[0].amount, 50000);
-        assert_eq!(restored.payment_histories[1].notes, "Second");
-        assert_eq!(restored.payment_histories[1].loanId, 10);
+        assert_eq!(restored.payment_histories[1].notes, Some("Second".to_string()));
+        assert_eq!(restored.payment_histories[1].loan_id, 10);
     }
 }

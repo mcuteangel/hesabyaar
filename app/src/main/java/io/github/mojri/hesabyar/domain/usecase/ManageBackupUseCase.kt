@@ -53,7 +53,11 @@ class ManageBackupUseCase(
                 io.github.mojri.hesabyar.rust.RustMappers
                   .fromRustInstallment(it)
               },
-            paymentHistories = parsePaymentHistories(rootJson),
+            paymentHistories =
+              rustResult.paymentHistories.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustPaymentHistory(it)
+              },
             categories =
               rustResult.categories.map {
                 io.github.mojri.hesabyar.rust.RustMappers
