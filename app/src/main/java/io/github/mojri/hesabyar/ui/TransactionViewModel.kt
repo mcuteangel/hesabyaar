@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.ManageTransactionUseCase
+import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -14,7 +15,8 @@ import javax.inject.Inject
 class TransactionViewModel
   @Inject
   constructor(
-    private val manageTransactionUseCase: ManageTransactionUseCase
+    private val manageTransactionUseCase: ManageTransactionUseCase,
+    private val submitManualTransactionUseCase: SubmitManualTransactionUseCase
   ) : ViewModel() {
     val transactions: StateFlow<List<Transaction>> =
       manageTransactionUseCase.allTransactions
@@ -44,4 +46,8 @@ class TransactionViewModel
         manageTransactionUseCase.deleteTransaction(transaction)
       }
     }
+
+    suspend fun submitManualTransaction(
+      request: SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+    ): SubmitManualTransactionUseCase.SubmitResult = submitManualTransactionUseCase.submit(request)
   }

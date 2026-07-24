@@ -18,10 +18,12 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val installments = mutableListOf<Installment>()
   private val _allInstallments = MutableStateFlow<List<Installment>>(emptyList())
   private val _allBankLoans = MutableStateFlow<List<BankLoan>>(emptyList())
+  private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
+  private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
   private var nextId = 1L
 
-  override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-  override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
+  override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
+  override val allLoans: Flow<List<Loan>> = _allLoans.asStateFlow()
   override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
   override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
@@ -43,15 +45,37 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun deleteCategory(category: Category) {}
 
-  override suspend fun insertTransaction(transaction: Transaction): Long = 0L
+  override suspend fun insertTransaction(transaction: Transaction): Long {
+    val id = if (transaction.id != 0L) transaction.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    _allTransactions.value = _allTransactions.value + transaction.copy(id = id)
+    return id
+  }
 
   override suspend fun deleteTransaction(transaction: Transaction) {}
 
-  override suspend fun updateTransaction(transaction: Transaction) {}
+  override suspend fun updateTransaction(transaction: Transaction) {
+    val current = _allTransactions.value
+    val idx = current.indexOfFirst { it.id == transaction.id }
+    if (idx >= 0) {
+      _allTransactions.value = current.toMutableList().also { it[idx] = transaction }
+    }
+  }
 
-  override suspend fun insertLoan(loan: Loan): Long = 0L
+  override suspend fun insertLoan(loan: Loan): Long {
+    val id = if (loan.id != 0L) loan.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    _allLoans.value = _allLoans.value + loan.copy(id = id)
+    return id
+  }
 
-  override suspend fun updateLoan(loan: Loan) {}
+  override suspend fun updateLoan(loan: Loan) {
+    val current = _allLoans.value
+    val idx = current.indexOfFirst { it.id == loan.id }
+    if (idx >= 0) {
+      _allLoans.value = current.toMutableList().also { it[idx] = loan }
+    }
+  }
 
   override suspend fun deleteLoan(loan: Loan) {}
 

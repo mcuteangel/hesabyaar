@@ -21,13 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.ui.AdvisorUIState
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
-import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
@@ -47,9 +46,14 @@ import java.util.*
 fun ReportsScreen(
   dashboardViewModel: DashboardViewModel,
   transactionViewModel: TransactionViewModel,
-  loanViewModel: LoanViewModel,
-  installmentViewModel: InstallmentViewModel,
   aiAssistantViewModel: AiAssistantViewModel,
+  onSubmitTransaction: (
+  suspend (
+    SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+  ) -> SubmitManualTransactionUseCase.SubmitResult
+  ) = { request ->
+    transactionViewModel.submitManualTransaction(request)
+  },
   modifier: Modifier = Modifier
 ) {
   val transactions by dashboardViewModel.transactions.collectAsState()
@@ -725,9 +729,7 @@ fun ReportsScreen(
 
   if (editingTransaction != null) {
     ManualTransactionDialog(
-      transactionViewModel = transactionViewModel,
-      loanViewModel = loanViewModel,
-      installmentViewModel = installmentViewModel,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
       onDismiss = { editingTransaction = null }

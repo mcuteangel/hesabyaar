@@ -27,10 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
-import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
 import io.github.mojri.hesabyar.ui.components.BalanceCard
@@ -56,10 +56,16 @@ import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDi
 fun DashboardScreen(
   dashboardViewModel: DashboardViewModel,
   transactionViewModel: TransactionViewModel,
-  loanViewModel: LoanViewModel,
   installmentViewModel: InstallmentViewModel,
   aiAssistantViewModel: AiAssistantViewModel,
   settingsViewModel: SettingsViewModel,
+  onSubmitTransaction: (
+  suspend (
+    SubmitManualTransactionUseCase.SubmitManualTransactionRequest
+  ) -> SubmitManualTransactionUseCase.SubmitResult
+  ) = { request ->
+    transactionViewModel.submitManualTransaction(request)
+  },
   onNavigateToAssistant: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -236,9 +242,7 @@ fun DashboardScreen(
 
   if (showManualAddDialog) {
     ManualTransactionDialog(
-      transactionViewModel = transactionViewModel,
-      loanViewModel = loanViewModel,
-      installmentViewModel = installmentViewModel,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       onDismiss = { showManualAddDialog = false }
     )
@@ -246,9 +250,7 @@ fun DashboardScreen(
 
   if (editingTransaction != null) {
     ManualTransactionDialog(
-      transactionViewModel = transactionViewModel,
-      loanViewModel = loanViewModel,
-      installmentViewModel = installmentViewModel,
+      onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
       onDismiss = { editingTransaction = null }

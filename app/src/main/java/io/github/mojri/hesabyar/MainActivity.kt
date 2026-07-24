@@ -132,7 +132,6 @@ class MainActivity : FragmentActivity() {
                     DashboardScreen(
                       dashboardViewModel = dashboardViewModel,
                       transactionViewModel = transactionViewModel,
-                      loanViewModel = loanViewModel,
                       installmentViewModel = installmentViewModel,
                       aiAssistantViewModel = aiAssistantViewModel,
                       settingsViewModel = settingsViewModel,
@@ -165,8 +164,6 @@ class MainActivity : FragmentActivity() {
                     ReportsScreen(
                       dashboardViewModel = dashboardViewModel,
                       transactionViewModel = transactionViewModel,
-                      loanViewModel = loanViewModel,
-                      installmentViewModel = installmentViewModel,
                       aiAssistantViewModel = aiAssistantViewModel,
                       modifier = modifier
                     )

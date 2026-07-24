@@ -21,6 +21,7 @@ import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageTransactionUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
+import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import javax.inject.Singleton
 
 @Module
@@ -41,6 +42,13 @@ object UseCaseModule {
   @Provides
   fun provideManageInstallmentUseCase(repository: HesabyarRepositoryInterface): ManageInstallmentUseCase =
     ManageInstallmentUseCase(repository)
+
+  @Provides
+  fun provideSubmitManualTransactionUseCase(
+    manageTransaction: ManageTransactionUseCase,
+    manageLoan: ManageLoanUseCase,
+    manageInstallment: ManageInstallmentUseCase
+  ): SubmitManualTransactionUseCase = SubmitManualTransactionUseCase(manageTransaction, manageLoan, manageInstallment)
 
   @Provides
   fun provideManageBankLoanUseCase(repository: HesabyarRepositoryInterface): ManageBankLoanUseCase =
