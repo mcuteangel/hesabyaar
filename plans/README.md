@@ -10,7 +10,7 @@ Planned at commit `44dd519`, 2026-07-23.
 |------|-------|----------|--------|------------|--------|
 | 001  | Fix loan repayment overpayment recording | P1 | S | — | TODO |
 | 002  | Remove Gemini API key from request URLs | P1 | M | — | TODO |
-| 003  | Add payment_histories to Rust BackupPayload schema | P1 | M | — | TODO |
+| 003  | Add payment_histories to Rust BackupPayload schema | P1 | M | — | DONE |
 | 004  | Restrict rustCallSync exception swallowing | P1 | S | — | TODO |
 | 005  | Extract generic async UI state type | P2 | M | — | TODO |
 | 006  | Fix stale docs and roadmap markers | P3 | S | — | TODO |
