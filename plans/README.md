@@ -8,7 +8,7 @@ Planned at commit `44dd519`, 2026-07-23.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Fix loan repayment overpayment recording | P1 | S | — | TODO |
+| 001  | Fix loan repayment overpayment recording | P1 | S | — | DONE |
 | 002  | Remove Gemini API key from request URLs | P1 | M | — | TODO |
 | 003  | Add payment_histories to Rust BackupPayload schema | P1 | M | — | DONE |
 | 004  | Restrict rustCallSync exception swallowing | P1 | S | — | TODO |

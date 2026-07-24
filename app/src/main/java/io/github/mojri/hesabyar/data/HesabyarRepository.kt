@@ -74,6 +74,7 @@ class HesabyarRepository(
     val loansCategory = getCategoryByKey("Loans") ?: return false
     val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
     val isSettled = newRemaining <= 0L
+    val effectiveAmount = amount.coerceAtMost(loan.remainingAmount)
     val date = customDate ?: System.currentTimeMillis()
 
     val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
@@ -87,12 +88,12 @@ class HesabyarRepository(
       Transaction(
         type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
         categoryId = loansCategory.id,
-        amount = amount,
+        amount = effectiveAmount,
         description = desc,
         personName = loan.personName,
         date = date
       )
-    val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
+    val payment = PaymentHistory(loanId = loanId, amount = effectiveAmount, notes = notes, date = date)
 
     database.withTransaction {
       loanDao.updateLoan(updatedLoan)

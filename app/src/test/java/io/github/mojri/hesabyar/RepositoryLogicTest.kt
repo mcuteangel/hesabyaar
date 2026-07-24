@@ -1,21 +1,66 @@
 package io.github.mojri.hesabyar
 
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [34])
 class RepositoryLogicTest {
+  private var database: AppDatabase? = null
+
+  @Before
+  fun setUp() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    database =
+      Room
+        .inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        .allowMainThreadQueries()
+        .build()
+  }
+
+  @After
+  fun tearDown() {
+    database?.close()
+    database = null
+  }
+
+  private fun createRepository(): HesabyarRepository {
+    val db = database!!
+    return HesabyarRepository(
+      db.transactionDao(),
+      db.loanDao(),
+      db.installmentDao(),
+      db.paymentHistoryDao(),
+      db.categoryDao(),
+      db.bankLoanDao(),
+      db
+    )
+  }
+
   @Test
   fun `addPaymentToLoan - reduces remaining amount`() {
     var remainingAmount = 5_000_000L
@@ -269,4 +314,46 @@ class RepositoryLogicTest {
     assertEquals(1, backup.categories.size)
     assertFalse(backup.settings.darkMode)
   }
+
+  @Test
+  fun `addPaymentToLoan overpayment records effective amount, not full overpayment`() =
+    runTest(StandardTestDispatcher()) {
+      val repo = createRepository()
+
+      val loansCategory =
+        Category(
+          name = "Loans",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 0xFF4CAF50L,
+          type = CategoryType.BOTH
+        )
+      val categoryId = repo.insertCategory(loansCategory)
+
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 5_000L,
+          remainingAmount = 5_000L,
+          description = "test"
+        )
+      val loanId = repo.insertLoan(loan)
+
+      val success = repo.addPaymentToLoan(loanId, 10_000L, "overpayment test")
+      assertTrue(success)
+
+      val paymentHistories = database!!.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(1, paymentHistories.size)
+      assertEquals(5_000L, paymentHistories[0].amount)
+
+      val transactions = database!!.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, transactions.size)
+      assertEquals(5_000L, transactions[0].amount)
+
+      val updatedLoan = database!!.loanDao().getLoanById(loanId)
+      assertTrue(updatedLoan != null)
+      assertEquals(0L, updatedLoan!!.remainingAmount)
+      assertTrue(updatedLoan.isSettled)
+    }
 }
