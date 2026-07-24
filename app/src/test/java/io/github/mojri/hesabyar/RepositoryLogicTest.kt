@@ -57,6 +57,34 @@ class RepositoryLogicTest {
       database
     )
 
+  private suspend fun seedLoanWithCategory(
+    remainingAmount: Long,
+    isSettled: Boolean = false
+  ): Long {
+    val repo = createRepository()
+
+    val loansCategory =
+      Category(
+        name = "Loans",
+        key = "Loans",
+        icon = "HistoryEdu",
+        color = 0xFF4CAF50L,
+        type = CategoryType.BOTH
+      )
+    repo.insertCategory(loansCategory)
+
+    val loan =
+      Loan(
+        personName = "Ali",
+        type = LoanType.DEBTOR,
+        originalAmount = 5_000L,
+        remainingAmount = remainingAmount,
+        description = "test",
+        isSettled = isSettled
+      )
+    return repo.insertLoan(loan)
+  }
+
   @Test
   fun `addPaymentToLoan - reduces remaining amount`() {
     var remainingAmount = 5_000_000L
@@ -315,26 +343,7 @@ class RepositoryLogicTest {
   fun `addPaymentToLoan - overpayment records effective amount`() =
     runTest {
       val repo = createRepository()
-
-      val loansCategory =
-        Category(
-          name = "Loans",
-          key = "Loans",
-          icon = "HistoryEdu",
-          color = 0xFF4CAF50L,
-          type = CategoryType.BOTH
-        )
-      repo.insertCategory(loansCategory)
-
-      val loan =
-        Loan(
-          personName = "Ali",
-          type = LoanType.DEBTOR,
-          originalAmount = 5_000L,
-          remainingAmount = 5_000L,
-          description = "test"
-        )
-      val loanId = repo.insertLoan(loan)
+      val loanId = seedLoanWithCategory(5_000L)
 
       val success = repo.addPaymentToLoan(loanId, 10_000L, "overpayment test")
       assertTrue(success)
@@ -357,26 +366,7 @@ class RepositoryLogicTest {
   fun `addPaymentToLoan - rejects zero amount`() =
     runTest {
       val repo = createRepository()
-
-      val loansCategory =
-        Category(
-          name = "Loans",
-          key = "Loans",
-          icon = "HistoryEdu",
-          color = 0xFF4CAF50L,
-          type = CategoryType.BOTH
-        )
-      repo.insertCategory(loansCategory)
-
-      val loan =
-        Loan(
-          personName = "Ali",
-          type = LoanType.DEBTOR,
-          originalAmount = 5_000L,
-          remainingAmount = 5_000L,
-          description = "test"
-        )
-      val loanId = repo.insertLoan(loan)
+      val loanId = seedLoanWithCategory(5_000L)
 
       val success = repo.addPaymentToLoan(loanId, 0L, "zero payment")
       assertFalse(success)
@@ -397,26 +387,7 @@ class RepositoryLogicTest {
   fun `addPaymentToLoan - rejects negative amount`() =
     runTest {
       val repo = createRepository()
-
-      val loansCategory =
-        Category(
-          name = "Loans",
-          key = "Loans",
-          icon = "HistoryEdu",
-          color = 0xFF4CAF50L,
-          type = CategoryType.BOTH
-        )
-      repo.insertCategory(loansCategory)
-
-      val loan =
-        Loan(
-          personName = "Ali",
-          type = LoanType.DEBTOR,
-          originalAmount = 5_000L,
-          remainingAmount = 5_000L,
-          description = "test"
-        )
-      val loanId = repo.insertLoan(loan)
+      val loanId = seedLoanWithCategory(5_000L)
 
       val success = repo.addPaymentToLoan(loanId, -1_000L, "negative payment")
       assertFalse(success)
@@ -437,27 +408,7 @@ class RepositoryLogicTest {
   fun `addPaymentToLoan - rejects payment on settled loan`() =
     runTest {
       val repo = createRepository()
-
-      val loansCategory =
-        Category(
-          name = "Loans",
-          key = "Loans",
-          icon = "HistoryEdu",
-          color = 0xFF4CAF50L,
-          type = CategoryType.BOTH
-        )
-      repo.insertCategory(loansCategory)
-
-      val loan =
-        Loan(
-          personName = "Ali",
-          type = LoanType.DEBTOR,
-          originalAmount = 5_000L,
-          remainingAmount = 0L,
-          description = "test",
-          isSettled = true
-        )
-      val loanId = repo.insertLoan(loan)
+      val loanId = seedLoanWithCategory(0L, isSettled = true)
 
       val success = repo.addPaymentToLoan(loanId, 1_000L, "payment on settled loan")
       assertFalse(success)
