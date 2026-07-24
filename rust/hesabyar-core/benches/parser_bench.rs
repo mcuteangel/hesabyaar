@@ -179,6 +179,7 @@ fn bench_validation(c: &mut Criterion) {
         loans: vec![],
         installments: vec![],
         bank_loans: vec![],
+        payment_histories: vec![],
         categories: vec![],
     };
 
