@@ -6,6 +6,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import java.math.RoundingMode
@@ -185,6 +186,15 @@ object RustMappers {
       isSettled = bankLoan.isSettled
     )
 
+  fun mapPaymentHistory(ph: PaymentHistory): io.github.mojri.hesabyar.rust.PaymentHistory =
+    io.github.mojri.hesabyar.rust.PaymentHistory(
+      id = ph.id,
+      loanId = ph.loanId,
+      amount = ph.amount,
+      date = ph.date,
+      notes = ph.notes
+    )
+
   fun mapCategory(cat: Category): io.github.mojri.hesabyar.rust.Category =
     io.github.mojri.hesabyar.rust.Category(
       id = cat.id,
@@ -209,6 +219,9 @@ object RustMappers {
     list.map { mapInstallment(it) }
 
   fun mapBankLoans(list: List<BankLoan>): List<io.github.mojri.hesabyar.rust.BankLoan> = list.map { mapBankLoan(it) }
+
+  fun mapPaymentHistories(list: List<PaymentHistory>): List<io.github.mojri.hesabyar.rust.PaymentHistory> =
+    list.map { mapPaymentHistory(it) }
 
   fun mapCategories(list: List<Category>): List<io.github.mojri.hesabyar.rust.Category> = list.map { mapCategory(it) }
 
@@ -283,4 +296,16 @@ object RustMappers {
       type = CategoryType.valueOf(cat.categoryType),
       isDefault = cat.isDefault
     )
+
+  fun fromRustPaymentHistory(ph: io.github.mojri.hesabyar.rust.PaymentHistory): PaymentHistory =
+    PaymentHistory(
+      id = ph.id,
+      loanId = ph.loanId,
+      amount = ph.amount,
+      date = ph.date,
+      notes = ph.notes ?: ""
+    )
+
+  fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =
+    list.map { fromRustPaymentHistory(it) }
 }

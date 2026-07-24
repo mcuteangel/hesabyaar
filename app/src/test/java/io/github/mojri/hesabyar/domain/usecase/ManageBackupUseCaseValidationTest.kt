@@ -57,6 +57,7 @@ class ManageBackupUseCaseValidationTest {
           loans =
             listOf(
               Loan(
+                id = 1L,
                 personName = "علی",
                 type = LoanType.DEBTOR,
                 originalAmount = 5_000_000L,
