@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
@@ -110,5 +111,47 @@ class GetAnalyticsUseCaseRustTest {
     assertTrue(result.totalDebt >= 0L)
     assertTrue(result.totalCredit >= 0L)
     assertTrue(result.categoryBreakdown.all { it.percentage >= 0f })
+  }
+
+  @Test
+  fun `rust path returns non-empty bank loan summaries`() {
+    assertTrue(RustBridge.isAvailable)
+    val bankLoans =
+      listOf(
+        BankLoan(
+          bankName = "بانک ملت",
+          loanName = "وام خودرو",
+          receivedAmount = 100_000_000L,
+          monthlyInstallmentAmount = 10_000_000L,
+          numberOfInstallments = 12,
+          totalRepayableAmount = 120_000_000L,
+          totalInterest = 20_000_000L,
+          startDate = 1_700_000_000_000L,
+          description = "test"
+        )
+      )
+    // Directly invoke the Rust bridge and assert it produced a non-null result,
+    // guaranteeing the native path executed successfully (no silent Kotlin fallback).
+    val rustAnalytics =
+      RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
+    assertTrue(rustAnalytics != null)
+    val analytics = rustAnalytics!!
+
+    // Assert bank loan summaries and total debt against the native Rust result.
+    assertEquals(1, analytics.bankLoans.size)
+    assertEquals("بانک ملت", analytics.bankLoans[0].bankName)
+    assertEquals("وام خودرو", analytics.bankLoans[0].loanName)
+    assertEquals(100_000_000L, analytics.bankLoans[0].receivedAmount)
+    assertEquals(120_000_000L, analytics.bankLoans[0].totalRepayableAmount)
+    assertEquals(20_000_000L, analytics.bankLoans[0].totalInterest)
+    assertEquals(12, analytics.bankLoans[0].numberOfInstallments)
+    assertEquals(120_000_000L, analytics.bankLoansTotalDebt)
+
+    // Also verify the useCase integrates the Rust result correctly.
+    val result = useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
+    assertEquals(1, result.bankLoans.size)
+    assertEquals("بانک ملت", result.bankLoans[0].bankName)
+    assertEquals(120_000_000L, result.bankLoans[0].totalRepayableAmount)
+    assertEquals(120_000_000L, result.bankLoansTotalDebt)
   }
 }
