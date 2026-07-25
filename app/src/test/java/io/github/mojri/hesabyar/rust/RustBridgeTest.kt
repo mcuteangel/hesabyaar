@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -197,6 +198,41 @@ class RustBridgeTest {
     assertEquals(0L, response.totalCount)
     assertEquals(0L, response.totalAmount)
   }
+
+  // ---------------------------------------------------------------------------
+  // Exception rethrowing
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `rustCallSync rethrows NullPointerException`() {
+    assertThrows(NullPointerException::class.java) {
+      RustBridge.rustCallSync("fallback") {
+        throw NullPointerException("boom")
+      }
+    }
+  }
+
+  @Test
+  fun `rustCallSync rethrows IllegalStateException`() {
+    assertThrows(IllegalStateException::class.java) {
+      RustBridge.rustCallSync("fallback") {
+        throw IllegalStateException("boom")
+      }
+    }
+  }
+
+  @Test
+  fun `rustCallSync returns fallback for non-critical exceptions`() {
+    val result =
+      RustBridge.rustCallSync("fallback") {
+        throw java.io.IOException("transient network failure")
+      }
+    assertEquals("fallback", result)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Backup
+  // ---------------------------------------------------------------------------
 
   @Test
   fun `backup sync calls behave on valid and invalid input`() {
