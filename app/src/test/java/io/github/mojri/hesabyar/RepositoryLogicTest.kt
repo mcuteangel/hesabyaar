@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
@@ -299,6 +300,53 @@ class RepositoryLogicTest {
   }
 
   @Test
+  fun `mergeFromBackup - remaps bankLoanId linkage for installments`() =
+    runTest {
+      val repo = createRepository()
+
+      val bankLoan =
+        BankLoan(
+          bankName = "بانک ملت",
+          loanName = "وام خودرو",
+          receivedAmount = 100_000_000L,
+          monthlyInstallmentAmount = 10_000_000L,
+          numberOfInstallments = 12,
+          totalRepayableAmount = 120_000_000L,
+          totalInterest = 20_000_000L,
+          startDate = 1_700_000_000_000L,
+          description = "test"
+        )
+
+      val installment =
+        Installment(
+          title = "ماه اول",
+          amount = 10_000_000L,
+          dueDate = 1_700_000_000_000L,
+          bankLoanId = 0L
+        )
+
+      val backup =
+        BackupPayload(
+          version = 1,
+          timestamp = System.currentTimeMillis(),
+          appVersion = "1.0",
+          bankLoans = listOf(bankLoan),
+          installments = listOf(installment)
+        )
+      repo.mergeFromBackup(backup)
+
+      val allInstallments = database.installmentDao().getAllInstallmentsBlocking()
+      assertEquals(1, allInstallments.size)
+      val mergedInstallment = allInstallments.first()
+      assertEquals("ماه اول", mergedInstallment.title)
+      val bankLoanId = requireNotNull(mergedInstallment.bankLoanId)
+      val mergedBankLoan = requireNotNull(database.bankLoanDao().getBankLoanById(bankLoanId))
+      assertEquals("بانک ملت", mergedBankLoan.bankName)
+      // The installment's bankLoanId must point to the exact remapped bank loan.
+      assertEquals(mergedBankLoan.id, mergedInstallment.bankLoanId)
+    }
+
+  @Test
   fun `backup payload preserves all fields`() {
     val backup =
       BackupPayload(
@@ -356,9 +404,8 @@ class RepositoryLogicTest {
       assertEquals(1, transactions.size)
       assertEquals(5_000L, transactions[0].amount)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(0L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
     }
 
@@ -377,9 +424,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(5_000L, updatedLoan.remainingAmount)
       assertFalse(updatedLoan.isSettled)
     }
 
@@ -398,9 +444,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(5_000L, updatedLoan.remainingAmount)
       assertFalse(updatedLoan.isSettled)
     }
 
@@ -419,9 +464,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(0L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
     }
 }
