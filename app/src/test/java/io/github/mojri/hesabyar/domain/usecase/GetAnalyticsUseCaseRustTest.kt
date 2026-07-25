@@ -7,7 +7,6 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume
 import org.junit.Test
 
 /**
@@ -116,7 +115,7 @@ class GetAnalyticsUseCaseRustTest {
 
   @Test
   fun `rust path returns non-empty bank loan summaries`() {
-    Assume.assumeTrue(RustBridge.isAvailable)
+    assertTrue(RustBridge.isAvailable)
     val bankLoans =
       listOf(
         BankLoan(
@@ -131,12 +130,28 @@ class GetAnalyticsUseCaseRustTest {
           description = "test"
         )
       )
-    val result =
-      useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
+    // Directly invoke the Rust bridge and assert it produced a non-null result,
+    // guaranteeing the native path executed successfully (no silent Kotlin fallback).
+    val rustAnalytics =
+      RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
+    assertTrue(rustAnalytics != null)
+    val analytics = rustAnalytics!!
 
+    // Assert bank loan summaries and total debt against the native Rust result.
+    assertEquals(1, analytics.bankLoans.size)
+    assertEquals("بانک ملت", analytics.bankLoans[0].bankName)
+    assertEquals("وام خودرو", analytics.bankLoans[0].loanName)
+    assertEquals(100_000_000L, analytics.bankLoans[0].receivedAmount)
+    assertEquals(120_000_000L, analytics.bankLoans[0].totalRepayableAmount)
+    assertEquals(20_000_000L, analytics.bankLoans[0].totalInterest)
+    assertEquals(12, analytics.bankLoans[0].numberOfInstallments)
+    assertEquals(120_000_000L, analytics.bankLoansTotalDebt)
+
+    // Also verify the useCase integrates the Rust result correctly.
+    val result = useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList(), bankLoans)
     assertEquals(1, result.bankLoans.size)
     assertEquals("بانک ملت", result.bankLoans[0].bankName)
     assertEquals(120_000_000L, result.bankLoans[0].totalRepayableAmount)
-    assertTrue(result.bankLoansTotalDebt > 0L)
+    assertEquals(120_000_000L, result.bankLoansTotalDebt)
   }
 }
