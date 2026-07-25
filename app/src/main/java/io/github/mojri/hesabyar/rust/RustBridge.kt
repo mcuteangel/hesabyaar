@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.rust
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.BankLoan
@@ -42,14 +43,26 @@ object RustBridge : JalaliNativeBridge {
     return withContext(Dispatchers.Default) { block() }
   }
 
-  private fun <T> rustCallSync(
+  @Suppress("Detekt.ThrowsCount", "TooGenericExceptionCaught")
+  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+  internal fun <T> rustCallSync(
     fallback: T,
     block: () -> T
   ): T {
     if (!available) return fallback
     return try {
       block()
-    } catch (_: Exception) {
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      throw e
+    } catch (e: VirtualMachineError) {
+      throw e
+    } catch (e: RuntimeException) {
+      throw e
+    } catch (e: Exception) {
+      AppLogger.e(TAG, "Rust fallback: fallback used due to ${e.javaClass.simpleName}: ${e.message}", e)
       fallback
     }
   }
