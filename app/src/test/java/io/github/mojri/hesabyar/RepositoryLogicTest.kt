@@ -468,4 +468,66 @@ class RepositoryLogicTest {
       assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
     }
+
+  @Test
+  fun `mergeFromBackup - remaps loanId and installmentId linkage`() =
+    runTest {
+      val repo = createRepository()
+
+      val category =
+        Category(
+          name = "Groceries",
+          key = "Shopping",
+          icon = "ShoppingBag",
+          color = 0xFF2196F3L,
+          type = CategoryType.EXPENSE
+        )
+      repo.insertCategory(category)
+
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 100_000L,
+          remainingAmount = 100_000L,
+          description = "loan"
+        )
+      val installment =
+        Installment(title = "ماه اول", amount = 10_000_000L, dueDate = 1_700_000_000_000L)
+
+      val backup =
+        BackupPayload(
+          version = 1,
+          timestamp = System.currentTimeMillis(),
+          appVersion = "1.0",
+          categories = listOf(category),
+          loans = listOf(loan),
+          installments = listOf(installment),
+          paymentHistories = listOf(PaymentHistory(loanId = loan.id, amount = 50_000L)),
+          transactions =
+            listOf(
+              Transaction(
+                type = TransactionType.EXPENSE,
+                categoryId = category.id,
+                amount = 10_000L,
+                description = "tx",
+                installmentId = installment.id
+              )
+            )
+        )
+
+      repo.mergeFromBackup(backup)
+
+      val payments = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(1, payments.size)
+      assertEquals("Ali", requireNotNull(database.loanDao().getLoanById(payments[0].loanId)).personName)
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, transactions.size)
+      val inst =
+        requireNotNull(
+          database.installmentDao().getInstallmentById(requireNotNull(transactions[0].installmentId))
+        )
+      assertEquals("ماه اول", inst.title)
+    }
 }

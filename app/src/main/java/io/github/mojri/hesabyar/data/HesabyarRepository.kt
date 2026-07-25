@@ -219,36 +219,40 @@ class HesabyarRepository(
         idToKey[category.id] = category.key
       }
 
+      // Insert loans first and capture old→new ID map so that
+      // paymentHistories.loanId can be remapped correctly.
+      val loanIdMap = backup.loans.associate { it.id to loanDao.insertLoan(it) }
+
+      // Map old bank-loan IDs → freshly assigned IDs so installments
+      // that reference them stay linked after the merge.
+      val bankLoanIdMap = backup.bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it) }
+
+      // Insert installments (with remapped bankLoanId) and capture
+      // old→new ID map so that transactions.installmentId can be remapped.
+      val installmentIdMap =
+        backup.installments.associate { installment ->
+          val newId =
+            installmentDao.insertInstallment(
+              installment.copy(bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get))
+            )
+          installment.id to newId
+        }
+
       for (transaction in backup.transactions) {
-        val mappedId =
+        val mappedCategoryId =
           idToKey[transaction.categoryId]?.let { keyToId[it] }
             ?: categoryDao.getCategoryByKey("Other")?.id
             ?: transaction.categoryId
-        transactionDao.insertTransaction(transaction.copy(categoryId = mappedId))
-      }
-
-      for (loan in backup.loans) {
-        loanDao.insertLoan(loan)
-      }
-
-      // Map old bank-loan IDs -> freshly assigned IDs so installments that
-      // reference them stay linked after the merge.
-      val bankLoanIdMap = mutableMapOf<Long, Long>()
-      for (bankLoan in backup.bankLoans) {
-        val newId = bankLoanDao.insertBankLoan(bankLoan)
-        bankLoanIdMap[bankLoan.id] = newId
-      }
-
-      for (installment in backup.installments) {
-        val remapped =
-          installment.copy(
-            bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get)
-          )
-        installmentDao.insertInstallment(remapped)
+        val mappedInstallmentId =
+          transaction.installmentId?.let { installmentIdMap[it] } ?: transaction.installmentId
+        transactionDao.insertTransaction(
+          transaction.copy(categoryId = mappedCategoryId, installmentId = mappedInstallmentId)
+        )
       }
 
       for (payment in backup.paymentHistories) {
-        paymentHistoryDao.insertPayment(payment)
+        val mappedLoanId = payment.loanId?.let { loanIdMap[it] } ?: payment.loanId
+        paymentHistoryDao.insertPayment(payment.copy(loanId = mappedLoanId))
       }
     }
 }
