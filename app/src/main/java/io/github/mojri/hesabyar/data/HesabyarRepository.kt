@@ -202,7 +202,12 @@ class HesabyarRepository(
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
     }
 
-  override suspend fun mergeFromBackup(backup: BackupPayload) =
+  /**
+     * Merges backup data into the database while preserving relationships through foreign-key remapping.
+     *
+     * @param backup The backup payload containing categories and related records to merge.
+     */
+    override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val keyToId = mutableMapOf<String, Long>()
       val idToKey = mutableMapOf<Long, String>()
