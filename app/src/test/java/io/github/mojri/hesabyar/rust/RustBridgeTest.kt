@@ -204,7 +204,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `rustCallSync rethrows NullPointerException`() {
+  fun `rustCallSync rethrows RuntimeException (NullPointerException)`() {
     assertThrows(NullPointerException::class.java) {
       RustBridge.rustCallSync("fallback") {
         throw NullPointerException("boom")
@@ -213,11 +213,25 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `rustCallSync rethrows IllegalStateException`() {
+  fun `rustCallSync rethrows RuntimeException (IllegalStateException)`() {
     assertThrows(IllegalStateException::class.java) {
       RustBridge.rustCallSync("fallback") {
         throw IllegalStateException("boom")
       }
+    }
+  }
+
+  @Test
+  fun `rustCallSync rethrows InterruptedException and restores interrupted flag`() {
+    try {
+      assertThrows(InterruptedException::class.java) {
+        RustBridge.rustCallSync("fallback") {
+          throw InterruptedException("interrupted")
+        }
+      }
+      assertTrue(Thread.currentThread().isInterrupted)
+    } finally {
+      Thread.interrupted()
     }
   }
 

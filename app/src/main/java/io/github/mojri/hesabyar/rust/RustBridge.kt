@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.rust
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.BankLoan
@@ -43,6 +44,7 @@ object RustBridge : JalaliNativeBridge {
   }
 
   @Suppress("Detekt.ThrowsCount", "TooGenericExceptionCaught")
+  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
   internal fun <T> rustCallSync(
     fallback: T,
     block: () -> T
