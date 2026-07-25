@@ -213,7 +213,7 @@ class HesabyarRepository(
             categoryDao.updateCategory(category.copy(id = existing.id))
             existing.id
           } else {
-            categoryDao.insertCategory(category)
+            categoryDao.insertCategory(category.copy(id = 0))
           }
         keyToId[category.key] = savedId
         idToKey[category.id] = category.key
@@ -221,11 +221,11 @@ class HesabyarRepository(
 
       // Insert loans first and capture old→new ID map so that
       // paymentHistories.loanId can be remapped correctly.
-      val loanIdMap = backup.loans.associate { it.id to loanDao.insertLoan(it) }
+      val loanIdMap = backup.loans.associate { it.id to loanDao.insertLoan(it.copy(id = 0)) }
 
       // Map old bank-loan IDs → freshly assigned IDs so installments
       // that reference them stay linked after the merge.
-      val bankLoanIdMap = backup.bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it) }
+      val bankLoanIdMap = backup.bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it.copy(id = 0)) }
 
       // Insert installments (with remapped bankLoanId) and capture
       // old→new ID map so that transactions.installmentId can be remapped.
@@ -233,7 +233,7 @@ class HesabyarRepository(
         backup.installments.associate { installment ->
           val newId =
             installmentDao.insertInstallment(
-              installment.copy(bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get))
+              installment.copy(id = 0, bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get))
             )
           installment.id to newId
         }
