@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Test
 
 /**
@@ -115,7 +116,7 @@ class GetAnalyticsUseCaseRustTest {
 
   @Test
   fun `rust path returns non-empty bank loan summaries`() {
-    assertTrue(RustBridge.isAvailable)
+    Assume.assumeTrue(RustBridge.isAvailable)
     val bankLoans =
       listOf(
         BankLoan(

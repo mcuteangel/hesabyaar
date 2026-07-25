@@ -339,12 +339,11 @@ class RepositoryLogicTest {
       assertEquals(1, allInstallments.size)
       val mergedInstallment = allInstallments.first()
       assertEquals("ماه اول", mergedInstallment.title)
-      assertTrue(mergedInstallment.bankLoanId != null)
-      assertTrue(mergedInstallment.bankLoanId!! > 0L)
-
-      val mergedBankLoan = database.bankLoanDao().getBankLoanById(mergedInstallment.bankLoanId!!)
-      assertTrue(mergedBankLoan != null)
-      assertEquals("بانک ملت", mergedBankLoan!!.bankName)
+      val bankLoanId = requireNotNull(mergedInstallment.bankLoanId)
+      val mergedBankLoan = requireNotNull(database.bankLoanDao().getBankLoanById(bankLoanId))
+      assertEquals("بانک ملت", mergedBankLoan.bankName)
+      // The installment's bankLoanId must point to the exact remapped bank loan.
+      assertEquals(mergedBankLoan.id, mergedInstallment.bankLoanId)
     }
 
   @Test
@@ -405,9 +404,8 @@ class RepositoryLogicTest {
       assertEquals(1, transactions.size)
       assertEquals(5_000L, transactions[0].amount)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(0L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
     }
 
@@ -426,9 +424,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(5_000L, updatedLoan.remainingAmount)
       assertFalse(updatedLoan.isSettled)
     }
 
@@ -447,9 +444,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(5_000L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(5_000L, updatedLoan.remainingAmount)
       assertFalse(updatedLoan.isSettled)
     }
 
@@ -468,9 +464,8 @@ class RepositoryLogicTest {
       val transactions = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(0, transactions.size)
 
-      val updatedLoan = database.loanDao().getLoanById(loanId)
-      assertTrue(updatedLoan != null)
-      assertEquals(0L, updatedLoan!!.remainingAmount)
+      val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
     }
 }
