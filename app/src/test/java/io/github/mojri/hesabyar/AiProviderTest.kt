@@ -3,12 +3,60 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.api.AiProvider
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiProviderTest {
+  private fun fakeChain(
+    request: Request,
+    onProceed: (Request) -> Response = {
+      Response
+        .Builder()
+        .request(it)
+        .protocol(Protocol.HTTP_1_1)
+        .code(200)
+        .message("OK")
+        .body("{}".toResponseBody("application/json".toMediaType()))
+        .build()
+    }
+  ) = object : Interceptor.Chain {
+    override fun request(): Request = request
+
+    override fun proceed(request: Request): Response = onProceed(request)
+
+    override fun connection(): okhttp3.Connection? = null
+
+    override fun call(): okhttp3.Call = throw UnsupportedOperationException()
+
+    override fun connectTimeoutMillis(): Int = 0
+
+    override fun withConnectTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+
+    override fun readTimeoutMillis(): Int = 0
+
+    override fun withReadTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+
+    override fun writeTimeoutMillis(): Int = 0
+
+    override fun withWriteTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+  }
+
   @Test
   fun `ApiResult has Success and Failure variants`() {
     val success = AiProvider.ApiResult.Success("result")
