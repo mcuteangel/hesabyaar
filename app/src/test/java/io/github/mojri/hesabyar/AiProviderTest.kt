@@ -10,9 +10,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiProviderTest {
@@ -111,57 +109,5 @@ class AiProviderTest {
     assertEquals("OpenRouter", AiProviderType.OPENROUTER.displayName)
     assertEquals("Custom Endpoint", AiProviderType.CUSTOM.displayName)
     assertEquals(3, AiProviderType.entries.size)
-  }
-
-  @Test
-  fun `redactionInterceptor strips key query parameter from URL`() {
-    val request =
-      Request
-        .Builder()
-        .url("https://generativelanguage.googleapis.com/v1beta/models?key=SECRET123")
-        .get()
-        .build()
-
-    AiProvider.redactionInterceptor.intercept(
-      fakeChain(request) { req ->
-        assertFalse(req.url.toString().contains("key="))
-        assertFalse(req.url.toString().contains("SECRET123"))
-        Response
-          .Builder()
-          .request(req)
-          .protocol(Protocol.HTTP_1_1)
-          .code(200)
-          .message("OK")
-          .body("{}".toResponseBody("application/json".toMediaType()))
-          .build()
-      }
-    )
-  }
-
-  @Test
-  fun `redactionInterceptor preserves other query parameters`() {
-    val request =
-      Request
-        .Builder()
-        .url(
-          "https://generativelanguage.googleapis.com/" +
-            "v1beta/models/gemini-2.0-flash:generateContent?key=SECRET123&alt=json"
-        ).get()
-        .build()
-
-    AiProvider.redactionInterceptor.intercept(
-      fakeChain(request) { req ->
-        assertFalse(req.url.toString().contains("key="))
-        assertTrue(req.url.toString().contains("alt=json"))
-        Response
-          .Builder()
-          .request(req)
-          .protocol(Protocol.HTTP_1_1)
-          .code(200)
-          .message("OK")
-          .body("{}".toResponseBody("application/json".toMediaType()))
-          .build()
-      }
-    )
   }
 }

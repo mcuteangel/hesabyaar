@@ -4,7 +4,6 @@ import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,21 +31,9 @@ object AiProvider {
     }
   }
 
-  internal val redactionInterceptor =
-    Interceptor { chain ->
-      val original = chain.request()
-      val redactedUrl =
-        original.url
-          .newBuilder()
-          .removeAllQueryParameters("key")
-          .build()
-      chain.proceed(original.newBuilder().url(redactedUrl).build())
-    }
-
   private val client =
     OkHttpClient
       .Builder()
-      .addInterceptor(redactionInterceptor)
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(60, TimeUnit.SECONDS)
       .build()
