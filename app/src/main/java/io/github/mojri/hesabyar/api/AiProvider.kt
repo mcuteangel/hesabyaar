@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -14,6 +15,15 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Unified AI provider HTTP client.
+ *
+ * Gemini REST API requires the API key as a `?key=` URL query parameter.
+ * The [redactionInterceptor] strips that parameter from request URLs before
+ * they reach any local logging interceptor or network debugger, but the key
+ * may still be visible to reverse proxies or OS-level network captures.
+ * If logs are collected externally, rotate the key periodically.
+ */
 object AiProvider {
   private const val TAG = "AiProvider"
   private const val ERR_EMPTY_RESPONSE = "Empty response body"
@@ -31,9 +41,26 @@ object AiProvider {
     }
   }
 
+  /**
+   * Strips the `key` query parameter from outgoing request URLs.
+   * The actual network request still carries `?key=` (required by Google's
+   * REST API), but any downstream logging interceptor sees a redacted URL.
+   */
+  internal val redactionInterceptor =
+    Interceptor { chain ->
+      val original = chain.request()
+      val redactedUrl =
+        original.url
+          .newBuilder()
+          .removeAllQueryParameters("key")
+          .build()
+      chain.proceed(original.newBuilder().url(redactedUrl).build())
+    }
+
   private val client =
     OkHttpClient
       .Builder()
+      .addInterceptor(redactionInterceptor)
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(60, TimeUnit.SECONDS)
       .build()
