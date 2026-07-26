@@ -15,6 +15,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -102,10 +103,8 @@ class AiAssistantViewModel
               _modelFetchState.value = UiResult.Error("مدلی یافت نشد")
             }
           }.onFailure { e ->
-            _modelFetchState.value =
-              UiResult.Error(
-                (e as? java.io.IOException)?.localizedMessage ?: "خطا در دریافت مدل‌ها"
-              )
+            AppLogger.e("AiAssistantViewModel", "fetchModels failed", e)
+            _modelFetchState.value = UiResult.Error("خطا در دریافت مدل‌ها")
           }
       }
     }
@@ -355,19 +354,21 @@ class AiAssistantViewModel
           _advisorState.value = UiResult.Success(advice)
         } catch (e: java.io.IOException) {
           AppLogger.e("AiAssistantViewModel", "Network or I/O error in fetchBudgetAdvice", e)
-          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای شبکه یا ورودی/خروجی")
+          _advisorState.value = UiResult.Error("خطای شبکه یا ورودی/خروجی")
         } catch (e: retrofit2.HttpException) {
           AppLogger.e("AiAssistantViewModel", "HTTP error in fetchBudgetAdvice", e)
-          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای ارتباط با سرور")
+          _advisorState.value = UiResult.Error("خطای ارتباط با سرور")
         } catch (e: JSONException) {
           AppLogger.e("AiAssistantViewModel", "Data parsing error in fetchBudgetAdvice", e)
-          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
+          _advisorState.value = UiResult.Error("خطای تجزیه داده‌ها")
         } catch (e: android.database.sqlite.SQLiteException) {
           AppLogger.e("AiAssistantViewModel", "Database error in persistAdviceCache", e)
-          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای پایگاه داده")
+          _advisorState.value = UiResult.Error("خطای پایگاه داده")
+        } catch (e: CancellationException) {
+          throw e
         } catch (e: Exception) {
           AppLogger.e("AiAssistantViewModel", "Unexpected error in fetchBudgetAdvice", e)
-          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
+          _advisorState.value = UiResult.Error("خطای ناشناخته در دریافت توصیه‌ها")
         }
       }
     }
@@ -424,19 +425,21 @@ class AiAssistantViewModel
           _forecastState.value = UiResult.Success(forecast)
         } catch (e: IOException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed I/O", e)
-          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای I/O در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error("خطای I/O در پیش‌بینی بودجه")
         } catch (e: HttpException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed HTTP", e)
-          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای شبکه در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error("خطای شبکه در پیش‌بینی بودجه")
         } catch (e: JSONException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed JSON parse", e)
-          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
+          _forecastState.value = UiResult.Error("خطای تجزیه داده‌ها")
         } catch (e: SQLiteException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed DB", e)
-          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای پایگاه داده در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error("خطای پایگاه داده در پیش‌بینی بودجه")
+        } catch (e: CancellationException) {
+          throw e
         } catch (e: Exception) {
           AppLogger.e("AiAssistantViewModel", "Unexpected error in fetchBudgetForecast", e)
-          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای ناشناخته در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error("خطای ناشناخته در پیش‌بینی بودجه")
         }
       }
     }
