@@ -255,8 +255,8 @@ class HesabyarRepository(
       }
 
       for (payment in backup.paymentHistories) {
-        val mappedLoanId = loanIdMap[payment.loanId]
-        paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId ?: payment.loanId))
+        val mappedLoanId = loanIdMap[payment.loanId] ?: continue
+        paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
       }
     }
 }
