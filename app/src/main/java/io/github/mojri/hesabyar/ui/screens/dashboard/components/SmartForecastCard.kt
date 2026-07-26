@@ -53,7 +53,7 @@ internal fun SmartForecastCard(
               else -> onShowForecast()
             }
           },
-          enabled = forecastState != UiResult.Loading
+          enabled = forecastState !is UiResult.Loading
         ),
     shape = ShapeTokens.Large,
     cardColors =
