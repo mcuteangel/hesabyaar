@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
-import io.github.mojri.hesabyar.ui.ForecastUIState
+import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -35,7 +35,7 @@ import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
 @Suppress("LongMethod")
 @Composable
 internal fun SmartForecastCard(
-  forecastState: ForecastUIState,
+  forecastState: UiResult<String>,
   lastForecastFetchTime: Long,
   aiAssistantViewModel: AiAssistantViewModel,
   onShowForecast: () -> Unit,
@@ -49,11 +49,11 @@ internal fun SmartForecastCard(
         .clickable(
           onClick = {
             when (forecastState) {
-              is ForecastUIState.Idle, is ForecastUIState.Error -> onFetchForecast()
+              is UiResult.Idle, is UiResult.Error -> onFetchForecast()
               else -> onShowForecast()
             }
           },
-          enabled = forecastState != ForecastUIState.Loading
+          enabled = forecastState != UiResult.Loading
         ),
     shape = ShapeTokens.Large,
     cardColors =
@@ -79,7 +79,7 @@ internal fun SmartForecastCard(
           color = MaterialTheme.colorScheme.primary
         )
         when (val state = forecastState) {
-          is ForecastUIState.Loading -> {
+          is UiResult.Loading -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
               CircularProgressIndicator(
                 modifier = Modifier.size(12.dp),
@@ -94,8 +94,8 @@ internal fun SmartForecastCard(
               )
             }
           }
-          is ForecastUIState.Success -> {
-            val preview = extractForecastPreview(state.forecast)
+          is UiResult.Success -> {
+            val preview = extractForecastPreview(state.data)
             Column {
               Text(
                 text = preview,
@@ -114,7 +114,7 @@ internal fun SmartForecastCard(
               )
             }
           }
-          is ForecastUIState.Error -> {
+          is UiResult.Error -> {
             Text(
               text = "خطا - برای تلاش مجدد کلیک کنید",
               style = MaterialTheme.typography.bodySmall,
@@ -122,7 +122,7 @@ internal fun SmartForecastCard(
               maxLines = 1
             )
           }
-          is ForecastUIState.Idle -> {
+          is UiResult.Idle -> {
             Text(
               text = "برای دریافت پیش‌بینی کلیک کنید",
               style = MaterialTheme.typography.bodySmall,

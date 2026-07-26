@@ -83,7 +83,7 @@ class AiAssistantViewModel
 
     fun getProviderStatusText(): String = manageAiConfigUseCase.getProviderStatusText()
 
-    private val _modelFetchState = MutableStateFlow<ModelFetchState>(ModelFetchState.Idle)
+    private val _modelFetchState = MutableStateFlow<UiResult<List<String>>>(UiResult.Idle)
     val modelFetchState = _modelFetchState.asStateFlow()
 
     fun fetchModels(
@@ -92,18 +92,18 @@ class AiAssistantViewModel
       baseUrl: String? = null
     ) {
       viewModelScope.launch {
-        _modelFetchState.value = ModelFetchState.Loading
+        _modelFetchState.value = UiResult.Loading
         manageAiConfigUseCase
           .fetchModels(providerType, apiKey, baseUrl)
           .onSuccess { models ->
             if (models.isNotEmpty()) {
-              _modelFetchState.value = ModelFetchState.Success(models)
+              _modelFetchState.value = UiResult.Success(models)
             } else {
-              _modelFetchState.value = ModelFetchState.Error("مدلی یافت نشد")
+              _modelFetchState.value = UiResult.Error("مدلی یافت نشد")
             }
           }.onFailure { e ->
             _modelFetchState.value =
-              ModelFetchState.Error(
+              UiResult.Error(
                 (e as? java.io.IOException)?.localizedMessage ?: "خطا در دریافت مدل‌ها"
               )
           }
@@ -111,7 +111,7 @@ class AiAssistantViewModel
     }
 
     fun clearModelFetchState() {
-      _modelFetchState.value = ModelFetchState.Idle
+      _modelFetchState.value = UiResult.Idle
     }
 
     private val aiCacheDurationMs = 10 * 60 * 1000L
@@ -309,8 +309,8 @@ class AiAssistantViewModel
     }
 
     private val _advisorState =
-      MutableStateFlow<AdvisorUIState>(
-        if (!cachedAdvice.isNullOrEmpty()) AdvisorUIState.Success(cachedAdvice.orEmpty()) else AdvisorUIState.Idle
+      MutableStateFlow<UiResult<String>>(
+        if (!cachedAdvice.isNullOrEmpty()) UiResult.Success(cachedAdvice.orEmpty()) else UiResult.Idle
       )
     val advisorState = _advisorState.asStateFlow()
 
@@ -330,12 +330,12 @@ class AiAssistantViewModel
         currentSignature == lastKnownAdviceSignature &&
         !cachedAdvice.isNullOrEmpty()
       ) {
-        _advisorState.value = AdvisorUIState.Success(cachedAdvice.orEmpty())
+        _advisorState.value = UiResult.Success(cachedAdvice.orEmpty())
         return
       }
 
       viewModelScope.launch {
-        _advisorState.value = AdvisorUIState.Loading
+        _advisorState.value = UiResult.Loading
         try {
           val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
           val advice =
@@ -352,33 +352,33 @@ class AiAssistantViewModel
           lastKnownAdviceSignature = currentSignature
           _lastAdviceFetchTime.value = lastAdviceFetchTimeMs
           persistAdviceCache()
-          _advisorState.value = AdvisorUIState.Success(advice)
+          _advisorState.value = UiResult.Success(advice)
         } catch (e: java.io.IOException) {
           AppLogger.e("AiAssistantViewModel", "Network or I/O error in fetchBudgetAdvice", e)
-          _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای شبکه یا ورودی/خروجی")
+          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای شبکه یا ورودی/خروجی")
         } catch (e: retrofit2.HttpException) {
           AppLogger.e("AiAssistantViewModel", "HTTP error in fetchBudgetAdvice", e)
-          _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ارتباط با سرور")
+          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای ارتباط با سرور")
         } catch (e: JSONException) {
           AppLogger.e("AiAssistantViewModel", "Data parsing error in fetchBudgetAdvice", e)
-          _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
+          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
         } catch (e: android.database.sqlite.SQLiteException) {
           AppLogger.e("AiAssistantViewModel", "Database error in persistAdviceCache", e)
-          _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای پایگاه داده")
+          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای پایگاه داده")
         } catch (e: Exception) {
           AppLogger.e("AiAssistantViewModel", "Unexpected error in fetchBudgetAdvice", e)
-          _advisorState.value = AdvisorUIState.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
+          _advisorState.value = UiResult.Error(e.localizedMessage ?: "خطای ناشناخته در دریافت توصیه‌ها")
         }
       }
     }
 
     fun clearAdvisorState() {
-      _advisorState.value = AdvisorUIState.Idle
+      _advisorState.value = UiResult.Idle
     }
 
     private val _forecastState =
-      MutableStateFlow<ForecastUIState>(
-        if (!cachedForecast.isNullOrEmpty()) ForecastUIState.Success(cachedForecast.orEmpty()) else ForecastUIState.Idle
+      MutableStateFlow<UiResult<String>>(
+        if (!cachedForecast.isNullOrEmpty()) UiResult.Success(cachedForecast.orEmpty()) else UiResult.Idle
       )
     val forecastState = _forecastState.asStateFlow()
 
@@ -398,12 +398,12 @@ class AiAssistantViewModel
         currentSignature == lastKnownForecastSignature &&
         !cachedForecast.isNullOrEmpty()
       ) {
-        _forecastState.value = ForecastUIState.Success(cachedForecast.orEmpty())
+        _forecastState.value = UiResult.Success(cachedForecast.orEmpty())
         return
       }
 
       viewModelScope.launch {
-        _forecastState.value = ForecastUIState.Loading
+        _forecastState.value = UiResult.Loading
         try {
           val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
           val forecast =
@@ -420,22 +420,22 @@ class AiAssistantViewModel
           lastKnownForecastSignature = currentSignature
           _lastForecastFetchTime.value = lastForecastFetchTimeMs
           persistForecastCache()
-          _forecastState.value = ForecastUIState.Success(forecast)
+          _forecastState.value = UiResult.Success(forecast)
         } catch (e: IOException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed I/O", e)
-          _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای I/O در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای I/O در پیش‌بینی بودجه")
         } catch (e: HttpException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed HTTP", e)
-          _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای شبکه در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای شبکه در پیش‌بینی بودجه")
         } catch (e: SQLiteException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed DB", e)
-          _forecastState.value = ForecastUIState.Error(e.localizedMessage ?: "خطای پایگاه داده در پیش‌بینی بودجه")
+          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای پایگاه داده در پیش‌بینی بودجه")
         }
       }
     }
 
     fun clearForecastState() {
-      _forecastState.value = ForecastUIState.Idle
+      _forecastState.value = UiResult.Idle
     }
 
     companion object {

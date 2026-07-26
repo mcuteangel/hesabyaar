@@ -44,6 +44,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.ParserUIState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
+import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
@@ -477,7 +478,7 @@ fun SmartAssistantScreen(
 
           // Main recommendations body state machine
           when (val state = advisorState) {
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Idle -> {
+            is UiResult.Idle -> {
               HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ShapeTokens.XLarge,
@@ -538,7 +539,7 @@ fun SmartAssistantScreen(
                 }
               }
             }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Loading -> {
+            is UiResult.Loading -> {
               HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ShapeTokens.XLarge,
@@ -571,7 +572,7 @@ fun SmartAssistantScreen(
                 }
               }
             }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Success -> {
+            is UiResult.Success -> {
               val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
               HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -615,7 +616,7 @@ fun SmartAssistantScreen(
                     color = MaterialTheme.colorScheme.surfaceContainer
                   )
 
-                  MarkdownText(text = state.advice)
+                  MarkdownText(text = state.data)
 
                   Text(
                     text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(
@@ -646,7 +647,7 @@ fun SmartAssistantScreen(
                 }
               }
             }
-            is io.github.mojri.hesabyar.ui.AdvisorUIState.Error -> {
+            is UiResult.Error -> {
               HesabyarCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = ShapeTokens.XLarge,
