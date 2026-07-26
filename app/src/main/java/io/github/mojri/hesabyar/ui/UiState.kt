@@ -19,9 +19,9 @@ data class DashboardData(
 )
 
 sealed interface ParserUIState {
-  object Idle : ParserUIState
+  data object Idle : ParserUIState
 
-  object Loading : ParserUIState
+  data object Loading : ParserUIState
 
   data class Success(
     val result: ParsedResult
@@ -37,8 +37,6 @@ sealed interface ParserUIState {
 }
 
 sealed interface UiResult<out T> {
-  val dataOrNull: T? get() = (this as? Success)?.data
-
   data object Idle : UiResult<Nothing>
 
   data object Loading : UiResult<Nothing>
