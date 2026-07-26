@@ -19,6 +19,7 @@
 - Depends on: none
 - Category: security
 - Planned at: commit `44dd519`, 2026-07-23
+- **Resolution**: The redaction interceptor (added by this plan) was removed. It stripped `?key=` from the actual wire request, breaking Gemini auth. AppLogger already avoids logging the key value (logs `apiKeyLength` only, error logs use `url.substringBefore("?")`), so no interceptor is needed. The key is safe from local logs without one.
 
 ## Why this matters
 
