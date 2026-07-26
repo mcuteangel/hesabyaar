@@ -86,6 +86,19 @@ class RepositoryLogicTest {
     return repo.insertLoan(loan)
   }
 
+  private fun testBankLoan() =
+    BankLoan(
+      bankName = "بانک ملت",
+      loanName = "وام خودرو",
+      receivedAmount = 100_000_000L,
+      monthlyInstallmentAmount = 10_000_000L,
+      numberOfInstallments = 12,
+      totalRepayableAmount = 120_000_000L,
+      totalInterest = 20_000_000L,
+      startDate = 1_700_000_000_000L,
+      description = "test"
+    )
+
   @Test
   fun `addPaymentToLoan - reduces remaining amount`() {
     var remainingAmount = 5_000_000L
@@ -467,5 +480,63 @@ class RepositoryLogicTest {
       val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
       assertEquals(0L, updatedLoan.remainingAmount)
       assertTrue(updatedLoan.isSettled)
+    }
+
+  @Test
+  fun `mergeFromBackup - remaps loanId and installmentId linkage`() =
+    runTest {
+      val repo = createRepository()
+      val category =
+        Category(
+          name = "Groceries",
+          key = "Shopping",
+          icon = "ShoppingBag",
+          color = 0xFF2196F3L,
+          type = CategoryType.EXPENSE
+        )
+      val bankLoan = testBankLoan()
+      val loan =
+        Loan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          originalAmount = 100_000L,
+          remainingAmount = 100_000L,
+          description = "loan"
+        )
+      val installment =
+        Installment(title = "ماه اول", amount = 10_000_000L, dueDate = 1_700_000_000_000L, bankLoanId = 0L)
+      val backup =
+        BackupPayload(
+          version = 1,
+          timestamp = System.currentTimeMillis(),
+          appVersion = "1.0",
+          categories = listOf(category),
+          bankLoans = listOf(bankLoan),
+          loans = listOf(loan),
+          installments = listOf(installment),
+          paymentHistories = listOf(PaymentHistory(loanId = loan.id, amount = 50_000L)),
+          transactions =
+            listOf(
+              Transaction(
+                type = TransactionType.EXPENSE,
+                categoryId = category.id,
+                amount = 10_000L,
+                description = "tx",
+                installmentId = installment.id
+              )
+            )
+        )
+      repo.mergeFromBackup(backup)
+      val payments = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      assertEquals(1, payments.size)
+      assertEquals("Ali", requireNotNull(database.loanDao().getLoanById(payments[0].loanId)).personName)
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, transactions.size)
+      val inst =
+        requireNotNull(database.installmentDao().getInstallmentById(requireNotNull(transactions[0].installmentId)))
+      assertEquals("ماه اول", inst.title)
+      val mergedBankLoan = requireNotNull(database.bankLoanDao().getBankLoanById(requireNotNull(inst.bankLoanId)))
+      assertEquals("بانک ملت", mergedBankLoan.bankName)
+      assertEquals(mergedBankLoan.id, inst.bankLoanId)
     }
 }

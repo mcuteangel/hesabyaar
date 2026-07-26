@@ -35,6 +35,9 @@ keystore-backups/my-upload-key.jks.bak
 # Claude Code
 .claude/
 
+# Serena
+.serena/
+
 # AI Agents Skills & Prompts
 **/skill.md
 .agents/

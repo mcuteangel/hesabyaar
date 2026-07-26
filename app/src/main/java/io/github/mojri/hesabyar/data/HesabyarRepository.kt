@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
+import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -202,6 +203,11 @@ class HesabyarRepository(
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
     }
 
+  /**
+   * Merges backup data into the database while preserving relationships through foreign-key remapping.
+   *
+   * @param backup The backup payload containing categories and related records to merge.
+   */
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val keyToId = mutableMapOf<String, Long>()
@@ -213,42 +219,49 @@ class HesabyarRepository(
             categoryDao.updateCategory(category.copy(id = existing.id))
             existing.id
           } else {
-            categoryDao.insertCategory(category)
+            categoryDao.insertCategory(category.copy(id = 0))
           }
         keyToId[category.key] = savedId
         idToKey[category.id] = category.key
       }
 
+      // Insert loans first and capture old→new ID map so that
+      // paymentHistories.loanId can be remapped correctly.
+      val loanIdMap = backup.loans.associate { it.id to loanDao.insertLoan(it.copy(id = 0)) }
+
+      // Map old bank-loan IDs → freshly assigned IDs so installments
+      // that reference them stay linked after the merge.
+      val bankLoanIdMap = backup.bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it.copy(id = 0)) }
+
+      // Insert installments (with remapped bankLoanId) and capture
+      // old→new ID map so that transactions.installmentId can be remapped.
+      val installmentIdMap =
+        backup.installments.associate { installment ->
+          val newId =
+            installmentDao.insertInstallment(
+              installment.copy(id = 0, bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get))
+            )
+          installment.id to newId
+        }
+
       for (transaction in backup.transactions) {
-        val mappedId =
+        val mappedCategoryId =
           idToKey[transaction.categoryId]?.let { keyToId[it] }
             ?: categoryDao.getCategoryByKey("Other")?.id
             ?: transaction.categoryId
-        transactionDao.insertTransaction(transaction.copy(categoryId = mappedId))
-      }
-
-      for (loan in backup.loans) {
-        loanDao.insertLoan(loan)
-      }
-
-      // Map old bank-loan IDs -> freshly assigned IDs so installments that
-      // reference them stay linked after the merge.
-      val bankLoanIdMap = mutableMapOf<Long, Long>()
-      for (bankLoan in backup.bankLoans) {
-        val newId = bankLoanDao.insertBankLoan(bankLoan)
-        bankLoanIdMap[bankLoan.id] = newId
-      }
-
-      for (installment in backup.installments) {
-        val remapped =
-          installment.copy(
-            bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get)
-          )
-        installmentDao.insertInstallment(remapped)
+        val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
+        transactionDao.insertTransaction(
+          transaction.copy(id = 0, categoryId = mappedCategoryId, installmentId = mappedInstallmentId)
+        )
       }
 
       for (payment in backup.paymentHistories) {
-        paymentHistoryDao.insertPayment(payment)
+        val mappedLoanId = loanIdMap[payment.loanId]
+        if (mappedLoanId == null) {
+          AppLogger.w("HesabyarRepository", "mergeFromBackup: skipping payment with unmapped loanId=${payment.loanId}")
+          continue
+        }
+        paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
       }
     }
 }
