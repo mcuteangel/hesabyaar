@@ -16,6 +16,49 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiProviderTest {
+  private fun fakeChain(
+    request: Request,
+    onProceed: (Request) -> Response = {
+      Response
+        .Builder()
+        .request(it)
+        .protocol(Protocol.HTTP_1_1)
+        .code(200)
+        .message("OK")
+        .body("{}".toResponseBody("application/json".toMediaType()))
+        .build()
+    }
+  ) = object : Interceptor.Chain {
+    override fun request(): Request = request
+
+    override fun proceed(request: Request): Response = onProceed(request)
+
+    override fun connection(): okhttp3.Connection? = null
+
+    override fun call(): okhttp3.Call = throw UnsupportedOperationException()
+
+    override fun connectTimeoutMillis(): Int = 0
+
+    override fun withConnectTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+
+    override fun readTimeoutMillis(): Int = 0
+
+    override fun withReadTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+
+    override fun writeTimeoutMillis(): Int = 0
+
+    override fun withWriteTimeout(
+      timeout: Int,
+      unit: java.util.concurrent.TimeUnit
+    ): Interceptor.Chain = this
+  }
+
   @Test
   fun `ApiResult has Success and Failure variants`() {
     val success = AiProvider.ApiResult.Success("result")
@@ -72,124 +115,63 @@ class AiProviderTest {
 
   @Test
   fun `redactionInterceptor strips key query parameter from URL`() {
-    val urlWithKey = "https://generativelanguage.googleapis.com/v1beta/models?key=SECRET123"
     val request =
       Request
         .Builder()
-        .url(urlWithKey)
+        .url("https://generativelanguage.googleapis.com/v1beta/models?key=SECRET123")
         .get()
         .build()
 
-    val chain =
-      object : Interceptor.Chain {
-        override fun request(): Request = request
-
-        override fun proceed(request: Request): Response {
-          val outgoingUrl = request.url.toString()
-          assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
-          assertFalse("URL should not contain SECRET123", outgoingUrl.contains("SECRET123"))
-          assertEquals(
-            "https://generativelanguage.googleapis.com/v1beta/models",
-            request.url
-              .newBuilder()
-              .removeAllQueryParameters("key")
-              .build()
-              .toString()
-          )
-          return Response
-            .Builder()
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .code(200)
-            .message("OK")
-            .body("{}".toResponseBody("application/json".toMediaType()))
+    AiProvider.redactionInterceptor.intercept(
+      fakeChain(request) { req ->
+        val outgoingUrl = req.url.toString()
+        assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
+        assertFalse("URL should not contain SECRET123", outgoingUrl.contains("SECRET123"))
+        assertEquals(
+          "https://generativelanguage.googleapis.com/v1beta/models",
+          req.url
+            .newBuilder()
+            .removeAllQueryParameters("key")
             .build()
-        }
-
-        override fun connection(): okhttp3.Connection? = null
-
-        override fun call(): okhttp3.Call = throw UnsupportedOperationException()
-
-        override fun connectTimeoutMillis(): Int = 0
-
-        override fun withConnectTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
-
-        override fun readTimeoutMillis(): Int = 0
-
-        override fun withReadTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
-
-        override fun writeTimeoutMillis(): Int = 0
-
-        override fun withWriteTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
+            .toString()
+        )
+        Response
+          .Builder()
+          .request(req)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body("{}".toResponseBody("application/json".toMediaType()))
+          .build()
       }
-
-    AiProvider.redactionInterceptor.intercept(chain)
+    )
   }
 
   @Test
   fun `redactionInterceptor preserves other query parameters`() {
-    val urlWithMultipleParams =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=SECRET123&alt=json"
     val request =
       Request
         .Builder()
-        .url(urlWithMultipleParams)
-        .get()
+        .url(
+          "https://generativelanguage.googleapis.com/" +
+            "v1beta/models/gemini-2.0-flash:generateContent?key=SECRET123&alt=json"
+        ).get()
         .build()
 
-    val chain =
-      object : Interceptor.Chain {
-        override fun request(): Request = request
-
-        override fun proceed(request: Request): Response {
-          val outgoingUrl = request.url.toString()
-          assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
-          assertTrue("URL should preserve alt parameter", outgoingUrl.contains("alt=json"))
-          return Response
-            .Builder()
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .code(200)
-            .message("OK")
-            .body("{}".toResponseBody("application/json".toMediaType()))
-            .build()
-        }
-
-        override fun connection(): okhttp3.Connection? = null
-
-        override fun call(): okhttp3.Call = throw UnsupportedOperationException()
-
-        override fun connectTimeoutMillis(): Int = 0
-
-        override fun withConnectTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
-
-        override fun readTimeoutMillis(): Int = 0
-
-        override fun withReadTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
-
-        override fun writeTimeoutMillis(): Int = 0
-
-        override fun withWriteTimeout(
-          timeout: Int,
-          unit: java.util.concurrent.TimeUnit
-        ): Interceptor.Chain = this
+    AiProvider.redactionInterceptor.intercept(
+      fakeChain(request) { req ->
+        val outgoingUrl = req.url.toString()
+        assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
+        assertTrue("URL should preserve alt parameter", outgoingUrl.contains("alt=json"))
+        Response
+          .Builder()
+          .request(req)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body("{}".toResponseBody("application/json".toMediaType()))
+          .build()
       }
-
-    AiProvider.redactionInterceptor.intercept(chain)
+    )
   }
 }
