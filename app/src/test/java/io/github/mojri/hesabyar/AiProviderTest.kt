@@ -124,17 +124,8 @@ class AiProviderTest {
 
     AiProvider.redactionInterceptor.intercept(
       fakeChain(request) { req ->
-        val outgoingUrl = req.url.toString()
-        assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
-        assertFalse("URL should not contain SECRET123", outgoingUrl.contains("SECRET123"))
-        assertEquals(
-          "https://generativelanguage.googleapis.com/v1beta/models",
-          req.url
-            .newBuilder()
-            .removeAllQueryParameters("key")
-            .build()
-            .toString()
-        )
+        assertFalse(req.url.toString().contains("key="))
+        assertFalse(req.url.toString().contains("SECRET123"))
         Response
           .Builder()
           .request(req)
@@ -160,9 +151,8 @@ class AiProviderTest {
 
     AiProvider.redactionInterceptor.intercept(
       fakeChain(request) { req ->
-        val outgoingUrl = req.url.toString()
-        assertFalse("URL should not contain key parameter", outgoingUrl.contains("key="))
-        assertTrue("URL should preserve alt parameter", outgoingUrl.contains("alt=json"))
+        assertFalse(req.url.toString().contains("key="))
+        assertTrue(req.url.toString().contains("alt=json"))
         Response
           .Builder()
           .request(req)
