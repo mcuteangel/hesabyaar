@@ -382,6 +382,7 @@ class AiAssistantViewModel
       )
     val forecastState = _forecastState.asStateFlow()
 
+    @Suppress("CyclomaticComplexMethod")
     fun fetchBudgetForecast(
       transactions: List<Transaction>,
       loans: List<Loan>,
@@ -427,9 +428,15 @@ class AiAssistantViewModel
         } catch (e: HttpException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed HTTP", e)
           _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای شبکه در پیش‌بینی بودجه")
+        } catch (e: JSONException) {
+          AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed JSON parse", e)
+          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای تجزیه داده‌ها")
         } catch (e: SQLiteException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed DB", e)
           _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای پایگاه داده در پیش‌بینی بودجه")
+        } catch (e: Exception) {
+          AppLogger.e("AiAssistantViewModel", "Unexpected error in fetchBudgetForecast", e)
+          _forecastState.value = UiResult.Error(e.localizedMessage ?: "خطای ناشناخته در پیش‌بینی بودجه")
         }
       }
     }

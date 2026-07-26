@@ -39,9 +39,9 @@ sealed interface ParserUIState {
 sealed interface UiResult<out T> {
   val dataOrNull: T? get() = (this as? Success)?.data
 
-  object Idle : UiResult<Nothing>
+  data object Idle : UiResult<Nothing>
 
-  object Loading : UiResult<Nothing>
+  data object Loading : UiResult<Nothing>
 
   data class Success<T>(
     val data: T
