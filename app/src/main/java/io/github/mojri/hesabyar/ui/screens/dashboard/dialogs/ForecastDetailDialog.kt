@@ -21,7 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import io.github.mojri.hesabyar.ui.ForecastUIState
+import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -32,7 +32,7 @@ import io.github.mojri.hesabyar.ui.screens.MarkdownText
 @Suppress("LongMethod")
 @Composable
 internal fun ForecastDetailDialog(
-  forecastState: ForecastUIState,
+  forecastState: UiResult<String>,
   onDismiss: () -> Unit,
   onRefresh: () -> Unit
 ) {
@@ -45,7 +45,7 @@ internal fun ForecastDetailDialog(
     showCloseButton = true
   ) {
     when (val state = forecastState) {
-      is ForecastUIState.Loading -> {
+      is UiResult.Loading -> {
         Box(
           modifier = Modifier.fillMaxSize(),
           contentAlignment = Alignment.Center
@@ -66,7 +66,7 @@ internal fun ForecastDetailDialog(
           }
         }
       }
-      is ForecastUIState.Error -> {
+      is UiResult.Error -> {
         Column(
           modifier = Modifier.fillMaxSize(),
           verticalArrangement = Arrangement.Center,
@@ -89,10 +89,10 @@ internal fun ForecastDetailDialog(
           }
         }
       }
-      is ForecastUIState.Success -> {
+      is UiResult.Success -> {
         Column(modifier = Modifier.fillMaxSize()) {
           Column(modifier = Modifier.weight(1f)) {
-            MarkdownText(text = state.forecast)
+            MarkdownText(text = state.data)
           }
           Spacer(modifier = Modifier.height(SpacingTokens.md))
           Button(
@@ -110,7 +110,7 @@ internal fun ForecastDetailDialog(
           }
         }
       }
-      is ForecastUIState.Idle -> {
+      is UiResult.Idle -> {
         Box(
           modifier = Modifier.fillMaxSize(),
           contentAlignment = Alignment.Center
