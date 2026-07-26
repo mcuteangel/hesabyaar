@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
+import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -255,7 +256,11 @@ class HesabyarRepository(
       }
 
       for (payment in backup.paymentHistories) {
-        val mappedLoanId = loanIdMap[payment.loanId] ?: continue
+        val mappedLoanId = loanIdMap[payment.loanId]
+        if (mappedLoanId == null) {
+          AppLogger.w("HesabyarRepository", "mergeFromBackup: skipping payment with unmapped loanId=${payment.loanId}")
+          continue
+        }
         paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
       }
     }
