@@ -19,9 +19,9 @@ data class DashboardData(
 )
 
 sealed interface ParserUIState {
-  object Idle : ParserUIState
+  data object Idle : ParserUIState
 
-  object Loading : ParserUIState
+  data object Loading : ParserUIState
 
   data class Success(
     val result: ParsedResult
@@ -36,46 +36,18 @@ sealed interface ParserUIState {
   ) : ParserUIState
 }
 
-sealed interface AdvisorUIState {
-  object Idle : AdvisorUIState
+sealed interface UiResult<out T> {
+  data object Idle : UiResult<Nothing>
 
-  object Loading : AdvisorUIState
+  data object Loading : UiResult<Nothing>
 
-  data class Success(
-    val advice: String
-  ) : AdvisorUIState
-
-  data class Error(
-    val message: String
-  ) : AdvisorUIState
-}
-
-sealed interface ForecastUIState {
-  object Idle : ForecastUIState
-
-  object Loading : ForecastUIState
-
-  data class Success(
-    val forecast: String
-  ) : ForecastUIState
+  data class Success<T>(
+    val data: T
+  ) : UiResult<T>
 
   data class Error(
     val message: String
-  ) : ForecastUIState
-}
-
-sealed interface ModelFetchState {
-  object Idle : ModelFetchState
-
-  object Loading : ModelFetchState
-
-  data class Success(
-    val models: List<String>
-  ) : ModelFetchState
-
-  data class Error(
-    val message: String
-  ) : ModelFetchState
+  ) : UiResult<Nothing>
 }
 
 data class MonthlyData(

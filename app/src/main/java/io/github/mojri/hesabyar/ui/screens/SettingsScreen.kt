@@ -45,8 +45,8 @@ import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.ExportState
 import io.github.mojri.hesabyar.ui.ExportViewModel
-import io.github.mojri.hesabyar.ui.ModelFetchState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
+import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
@@ -1086,7 +1086,7 @@ fun AiConfigDialog(
   onDismiss: () -> Unit,
   onSave: (AiProviderConfig) -> Unit,
   onFetchModels: (AiProviderType, String, String?) -> Unit,
-  modelFetchState: ModelFetchState,
+  modelFetchState: UiResult<List<String>>,
   onClearModelFetchState: () -> Unit
 ) {
   val isEditing = initialConfig != null
@@ -1102,7 +1102,7 @@ fun AiConfigDialog(
 
   val fetchedModels =
     when (val state = modelFetchState) {
-      is ModelFetchState.Success -> state.models
+      is UiResult.Success -> state.data
       else -> emptyList()
     }
 
@@ -1263,11 +1263,11 @@ fun AiConfigDialog(
         modifier = Modifier.weight(1f),
         text = "دریافت مدل‌ها",
         icon = Icons.Filled.Refresh,
-        loading = modelFetchState is ModelFetchState.Loading,
-        enabled = apiKey.isNotBlank() && modelFetchState !is ModelFetchState.Loading
+        loading = modelFetchState is UiResult.Loading,
+        enabled = apiKey.isNotBlank() && modelFetchState !is UiResult.Loading
       )
 
-      if (modelFetchState is ModelFetchState.Error) {
+      if (modelFetchState is UiResult.Error) {
         Text(
           text = modelFetchState.message,
           style = MaterialTheme.typography.bodySmall,

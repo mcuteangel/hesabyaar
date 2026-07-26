@@ -22,12 +22,12 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
-import io.github.mojri.hesabyar.ui.AdvisorUIState
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.TransactionViewModel
+import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
@@ -328,7 +328,7 @@ fun ReportsScreen(
               }
             }
 
-            if (budgetState is AdvisorUIState.Success) {
+            if (budgetState is UiResult.Success) {
               IconButton(
                 onClick = { aiAssistantViewModel.clearAdvisorState() },
                 modifier = Modifier.size(28.dp)
@@ -344,7 +344,7 @@ fun ReportsScreen(
           }
 
           when (val state = budgetState) {
-            is AdvisorUIState.Idle -> {
+            is UiResult.Idle -> {
               Column(
                 verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                 horizontalAlignment = Alignment.Start
@@ -376,7 +376,7 @@ fun ReportsScreen(
                 )
               }
             }
-            is AdvisorUIState.Loading -> {
+            is UiResult.Loading -> {
               Column(
                 modifier =
                   Modifier
@@ -397,13 +397,13 @@ fun ReportsScreen(
                 )
               }
             }
-            is AdvisorUIState.Success -> {
+            is UiResult.Success -> {
               val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
               Column(
                 verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
               ) {
                 MarkdownText(
-                  text = state.advice,
+                  text = state.data,
                   modifier = Modifier.fillMaxWidth(),
                   textStyle = MaterialTheme.typography.bodySmall,
                   textColor = MaterialTheme.colorScheme.onSurface
@@ -448,7 +448,7 @@ fun ReportsScreen(
                 }
               }
             }
-            is AdvisorUIState.Error -> {
+            is UiResult.Error -> {
               Column(
                 verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
                 horizontalAlignment = Alignment.CenterHorizontally
