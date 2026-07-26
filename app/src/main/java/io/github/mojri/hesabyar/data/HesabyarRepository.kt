@@ -203,11 +203,11 @@ class HesabyarRepository(
     }
 
   /**
-     * Merges backup data into the database while preserving relationships through foreign-key remapping.
-     *
-     * @param backup The backup payload containing categories and related records to merge.
-     */
-    override suspend fun mergeFromBackup(backup: BackupPayload) =
+   * Merges backup data into the database while preserving relationships through foreign-key remapping.
+   *
+   * @param backup The backup payload containing categories and related records to merge.
+   */
+  override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val keyToId = mutableMapOf<String, Long>()
       val idToKey = mutableMapOf<Long, String>()
@@ -248,16 +248,15 @@ class HesabyarRepository(
           idToKey[transaction.categoryId]?.let { keyToId[it] }
             ?: categoryDao.getCategoryByKey("Other")?.id
             ?: transaction.categoryId
-        val mappedInstallmentId =
-          transaction.installmentId?.let { installmentIdMap[it] } ?: transaction.installmentId
+        val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
         transactionDao.insertTransaction(
-          transaction.copy(categoryId = mappedCategoryId, installmentId = mappedInstallmentId)
+          transaction.copy(id = 0, categoryId = mappedCategoryId, installmentId = mappedInstallmentId)
         )
       }
 
       for (payment in backup.paymentHistories) {
-        val mappedLoanId = payment.loanId?.let { loanIdMap[it] } ?: payment.loanId
-        paymentHistoryDao.insertPayment(payment.copy(loanId = mappedLoanId))
+        val mappedLoanId = loanIdMap[payment.loanId]
+        paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId ?: payment.loanId))
       }
     }
 }
