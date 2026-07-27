@@ -13,7 +13,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 003  | Add payment_histories to Rust BackupPayload schema | P1 | M | — | DONE |
 | 004  | Restrict rustCallSync exception swallowing | P1 | S | — | DONE |
 | 005  | Extract generic async UI state type | P2 | M | — | DONE |
-| 006  | Fix stale docs and roadmap markers | P3 | S | — | TODO |
+| 006  | Fix stale docs and roadmap markers | P3 | S | — | DONE |
 | 007  | Move ManualTransactionSubmitter behind a use case | P2 | M | — | DONE |
 | 008  | Consolidate AI cache into repository/use case | P2 | M | — | DONE |
 

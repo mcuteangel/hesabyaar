@@ -298,18 +298,21 @@ Responsibilities:
 AI functionality lives inside:
 
 ```text
-core/ai
+api/
 ```
 
 Structure:
 
 ```text
-AiParser
-AiPromptBuilder
-AiResult
-AiRepository
-GeminiService
+AiProvider.kt              # Multi-provider AI client
+AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
+BudgetAdvisor.kt           # AI + offline budget advice
+GeminiParser.kt            # Sentence parsing (online + offline)
+MoneyDetector.kt           # Money presence detection gate
+PersianAmountParser.kt     # Token-based amount extraction
 ```
+
+> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages.
 
 ---
 
@@ -466,12 +469,9 @@ Level5
 # Design System Structure
 
 ```text
-core/designsystem
-
-├── theme/
-├── tokens/
-├── components/
-└── icons/
+ui/components/              # Shared Compose components
+ui/utils/                   # Shared utility functions
+ui/theme/                   # Material 3 theme (colors, typography, shapes)
 ```
 
 ---
@@ -481,8 +481,10 @@ core/designsystem
 Location:
 
 ```text
-core/designsystem/components
+ui/components/
 ```
+
+> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages.
 
 Components:
 
