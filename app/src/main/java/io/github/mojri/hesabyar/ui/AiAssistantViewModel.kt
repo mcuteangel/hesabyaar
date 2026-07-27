@@ -170,8 +170,10 @@ class AiAssistantViewModel
 
     internal fun configSignature(): String {
       val config = manageAiConfigUseCase.getActiveConfig()
-      val cfg = config
-      return "${cfg?.providerType?.name ?: "none"}|${cfg?.model ?: ""}|${cfg?.baseUrl ?: ""}|${isOnlineMode.value}"
+      return "${config?.providerType?.name ?: "none"}" +
+        "|${config?.model ?: ""}" +
+        "|${config?.baseUrl ?: ""}" +
+        "|${isOnlineMode.value}"
     }
 
     internal fun computeDataSignature(
@@ -188,14 +190,6 @@ class AiAssistantViewModel
         categories,
         bankLoans
       ) + "|${configSignature()}"
-
-    internal fun computeAdviceSignature(
-      transactions: List<Transaction>,
-      loans: List<Loan>,
-      installments: List<Installment>,
-      categories: List<Category>,
-      bankLoans: List<BankLoan> = emptyList()
-    ): String = computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
     fun onFinancialDataChanged(
       transactions: List<Transaction>,
@@ -314,7 +308,7 @@ class AiAssistantViewModel
       forceRefresh: Boolean = false
     ) {
       val currentSignature =
-        computeAdviceSignature(transactions, loans, installments, categories, bankLoans)
+        computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
       if (!forceRefresh &&
         currentSignature == lastKnownAdviceSignature &&

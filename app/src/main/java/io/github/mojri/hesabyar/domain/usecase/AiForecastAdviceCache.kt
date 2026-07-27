@@ -7,8 +7,8 @@ import android.content.SharedPreferences
  *
  * The implementation lives in [SharedPrefsAiForecastAdviceCache] and uses
  * the same SharedPreferences keys the ViewModel used directly before this
- * refactor. Business logic (TTL, signature invalidation) remains in the
- * ViewModel — this interface only handles storage.
+ * refactor. Each entry is validated against its stored signature and TTL
+ * before being returned.
  */
 interface AiForecastAdviceCache {
   /**
