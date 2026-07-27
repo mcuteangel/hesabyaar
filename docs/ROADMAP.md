@@ -86,9 +86,9 @@
 - [x] Flow/StateFlow reactive data
 - [x] Offline Parser Pipeline
 - [x] AI Provider Abstraction
-- [ ] Use Cases Layer
-- [ ] Dependency Injection (Hilt)
-- [ ] Full Test Coverage
+- [x] Use Cases Layer
+- [x] Dependency Injection (Hilt)
+- [x] Full Test Coverage
 
 ---
 

@@ -4,7 +4,7 @@
 
 Hesabyar uses Room (SQLite) as the primary data store. Current schema version: **3**.
 
-All monetary values are stored as **Long (Rial)**. The UI displays values in **Toman** (Rial ÷ 1000).
+All monetary values are stored as **Long (Rial)**. The UI displays values in **Toman** (Rial ÷ 10). The factor of 10 is defined in `CurrencyFormatter.fromRial()` and `rust/hesabyar-core/src/currency.rs`.
 
 ---
 
