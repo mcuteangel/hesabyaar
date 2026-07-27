@@ -193,6 +193,60 @@ class AiForecastAdviceCacheTest {
     assertNull(cache.getForecast("sig-1"))
     assertNull(cache.getAdvice("sig-1"))
   }
+
+  // ── Peek tests (signature-agnostic) ──────────────────────────────────
+
+  @Test
+  fun peekForecastReturnsEntryRegardlessOfSignature() {
+    cache.putForecast("sig-real", "forecast content")
+
+    // getForecast with wrong signature returns null
+    assertNull(cache.getForecast("sig-other"))
+
+    // peekForecast returns the entry despite different/unknown signature
+    val entry = cache.peekForecast()
+    assertNotNull(entry)
+    assertEquals("forecast content", entry!!.value)
+    assertEquals("sig-real", entry.signature)
+  }
+
+  @Test
+  fun peekAdviceReturnsEntryRegardlessOfSignature() {
+    cache.putAdvice("sig-real", "advice content")
+
+    // getAdvice with wrong signature returns null
+    assertNull(cache.getAdvice("sig-other"))
+
+    // peekAdvice returns the entry despite different/unknown signature
+    val entry = cache.peekAdvice()
+    assertNotNull(entry)
+    assertEquals("advice content", entry!!.value)
+    assertEquals("sig-real", entry.signature)
+  }
+
+  @Test
+  fun peekForecastReturnsNullWhenExpired() {
+    cache.putForecast("sig-1", "forecast content")
+    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    prefs
+      .edit()
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, elevenMinutesAgo)
+      .apply()
+
+    assertNull(cache.peekForecast())
+  }
+
+  @Test
+  fun peekAdviceReturnsNullWhenExpired() {
+    cache.putAdvice("sig-1", "advice content")
+    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    prefs
+      .edit()
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, elevenMinutesAgo)
+      .apply()
+
+    assertNull(cache.peekAdvice())
+  }
 }
 
 /**
