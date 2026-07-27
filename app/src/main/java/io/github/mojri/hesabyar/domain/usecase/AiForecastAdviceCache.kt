@@ -15,13 +15,16 @@ interface AiForecastAdviceCache {
    * Return the cached forecast entry if the stored [signature] matches
    * the one provided AND the entry has not expired. Returns `null` otherwise.
    */
-  fun getForecast(signature: String): CacheEntry?
+  fun getForecast(
+    signature: String,
+    currentTime: Long = System.currentTimeMillis()
+  ): CacheEntry?
 
   /**
    * Return the stored forecast entry if it exists and has not expired,
    * regardless of signature. Useful for warm-start cache restoration.
    */
-  fun peekForecast(): CacheEntry?
+  fun peekForecast(currentTime: Long = System.currentTimeMillis()): CacheEntry?
 
   /** Persist [value] alongside [signature] with the current timestamp. */
   fun putForecast(
@@ -33,13 +36,16 @@ interface AiForecastAdviceCache {
    * Return the cached advice entry if the stored [signature] matches
    * the one provided AND the entry has not expired. Returns `null` otherwise.
    */
-  fun getAdvice(signature: String): CacheEntry?
+  fun getAdvice(
+    signature: String,
+    currentTime: Long = System.currentTimeMillis()
+  ): CacheEntry?
 
   /**
    * Return the stored advice entry if it exists and has not expired,
    * regardless of signature. Useful for warm-start cache restoration.
    */
-  fun peekAdvice(): CacheEntry?
+  fun peekAdvice(currentTime: Long = System.currentTimeMillis()): CacheEntry?
 
   /** Persist [value] alongside [signature] with the current timestamp. */
   fun putAdvice(
@@ -76,10 +82,13 @@ class SharedPrefsAiForecastAdviceCache(
 
   // ── Forecast ──────────────────────────────────────────────────────────
 
-  override fun getForecast(signature: String): CacheEntry? =
-    getEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG, signature)
+  override fun getForecast(
+    signature: String,
+    currentTime: Long
+  ): CacheEntry? = getEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG, signature, currentTime)
 
-  override fun peekForecast(): CacheEntry? = peekEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG)
+  override fun peekForecast(currentTime: Long): CacheEntry? =
+    peekEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG, currentTime)
 
   override fun putForecast(
     signature: String,
@@ -88,10 +97,13 @@ class SharedPrefsAiForecastAdviceCache(
 
   // ── Advice ────────────────────────────────────────────────────────────
 
-  override fun getAdvice(signature: String): CacheEntry? =
-    getEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG, signature)
+  override fun getAdvice(
+    signature: String,
+    currentTime: Long
+  ): CacheEntry? = getEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG, signature, currentTime)
 
-  override fun peekAdvice(): CacheEntry? = peekEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG)
+  override fun peekAdvice(currentTime: Long): CacheEntry? =
+    peekEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG, currentTime)
 
   override fun putAdvice(
     signature: String,
@@ -119,8 +131,9 @@ class SharedPrefsAiForecastAdviceCache(
     timeKey: String,
     storedSigKey: String,
     lookupSignature: String,
+    currentTime: Long = System.currentTimeMillis(),
   ): CacheEntry? {
-    val entry = peekEntry(contentKey, timeKey, storedSigKey) ?: return null
+    val entry = peekEntry(contentKey, timeKey, storedSigKey, currentTime) ?: return null
     return if (entry.signature == lookupSignature) entry else null
   }
 
@@ -128,11 +141,12 @@ class SharedPrefsAiForecastAdviceCache(
     contentKey: String,
     timeKey: String,
     storedSigKey: String,
+    currentTime: Long = System.currentTimeMillis(),
   ): CacheEntry? {
     val content = sharedPrefs.getString(contentKey, null)
     val time = sharedPrefs.getLong(timeKey, 0L)
     val storedSignature = sharedPrefs.getString(storedSigKey, null) ?: ""
-    val age = System.currentTimeMillis() - time
+    val age = currentTime - time
     val isValid =
       !content.isNullOrEmpty() &&
         time > 0L &&

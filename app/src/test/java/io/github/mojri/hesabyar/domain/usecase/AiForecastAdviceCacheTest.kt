@@ -60,35 +60,54 @@ class AiForecastAdviceCacheTest {
 
   @Test
   fun getForecastReturnsNullWhenEntryIsExpired() {
-    cache.putForecast("sig-1", "forecast content")
-
-    // Backdate the timestamp by 11 minutes (beyond 10-min TTL)
-    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    val now = 1_700_000_000_000L
+    // Store entry at now, read at now + 11 minutes (beyond 10-min TTL)
     prefs
       .edit()
-      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, elevenMinutesAgo)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
       .apply()
 
-    val entry = cache.getForecast("sig-1")
+    val entry = cache.getForecast("sig-1", currentTime = now + 11 * 60 * 1000L)
 
     assertNull(entry)
   }
 
   @Test
   fun getForecastReturnsEntryWhenWithinTtl() {
-    cache.putForecast("sig-1", "forecast content")
-
-    // Set timestamp to 5 minutes ago (within 10-min TTL)
-    val fiveMinutesAgo = System.currentTimeMillis() - 5 * 60 * 1000L
+    val now = 1_700_000_000_000L
+    // Store entry at now, read at now + 5 minutes (within 10-min TTL)
     prefs
       .edit()
-      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, fiveMinutesAgo)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
       .apply()
 
-    val entry = cache.getForecast("sig-1")
+    val entry = cache.getForecast("sig-1", currentTime = now + 5 * 60 * 1000L)
 
     assertNotNull(entry)
     assertEquals("forecast content", entry!!.value)
+  }
+
+  @Test
+  fun getForecastReturnsEntryAtExactTtlBoundary() {
+    val now = 1_700_000_000_000L
+    prefs
+      .edit()
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
+      .apply()
+
+    // Exactly at TTL boundary — should still be valid (age == cacheDurationMs)
+    val atBoundary = cache.getForecast("sig-1", currentTime = now + 10 * 60 * 1000L)
+    assertNotNull(atBoundary)
+
+    // One ms past TTL — should be expired
+    val pastBoundary = cache.getForecast("sig-1", currentTime = now + 10 * 60 * 1000L + 1)
+    assertNull(pastBoundary)
   }
 
   // ── Advice tests ──────────────────────────────────────────────────────
@@ -129,16 +148,15 @@ class AiForecastAdviceCacheTest {
 
   @Test
   fun getAdviceReturnsNullWhenEntryIsExpired() {
-    cache.putAdvice("sig-1", "advice content")
-
-    // Backdate the timestamp by 11 minutes (beyond 10-min TTL)
-    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    val now = 1_700_000_000_000L
     prefs
       .edit()
-      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, elevenMinutesAgo)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE, "advice content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_SIG, "sig-1")
       .apply()
 
-    val entry = cache.getAdvice("sig-1")
+    val entry = cache.getAdvice("sig-1", currentTime = now + 11 * 60 * 1000L)
 
     assertNull(entry)
   }
@@ -226,26 +244,28 @@ class AiForecastAdviceCacheTest {
 
   @Test
   fun peekForecastReturnsNullWhenExpired() {
-    cache.putForecast("sig-1", "forecast content")
-    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    val now = 1_700_000_000_000L
     prefs
       .edit()
-      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, elevenMinutesAgo)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
       .apply()
 
-    assertNull(cache.peekForecast())
+    assertNull(cache.peekForecast(currentTime = now + 11 * 60 * 1000L))
   }
 
   @Test
   fun peekAdviceReturnsNullWhenExpired() {
-    cache.putAdvice("sig-1", "advice content")
-    val elevenMinutesAgo = System.currentTimeMillis() - 11 * 60 * 1000L
+    val now = 1_700_000_000_000L
     prefs
       .edit()
-      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, elevenMinutesAgo)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE, "advice content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, now)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_SIG, "sig-1")
       .apply()
 
-    assertNull(cache.peekAdvice())
+    assertNull(cache.peekAdvice(currentTime = now + 11 * 60 * 1000L))
   }
 }
 
