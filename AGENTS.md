@@ -89,6 +89,13 @@ Before writing or refactoring any code, ALWAYS verify the implementation against
 - **Eliminate Boilerplate:** Keep implementations clean, minimal, and free of redundant wrapper code or dead logic.
 - **Refactor On-The-Fly:** When modifying any existing file, actively scan for pre-existing code duplication or anti-patterns and refactor/optimize them as part of the task.
 
+### 4. Test Naming Convention (Codacy Compliance)
+- **No backtick-quoted test names.** Codacy flags `` `fun \`name with spaces\`` `` as violations of `[a-z][a-zA-Z0-9]*`. Use camelCase instead:
+  - Bad: `` fun `putForecast then getForecast returns same value`() ``
+  - Good: `fun putForecastThenGetForecastReturnsSameValue()`
+- **When touching existing backtick tests:** rename them to camelCase as part of the change.
+- **New test files:** always use camelCase names from the start.
+
 ## Rust Changes Require Binding Regeneration
 
 The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through UniFFI bindings

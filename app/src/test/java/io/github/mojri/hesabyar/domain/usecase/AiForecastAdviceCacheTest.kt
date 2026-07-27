@@ -24,7 +24,7 @@ class AiForecastAdviceCacheTest {
   // ── Forecast tests ────────────────────────────────────────────────────
 
   @Test
-  fun `putForecast then getForecast returns same value`() {
+  fun putForecastThenGetForecastReturnsSameValue() {
     cache.putForecast("sig-1", "forecast content")
 
     val entry = cache.getForecast("sig-1")
@@ -35,7 +35,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getForecast returns null when signature does not match`() {
+  fun getForecastReturnsNullWhenSignatureDoesNotMatch() {
     cache.putForecast("sig-1", "forecast content")
 
     val entry = cache.getForecast("sig-2")
@@ -44,7 +44,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getForecast returns null when content is empty`() {
+  fun getForecastReturnsNullWhenContentIsEmpty() {
     prefs
       .edit()
       .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "")
@@ -58,7 +58,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getForecast returns null when entry is expired`() {
+  fun getForecastReturnsNullWhenEntryIsExpired() {
     cache.putForecast("sig-1", "forecast content")
 
     // Backdate the timestamp by 11 minutes (beyond 10-min TTL)
@@ -74,7 +74,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getForecast returns entry when within TTL`() {
+  fun getForecastReturnsEntryWhenWithinTtl() {
     cache.putForecast("sig-1", "forecast content")
 
     // Set timestamp to 5 minutes ago (within 10-min TTL)
@@ -93,7 +93,7 @@ class AiForecastAdviceCacheTest {
   // ── Advice tests ──────────────────────────────────────────────────────
 
   @Test
-  fun `putAdvice then getAdvice returns same value`() {
+  fun putAdviceThenGetAdviceReturnsSameValue() {
     cache.putAdvice("sig-1", "advice content")
 
     val entry = cache.getAdvice("sig-1")
@@ -104,7 +104,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getAdvice returns null when signature does not match`() {
+  fun getAdviceReturnsNullWhenSignatureDoesNotMatch() {
     cache.putAdvice("sig-1", "advice content")
 
     val entry = cache.getAdvice("sig-2")
@@ -113,7 +113,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getAdvice returns null when content is empty`() {
+  fun getAdviceReturnsNullWhenContentIsEmpty() {
     prefs
       .edit()
       .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE, "")
@@ -127,7 +127,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `getAdvice returns null when entry is expired`() {
+  fun getAdviceReturnsNullWhenEntryIsExpired() {
     cache.putAdvice("sig-1", "advice content")
 
     // Backdate the timestamp by 11 minutes (beyond 10-min TTL)
@@ -145,7 +145,7 @@ class AiForecastAdviceCacheTest {
   // ── Clear tests ───────────────────────────────────────────────────────
 
   @Test
-  fun `clear empties both forecast and advice caches`() {
+  fun clearEmptiesBothForecastAndAdviceCaches() {
     cache.putForecast("sig-1", "forecast content")
     cache.putAdvice("sig-2", "advice content")
 
@@ -158,7 +158,7 @@ class AiForecastAdviceCacheTest {
   // ── Overwrite tests ───────────────────────────────────────────────────
 
   @Test
-  fun `putForecast overwrites previous entry`() {
+  fun putForecastOverwritesPreviousEntry() {
     cache.putForecast("sig-1", "old forecast")
     cache.putForecast("sig-1", "new forecast")
 
@@ -169,7 +169,7 @@ class AiForecastAdviceCacheTest {
   }
 
   @Test
-  fun `putAdvice overwrites previous entry`() {
+  fun putAdviceOverwritesPreviousEntry() {
     cache.putAdvice("sig-1", "old advice")
     cache.putAdvice("sig-1", "new advice")
 
@@ -182,7 +182,7 @@ class AiForecastAdviceCacheTest {
   // ── Independent storage ───────────────────────────────────────────────
 
   @Test
-  fun `forecast and advice caches are independent`() {
+  fun forecastAndAdviceCachesAreIndependent() {
     cache.putForecast("sig-1", "forecast content")
     cache.putAdvice("sig-1", "advice content")
 
