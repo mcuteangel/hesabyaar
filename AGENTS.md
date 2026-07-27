@@ -193,7 +193,13 @@ Every time you modify, refactor, or introduce new code in the codebase, you **MU
 
 ### 1. Static Analysis & Linting (Detekt & ktlint)
 
-Run the linting and static analysis checks to ensure no code-style or cognitive-complexity regressions were introduced:
+First, auto-fix any code-style violations (formatting, imports, etc.):
+
+```bash
+./gradlew ktlintFormat --no-daemon
+```
+
+Then run the linting and static analysis checks to ensure no cognitive-complexity or remaining style regressions:
 
 ```bash
 ./gradlew ktlintCheck detekt --no-daemon
@@ -222,7 +228,7 @@ cargo test
 
 ### 4. Debugging & Auto-Correction
 
-If detekt or ktlint fails due to formatting issues, you may attempt an auto-fix using:
+If ktlint or detekt fails after the initial `ktlintFormat`, you may attempt another auto-fix:
 
 ```bash
 ./gradlew ktlintFormat --no-daemon
