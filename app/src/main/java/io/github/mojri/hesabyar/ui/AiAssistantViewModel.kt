@@ -1,16 +1,15 @@
 package io.github.mojri.hesabyar.ui
 
-import android.content.Context
 import android.database.sqlite.SQLiteException
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.*
+import io.github.mojri.hesabyar.domain.usecase.AiForecastAdviceCache
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
@@ -29,14 +28,12 @@ import javax.inject.Inject
 class AiAssistantViewModel
   @Inject
   constructor(
-    @ApplicationContext private val application: Context,
     private val parseTransactionUseCase: ParseTransactionUseCase,
     private val getBudgetAdviceUseCase: GetBudgetAdviceUseCase,
     private val getForecastUseCase: GetForecastUseCase,
-    private val manageAiConfigUseCase: ManageAiConfigUseCase
+    private val manageAiConfigUseCase: ManageAiConfigUseCase,
+    private val aiForecastAdviceCache: AiForecastAdviceCache,
   ) : ViewModel() {
-    private val sharedPrefs = application.getSharedPreferences("ai_cache_prefs", Context.MODE_PRIVATE)
-
     var aiConfigs = mutableStateOf(manageAiConfigUseCase.loadConfigs())
       private set
 
@@ -113,13 +110,26 @@ class AiAssistantViewModel
       _modelFetchState.value = UiResult.Idle
     }
 
+    // ── Cache via AiForecastAdviceCache ──────────────────────────────────
+
     private val aiCacheDurationMs = 10 * 60 * 1000L
-    private var cachedForecast: String? = sharedPrefs.getString(KEY_CACHED_FORECAST, null)
-    private var cachedAdvice: String? = sharedPrefs.getString(KEY_CACHED_ADVICE, null)
-    private var lastForecastFetchTimeMs = sharedPrefs.getLong(KEY_FORECAST_FETCH_TIME, 0L)
-    private var lastAdviceFetchTimeMs = sharedPrefs.getLong(KEY_ADVICE_FETCH_TIME, 0L)
-    private var lastKnownForecastSignature = sharedPrefs.getString(KEY_FORECAST_SIGNATURE, "") ?: ""
-    private var lastKnownAdviceSignature = sharedPrefs.getString(KEY_ADVICE_SIGNATURE, "") ?: ""
+
+    /** Warm-start: restore persisted cache snapshots. */
+    private val forecastEntry = aiForecastAdviceCache.peekForecast()
+    private val adviceEntry = aiForecastAdviceCache.peekAdvice()
+
+    /** Local snapshot of cached forecast content for StateFlow initialisation. */
+    private var cachedForecast: String? = forecastEntry?.value
+
+    /** Local snapshot of cached advice content for StateFlow initialisation. */
+    private var cachedAdvice: String? = adviceEntry?.value
+
+    private var lastForecastFetchTimeMs: Long = forecastEntry?.fetchedAtMillis ?: 0L
+    private var lastAdviceFetchTimeMs: Long = adviceEntry?.fetchedAtMillis ?: 0L
+
+    private var lastKnownForecastSignature = forecastEntry?.signature ?: ""
+    private var lastKnownAdviceSignature = adviceEntry?.signature ?: ""
+
     private var forecastDebounceJob: Job? = null
     private var adviceDebounceJob: Job? = null
 
@@ -129,53 +139,6 @@ class AiAssistantViewModel
     private val _lastAdviceFetchTime = MutableStateFlow(lastAdviceFetchTimeMs)
     val lastAdviceFetchTime: StateFlow<Long> = _lastAdviceFetchTime.asStateFlow()
 
-    private fun persistForecastCache() {
-      sharedPrefs
-        .edit()
-        .putString(KEY_CACHED_FORECAST, cachedForecast)
-        .putLong(KEY_FORECAST_FETCH_TIME, lastForecastFetchTimeMs)
-        .putString(KEY_FORECAST_SIGNATURE, lastKnownForecastSignature)
-        .apply()
-    }
-
-    private fun persistAdviceCache() {
-      sharedPrefs
-        .edit()
-        .putString(KEY_CACHED_ADVICE, cachedAdvice)
-        .putLong(KEY_ADVICE_FETCH_TIME, lastAdviceFetchTimeMs)
-        .putString(KEY_ADVICE_SIGNATURE, lastKnownAdviceSignature)
-        .apply()
-    }
-
-    internal fun configSignature(): String {
-      val config = manageAiConfigUseCase.getActiveConfig()
-      val cfg = config
-      return "${cfg?.providerType?.name ?: "none"}|${cfg?.model ?: ""}|${cfg?.baseUrl ?: ""}|${isOnlineMode.value}"
-    }
-
-    internal fun computeDataSignature(
-      transactions: List<Transaction>,
-      loans: List<Loan>,
-      installments: List<Installment>,
-      categories: List<Category>,
-      bankLoans: List<BankLoan> = emptyList()
-    ): String =
-      AdviceSignature.computeDataSignature(
-        transactions,
-        loans,
-        installments,
-        categories,
-        bankLoans
-      ) + "|${configSignature()}"
-
-    internal fun computeAdviceSignature(
-      transactions: List<Transaction>,
-      loans: List<Loan>,
-      installments: List<Installment>,
-      categories: List<Category>,
-      bankLoans: List<BankLoan> = emptyList()
-    ): String = computeDataSignature(transactions, loans, installments, categories, bankLoans)
-
     private fun invalidateCaches() {
       cachedAdvice = null
       cachedForecast = null
@@ -183,8 +146,9 @@ class AiAssistantViewModel
       lastKnownForecastSignature = ""
       lastAdviceFetchTimeMs = 0L
       lastForecastFetchTimeMs = 0L
-      persistAdviceCache()
-      persistForecastCache()
+      aiForecastAdviceCache.clear()
+      _lastForecastFetchTime.value = 0L
+      _lastAdviceFetchTime.value = 0L
     }
 
     fun getCachedForecast(): String? = cachedForecast
@@ -205,6 +169,29 @@ class AiAssistantViewModel
         }
       }
     }
+
+    internal fun configSignature(): String {
+      val config = manageAiConfigUseCase.getActiveConfig()
+      return "${config?.providerType?.name ?: "none"}" +
+        "|${config?.model ?: ""}" +
+        "|${config?.baseUrl ?: ""}" +
+        "|${isOnlineMode.value}"
+    }
+
+    internal fun computeDataSignature(
+      transactions: List<Transaction>,
+      loans: List<Loan>,
+      installments: List<Installment>,
+      categories: List<Category>,
+      bankLoans: List<BankLoan> = emptyList()
+    ): String =
+      AdviceSignature.computeDataSignature(
+        transactions,
+        loans,
+        installments,
+        categories,
+        bankLoans
+      ) + "|${configSignature()}"
 
     fun onFinancialDataChanged(
       transactions: List<Transaction>,
@@ -323,7 +310,7 @@ class AiAssistantViewModel
       forceRefresh: Boolean = false
     ) {
       val currentSignature =
-        computeAdviceSignature(transactions, loans, installments, categories, bankLoans)
+        computeDataSignature(transactions, loans, installments, categories, bankLoans)
 
       if (!forceRefresh &&
         currentSignature == lastKnownAdviceSignature &&
@@ -350,7 +337,7 @@ class AiAssistantViewModel
           lastAdviceFetchTimeMs = System.currentTimeMillis()
           lastKnownAdviceSignature = currentSignature
           _lastAdviceFetchTime.value = lastAdviceFetchTimeMs
-          persistAdviceCache()
+          aiForecastAdviceCache.putAdvice(currentSignature, advice)
           _advisorState.value = UiResult.Success(advice)
         } catch (e: java.io.IOException) {
           AppLogger.e("AiAssistantViewModel", "Network or I/O error in fetchBudgetAdvice", e)
@@ -421,7 +408,7 @@ class AiAssistantViewModel
           lastForecastFetchTimeMs = System.currentTimeMillis()
           lastKnownForecastSignature = currentSignature
           _lastForecastFetchTime.value = lastForecastFetchTimeMs
-          persistForecastCache()
+          aiForecastAdviceCache.putForecast(currentSignature, forecast)
           _forecastState.value = UiResult.Success(forecast)
         } catch (e: IOException) {
           AppLogger.e("AiAssistantViewModel", "fetchBudgetForecast failed I/O", e)
@@ -446,14 +433,5 @@ class AiAssistantViewModel
 
     fun clearForecastState() {
       _forecastState.value = UiResult.Idle
-    }
-
-    companion object {
-      private const val KEY_CACHED_FORECAST = "cached_forecast"
-      private const val KEY_CACHED_ADVICE = "cached_advice"
-      private const val KEY_FORECAST_FETCH_TIME = "forecast_fetch_time"
-      private const val KEY_ADVICE_FETCH_TIME = "advice_fetch_time"
-      private const val KEY_FORECAST_SIGNATURE = "forecast_signature"
-      private const val KEY_ADVICE_SIGNATURE = "advice_signature"
     }
   }

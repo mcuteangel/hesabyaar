@@ -89,6 +89,13 @@ Before writing or refactoring any code, ALWAYS verify the implementation against
 - **Eliminate Boilerplate:** Keep implementations clean, minimal, and free of redundant wrapper code or dead logic.
 - **Refactor On-The-Fly:** When modifying any existing file, actively scan for pre-existing code duplication or anti-patterns and refactor/optimize them as part of the task.
 
+### 4. Test Naming Convention (Codacy Compliance)
+- **No backtick-quoted test names.** Codacy flags `` `fun \`name with spaces\`` `` as violations of `[a-z][a-zA-Z0-9]*`. Use camelCase instead:
+  - Bad: `` fun `putForecast then getForecast returns same value`() ``
+  - Good: `fun putForecastThenGetForecastReturnsSameValue()`
+- **When touching existing backtick tests:** rename them to camelCase as part of the change.
+- **New test files:** always use camelCase names from the start.
+
 ## Rust Changes Require Binding Regeneration
 
 The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through UniFFI bindings
@@ -193,10 +200,16 @@ Every time you modify, refactor, or introduce new code in the codebase, you **MU
 
 ### 1. Static Analysis & Linting (Detekt & ktlint)
 
-Run the linting and static analysis checks to ensure no code-style or cognitive-complexity regressions were introduced:
+First, auto-fix any code-style violations (formatting, imports, etc.):
 
 ```bash
-./gradlew ktlintCheck detekt --no-daemon
+rtk ./gradlew ktlintFormat --no-daemon
+```
+
+Then run the linting and static analysis checks to ensure no cognitive-complexity or remaining style regressions:
+
+```bash
+rtk ./gradlew ktlintCheck detekt --no-daemon
 ```
 
 ### 2. Unit Testing Suite
@@ -206,7 +219,7 @@ Run the local testing suite to ensure all components and boundaries function pro
 **Kotlin/Android Tests:**
 
 ```bash
-./gradlew test --no-daemon
+rtk ./gradlew test --no-daemon
 ```
 
 **Rust Core Tests (If Rust modules were touched):**
@@ -222,11 +235,13 @@ cargo test
 
 ### 4. Debugging & Auto-Correction
 
-If detekt or ktlint fails due to formatting issues, you may attempt an auto-fix using:
+If ktlint still fails after the initial `ktlintFormat`, you may attempt another auto-fix:
 
 ```bash
-./gradlew ktlintFormat --no-daemon
+rtk ./gradlew ktlintFormat --no-daemon
 ```
+
+If detekt fails, fix the findings manually — `ktlintFormat` does not resolve detekt issues.
 
 If compilation or tests fail, analyze the logs immediately, debug the root cause, apply the fix, and re-run the full verification loop until all checks are 100% green.
 
