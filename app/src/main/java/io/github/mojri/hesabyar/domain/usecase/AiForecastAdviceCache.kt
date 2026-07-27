@@ -17,6 +17,12 @@ interface AiForecastAdviceCache {
    */
   fun getForecast(signature: String): CacheEntry?
 
+  /**
+   * Return the stored forecast entry if it exists and has not expired,
+   * regardless of signature. Useful for warm-start cache restoration.
+   */
+  fun peekForecast(): CacheEntry?
+
   /** Persist [value] alongside [signature] with the current timestamp. */
   fun putForecast(
     signature: String,
@@ -28,6 +34,12 @@ interface AiForecastAdviceCache {
    * the one provided AND the entry has not expired. Returns `null` otherwise.
    */
   fun getAdvice(signature: String): CacheEntry?
+
+  /**
+   * Return the stored advice entry if it exists and has not expired,
+   * regardless of signature. Useful for warm-start cache restoration.
+   */
+  fun peekAdvice(): CacheEntry?
 
   /** Persist [value] alongside [signature] with the current timestamp. */
   fun putAdvice(
@@ -42,6 +54,7 @@ interface AiForecastAdviceCache {
 data class CacheEntry(
   val value: String,
   val fetchedAtMillis: Long,
+  val signature: String,
 )
 
 /**
@@ -66,6 +79,8 @@ class SharedPrefsAiForecastAdviceCache(
   override fun getForecast(signature: String): CacheEntry? =
     getEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG, signature)
 
+  override fun peekForecast(): CacheEntry? = peekEntry(KEY_FORECAST, KEY_FORECAST_TIME, KEY_FORECAST_SIG)
+
   override fun putForecast(
     signature: String,
     value: String
@@ -75,6 +90,8 @@ class SharedPrefsAiForecastAdviceCache(
 
   override fun getAdvice(signature: String): CacheEntry? =
     getEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG, signature)
+
+  override fun peekAdvice(): CacheEntry? = peekEntry(KEY_ADVICE, KEY_ADVICE_TIME, KEY_ADVICE_SIG)
 
   override fun putAdvice(
     signature: String,
@@ -103,16 +120,24 @@ class SharedPrefsAiForecastAdviceCache(
     storedSigKey: String,
     lookupSignature: String,
   ): CacheEntry? {
+    val entry = peekEntry(contentKey, timeKey, storedSigKey) ?: return null
+    return if (entry.signature == lookupSignature) entry else null
+  }
+
+  private fun peekEntry(
+    contentKey: String,
+    timeKey: String,
+    storedSigKey: String,
+  ): CacheEntry? {
     val content = sharedPrefs.getString(contentKey, null)
     val time = sharedPrefs.getLong(timeKey, 0L)
-    val storedSignature = sharedPrefs.getString(storedSigKey, null)
+    val storedSignature = sharedPrefs.getString(storedSigKey, null) ?: ""
     val age = System.currentTimeMillis() - time
     val isValid =
       !content.isNullOrEmpty() &&
         time > 0L &&
-        storedSignature == lookupSignature &&
         age <= cacheDurationMs
-    return if (isValid) CacheEntry(value = content!!, fetchedAtMillis = time) else null
+    return if (isValid) CacheEntry(value = content!!, fetchedAtMillis = time, signature = storedSignature) else null
   }
 
   private fun putEntry(

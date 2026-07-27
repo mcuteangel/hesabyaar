@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -31,7 +32,7 @@ class AiForecastAdviceCacheTest {
 
     assertNotNull(entry)
     assertEquals("forecast content", entry!!.value)
-    assert(entry.fetchedAtMillis > 0)
+    assertTrue(entry.fetchedAtMillis > 0)
   }
 
   @Test
@@ -100,7 +101,7 @@ class AiForecastAdviceCacheTest {
 
     assertNotNull(entry)
     assertEquals("advice content", entry!!.value)
-    assert(entry.fetchedAtMillis > 0)
+    assertTrue(entry.fetchedAtMillis > 0)
   }
 
   @Test

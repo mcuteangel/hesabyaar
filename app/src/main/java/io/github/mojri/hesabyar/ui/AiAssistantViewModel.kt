@@ -114,19 +114,21 @@ class AiAssistantViewModel
 
     private val aiCacheDurationMs = 10 * 60 * 1000L
 
+    /** Warm-start: restore persisted cache snapshots. */
+    private val forecastEntry = aiForecastAdviceCache.peekForecast()
+    private val adviceEntry = aiForecastAdviceCache.peekAdvice()
+
     /** Local snapshot of cached forecast content for StateFlow initialisation. */
-    private var cachedForecast: String? = aiForecastAdviceCache.getForecast("")?.value
+    private var cachedForecast: String? = forecastEntry?.value
 
     /** Local snapshot of cached advice content for StateFlow initialisation. */
-    private var cachedAdvice: String? = aiForecastAdviceCache.getAdvice("")?.value
+    private var cachedAdvice: String? = adviceEntry?.value
 
-    private var lastForecastFetchTimeMs: Long =
-      aiForecastAdviceCache.getForecast("")?.fetchedAtMillis ?: 0L
-    private var lastAdviceFetchTimeMs: Long =
-      aiForecastAdviceCache.getAdvice("")?.fetchedAtMillis ?: 0L
+    private var lastForecastFetchTimeMs: Long = forecastEntry?.fetchedAtMillis ?: 0L
+    private var lastAdviceFetchTimeMs: Long = adviceEntry?.fetchedAtMillis ?: 0L
 
-    private var lastKnownForecastSignature = ""
-    private var lastKnownAdviceSignature = ""
+    private var lastKnownForecastSignature = forecastEntry?.signature ?: ""
+    private var lastKnownAdviceSignature = adviceEntry?.signature ?: ""
 
     private var forecastDebounceJob: Job? = null
     private var adviceDebounceJob: Job? = null
