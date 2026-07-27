@@ -110,6 +110,22 @@ class AiForecastAdviceCacheTest {
     assertNull(pastBoundary)
   }
 
+  @Test
+  fun getForecastReturnsNullWhenTimestampIsInFuture() {
+    val now = 1_700_000_000_000L
+    prefs
+      .edit()
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now + 10 * 60 * 1000L)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
+      .apply()
+
+    // currentTime is BEFORE the stored timestamp — age is negative
+    val entry = cache.getForecast("sig-1", currentTime = now)
+
+    assertNull(entry)
+  }
+
   // ── Advice tests ──────────────────────────────────────────────────────
 
   @Test
@@ -157,6 +173,21 @@ class AiForecastAdviceCacheTest {
       .apply()
 
     val entry = cache.getAdvice("sig-1", currentTime = now + 11 * 60 * 1000L)
+
+    assertNull(entry)
+  }
+
+  @Test
+  fun getAdviceReturnsNullWhenTimestampIsInFuture() {
+    val now = 1_700_000_000_000L
+    prefs
+      .edit()
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE, "advice content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, now + 10 * 60 * 1000L)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_SIG, "sig-1")
+      .apply()
+
+    val entry = cache.getAdvice("sig-1", currentTime = now)
 
     assertNull(entry)
   }
@@ -266,6 +297,32 @@ class AiForecastAdviceCacheTest {
       .apply()
 
     assertNull(cache.peekAdvice(currentTime = now + 11 * 60 * 1000L))
+  }
+
+  @Test
+  fun peekForecastReturnsNullWhenTimestampIsInFuture() {
+    val now = 1_700_000_000_000L
+    prefs
+      .edit()
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST, "forecast content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_TIME, now + 10 * 60 * 1000L)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_FORECAST_SIG, "sig-1")
+      .apply()
+
+    assertNull(cache.peekForecast(currentTime = now))
+  }
+
+  @Test
+  fun peekAdviceReturnsNullWhenTimestampIsInFuture() {
+    val now = 1_700_000_000_000L
+    prefs
+      .edit()
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE, "advice content")
+      .putLong(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_TIME, now + 10 * 60 * 1000L)
+      .putString(SharedPrefsAiForecastAdviceCache.KEY_ADVICE_SIG, "sig-1")
+      .apply()
+
+    assertNull(cache.peekAdvice(currentTime = now))
   }
 }
 

@@ -150,6 +150,7 @@ class SharedPrefsAiForecastAdviceCache(
     val isValid =
       !content.isNullOrEmpty() &&
         time > 0L &&
+        age >= 0 &&
         age <= cacheDurationMs
     return if (isValid) CacheEntry(value = content!!, fetchedAtMillis = time, signature = storedSignature) else null
   }
