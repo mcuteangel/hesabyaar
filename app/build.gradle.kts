@@ -816,17 +816,19 @@ tasks.register("generateRustBindings") {
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
   inputs.file(rustDir.resolve("Cargo.toml"))
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
-  val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
-  outputs.dir(generatedDir)
+  inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
+  val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
+  outputs.file(dest)
   // Local debug keeps incremental caching; CI/release always regenerates.
   outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
-    generatedDir.mkdirs()
-    val exitCode = runUniffiGen(hostLib, generatedDir)
-    if (exitCode != 0) throw GradleException("Binding generation failed (exit $exitCode)")
-    logger.lifecycle("Kotlin bindings generated at: ${generatedDir.absolutePath}")
+    val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
+    generateBindings(hostLib, tempDir)
+    patchAndInstallOutput(tempDir, dest)
+    tempDir.deleteRecursively()
+    logger.lifecycle("Kotlin bindings installed at: ${dest.absolutePath}")
   }
 }
 

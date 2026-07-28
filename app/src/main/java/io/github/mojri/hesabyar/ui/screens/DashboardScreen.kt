@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -33,6 +35,8 @@ import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
+import io.github.mojri.hesabyar.ui.components.AccountBalanceCard
+import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.BalanceCard
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.EmptyState
@@ -77,6 +81,8 @@ fun DashboardScreen(
   val bankLoans by dashboardViewModel.bankLoans.collectAsState()
   val forecastState by aiAssistantViewModel.forecastState.collectAsState()
   val lastForecastFetchTime by aiAssistantViewModel.lastForecastFetchTime.collectAsState()
+  val accounts by dashboardViewModel.accounts.collectAsState()
+  val selectedAccountId by dashboardViewModel.selectedAccountId.collectAsState()
 
   var showManualAddDialog by remember { mutableStateOf(false) }
   var showFullForecast by remember { mutableStateOf(false) }
@@ -99,6 +105,17 @@ fun DashboardScreen(
     ) {
       item { DashboardHeader(settingsViewModel) }
 
+      // Account Selector
+      if (accounts.isNotEmpty()) {
+        item {
+          AccountSelector(
+            accounts = accounts,
+            selectedAccountId = selectedAccountId,
+            onAccountSelected = { dashboardViewModel.selectAccount(it) }
+          )
+        }
+      }
+
       // Wallet Balance Card
       item {
         entranceCard {
@@ -108,6 +125,20 @@ fun DashboardScreen(
             expense = dashboardData.monthlyExpenses,
             modifier = Modifier.testTag("balance_card")
           )
+        }
+      }
+
+      // Per-Account Balance Cards
+      if (dashboardData.accounts.isNotEmpty()) {
+        item {
+          LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            items(dashboardData.accounts) { summary ->
+              AccountBalanceCard(summary = summary)
+            }
+          }
         }
       }
 
@@ -244,6 +275,9 @@ fun DashboardScreen(
     ManualTransactionDialog(
       onSubmit = onSubmitTransaction,
       categories = categories,
+      accounts = accounts,
+      selectedAccountId = selectedAccountId,
+      onAccountSelected = { dashboardViewModel.selectAccount(it) },
       onDismiss = { showManualAddDialog = false }
     )
   }
@@ -253,6 +287,9 @@ fun DashboardScreen(
       onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
+      accounts = accounts,
+      selectedAccountId = editingTransaction?.accountId ?: selectedAccountId,
+      onAccountSelected = { dashboardViewModel.selectAccount(it) },
       onDismiss = { editingTransaction = null }
     )
   }

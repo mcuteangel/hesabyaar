@@ -90,12 +90,17 @@ data class Transaction(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val type: TransactionType,
   val categoryId: Long,
-  val amount: Long, // Rial
+  // Rial
+  val amount: Long,
   val description: String,
   val personName: String? = null,
   val date: Long = System.currentTimeMillis(),
   val dueDate: Long? = null,
-  val installmentId: Long? = null
+  val installmentId: Long? = null,
+  // FK to accounts (default: main account)
+  val accountId: Long = 1L,
+  // For internal transfers
+  val destinationAccountId: Long? = null
 ) : Serializable
 
 @Entity(tableName = "loans")
@@ -103,8 +108,10 @@ data class Loan(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val personName: String,
   val type: LoanType,
-  val originalAmount: Long, // Rial
-  val remainingAmount: Long, // Rial
+  // Rial
+  val originalAmount: Long,
+  // Rial
+  val remainingAmount: Long,
   val description: String,
   val date: Long = System.currentTimeMillis(),
   val isSettled: Boolean = false
@@ -114,7 +121,8 @@ data class Loan(
 data class Installment(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val title: String,
-  val amount: Long, // Rial
+  // Rial
+  val amount: Long,
   val dueDate: Long,
   val isPaid: Boolean = false,
   val reminderEnabled: Boolean = true,

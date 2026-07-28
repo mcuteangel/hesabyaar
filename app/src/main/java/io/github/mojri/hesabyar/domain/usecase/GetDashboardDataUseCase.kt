@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -9,6 +10,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.BankLoanSummary
+import io.github.mojri.hesabyar.ui.AccountDashboardSummary
 import io.github.mojri.hesabyar.ui.DashboardData
 import kotlinx.coroutines.flow.Flow
 
@@ -20,12 +22,13 @@ class GetDashboardDataUseCase(
   val installments: Flow<List<Installment>> = repository.allInstallments
   val categories: Flow<List<Category>> = repository.allCategories
   val bankLoans: Flow<List<BankLoan>> = repository.allBankLoans
+  val accounts: Flow<List<AccountEntity>> = repository.allAccounts
 
   fun computeDashboardData(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
@@ -35,7 +38,7 @@ class GetDashboardDataUseCase(
           .mapLoans(loans),
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
-        bankLoans
+        bankLoans,
       )
 
     // Use the Rust result unless it failed (null) or came back as an all-zero
@@ -53,7 +56,7 @@ class GetDashboardDataUseCase(
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    return computeFallbackDashboardData(transactions, loans, installments, bankLoans)
+    return computeFallbackDashboardData(transactions, loans, installments, bankLoans, emptyList())
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
@@ -65,7 +68,8 @@ class GetDashboardDataUseCase(
       debtorsTotal == 0L &&
       creditorsTotal == 0L &&
       savingsRate == 0.0 &&
-      debtToIncomeRatio == 0.0
+      debtToIncomeRatio == 0.0 &&
+      totalNetWorth == 0L
 
   companion object {
     /** Kotlin-only dashboard computation.  Extracted so unit tests can verify
@@ -75,6 +79,7 @@ class GetDashboardDataUseCase(
       loans: List<Loan>,
       installments: List<Installment>,
       bankLoans: List<BankLoan> = emptyList(),
+      accounts: List<AccountEntity> = emptyList(),
       now: Long = System.currentTimeMillis()
     ): DashboardData {
       // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
@@ -138,7 +143,9 @@ class GetDashboardDataUseCase(
         savingsRate = savingsRate,
         debtToIncomeRatio = debtToIncome,
         bankLoans = toBankLoanSummaries(bankLoans, installments),
-        bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount }
+        bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount },
+        accounts = computeAccountSummaries(accounts, transactions),
+        totalNetWorth = currentBalance
       )
     }
 
@@ -161,5 +168,24 @@ class GetDashboardDataUseCase(
             remainingDebt = if (loan.isSettled) 0 else (loan.totalRepayableAmount - paidAmount).coerceAtLeast(0L)
           )
         }
+
+    private fun computeAccountSummaries(
+      accounts: List<AccountEntity>,
+      transactions: List<Transaction>
+    ): List<AccountDashboardSummary> {
+      if (accounts.isEmpty()) return emptyList()
+      return accounts.map { account ->
+        val accountTxs = transactions.filter { it.accountId == account.id }
+        AccountDashboardSummary(
+          accountId = account.id,
+          accountName = account.name,
+          accountType = account.type,
+          balance = account.initialBalance + accountTxs.sumOf { it.amount },
+          monthlyIncome = accountTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+          monthlyExpenses = accountTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
+          accountColor = account.color
+        )
+      }
+    }
   }
 }

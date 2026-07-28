@@ -55,6 +55,7 @@ class RepositoryLogicTest {
       database.paymentHistoryDao(),
       database.categoryDao(),
       database.bankLoanDao(),
+      database.accountDao(),
       database
     )
 

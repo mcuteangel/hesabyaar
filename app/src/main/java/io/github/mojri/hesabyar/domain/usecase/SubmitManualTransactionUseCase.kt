@@ -40,7 +40,8 @@ class SubmitManualTransactionUseCase(
     val amountRial: Long,
     val customDate: Long,
     val categories: List<Category>,
-    val transactionToEdit: Transaction? = null
+    val transactionToEdit: Transaction? = null,
+    val accountId: Long = 1L
   )
 
   fun validate(request: SubmitManualTransactionRequest): ValidationResult {
@@ -109,7 +110,8 @@ class SubmitManualTransactionUseCase(
           request.descriptionText,
           request.customDate,
           request.transactionToEdit,
-          request.categories
+          request.categories,
+          request.accountId
         )
 
       "LOAN_DEBTOR", "LOAN_CREDITOR" ->
@@ -141,7 +143,8 @@ class SubmitManualTransactionUseCase(
     descriptionText: String,
     customDate: Long,
     transactionToEdit: Transaction?,
-    categories: List<Category>
+    categories: List<Category>,
+    accountId: Long = 1L
   ): SubmitResult {
     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
@@ -152,7 +155,8 @@ class SubmitManualTransactionUseCase(
           categoryId = selectedCategoryId,
           amount = finalAmountRial,
           description = desc,
-          date = customDate
+          date = customDate,
+          accountId = accountId
         )
       withContext(NonCancellable) { manageTransaction.updateTransaction(updated) }
     } else {
@@ -162,7 +166,8 @@ class SubmitManualTransactionUseCase(
           categoryId = selectedCategoryId,
           amount = finalAmountRial,
           description = desc,
-          customDate = customDate
+          customDate = customDate,
+          accountId = accountId
         )
       }
     }

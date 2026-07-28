@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// serialized backup structure. This is the single source of truth: the Kotlin
 /// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
 /// time (app/build.gradle.kts), so the two sides cannot drift.
-pub const BACKUP_SCHEMA_VERSION: i32 = 1;
+pub const BACKUP_SCHEMA_VERSION: i32 = 2;
 
 /// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
 /// Also accepts JSON null for compatibility with nullable exports.
@@ -71,6 +71,45 @@ pub struct Transaction {
     pub due_date: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "installmentId")]
     pub installment_id: Option<i64>,
+    #[serde(default = "default_account_id", alias = "accountId")]
+    pub account_id: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "destinationAccountId")]
+    pub destination_account_id: Option<i64>,
+}
+
+fn default_account_id() -> i64 {
+    1
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub id: i64,
+    pub name: String,
+    #[serde(rename = "type", alias = "accountType")]
+    pub account_type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bankName")]
+    pub bank_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "cardNumber")]
+    pub card_number: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "accountNumber")]
+    pub account_number: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "iban")]
+    pub iban: Option<String>,
+    #[serde(default, alias = "initialBalance")]
+    pub initial_balance: i64,
+    #[serde(default = "default_color")]
+    pub color: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "icon")]
+    pub icon: Option<String>,
+    #[serde(default, alias = "isArchived")]
+    pub is_archived: bool,
+    #[serde(default, alias = "displayOrder")]
+    pub display_order: i32,
+}
+
+fn default_color() -> i64 {
+    0xFF4CAF50
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -198,7 +237,7 @@ pub enum CurrencyUnit {
     Toman,
 }
 
-#[derive(Debug, Clone, Default, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, uniffi::Record)]
 pub struct DashboardData {
     pub current_balance: i64,
     pub monthly_expenses: i64,
@@ -209,9 +248,23 @@ pub struct DashboardData {
     pub debt_to_income_ratio: f64,
     pub bank_loans_total: i64,
     pub bank_loans: Vec<BankLoanSummary>,
+    #[serde(default)]
+    pub accounts: Vec<AccountDashboardSummary>,
+    #[serde(default)]
+    pub total_net_worth: i64,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, uniffi::Record)]
+pub struct AccountDashboardSummary {
+    pub account_id: i64,
+    pub account_name: String,
+    pub account_type: String,
+    pub balance: i64,
+    pub monthly_income: i64,
+    pub monthly_expenses: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 pub struct MonthlyData {
     pub jalali_year: i32,
     pub jalali_month: i32,
@@ -220,7 +273,7 @@ pub struct MonthlyData {
     pub expense: i64,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 pub struct CategoryBreakdown {
     pub category_id: i64,
     pub category_name: String,
@@ -229,7 +282,7 @@ pub struct CategoryBreakdown {
     pub percentage: f32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
 pub struct DebtSummary {
     pub person_name: String,
     pub original_amount: i64,
@@ -247,7 +300,7 @@ pub struct InstallmentProgress {
     pub is_paid: bool,
 }
 
-#[derive(Debug, Clone, Default, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, uniffi::Record)]
 pub struct AnalyticsData {
     pub monthly_spending: Vec<MonthlyData>,
     pub monthly_income: Vec<MonthlyData>,
@@ -260,6 +313,16 @@ pub struct AnalyticsData {
     pub paid_installments: i32,
     pub bank_loans: Vec<BankLoanSummary>,
     pub bank_loans_total_debt: i64,
+    #[serde(default)]
+    pub accounts: Vec<AccountAnalytics>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, uniffi::Record)]
+pub struct AccountAnalytics {
+    pub account_id: i64,
+    pub account_name: String,
+    pub monthly_data: Vec<MonthlyData>,
+    pub category_breakdown: Vec<CategoryBreakdown>,
 }
 
 /// Backup payload for JSON export/import.
@@ -289,6 +352,8 @@ pub struct BackupPayload {
     pub payment_histories: Vec<PaymentHistory>,
     #[serde(default)]
     pub categories: Vec<Category>,
+    #[serde(default)]
+    pub accounts: Vec<Account>,
 }
 
 impl Default for BackupPayload {
@@ -303,6 +368,7 @@ impl Default for BackupPayload {
             bank_loans: Vec::new(),
             payment_histories: Vec::new(),
             categories: Vec::new(),
+            accounts: Vec::new(),
         }
     }
 }
@@ -401,6 +467,8 @@ mod tests {
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
             }],
             loans: vec![],
             installments: vec![],
@@ -413,12 +481,14 @@ mod tests {
                 notes: Some("Paid".to_string()),
             }],
             categories: vec![],
+            accounts: vec![],
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.version, original.version);
         assert_eq!(restored.transactions.len(), 1);
         assert_eq!(restored.transactions[0].amount, 50000);
+        assert_eq!(restored.transactions[0].account_id, 1);
         assert_eq!(restored.payment_histories.len(), 1);
         assert_eq!(restored.payment_histories[0].amount, 200000);
     }
@@ -498,6 +568,7 @@ mod tests {
                 notes: Some("Installment".to_string()),
             }],
             categories: vec![],
+            accounts: vec![],
         };
         let json = serde_json::to_string(&payload).unwrap();
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
@@ -551,6 +622,7 @@ mod tests {
                 },
             ],
             categories: vec![],
+            accounts: vec![],
         };
         let json = serde_json::to_string(&payload).unwrap();
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
@@ -558,5 +630,132 @@ mod tests {
         assert_eq!(restored.payment_histories[0].amount, 50000);
         assert_eq!(restored.payment_histories[1].notes, Some("Second".to_string()));
         assert_eq!(restored.payment_histories[1].loan_id, 10);
+    }
+
+    #[test]
+    fn test_account_struct_round_trip() {
+        let account = Account {
+            id: 1,
+            name: "حساب اصلی".to_string(),
+            account_type: "BANK".to_string(),
+            bank_name: Some("ملی".to_string()),
+            card_number: Some("6104-3378-1234-5678".to_string()),
+            account_number: Some("1234567890".to_string()),
+            iban: Some("IR123456789012345678901234".to_string()),
+            initial_balance: 1000000,
+            color: 0xFF4CAF50,
+            icon: Some("AccountBalance".to_string()),
+            is_archived: false,
+            display_order: 0,
+        };
+        let json = serde_json::to_string(&account).unwrap();
+        let restored: Account = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.id, 1);
+        assert_eq!(restored.name, "حساب اصلی");
+        assert_eq!(restored.account_type, "BANK");
+        assert_eq!(restored.bank_name, Some("ملی".to_string()));
+        assert_eq!(restored.initial_balance, 1000000);
+    }
+
+    #[test]
+    fn test_backup_payload_with_accounts() {
+        let payload = BackupPayload {
+            version: 2,
+            timestamp: 1710000000000,
+            app_version: "2.0.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![
+                Account {
+                    id: 1,
+                    name: "حساب اصلی".to_string(),
+                    account_type: "BANK".to_string(),
+                    bank_name: Some("ملی".to_string()),
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 0,
+                    color: 0xFF4CAF50,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 0,
+                },
+                Account {
+                    id: 2,
+                    name: "کیف پول نقدی".to_string(),
+                    account_type: "CASH_WALLET".to_string(),
+                    bank_name: None,
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 500000,
+                    color: 0xFFFF9800,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 1,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&payload).unwrap();
+        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.accounts.len(), 2);
+        assert_eq!(restored.accounts[0].account_type, "BANK");
+        assert_eq!(restored.accounts[1].account_type, "CASH_WALLET");
+        assert_eq!(restored.accounts[1].initial_balance, 500000);
+    }
+
+    #[test]
+    fn test_backup_v1_without_accounts_defaults_empty() {
+        let json = r#"{
+            "version": 1,
+            "timestamp": 1710000000000,
+            "appVersion": "1.0.0",
+            "transactions": [],
+            "loans": [],
+            "installments": [],
+            "categories": []
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert!(payload.accounts.is_empty());
+    }
+
+    #[test]
+    fn test_transaction_with_account_fields() {
+        let tx = Transaction {
+            id: 1,
+            tx_type: TransactionType::Expense,
+            category_id: 10,
+            amount: 50000,
+            description: "Test".to_string(),
+            person_name: None,
+            date: 1710000000000,
+            due_date: None,
+            installment_id: None,
+            account_id: 2,
+            destination_account_id: Some(3),
+        };
+        let json = serde_json::to_string(&tx).unwrap();
+        let restored: Transaction = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.account_id, 2);
+        assert_eq!(restored.destination_account_id, Some(3));
+    }
+
+    #[test]
+    fn test_transaction_defaults_account_id_to_1() {
+        let json = r#"{
+            "id": 1,
+            "type": "EXPENSE",
+            "categoryId": 10,
+            "amount": 50000,
+            "description": "Test",
+            "date": 1710000000000
+        }"#;
+        let tx: Transaction = serde_json::from_str(json).unwrap();
+        assert_eq!(tx.account_id, 1);
+        assert!(tx.destination_account_id.is_none());
     }
 }

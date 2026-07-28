@@ -253,7 +253,10 @@ class ManageBackupUseCase(
           .mapBankLoans(bankLoans),
       categories =
         io.github.mojri.hesabyar.rust.RustMappers
-          .mapCategories(categories)
+          .mapCategories(categories),
+      accounts =
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapAccounts(accounts)
     )
 
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
@@ -20,6 +21,8 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val _allBankLoans = MutableStateFlow<List<BankLoan>>(emptyList())
   private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
   private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
+  private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
+  private val accountsList = mutableListOf<AccountEntity>()
   private var nextId = 1L
 
   override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
@@ -27,6 +30,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
   override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
+  override val allAccounts: Flow<List<AccountEntity>> = _allAccounts.asStateFlow()
 
   override fun getTransactionsInRange(
     start: Long,
@@ -163,4 +167,40 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun mergeFromBackup(backup: BackupPayload) {}
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
+
+  // --- Account CRUD ---
+
+  private fun refreshAccounts() {
+    _allAccounts.value = accountsList.toList()
+  }
+
+  override suspend fun getActiveAccounts(): List<AccountEntity> = accountsList.filter { !it.isArchived }
+
+  override suspend fun getAllAccounts(): List<AccountEntity> = accountsList.toList()
+
+  override suspend fun getAccountById(id: Long): AccountEntity? = accountsList.firstOrNull { it.id == id }
+
+  override suspend fun insertAccount(account: AccountEntity): Long {
+    val id = if (account.id != 0L) account.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    accountsList.add(account.copy(id = id))
+    refreshAccounts()
+    return id
+  }
+
+  override suspend fun updateAccount(account: AccountEntity) {
+    val idx = accountsList.indexOfFirst { it.id == account.id }
+    if (idx >= 0) {
+      accountsList[idx] = account
+      refreshAccounts()
+    }
+  }
+
+  override suspend fun deleteAccount(account: AccountEntity) {
+    accountsList.removeIf { it.id == account.id }
+    refreshAccounts()
+  }
+
+  override suspend fun getTransactionCountForAccount(accountId: Long): Int =
+    _allTransactions.value.count { it.accountId == accountId }
 }

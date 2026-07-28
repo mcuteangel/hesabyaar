@@ -27,6 +27,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.CardEmptyHint
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -39,6 +40,8 @@ fun AnalyticsScreen(
   modifier: Modifier = Modifier
 ) {
   val analyticsData by analyticsViewModel.analyticsData.collectAsState()
+  val accounts by analyticsViewModel.accounts.collectAsState()
+  val selectedAccountId by analyticsViewModel.selectedAccountId.collectAsState()
 
   LazyColumn(
     modifier =
@@ -56,6 +59,17 @@ fun AnalyticsScreen(
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onBackground
       )
+    }
+
+    // Account Selector
+    if (accounts.isNotEmpty()) {
+      item {
+        AccountSelector(
+          accounts = accounts,
+          selectedAccountId = selectedAccountId,
+          onAccountSelected = { analyticsViewModel.selectAccount(it) }
+        )
+      }
     }
 
     // Monthly Spending Trend Chart

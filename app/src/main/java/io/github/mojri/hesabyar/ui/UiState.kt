@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import io.github.mojri.hesabyar.api.ParsedResult
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.rust.BankLoanSummary
@@ -15,7 +16,19 @@ data class DashboardData(
   val savingsRate: Double = 0.0,
   val debtToIncomeRatio: Double = 0.0,
   val bankLoans: List<BankLoanSummary> = emptyList(),
-  val bankLoansTotal: Long = 0L
+  val bankLoansTotal: Long = 0L,
+  val accounts: List<AccountDashboardSummary> = emptyList(),
+  val totalNetWorth: Long = 0L
+)
+
+data class AccountDashboardSummary(
+  val accountId: Long,
+  val accountName: String,
+  val accountType: AccountType,
+  val balance: Long,
+  val monthlyIncome: Long,
+  val monthlyExpenses: Long,
+  val accountColor: Long = 0xFF4CAF50L
 )
 
 sealed interface ParserUIState {
@@ -95,7 +108,15 @@ data class AnalyticsData(
   val totalDebt: Long = 0L,
   val totalCredit: Long = 0L,
   val bankLoans: List<BankLoanSummary> = emptyList(),
-  val bankLoansTotalDebt: Long = 0L
+  val bankLoansTotalDebt: Long = 0L,
+  val accounts: List<AccountAnalytics> = emptyList()
+)
+
+data class AccountAnalytics(
+  val accountId: Long,
+  val accountName: String,
+  val monthlyData: List<MonthlyData> = emptyList(),
+  val categoryBreakdown: List<CategoryBreakdown> = emptyList()
 )
 
 sealed interface BackupOperationState {

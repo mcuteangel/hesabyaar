@@ -6,11 +6,16 @@ use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
 /// Monthly income/expenses are calculated for the **current Jalali month**,
 /// not a rolling 30-day window. This ensures correct behavior across months
 /// of varying length (29–31 days).
+///
+/// If `account_id` is provided, only transactions linked to that account are
+/// included. If `None`, all transactions are aggregated (total net worth view).
 pub fn compute_dashboard_data(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
     bank_loans: &[BankLoan],
+    accounts: &[Account],
+    account_id: Option<i64>,
 ) -> DashboardData {
     // --- Current Jalali month boundaries ---
     let now_ms = std::time::SystemTime::now()
@@ -36,6 +41,8 @@ pub fn compute_dashboard_data(
                     .map(|b| b.total_repayable_amount)
                     .sum(),
                 bank_loans: crate::analytics::build_bank_loan_summaries(bank_loans, installments),
+                accounts: vec![],
+                total_net_worth: 0,
             };
         }
     };
@@ -52,12 +59,19 @@ pub fn compute_dashboard_data(
         jalali_to_month_start_ms(jy + 1, 1)
     };
 
+    // Filter transactions by account_id if provided
+    let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
+        transactions.iter().filter(|tx| tx.account_id == acc_id).collect()
+    } else {
+        transactions.iter().collect()
+    };
+
     // --- Aggregate transactions ---
     let mut current_balance: i64 = 0;
     let mut monthly_income: i64 = 0;
     let mut monthly_expenses: i64 = 0;
 
-    for tx in transactions {
+    for tx in &filtered_txs {
         match tx.tx_type {
             TransactionType::Income => {
                 current_balance += tx.amount;
@@ -115,6 +129,10 @@ pub fn compute_dashboard_data(
 
     let bank_loans = crate::analytics::build_bank_loan_summaries(bank_loans, installments);
 
+    // Compute per-account summaries and total net worth
+    let account_summaries = compute_account_summaries(transactions, accounts, month_start_ms, month_end_ms);
+    let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
+
     DashboardData {
         current_balance,
         monthly_expenses,
@@ -125,7 +143,59 @@ pub fn compute_dashboard_data(
         debt_to_income_ratio: debt_to_income,
         bank_loans_total,
         bank_loans,
+        accounts: account_summaries,
+        total_net_worth,
     }
+}
+
+/// Compute per-account balance and monthly income/expenses summaries.
+fn compute_account_summaries(
+    transactions: &[Transaction],
+    accounts: &[Account],
+    month_start_ms: i64,
+    month_end_ms: i64,
+) -> Vec<AccountDashboardSummary> {
+    accounts
+        .iter()
+        .filter(|a| !a.is_archived)
+        .map(|account| {
+            let account_txs: Vec<&Transaction> = transactions
+                .iter()
+                .filter(|tx| tx.account_id == account.id)
+                .collect();
+
+            let mut balance = account.initial_balance;
+            let mut monthly_income = 0i64;
+            let mut monthly_expenses = 0i64;
+
+            for tx in &account_txs {
+                match tx.tx_type {
+                    TransactionType::Income => {
+                        balance += tx.amount;
+                        if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            monthly_income += tx.amount;
+                        }
+                    }
+                    TransactionType::Expense => {
+                        balance -= tx.amount;
+                        if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            monthly_expenses += tx.amount;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            AccountDashboardSummary {
+                account_id: account.id,
+                account_name: account.name.clone(),
+                account_type: account.account_type.clone(),
+                balance,
+                monthly_income,
+                monthly_expenses,
+            }
+        })
+        .collect()
 }
 
 fn compute_all_time_balance(transactions: &[Transaction]) -> i64 {
@@ -176,6 +246,25 @@ mod tests {
             date: date_ms,
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
+        }
+    }
+
+    fn account(id: i64, name: &str, account_type: &str) -> Account {
+        Account {
+            id,
+            name: name.to_string(),
+            account_type: account_type.to_string(),
+            bank_name: None,
+            card_number: None,
+            account_number: None,
+            iban: None,
+            initial_balance: 0,
+            color: 0xFF4CAF50,
+            icon: None,
+            is_archived: false,
+            display_order: 0,
         }
     }
 
@@ -210,13 +299,15 @@ mod tests {
 
     #[test]
     fn test_empty_transactions() {
-        let result = compute_dashboard_data(&[], &[], &[], &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
         assert_eq!(result.monthly_expenses, 0);
         assert_eq!(result.debtors_total, 0);
         assert_eq!(result.creditors_total, 0);
         assert_eq!(result.savings_rate, 0.0);
+        assert!(result.accounts.is_empty());
+        assert_eq!(result.total_net_worth, 0);
     }
 
     // =====================================================================
@@ -231,7 +322,7 @@ mod tests {
             tx(2, TransactionType::Expense, 300_000, now_ms, 2),
             tx(3, TransactionType::Income, 500_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         // Balance = +1,000,000 - 300,000 + 500,000 = 1,200,000
         assert_eq!(result.current_balance, 1_200_000);
     }
@@ -245,7 +336,7 @@ mod tests {
             tx(3, TransactionType::LoanCreditor, 200_000, now_ms, 1),
             tx(4, TransactionType::Installment, 100_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         // Only Income contributes: +1,000,000
         assert_eq!(result.current_balance, 1_000_000);
     }
@@ -262,7 +353,7 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Income, 2_000_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         // Only current month income counted
         assert_eq!(result.monthly_income, 1_000_000);
     }
@@ -275,7 +366,7 @@ mod tests {
             tx(1, TransactionType::Expense, 500_000, now_ms, 1),
             tx(2, TransactionType::Expense, 300_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         assert_eq!(result.monthly_expenses, 500_000);
     }
 
@@ -286,14 +377,14 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Expense, 400_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         // savings_rate = (1,000,000 - 400,000) / 1,000,000 = 0.6
         assert!((result.savings_rate - 0.6).abs() < 1e-10);
     }
 
     #[test]
     fn test_savings_rate_zero_income() {
-        let result = compute_dashboard_data(&[], &[], &[], &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None);
         assert_eq!(result.savings_rate, 0.0);
     }
 
@@ -309,7 +400,7 @@ mod tests {
             loan(3, "CREDITOR", 3_000_000, 1_000_000, false),
             loan(4, "DEBTOR", 500_000, 100_000, true), // settled — excluded
         ];
-        let result = compute_dashboard_data(&[], &loans, &[], &[]);
+        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None);
         assert_eq!(result.debtors_total, 2_500_000);  // 500k + 2M
         assert_eq!(result.creditors_total, 1_000_000);
     }
@@ -320,7 +411,7 @@ mod tests {
             loan(1, "DEBTOR", 1_000_000, 500_000, true),
             loan(2, "CREDITOR", 2_000_000, 1_000_000, true),
         ];
-        let result = compute_dashboard_data(&[], &loans, &[], &[]);
+        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None);
         assert_eq!(result.debtors_total, 0);
         assert_eq!(result.creditors_total, 0);
     }
@@ -335,7 +426,7 @@ mod tests {
         let txs = vec![tx(1, TransactionType::Income, 1_000_000, now_ms, 1)];
         let loans = vec![loan(1, "CREDITOR", 1_200_000, 600_000, false)];
         let installments = vec![installment(1, 100_000, now_ms, false)];
-        let result = compute_dashboard_data(&txs, &loans, &installments, &[]);
+        let result = compute_dashboard_data(&txs, &loans, &installments, &[], &[], None);
         // monthly_debt_payments = 100k (installment) + 600k/12 ≈ 50k = 150k
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
@@ -369,7 +460,7 @@ mod tests {
             bank_loan(2, 2_000_000, false),
             bank_loan(3, 500_000, true), // settled — excluded
         ];
-        let result = compute_dashboard_data(&[], &[], &[], &bank_loans);
+        let result = compute_dashboard_data(&[], &[], &[], &bank_loans, &[], None);
         assert_eq!(result.bank_loans_total, 3_000_000);
         assert_eq!(result.bank_loans.len(), 3);
     }
@@ -384,9 +475,158 @@ mod tests {
         // The dashboard must not convert or interpret them.
         let now_ms = now_jalali_month_ms();
         let txs = vec![tx(1, TransactionType::Income, 100, now_ms, 1)];
-        let result = compute_dashboard_data(&txs, &[], &[], &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
         assert_eq!(result.monthly_income, 100);
         assert_eq!(result.current_balance, 100);
+    }
+
+    // =====================================================================
+    // Account filtering tests
+    // =====================================================================
+
+    #[test]
+    fn test_account_filtering_by_account_id() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "حساب اصلی", "BANK"),
+            account(2, "کیف پول", "CASH_WALLET"),
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2,
+                destination_account_id: None,
+            },
+        ];
+
+        // Filter by account 1
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1));
+        assert_eq!(result.current_balance, 1_000_000);
+        assert_eq!(result.monthly_income, 1_000_000);
+
+        // Filter by account 2
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2));
+        assert_eq!(result.current_balance, 500_000);
+        assert_eq!(result.monthly_income, 500_000);
+
+        // No filter (all accounts)
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None);
+        assert_eq!(result.current_balance, 1_500_000);
+        assert_eq!(result.monthly_income, 1_500_000);
+    }
+
+    #[test]
+    fn test_account_summaries_computed() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "حساب اصلی", "BANK"),
+            account(2, "کیف پول", "CASH_WALLET"),
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Expense,
+                category_id: 2,
+                amount: 200_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 3,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2,
+                destination_account_id: None,
+            },
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None);
+        assert_eq!(result.accounts.len(), 2);
+
+        // Account 1: +1,000,000 - 200,000 = 800,000
+        let acc1 = result.accounts.iter().find(|a| a.account_id == 1).unwrap();
+        assert_eq!(acc1.balance, 800_000);
+        assert_eq!(acc1.monthly_income, 1_000_000);
+        assert_eq!(acc1.monthly_expenses, 200_000);
+
+        // Account 2: +500,000
+        let acc2 = result.accounts.iter().find(|a| a.account_id == 2).unwrap();
+        assert_eq!(acc2.balance, 500_000);
+        assert_eq!(acc2.monthly_income, 500_000);
+        assert_eq!(acc2.monthly_expenses, 0);
+
+        // Total net worth = 800,000 + 500,000 = 1,300,000
+        assert_eq!(result.total_net_worth, 1_300_000);
+    }
+
+    #[test]
+    fn test_archived_accounts_excluded_from_summaries() {
+        let accounts = vec![
+            account(1, "حساب اصلی", "BANK"),
+            Account {
+                id: 2,
+                name: "آرشیو شده".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None);
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
     }
 
     // =====================================================================

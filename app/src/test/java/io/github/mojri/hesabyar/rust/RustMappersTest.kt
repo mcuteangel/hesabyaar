@@ -17,7 +17,9 @@ class RustMappersTest {
           personName = null,
           date = 0L,
           dueDate = null,
-          installmentId = null
+          installmentId = null,
+          accountId = 1L,
+          destinationAccountId = null
         )
       ).type
 

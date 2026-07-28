@@ -142,9 +142,11 @@ pub fn compute_analytics(
     installments: Vec<Installment>,
     categories: Vec<Category>,
     bank_loans: Vec<BankLoan>,
+    accounts: Vec<Account>,
+    account_id: Option<i64>,
 ) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
-        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans)
+        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans, &accounts, account_id)
     })
     .ok()
 }
@@ -159,9 +161,11 @@ pub fn compute_dashboard_data(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
     bank_loans: Vec<BankLoan>,
+    accounts: Vec<Account>,
+    account_id: Option<i64>,
 ) -> Option<DashboardData> {
     catch_unwind_safe(|| {
-        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments, &bank_loans)
+        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments, &bank_loans, &accounts, account_id)
     })
     .ok()
 }

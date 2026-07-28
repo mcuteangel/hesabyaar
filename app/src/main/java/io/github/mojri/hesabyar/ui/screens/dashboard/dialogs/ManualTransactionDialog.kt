@@ -15,12 +15,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -35,7 +37,10 @@ internal fun ManualTransactionDialog(
   ) -> SubmitManualTransactionUseCase.SubmitResult,
   categories: List<Category>,
   transactionToEdit: Transaction? = null,
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  accounts: List<AccountEntity> = emptyList(),
+  selectedAccountId: Long? = null,
+  onAccountSelected: (Long?) -> Unit = {}
 ) {
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
@@ -108,7 +113,8 @@ internal fun ManualTransactionDialog(
                   amountRial = finalAmountRial,
                   customDate = customDate,
                   categories = categories,
-                  transactionToEdit = transactionToEdit
+                  transactionToEdit = transactionToEdit,
+                  accountId = selectedAccountId ?: 1L
                 )
 
               val submitResult = onSubmit(request)
@@ -144,6 +150,14 @@ internal fun ManualTransactionDialog(
         selectedCategoryId = categoryId
       }
     )
+
+    if (accounts.isNotEmpty()) {
+      AccountSelector(
+        accounts = accounts,
+        selectedAccountId = selectedAccountId,
+        onAccountSelected = onAccountSelected
+      )
+    }
 
     TransactionAmountInput(
       amountValue = amountValue,

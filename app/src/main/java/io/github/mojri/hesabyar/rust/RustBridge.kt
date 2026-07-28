@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.rust
 import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.CancellationException
@@ -258,7 +259,9 @@ object RustBridge : JalaliNativeBridge {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
+    accountId: Long? = null,
   ): AnalyticsData? =
     rustCallSync(null) {
       HesabyarCore.computeAnalytics(
@@ -266,7 +269,9 @@ object RustBridge : JalaliNativeBridge {
         loans,
         installments,
         categories,
-        RustMappers.mapBankLoans(bankLoans)
+        RustMappers.mapBankLoans(bankLoans),
+        RustMappers.mapAccounts(accounts),
+        accountId,
       )
     }
 
@@ -274,14 +279,18 @@ object RustBridge : JalaliNativeBridge {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
+    accountId: Long? = null,
   ): DashboardData? =
     rustCallSync(null) {
       HesabyarCore.computeDashboardData(
         transactions,
         loans,
         installments,
-        RustMappers.mapBankLoans(bankLoans)
+        RustMappers.mapBankLoans(bankLoans),
+        RustMappers.mapAccounts(accounts),
+        accountId,
       )
     }
 

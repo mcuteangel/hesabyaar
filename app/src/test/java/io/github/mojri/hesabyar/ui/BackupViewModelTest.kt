@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
@@ -146,6 +147,7 @@ class BackupViewModelTest {
     override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
     override val allCategories: Flow<List<Category>> = flowOf(emptyList())
     override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
+    override val allAccounts: Flow<List<AccountEntity>> = flowOf(emptyList())
 
     override fun getTransactionsInRange(
       start: Long,
@@ -223,5 +225,19 @@ class BackupViewModelTest {
     override suspend fun mergeFromBackup(backup: BackupPayload) {}
 
     override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
+
+    override suspend fun getActiveAccounts(): List<AccountEntity> = emptyList()
+
+    override suspend fun getAllAccounts(): List<AccountEntity> = emptyList()
+
+    override suspend fun getAccountById(id: Long): AccountEntity? = null
+
+    override suspend fun insertAccount(account: AccountEntity): Long = 0L
+
+    override suspend fun updateAccount(account: AccountEntity) {}
+
+    override suspend fun deleteAccount(account: AccountEntity) {}
+
+    override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
   }
 }

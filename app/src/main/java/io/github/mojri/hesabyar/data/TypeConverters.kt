@@ -47,4 +47,17 @@ class TypeConverters {
         LoanType.UNKNOWN
       }
     } ?: LoanType.UNKNOWN
+
+  @TypeConverter
+  fun accountTypeToString(type: AccountType?): String? = type?.name
+
+  @TypeConverter
+  fun stringToAccountType(value: String?): AccountType =
+    value?.let {
+      try {
+        AccountType.valueOf(it)
+      } catch (_: IllegalArgumentException) {
+        AccountType.OTHER
+      }
+    } ?: AccountType.OTHER
 }

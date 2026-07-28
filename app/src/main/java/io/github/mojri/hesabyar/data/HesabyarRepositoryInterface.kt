@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import kotlinx.coroutines.flow.Flow
 
@@ -9,6 +10,7 @@ interface HesabyarRepositoryInterface {
   val allInstallments: Flow<List<Installment>>
   val allCategories: Flow<List<Category>>
   val allBankLoans: Flow<List<BankLoan>>
+  val allAccounts: Flow<List<AccountEntity>>
 
   fun getTransactionsInRange(
     start: Long,
@@ -68,6 +70,21 @@ interface HesabyarRepositoryInterface {
     bankLoan: BankLoan,
     installments: List<Installment>
   ): Long
+
+  // Account CRUD
+  suspend fun getActiveAccounts(): List<AccountEntity>
+
+  suspend fun getAllAccounts(): List<AccountEntity>
+
+  suspend fun getAccountById(id: Long): AccountEntity?
+
+  suspend fun insertAccount(account: AccountEntity): Long
+
+  suspend fun updateAccount(account: AccountEntity)
+
+  suspend fun deleteAccount(account: AccountEntity)
+
+  suspend fun getTransactionCountForAccount(accountId: Long): Int
 
   suspend fun importBackup(
     transactions: List<Transaction>,

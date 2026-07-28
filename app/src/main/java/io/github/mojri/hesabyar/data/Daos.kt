@@ -182,3 +182,33 @@ interface PaymentHistoryDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   fun insertAllBlocking(payments: List<PaymentHistory>)
 }
+
+@Dao
+interface AccountDao {
+  @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY displayOrder, name")
+  fun getActiveAccounts(): Flow<List<AccountEntity>>
+
+  @Query("SELECT * FROM accounts ORDER BY displayOrder, name")
+  fun getAllAccounts(): Flow<List<AccountEntity>>
+
+  @Query("SELECT * FROM accounts WHERE id = :id")
+  suspend fun getById(id: Long): AccountEntity?
+
+  @Insert
+  suspend fun insert(account: AccountEntity): Long
+
+  @Update
+  suspend fun update(account: AccountEntity)
+
+  @Delete
+  suspend fun delete(account: AccountEntity)
+
+  @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId OR destinationAccountId = :accountId")
+  suspend fun getTransactionCountForAccount(accountId: Long): Int
+
+  @Query("SELECT * FROM accounts ORDER BY displayOrder, name")
+  fun getAllAccountsBlocking(): List<AccountEntity>
+
+  @Insert
+  fun insertAllBlocking(accounts: List<AccountEntity>)
+}

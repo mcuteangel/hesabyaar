@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.rust
 
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
@@ -9,6 +11,8 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.AccountAnalytics
+import io.github.mojri.hesabyar.ui.AccountDashboardSummary
 import java.math.RoundingMode
 import io.github.mojri.hesabyar.ui.AnalyticsData as KAnalyticsData
 import io.github.mojri.hesabyar.ui.CategoryBreakdown as KCategoryBreakdown
@@ -36,7 +40,9 @@ object RustMappers {
       savingsRate = rust.savingsRate,
       debtToIncomeRatio = rust.debtToIncomeRatio,
       bankLoans = rust.bankLoans,
-      bankLoansTotal = rust.bankLoansTotal
+      bankLoansTotal = rust.bankLoansTotal,
+      accounts = rust.accounts.map { mapAccountDashboardSummary(it) },
+      totalNetWorth = rust.totalNetWorth
     )
   }
 
@@ -79,7 +85,8 @@ object RustMappers {
       totalDebt = rust.totalDebt,
       totalCredit = rust.totalCredit,
       bankLoans = rust.bankLoans,
-      bankLoansTotalDebt = rust.bankLoansTotalDebt
+      bankLoansTotalDebt = rust.bankLoansTotalDebt,
+      accounts = rust.accounts.map { mapAccountAnalytics(it) }
     )
   }
 
@@ -145,7 +152,9 @@ object RustMappers {
       personName = tx.personName,
       date = tx.date,
       dueDate = tx.dueDate,
-      installmentId = tx.installmentId
+      installmentId = tx.installmentId,
+      accountId = tx.accountId,
+      destinationAccountId = tx.destinationAccountId,
     )
 
   fun mapLoan(loan: Loan): io.github.mojri.hesabyar.rust.Loan =
@@ -245,7 +254,9 @@ object RustMappers {
       personName = tx.personName,
       date = tx.date,
       dueDate = tx.dueDate,
-      installmentId = tx.installmentId
+      installmentId = tx.installmentId,
+      accountId = tx.accountId,
+      destinationAccountId = tx.destinationAccountId,
     )
 
   fun fromRustLoan(loan: io.github.mojri.hesabyar.rust.Loan): Loan =
@@ -308,4 +319,42 @@ object RustMappers {
 
   fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =
     list.map { fromRustPaymentHistory(it) }
+
+  fun mapAccount(account: AccountEntity): io.github.mojri.hesabyar.rust.Account =
+    io.github.mojri.hesabyar.rust.Account(
+      id = account.id,
+      name = account.name,
+      accountType = account.type.name,
+      bankName = account.bankName,
+      cardNumber = account.cardNumber,
+      accountNumber = account.accountNumber,
+      iban = account.iban,
+      initialBalance = account.initialBalance,
+      color = account.color,
+      icon = account.icon,
+      isArchived = account.isArchived,
+      displayOrder = account.displayOrder,
+    )
+
+  fun mapAccounts(accounts: List<AccountEntity>): List<io.github.mojri.hesabyar.rust.Account> =
+    accounts.map { mapAccount(it) }
+
+  fun mapAccountDashboardSummary(rust: io.github.mojri.hesabyar.rust.AccountDashboardSummary): AccountDashboardSummary =
+    AccountDashboardSummary(
+      accountId = rust.accountId,
+      accountName = rust.accountName,
+      accountType = AccountType.valueOf(rust.accountType),
+      balance = rust.balance,
+      monthlyIncome = rust.monthlyIncome,
+      monthlyExpenses = rust.monthlyExpenses,
+      accountColor = 0xFF4CAF50L,
+    )
+
+  fun mapAccountAnalytics(rust: io.github.mojri.hesabyar.rust.AccountAnalytics): AccountAnalytics =
+    AccountAnalytics(
+      accountId = rust.accountId,
+      accountName = rust.accountName,
+      monthlyData = rust.monthlyData.map { mapMonthlyData(it) },
+      categoryBreakdown = rust.categoryBreakdown.map { mapCategoryBreakdown(it) }
+    )
 }

@@ -314,6 +314,8 @@ mod tests {
             date: 1710000000000,
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         }
     }
 
@@ -672,6 +674,7 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
+            accounts: vec![],
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid);
@@ -700,6 +703,7 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![make_payment_history(0, 1)],
             categories: vec![],
+            accounts: vec![],
     };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -729,6 +733,7 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
+            accounts: vec![],
     };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -757,6 +762,7 @@ mod tests {
                 category_type: "EXPENSE".into(),
                 is_default: false,
             }],
+            accounts: vec![],
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid, "Legacy category_id=0 should be tolerated, got: {:?}", result.errors);
@@ -879,6 +885,7 @@ mod tests {
                 make_payment_history(50000, 99), // loan 99 does not exist
             ],
             categories: vec![],
+            accounts: vec![],
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -899,6 +906,7 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![make_payment_history(50000, 99)],
             categories: vec![],
+            accounts: vec![],
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);

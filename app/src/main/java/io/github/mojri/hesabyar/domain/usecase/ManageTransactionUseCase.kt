@@ -21,7 +21,8 @@ class ManageTransactionUseCase(
     amount: Long,
     description: String,
     personName: String? = null,
-    customDate: Long? = null
+    customDate: Long? = null,
+    accountId: Long = 1L
   ): Long =
     repository.insertTransaction(
       Transaction(
@@ -30,7 +31,8 @@ class ManageTransactionUseCase(
         amount = amount,
         description = description,
         personName = personName,
-        date = customDate ?: System.currentTimeMillis()
+        date = customDate ?: System.currentTimeMillis(),
+        accountId = accountId
       )
     )
 

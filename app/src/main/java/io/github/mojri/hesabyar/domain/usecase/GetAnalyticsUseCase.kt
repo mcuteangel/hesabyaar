@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AnalyticsData
+import io.github.mojri.hesabyar.ui.MonthlyData
 import java.math.RoundingMode
 
 class GetAnalyticsUseCase {
@@ -46,7 +47,7 @@ class GetAnalyticsUseCase {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -58,7 +59,7 @@ class GetAnalyticsUseCase {
           .mapInstallments(installments),
         io.github.mojri.hesabyar.rust.RustMappers
           .mapCategories(categories),
-        bankLoans
+        bankLoans,
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank

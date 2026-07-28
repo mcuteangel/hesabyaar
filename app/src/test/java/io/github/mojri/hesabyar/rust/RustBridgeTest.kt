@@ -129,7 +129,9 @@ class RustBridgeTest {
         personName = null,
         date = 1_700_000_000_000L,
         dueDate = null,
-        installmentId = null
+        installmentId = null,
+        accountId = 1L,
+        destinationAccountId = null
       )
     val loan =
       Loan(
@@ -176,7 +178,9 @@ class RustBridgeTest {
 
   @Test
   fun `analytics and dashboard sync calls return data structures`() {
-    assertNotNull(RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList()))
+    assertNotNull(
+      RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList(), accounts = emptyList())
+    )
     assertNotNull(RustBridge.computeDashboardDataSync(emptyList(), emptyList(), emptyList()))
   }
 
@@ -283,6 +287,7 @@ class RustBridgeTest {
       installments = emptyList(),
       bankLoans = emptyList(),
       paymentHistories = emptyList(),
-      categories = emptyList()
+      categories = emptyList(),
+      accounts = emptyList()
     )
 }

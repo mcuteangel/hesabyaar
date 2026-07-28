@@ -12,6 +12,7 @@ class HesabyarRepository(
   private val paymentHistoryDao: PaymentHistoryDao,
   private val categoryDao: CategoryDao,
   private val bankLoanDao: BankLoanDao,
+  private val accountDao: AccountDao,
   private val database: AppDatabase
 ) : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
@@ -19,6 +20,11 @@ class HesabyarRepository(
   override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
   override val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
   override val allBankLoans: Flow<List<BankLoan>> = bankLoanDao.getAllBankLoans()
+  override val allAccounts: Flow<List<AccountEntity>> = accountDao.getAllAccounts()
+
+  override suspend fun getActiveAccounts(): List<AccountEntity> = accountDao.getActiveAccounts().first()
+
+  override suspend fun getAllAccounts(): List<AccountEntity> = accountDao.getAllAccountsBlocking()
 
   override fun getTransactionsInRange(
     start: Long,
@@ -186,6 +192,18 @@ class HesabyarRepository(
   }
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
+
+  // Account CRUD
+  override suspend fun getAccountById(id: Long): AccountEntity? = accountDao.getById(id)
+
+  override suspend fun insertAccount(account: AccountEntity): Long = accountDao.insert(account)
+
+  override suspend fun updateAccount(account: AccountEntity) = accountDao.update(account)
+
+  override suspend fun deleteAccount(account: AccountEntity) = accountDao.delete(account)
+
+  override suspend fun getTransactionCountForAccount(accountId: Long): Int =
+    accountDao.getTransactionCountForAccount(accountId)
 
   override suspend fun replaceAllFromBackup(backup: BackupPayload) =
     database.withTransaction {

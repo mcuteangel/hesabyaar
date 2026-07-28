@@ -22,9 +22,10 @@ import java.io.IOException
     Installment::class,
     PaymentHistory::class,
     Category::class,
-    BankLoan::class
+    BankLoan::class,
+    AccountEntity::class
   ],
-  version = 5,
+  version = 6,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -40,6 +41,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun categoryDao(): CategoryDao
 
   abstract fun bankLoanDao(): BankLoanDao
+
+  abstract fun accountDao(): AccountDao
 
   companion object {
     @Volatile
@@ -133,6 +136,40 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    private val MIGRATION_5_6 =
+      object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          // 1. Create accounts table
+          db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS accounts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              name TEXT NOT NULL,
+              type TEXT NOT NULL,
+              bankName TEXT,
+              cardNumber TEXT,
+              accountNumber TEXT,
+              iban TEXT,
+              initialBalance INTEGER NOT NULL DEFAULT 0,
+              color INTEGER NOT NULL DEFAULT ${0xFF4CAF50L},
+              icon TEXT,
+              isArchived INTEGER NOT NULL DEFAULT 0,
+              displayOrder INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+          )
+
+          // 2. Insert default main bank account
+          db.execSQL(
+            "INSERT INTO accounts (id, name, type, initialBalance, displayOrder) VALUES (1, 'حساب اصلی', 'BANK', 0, 0)"
+          )
+
+          // 3. Add accountId and destinationAccountId to transactions
+          db.execSQL("ALTER TABLE transactions ADD COLUMN accountId INTEGER NOT NULL DEFAULT 1")
+          db.execSQL("ALTER TABLE transactions ADD COLUMN destinationAccountId INTEGER DEFAULT NULL")
+        }
+      }
+
     private val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -202,7 +239,7 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
         instance = db
         db
@@ -242,7 +279,7 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
           .build()
 
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -265,7 +302,7 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
         encryptedDb.runInTransaction {

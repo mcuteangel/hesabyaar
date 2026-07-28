@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -48,15 +49,39 @@ class AnalyticsViewModel
       repository.allBankLoans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val accounts: StateFlow<List<AccountEntity>> =
+      repository.allAccounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedAccountId = MutableStateFlow<Long?>(null)
+    val selectedAccountId: StateFlow<Long?> = _selectedAccountId.asStateFlow()
+
+    fun selectAccount(accountId: Long?) {
+      _selectedAccountId.value = accountId
+    }
+
     val analyticsData: StateFlow<AnalyticsData> =
       combine(
-        transactions,
-        loans,
-        installments,
-        categories,
-        bankLoans
-      ) { trans, loanList, instList, catList, bankLoanList ->
-        getAnalyticsUseCase.computeAnalytics(trans, loanList, instList, catList, bankLoanList)
+        combine(
+          transactions,
+          loans,
+          installments,
+          categories,
+          bankLoans
+        ) { trans, loanList, instList, catList, bankLoanList ->
+          Quintuple(trans, loanList, instList, catList, bankLoanList)
+        },
+        combine(accounts, _selectedAccountId) { accList, selectedId ->
+          Pair(accList, selectedId)
+        }
+      ) { data, _ ->
+        getAnalyticsUseCase.computeAnalytics(
+          data.first,
+          data.second,
+          data.third,
+          data.fourth,
+          data.fifth,
+        )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsData())
@@ -67,4 +92,12 @@ class AnalyticsViewModel
     ) {
       _selectedJalaliMonth.value = if (year != null && month != null) year to month else null
     }
+
+    private data class Quintuple<A, B, C, D, E>(
+      val first: A,
+      val second: B,
+      val third: C,
+      val fourth: D,
+      val fifth: E
+    )
   }
