@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn test_transfer_type_recognized() {
-        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other"}"#;
+        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other", "confidence": 0.8}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Transfer);
         assert!(!result.was_repaired);
