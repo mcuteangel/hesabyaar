@@ -38,6 +38,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 @Composable
 internal fun TransactionTypeSelector(
@@ -339,7 +340,7 @@ internal fun DestinationAccountSelector(
               modifier =
                 Modifier
                   .size(Dimens.IconSmall)
-                  .background(color = Color(account.color.toULong()), shape = CircleShape),
+                  .background(color = account.color.toComposeColor(), shape = CircleShape),
             )
           },
           shape = ShapeTokens.Small,

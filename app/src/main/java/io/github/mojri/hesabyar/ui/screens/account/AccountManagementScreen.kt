@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -657,30 +654,37 @@ private fun AccountDialogColorPicker(
       style = MaterialTheme.typography.labelMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(COLOR_PICKER_COLUMNS),
+    val colorRows = ACCOUNT_PICKER_COLORS.chunked(COLOR_PICKER_COLUMNS)
+    Column(
       modifier = Modifier.height(60.dp),
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
-      items(ACCOUNT_PICKER_COLORS) { color ->
-        Box(
-          modifier =
-            Modifier
-              .size(
-                28.dp
-              ).clip(CircleShape)
-              .background(color.toComposeColor())
-              .clickable { onColorSelected(color) },
-          contentAlignment = Alignment.Center
+      colorRows.forEach { rowColors ->
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
         ) {
-          if (selectedColor == color) {
-            Icon(
-              imageVector = Icons.Filled.Check,
-              contentDescription = null,
-              tint = Color.White,
-              modifier = Modifier.size(Dimens.IconSmall)
-            )
+          rowColors.forEach { color ->
+            Box(
+              modifier =
+                Modifier
+                  .size(28.dp)
+                  .clip(CircleShape)
+                  .background(color.toComposeColor())
+                  .clickable { onColorSelected(color) },
+              contentAlignment = Alignment.Center
+            ) {
+              if (selectedColor == color) {
+                Icon(
+                  imageVector = Icons.Filled.Check,
+                  contentDescription = null,
+                  tint = Color.White,
+                  modifier = Modifier.size(Dimens.IconSmall)
+                )
+              }
+            }
+          }
+          repeat(COLOR_PICKER_COLUMNS - rowColors.size) {
+            Spacer(modifier = Modifier.size(28.dp))
           }
         }
       }
