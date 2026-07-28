@@ -33,6 +33,7 @@ class AccountViewModel
       color: Long = 0xFF4CAF50L,
     ) {
       viewModelScope.launch {
+        val now = System.currentTimeMillis()
         val account =
           AccountEntity(
             name = name,
@@ -44,13 +45,17 @@ class AccountViewModel
             initialBalance = initialBalance,
             color = color,
             displayOrder = accounts.value.size,
+            createdAt = now,
+            updatedAt = now
           )
         repository.insertAccount(account)
       }
     }
 
     fun updateAccount(account: AccountEntity) {
-      viewModelScope.launch { repository.updateAccount(account) }
+      viewModelScope.launch {
+        repository.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
+      }
     }
 
     fun deleteAccount(account: AccountEntity) {
@@ -71,7 +76,9 @@ class AccountViewModel
 
     fun archiveAccount(account: AccountEntity) {
       viewModelScope.launch {
-        repository.updateAccount(account.copy(isArchived = true))
+        repository.updateAccount(
+          account.copy(isArchived = true, updatedAt = System.currentTimeMillis())
+        )
       }
     }
   }

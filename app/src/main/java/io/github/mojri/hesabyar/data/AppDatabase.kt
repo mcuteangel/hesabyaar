@@ -25,7 +25,7 @@ import java.io.IOException
     BankLoan::class,
     AccountEntity::class
   ],
-  version = 6,
+  version = 7,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -170,6 +170,14 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    private val MIGRATION_6_7 =
+      object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL("ALTER TABLE accounts ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE accounts ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        }
+      }
+
     private val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -239,7 +247,7 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         instance = db
         db
@@ -279,7 +287,7 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
           .build()
 
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -302,7 +310,7 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
 
         encryptedDb.runInTransaction {

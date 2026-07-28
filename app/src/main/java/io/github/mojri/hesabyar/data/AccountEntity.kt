@@ -26,10 +26,12 @@ data class AccountEntity(
   val color: Long = 0xFF4CAF50L,
   val icon: String? = null,
   val isArchived: Boolean = false,
-  val displayOrder: Int = 0
+  val displayOrder: Int = 0,
+  val createdAt: Long = System.currentTimeMillis(),
+  val updatedAt: Long = System.currentTimeMillis()
 ) : Serializable {
   companion object {
-    private const val serialVersionUID: Long = 1L
+    private const val serialVersionUID: Long = 2L
 
     val DEFAULT_ACCOUNT =
       AccountEntity(
@@ -37,7 +39,9 @@ data class AccountEntity(
         name = "حساب اصلی",
         type = AccountType.BANK,
         initialBalance = 0L,
-        displayOrder = 0
+        displayOrder = 0,
+        createdAt = 0L,
+        updatedAt = 0L
       )
   }
 }

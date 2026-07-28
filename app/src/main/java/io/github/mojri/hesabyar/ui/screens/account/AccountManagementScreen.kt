@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package io.github.mojri.hesabyar.ui.screens.account
 
 import androidx.compose.foundation.background
@@ -48,6 +50,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -134,7 +137,21 @@ fun AccountManagementScreen(
   var editingAccount by remember { mutableStateOf<AccountEntity?>(null) }
   var showDeleteConfirmation by remember { mutableStateOf<AccountEntity?>(null) }
   var showTransactionWarning by remember { mutableStateOf<AccountEntity?>(null) }
+  var pendingDeleteAccount by remember { mutableStateOf<AccountEntity?>(null) }
   var overflowMenuAccount by remember { mutableStateOf<AccountEntity?>(null) }
+
+  pendingDeleteAccount?.let { account ->
+    androidx.compose.runtime.LaunchedEffect(account) {
+      accountViewModel.canDeleteAccount(account.id) { canDelete ->
+        pendingDeleteAccount = null
+        if (canDelete) {
+          showDeleteConfirmation = account
+        } else {
+          showTransactionWarning = account
+        }
+      }
+    }
+  }
 
   Scaffold(
     topBar = {
@@ -170,10 +187,12 @@ fun AccountManagementScreen(
     showAddDialog = showAddDialog,
     editingAccount = editingAccount,
     showDeleteConfirmation = showDeleteConfirmation,
+    showTransactionWarning = showTransactionWarning,
     overflowMenuAccount = overflowMenuAccount,
     onDismissAddDialog = { showAddDialog = false },
     onDismissEditing = { editingAccount = null },
     onDismissDelete = { showDeleteConfirmation = null },
+    onDismissTransactionWarning = { showTransactionWarning = null },
     onDismissOverflow = { overflowMenuAccount = null },
     onSaveAccount = { name, type, bankName, cardNumber, accountNumber, iban, initialBalance, color ->
       accountViewModel.addAccount(
@@ -213,7 +232,7 @@ fun AccountManagementScreen(
       overflowMenuAccount = null
     },
     onDeleteFromOverflow = {
-      showDeleteConfirmation = overflowMenuAccount
+      pendingDeleteAccount = overflowMenuAccount
       overflowMenuAccount = null
     },
   )
@@ -225,10 +244,12 @@ private fun AccountManagementDialogs(
   showAddDialog: Boolean,
   editingAccount: AccountEntity?,
   showDeleteConfirmation: AccountEntity?,
+  showTransactionWarning: AccountEntity?,
   overflowMenuAccount: AccountEntity?,
   onDismissAddDialog: () -> Unit,
   onDismissEditing: () -> Unit,
   onDismissDelete: () -> Unit,
+  onDismissTransactionWarning: () -> Unit,
   onDismissOverflow: () -> Unit,
   onSaveAccount: (String, AccountType, String?, String?, String?, String?, Long, Long) -> Unit,
   onUpdateAccount: (String, AccountType, String?, String?, String?, String?, Long, Long) -> Unit,
@@ -263,6 +284,12 @@ private fun AccountManagementDialogs(
         onDeleteAccount()
         onDismissDelete()
       }
+    )
+  }
+  if (showTransactionWarning != null) {
+    TransactionWarningDialog(
+      accountName = showTransactionWarning.name,
+      onDismiss = onDismissTransactionWarning
     )
   }
   if (account != null) {
@@ -425,6 +452,36 @@ private fun AccountOverflowMenu(
       onClick = { onDelete() }
     )
   }
+}
+
+@Composable
+private fun TransactionWarningDialog(
+  accountName: String,
+  onDismiss: () -> Unit
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = "امکان حذف حساب",
+        fontWeight = FontWeight.Bold
+      )
+    },
+    text = {
+      Text(
+        text =
+          "حساب «$accountName» دارای تراکنش‌های فعال است " +
+            "و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، " +
+            "از گزینه آرشیو استفاده کنید."
+      )
+    },
+    confirmButton = {
+      TextButton(onClick = onDismiss) {
+        Text(text = "متوجه شدم")
+      }
+    },
+    dismissButton = null
+  )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

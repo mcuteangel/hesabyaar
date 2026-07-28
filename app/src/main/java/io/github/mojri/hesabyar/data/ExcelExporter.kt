@@ -17,7 +17,8 @@ class ExcelExporter {
     val expenseCount: Int,
     val loanCount: Int,
     val installmentCount: Int,
-    val bankLoanCount: Int
+    val bankLoanCount: Int,
+    val accountCount: Int
   )
 
   suspend fun export(
@@ -26,14 +27,17 @@ class ExcelExporter {
     installments: List<Installment>,
     categories: List<Category>,
     bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
   ): ExportResult {
     val categoryMap = categories.associateBy { it.id }
+    val accountMap = accounts.associateBy { it.id }
     val incomeTransactions = transactions.filter { it.type == TransactionType.INCOME }
     val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
 
     val sheets =
       listOf(
-        buildTransactionsSheet(transactions, categoryMap),
+        buildAccountsSheet(accounts),
+        buildTransactionsSheet(transactions, categoryMap, accountMap),
         buildIncomeSheet(incomeTransactions, categoryMap),
         buildExpensesSheet(expenseTransactions, categoryMap),
         buildLoansSheet(loans),
@@ -53,7 +57,8 @@ class ExcelExporter {
       expenseCount = expenseTransactions.size,
       loanCount = loans.size,
       installmentCount = installments.size,
-      bankLoanCount = bankLoans.size
+      bankLoanCount = bankLoans.size,
+      accountCount = accounts.size
     )
   }
 
@@ -66,10 +71,21 @@ class ExcelExporter {
 
   private fun buildTransactionsSheet(
     transactions: List<Transaction>,
-    categoryMap: Map<Long, Category>
+    categoryMap: Map<Long, Category>,
+    accountMap: Map<Long, AccountEntity> = emptyMap()
   ): SheetData {
-    val headers = listOf("ردیف", "نوع", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows = buildTxRows(transactions, categoryMap, includeType = true)
+    val headers =
+      listOf(
+        "ردیف",
+        "نوع",
+        HEADER_CATEGORY,
+        "مبلغ",
+        HEADER_DESCRIPTION,
+        "تاریخ",
+        "حساب مبدأ",
+        "حساب مقصد"
+      )
+    val rows = buildTxRows(transactions, categoryMap, includeType = true, accountMap = accountMap)
     return SheetData(name = "همه تراکنش\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
@@ -97,7 +113,8 @@ class ExcelExporter {
   private fun buildTxRows(
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>,
-    includeType: Boolean
+    includeType: Boolean,
+    accountMap: Map<Long, AccountEntity> = emptyMap()
   ): List<List<Cell>> =
     transactions.mapIndexed { index, tx ->
       buildList {
@@ -109,6 +126,8 @@ class ExcelExporter {
         add(Cell(value = formatAmount(tx.amount), bold = false))
         add(Cell(value = tx.description, bold = false))
         add(Cell(value = formatDate(tx.date), bold = false))
+        add(Cell(value = accountMap[tx.accountId]?.name.orEmpty(), bold = false))
+        add(Cell(value = tx.destinationAccountId?.let { accountMap[it]?.name }.orEmpty(), bold = false))
       }
     }
 
@@ -188,6 +207,30 @@ class ExcelExporter {
       }
     return SheetData(name = "وام\u200Cهای بانکی", headers = headers, rows = rows, summaryRow = null)
   }
+
+  private fun buildAccountsSheet(accounts: List<AccountEntity>): SheetData {
+    val headers = listOf("ردیف", "نام حساب", "نوع حساب", "نام بانک", "موجودی اولیه", "وضعیت")
+    val rows =
+      accounts.mapIndexed { index, account ->
+        listOf(
+          Cell(value = (index + 1).toString(), bold = false),
+          Cell(value = account.name, bold = false),
+          Cell(value = accountTypeDisplayName(account.type), bold = false),
+          Cell(value = account.bankName.orEmpty(), bold = false),
+          Cell(value = formatAmount(account.initialBalance), bold = false),
+          Cell(value = if (account.isArchived) "آرشیو" else "فعال", bold = false)
+        )
+      }
+    return SheetData(name = "حساب\u200Cها", headers = headers, rows = rows, summaryRow = null)
+  }
+
+  private fun accountTypeDisplayName(type: AccountType): String =
+    when (type) {
+      AccountType.BANK -> "بانکی"
+      AccountType.CASH_WALLET -> "کیف پول نقدی"
+      AccountType.SAVINGS_INVESTMENT -> "پس\u200cانداز/سرمایه\u200cگذاری"
+      AccountType.OTHER -> "سایر"
+    }
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
