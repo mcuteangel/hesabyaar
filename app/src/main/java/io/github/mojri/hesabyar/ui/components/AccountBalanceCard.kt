@@ -14,12 +14,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.AccountDashboardSummary
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 @Composable
 fun AccountBalanceCard(
@@ -27,7 +27,7 @@ fun AccountBalanceCard(
   modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
 ) {
-  val accentColor = Color(summary.accountColor.toULong())
+  val accentColor = summary.accountColor.toComposeColor()
 
   Box(
     modifier =

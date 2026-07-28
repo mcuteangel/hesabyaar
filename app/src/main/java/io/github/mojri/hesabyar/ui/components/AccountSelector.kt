@@ -11,11 +11,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 @Composable
 fun AccountSelector(
@@ -46,7 +46,7 @@ fun AccountSelector(
             modifier =
               Modifier
                 .size(Dimens.IconSmall)
-                .background(color = Color(account.color.toULong()), shape = CircleShape),
+                .background(color = account.color.toComposeColor(), shape = CircleShape),
           )
         },
         shape = ShapeTokens.Small,

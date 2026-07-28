@@ -21,4 +21,7 @@ object Dimens {
 
   val ChipHeight = 36.dp
   val TabHeight = 48.dp
+
+  /** Default alpha for tinted icon-circle backgrounds (0–1). */
+  const val ICON_CIRCLE_BACKGROUND_ALPHA = 0.15f
 }

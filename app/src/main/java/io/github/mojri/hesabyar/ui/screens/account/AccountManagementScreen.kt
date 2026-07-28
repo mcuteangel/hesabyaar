@@ -50,7 +50,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -80,9 +79,12 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.ACCOUNT_PICKER_COLORS
+import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 private val ACCOUNT_TYPE_ICONS: Map<AccountType, ImageVector> =
   mapOf(
@@ -92,27 +94,6 @@ private val ACCOUNT_TYPE_ICONS: Map<AccountType, ImageVector> =
     AccountType.OTHER to Icons.Filled.Payments,
   )
 
-private val ACCOUNT_COLORS =
-  listOf(
-    0xFF4CAF50L,
-    0xFFFF9800L,
-    0xFF2196F3L,
-    0xFF009688L,
-    0xFFF44336L,
-    0xFF9C27B0L,
-    0xFF757575L,
-    0xFFE91E63L,
-    0xFF3F51B5L,
-    0xFF00BCD4L,
-    0xFF8BC34AL,
-    0xFFFF5722L,
-    0xFF607D8BL,
-    0xFF795548L,
-    0xFFCDDC39L,
-    0xFF03A9F4L,
-  )
-
-private const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L
 private const val COLOR_PICKER_COLUMNS = 8
 
 private data class AccountFormData(
@@ -289,9 +270,17 @@ private fun AccountManagementDialogs(
         }
       )
     is AccountDialogState.TransactionWarning ->
-      TransactionWarningDialog(
-        accountName = dialogState.account.name,
-        onDismiss = onDismiss
+      ConfirmDialog(
+        title = "امکان حذف حساب",
+        message =
+          "حساب «${dialogState.account.name}» دارای تراکنش‌های فعال است " +
+            "و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، " +
+            "از گزینه آرشیو استفاده کنید.",
+        confirmText = "متوجه شدم",
+        dismissText = "",
+        onConfirm = onDismiss,
+        onDismiss = onDismiss,
+        confirmColor = MaterialTheme.colorScheme.primary
       )
     is AccountDialogState.OverflowMenu ->
       AccountOverflowMenu(
@@ -343,7 +332,7 @@ private fun AccountItem(
   onOverflow: (AccountEntity) -> Unit
 ) {
   val typeIcon = ACCOUNT_TYPE_ICONS[account.type] ?: Icons.Filled.AccountBalance
-  val accountColor = Color(account.color)
+  val accountColor = account.color.toComposeColor()
 
   HesabyarCard(
     modifier = Modifier.fillMaxWidth().padding(horizontal = SpacingTokens.lg),
@@ -397,7 +386,7 @@ private fun AccountItem(
       Box {
         IconButton(
           onClick = { onOverflow(account) },
-          modifier = Modifier.size(36.dp)
+          modifier = Modifier.size(Dimens.ButtonHeight)
         ) {
           Icon(
             imageVector = Icons.Filled.MoreVert,
@@ -454,36 +443,6 @@ private fun AccountOverflowMenu(
       onClick = { onDelete() }
     )
   }
-}
-
-@Composable
-private fun TransactionWarningDialog(
-  accountName: String,
-  onDismiss: () -> Unit
-) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
-      Text(
-        text = "امکان حذف حساب",
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      Text(
-        text =
-          "حساب «$accountName» دارای تراکنش‌های فعال است " +
-            "و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، " +
-            "از گزینه آرشیو استفاده کنید."
-      )
-    },
-    confirmButton = {
-      TextButton(onClick = onDismiss) {
-        Text(text = "متوجه شدم")
-      }
-    },
-    dismissButton = null
-  )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -704,14 +663,14 @@ private fun AccountDialogColorPicker(
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
-      items(ACCOUNT_COLORS) { color ->
+      items(ACCOUNT_PICKER_COLORS) { color ->
         Box(
           modifier =
             Modifier
               .size(
                 28.dp
               ).clip(CircleShape)
-              .background(Color(color))
+              .background(color.toComposeColor())
               .clickable { onColorSelected(color) },
           contentAlignment = Alignment.Center
         ) {
@@ -747,7 +706,7 @@ private fun AccountDialogPreviewRow(
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     val previewIcon = ACCOUNT_TYPE_ICONS[selectedType] ?: Icons.Filled.AccountBalance
-    val previewColor = Color(selectedColor)
+    val previewColor = selectedColor.toComposeColor()
     IconCircle(
       icon = previewIcon,
       tint = previewColor,
