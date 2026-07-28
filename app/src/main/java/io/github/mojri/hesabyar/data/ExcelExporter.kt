@@ -215,7 +215,7 @@ class ExcelExporter {
         listOf(
           Cell(value = (index + 1).toString(), bold = false),
           Cell(value = account.name, bold = false),
-          Cell(value = accountTypeDisplayName(account.type), bold = false),
+          Cell(value = account.type.displayName, bold = false),
           Cell(value = account.bankName.orEmpty(), bold = false),
           Cell(value = formatAmount(account.initialBalance), bold = false),
           Cell(value = if (account.isArchived) "آرشیو" else "فعال", bold = false)
@@ -223,14 +223,6 @@ class ExcelExporter {
       }
     return SheetData(name = "حساب\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
-
-  private fun accountTypeDisplayName(type: AccountType): String =
-    when (type) {
-      AccountType.BANK -> "بانکی"
-      AccountType.CASH_WALLET -> "کیف پول نقدی"
-      AccountType.SAVINGS_INVESTMENT -> "پس\u200cانداز/سرمایه\u200cگذاری"
-      AccountType.OTHER -> "سایر"
-    }
 
   // ─── Helpers ─────────────────────────────────────────────────────
 

@@ -54,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -114,15 +115,42 @@ private val ACCOUNT_COLORS =
 private const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L
 private const val COLOR_PICKER_COLUMNS = 8
 
-private val AccountType.displayName: String
-  @Composable
-  get() =
-    when (this) {
-      AccountType.BANK -> "بانک"
-      AccountType.CASH_WALLET -> "کیف پول"
-      AccountType.SAVINGS_INVESTMENT -> "پس‌انداز و سرمایه‌گذاری"
-      AccountType.OTHER -> "سایر"
-    }
+private data class AccountFormData(
+  val name: String,
+  val type: AccountType,
+  val bankName: String?,
+  val cardNumber: String?,
+  val accountNumber: String?,
+  val iban: String?,
+  val initialBalance: Long,
+  val color: Long,
+)
+
+private sealed interface AccountDialogState {
+  data object None : AccountDialogState
+
+  data object Add : AccountDialogState
+
+  data class Edit(
+    val account: AccountEntity
+  ) : AccountDialogState
+
+  data class DeleteConfirmation(
+    val account: AccountEntity
+  ) : AccountDialogState
+
+  data class TransactionWarning(
+    val account: AccountEntity
+  ) : AccountDialogState
+
+  data class OverflowMenu(
+    val account: AccountEntity
+  ) : AccountDialogState
+
+  data class PendingDelete(
+    val account: AccountEntity
+  ) : AccountDialogState
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod")
@@ -133,22 +161,18 @@ fun AccountManagementScreen(
   modifier: Modifier = Modifier
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
-  var showAddDialog by remember { mutableStateOf(false) }
-  var editingAccount by remember { mutableStateOf<AccountEntity?>(null) }
-  var showDeleteConfirmation by remember { mutableStateOf<AccountEntity?>(null) }
-  var showTransactionWarning by remember { mutableStateOf<AccountEntity?>(null) }
-  var pendingDeleteAccount by remember { mutableStateOf<AccountEntity?>(null) }
-  var overflowMenuAccount by remember { mutableStateOf<AccountEntity?>(null) }
+  var dialogState by remember { mutableStateOf<AccountDialogState>(AccountDialogState.None) }
 
-  pendingDeleteAccount?.let { account ->
-    androidx.compose.runtime.LaunchedEffect(account) {
-      accountViewModel.canDeleteAccount(account.id) { canDelete ->
-        pendingDeleteAccount = null
-        if (canDelete) {
-          showDeleteConfirmation = account
-        } else {
-          showTransactionWarning = account
-        }
+  val currentDialog = dialogState
+  if (currentDialog is AccountDialogState.PendingDelete) {
+    LaunchedEffect(currentDialog.account) {
+      accountViewModel.canDeleteAccount(currentDialog.account.id) { canDelete ->
+        dialogState =
+          if (canDelete) {
+            AccountDialogState.DeleteConfirmation(currentDialog.account)
+          } else {
+            AccountDialogState.TransactionWarning(currentDialog.account)
+          }
       }
     }
   }
@@ -167,7 +191,7 @@ fun AccountManagementScreen(
     },
     floatingActionButton = {
       FloatingActionButton(
-        onClick = { showAddDialog = true },
+        onClick = { dialogState = AccountDialogState.Add },
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary
       ) {
@@ -179,126 +203,104 @@ fun AccountManagementScreen(
       accounts = accounts,
       modifier = modifier,
       innerPadding = innerPadding,
-      onOverflowClick = { overflowMenuAccount = it }
+      onOverflowClick = { dialogState = AccountDialogState.OverflowMenu(it) }
     )
   }
 
   AccountManagementDialogs(
-    showAddDialog = showAddDialog,
-    editingAccount = editingAccount,
-    showDeleteConfirmation = showDeleteConfirmation,
-    showTransactionWarning = showTransactionWarning,
-    overflowMenuAccount = overflowMenuAccount,
-    onDismissAddDialog = { showAddDialog = false },
-    onDismissEditing = { editingAccount = null },
-    onDismissDelete = { showDeleteConfirmation = null },
-    onDismissTransactionWarning = { showTransactionWarning = null },
-    onDismissOverflow = { overflowMenuAccount = null },
-    onSaveAccount = { name, type, bankName, cardNumber, accountNumber, iban, initialBalance, color ->
+    dialogState = dialogState,
+    onDismiss = { dialogState = AccountDialogState.None },
+    onSaveAccount = { form ->
       accountViewModel.addAccount(
-        name = name,
-        type = type,
-        bankName = bankName,
-        cardNumber = cardNumber,
-        accountNumber = accountNumber,
-        iban = iban,
-        initialBalance = initialBalance,
-        color = color
+        name = form.name,
+        type = form.type,
+        bankName = form.bankName,
+        cardNumber = form.cardNumber,
+        accountNumber = form.accountNumber,
+        iban = form.iban,
+        initialBalance = form.initialBalance,
+        color = form.color
       )
-      showAddDialog = false
+      dialogState = AccountDialogState.None
     },
-    onUpdateAccount = { name, type, bankName, cardNumber, accountNumber, iban, initialBalance, color ->
+    onUpdateAccount = { account, form ->
       accountViewModel.updateAccount(
-        editingAccount!!.copy(
-          name = name,
-          type = type,
-          bankName = bankName,
-          cardNumber = cardNumber,
-          accountNumber = accountNumber,
-          iban = iban,
-          initialBalance = initialBalance,
-          color = color
+        account.copy(
+          name = form.name,
+          type = form.type,
+          bankName = form.bankName,
+          cardNumber = form.cardNumber,
+          accountNumber = form.accountNumber,
+          iban = form.iban,
+          initialBalance = form.initialBalance,
+          color = form.color
         )
       )
-      editingAccount = null
+      dialogState = AccountDialogState.None
     },
-    onDeleteAccount = { accountViewModel.deleteAccount(showDeleteConfirmation!!) },
-    onEditFromOverflow = {
-      editingAccount = overflowMenuAccount
-      overflowMenuAccount = null
-    },
-    onArchiveFromOverflow = {
-      accountViewModel.archiveAccount(overflowMenuAccount!!)
-      overflowMenuAccount = null
-    },
-    onDeleteFromOverflow = {
-      pendingDeleteAccount = overflowMenuAccount
-      overflowMenuAccount = null
+    onDeleteAccount = { account -> accountViewModel.deleteAccount(account) },
+    onOverflowAction = { account, action ->
+      dialogState = AccountDialogState.None
+      when (action) {
+        OverflowAction.EDIT -> dialogState = AccountDialogState.Edit(account)
+        OverflowAction.ARCHIVE -> accountViewModel.archiveAccount(account)
+        OverflowAction.DELETE -> dialogState = AccountDialogState.PendingDelete(account)
+      }
     },
   )
 }
 
+private enum class OverflowAction { EDIT, ARCHIVE, DELETE }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountManagementDialogs(
-  showAddDialog: Boolean,
-  editingAccount: AccountEntity?,
-  showDeleteConfirmation: AccountEntity?,
-  showTransactionWarning: AccountEntity?,
-  overflowMenuAccount: AccountEntity?,
-  onDismissAddDialog: () -> Unit,
-  onDismissEditing: () -> Unit,
-  onDismissDelete: () -> Unit,
-  onDismissTransactionWarning: () -> Unit,
-  onDismissOverflow: () -> Unit,
-  onSaveAccount: (String, AccountType, String?, String?, String?, String?, Long, Long) -> Unit,
-  onUpdateAccount: (String, AccountType, String?, String?, String?, String?, Long, Long) -> Unit,
-  onDeleteAccount: () -> Unit,
-  onEditFromOverflow: () -> Unit,
-  onArchiveFromOverflow: () -> Unit,
-  onDeleteFromOverflow: () -> Unit,
+  dialogState: AccountDialogState,
+  onDismiss: () -> Unit,
+  onSaveAccount: (AccountFormData) -> Unit,
+  onUpdateAccount: (AccountEntity, AccountFormData) -> Unit,
+  onDeleteAccount: (AccountEntity) -> Unit,
+  onOverflowAction: (AccountEntity, OverflowAction) -> Unit,
 ) {
-  val account = overflowMenuAccount
-  if (showAddDialog) {
-    AccountDialog(
-      initialAccount = null,
-      onDismiss = onDismissAddDialog,
-      onSave = onSaveAccount
-    )
-  }
-  if (editingAccount != null) {
-    AccountDialog(
-      initialAccount = editingAccount,
-      onDismiss = onDismissEditing,
-      onSave = onUpdateAccount
-    )
-  }
-  if (showDeleteConfirmation != null) {
-    ConfirmDialog(
-      title = "حذف حساب",
-      message = "آیا از حذف حساب «${showDeleteConfirmation.name}» اطمینان دارید؟",
-      confirmText = "حذف",
-      dismissText = "انصراف",
-      onDismiss = onDismissDelete,
-      onConfirm = {
-        onDeleteAccount()
-        onDismissDelete()
-      }
-    )
-  }
-  if (showTransactionWarning != null) {
-    TransactionWarningDialog(
-      accountName = showTransactionWarning.name,
-      onDismiss = onDismissTransactionWarning
-    )
-  }
-  if (account != null) {
-    AccountOverflowMenu(
-      onDismiss = onDismissOverflow,
-      onEdit = onEditFromOverflow,
-      onArchive = onArchiveFromOverflow,
-      onDelete = onDeleteFromOverflow
-    )
+  when (dialogState) {
+    AccountDialogState.None -> {}
+    AccountDialogState.Add ->
+      AccountDialog(
+        initialAccount = null,
+        onDismiss = onDismiss,
+        onSave = onSaveAccount
+      )
+    is AccountDialogState.Edit ->
+      AccountDialog(
+        initialAccount = dialogState.account,
+        onDismiss = onDismiss,
+        onSave = { form -> onUpdateAccount(dialogState.account, form) }
+      )
+    is AccountDialogState.DeleteConfirmation ->
+      ConfirmDialog(
+        title = "حذف حساب",
+        message = "آیا از حذف حساب «${dialogState.account.name}» اطمینان دارید؟",
+        confirmText = "حذف",
+        dismissText = "انصراف",
+        onDismiss = onDismiss,
+        onConfirm = {
+          onDeleteAccount(dialogState.account)
+          onDismiss()
+        }
+      )
+    is AccountDialogState.TransactionWarning ->
+      TransactionWarningDialog(
+        accountName = dialogState.account.name,
+        onDismiss = onDismiss
+      )
+    is AccountDialogState.OverflowMenu ->
+      AccountOverflowMenu(
+        onDismiss = onDismiss,
+        onEdit = { onOverflowAction(dialogState.account, OverflowAction.EDIT) },
+        onArchive = { onOverflowAction(dialogState.account, OverflowAction.ARCHIVE) },
+        onDelete = { onOverflowAction(dialogState.account, OverflowAction.DELETE) }
+      )
+    is AccountDialogState.PendingDelete -> {}
   }
 }
 
@@ -489,16 +491,7 @@ private fun TransactionWarningDialog(
 private fun AccountDialog(
   initialAccount: AccountEntity?,
   onDismiss: () -> Unit,
-  onSave: (
-    name: String,
-    type: AccountType,
-    bankName: String?,
-    cardNumber: String?,
-    accountNumber: String?,
-    iban: String?,
-    initialBalance: Long,
-    color: Long
-  ) -> Unit
+  onSave: (AccountFormData) -> Unit
 ) {
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -521,16 +514,7 @@ private fun AccountDialog(
 @Composable
 private fun AccountDialogForm(
   initialAccount: AccountEntity?,
-  onSave: (
-    name: String,
-    type: AccountType,
-    bankName: String?,
-    cardNumber: String?,
-    accountNumber: String?,
-    iban: String?,
-    initialBalance: Long,
-    color: Long
-  ) -> Unit
+  onSave: (AccountFormData) -> Unit
 ) {
   var name by remember { mutableStateOf(initialAccount?.name.orEmpty()) }
   var selectedType by remember { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
@@ -591,18 +575,17 @@ private fun AccountDialogForm(
     AccountDialogPreviewRow(name = name, selectedType = selectedType, selectedColor = selectedColor)
     HesabyarButton(
       onClick = {
-        val trimmedName = name.trim()
-        val trimmedBalance = initialBalance.trim()
-        val balanceLong = trimmedBalance.toLongOrNull() ?: 0L
         onSave(
-          trimmedName,
-          selectedType,
-          bankName.trim().ifBlank { null },
-          cardNumber.trim().ifBlank { null },
-          accountNumber.trim().ifBlank { null },
-          iban.trim().ifBlank { null },
-          balanceLong,
-          selectedColor
+          AccountFormData(
+            name = name.trim(),
+            type = selectedType,
+            bankName = bankName.trim().ifBlank { null },
+            cardNumber = cardNumber.trim().ifBlank { null },
+            accountNumber = accountNumber.trim().ifBlank { null },
+            iban = iban.trim().ifBlank { null },
+            initialBalance = initialBalance.trim().toLongOrNull() ?: 0L,
+            color = selectedColor
+          )
         )
       },
       text = "ذخیره",

@@ -1,11 +1,12 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,21 +24,19 @@ fun AccountSelector(
   onAccountSelected: (Long?) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  LazyRow(
-    modifier = modifier,
+  Row(
+    modifier = modifier.horizontalScroll(rememberScrollState()),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    item {
-      HesabyarChip(
-        selected = selectedAccountId == null,
-        onClick = { onAccountSelected(null) },
-        label = "همه حساب‌ها",
-        shape = ShapeTokens.Small,
-      )
-    }
+    HesabyarChip(
+      selected = selectedAccountId == null,
+      onClick = { onAccountSelected(null) },
+      label = "همه حساب‌ها",
+      shape = ShapeTokens.Small,
+    )
 
-    items(accounts.filter { !it.isArchived }) { account ->
+    accounts.filter { !it.isArchived }.forEach { account ->
       HesabyarChip(
         selected = selectedAccountId == account.id,
         onClick = { onAccountSelected(account.id) },

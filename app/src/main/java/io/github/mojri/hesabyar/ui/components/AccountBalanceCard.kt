@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,16 +56,6 @@ fun AccountBalanceCard(
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Box(
-          modifier =
-            Modifier
-              .size(36.dp)
-              .background(accentColor, ShapeTokens.Small),
-          contentAlignment = Alignment.Center,
-        ) {
-          // Empty accent indicator box
-        }
-
         Column(
           modifier = Modifier.weight(1f),
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
