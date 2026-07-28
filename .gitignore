@@ -35,6 +35,9 @@ keystore-backups/my-upload-key.jks.bak
 # Claude Code
 .claude/
 
+# ZCode
+.zcode/
+
 # Serena
 .serena/
 
