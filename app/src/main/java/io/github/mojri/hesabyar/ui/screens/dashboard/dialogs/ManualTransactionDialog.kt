@@ -45,6 +45,7 @@ internal fun ManualTransactionDialog(
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
+  var destinationAccountId by remember { mutableStateOf<Long?>(null) }
   val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
   var amountValue by remember {
     mutableStateOf(
@@ -63,12 +64,19 @@ internal fun ManualTransactionDialog(
   var isSubmitting by remember { mutableStateOf(false) }
 
   val filteredCategories =
-    categories.filter { cat ->
-      when (selectedType) {
-        TransactionType.INCOME.name -> cat.type == CategoryType.INCOME || cat.type == CategoryType.BOTH
-        TransactionType.EXPENSE.name -> cat.type == CategoryType.EXPENSE || cat.type == CategoryType.BOTH
-        else -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other"
-      }
+    when (selectedType) {
+      TransactionType.INCOME.name ->
+        categories.filter { cat ->
+          cat.type == CategoryType.INCOME ||
+            cat.type == CategoryType.BOTH
+        }
+      TransactionType.EXPENSE.name ->
+        categories.filter { cat ->
+          cat.type == CategoryType.EXPENSE ||
+            cat.type == CategoryType.BOTH
+        }
+      "TRANSFER" -> emptyList()
+      else -> categories.filter { cat -> cat.key == "Loans" || cat.key == "Installments" || cat.key == "Other" }
     }
 
   val typeColor = resolveDialogTypeColor(selectedType)
@@ -101,6 +109,15 @@ internal fun ManualTransactionDialog(
                   CurrencyFormatter.toRial(finalAmountDisplay)
                 }
 
+              if (selectedType == "TRANSFER" &&
+                destinationAccountId != null &&
+                destinationAccountId == selectedAccountId
+              ) {
+                showToast(context, "حساب مبدا و مقصد نمی‌توانند یکسان باشند")
+                isSubmitting = false
+                return@launch
+              }
+
               val request =
                 SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
                   amountDisplay = finalAmountDisplay,
@@ -114,7 +131,8 @@ internal fun ManualTransactionDialog(
                   customDate = customDate,
                   categories = categories,
                   transactionToEdit = transactionToEdit,
-                  accountId = selectedAccountId ?: 1L
+                  accountId = selectedAccountId ?: 1L,
+                  destinationAccountId = destinationAccountId
                 )
 
               val submitResult = onSubmit(request)
@@ -156,6 +174,15 @@ internal fun ManualTransactionDialog(
         accounts = accounts,
         selectedAccountId = selectedAccountId,
         onAccountSelected = onAccountSelected
+      )
+    }
+
+    if (selectedType == "TRANSFER") {
+      DestinationAccountSelector(
+        accounts = accounts,
+        sourceAccountId = selectedAccountId ?: 1L,
+        selectedDestinationAccountId = destinationAccountId,
+        onDestinationAccountSelected = { destinationAccountId = it }
       )
     }
 
@@ -209,6 +236,7 @@ private fun resolveDialogTypeColor(selectedType: String) =
   when (selectedType) {
     "INCOME", "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
     "EXPENSE", "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+    "TRANSFER" -> MaterialTheme.colorScheme.tertiary
     else -> MaterialTheme.colorScheme.tertiary
   }
 

@@ -31,7 +31,8 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
         | TransactionType::Income
         | TransactionType::LoanDebtor
         | TransactionType::LoanCreditor
-        | TransactionType::Installment => {}
+        | TransactionType::Installment
+        | TransactionType::Transfer => {}
     }
     if tx.date <= 0 {
         return Err("Transaction date must be positive".into());
@@ -98,13 +99,14 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
     if result.amount <= 0 {
         return Err("ParsedResult amount must be positive".into());
     }
-    // All five TransactionType variants are valid.
+    // All six TransactionType variants are valid.
     match result.tx_type {
         TransactionType::Expense
         | TransactionType::Income
         | TransactionType::LoanDebtor
         | TransactionType::LoanCreditor
-        | TransactionType::Installment => {}
+        | TransactionType::Installment
+        | TransactionType::Transfer => {}
     }
     if result.category.is_empty() {
         return Err("ParsedResult category must not be empty".into());
@@ -426,6 +428,7 @@ mod tests {
             TransactionType::LoanDebtor,
             TransactionType::LoanCreditor,
             TransactionType::Installment,
+            TransactionType::Transfer,
         ] {
             let mut tx = make_tx(50000, "test", 1);
             tx.tx_type = tx_type;

@@ -138,6 +138,7 @@ object RustMappers {
   fun mapTransactionType(type: TransactionType): io.github.mojri.hesabyar.rust.TransactionType =
     when (type) {
       TransactionType.UNKNOWN -> io.github.mojri.hesabyar.rust.TransactionType.EXPENSE
+      TransactionType.TRANSFER -> io.github.mojri.hesabyar.rust.TransactionType.TRANSFER
       else ->
         io.github.mojri.hesabyar.rust.TransactionType
           .valueOf(type.name)
@@ -242,6 +243,7 @@ object RustMappers {
   private fun toKotlinTransactionType(rustName: String): TransactionType =
     when (rustName) {
       "INCOME", "LOAN_CREDITOR" -> TransactionType.INCOME
+      "Transfer", "TRANSFER" -> TransactionType.TRANSFER
       else -> TransactionType.EXPENSE
     }
 

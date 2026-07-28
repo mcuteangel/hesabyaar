@@ -30,6 +30,8 @@ pub enum TransactionType {
     LoanCreditor,
     #[serde(alias = "Installment")]
     Installment,
+    #[serde(alias = "Transfer")]
+    Transfer,
 }
 
 impl TransactionType {
@@ -40,6 +42,7 @@ impl TransactionType {
             Self::LoanDebtor => "LOAN_DEBTOR",
             Self::LoanCreditor => "LOAN_CREDITOR",
             Self::Installment => "INSTALLMENT",
+            Self::Transfer => "TRANSFER",
         }
     }
 
@@ -49,6 +52,7 @@ impl TransactionType {
             "LOAN_DEBTOR" => Self::LoanDebtor,
             "LOAN_CREDITOR" => Self::LoanCreditor,
             "INSTALLMENT" => Self::Installment,
+            "TRANSFER" => Self::Transfer,
             _ => Self::Expense,
         }
     }

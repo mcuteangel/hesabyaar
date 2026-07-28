@@ -59,9 +59,14 @@ pub fn compute_dashboard_data(
         jalali_to_month_start_ms(jy + 1, 1)
     };
 
-    // Filter transactions by account_id if provided
+    // Filter transactions by account_id if provided.
+    // Include both source (account_id) and destination (destination_account_id) transactions
+    // for per-account views so transfers show correctly from both sides.
     let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
-        transactions.iter().filter(|tx| tx.account_id == acc_id).collect()
+        transactions
+            .iter()
+            .filter(|tx| tx.account_id == acc_id || tx.destination_account_id == Some(acc_id))
+            .collect()
     } else {
         transactions.iter().collect()
     };
@@ -85,6 +90,9 @@ pub fn compute_dashboard_data(
                     monthly_expenses += tx.amount;
                 }
             }
+            // Transfer is balance-neutral for the overall view (money stays within
+            // the system). Per-account balances handle debits/credits separately.
+            TransactionType::Transfer => {}
             _ => {}
         }
     }
@@ -159,9 +167,12 @@ fn compute_account_summaries(
         .iter()
         .filter(|a| !a.is_archived)
         .map(|account| {
+            // Collect transactions where this account is the source OR the destination
             let account_txs: Vec<&Transaction> = transactions
                 .iter()
-                .filter(|tx| tx.account_id == account.id)
+                .filter(|tx| {
+                    tx.account_id == account.id || tx.destination_account_id == Some(account.id)
+                })
                 .collect();
 
             let mut balance = account.initial_balance;
@@ -171,15 +182,37 @@ fn compute_account_summaries(
             for tx in &account_txs {
                 match tx.tx_type {
                     TransactionType::Income => {
-                        balance += tx.amount;
-                        if tx.date >= month_start_ms && tx.date < month_end_ms {
-                            monthly_income += tx.amount;
+                        // Only credit when this account is the source (regular income)
+                        if tx.account_id == account.id {
+                            balance += tx.amount;
+                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                                monthly_income += tx.amount;
+                            }
                         }
                     }
                     TransactionType::Expense => {
-                        balance -= tx.amount;
-                        if tx.date >= month_start_ms && tx.date < month_end_ms {
-                            monthly_expenses += tx.amount;
+                        // Only debit when this account is the source (regular expense)
+                        if tx.account_id == account.id {
+                            balance -= tx.amount;
+                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                                monthly_expenses += tx.amount;
+                            }
+                        }
+                    }
+                    TransactionType::Transfer => {
+                        // Source account: debit (money leaves)
+                        if tx.account_id == account.id {
+                            balance -= tx.amount;
+                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                                monthly_expenses += tx.amount;
+                            }
+                        }
+                        // Destination account: credit (money arrives)
+                        if tx.destination_account_id == Some(account.id) {
+                            balance += tx.amount;
+                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                                monthly_income += tx.amount;
+                            }
                         }
                     }
                     _ => {}

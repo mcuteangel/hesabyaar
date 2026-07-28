@@ -110,6 +110,7 @@ fn map_tx_type(s: &str) -> TransactionType {
         "LOAN_DEBTOR" => TransactionType::LoanDebtor,
         "LOAN_CREDITOR" => TransactionType::LoanCreditor,
         "INSTALLMENT" => TransactionType::Installment,
+        "TRANSFER" => TransactionType::Transfer,
         _ => TransactionType::Expense,
     }
 }
@@ -172,7 +173,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     let type_str = raw.tx_type.unwrap_or_else(|| "EXPENSE".to_string());
     let was_type_repaired = !matches!(
         type_str.trim().to_uppercase().as_str(),
-        "EXPENSE" | "INCOME" | "LOAN_DEBTOR" | "LOAN_CREDITOR" | "INSTALLMENT"
+        "EXPENSE" | "INCOME" | "LOAN_DEBTOR" | "LOAN_CREDITOR" | "INSTALLMENT" | "TRANSFER"
     );
     if was_type_repaired {
         notes.push(format!("type '{}' → EXPENSE (unknown type)", type_str));
@@ -503,6 +504,7 @@ mod tests {
             ("LOAN_DEBTOR", TransactionType::LoanDebtor),
             ("LOAN_CREDITOR", TransactionType::LoanCreditor),
             ("INSTALLMENT", TransactionType::Installment),
+            ("TRANSFER", TransactionType::Transfer),
         ] {
             let json = format!(r#"{{"type": "{}", "amount": 1000, "category": "Food"}}"#, type_str);
             let result = parse_ai_transaction_json(&json).unwrap();
@@ -512,11 +514,11 @@ mod tests {
 
     #[test]
     fn test_unknown_type_repaired_to_expense() {
-        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Food"}"#;
+        let json = r#"{"type": "UNKNOWN_TYPE", "amount": 1000, "category": "Food"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
         assert!(result.was_repaired);
-        assert!(result.repair_notes.iter().any(|n| n.contains("TRANSFER")));
+        assert!(result.repair_notes.iter().any(|n| n.contains("UNKNOWN_TYPE")));
     }
 
     #[test]
@@ -524,6 +526,14 @@ mod tests {
         let json = r#"{"amount": 1000, "category": "Food"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
+    }
+
+    #[test]
+    fn test_transfer_type_recognized() {
+        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other"}"#;
+        let result = parse_ai_transaction_json(json).unwrap();
+        assert_eq!(result.result.tx_type, TransactionType::Transfer);
+        assert!(!result.was_repaired);
     }
 
     #[test]
@@ -855,11 +865,12 @@ mod tests {
         assert_eq!(map_tx_type("LOAN_DEBTOR"), TransactionType::LoanDebtor);
         assert_eq!(map_tx_type("LOAN_CREDITOR"), TransactionType::LoanCreditor);
         assert_eq!(map_tx_type("INSTALLMENT"), TransactionType::Installment);
+        assert_eq!(map_tx_type("TRANSFER"), TransactionType::Transfer);
     }
 
     #[test]
     fn test_map_tx_type_unknown() {
-        assert_eq!(map_tx_type("TRANSFER"), TransactionType::Expense);
+        assert_eq!(map_tx_type("UNKNOWN"), TransactionType::Expense);
         assert_eq!(map_tx_type(""), TransactionType::Expense);
     }
 }

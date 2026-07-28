@@ -42,9 +42,14 @@ pub fn compute_analytics(
 ) -> AnalyticsData {
     let category_map: HashMap<i64, &Category> = categories.iter().map(|c| (c.id, c)).collect();
 
-    // Filter transactions by account_id if provided
+    // Filter transactions by account_id if provided.
+    // Include both source (account_id) and destination (destination_account_id) transactions
+    // for per-account views so transfers show correctly from both sides.
     let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
-        transactions.iter().filter(|tx| tx.account_id == acc_id).collect()
+        transactions
+            .iter()
+            .filter(|tx| tx.account_id == acc_id || tx.destination_account_id == Some(acc_id))
+            .collect()
     } else {
         transactions.iter().collect()
     };
@@ -63,6 +68,8 @@ pub fn compute_analytics(
                 TransactionType::Expense => {
                     *monthly_expense.entry(key).or_insert(0) += tx.amount;
                 }
+                // Transfer is neutral for overall income/expense aggregation
+                TransactionType::Transfer => {}
                 _ => {}
             }
         }
@@ -212,9 +219,12 @@ fn compute_account_analytics(
         .iter()
         .filter(|a| !a.is_archived)
         .map(|account| {
+            // Collect transactions where this account is the source OR the destination
             let account_txs: Vec<&Transaction> = transactions
                 .iter()
-                .filter(|tx| tx.account_id == account.id)
+                .filter(|tx| {
+                    tx.account_id == account.id || tx.destination_account_id == Some(account.id)
+                })
                 .collect();
 
             // Monthly aggregation
@@ -226,10 +236,24 @@ fn compute_account_analytics(
                     let key = (jdate.year, jdate.month);
                     match tx.tx_type {
                         TransactionType::Income => {
-                            *monthly_income.entry(key).or_insert(0) += tx.amount;
+                            if tx.account_id == account.id {
+                                *monthly_income.entry(key).or_insert(0) += tx.amount;
+                            }
                         }
                         TransactionType::Expense => {
-                            *monthly_expense.entry(key).or_insert(0) += tx.amount;
+                            if tx.account_id == account.id {
+                                *monthly_expense.entry(key).or_insert(0) += tx.amount;
+                            }
+                        }
+                        TransactionType::Transfer => {
+                            // Source: debit (expense-like outflow)
+                            if tx.account_id == account.id {
+                                *monthly_expense.entry(key).or_insert(0) += tx.amount;
+                            }
+                            // Destination: credit (income-like inflow)
+                            if tx.destination_account_id == Some(account.id) {
+                                *monthly_income.entry(key).or_insert(0) += tx.amount;
+                            }
                         }
                         _ => {}
                     }
@@ -260,15 +284,17 @@ fn compute_account_analytics(
                 })
                 .collect();
 
-            // Category breakdown for this account
+            // Category breakdown for this account (expenses only, excluding transfers)
             let total_expense: i64 = account_txs
                 .iter()
-                .filter(|t| t.tx_type == TransactionType::Expense)
+                .filter(|t| t.tx_type == TransactionType::Expense && t.account_id == account.id)
                 .map(|t| t.amount)
                 .sum();
 
             let mut cat_totals: HashMap<i64, i64> = HashMap::new();
-            for tx in account_txs.iter().filter(|t| t.tx_type == TransactionType::Expense) {
+            for tx in account_txs.iter().filter(|t| {
+                t.tx_type == TransactionType::Expense && t.account_id == account.id
+            }) {
                 *cat_totals.entry(tx.category_id).or_insert(0) += tx.amount;
             }
 

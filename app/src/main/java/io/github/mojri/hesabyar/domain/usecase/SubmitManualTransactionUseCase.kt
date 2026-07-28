@@ -41,7 +41,8 @@ class SubmitManualTransactionUseCase(
     val customDate: Long,
     val categories: List<Category>,
     val transactionToEdit: Transaction? = null,
-    val accountId: Long = 1L
+    val accountId: Long = 1L,
+    val destinationAccountId: Long? = null
   )
 
   fun validate(request: SubmitManualTransactionRequest): ValidationResult {
@@ -49,9 +50,19 @@ class SubmitManualTransactionUseCase(
       amountError(request)
         ?: categoryError(request)
         ?: loanError(request)
-        ?: installmentTitleError(request)
-        ?: installmentDaysError(request)
+        ?: installmentError(request)
+        ?: transferError(request)
     return if (error != null) ValidationResult.Error(error) else ValidationResult.Valid
+  }
+
+  private fun installmentError(request: SubmitManualTransactionRequest): String? {
+    if (request.selectedType != "INSTALLMENT") return null
+    return when {
+      request.title.isBlank() -> "لطفا عنوان قسط را وارد کنید"
+      request.daysFromNowText.isNotBlank() && request.daysFromNowText.toLongOrNull() == null ->
+        "لطفا تعداد روزها را به صورت عدد وارد کنید"
+      else -> null
+    }
   }
 
   private fun amountError(request: SubmitManualTransactionRequest): String? {
@@ -78,19 +89,13 @@ class SubmitManualTransactionUseCase(
       null
     }
 
-  private fun installmentTitleError(request: SubmitManualTransactionRequest): String? =
-    if (request.selectedType == "INSTALLMENT" && request.title.isBlank()) {
-      "لطفا عنوان قسط را وارد کنید"
-    } else {
-      null
-    }
-
-  private fun installmentDaysError(request: SubmitManualTransactionRequest): String? =
-    if (request.selectedType == "INSTALLMENT" &&
-      request.daysFromNowText.isNotBlank() &&
-      request.daysFromNowText.toLongOrNull() == null
-    ) {
-      "لطفا تعداد روزها را به صورت عدد وارد کنید"
+  private fun transferError(request: SubmitManualTransactionRequest): String? =
+    if (request.selectedType == "TRANSFER") {
+      when {
+        request.destinationAccountId == null -> "لطفا حساب مقصد را انتخاب کنید"
+        request.destinationAccountId == request.accountId -> "حساب مبدا و مقصد نمی‌توانند یکسان باشند"
+        else -> null
+      }
     } else {
       null
     }
@@ -131,6 +136,21 @@ class SubmitManualTransactionUseCase(
           request.daysFromNowText,
           request.customDate
         )
+
+      "TRANSFER" -> {
+        val destAccountId = request.destinationAccountId
+        if (destAccountId == null) {
+          SubmitResult(success = false, errorMessage = "حساب مقصد مشخص نشده است")
+        } else {
+          submitTransfer(
+            request.amountRial,
+            request.descriptionText,
+            request.customDate,
+            request.accountId,
+            destAccountId
+          )
+        }
+      }
 
       else -> SubmitResult(success = false, errorMessage = "نوع تراکنش نامعتبر است")
     }
@@ -217,6 +237,28 @@ class SubmitManualTransactionUseCase(
         dueDate = dueDate,
         reminderEnabled = true,
         notes = descriptionText.trim()
+      )
+    }
+    return SubmitResult(success = true)
+  }
+
+  private suspend fun submitTransfer(
+    finalAmountRial: Long,
+    descriptionText: String,
+    customDate: Long,
+    sourceAccountId: Long,
+    destinationAccountId: Long
+  ): SubmitResult {
+    val desc = descriptionText.trim().ifEmpty { "انتقال وجه بین حساب‌ها" }
+    withContext(NonCancellable) {
+      manageTransaction.addTransaction(
+        type = TransactionType.TRANSFER,
+        categoryId = 0L,
+        amount = finalAmountRial,
+        description = desc,
+        customDate = customDate,
+        accountId = sourceAccountId,
+        destinationAccountId = destinationAccountId
       )
     }
     return SubmitResult(success = true)
