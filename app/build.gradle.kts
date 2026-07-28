@@ -31,17 +31,38 @@ fun runUniffiGen(
     )
   val pb = ProcessBuilder(cmd)
   pb.directory(rustDir)
-  pb.inheritIO()
-  return pb.start().waitFor()
+  // Redirect to temp files to avoid pipe-buffer deadlock on Windows
+  val stdoutTmp = File.createTempFile("uniffi-gen-stdout-", ".log")
+  val stderrTmp = File.createTempFile("uniffi-gen-stderr-", ".log")
+  stdoutTmp.deleteOnExit()
+  stderrTmp.deleteOnExit()
+  pb.redirectOutput(stdoutTmp)
+  pb.redirectError(stderrTmp)
+  val proc = pb.start()
+  val exitCode = proc.waitFor()
+  if (exitCode != 0) {
+    val stderrText = stderrTmp.readText().takeLast(4000)
+    throw GradleException("uniffi-gen failed (exit $exitCode)\n$stderrText")
+  }
+  return exitCode
 }
 
 fun buildHostLibrary() {
   logger.lifecycle("Step 1/4: Building host-native Rust library...")
   val cargoBuild = ProcessBuilder("cargo", "build", "--release")
   cargoBuild.directory(rustDir)
-  cargoBuild.inheritIO()
-  if (cargoBuild.start().waitFor() != 0) {
-    throw GradleException("cargo build --release failed")
+  // Redirect to temp files to avoid pipe-buffer deadlock on Windows
+  val stdoutTmp = File.createTempFile("cargo-build-stdout-", ".log")
+  val stderrTmp = File.createTempFile("cargo-build-stderr-", ".log")
+  stdoutTmp.deleteOnExit()
+  stderrTmp.deleteOnExit()
+  cargoBuild.redirectOutput(stdoutTmp)
+  cargoBuild.redirectError(stderrTmp)
+  val proc = cargoBuild.start()
+  val exitCode = proc.waitFor()
+  if (exitCode != 0) {
+    val stderrText = stderrTmp.readText().takeLast(4000)
+    throw GradleException("cargo build --release failed (exit $exitCode)\n$stderrText")
   }
 }
 
@@ -731,9 +752,28 @@ activeRustTargets.forEach { target ->
         )
       val pb = ProcessBuilder(cmd)
       pb.directory(rustDir)
-      pb.inheritIO()
-      val exitCode = pb.start().waitFor()
-      if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
+      // Redirect stdout/stderr to temp files instead of inheritIO().
+      // On Windows, cargo-ndk writes heavily to both streams; with inheritIO()
+      // the pipe buffers fill up and deadlock the child process — the .so files
+      // are produced but waitFor() never returns.
+      val stdoutTmp = File.createTempFile("cargo-ndk-stdout-", ".log")
+      val stderrTmp = File.createTempFile("cargo-ndk-stderr-", ".log")
+      stdoutTmp.deleteOnExit()
+      stderrTmp.deleteOnExit()
+      pb.redirectOutput(stdoutTmp)
+      pb.redirectError(stderrTmp)
+      val proc = pb.start()
+      val exitCode = proc.waitFor()
+      // Surface cargo-ndk output on failure so the error is diagnosable
+      if (exitCode != 0) {
+        val stderrText = stderrTmp.readText().takeLast(4000)
+        val stdoutText = stdoutTmp.readText().takeLast(2000)
+        throw GradleException(
+          "cargo ndk failed for ${target.abi} (exit $exitCode)\n" +
+            "--- stderr (last 4000 chars) ---\n$stderrText\n" +
+            "--- stdout (last 2000 chars) ---\n$stdoutText"
+        )
+      }
       val foundLib =
         outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
           ?: throw GradleException(
