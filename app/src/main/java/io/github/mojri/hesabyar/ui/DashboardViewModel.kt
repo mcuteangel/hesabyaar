@@ -59,12 +59,14 @@ class DashboardViewModel
         combine(accounts, _selectedAccountId) { accList, selectedId ->
           Pair(accList, selectedId)
         }
-      ) { core, _ ->
+      ) { core, (accList, selectedId) ->
         getDashboardDataUseCase.computeDashboardData(
           core.transactions,
           core.loans,
           core.installments,
           core.bankLoans,
+          accList,
+          selectedId,
         )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()

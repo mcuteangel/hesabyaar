@@ -48,6 +48,8 @@ class GetAnalyticsUseCase {
     installments: List<Installment>,
     categories: List<Category>,
     bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<io.github.mojri.hesabyar.data.AccountEntity> = emptyList(),
+    accountId: Long? = null,
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -60,6 +62,8 @@ class GetAnalyticsUseCase {
         io.github.mojri.hesabyar.rust.RustMappers
           .mapCategories(categories),
         bankLoans,
+        accounts,
+        accountId,
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank

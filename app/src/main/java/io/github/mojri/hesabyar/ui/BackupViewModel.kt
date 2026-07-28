@@ -151,11 +151,13 @@ class BackupViewModel
               val loanCount = it.optJSONArray("loans")?.length() ?: 0
               val instCount = it.optJSONArray("installments")?.length() ?: 0
               val catCount = it.optJSONArray("categories")?.length() ?: 0
+              val accountCount = it.optJSONArray("accounts")?.length() ?: 0
               "پشتیبان با موفقیت ذخیره شد. ${manageBackupUseCase.buildExportSummary(
                 txCount,
                 loanCount,
                 instCount,
-                catCount
+                catCount,
+                accountCount = accountCount
               )}"
             }
 

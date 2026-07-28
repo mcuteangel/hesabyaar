@@ -212,6 +212,7 @@ class HesabyarRepository(
       installmentDao.deleteAllInstallments()
       paymentHistoryDao.deleteAllPaymentHistory()
       bankLoanDao.deleteAllBankLoans()
+      accountDao.deleteAllAccounts()
 
       backup.categories.forEach { categoryDao.insertCategory(it) }
       backup.transactions.forEach { transactionDao.insertTransaction(it) }
@@ -219,6 +220,7 @@ class HesabyarRepository(
       backup.installments.forEach { installmentDao.insertInstallment(it) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
+      backup.accounts.forEach { accountDao.insert(it) }
     }
 
   /**
@@ -280,6 +282,16 @@ class HesabyarRepository(
           continue
         }
         paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
+      }
+
+      // Merge accounts: update existing by name match, insert new ones
+      for (account in backup.accounts) {
+        val existing = accountDao.getAllAccountsBlocking().firstOrNull { it.name == account.name }
+        if (existing != null) {
+          accountDao.update(account.copy(id = existing.id))
+        } else {
+          accountDao.insert(account.copy(id = 0))
+        }
       }
     }
 }

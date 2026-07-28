@@ -74,13 +74,15 @@ class AnalyticsViewModel
         combine(accounts, _selectedAccountId) { accList, selectedId ->
           Pair(accList, selectedId)
         }
-      ) { data, _ ->
+      ) { data, (accList, selectedId) ->
         getAnalyticsUseCase.computeAnalytics(
           data.first,
           data.second,
           data.third,
           data.fourth,
           data.fifth,
+          accList,
+          selectedId,
         )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()

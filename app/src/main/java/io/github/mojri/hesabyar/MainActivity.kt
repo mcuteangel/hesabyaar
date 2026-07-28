@@ -34,6 +34,7 @@ import io.github.mojri.hesabyar.reminder.ReminderScheduler
 import io.github.mojri.hesabyar.ui.*
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.screens.*
+import io.github.mojri.hesabyar.ui.screens.account.AccountManagementScreen
 import io.github.mojri.hesabyar.ui.theme.HesabyarTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -55,6 +56,7 @@ class MainActivity : FragmentActivity() {
   private val exportViewModel: ExportViewModel by viewModels()
   private val analyticsViewModel: AnalyticsViewModel by viewModels()
   private val bankLoanViewModel: BankLoanViewModel by viewModels()
+  private val accountViewModel: AccountViewModel by viewModels()
 
   private val notificationPermissionLauncher =
     registerForActivityResult(
@@ -106,11 +108,18 @@ class MainActivity : FragmentActivity() {
             var currentTab by remember { mutableStateOf(startTab) }
             var debtSection by remember { mutableStateOf(startDebtSection) }
             var showCategoryManagement by remember { mutableStateOf(false) }
+            var showAccountManagement by remember { mutableStateOf(false) }
 
             if (showCategoryManagement) {
               CategoryManagementScreen(
                 categoryViewModel = categoryViewModel,
                 onBack = { showCategoryManagement = false },
+                modifier = Modifier.fillMaxSize()
+              )
+            } else if (showAccountManagement) {
+              AccountManagementScreen(
+                accountViewModel = accountViewModel,
+                onBack = { showAccountManagement = false },
                 modifier = Modifier.fillMaxSize()
               )
             } else {
@@ -197,6 +206,15 @@ class MainActivity : FragmentActivity() {
                       headlineContent = { Text("گزارش‌ها") },
                       leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
                       modifier = Modifier.clickable { onSelect("REPORTS") }
+                    )
+                    ListItem(
+                      headlineContent = { Text("مدیریت حساب‌ها") },
+                      leadingContent = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null) },
+                      modifier =
+                        Modifier.clickable {
+                          showMoreMenu = false
+                          showAccountManagement = true
+                        }
                     )
                     ListItem(
                       headlineContent = { Text("تنظیمات") },

@@ -206,6 +206,9 @@ interface AccountDao {
   @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId OR destinationAccountId = :accountId")
   suspend fun getTransactionCountForAccount(accountId: Long): Int
 
+  @Query("DELETE FROM accounts")
+  suspend fun deleteAllAccounts()
+
   @Query("SELECT * FROM accounts ORDER BY displayOrder, name")
   fun getAllAccountsBlocking(): List<AccountEntity>
 

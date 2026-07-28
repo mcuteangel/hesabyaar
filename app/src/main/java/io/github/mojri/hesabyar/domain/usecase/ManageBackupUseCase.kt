@@ -26,6 +26,10 @@ class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface,
   private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+  private companion object {
+    const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L
+  }
+
   suspend fun parseBackupJson(jsonString: String): BackupPayload? =
     withContext(dispatcher) {
       val rustResult =
@@ -67,6 +71,11 @@ class ManageBackupUseCase(
               rustResult.bankLoans.map {
                 io.github.mojri.hesabyar.rust.RustMappers
                   .fromRustBankLoan(it)
+              },
+            accounts =
+              rustResult.accounts.map {
+                io.github.mojri.hesabyar.rust.RustMappers
+                  .fromRustAccount(it)
               },
             settings = parseSettings(rootJson)
           )
@@ -118,6 +127,7 @@ class ManageBackupUseCase(
         paymentHistories = parsePaymentHistories(root),
         categories = parseCategories(root),
         bankLoans = parseBankLoansFromJson(root),
+        accounts = parseAccountsFromJson(root),
         settings = parseSettings(root)
       )
     } catch (_: Exception) {
@@ -227,6 +237,35 @@ class ManageBackupUseCase(
           startDate = o.optLong("startDate", 0L),
           description = o.optString("description", ""),
           isSettled = o.optBoolean("isSettled", false)
+        )
+      }
+    } ?: emptyList()
+
+  private fun parseAccountsFromJson(root: JSONObject): List<io.github.mojri.hesabyar.data.AccountEntity> =
+    root.optJSONArray("accounts")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        val type = parseType(o, io.github.mojri.hesabyar.data.AccountType.BANK)
+        io.github.mojri.hesabyar.data.AccountEntity(
+          id = o.optLong("id", 0L),
+          name = o.optString("name", ""),
+          type = type,
+          bankName = if (o.has("bankName") && !o.isNull("bankName")) o.optString("bankName") else null,
+          cardNumber = if (o.has("cardNumber") && !o.isNull("cardNumber")) o.optString("cardNumber") else null,
+          accountNumber =
+            if (o.has("accountNumber") &&
+              !o.isNull("accountNumber")
+            ) {
+              o.optString("accountNumber")
+            } else {
+              null
+            },
+          iban = if (o.has("iban") && !o.isNull("iban")) o.optString("iban") else null,
+          initialBalance = o.optLong("initialBalance", 0L),
+          color = o.optLong("color", DEFAULT_ACCOUNT_COLOR),
+          icon = if (o.has("icon") && !o.isNull("icon")) o.optString("icon") else null,
+          isArchived = o.optBoolean("isArchived", false),
+          displayOrder = o.optInt("displayOrder", 0)
         )
       }
     } ?: emptyList()
@@ -392,6 +431,7 @@ class ManageBackupUseCase(
     val curInstallments = repository.allInstallments.firstOrNull() ?: emptyList()
     val curBankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
     val allPayments = repository.getAllPaymentHistories()
+    val curAccounts = repository.allAccounts.firstOrNull() ?: emptyList()
 
     val catArray = JSONArray()
     curCategories.forEach {
@@ -495,6 +535,27 @@ class ManageBackupUseCase(
     }
     rootJson.put("paymentHistories", paymentsArray)
 
+    val accountsArray = JSONArray()
+    curAccounts.forEach {
+      accountsArray.put(
+        JSONObject().apply {
+          put("id", it.id)
+          put("name", it.name)
+          put("type", it.type.name)
+          put("bankName", it.bankName ?: JSONObject.NULL)
+          put("cardNumber", it.cardNumber ?: JSONObject.NULL)
+          put("accountNumber", it.accountNumber ?: JSONObject.NULL)
+          put("iban", it.iban ?: JSONObject.NULL)
+          put("initialBalance", it.initialBalance)
+          put("color", it.color)
+          put("icon", it.icon ?: JSONObject.NULL)
+          put("isArchived", it.isArchived)
+          put("displayOrder", it.displayOrder)
+        }
+      )
+    }
+    rootJson.put("accounts", accountsArray)
+
     return rootJson
   }
 
@@ -503,13 +564,15 @@ class ManageBackupUseCase(
   }
 
   fun buildBackupSummary(backup: BackupPayload): String =
-    "${backup.transactions.size} تراکنش، ${backup.loans.size} وام، ${backup.installments.size} قسط، ${backup.categories.size} دسته‌بندی، ${backup.bankLoans.size} وام بانکی بازیابی شد."
+    "${backup.transactions.size} تراکنش، ${backup.loans.size} وام، ${backup.installments.size} قسط، ${backup.categories.size} دسته‌بندی، ${backup.bankLoans.size} وام بانکی، ${backup.accounts.size} حساب بازیابی شد."
 
   fun buildExportSummary(
     transCount: Int,
     loanCount: Int,
     instCount: Int,
     catCount: Int,
-    bankLoanCount: Int = 0
-  ): String = "$transCount تراکنش، $loanCount وام، $instCount قسط، $catCount دسته‌بندی، $bankLoanCount وام بانکی"
+    bankLoanCount: Int = 0,
+    accountCount: Int = 0
+  ): String =
+    "$transCount تراکنش، $loanCount وام، $instCount قسط، $catCount دسته‌بندی، $bankLoanCount وام بانکی، $accountCount حساب"
 }

@@ -27,7 +27,8 @@ import io.github.mojri.hesabyar.ui.MonthlyData as KMonthlyData
 object RustMappers {
   fun mapDashboardData(
     rust: DashboardData,
-    installments: List<Installment>
+    installments: List<Installment>,
+    accounts: List<AccountEntity> = emptyList(),
   ): KDashboardData {
     val upcomingIns = installments.filter { !it.isPaid }.sortedBy { it.dueDate }
     return KDashboardData(
@@ -41,7 +42,7 @@ object RustMappers {
       debtToIncomeRatio = rust.debtToIncomeRatio,
       bankLoans = rust.bankLoans,
       bankLoansTotal = rust.bankLoansTotal,
-      accounts = rust.accounts.map { mapAccountDashboardSummary(it) },
+      accounts = rust.accounts.map { mapAccountDashboardSummary(it, accounts) },
       totalNetWorth = rust.totalNetWorth
     )
   }
@@ -320,6 +321,25 @@ object RustMappers {
   fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =
     list.map { fromRustPaymentHistory(it) }
 
+  fun fromRustAccount(rust: io.github.mojri.hesabyar.rust.Account): AccountEntity =
+    AccountEntity(
+      id = rust.id,
+      name = rust.name,
+      type = AccountType.valueOf(rust.accountType),
+      bankName = rust.bankName,
+      cardNumber = rust.cardNumber,
+      accountNumber = rust.accountNumber,
+      iban = rust.iban,
+      initialBalance = rust.initialBalance,
+      color = rust.color,
+      icon = rust.icon,
+      isArchived = rust.isArchived,
+      displayOrder = rust.displayOrder,
+    )
+
+  fun fromRustAccounts(list: List<io.github.mojri.hesabyar.rust.Account>): List<AccountEntity> =
+    list.map { fromRustAccount(it) }
+
   fun mapAccount(account: AccountEntity): io.github.mojri.hesabyar.rust.Account =
     io.github.mojri.hesabyar.rust.Account(
       id = account.id,
@@ -339,16 +359,21 @@ object RustMappers {
   fun mapAccounts(accounts: List<AccountEntity>): List<io.github.mojri.hesabyar.rust.Account> =
     accounts.map { mapAccount(it) }
 
-  fun mapAccountDashboardSummary(rust: io.github.mojri.hesabyar.rust.AccountDashboardSummary): AccountDashboardSummary =
-    AccountDashboardSummary(
+  fun mapAccountDashboardSummary(
+    rust: io.github.mojri.hesabyar.rust.AccountDashboardSummary,
+    accounts: List<AccountEntity> = emptyList(),
+  ): AccountDashboardSummary {
+    val accountColor = accounts.firstOrNull { it.id == rust.accountId }?.color ?: 0xFF4CAF50L
+    return AccountDashboardSummary(
       accountId = rust.accountId,
       accountName = rust.accountName,
       accountType = AccountType.valueOf(rust.accountType),
       balance = rust.balance,
       monthlyIncome = rust.monthlyIncome,
       monthlyExpenses = rust.monthlyExpenses,
-      accountColor = 0xFF4CAF50L,
+      accountColor = accountColor,
     )
+  }
 
   fun mapAccountAnalytics(rust: io.github.mojri.hesabyar.rust.AccountAnalytics): AccountAnalytics =
     AccountAnalytics(

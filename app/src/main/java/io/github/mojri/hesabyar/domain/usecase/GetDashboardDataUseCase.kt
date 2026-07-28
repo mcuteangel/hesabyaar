@@ -29,6 +29,8 @@ class GetDashboardDataUseCase(
     loans: List<Loan>,
     installments: List<Installment>,
     bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
+    accountId: Long? = null,
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
@@ -39,6 +41,8 @@ class GetDashboardDataUseCase(
         io.github.mojri.hesabyar.rust.RustMappers
           .mapInstallments(installments),
         bankLoans,
+        accounts,
+        accountId,
       )
 
     // Use the Rust result unless it failed (null) or came back as an all-zero
@@ -51,12 +55,12 @@ class GetDashboardDataUseCase(
         bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
-        .mapDashboardData(rustResult, installments)
+        .mapDashboardData(rustResult, installments, accounts)
     }
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    return computeFallbackDashboardData(transactions, loans, installments, bankLoans, emptyList())
+    return computeFallbackDashboardData(transactions, loans, installments, bankLoans, accounts)
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
