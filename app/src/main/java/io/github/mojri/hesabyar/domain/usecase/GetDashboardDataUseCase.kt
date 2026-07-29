@@ -31,6 +31,8 @@ class GetDashboardDataUseCase(
     bankLoans: List<BankLoan> = emptyList(),
     accounts: List<AccountEntity> = emptyList(),
     accountId: Long? = null,
+    includeArchived: Boolean = false,
+    nowMs: Long = System.currentTimeMillis(),
   ): DashboardData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
@@ -43,6 +45,8 @@ class GetDashboardDataUseCase(
         bankLoans,
         accounts,
         accountId,
+        includeArchived,
+        nowMs,
       )
 
     // Use the Rust result unless it failed (null) or came back as an all-zero
@@ -60,7 +64,15 @@ class GetDashboardDataUseCase(
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned
     // empty/invalid data. Computed directly from the local DB lists.
-    return computeFallbackDashboardData(transactions, loans, installments, bankLoans, accounts)
+    return computeFallbackDashboardData(
+      transactions,
+      loans,
+      installments,
+      bankLoans,
+      accounts,
+      now = nowMs,
+      includeArchived = includeArchived,
+    )
   }
 
   /** True when every field is at its zero/default, i.e. the Rust result is a
@@ -84,8 +96,11 @@ class GetDashboardDataUseCase(
       installments: List<Installment>,
       bankLoans: List<BankLoan> = emptyList(),
       accounts: List<AccountEntity> = emptyList(),
-      now: Long = System.currentTimeMillis()
+      now: Long = System.currentTimeMillis(),
+      includeArchived: Boolean = false,
     ): DashboardData {
+      val effectiveTransactions = filterArchivedTransactions(transactions, accounts, includeArchived)
+
       // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
       // matching the Rust core's compute_dashboard_data (which interprets
       // timestamps in UTC). Centralized in JalaliCalendarHelper so the fallback
@@ -94,7 +109,7 @@ class GetDashboardDataUseCase(
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
           .getUtcJalaliMonthBoundaries(now)
 
-      val monthlyTx = transactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEndExclusive }
+      val monthlyTx = effectiveTransactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEndExclusive }
       val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
       val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
@@ -102,9 +117,9 @@ class GetDashboardDataUseCase(
       val debtors = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
       val creditors = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
 
-      // currentBalance from all transactions (lifetime), not just the filtered month.
-      val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-      val totalExpenses = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+      // currentBalance from all effective transactions (lifetime), not just the filtered month.
+      val totalIncome = effectiveTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+      val totalExpenses = effectiveTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
       val currentBalance = totalIncome - totalExpenses
 
       val savingsRate =
@@ -148,7 +163,7 @@ class GetDashboardDataUseCase(
         debtToIncomeRatio = debtToIncome,
         bankLoans = toBankLoanSummaries(bankLoans, installments),
         bankLoansTotal = bankLoans.filter { !it.isSettled }.sumOf { it.totalRepayableAmount },
-        accounts = computeAccountSummaries(accounts, transactions),
+        accounts = computeAccountSummaries(accounts, effectiveTransactions, jalaliMonthStart, jalaliMonthEndExclusive),
         totalNetWorth = currentBalance
       )
     }
@@ -173,22 +188,89 @@ class GetDashboardDataUseCase(
           )
         }
 
+    private fun filterArchivedTransactions(
+      transactions: List<Transaction>,
+      accounts: List<AccountEntity>,
+      includeArchived: Boolean,
+    ): List<Transaction> {
+      if (includeArchived) return transactions
+      val archivedIds = accounts.filter { it.isArchived }.map { it.id }.toSet()
+      return transactions.filter { tx ->
+        tx.accountId !in archivedIds &&
+          (tx.destinationAccountId == null || tx.destinationAccountId !in archivedIds)
+      }
+    }
+
     private fun computeAccountSummaries(
       accounts: List<AccountEntity>,
-      transactions: List<Transaction>
+      transactions: List<Transaction>,
+      monthStartMs: Long,
+      monthEndMs: Long,
     ): List<AccountDashboardSummary> {
       if (accounts.isEmpty()) return emptyList()
-      return accounts.map { account ->
-        val accountTxs = transactions.filter { it.accountId == account.id }
-        AccountDashboardSummary(
-          accountId = account.id,
-          accountName = account.name,
-          accountType = account.type,
-          balance = account.initialBalance + accountTxs.sumOf { it.amount },
-          monthlyIncome = accountTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-          monthlyExpenses = accountTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount },
-          accountColor = account.color
-        )
+      return accounts
+        .filter { !it.isArchived }
+        .map { account ->
+          val accountTxs =
+            transactions.filter {
+              it.accountId == account.id || it.destinationAccountId == account.id
+            }
+          var balance = account.initialBalance
+          var monthlyIncome = 0L
+          var monthlyExpenses = 0L
+          for (tx in accountTxs) {
+            val inMonth = tx.date >= monthStartMs && tx.date < monthEndMs
+            val delta = balanceDeltaForAccount(tx, account.id)
+            balance += delta.balanceDelta
+            if (inMonth) {
+              monthlyIncome += delta.incomeDelta
+              monthlyExpenses += delta.expenseDelta
+            }
+          }
+          AccountDashboardSummary(
+            accountId = account.id,
+            accountName = account.name,
+            accountType = account.type,
+            balance = balance,
+            monthlyIncome = monthlyIncome,
+            monthlyExpenses = monthlyExpenses,
+            accountColor = account.color
+          )
+        }
+    }
+
+    private data class BalanceDelta(
+      val balanceDelta: Long,
+      val incomeDelta: Long,
+      val expenseDelta: Long,
+    )
+
+    private fun balanceDeltaForAccount(
+      tx: Transaction,
+      accountId: Long
+    ): BalanceDelta {
+      val isSource = tx.accountId == accountId
+      val isDest = tx.destinationAccountId == accountId
+      return when (tx.type) {
+        TransactionType.INCOME ->
+          if (isSource) BalanceDelta(tx.amount, tx.amount, 0L) else BalanceDelta(0L, 0L, 0L)
+        TransactionType.EXPENSE ->
+          if (isSource) BalanceDelta(-tx.amount, 0L, tx.amount) else BalanceDelta(0L, 0L, 0L)
+        TransactionType.TRANSFER -> {
+          var bal = 0L
+          var inc = 0L
+          var exp = 0L
+          if (isSource) {
+            bal -= tx.amount
+            exp += tx.amount
+          }
+          if (isDest) {
+            bal += tx.amount
+            inc += tx.amount
+          }
+          BalanceDelta(bal, inc, exp)
+        }
+        else -> BalanceDelta(0L, 0L, 0L)
       }
     }
   }

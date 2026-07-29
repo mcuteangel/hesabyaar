@@ -9,6 +9,12 @@ use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
 ///
 /// If `account_id` is provided, only transactions linked to that account are
 /// included. If `None`, all transactions are aggregated (total net worth view).
+///
+/// When `include_archived` is `false`, transactions belonging to archived
+/// accounts are excluded from **all** aggregates (balance, monthly income,
+/// monthly expenses) — not just from per-account summaries. This ensures
+/// current-state views (dashboard, BalanceCard) never leak archived data.
+/// Historical/report views should pass `true` to retain all transactions.
 pub fn compute_dashboard_data(
     transactions: &[Transaction],
     loans: &[Loan],
@@ -16,13 +22,10 @@ pub fn compute_dashboard_data(
     bank_loans: &[BankLoan],
     accounts: &[Account],
     account_id: Option<i64>,
+    include_archived: bool,
+    now_ms: i64,
 ) -> DashboardData {
     // --- Current Jalali month boundaries ---
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64;
-
     let (jy, jm) = match gregorian_to_jalali(now_ms) {
         Ok(jd) => (jd.year, jd.month),
         Err(_) => {
@@ -59,16 +62,42 @@ pub fn compute_dashboard_data(
         jalali_to_month_start_ms(jy + 1, 1)
     };
 
+    // When include_archived is false, exclude transactions whose source or
+    // destination account is archived. This must happen *before* the
+    // account_id filter so archived accounts never leak into totals.
+    let non_archived_txs: Vec<&Transaction> = if include_archived {
+        transactions.iter().collect()
+    } else {
+        let archived_ids: std::collections::HashSet<i64> = accounts
+            .iter()
+            .filter(|a| a.is_archived)
+            .map(|a| a.id)
+            .collect();
+        transactions
+            .iter()
+            .filter(|tx| {
+                !archived_ids.contains(&tx.account_id)
+                    && !archived_ids.contains(&tx.destination_account_id.unwrap_or(-1))
+            })
+            .collect()
+    };
+
+    // Compute per-account summaries using non_archived_txs (before account_id
+    // filter consumes the vec). Always exclude archived accounts from the card
+    // list (current-state view).
+    let account_summaries = compute_account_summaries(&non_archived_txs, accounts, month_start_ms, month_end_ms);
+    let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
+
     // Filter transactions by account_id if provided.
     // Include both source (account_id) and destination (destination_account_id) transactions
     // for per-account views so transfers show correctly from both sides.
     let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
-        transactions
-            .iter()
+        non_archived_txs
+            .into_iter()
             .filter(|tx| tx.account_id == acc_id || tx.destination_account_id == Some(acc_id))
             .collect()
     } else {
-        transactions.iter().collect()
+        non_archived_txs
     };
 
     // --- Aggregate transactions ---
@@ -137,10 +166,6 @@ pub fn compute_dashboard_data(
 
     let bank_loans = crate::analytics::build_bank_loan_summaries(bank_loans, installments);
 
-    // Compute per-account summaries and total net worth
-    let account_summaries = compute_account_summaries(transactions, accounts, month_start_ms, month_end_ms);
-    let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
-
     DashboardData {
         current_balance,
         monthly_expenses,
@@ -157,8 +182,10 @@ pub fn compute_dashboard_data(
 }
 
 /// Compute per-account balance and monthly income/expenses summaries.
+///
+/// Always excludes archived accounts — the card list is a current-state view.
 fn compute_account_summaries(
-    transactions: &[Transaction],
+    transactions: &[&Transaction],
     accounts: &[Account],
     month_start_ms: i64,
     month_end_ms: i64,
@@ -168,7 +195,7 @@ fn compute_account_summaries(
         .filter(|a| !a.is_archived)
         .map(|account| {
             // Collect transactions where this account is the source OR the destination
-            let account_txs: Vec<&Transaction> = transactions
+            let account_txs: Vec<&&Transaction> = transactions
                 .iter()
                 .filter(|tx| {
                     tx.account_id == account.id || tx.destination_account_id == Some(account.id)
@@ -179,7 +206,7 @@ fn compute_account_summaries(
             let mut monthly_income = 0i64;
             let mut monthly_expenses = 0i64;
 
-            for tx in &account_txs {
+            for tx in account_txs {
                 match tx.tx_type {
                     TransactionType::Income => {
                         // Only credit when this account is the source (regular income)
@@ -332,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_empty_transactions() {
-        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None, true, 0);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
         assert_eq!(result.monthly_expenses, 0);
@@ -355,7 +382,7 @@ mod tests {
             tx(2, TransactionType::Expense, 300_000, now_ms, 2),
             tx(3, TransactionType::Income, 500_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         // Balance = +1,000,000 - 300,000 + 500,000 = 1,200,000
         assert_eq!(result.current_balance, 1_200_000);
     }
@@ -369,7 +396,7 @@ mod tests {
             tx(3, TransactionType::LoanCreditor, 200_000, now_ms, 1),
             tx(4, TransactionType::Installment, 100_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         // Only Income contributes: +1,000,000
         assert_eq!(result.current_balance, 1_000_000);
     }
@@ -386,7 +413,7 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Income, 2_000_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         // Only current month income counted
         assert_eq!(result.monthly_income, 1_000_000);
     }
@@ -399,7 +426,7 @@ mod tests {
             tx(1, TransactionType::Expense, 500_000, now_ms, 1),
             tx(2, TransactionType::Expense, 300_000, old_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         assert_eq!(result.monthly_expenses, 500_000);
     }
 
@@ -410,14 +437,14 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now_ms, 1),
             tx(2, TransactionType::Expense, 400_000, now_ms, 1),
         ];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         // savings_rate = (1,000,000 - 400,000) / 1,000,000 = 0.6
         assert!((result.savings_rate - 0.6).abs() < 1e-10);
     }
 
     #[test]
     fn test_savings_rate_zero_income() {
-        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &[], None, true, 0);
         assert_eq!(result.savings_rate, 0.0);
     }
 
@@ -433,7 +460,7 @@ mod tests {
             loan(3, "CREDITOR", 3_000_000, 1_000_000, false),
             loan(4, "DEBTOR", 500_000, 100_000, true), // settled — excluded
         ];
-        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None);
+        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None, true, 0);
         assert_eq!(result.debtors_total, 2_500_000);  // 500k + 2M
         assert_eq!(result.creditors_total, 1_000_000);
     }
@@ -444,7 +471,7 @@ mod tests {
             loan(1, "DEBTOR", 1_000_000, 500_000, true),
             loan(2, "CREDITOR", 2_000_000, 1_000_000, true),
         ];
-        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None);
+        let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None, true, 0);
         assert_eq!(result.debtors_total, 0);
         assert_eq!(result.creditors_total, 0);
     }
@@ -459,7 +486,7 @@ mod tests {
         let txs = vec![tx(1, TransactionType::Income, 1_000_000, now_ms, 1)];
         let loans = vec![loan(1, "CREDITOR", 1_200_000, 600_000, false)];
         let installments = vec![installment(1, 100_000, now_ms, false)];
-        let result = compute_dashboard_data(&txs, &loans, &installments, &[], &[], None);
+        let result = compute_dashboard_data(&txs, &loans, &installments, &[], &[], None, true, now_ms);
         // monthly_debt_payments = 100k (installment) + 600k/12 ≈ 50k = 150k
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
@@ -493,7 +520,7 @@ mod tests {
             bank_loan(2, 2_000_000, false),
             bank_loan(3, 500_000, true), // settled — excluded
         ];
-        let result = compute_dashboard_data(&[], &[], &[], &bank_loans, &[], None);
+        let result = compute_dashboard_data(&[], &[], &[], &bank_loans, &[], None, true, 0);
         assert_eq!(result.bank_loans_total, 3_000_000);
         assert_eq!(result.bank_loans.len(), 3);
     }
@@ -508,7 +535,7 @@ mod tests {
         // The dashboard must not convert or interpret them.
         let now_ms = now_jalali_month_ms();
         let txs = vec![tx(1, TransactionType::Income, 100, now_ms, 1)];
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &[], None, true, now_ms);
         assert_eq!(result.monthly_income, 100);
         assert_eq!(result.current_balance, 100);
     }
@@ -554,17 +581,17 @@ mod tests {
         ];
 
         // Filter by account 1
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1));
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms);
         assert_eq!(result.current_balance, 1_000_000);
         assert_eq!(result.monthly_income, 1_000_000);
 
         // Filter by account 2
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2));
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms);
         assert_eq!(result.current_balance, 500_000);
         assert_eq!(result.monthly_income, 500_000);
 
         // No filter (all accounts)
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
         assert_eq!(result.current_balance, 1_500_000);
         assert_eq!(result.monthly_income, 1_500_000);
     }
@@ -618,7 +645,7 @@ mod tests {
             },
         ];
 
-        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
         assert_eq!(result.accounts.len(), 2);
 
         // Account 1: +1,000,000 - 200,000 = 800,000
@@ -657,7 +684,288 @@ mod tests {
             },
         ];
 
-        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None, false, 0);
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
+    }
+
+    /// Bug regression: archived-account transactions must NOT leak into
+    /// active account balance via compute_account_summaries.
+    #[test]
+    fn test_archived_txs_do_not_leak_into_active_account_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1, tx_type: TransactionType::Income, category_id: 1,
+                amount: 1_000_000, description: String::new(), person_name: None,
+                date: now_ms, due_date: None, installment_id: None,
+                account_id: 1, destination_account_id: None,
+            },
+            Transaction {
+                id: 2, tx_type: TransactionType::Expense, category_id: 2,
+                amount: 300_000, description: String::new(), person_name: None,
+                date: now_ms, due_date: None, installment_id: None,
+                account_id: 1, destination_account_id: None,
+            },
+            Transaction {
+                id: 3, tx_type: TransactionType::Transfer, category_id: 1,
+                amount: 500_000, description: String::new(), person_name: None,
+                date: now_ms, due_date: None, installment_id: None,
+                account_id: 1, destination_account_id: Some(2), // to archived
+            },
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms);
+
+        // current_balance: +1M - 300K = 700K (transfer excluded)
+        assert_eq!(result.current_balance, 700_000);
+        // Active account balance: +1M - 300K = 700K (transfer to archived excluded)
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
+        assert_eq!(result.accounts[0].balance, 700_000);
+        // total_net_worth must equal sum of account balances
+        assert_eq!(result.total_net_worth, result.accounts.iter().map(|a| a.balance).sum::<i64>());
+    }
+
+    // =====================================================================
+    // include_archived parameter tests
+    // =====================================================================
+
+    #[test]
+    fn test_include_archived_false_excludes_archived_txs_from_totals() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2, // archived account
+                destination_account_id: None,
+            },
+        ];
+
+        // include_archived=false: archived account's transaction excluded from totals
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms);
+        assert_eq!(result.current_balance, 1_000_000);
+        assert_eq!(result.monthly_income, 1_000_000);
+        // Only 1 account summary (archived excluded)
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
+    }
+
+    #[test]
+    fn test_include_archived_true_includes_archived_txs_in_totals() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2, // archived account
+                destination_account_id: None,
+            },
+        ];
+
+        // include_archived=true: archived account's transaction included in totals
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        assert_eq!(result.current_balance, 1_500_000);
+        assert_eq!(result.monthly_income, 1_500_000);
+        // Account summaries always exclude archived (current-state view)
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
+    }
+
+    #[test]
+    fn test_include_archived_false_with_account_id_filter() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2, // archived account
+                destination_account_id: None,
+            },
+        ];
+
+        // Filter by active account 1 with include_archived=false
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms);
+        assert_eq!(result.current_balance, 1_000_000);
+        assert_eq!(result.monthly_income, 1_000_000);
+
+        // Filter by archived account 2 with include_archived=false: excluded
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms);
+        assert_eq!(result.current_balance, 0);
+        assert_eq!(result.monthly_income, 0);
+    }
+
+    #[test]
+    fn test_include_archived_false_transfer_destination_archived() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+            },
+        ];
+        // Transfer FROM active account TO archived account
+        let txs = vec![Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 500_000,
+            description: String::new(),
+            person_name: None,
+            date: now_ms,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: Some(2), // archived
+        }];
+
+        // include_archived=false: transfer to archived account excluded
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms);
+        assert_eq!(result.current_balance, 0); // transfer is balance-neutral anyway
+
+        // include_archived=true: transfer included in totals
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        // But account summaries always exclude archived (current-state view)
         assert_eq!(result.accounts.len(), 1);
         assert_eq!(result.accounts[0].account_id, 1);
     }

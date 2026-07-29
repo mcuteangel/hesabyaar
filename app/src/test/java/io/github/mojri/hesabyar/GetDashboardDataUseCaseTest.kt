@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
@@ -272,5 +274,252 @@ class GetDashboardDataUseCaseTest {
     // monthlyDebt = 2M (inside only) / 12M income = 0.1667 — proving the
     // out-of-cycle installment is excluded, identical to the Rust path.
     assertEquals(0.1667, result.debtToIncomeRatio, 0.01)
+  }
+
+  // -- includeArchived parameter tests ----------------------------------------
+
+  private fun account(
+    id: Long,
+    name: String,
+    type: AccountType = AccountType.BANK,
+    isArchived: Boolean = false,
+  ) = AccountEntity(
+    id = id,
+    name = name,
+    type = type,
+    isArchived = isArchived,
+  )
+
+  @Test
+  fun fallbackIncludeArchivedFalseExcludesArchivedAccountTransactions() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active")
+    val archivedAccount = account(2, "Archived", isArchived = true)
+
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1_000_000,
+          description = "",
+          date = now,
+          accountId = 1
+        ),
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 500_000,
+          description = "",
+          date = now,
+          accountId = 2
+        ),
+      )
+
+    // includeArchived=false: archived account's transaction excluded from totals
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = false,
+      )
+
+    assertEquals(1_000_000L, result.currentBalance)
+    assertEquals(1_000_000L, result.monthlyIncome)
+    // Only active account in summaries
+    assertEquals(1, result.accounts.size)
+    assertEquals(1L, result.accounts[0].accountId)
+  }
+
+  @Test
+  fun fallbackIncludeArchivedFalseWithTransferToArchivedAccount() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active")
+    val archivedAccount = account(2, "Archived", isArchived = true)
+
+    // Transfer FROM active account TO archived account
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.TRANSFER,
+          categoryId = 1L,
+          amount = 500_000,
+          description = "",
+          date = now,
+          accountId = 1,
+          destinationAccountId = 2,
+        ),
+      )
+
+    // includeArchived=false: transfer to archived account excluded
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = false,
+      )
+
+    assertEquals(0L, result.currentBalance) // transfer is balance-neutral anyway
+    assertEquals(1, result.accounts.size) // only active account in summaries
+  }
+
+  @Test
+  fun fallbackDefaultIsIncludeArchivedFalse() {
+    val now = System.currentTimeMillis()
+    val archivedAccount = account(1, "Archived", isArchived = true)
+
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1_000_000,
+          description = "",
+          date = now,
+          accountId = 1
+        ),
+      )
+
+    // Default (no includeArchived param) should behave as false
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(archivedAccount),
+        now = now,
+      )
+
+    assertEquals(0L, result.currentBalance) // archived transaction excluded by default
+    assertEquals(0, result.accounts.size) // no accounts in summaries
+  }
+
+  // -- Cross-path consistency test (deterministic) ----------------------------
+
+  private fun tx(
+    type: TransactionType,
+    amount: Long,
+    date: Long,
+    accountId: Long,
+    destId: Long? = null,
+  ) = Transaction(
+    type = type,
+    categoryId = 1L,
+    amount = amount,
+    description = "",
+    date = date,
+    accountId = accountId,
+    destinationAccountId = destId
+  )
+
+  @Test
+  fun rustAndKotlinFallbackProduceSameResultWithFixedNow() {
+    // Fixed timestamp: 2025-07-15 12:00:00 UTC
+    val fixedNowMs = 1752580800000L
+    val twoMonthsAgo = fixedNowMs - 60L * 24 * 60 * 60 * 1000
+
+    val activeAccount = account(1, "Active", AccountType.BANK)
+    val archivedAccount = account(2, "Archived", AccountType.CASH_WALLET, isArchived = true)
+    val accounts = listOf(activeAccount, archivedAccount)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, fixedNowMs, accountId = 1),
+        tx(TransactionType.EXPENSE, 300_000, fixedNowMs, accountId = 1),
+        tx(TransactionType.INCOME, 5_000_000, twoMonthsAgo, accountId = 1),
+        tx(TransactionType.INCOME, 2_000_000, fixedNowMs, accountId = 2), // archived
+        tx(TransactionType.TRANSFER, 500_000, fixedNowMs, accountId = 1, destId = 2),
+      )
+
+    // Kotlin fallback with explicit now
+    val kotlinResult =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = fixedNowMs,
+        includeArchived = false,
+      )
+
+    // Rust path with the same nowMs
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(txs),
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        accountId = null,
+        includeArchived = false,
+        nowMs = fixedNowMs,
+      )!!
+
+    // Top-level aggregates must be identical
+    assertEquals("currentBalance", kotlinResult.currentBalance, rustResult.currentBalance)
+    assertEquals("monthlyIncome", kotlinResult.monthlyIncome, rustResult.monthlyIncome)
+    assertEquals("monthlyExpenses", kotlinResult.monthlyExpenses, rustResult.monthlyExpenses)
+    assertEquals("accounts count", kotlinResult.accounts.size, rustResult.accounts.size)
+
+    // Per-account summaries must be identical
+    if (kotlinResult.accounts.isNotEmpty()) {
+      val k = kotlinResult.accounts.first()
+      val r = rustResult.accounts.first()
+      assertEquals("accountId", k.accountId, r.accountId)
+      assertEquals("balance", k.balance, r.balance)
+      assertEquals("monthlyIncome", k.monthlyIncome, r.monthlyIncome)
+      assertEquals("monthlyExpenses", k.monthlyExpenses, r.monthlyExpenses)
+    }
+  }
+
+  // -- Invariant: sum of account balances == currentBalance --------------------
+
+  @Test
+  fun sumOfAccountBalancesEqualsCurrentBalance() {
+    val now = System.currentTimeMillis()
+    val (monthStart, monthEnd) =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .getUtcJalaliMonthBoundaries(now)
+
+    val activeAccount = account(1, "Active", AccountType.BANK)
+    val activeAccount2 = account(2, "Active2", AccountType.CASH_WALLET)
+    val archivedAccount = account(3, "Archived", AccountType.BANK, isArchived = true)
+    val accounts = listOf(activeAccount, activeAccount2, archivedAccount)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, now, accountId = 1),
+        tx(TransactionType.EXPENSE, 300_000, now, accountId = 1),
+        tx(TransactionType.INCOME, 2_000_000, now, accountId = 2),
+        tx(TransactionType.EXPENSE, 100_000, now, accountId = 2),
+        tx(TransactionType.TRANSFER, 500_000, now, accountId = 1, destId = 2),
+        tx(TransactionType.INCOME, 500_000, now, accountId = 3), // archived — excluded
+      )
+
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = now,
+        includeArchived = false,
+      )
+
+    val sumOfAccountBalances = result.accounts.sumOf { it.balance }
+    assertEquals(
+      "sum(accountBalances) must equal currentBalance",
+      result.currentBalance,
+      sumOfAccountBalances,
+    )
   }
 }

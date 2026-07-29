@@ -163,9 +163,20 @@ pub fn compute_dashboard_data(
     bank_loans: Vec<BankLoan>,
     accounts: Vec<Account>,
     account_id: Option<i64>,
+    include_archived: bool,
+    now_ms: i64,
 ) -> Option<DashboardData> {
     catch_unwind_safe(|| {
-        crate::dashboard::compute_dashboard_data(&transactions, &loans, &installments, &bank_loans, &accounts, account_id)
+        crate::dashboard::compute_dashboard_data(
+            &transactions,
+            &loans,
+            &installments,
+            &bank_loans,
+            &accounts,
+            account_id,
+            include_archived,
+            now_ms,
+        )
     })
     .ok()
 }

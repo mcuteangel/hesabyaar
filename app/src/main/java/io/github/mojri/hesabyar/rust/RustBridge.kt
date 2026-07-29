@@ -282,6 +282,8 @@ object RustBridge : JalaliNativeBridge {
     bankLoans: List<BankLoan> = emptyList(),
     accounts: List<AccountEntity> = emptyList(),
     accountId: Long? = null,
+    includeArchived: Boolean = false,
+    nowMs: Long = System.currentTimeMillis(),
   ): DashboardData? =
     rustCallSync(null) {
       HesabyarCore.computeDashboardData(
@@ -291,6 +293,8 @@ object RustBridge : JalaliNativeBridge {
         RustMappers.mapBankLoans(bankLoans),
         RustMappers.mapAccounts(accounts),
         accountId,
+        includeArchived,
+        nowMs,
       )
     }
 

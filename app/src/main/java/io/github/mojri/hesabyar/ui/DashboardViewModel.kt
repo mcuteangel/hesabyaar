@@ -67,6 +67,7 @@ class DashboardViewModel
           core.bankLoans,
           accList,
           selectedId,
+          includeArchived = false,
         )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
