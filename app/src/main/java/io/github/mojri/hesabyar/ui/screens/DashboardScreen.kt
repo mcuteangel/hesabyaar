@@ -136,8 +136,15 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
             modifier = Modifier.fillMaxWidth().height(160.dp)
           ) {
-            items(dashboardData.accounts) { summary ->
-              AccountBalanceCard(summary = summary)
+            items(
+              items = dashboardData.accounts,
+              key = { it.accountId },
+            ) { summary ->
+              AccountBalanceCard(
+                summary = summary,
+                isSelected = selectedAccountId == summary.accountId,
+                onClick = { dashboardViewModel.selectAccount(summary.accountId) },
+              )
             }
           }
         }

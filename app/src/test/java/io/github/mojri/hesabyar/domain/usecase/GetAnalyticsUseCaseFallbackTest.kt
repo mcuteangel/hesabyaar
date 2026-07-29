@@ -1,16 +1,22 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.data.BankLoan
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 class GetAnalyticsUseCaseFallbackTest {
   private val useCase = GetAnalyticsUseCase()
+
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
 
   @Before
   fun setUp() {

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.rust
 
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -10,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -25,6 +27,10 @@ import org.junit.Test
  * runs without the native library present.
  */
 class RustBridgeTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(true)

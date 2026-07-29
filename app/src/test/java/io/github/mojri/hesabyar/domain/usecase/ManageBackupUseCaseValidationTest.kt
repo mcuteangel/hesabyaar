@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.Category
@@ -15,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -27,6 +29,10 @@ import org.junit.Test
  * payload is accepted, and a structurally broken one is surfaced as `Invalid`.
  */
 class ManageBackupUseCaseValidationTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(true)
@@ -116,31 +122,35 @@ class ManageBackupUseCaseValidationTest {
   fun `kotlin fallback flags invalid bank loan`() =
     runTest {
       // Force the Kotlin validation path (no native library).
+      val previousState = HesabyarApp.isRustInitialized()
       HesabyarApp.setRustInitializedForTesting(false)
-      val payload =
-        BackupPayload(
-          bankLoans =
-            listOf(
-              // Blank bank name + non-positive amounts => invalid.
-              io.github.mojri.hesabyar.data.BankLoan(
-                bankName = "",
-                loanName = "x",
-                receivedAmount = 0L,
-                monthlyInstallmentAmount = 0L,
-                numberOfInstallments = 0,
-                totalRepayableAmount = 0L,
-                totalInterest = 0L,
-                startDate = 0L,
-                description = ""
+      try {
+        val payload =
+          BackupPayload(
+            bankLoans =
+              listOf(
+                // Blank bank name + non-positive amounts => invalid.
+                io.github.mojri.hesabyar.data.BankLoan(
+                  bankName = "",
+                  loanName = "x",
+                  receivedAmount = 0L,
+                  monthlyInstallmentAmount = 0L,
+                  numberOfInstallments = 0,
+                  totalRepayableAmount = 0L,
+                  totalInterest = 0L,
+                  startDate = 0L,
+                  description = ""
+                )
               )
-            )
-        )
+          )
 
-      val result = useCase.validateBackup(payload)
-      assertTrue(
-        "expected $result to be Invalid for malformed bank loan",
-        result is BackupValidationResult.Invalid
-      )
-      HesabyarApp.setRustInitializedForTesting(true)
+        val result = useCase.validateBackup(payload)
+        assertTrue(
+          "expected $result to be Invalid for malformed bank loan",
+          result is BackupValidationResult.Invalid
+        )
+      } finally {
+        HesabyarApp.setRustInitializedForTesting(previousState)
+      }
     }
 }
