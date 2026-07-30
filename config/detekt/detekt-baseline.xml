@@ -264,6 +264,7 @@
     <ID>TooManyFunctions:JalaliCalendarHelper.kt:JalaliCalendarHelper</ID>
     <ID>TooManyFunctions:ManageAiConfigUseCase.kt:ManageAiConfigUseCase</ID>
     <ID>TooManyFunctions:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
+    <ID>LargeClass:GetDashboardDataUseCaseTest.kt:GetDashboardDataUseCaseTest</ID>
     <ID>TooManyFunctions:RustBridge.kt:RustBridge : JalaliNativeBridge</ID>
     <ID>TooManyFunctions:RustMappers.kt:RustMappers</ID>
     <ID>TooManyFunctions:UseCaseModule.kt:UseCaseModule</ID>

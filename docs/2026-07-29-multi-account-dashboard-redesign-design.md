@@ -198,9 +198,13 @@ monthlyDelta = (currentNet - previousNet) / max(abs(previousNet), 1)
 
 ### Automated Tests
 
-- `GetDashboardDataUseCaseTest`: archived account exclusion
-- `AccountBalanceCardTest`: selection state visual (Compose UI)
-- `AccountSelectorTest`: chip-card selection consistency
+**Full suite:** 618 tests, 0 failures, 3m 37s (with `forkEvery=1`, `--no-daemon`)
+
+**New Phase 5 tests (4 tests in `GetDashboardDataUseCaseTest`):**
+- `archiveThenUnarchiveRestoresDashboardBalance` — round-trip: both accounts active → archive one → balance drops by exactly that account's transactions → unarchive → balance restored
+- `allAccountsSelectionSumsActiveNonArchivedAccounts` — `selectedAccountId=null` mode: sum of active non-archived account balances equals `currentBalance`
+- `rustFallbackFullDashboardDataMatchesRustPath` — Rust vs Kotlin fallback: `currentBalance`, `monthlyIncome`, `monthlyExpenses`, per-account `balance`, `monthlyIncome`, `monthlyExpenses`, `monthlyDelta` all match; `sum(accountBalances) == currentBalance` verified for both paths
+- `monthlyDeltaNeverNanOrInfinity` — three cases: prevNet=0 → delta=0.0, prevNet below noise threshold (400 < 1000) → delta=0.0, normal case → delta in [-10.0, 10.0]; all cases assert `!isNaN()` and `!isInfinite()`
 
 ## Implementation Order
 

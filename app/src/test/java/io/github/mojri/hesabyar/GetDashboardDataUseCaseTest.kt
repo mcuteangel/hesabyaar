@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -637,6 +638,266 @@ class GetDashboardDataUseCaseTest {
       "sum(accountBalances) must equal currentBalance",
       result.currentBalance,
       sumOfAccountBalances,
+    )
+  }
+
+  // -- Phase 5: Archive/unarchive round-trip ----------------------------------
+
+  @Test
+  fun archiveThenUnarchiveRestoresDashboardBalance() {
+    val now = System.currentTimeMillis()
+    val accountA = account(1, "Active", AccountType.BANK)
+    val accountB = account(2, "Secondary", AccountType.CASH_WALLET)
+    val allActive = listOf(accountA, accountB)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 3_000_000, now, accountId = 1),
+        tx(TransactionType.EXPENSE, 500_000, now, accountId = 1),
+        tx(TransactionType.INCOME, 1_000_000, now, accountId = 2),
+        tx(TransactionType.EXPENSE, 200_000, now, accountId = 2),
+      )
+
+    // Step 1: Both active — total balance = (3M - 500k) + (1M - 200k) = 3_300_000
+    val beforeArchive =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        allActive,
+        now = now,
+        includeArchived = false,
+      )
+    assertEquals(3_300_000L, beforeArchive.currentBalance)
+    assertEquals(2, beforeArchive.accounts.size)
+
+    // Step 2: Archive accountB (mark isArchived=true)
+    val archivedAccountB = account(2, "Secondary", AccountType.CASH_WALLET, isArchived = true)
+    val withArchived = listOf(accountA, archivedAccountB)
+
+    val afterArchive =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        withArchived,
+        now = now,
+        includeArchived = false,
+      )
+    // Balance must drop by accountB's net: (1M - 200k) = 800_000
+    assertEquals(2_500_000L, afterArchive.currentBalance)
+    assertEquals(1, afterArchive.accounts.size) // only accountA in summaries
+    assertEquals(1L, afterArchive.accounts[0].accountId)
+
+    // Step 3: Unarchive accountB — balance restored
+    val unarchived = listOf(accountA, accountB)
+    val afterUnarchive =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        unarchived,
+        now = now,
+        includeArchived = false,
+      )
+    assertEquals(
+      "Balance must fully restore after unarchive",
+      beforeArchive.currentBalance,
+      afterUnarchive.currentBalance,
+    )
+    assertEquals(2, afterUnarchive.accounts.size)
+  }
+
+  // -- Phase 5: "All accounts" sum invariant ----------------------------------
+
+  @Test
+  fun allAccountsSelectionSumsActiveNonArchivedAccounts() {
+    val now = System.currentTimeMillis()
+    val acc1 = account(1, "Bank", AccountType.BANK)
+    val acc2 = account(2, "Wallet", AccountType.CASH_WALLET)
+    val acc3 = account(3, "Archived", AccountType.OTHER, isArchived = true)
+    val allAccounts = listOf(acc1, acc2, acc3)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 2_000_000, now, accountId = 1),
+        tx(TransactionType.EXPENSE, 400_000, now, accountId = 1),
+        tx(TransactionType.INCOME, 700_000, now, accountId = 2),
+        tx(TransactionType.TRANSFER, 300_000, now, accountId = 1, destId = 2),
+        tx(TransactionType.INCOME, 1_000_000, now, accountId = 3), // archived
+      )
+
+    // selectedAccountId=null → "all accounts" mode → includeArchived=false
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        allAccounts,
+        now = now,
+        includeArchived = false,
+      )
+
+    // currentBalance = sum of active accounts' balances
+    // acc1: +2M income, -400k expense, -300k transfer out = net +1_300_000
+    // acc2: +700k income, +300k transfer in = net +1_000_000
+    // acc3: archived → excluded from summaries by computeAccountSummaries
+    val activeSum = result.accounts.sumOf { it.balance }
+    assertEquals(
+      "sum(active account balances) must equal currentBalance when selectedAccountId=null",
+      result.currentBalance,
+      activeSum,
+    )
+    // Also verify the expected total
+    assertEquals(2_300_000L, result.currentBalance)
+    // Verify only 2 active accounts in summaries
+    assertEquals(2, result.accounts.size)
+  }
+
+  // -- Phase 5: Comprehensive Rust fallback comparison (all three fields) -----
+
+  @Test
+  fun rustFallbackFullDashboardDataMatchesRustPath() {
+    val fixedNowMs = 1752580800000L
+    val (curStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs)
+    val (prevStart, prevEnd) = JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(curStart)
+    val prevMid = prevStart + (prevEnd - prevStart) / 2
+    val accounts = listOf(account(1, "Bank", AccountType.BANK), account(2, "Wallet", AccountType.CASH_WALLET))
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 600_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 100_000, curStart + 2, accountId = 1),
+        tx(TransactionType.INCOME, 400_000, prevMid, accountId = 1),
+        tx(TransactionType.EXPENSE, 100_000, prevMid + 1, accountId = 1),
+        tx(TransactionType.INCOME, 200_000, curStart + 3, accountId = 2),
+        tx(TransactionType.EXPENSE, 50_000, curStart + 4, accountId = 2),
+      )
+    val kotlinResult =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = fixedNowMs,
+        includeArchived = false,
+      )
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(txs),
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        accountId = null,
+        includeArchived = false,
+        nowMs = fixedNowMs,
+      )!!
+    // Top-level aggregates
+    assertEquals("currentBalance", kotlinResult.currentBalance, rustResult.currentBalance)
+    assertEquals("monthlyIncome", kotlinResult.monthlyIncome, rustResult.monthlyIncome)
+    assertEquals("monthlyExpenses", kotlinResult.monthlyExpenses, rustResult.monthlyExpenses)
+    assertEquals("accounts count", kotlinResult.accounts.size, rustResult.accounts.size)
+    // Per-account balances and monthlyDelta
+    for (kAcc in kotlinResult.accounts) {
+      val rAcc = rustResult.accounts.first { it.accountId == kAcc.accountId }
+      assertEquals("${kAcc.accountName}.balance", kAcc.balance, rAcc.balance)
+      assertEquals("${kAcc.accountName}.monthlyIncome", kAcc.monthlyIncome, rAcc.monthlyIncome)
+      assertEquals("${kAcc.accountName}.monthlyExpenses", kAcc.monthlyExpenses, rAcc.monthlyExpenses)
+      assertEquals("${kAcc.accountName}.monthlyDelta", kAcc.monthlyDelta, rAcc.monthlyDelta, 1e-10)
+    }
+
+    // 3. sum(accountBalances) == currentBalance (both paths)
+    assertEquals(
+      "Kotlin: sum(accountBalances) == currentBalance",
+      kotlinResult.currentBalance,
+      kotlinResult.accounts.sumOf { it.balance },
+    )
+    assertEquals(
+      "Rust: sum(accountBalances) == currentBalance",
+      rustResult.currentBalance,
+      rustResult.accounts.sumOf { it.balance },
+    )
+  }
+
+  // -- Phase 5: NaN / Infinity guards for monthlyDelta -----------------------
+
+  private fun computeDeltaForTxs(
+    txs: List<Transaction>,
+    accounts: List<AccountEntity>,
+    now: Long,
+  ): Double {
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = now,
+        includeArchived = false,
+      )
+    return result.accounts.first().monthlyDelta
+  }
+
+  private fun assertDeltaIsValid(
+    delta: Double,
+    label: String
+  ) {
+    assertFalse("$label: must not be NaN", delta.isNaN())
+    assertFalse("$label: must not be Infinite", delta.isInfinite())
+  }
+
+  @Test
+  fun monthlyDeltaNeverNanOrInfinity() {
+    val fixedNowMs = 1752580800000L
+    val (curStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs)
+    val (_, prevEnd) = JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(curStart)
+    val prevStart = prevEnd - 30L * 24 * 60 * 60 * 1000
+
+    val accounts = listOf(account(1, "Active", AccountType.BANK))
+
+    // Case 1: Previous month has zero activity → delta=0.0
+    val txsNoPrev =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 500_000, curStart + 2, accountId = 1),
+      )
+    val deltaNoPrev = computeDeltaForTxs(txsNoPrev, accounts, fixedNowMs)
+    assertDeltaIsValid(deltaNoPrev, "prevNet=0")
+    assertEquals(0.0, deltaNoPrev, 1e-10)
+
+    // Case 2: Previous month net below noise threshold (400 < 1000)
+    val prevMid = prevStart + (prevEnd - prevStart) / 2
+    val txsBelowThreshold =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 200_000, curStart + 2, accountId = 1),
+        tx(TransactionType.INCOME, 600, prevMid, accountId = 1),
+        tx(TransactionType.EXPENSE, 200, prevMid + 1, accountId = 1),
+      )
+    val deltaBelow = computeDeltaForTxs(txsBelowThreshold, accounts, fixedNowMs)
+    assertDeltaIsValid(deltaBelow, "prevNet below threshold")
+    assertEquals("delta=0.0 when prevNet below threshold", 0.0, deltaBelow, 1e-10)
+
+    // Case 3: Normal case — verify no absurd values
+    val txsNormal =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 500_000, curStart + 2, accountId = 1),
+        tx(TransactionType.INCOME, 200_000, prevStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 100_000, prevStart + 2, accountId = 1),
+      )
+    val deltaNormal = computeDeltaForTxs(txsNormal, accounts, fixedNowMs)
+    assertDeltaIsValid(deltaNormal, "normal case")
+    assertTrue(
+      "delta must be in [-10.0, 10.0], got $deltaNormal",
+      deltaNormal in -10.0..10.0,
     )
   }
 }
