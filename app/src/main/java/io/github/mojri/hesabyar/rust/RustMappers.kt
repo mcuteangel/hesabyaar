@@ -374,6 +374,7 @@ object RustMappers {
       monthlyIncome = rust.monthlyIncome,
       monthlyExpenses = rust.monthlyExpenses,
       accountColor = accountColor,
+      monthlyDelta = rust.monthlyDelta,
     )
   }
 

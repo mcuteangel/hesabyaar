@@ -62,6 +62,11 @@ pub fn compute_dashboard_data(
         jalali_to_month_start_ms(jy + 1, 1)
     };
 
+    // Previous Jalali month boundaries for delta computation
+    let (prev_jy, prev_jm) = if jm == 1 { (jy - 1, 12) } else { (jy, jm - 1) };
+    let prev_month_start_ms = jalali_to_month_start_ms(prev_jy, prev_jm);
+    let prev_month_end_ms = month_start_ms;
+
     // When include_archived is false, exclude transactions whose source or
     // destination account is archived. This must happen *before* the
     // account_id filter so archived accounts never leak into totals.
@@ -85,7 +90,14 @@ pub fn compute_dashboard_data(
     // Compute per-account summaries using non_archived_txs (before account_id
     // filter consumes the vec). Always exclude archived accounts from the card
     // list (current-state view).
-    let account_summaries = compute_account_summaries(&non_archived_txs, accounts, month_start_ms, month_end_ms);
+    let account_summaries = compute_account_summaries(
+        &non_archived_txs,
+        accounts,
+        month_start_ms,
+        month_end_ms,
+        prev_month_start_ms,
+        prev_month_end_ms,
+    );
     let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
 
     // Filter transactions by account_id if provided.
@@ -181,7 +193,13 @@ pub fn compute_dashboard_data(
     }
 }
 
-/// Compute per-account balance and monthly income/expenses summaries.
+/// Noise threshold for previous-month net: when `abs(previousNet)` is below
+/// this value (1 000 Rial ≈ smallest meaningful unit in the app), the delta is
+/// set to `0.0` to avoid misleading percentages near zero.
+const DELTA_PREV_NET_THRESHOLD: i64 = 1_000;
+
+/// Compute per-account balance, monthly income/expenses, and month-over-month
+/// delta summaries.
 ///
 /// Always excludes archived accounts — the card list is a current-state view.
 fn compute_account_summaries(
@@ -189,6 +207,8 @@ fn compute_account_summaries(
     accounts: &[Account],
     month_start_ms: i64,
     month_end_ms: i64,
+    prev_month_start_ms: i64,
+    prev_month_end_ms: i64,
 ) -> Vec<AccountDashboardSummary> {
     accounts
         .iter()
@@ -205,15 +225,23 @@ fn compute_account_summaries(
             let mut balance = account.initial_balance;
             let mut monthly_income = 0i64;
             let mut monthly_expenses = 0i64;
+            let mut prev_income = 0i64;
+            let mut prev_expenses = 0i64;
 
             for tx in account_txs {
+                let in_current = tx.date >= month_start_ms && tx.date < month_end_ms;
+                let in_prev = tx.date >= prev_month_start_ms && tx.date < prev_month_end_ms;
+
                 match tx.tx_type {
                     TransactionType::Income => {
                         // Only credit when this account is the source (regular income)
                         if tx.account_id == account.id {
                             balance += tx.amount;
-                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            if in_current {
                                 monthly_income += tx.amount;
+                            }
+                            if in_prev {
+                                prev_income += tx.amount;
                             }
                         }
                     }
@@ -221,8 +249,11 @@ fn compute_account_summaries(
                         // Only debit when this account is the source (regular expense)
                         if tx.account_id == account.id {
                             balance -= tx.amount;
-                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            if in_current {
                                 monthly_expenses += tx.amount;
+                            }
+                            if in_prev {
+                                prev_expenses += tx.amount;
                             }
                         }
                     }
@@ -230,21 +261,38 @@ fn compute_account_summaries(
                         // Source account: debit (money leaves)
                         if tx.account_id == account.id {
                             balance -= tx.amount;
-                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            if in_current {
                                 monthly_expenses += tx.amount;
+                            }
+                            if in_prev {
+                                prev_expenses += tx.amount;
                             }
                         }
                         // Destination account: credit (money arrives)
                         if tx.destination_account_id == Some(account.id) {
                             balance += tx.amount;
-                            if tx.date >= month_start_ms && tx.date < month_end_ms {
+                            if in_current {
                                 monthly_income += tx.amount;
+                            }
+                            if in_prev {
+                                prev_income += tx.amount;
                             }
                         }
                     }
                     _ => {}
                 }
             }
+
+            // month-over-month delta: (currentNet - prevNet) / max(abs(prevNet), 1)
+            // When prevNet is below the noise threshold, show 0.0 to avoid
+            // misleading percentages near zero (e.g. +8000000%).
+            let current_net = monthly_income - monthly_expenses;
+            let prev_net = prev_income - prev_expenses;
+            let monthly_delta = if prev_net.abs() < DELTA_PREV_NET_THRESHOLD {
+                0.0
+            } else {
+                (current_net - prev_net) as f64 / prev_net.abs() as f64
+            };
 
             AccountDashboardSummary {
                 account_id: account.id,
@@ -253,6 +301,7 @@ fn compute_account_summaries(
                 balance,
                 monthly_income,
                 monthly_expenses,
+                monthly_delta,
             }
         })
         .collect()
@@ -980,5 +1029,167 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64
+    }
+
+    /// Get a timestamp in the middle of a Jalali month (15th day) given (jy, jm).
+    fn jalali_month_mid_ms(jy: i32, jm: i32) -> i64 {
+        let month_start = jalali_to_month_start_ms(jy, jm);
+        let next_month_start = if jm < 12 {
+            jalali_to_month_start_ms(jy, jm + 1)
+        } else {
+            jalali_to_month_start_ms(jy + 1, 1)
+        };
+        // Midpoint of the month (15th day ≈ halfway)
+        month_start + (next_month_start - month_start) / 2
+    }
+
+    /// Get the start of the current Jalali month as epoch-ms.
+    fn current_jalali_month_start_ms() -> i64 {
+        let now = now_jalali_month_ms();
+        let jd = gregorian_to_jalali(now).unwrap();
+        jalali_to_month_start_ms(jd.year, jd.month)
+    }
+
+    // =====================================================================
+    // monthly_delta tests — cross-path consistency
+    // =====================================================================
+
+    /// Basic delta: currentNet=300k, prevNet=200k → delta = +0.5 (50%)
+    #[test]
+    fn test_monthly_delta_basic_computation() {
+        let now_ms = now_jalali_month_ms();
+        let prev_ms = {
+            let jd = gregorian_to_jalali(now_ms).unwrap();
+            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            jalali_month_mid_ms(pjy, pjm)
+        };
+
+        let accounts = vec![account(1, "حساب اصلی", "BANK")];
+        let txs = vec![
+            // Current month: income=500k, expense=200k → currentNet=300k
+            tx(1, TransactionType::Income, 500_000, now_ms, 1),
+            tx(2, TransactionType::Expense, 200_000, now_ms, 1),
+            // Previous month: income=400k, expense=200k → prevNet=200k
+            tx(3, TransactionType::Income, 400_000, prev_ms, 1),
+            tx(4, TransactionType::Expense, 200_000, prev_ms, 1),
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        assert_eq!(result.accounts.len(), 1);
+        let acc = &result.accounts[0];
+        assert_eq!(acc.monthly_income, 500_000);
+        assert_eq!(acc.monthly_expenses, 200_000);
+        // delta = (300000 - 200000) / 200000 = 0.5
+        assert!((acc.monthly_delta - 0.5).abs() < 1e-10);
+    }
+
+    /// Previous month had no activity → prevNet=0 → delta=0.0 (no misleading %)
+    #[test]
+    fn test_monthly_delta_zero_previous() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![account(1, "حساب اصلی", "BANK")];
+        let txs = vec![
+            // Current month only
+            tx(1, TransactionType::Income, 500_000, now_ms, 1),
+            tx(2, TransactionType::Expense, 200_000, now_ms, 1),
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        let acc = &result.accounts[0];
+        // prevNet=0 (below threshold) → delta=0.0
+        assert_eq!(acc.monthly_delta, 0.0);
+    }
+
+    /// Previous net is very small (< 1000 Rial threshold) → delta=0.0
+    #[test]
+    fn test_monthly_delta_small_previous_net() {
+        let now_ms = now_jalali_month_ms();
+        let prev_ms = {
+            let jd = gregorian_to_jalali(now_ms).unwrap();
+            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            jalali_month_mid_ms(pjy, pjm)
+        };
+
+        let accounts = vec![account(1, "حساب اصلی", "BANK")];
+        let txs = vec![
+            // Current month: income=500k → currentNet=500k
+            tx(1, TransactionType::Income, 500_000, now_ms, 1),
+            // Previous month: expense=500 Rial → prevNet=-500 (abs < 1000)
+            tx(2, TransactionType::Expense, 500, prev_ms, 1),
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        let acc = &result.accounts[0];
+        // prevNet=-500, abs(500) < 1000 threshold → delta=0.0
+        assert_eq!(acc.monthly_delta, 0.0);
+    }
+
+    /// Delta negative: currentNet < prevNet
+    #[test]
+    fn test_monthly_delta_negative() {
+        let now_ms = now_jalali_month_ms();
+        let prev_ms = {
+            let jd = gregorian_to_jalali(now_ms).unwrap();
+            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            jalali_month_mid_ms(pjy, pjm)
+        };
+
+        let accounts = vec![account(1, "حساب اصلی", "BANK")];
+        let txs = vec![
+            // Current month: expense > income → currentNet = -100k
+            tx(1, TransactionType::Income, 300_000, now_ms, 1),
+            tx(2, TransactionType::Expense, 400_000, now_ms, 1),
+            // Previous month: income=500k, expense=200k → prevNet=300k
+            tx(3, TransactionType::Income, 500_000, prev_ms, 1),
+            tx(4, TransactionType::Expense, 200_000, prev_ms, 1),
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        let acc = &result.accounts[0];
+        // delta = (-100000 - 300000) / 300000 = -400000/300000 ≈ -1.333...
+        assert!((acc.monthly_delta - (-4.0 / 3.0)).abs() < 1e-10);
+    }
+
+    /// Delta with transfers: previous month transfer in, current month transfer out
+    #[test]
+    fn test_monthly_delta_with_transfers() {
+        let now_ms = now_jalali_month_ms();
+        let prev_ms = {
+            let jd = gregorian_to_jalali(now_ms).unwrap();
+            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            jalali_month_mid_ms(pjy, pjm)
+        };
+
+        let accounts = vec![
+            account(1, "Account A", "BANK"),
+            account(2, "Account B", "CASH_WALLET"),
+        ];
+        let txs = vec![
+            // Current month: transfer FROM account 1 TO account 2 (500k)
+            // → account 1: current income=0, current expenses=500k
+            // → account 2: current income=500k
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2),
+            },
+            // Previous month: account 1 income=200k
+            tx(2, TransactionType::Income, 200_000, prev_ms, 1),
+        ];
+
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        let acc1 = result.accounts.iter().find(|a| a.account_id == 1).unwrap();
+        // Account 1 current: income=0, expenses=500k → currentNet=-500k
+        // Account 1 prev: income=200k, expenses=0 → prevNet=200k
+        // delta = (-500000 - 200000) / 200000 = -3.5
+        assert!((acc1.monthly_delta - (-3.5)).abs() < 1e-10);
     }
 }

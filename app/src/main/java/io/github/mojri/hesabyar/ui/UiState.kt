@@ -28,7 +28,9 @@ data class AccountDashboardSummary(
   val balance: Long,
   val monthlyIncome: Long,
   val monthlyExpenses: Long,
-  val accountColor: Long = 0xFF4CAF50L
+  val accountColor: Long = 0xFF4CAF50L,
+  /** Month-over-month net change ratio. 0.0 when previous month net is negligible. */
+  val monthlyDelta: Double = 0.0
 )
 
 sealed interface ParserUIState {

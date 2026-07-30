@@ -480,6 +480,118 @@ class GetDashboardDataUseCaseTest {
     }
   }
 
+  // -- Cross-path consistency: monthlyDelta ------------------------------------
+
+  @Test
+  fun rustAndKotlinFallbackProduceSameMonthlyDelta() {
+    // Fixed timestamp: 2025-07-15 12:00:00 UTC — ensures deterministic
+    // Jalali month boundaries for both Rust and Kotlin.
+    val fixedNowMs = 1752580800000L
+
+    // Determine previous month midpoint using the same helper the Kotlin
+    // fallback uses, so we place transactions at known-safe offsets.
+    val (curStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs)
+    val (prevStart, prevEnd) = JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(curStart)
+    val prevMid = prevStart + (prevEnd - prevStart) / 2
+
+    val activeAccount = account(1, "Active", AccountType.BANK)
+    val accounts = listOf(activeAccount)
+
+    val txs =
+      listOf(
+        // Current month: income=500k, expense=200k → currentNet=300k
+        tx(TransactionType.INCOME, 500_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 200_000, curStart + 2, accountId = 1),
+        // Previous month: income=400k, expense=200k → prevNet=200k
+        tx(TransactionType.INCOME, 400_000, prevMid, accountId = 1),
+        tx(TransactionType.EXPENSE, 200_000, prevMid + 1, accountId = 1),
+      )
+
+    // Kotlin fallback with explicit now
+    val kotlinResult =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = fixedNowMs,
+        includeArchived = false,
+      )
+
+    // Rust path with the same nowMs
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(txs),
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        accountId = null,
+        includeArchived = false,
+        nowMs = fixedNowMs,
+      )!!
+
+    val kAcc = kotlinResult.accounts.first { it.accountId == 1L }
+    val rAcc = rustResult.accounts.first { it.accountId == 1L }
+
+    // delta = (300k - 200k) / 200k = 0.5
+    assertEquals(
+      "monthlyDelta must match between Rust and Kotlin fallback",
+      kAcc.monthlyDelta,
+      rAcc.monthlyDelta,
+      1e-10,
+    )
+    assertEquals("monthlyDelta value", 0.5, kAcc.monthlyDelta, 1e-10)
+  }
+
+  @Test
+  fun monthlyDeltaZeroWhenPreviousNetBelowThreshold() {
+    val fixedNowMs = 1752580800000L
+    val activeAccount = account(1, "Active", AccountType.BANK)
+    val accounts = listOf(activeAccount)
+
+    // Only current month transactions — previous month has no activity
+    // → prevNet=0 → delta=0.0
+    val (curStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs)
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 500_000, curStart + 1, accountId = 1),
+        tx(TransactionType.EXPENSE, 200_000, curStart + 2, accountId = 1),
+      )
+
+    val kotlinResult =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = fixedNowMs,
+        includeArchived = false,
+      )
+
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(txs),
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        accountId = null,
+        includeArchived = false,
+        nowMs = fixedNowMs,
+      )!!
+
+    val kAcc = kotlinResult.accounts.first { it.accountId == 1L }
+    val rAcc = rustResult.accounts.first { it.accountId == 1L }
+
+    assertEquals("Kotlin delta=0.0 when no prev data", 0.0, kAcc.monthlyDelta, 1e-10)
+    assertEquals("Rust delta=0.0 when no prev data", 0.0, rAcc.monthlyDelta, 1e-10)
+  }
+
   // -- Invariant: sum of account balances == currentBalance --------------------
 
   @Test

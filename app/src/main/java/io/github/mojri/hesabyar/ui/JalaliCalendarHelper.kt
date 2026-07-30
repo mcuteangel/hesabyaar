@@ -328,6 +328,39 @@ object JalaliCalendarHelper {
   }
 
   /**
+   * UTC epoch-ms boundaries for the Jalali month immediately *before* the
+   * Jalali month that contains [currentMonthStartMs].
+   *
+   * Returns `(prevMonthStart, prevMonthEndExclusive)` where `prevMonthEndExclusive`
+   * equals `currentMonthStartMs` (half-open range, matching the Rust core).
+   *
+   * Used by [io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase]
+   * to compute per-account month-over-month deltas.
+   */
+  fun getUtcJalaliPreviousMonthBoundaries(currentMonthStartMs: Long): Pair<Long, Long> {
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    utcCal.timeInMillis = currentMonthStartMs
+    val jalaliDate =
+      gregorianToJalaliLocal(
+        utcCal.get(Calendar.YEAR),
+        utcCal.get(Calendar.MONTH) + 1,
+        utcCal.get(Calendar.DAY_OF_MONTH)
+      )
+    if (jalaliDate != null) {
+      val (jy, jm) = jalaliDate
+      // Current month start we already have
+      val curStart = jalaliMonthStartUtcMs(jy, jm)
+      // Previous month: jm-1 (wrapping from 1→12 with year-1)
+      val (pjy, pjm) = if (jm == 1) jy - 1 to 12 else jy to jm - 1
+      val prevStart = jalaliMonthStartUtcMs(pjy, pjm)
+      return prevStart to curStart
+    }
+    // Fallback: assume 30-day previous month
+    val prevStart = saturatingSubtract(currentMonthStartMs, 30L * 24 * 60 * 60 * 1000)
+    return prevStart to currentMonthStartMs
+  }
+
+  /**
    * UTC epoch-ms of midnight of the Gregorian date that corresponds to the
    * Jalali `(jy, jm, 1)`. Mirrors Rust's `jalali_to_gregorian(jy, jm, 1)`, which
    * returns the UTC midnight for the given Jalali date.

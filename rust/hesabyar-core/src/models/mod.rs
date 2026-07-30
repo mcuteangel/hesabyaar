@@ -266,6 +266,15 @@ pub struct AccountDashboardSummary {
     pub balance: i64,
     pub monthly_income: i64,
     pub monthly_expenses: i64,
+    /// Month-over-month net change ratio.
+    ///
+    /// `monthly_delta = (currentNet - previousNet) / max(abs(previousNet), 1)`
+    ///
+    /// Set to `0.0` when the previous month's net (abs) is below a noise
+    /// threshold (1 000 Rial ≈ smallest meaningful currency unit in the app) to
+    /// avoid misleading percentages near zero.
+    #[serde(default)]
+    pub monthly_delta: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]

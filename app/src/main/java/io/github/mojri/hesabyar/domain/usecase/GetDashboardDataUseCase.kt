@@ -201,6 +201,10 @@ class GetDashboardDataUseCase(
       }
     }
 
+    /** Noise threshold for previous-month net (Rial). When abs(prevNet) is
+     *  below this, the delta is set to 0.0 to avoid misleading percentages. */
+    private const val DELTA_PREV_NET_THRESHOLD = 1_000L
+
     private fun computeAccountSummaries(
       accounts: List<AccountEntity>,
       transactions: List<Transaction>,
@@ -208,6 +212,13 @@ class GetDashboardDataUseCase(
       monthEndMs: Long,
     ): List<AccountDashboardSummary> {
       if (accounts.isEmpty()) return emptyList()
+
+      // Previous Jalali month boundaries for delta computation, matching the
+      // Rust core's jalali month arithmetic.
+      val (prevMonthStart, prevMonthEnd) =
+        io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+          .getUtcJalaliPreviousMonthBoundaries(monthStartMs)
+
       return accounts
         .filter { !it.isArchived }
         .map { account ->
@@ -218,15 +229,35 @@ class GetDashboardDataUseCase(
           var balance = account.initialBalance
           var monthlyIncome = 0L
           var monthlyExpenses = 0L
+          var prevIncome = 0L
+          var prevExpenses = 0L
           for (tx in accountTxs) {
             val inMonth = tx.date >= monthStartMs && tx.date < monthEndMs
+            val inPrev = tx.date >= prevMonthStart && tx.date < prevMonthEnd
             val delta = balanceDeltaForAccount(tx, account.id)
             balance += delta.balanceDelta
             if (inMonth) {
               monthlyIncome += delta.incomeDelta
               monthlyExpenses += delta.expenseDelta
             }
+            if (inPrev) {
+              prevIncome += delta.incomeDelta
+              prevExpenses += delta.expenseDelta
+            }
           }
+
+          // Month-over-month delta: (currentNet - prevNet) / max(abs(prevNet), 1)
+          // When prevNet is below noise threshold, show 0.0 to avoid
+          // misleading percentages near zero (e.g. +8000000%).
+          val currentNet = monthlyIncome - monthlyExpenses
+          val prevNet = prevIncome - prevExpenses
+          val monthlyDelta =
+            if (kotlin.math.abs(prevNet) < DELTA_PREV_NET_THRESHOLD) {
+              0.0
+            } else {
+              (currentNet - prevNet).toDouble() / kotlin.math.abs(prevNet).toDouble()
+            }
+
           AccountDashboardSummary(
             accountId = account.id,
             accountName = account.name,
@@ -234,7 +265,8 @@ class GetDashboardDataUseCase(
             balance = balance,
             monthlyIncome = monthlyIncome,
             monthlyExpenses = monthlyExpenses,
-            accountColor = account.color
+            accountColor = account.color,
+            monthlyDelta = monthlyDelta
           )
         }
     }
