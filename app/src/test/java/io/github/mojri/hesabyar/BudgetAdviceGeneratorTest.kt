@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -20,6 +21,10 @@ import org.junit.Test
  * offline advice generator (loans/installments and the data summary).
  */
 class BudgetAdviceGeneratorTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   private fun createInstallment(
     title: String = "test",
     amount: Long,

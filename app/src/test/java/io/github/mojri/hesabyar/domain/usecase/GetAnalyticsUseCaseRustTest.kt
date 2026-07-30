@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -7,6 +8,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -19,6 +21,10 @@ import org.junit.Test
  * (totals, category breakdown, monthly series) are only checked structurally.
  */
 class GetAnalyticsUseCaseRustTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   private val useCase = GetAnalyticsUseCase()
 
   private fun loan(

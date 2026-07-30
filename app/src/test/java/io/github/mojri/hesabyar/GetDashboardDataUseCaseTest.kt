@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -29,6 +30,10 @@ import org.junit.Test
  * instrumented/integration tests.
  */
 class GetDashboardDataUseCaseTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   private fun tx(
     type: TransactionType,
     amount: Long,

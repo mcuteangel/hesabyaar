@@ -1,10 +1,12 @@
 package io.github.mojri.hesabyar.rust
 
+import io.github.mojri.hesabyar.RustIsolationRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -16,6 +18,10 @@ import org.junit.Test
  * warns (without rejecting) when no Persian characters are present.
  */
 class AiAdviceSanitizationTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   @Test
   fun `script tag is stripped and flagged`() =
     runTest {
