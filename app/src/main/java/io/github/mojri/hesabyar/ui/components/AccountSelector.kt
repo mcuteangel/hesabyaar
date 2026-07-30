@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -24,7 +25,7 @@ fun AccountSelector(
   modifier: Modifier = Modifier,
 ) {
   LazyRow(
-    modifier = modifier,
+    modifier = modifier.testTag("accountSelectorLazyRow"),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
     verticalAlignment = Alignment.CenterVertically,
   ) {

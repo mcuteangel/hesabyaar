@@ -4,11 +4,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Transaction
@@ -308,17 +311,15 @@ class AccountSelectionTest {
     assertEquals(setOf(1L, 2L), accountIds)
   }
 
-  // -- Test i: LazyRow with multiple accounts — verifies chip selection works ---
+  // -- Test i: LazyRow with large list — verifies scrolling + selection with performScrollToNode ---
 
   @Test
-  fun lazyRowWithMultipleAccountsUpdatesSelection() {
+  fun lazyRowLargeDatasetScrollAndSelect() {
     val selectedId = mutableStateOf<Long?>(null)
     val accounts =
-      listOf(
-        AccountEntity(id = 1L, name = "First", type = AccountType.BANK),
-        AccountEntity(id = 2L, name = "Second", type = AccountType.CASH_WALLET),
-        AccountEntity(id = 3L, name = "Third", type = AccountType.SAVINGS_INVESTMENT),
-      )
+      (1..30).map { id ->
+        AccountEntity(id = id.toLong(), name = "Account $id", type = AccountType.BANK)
+      }
 
     composeRule.setContent {
       AccountSelector(
@@ -328,16 +329,15 @@ class AccountSelectionTest {
       )
     }
 
-    // "همه حساب‌ها" chip exists and can clear an active selection
+    // "همه حساب‌ها" chip is always present and clears selection
     composeRule.onNodeWithText("همه حساب‌ها").performClick()
     assertNull(selectedId.value)
 
-    // Third account chip updates selection
-    composeRule.onNodeWithText("Third").performClick()
-    assertEquals(3L, selectedId.value)
-
-    // First account chip switches selection
-    composeRule.onNodeWithText("First").performClick()
-    assertEquals(1L, selectedId.value)
+    // Scroll to the last account (Account 30) and click it
+    composeRule
+      .onNodeWithTag("accountSelectorLazyRow")
+      .performScrollToNode(hasText("Account 30"))
+    composeRule.onNodeWithText("Account 30").performClick()
+    assertEquals(30L, selectedId.value)
   }
 }
