@@ -133,6 +133,7 @@ monthlyDelta = (currentNet - previousNet) / max(abs(previousNet), 1)
 - `app/src/main/java/io/github/mojri/hesabyar/ui/JalaliCalendarHelper.kt` — added `getUtcJalaliPreviousMonthBoundaries`
 - `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountBalanceCard.kt` — redesigned card layout (icon, trend, 88dp height)
 - New: `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` — icon mapping composable + `AccountType.icon()` extension
+- `app/build.gradle.kts` — added `maxParallelForks = 1` + `forkEvery = 1` to isolate Rust JNI state per test class
 
 ### Tests
 
@@ -156,17 +157,31 @@ monthlyDelta = (currentNet - previousNet) / max(abs(previousNet), 1)
 - `AccountManagementScreen` (color picker)
 - `ManualTransactionFormSections` (account indicator)
 
-### Propagation
+### Propagation — Implemented
 
-1. **Transaction list rows:** `TransactionMiniItem` — small color dot or left border accent from source account color. For transfers, show both source and destination colors.
-2. **Transaction detail:** Account color in account section header.
-3. **Analytics charts:** Use account colors for per-account breakdowns.
+1. **Transaction list rows:** `TransactionMiniItem` — 8dp colored dot on the left side from source account color. For transfers, two 7dp half-dots stacked vertically (source + destination). Account name appears in subtitle as secondary accessibility signal.
+2. **Transaction detail:** `TransactionDetailDialog` — account row with 10dp color dot + account name. For transfers, shows "source → dest" format.
+3. **Analytics charts:** New `AccountBreakdownCard` with donut chart using account colors for per-account expense breakdown. Legend shows account name alongside color dot.
 
-### Files to modify
+### Accessibility (second signal)
 
-- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt` — pass account color to TransactionMiniItem
-- Transaction detail screen — add color indicator
-- Analytics screen — use account colors in charts
+- **TransactionMiniItem:** Account name appears in subtitle text (`"date | category · accountName"`) alongside the color dot. For transfers, both source and destination names appear (`"accountA → accountB"`).
+- **TransactionDetailDialog:** Account row shows both color dot and account name text.
+- **Analytics chart:** Legend pairs color dot with account name text — never color alone.
+
+### Files modified
+
+- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/TransactionMiniItem.kt` — added `accounts` parameter, `AccountColorIndicator` composable, `buildSubtitle` helper
+- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/TransactionDetailDialog.kt` — added `accounts` parameter, account row with color dot + name
+- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt` — pass `accounts` to `TransactionMiniItem` and `TransactionDetailDialog`
+- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt` — pass `accounts` to `TransactionDetailDialog`, added account color dot to transaction rows
+- `app/src/main/java/io/github/mojri/hesabyar/ui/UiState.kt` — added `accountBreakdown: List<CategoryBreakdown>` to `AnalyticsData`
+- `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetAnalyticsUseCase.kt` — added `computeAccountBreakdown` for per-account expense breakdown
+- `app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt` — added `AccountBreakdownCard` with donut chart + legend
+
+### Tests
+
+- `TransactionMiniItemColorTest` — 3 tests: non-transfer shows account name, transfer shows both names, no-accounts fallback works
 
 ## Phase 5 — Regression Pass
 

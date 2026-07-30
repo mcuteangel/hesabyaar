@@ -24,6 +24,29 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ./gradlew lint
 ```
 
+### ⚠️ Test Reliability: Rust JNI State Leakage
+
+The Rust native library (`hesabyar_core`) uses global mutable state that cannot be
+reset between test classes sharing the same JVM. `forkEvery = 1` in `build.gradle.kts`
+creates a fresh JVM per test class to isolate this, but Gradle's **incremental build
+cache** can hide real failures by skipping recompilation and re-execution of unchanged
+test classes.
+
+**Before merging any changes that touch Rust bridge code, Rust FFI tests, or test
+infrastructure, always verify with a cache-busting run:**
+
+```bash
+# Option A: clean + test (guarantees fresh compilation)
+./gradlew clean test --no-daemon
+
+# Option B: rerun-tasks (re-executes everything without deleting build artifacts)
+./gradlew test --rerun-tasks --no-daemon
+```
+
+A plain `./gradlew test` may report "BUILD SUCCESSFUL" based on stale cached results
+even when tests would actually fail. This is especially dangerous after changes to
+`RustIsolationRule`, `HesabyarApp`, or `RustBridge`.
+
 ## Environment Setup
 
 1. Copy `.env.example` to `.env`
