@@ -96,6 +96,7 @@
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun LoanStatusCard</ID>
     <ID>LongMethod:AppDatabase.kt:AppDatabase.Companion$private fun migratePlaintextToEncryptedIfNeeded</ID>
     <ID>LongMethod:BalanceCard.kt:@Composable fun BalanceCard</ID>
+    <ID>LongMethod:TransactionItem.kt:@Composable fun TransactionItem</ID>
     <ID>LongMethod:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
     <ID>LongMethod:BudgetAdvisor.kt:BudgetAdvisor$suspend fun getBudgetForecast: String</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
@@ -258,6 +259,7 @@
     <ID>TooManyFunctions:AiProviderConfig.kt:AiConfigManager</ID>
     <ID>TooManyFunctions:BudgetAdvisor.kt:BudgetAdvisor</ID>
     <ID>TooManyFunctions:ExcelExporter.kt:ExcelExporter</ID>
+    <ID>TooManyFunctions:CurrencyFormatter.kt:CurrencyFormatter</ID>
     <ID>TooManyFunctions:GeminiParser.kt:GeminiParser</ID>
     <ID>TooManyFunctions:HesabyarRepository.kt:HesabyarRepository : HesabyarRepositoryInterface</ID>
     <ID>TooManyFunctions:HesabyarRepositoryInterface.kt:HesabyarRepositoryInterface</ID>

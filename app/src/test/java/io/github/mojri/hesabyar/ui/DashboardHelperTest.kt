@@ -11,36 +11,39 @@ import org.junit.Test
  * - extractForecastPreview: extracts preview text from markdown forecast
  */
 class DashboardHelperTest {
+  /** Strip LRM prefix so tests focus on formatting logic, not BIDI control chars. */
+  private fun String.stripLrm(): String = removePrefix("\u200E")
+
   // --- CurrencyFormatter.format tests (default: تومان) ---
 
   @Test
   fun `format converts rial to toman`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("۱۰٬۰۰۰ تومان", CurrencyFormatter.format(100_000L))
+    assertEquals("۱۰٬۰۰۰ تومان", CurrencyFormatter.format(100_000L).stripLrm())
   }
 
   @Test
   fun `format large amount toman`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("۵۰۰٬۰۰۰ تومان", CurrencyFormatter.format(5_000_000L))
+    assertEquals("۵۰۰٬۰۰۰ تومان", CurrencyFormatter.format(5_000_000L).stripLrm())
   }
 
   @Test
   fun `format zero toman`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("۰ تومان", CurrencyFormatter.format(0L))
+    assertEquals("۰ تومان", CurrencyFormatter.format(0L).stripLrm())
   }
 
   @Test
   fun `format small amount toman rounds down`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("۵۰ تومان", CurrencyFormatter.format(500L))
+    assertEquals("۵۰ تومان", CurrencyFormatter.format(500L).stripLrm())
   }
 
   @Test
   fun `format very large amount toman`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("۱۲۳٬۴۵۶٬۷۸۹ تومان", CurrencyFormatter.format(1_234_567_890L))
+    assertEquals("۱۲۳٬۴۵۶٬۷۸۹ تومان", CurrencyFormatter.format(1_234_567_890L).stripLrm())
   }
 
   // --- CurrencyFormatter.format tests (ریال) ---
@@ -48,13 +51,13 @@ class DashboardHelperTest {
   @Test
   fun `format keeps rial value unchanged`() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    assertEquals("۱۰۰٬۰۰۰ ریال", CurrencyFormatter.format(100_000L))
+    assertEquals("۱۰۰٬۰۰۰ ریال", CurrencyFormatter.format(100_000L).stripLrm())
   }
 
   @Test
   fun `format large amount rial`() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    assertEquals("۵٬۰۰۰٬۰۰۰ ریال", CurrencyFormatter.format(5_000_000L))
+    assertEquals("۵٬۰۰۰٬۰۰۰ ریال", CurrencyFormatter.format(5_000_000L).stripLrm())
   }
 
   // --- extractForecastPreview tests ---

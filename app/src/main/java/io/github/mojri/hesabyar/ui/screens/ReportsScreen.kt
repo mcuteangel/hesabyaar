@@ -15,8 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.data.Transaction
@@ -33,7 +35,9 @@ import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -265,12 +269,31 @@ fun ReportsScreen(
               style = MaterialTheme.typography.titleSmall,
               fontWeight = FontWeight.Bold
             )
-            Text(
-              text = (if (balance >= 0) "+" else "") + CurrencyFormatter.format(balance),
-              color = if (balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                val (sign, amount) = CurrencyFormatter.formatSignedParts(balance)
+                val balanceColor =
+                  if (balance >=
+                    0
+                  ) {
+                    MaterialTheme.colorScheme.primary
+                  } else {
+                    MaterialTheme.colorScheme.error
+                  }
+                Text(
+                  text = sign,
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = balanceColor
+                )
+                Text(
+                  text = amount,
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = balanceColor
+                )
+              }
+            }
           }
         }
       }
@@ -669,14 +692,14 @@ fun ReportsScreen(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          // Account color dot — primary signal for account identity
+          // Account color indicator — primary signal for account identity
           if (sourceAccount != null) {
-            Box(
-              modifier =
-                Modifier
-                  .size(8.dp)
-                  .clip(CircleShape)
-                  .background(sourceAccount.color.toComposeColor())
+            IconCircle(
+              icon = sourceAccount.type.icon(),
+              tint = sourceAccount.color.toComposeColor(),
+              backgroundColor = sourceAccount.color.toComposeColor(),
+              iconSize = 12.dp,
+              containerSize = 20.dp,
             )
             Spacer(modifier = Modifier.width(SpacingTokens.sm))
           }
@@ -696,21 +719,28 @@ fun ReportsScreen(
           }
 
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-              text =
-                (if (transaction.type == TransactionType.INCOME) "+" else "-") +
-                  CurrencyFormatter.format(transaction.amount),
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Bold,
-              color =
-                if (transaction.type ==
-                  TransactionType.INCOME
-                ) {
-                  MaterialTheme.colorScheme.primary
-                } else {
-                  MaterialTheme.colorScheme.error
-                }
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                val isTxIncome = transaction.type == TransactionType.INCOME
+                val (txSign, txAmount) =
+                  CurrencyFormatter.formatSignedParts(
+                    if (isTxIncome) transaction.amount else -transaction.amount
+                  )
+                val txColor = if (isTxIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                Text(
+                  text = txSign,
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = txColor
+                )
+                Text(
+                  text = txAmount,
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = txColor
+                )
+              }
+            }
             IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,

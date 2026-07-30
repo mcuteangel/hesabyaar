@@ -7,16 +7,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
@@ -34,7 +37,6 @@ fun TransactionItem(
   onClick: (() -> Unit)? = null
 ) {
   val amountColor = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
-  val prefix = if (isIncome) "+" else "-"
 
   Row(
     modifier =
@@ -86,12 +88,26 @@ fun TransactionItem(
       }
     }
 
-    Text(
-      text = "$prefix${CurrencyFormatter.format(amount)}",
-      style = MaterialTheme.typography.bodyLarge,
-      fontWeight = FontWeight.Medium,
-      color = amountColor,
-      textAlign = TextAlign.End
-    )
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        val (sign, formattedAmount) =
+          CurrencyFormatter.formatSignedParts(
+            if (isIncome) amount else -amount
+          )
+        Text(
+          text = sign,
+          style = MaterialTheme.typography.bodyLarge,
+          fontWeight = FontWeight.Medium,
+          color = amountColor,
+        )
+        Text(
+          text = formattedAmount,
+          style = MaterialTheme.typography.bodyLarge,
+          fontWeight = FontWeight.Medium,
+          color = amountColor,
+          textAlign = TextAlign.End
+        )
+      }
+    }
   }
 }

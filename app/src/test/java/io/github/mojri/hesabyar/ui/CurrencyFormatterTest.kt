@@ -2,10 +2,14 @@ package io.github.mojri.hesabyar.ui
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CurrencyFormatterTest {
+  /** Strip LRM prefix so tests focus on formatting logic, not BIDI control chars. */
+  private fun String.stripLrm(): String = removePrefix("\u200E")
+
   @After
   fun reset() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -96,14 +100,14 @@ class CurrencyFormatterTest {
   @Test
   fun `format includes rial unit`() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    val result = CurrencyFormatter.format(1_000_000L)
+    val result = CurrencyFormatter.format(1_000_000L).stripLrm()
     assertTrue(result.endsWith("ریال"))
   }
 
   @Test
   fun `format includes toman unit`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val result = CurrencyFormatter.format(10_000_000L)
+    val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.endsWith("تومان"))
   }
 
@@ -126,7 +130,7 @@ class CurrencyFormatterTest {
   @Test
   fun `format divides rial by 10 in toman mode`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val result = CurrencyFormatter.format(10_000_000L)
+    val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.contains("۱٬۰۰۰٬۰۰۰"))
     assertTrue(result.endsWith("تومان"))
   }
@@ -134,7 +138,7 @@ class CurrencyFormatterTest {
   @Test
   fun `format shows raw value in rial mode`() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    val result = CurrencyFormatter.format(10_000_000L)
+    val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.contains("۱۰٬۰۰۰٬۰۰۰"))
     assertTrue(result.endsWith("ریال"))
   }
@@ -142,7 +146,7 @@ class CurrencyFormatterTest {
   @Test
   fun `format negative value keeps sign before unit`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val result = CurrencyFormatter.format(-10_000_000L)
+    val result = CurrencyFormatter.format(-10_000_000L).stripLrm()
     assertTrue(result.startsWith("-"))
     assertTrue(result.endsWith("تومان"))
   }
@@ -151,34 +155,111 @@ class CurrencyFormatterTest {
 
   @Test
   fun `formatNumber falls back to persian digits for positive`() {
-    val result = CurrencyFormatter.formatNumber(1_234_567L)
+    val result = CurrencyFormatter.formatNumber(1_234_567L).stripLrm()
     assertEquals("۱٬۲۳۴٬۵۶۷", result)
   }
 
   @Test
   fun `formatNumber falls back to persian digits with sign for negative`() {
-    val result = CurrencyFormatter.formatNumber(-1_234_567L)
+    val result = CurrencyFormatter.formatNumber(-1_234_567L).stripLrm()
     assertEquals("-۱٬۲۳۴٬۵۶۷", result)
   }
 
   @Test
   fun `format falls back to persian digits with toman label`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val result = CurrencyFormatter.format(10_000_000L)
+    val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertEquals("۱٬۰۰۰٬۰۰۰ تومان", result)
   }
 
   @Test
   fun `format falls back to persian digits with sign and rial label`() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    val result = CurrencyFormatter.format(-10_000_000L)
+    val result = CurrencyFormatter.format(-10_000_000L).stripLrm()
     assertEquals("-۱۰٬۰۰۰٬۰۰۰ ریال", result)
   }
 
   @Test
   fun `format zero falls back without sign`() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val result = CurrencyFormatter.format(0L)
+    val result = CurrencyFormatter.format(0L).stripLrm()
     assertEquals("۰ تومان", result)
+  }
+
+  // --- LRM (U+200E) BIDI correctness ---
+
+  @Test
+  fun `format negative value starts with LRM before minus`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.format(-10_000_000L)
+    // LRM (U+200E) must be the first character so the number block renders LTR in RTL layout
+    assertTrue("must start with LRM", result.startsWith('\u200E'))
+    assertTrue("LRM+minus must be followed by digits", result[1] == '-' || result[1] == '\u200E')
+    // After LRM and minus, the next char must be a Persian digit (0x06F0–0x06F9)
+    val digitIndex = result.indexOfFirst { it.code in 0x06F0..0x06F9 }
+    assertFalse("must contain Persian digits", digitIndex == -1)
+    assertTrue("Persian digits must come after LRM+minus", digitIndex >= 2)
+  }
+
+  @Test
+  fun `format positive value starts with LRM`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.format(10_000_000L)
+    assertTrue("positive must start with LRM", result.startsWith('\u200E'))
+  }
+
+  @Test
+  fun `formatNumber negative value starts with LRM before minus`() {
+    val result = CurrencyFormatter.formatNumber(-500_000L)
+    assertTrue("must start with LRM", result.startsWith('\u200E'))
+    assertTrue("second char must be minus", result[1] == '-')
+  }
+
+  // --- formatSigned ---
+
+  @Test
+  fun `formatSigned positive prepends plus`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.formatSigned(1_000_000L)
+    assertTrue("must start with +", result.startsWith("+"))
+  }
+
+  @Test
+  fun `formatSigned negative prepends minus`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.formatSigned(-1_000_000L)
+    assertTrue("must start with -", result.startsWith("-"))
+  }
+
+  @Test
+  fun `formatSigned zero prepends plus`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.formatSigned(0L)
+    assertTrue("zero must start with +", result.startsWith("+"))
+  }
+
+  // --- formatSignedParts ---
+
+  @Test
+  fun `formatSignedParts positive returns plus sign`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val (sign, amount) = CurrencyFormatter.formatSignedParts(1_000_000L)
+    assertEquals("+", sign)
+    assertTrue("amount must contain toman", amount.stripLrm().endsWith("تومان"))
+  }
+
+  @Test
+  fun `formatSignedParts negative returns minus sign`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val (sign, amount) = CurrencyFormatter.formatSignedParts(-1_000_000L)
+    assertEquals("-", sign)
+    assertTrue("amount must contain toman", amount.stripLrm().endsWith("تومان"))
+  }
+
+  @Test
+  fun `formatSignedParts zero returns plus sign`() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val (sign, _) = CurrencyFormatter.formatSignedParts(0L)
+    assertEquals("+", sign)
   }
 }

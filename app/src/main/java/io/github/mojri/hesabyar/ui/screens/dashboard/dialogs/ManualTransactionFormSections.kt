@@ -1,16 +1,12 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
@@ -30,11 +26,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -336,11 +335,12 @@ internal fun DestinationAccountSelector(
           onClick = { onDestinationAccountSelected(account.id) },
           label = account.name,
           leadingIcon = {
-            Box(
-              modifier =
-                Modifier
-                  .size(Dimens.IconSmall)
-                  .background(color = account.color.toComposeColor(), shape = CircleShape),
+            IconCircle(
+              icon = account.type.icon(),
+              tint = account.color.toComposeColor(),
+              backgroundColor = account.color.toComposeColor(),
+              iconSize = 12.dp,
+              containerSize = Dimens.IconSmall,
             )
           },
           shape = ShapeTokens.Small,

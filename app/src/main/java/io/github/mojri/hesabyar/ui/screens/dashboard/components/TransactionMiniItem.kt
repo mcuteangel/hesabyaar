@@ -1,9 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CardDefaults
@@ -21,19 +18,23 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
-import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
@@ -81,7 +82,12 @@ internal fun TransactionMiniItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.weight(1f)
       ) {
-        AccountColorIndicator(sourceColor = sourceColor, destColor = destColor)
+        AccountColorIndicator(
+          sourceAccount = sourceAccount,
+          destAccount = destAccount,
+          sourceColor = sourceColor,
+          destColor = destColor,
+        )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {
           Text(
@@ -100,11 +106,17 @@ internal fun TransactionMiniItem(
       }
 
       Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-          text = (if (isIncome) "+" else "-") + CurrencyFormatter.format(transaction.amount),
-          style = MaterialTheme.typography.bodyMedium,
-          color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-        )
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            val (sign, amount) =
+              CurrencyFormatter.formatSignedParts(
+                if (isIncome) transaction.amount else -transaction.amount
+              )
+            val amountColor = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            Text(text = sign, style = MaterialTheme.typography.bodyMedium, color = amountColor)
+            Text(text = amount, style = MaterialTheme.typography.bodyMedium, color = amountColor)
+          }
+        }
         IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
           Icon(
             imageVector = Icons.Filled.Delete,
@@ -141,53 +153,52 @@ private fun buildSubtitle(
   }
 
 /**
- * Small colored dot indicating the source account.
+ * Circular icon badge indicating the source account (and destination for transfers).
  *
- * For transfers, two half-dots (source + destination) are shown side by side
- * to visually communicate the two-account nature of the transaction.
- *
- * This is the primary color signal; the account name text in the subtitle
- * serves as the secondary (accessibility) signal.
+ * Uses [IconCircle] from the design system with a 15% tinted background,
+ * showing the account type icon (bank, wallet, etc.) instead of a plain dot.
+ * For transfers, two stacked badges (source + destination) are shown.
  */
 @Composable
 private fun AccountColorIndicator(
+  sourceAccount: AccountEntity?,
+  destAccount: AccountEntity?,
   sourceColor: Color,
   destColor: Color?,
   modifier: Modifier = Modifier,
 ) {
-  Box(
-    modifier = modifier.size(Dimens.IconSmall),
-    contentAlignment = Alignment.Center,
-  ) {
-    if (destColor != null) {
-      Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-      ) {
-        Box(
-          modifier =
-            Modifier
-              .size(7.dp)
-              .clip(CircleShape)
-              .background(sourceColor),
-        )
-        Spacer(modifier = Modifier.height(1.dp))
-        Box(
-          modifier =
-            Modifier
-              .size(7.dp)
-              .clip(CircleShape)
-              .background(destColor),
-        )
-      }
-    } else {
-      Box(
-        modifier =
-          Modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(sourceColor),
+  val sourceType = sourceAccount?.type ?: AccountType.OTHER
+  if (destColor != null) {
+    val destType = destAccount?.type ?: AccountType.OTHER
+    Column(
+      modifier = modifier,
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.Center,
+    ) {
+      IconCircle(
+        icon = sourceType.icon(),
+        tint = sourceColor,
+        backgroundColor = sourceColor,
+        iconSize = 12.dp,
+        containerSize = 20.dp,
+      )
+      Spacer(modifier = Modifier.height(1.dp))
+      IconCircle(
+        icon = destType.icon(),
+        tint = destColor,
+        backgroundColor = destColor,
+        iconSize = 12.dp,
+        containerSize = 20.dp,
       )
     }
+  } else {
+    IconCircle(
+      icon = sourceType.icon(),
+      modifier = modifier,
+      tint = sourceColor,
+      backgroundColor = sourceColor,
+      iconSize = 14.dp,
+      containerSize = 24.dp,
+    )
   }
 }

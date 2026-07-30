@@ -21,25 +21,29 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.AccountDashboardSummary
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import kotlin.math.abs
 
-private const val SELECTED_BACKGROUND_ALPHA = 0.08f
+private val SELECTED_BACKGROUND_ALPHA = Dimens.ICON_CIRCLE_BACKGROUND_ALPHA
 private const val SELECTED_BORDER_WIDTH = 2f
 private const val CHECK_ICON_SIZE = 18
 private val CARD_HEIGHT = 88.dp
@@ -173,12 +177,16 @@ private fun TrendIndicator(delta: Double) {
       String.format("%.1f", delta)
     }
 
-  Text(
-    text = "$sign$pct% $arrow",
-    style = MaterialTheme.typography.labelMedium,
-    color = color,
-    textAlign = TextAlign.End,
-  )
+  // Force LTR layout so the sign (±) always appears on the left of the
+  // percentage, regardless of the page's RTL direction.
+  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    Text(
+      text = "$sign$pct% $arrow",
+      style = MaterialTheme.typography.labelMedium,
+      color = color,
+      textAlign = TextAlign.End,
+    )
+  }
 }
 
 @Composable

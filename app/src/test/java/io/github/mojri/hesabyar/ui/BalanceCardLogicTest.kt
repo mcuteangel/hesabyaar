@@ -18,6 +18,9 @@ import java.text.DecimalFormat
  * - Zero balance display
  */
 class BalanceCardLogicTest {
+  /** Strip LRM prefix so tests focus on formatting logic, not BIDI control chars. */
+  private fun String.stripLrm(): String = removePrefix("\u200E")
+
   @Before
   fun setUp() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -31,7 +34,7 @@ class BalanceCardLogicTest {
   @Test
   fun `balance formatted with separators and currency suffix`() {
     val balance = 5000000L // 5M rial
-    val display = CurrencyFormatter.format(balance)
+    val display = CurrencyFormatter.format(balance).stripLrm()
     assertEquals("۵۰۰٬۰۰۰", display.substringBeforeLast(" ")) // 5M rial = 500k TOMAN
     assertTrue(
       "Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",
@@ -41,7 +44,7 @@ class BalanceCardLogicTest {
 
   @Test
   fun `zero balance displays correctly`() {
-    val display = CurrencyFormatter.format(0L)
+    val display = CurrencyFormatter.format(0L).stripLrm()
     assertEquals("۰", display.substringBeforeLast(" "))
     assertTrue(
       "Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",

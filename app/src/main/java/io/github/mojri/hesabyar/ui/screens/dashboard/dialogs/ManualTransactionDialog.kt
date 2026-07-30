@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +28,7 @@ import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,11 +173,19 @@ internal fun ManualTransactionDialog(
     )
 
     if (accounts.isNotEmpty()) {
-      AccountSelector(
-        accounts = accounts,
-        selectedAccountId = selectedAccountId,
-        onAccountSelected = onAccountSelected
-      )
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+        Text(
+          text = "حساب:",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        AccountSelector(
+          accounts = accounts,
+          selectedAccountId = selectedAccountId,
+          onAccountSelected = onAccountSelected,
+          includeAllAccountsOption = false
+        )
+      }
     }
 
     if (selectedType == "TRANSFER") {
