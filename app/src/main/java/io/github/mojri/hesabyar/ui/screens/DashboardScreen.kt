@@ -255,6 +255,7 @@ fun DashboardScreen(
           TransactionMiniItem(
             transaction = transaction,
             categories = categories,
+            accounts = accounts,
             onClick = { showDetailTransaction = transaction },
             onDelete = { deletingTransaction = transaction }
           )
@@ -319,6 +320,7 @@ fun DashboardScreen(
     TransactionDetailDialog(
       transaction = showDetailTransaction!!,
       categories = categories,
+      accounts = accounts,
       onEdit = {
         editingTransaction = showDetailTransaction
         showDetailTransaction = null

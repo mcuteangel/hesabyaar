@@ -1,12 +1,15 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -21,8 +24,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
@@ -30,6 +36,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 
 @Suppress("LongMethod")
@@ -37,12 +44,17 @@ import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 internal fun TransactionDetailDialog(
   transaction: Transaction,
   categories: List<Category>,
+  accounts: List<AccountEntity> = emptyList(),
   onEdit: () -> Unit,
   onDelete: () -> Unit,
   onDismiss: () -> Unit
 ) {
   val isIncome = transaction.type == TransactionType.INCOME
+  val isTransfer = transaction.type == TransactionType.TRANSFER
   val category = categories.find { it.id == transaction.categoryId }
+  val sourceAccount = accounts.find { it.id == transaction.accountId }
+  val destAccount =
+    if (isTransfer) accounts.find { it.id == transaction.destinationAccountId } else null
 
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -78,6 +90,44 @@ internal fun TransactionDetailDialog(
         }
 
         HorizontalDivider()
+
+        // Account row — color dot + account name as primary+secondary signal
+        if (sourceAccount != null) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "حساب:",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+            ) {
+              Box(
+                modifier =
+                  Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(sourceAccount.color.toComposeColor())
+              )
+              Text(
+                text =
+                  if (isTransfer && destAccount != null) {
+                    "${sourceAccount.name} → ${destAccount.name}"
+                  } else {
+                    sourceAccount.name
+                  },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+              )
+            }
+          }
+          HorizontalDivider()
+        }
 
         Row(
           modifier = Modifier.fillMaxWidth(),

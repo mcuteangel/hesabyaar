@@ -158,6 +158,10 @@ class GetAnalyticsUseCase {
         emptyList()
       }
 
+    // Per-account expense breakdown for the donut chart
+    val accountBreakdown =
+      computeAccountBreakdown(monthlyTx, accounts, monthlyExpenseTotal)
+
     val bankLoanSummaries =
       bankLoans.map { loan ->
         io.github.mojri.hesabyar.rust.BankLoanSummary(
@@ -177,6 +181,7 @@ class GetAnalyticsUseCase {
       monthlySpending = listOf(monthlySpending),
       monthlyIncome = listOf(monthlyIncomeData),
       categoryBreakdown = categoryBreakdown,
+      accountBreakdown = accountBreakdown,
       debtors = debtors,
       creditors = creditors,
       activeLoans = unsettledLoans,
@@ -188,6 +193,32 @@ class GetAnalyticsUseCase {
       bankLoansTotalDebt = bankLoanTotalDebt
     )
   }
+
+  /** Per-account expense breakdown for the account donut chart. */
+  private fun computeAccountBreakdown(
+    monthlyTx: List<Transaction>,
+    accounts: List<io.github.mojri.hesabyar.data.AccountEntity>,
+    monthlyExpenseTotal: Long,
+  ): List<io.github.mojri.hesabyar.ui.CategoryBreakdown> =
+    if (monthlyExpenseTotal > 0) {
+      val accById = accounts.associateBy { it.id }
+      monthlyTx
+        .filter { it.type == TransactionType.EXPENSE }
+        .groupBy { it.accountId }
+        .map { (accId, txs) ->
+          val acc = accById[accId]
+          val total = txs.sumOf { it.amount }
+          io.github.mojri.hesabyar.ui.CategoryBreakdown(
+            categoryId = accId,
+            categoryName = acc?.name ?: "سایر",
+            color = acc?.color ?: 0xFF999999,
+            total = total,
+            percentage = total * 100f / monthlyExpenseTotal
+          )
+        }.sortedByDescending { it.total }
+    } else {
+      emptyList()
+    }
 
   /** True when every collection/aggregate is empty/zero, i.e. the Rust result
    *  is a blank placeholder rather than a real computation. */

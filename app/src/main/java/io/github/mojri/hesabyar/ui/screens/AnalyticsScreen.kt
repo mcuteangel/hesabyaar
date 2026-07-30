@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.AccountBreakdownCard
 
 @Composable
 fun AnalyticsScreen(
@@ -103,6 +104,13 @@ fun AnalyticsScreen(
     // Category Breakdown (Donut Chart)
     item {
       CategoryBreakdownCard(categoryBreakdown = analyticsData.categoryBreakdown)
+    }
+
+    // Account Breakdown (Donut Chart — per-account expense distribution)
+    if (analyticsData.accountBreakdown.isNotEmpty()) {
+      item {
+        AccountBreakdownCard(accountBreakdown = analyticsData.accountBreakdown)
+      }
     }
 
     // Debt Summary
@@ -449,7 +457,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
 }
 
 @Composable
-private fun DonutChart(
+internal fun DonutChart(
   data: List<CategoryBreakdown>,
   modifier: Modifier = Modifier
 ) {

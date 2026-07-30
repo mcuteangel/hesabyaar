@@ -101,6 +101,7 @@ data class AnalyticsData(
   val monthlySpending: List<MonthlyData> = emptyList(),
   val monthlyIncome: List<MonthlyData> = emptyList(),
   val categoryBreakdown: List<CategoryBreakdown> = emptyList(),
+  val accountBreakdown: List<CategoryBreakdown> = emptyList(),
   val debtors: List<DebtSummary> = emptyList(),
   val creditors: List<DebtSummary> = emptyList(),
   val activeLoans: List<Loan> = emptyList(),

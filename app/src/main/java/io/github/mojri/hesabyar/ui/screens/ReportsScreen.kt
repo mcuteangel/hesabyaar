@@ -37,6 +37,7 @@ import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ManualTransactionDialog
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDialog
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
@@ -58,6 +59,7 @@ fun ReportsScreen(
 ) {
   val transactions by dashboardViewModel.transactions.collectAsState()
   val categories by dashboardViewModel.categories.collectAsState()
+  val accounts by dashboardViewModel.accounts.collectAsState()
 
   var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
   var selectedPreset by remember { mutableStateOf<String?>(null) }
@@ -655,6 +657,7 @@ fun ReportsScreen(
       }
     } else {
       items(displayList) { transaction ->
+        val sourceAccount = accounts.find { it.id == transaction.accountId }
         Row(
           modifier =
             Modifier
@@ -666,6 +669,17 @@ fun ReportsScreen(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
+          // Account color dot — primary signal for account identity
+          if (sourceAccount != null) {
+            Box(
+              modifier =
+                Modifier
+                  .size(8.dp)
+                  .clip(CircleShape)
+                  .background(sourceAccount.color.toComposeColor())
+            )
+            Spacer(modifier = Modifier.width(SpacingTokens.sm))
+          }
           Column(modifier = Modifier.weight(1f)) {
             Text(
               text = transaction.description,
@@ -715,6 +729,7 @@ fun ReportsScreen(
     TransactionDetailDialog(
       transaction = showDetailTransaction!!,
       categories = categories,
+      accounts = accounts,
       onEdit = {
         editingTransaction = showDetailTransaction
         showDetailTransaction = null
