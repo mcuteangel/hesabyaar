@@ -328,10 +328,12 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     "-Djava.library.path=${rustReleaseDir.absolutePath}"
   )
   // The Rust native library (hesabyar_core) uses global mutable state that is
-  // not thread-safe. Running test classes in parallel causes JNI load races and
-  // NPEs. Force sequential execution to ensure each class gets a clean Rust
-  // bridge state (via RustIsolationRule).
+  // not thread-safe and not resettable between test classes. Running test classes
+  // in parallel causes JNI load races and NPEs. Running them sequentially in a
+  // single JVM still leaks native state across classes. forkEvery=1 creates a
+  // fresh JVM per test class so each gets a clean native library state.
   maxParallelForks = 1
+  forkEvery = 1
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
