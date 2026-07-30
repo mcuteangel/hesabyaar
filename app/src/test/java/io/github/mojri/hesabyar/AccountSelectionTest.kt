@@ -307,4 +307,37 @@ class AccountSelectionTest {
     val accountIds = result.accounts.map { it.accountId }.toSet()
     assertEquals(setOf(1L, 2L), accountIds)
   }
+
+  // -- Test i: LazyRow with multiple accounts — verifies chip selection works ---
+
+  @Test
+  fun lazyRowWithMultipleAccountsUpdatesSelection() {
+    val selectedId = mutableStateOf<Long?>(null)
+    val accounts =
+      listOf(
+        AccountEntity(id = 1L, name = "First", type = AccountType.BANK),
+        AccountEntity(id = 2L, name = "Second", type = AccountType.CASH_WALLET),
+        AccountEntity(id = 3L, name = "Third", type = AccountType.SAVINGS_INVESTMENT),
+      )
+
+    composeRule.setContent {
+      AccountSelector(
+        accounts = accounts,
+        selectedAccountId = selectedId.value,
+        onAccountSelected = { selectedId.value = it },
+      )
+    }
+
+    // "همه حساب‌ها" chip exists and can clear an active selection
+    composeRule.onNodeWithText("همه حساب‌ها").performClick()
+    assertNull(selectedId.value)
+
+    // Third account chip updates selection
+    composeRule.onNodeWithText("Third").performClick()
+    assertEquals(3L, selectedId.value)
+
+    // First account chip switches selection
+    composeRule.onNodeWithText("First").performClick()
+    assertEquals(1L, selectedId.value)
+  }
 }
