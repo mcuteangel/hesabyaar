@@ -14,11 +14,17 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ./gradlew generateKeystore   # first time only
 ./gradlew checkSigningConfig  # verify signing setup
 
-# Run unit tests
+# Run all unit tests (non-Rust + Rust isolated)
 ./gradlew test
 
+# Run fast (non-Rust) tests only — no JNI fork overhead (~2m vs ~7m)
+./gradlew testDebugUnitTest
+
+# Run Rust-bridge tests only — with JNI isolation (forkEvery=1)
+./gradlew testDebugUnitTestRust
+
 # Run single test class
-./gradlew test --tests "io.github.mojri.hesabyar.TransactionTest"
+./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionTest"
 
 # Lint / static analysis (no custom config, uses Android defaults)
 ./gradlew lint
@@ -27,10 +33,9 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ### ⚠️ Test Reliability: Rust JNI State Leakage
 
 The Rust native library (`hesabyar_core`) uses global mutable state that cannot be
-reset between test classes sharing the same JVM. `forkEvery = 1` in `build.gradle.kts`
-creates a fresh JVM per test class to isolate this, but Gradle's **incremental build
-cache** can hide real failures by skipping recompilation and re-execution of unchanged
-test classes.
+reset between test classes sharing the same JVM. Tests touching the Rust bridge are
+tagged with `@Category(RustTest::class)` and run in a separate Gradle task
+(`testDebugUnitTestRust`) with `forkEvery=1` and `maxParallelForks=1`.
 
 **Before merging any changes that touch Rust bridge code, Rust FFI tests, or test
 infrastructure, always verify with a cache-busting run:**

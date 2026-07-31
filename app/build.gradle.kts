@@ -318,22 +318,72 @@ android.sourceSets.named("main") {
   jniLibs.srcDir("src/main/jniLibs")
 }
 
-// Make the host-native Rust library available to JNA during unit tests.
-// The generateAndFixBindings task builds the DLL/SO into rust/target/release/.
-// JNA 5.x searches jna.library.path first, then java.library.path.
+// ── Test configuration ──────────────────────────────────────────────────
+// Tests are split into two groups to balance speed vs. Rust JNI isolation:
+//
+// 1. Non-Rust tests (default task): Run with normal Gradle parallelism.
+//    No fork-per-class overhead. Covers ~40 pure-Kotlin test classes.
+//
+// 2. Rust-bridge tests (testDebugUnitTestRust): Tagged with
+//    @Category(RustTest::class). Run with forkEvery=1 and maxParallelForks=1
+//    to prevent JNI global-state leakage across test classes.
+//    Covers ~13 test classes that call into hesabyar_core.
+//
+// Run both groups:  ./gradlew test
+// Run non-Rust only: ./gradlew testDebugUnitTest  (fast)
+// Run Rust only:     ./gradlew testDebugUnitTestRust  (slow, isolated)
+
+// Rust library path for JNA — only needed by the Rust test task.
 val rustReleaseDir = file("${rootProject.projectDir}/rust/target/release")
-tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-  jvmArgs(
+val rustJvmArgs =
+  listOf(
     "-Djna.library.path=${rustReleaseDir.absolutePath}",
     "-Djava.library.path=${rustReleaseDir.absolutePath}"
   )
-  // The Rust native library (hesabyar_core) uses global mutable state that is
-  // not thread-safe and not resettable between test classes. Running test classes
-  // in parallel causes JNI load races and NPEs. Running them sequentially in a
-  // single JVM still leaks native state across classes. forkEvery=1 creates a
-  // fresh JVM per test class so each gets a clean native library state.
-  maxParallelForks = 1
-  forkEvery = 1
+
+// Configure all unit test tasks: JVM args for JNA/Rust library discovery.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+  jvmArgs(rustJvmArgs)
+}
+
+// After Android plugin configures the test variant, set up category filtering
+// and create the Rust-only test task with JNI isolation.
+afterEvaluate {
+  // Main task: exclude Rust-tagged tests (fast, parallel).
+  tasks.named<org.gradle.api.tasks.testing.Test>("testDebugUnitTest") {
+    useJUnit {
+      excludeCategories("io.github.mojri.hesabyar.RustTest")
+    }
+  }
+
+  // Rust-bridge test task: clone config from testDebugUnitTest, then restrict
+  // to Rust-tagged classes with fork-per-class isolation.
+  val debugUnitTest = tasks.named<org.gradle.api.tasks.testing.Test>("testDebugUnitTest")
+  val rustTest =
+    tasks.register<org.gradle.api.tasks.testing.Test>("testDebugUnitTestRust") {
+      description = "Runs Rust-bridge unit tests with JNI global-state isolation"
+      group = "verification"
+
+      // Inherit classpath and test classes from the debug unit test task.
+      val sourceTask = debugUnitTest.get()
+      classpath = sourceTask.classpath
+      testClassesDirs = sourceTask.testClassesDirs
+      jvmArgs(rustJvmArgs)
+
+      useJUnit {
+        includeCategories("io.github.mojri.hesabyar.RustTest")
+      }
+      // The Rust native library (hesabyar_core) uses global mutable state that is
+      // not thread-safe and not resettable between test classes. forkEvery=1 creates
+      // a fresh JVM per class so each gets a clean native library state.
+      maxParallelForks = 1
+      forkEvery = 1
+    }
+
+  // Ensure ./gradlew test runs BOTH non-Rust and Rust test groups.
+  tasks.named("test") {
+    dependsOn(rustTest)
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
