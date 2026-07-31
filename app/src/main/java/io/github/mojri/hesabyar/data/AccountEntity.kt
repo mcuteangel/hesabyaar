@@ -10,7 +10,22 @@ enum class AccountType(
   BANK("بانکی"),
   CASH_WALLET("کیف پول نقدی"),
   SAVINGS_INVESTMENT("پس\u200cانداز/سرمایه\u200cگذاری"),
-  OTHER("سایر")
+  OTHER("سایر");
+
+  companion object {
+    /**
+     * Parse an [AccountType] from a name string, returning [OTHER] for
+     * unrecognized values instead of throwing [IllegalArgumentException].
+     * Used by Rust mappers where the Rust core may emit future enum variants
+     * not yet known to the Kotlin side.
+     */
+    fun safeValueOf(name: String): AccountType =
+      try {
+        valueOf(name)
+      } catch (_: IllegalArgumentException) {
+        OTHER
+      }
+  }
 }
 
 @Entity(tableName = "accounts")

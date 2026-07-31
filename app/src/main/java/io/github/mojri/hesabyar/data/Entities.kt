@@ -97,11 +97,19 @@ data class Transaction(
   val date: Long = System.currentTimeMillis(),
   val dueDate: Long? = null,
   val installmentId: Long? = null,
-  // FK to accounts (default: main account)
-  val accountId: Long = 1L,
+  // FK to accounts (default: main account).
+  // No @ForeignKey constraint here — requires a Room migration to ensure the default
+  // account exists before the constraint is applied. Tracked as tech-debt in #151.
+  // Referential integrity is enforced at the application layer
+  // (SubmitManualTransactionUseCase validates accountId before insert).
+  val accountId: Long = DEFAULT_ACCOUNT_ID,
   // For internal transfers
   val destinationAccountId: Long? = null
 ) : Serializable
+
+/** Default account ID used for backward-compatible data and new-transaction defaults.
+ *  Must match AccountEntity.DEFAULT_ACCOUNT.id and the migration INSERT. */
+const val DEFAULT_ACCOUNT_ID = 1L
 
 @Entity(tableName = "loans")
 data class Loan(

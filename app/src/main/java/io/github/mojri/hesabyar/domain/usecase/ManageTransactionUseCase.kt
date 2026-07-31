@@ -22,7 +22,7 @@ class ManageTransactionUseCase(
     description: String,
     personName: String? = null,
     customDate: Long? = null,
-    accountId: Long = 1L,
+    accountId: Long = io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
     destinationAccountId: Long? = null
   ): Long =
     repository.insertTransaction(

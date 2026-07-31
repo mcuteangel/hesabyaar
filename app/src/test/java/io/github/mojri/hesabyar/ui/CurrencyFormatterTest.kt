@@ -18,19 +18,19 @@ class CurrencyFormatterTest {
   // --- toRial ---
 
   @Test
-  fun `toRial toman multiplies by 10`() {
+  fun torialTomanMultipliesBy10() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     assertEquals(100_000L, CurrencyFormatter.toRial(10_000L))
   }
 
   @Test
-  fun `toRial rial passes through`() {
+  fun torialRialPassesThrough() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     assertEquals(10_000L, CurrencyFormatter.toRial(10_000L))
   }
 
   @Test
-  fun `toRial zero`() {
+  fun torialZero() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     assertEquals(0L, CurrencyFormatter.toRial(0L))
   }
@@ -38,19 +38,19 @@ class CurrencyFormatterTest {
   // --- fromRial ---
 
   @Test
-  fun `fromRial toman divides by 10`() {
+  fun fromrialTomanDividesBy10() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     assertEquals(10_000L, CurrencyFormatter.fromRial(100_000L))
   }
 
   @Test
-  fun `fromRial rial passes through`() {
+  fun fromrialRialPassesThrough() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     assertEquals(100_000L, CurrencyFormatter.fromRial(100_000L))
   }
 
   @Test
-  fun `fromRial truncates on odd rial`() {
+  fun fromrialTruncatesOnOddRial() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     assertEquals(5L, CurrencyFormatter.fromRial(55L))
   }
@@ -58,7 +58,7 @@ class CurrencyFormatterTest {
   // --- setUnit state ---
 
   @Test
-  fun `setUnit updates currentUnit`() {
+  fun setunitUpdatesCurrentunit() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     assertEquals(CurrencyUnit.RIAL, CurrencyFormatter.currentUnit)
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -68,7 +68,7 @@ class CurrencyFormatterTest {
   // --- round-trip consistency ---
 
   @Test
-  fun `toRial then fromRial round-trips for toman`() {
+  fun torialThenFromrialRoundtripsForToman() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val original = 5_500_000L
     val rial = CurrencyFormatter.toRial(original)
@@ -77,7 +77,7 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `toRial then fromRial round-trips for rial`() {
+  fun torialThenFromrialRoundtripsForRial() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     val original = 5_500_000L
     val rial = CurrencyFormatter.toRial(original)
@@ -88,7 +88,7 @@ class CurrencyFormatterTest {
   // --- unitLabel ---
 
   @Test
-  fun `unitLabel matches enum label`() {
+  fun unitlabelMatchesEnumLabel() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     assertEquals(CurrencyUnit.RIAL.label, CurrencyFormatter.unitLabel)
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -98,14 +98,14 @@ class CurrencyFormatterTest {
   // --- format includes unit ---
 
   @Test
-  fun `format includes rial unit`() {
+  fun formatIncludesRialUnit() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     val result = CurrencyFormatter.format(1_000_000L).stripLrm()
     assertTrue(result.endsWith("ریال"))
   }
 
   @Test
-  fun `format includes toman unit`() {
+  fun formatIncludesTomanUnit() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.endsWith("تومان"))
@@ -114,13 +114,13 @@ class CurrencyFormatterTest {
   // --- fromKey ---
 
   @Test
-  fun `fromKey returns correct unit`() {
+  fun fromkeyReturnsCorrectUnit() {
     assertEquals(CurrencyUnit.RIAL, CurrencyUnit.fromKey("rial"))
     assertEquals(CurrencyUnit.TOMAN, CurrencyUnit.fromKey("toman"))
   }
 
   @Test
-  fun `fromKey falls back to TOMAN`() {
+  fun fromkeyFallsBackToToman() {
     assertEquals(CurrencyUnit.TOMAN, CurrencyUnit.fromKey("unknown"))
     assertEquals(CurrencyUnit.TOMAN, CurrencyUnit.fromKey(""))
   }
@@ -128,7 +128,7 @@ class CurrencyFormatterTest {
   // --- format / formatNumber fallback + sign handling ---
 
   @Test
-  fun `format divides rial by 10 in toman mode`() {
+  fun formatDividesRialBy10InTomanMode() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.contains("۱٬۰۰۰٬۰۰۰"))
@@ -136,7 +136,7 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `format shows raw value in rial mode`() {
+  fun formatShowsRawValueInRialMode() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertTrue(result.contains("۱۰٬۰۰۰٬۰۰۰"))
@@ -144,7 +144,7 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `format negative value keeps sign before unit`() {
+  fun formatNegativeValueKeepsSignBeforeUnit() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(-10_000_000L).stripLrm()
     assertTrue(result.startsWith("-"))
@@ -154,33 +154,33 @@ class CurrencyFormatterTest {
   // --- Kotlin fallback branch (Rust unavailable in unit tests) ---
 
   @Test
-  fun `formatNumber falls back to persian digits for positive`() {
+  fun formatnumberFallsBackToPersianDigitsForPositive() {
     val result = CurrencyFormatter.formatNumber(1_234_567L).stripLrm()
     assertEquals("۱٬۲۳۴٬۵۶۷", result)
   }
 
   @Test
-  fun `formatNumber falls back to persian digits with sign for negative`() {
+  fun formatnumberFallsBackToPersianDigitsWithSignForNegative() {
     val result = CurrencyFormatter.formatNumber(-1_234_567L).stripLrm()
     assertEquals("-۱٬۲۳۴٬۵۶۷", result)
   }
 
   @Test
-  fun `format falls back to persian digits with toman label`() {
+  fun formatFallsBackToPersianDigitsWithTomanLabel() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(10_000_000L).stripLrm()
     assertEquals("۱٬۰۰۰٬۰۰۰ تومان", result)
   }
 
   @Test
-  fun `format falls back to persian digits with sign and rial label`() {
+  fun formatFallsBackToPersianDigitsWithSignAndRialLabel() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     val result = CurrencyFormatter.format(-10_000_000L).stripLrm()
     assertEquals("-۱۰٬۰۰۰٬۰۰۰ ریال", result)
   }
 
   @Test
-  fun `format zero falls back without sign`() {
+  fun formatZeroFallsBackWithoutSign() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(0L).stripLrm()
     assertEquals("۰ تومان", result)
@@ -189,7 +189,7 @@ class CurrencyFormatterTest {
   // --- LRM (U+200E) BIDI correctness ---
 
   @Test
-  fun `format negative value starts with LRM before minus`() {
+  fun formatNegativeValueStartsWithLrmBeforeMinus() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(-10_000_000L)
     // LRM (U+200E) must be the first character so the number block renders LTR in RTL layout
@@ -202,14 +202,14 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `format positive value starts with LRM`() {
+  fun formatPositiveValueStartsWithLrm() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.format(10_000_000L)
     assertTrue("positive must start with LRM", result.startsWith('\u200E'))
   }
 
   @Test
-  fun `formatNumber negative value starts with LRM before minus`() {
+  fun formatnumberNegativeValueStartsWithLrmBeforeMinus() {
     val result = CurrencyFormatter.formatNumber(-500_000L)
     assertTrue("must start with LRM", result.startsWith('\u200E'))
     assertTrue("second char must be minus", result[1] == '-')
@@ -218,21 +218,21 @@ class CurrencyFormatterTest {
   // --- formatSigned ---
 
   @Test
-  fun `formatSigned positive prepends plus`() {
+  fun formatsignedPositivePrependsPlus() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.formatSigned(1_000_000L)
     assertTrue("must start with +", result.startsWith("+"))
   }
 
   @Test
-  fun `formatSigned negative prepends minus`() {
+  fun formatsignedNegativePrependsMinus() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.formatSigned(-1_000_000L)
     assertTrue("must start with -", result.startsWith("-"))
   }
 
   @Test
-  fun `formatSigned zero prepends plus`() {
+  fun formatsignedZeroPrependsPlus() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val result = CurrencyFormatter.formatSigned(0L)
     assertTrue("zero must start with +", result.startsWith("+"))
@@ -241,7 +241,7 @@ class CurrencyFormatterTest {
   // --- formatSignedParts ---
 
   @Test
-  fun `formatSignedParts positive returns plus sign`() {
+  fun formatsignedpartsPositiveReturnsPlusSign() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val (sign, amount) = CurrencyFormatter.formatSignedParts(1_000_000L)
     assertEquals("+", sign)
@@ -249,7 +249,7 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `formatSignedParts negative returns minus sign`() {
+  fun formatsignedpartsNegativeReturnsMinusSign() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val (sign, amount) = CurrencyFormatter.formatSignedParts(-1_000_000L)
     assertEquals("-", sign)
@@ -257,7 +257,7 @@ class CurrencyFormatterTest {
   }
 
   @Test
-  fun `formatSignedParts zero returns plus sign`() {
+  fun formatsignedpartsZeroReturnsPlusSign() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     val (sign, _) = CurrencyFormatter.formatSignedParts(0L)
     assertEquals("+", sign)

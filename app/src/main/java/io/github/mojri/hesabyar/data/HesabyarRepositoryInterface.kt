@@ -86,6 +86,8 @@ interface HesabyarRepositoryInterface {
 
   suspend fun getTransactionCountForAccount(accountId: Long): Int
 
+  suspend fun getMaxDisplayOrder(): Int
+
   suspend fun importBackup(
     transactions: List<Transaction>,
     loans: List<Loan>,

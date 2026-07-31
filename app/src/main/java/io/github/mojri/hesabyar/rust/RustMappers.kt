@@ -327,7 +327,7 @@ object RustMappers {
     AccountEntity(
       id = rust.id,
       name = rust.name,
-      type = AccountType.valueOf(rust.accountType),
+      type = AccountType.safeValueOf(rust.accountType),
       bankName = rust.bankName,
       cardNumber = rust.cardNumber,
       accountNumber = rust.accountNumber,
@@ -369,7 +369,7 @@ object RustMappers {
     return AccountDashboardSummary(
       accountId = rust.accountId,
       accountName = rust.accountName,
-      accountType = AccountType.valueOf(rust.accountType),
+      accountType = AccountType.safeValueOf(rust.accountType),
       balance = rust.balance,
       monthlyIncome = rust.monthlyIncome,
       monthlyExpenses = rust.monthlyExpenses,

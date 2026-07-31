@@ -24,4 +24,10 @@ object Dimens {
 
   /** Default alpha for tinted icon-circle backgrounds (0–1). */
   const val ICON_CIRCLE_BACKGROUND_ALPHA = 0.15f
+
+  /** Alpha for subtle surface tints (e.g. selected card backgrounds). */
+  const val SURFACE_TINT_ALPHA = 0.2f
+
+  /** Alpha for secondary/body text on surfaces. */
+  const val SECONDARY_TEXT_ALPHA = 0.7f
 }

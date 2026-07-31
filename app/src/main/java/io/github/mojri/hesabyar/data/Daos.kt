@@ -194,7 +194,7 @@ interface AccountDao {
   @Query("SELECT * FROM accounts WHERE id = :id")
   suspend fun getById(id: Long): AccountEntity?
 
-  @Insert
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insert(account: AccountEntity): Long
 
   @Update
@@ -209,9 +209,12 @@ interface AccountDao {
   @Query("DELETE FROM accounts")
   suspend fun deleteAllAccounts()
 
+  @Query("SELECT COALESCE(MAX(displayOrder), -1) FROM accounts")
+  suspend fun getMaxDisplayOrder(): Int
+
   @Query("SELECT * FROM accounts ORDER BY displayOrder, name")
   fun getAllAccountsBlocking(): List<AccountEntity>
 
-  @Insert
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
   fun insertAllBlocking(accounts: List<AccountEntity>)
 }

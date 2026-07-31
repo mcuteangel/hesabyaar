@@ -1,6 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
-
 import io.github.mojri.hesabyar.RustIsolationRule
+import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -10,16 +10,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Exercises [GetAnalyticsUseCase.computeAnalytics] on its **native (Rust)**
- * path — the default in unit tests because the `hesabyar_core` library loads.
+ * path — the default in unit tests because the hesabyar_core library loads.
  *
  * The debtor/creditor/active-loan lists are recomputed in Kotlin from the
  * domain loans regardless of which engine produced the rest, so those mappings
  * are asserted deterministically here. The Rust-sourced aggregates
  * (totals, category breakdown, monthly series) are only checked structurally.
  */
+@Category(RustTest::class)
 class GetAnalyticsUseCaseRustTest {
   @Rule
   @JvmField
@@ -44,7 +46,7 @@ class GetAnalyticsUseCaseRustTest {
     )
 
   @Test
-  fun `rust path yields empty collections and zero totals for empty inputs`() {
+  fun rustPathYieldsEmptyCollectionsAndZeroTotalsForEmptyInputs() {
     assertTrue(RustBridge.isAvailable)
     val result =
       useCase.computeAnalytics(emptyList(), emptyList(), emptyList(), emptyList())
@@ -61,7 +63,7 @@ class GetAnalyticsUseCaseRustTest {
   }
 
   @Test
-  fun `rust path partitions debtors and creditors from kotlin loans`() {
+  fun rustPathPartitionsDebtorsAndCreditorsFromKotlinLoans() {
     assertTrue(RustBridge.isAvailable)
     val loans =
       listOf(
@@ -88,7 +90,7 @@ class GetAnalyticsUseCaseRustTest {
   }
 
   @Test
-  fun `rust path maps installment progress`() {
+  fun rustPathMapsInstallmentProgress() {
     assertTrue(RustBridge.isAvailable)
     val insts =
       listOf(
@@ -104,7 +106,7 @@ class GetAnalyticsUseCaseRustTest {
   }
 
   @Test
-  fun `rust path produces non-negative totals`() {
+  fun rustPathProducesNonnegativeTotals() {
     assertTrue(RustBridge.isAvailable)
     val loans =
       listOf(
@@ -120,7 +122,7 @@ class GetAnalyticsUseCaseRustTest {
   }
 
   @Test
-  fun `rust path returns non-empty bank loan summaries`() {
+  fun rustPathReturnsNonemptyBankLoanSummaries() {
     assertTrue(RustBridge.isAvailable)
     val bankLoans =
       listOf(

@@ -56,7 +56,7 @@ class BackupViewModelTest {
   }
 
   @Test
-  fun `importBackupFromFile success sets ImportSuccess`() =
+  fun importbackupfromfileSuccessSetsImportsuccess() =
     runTest {
       val json =
         """
@@ -79,7 +79,7 @@ class BackupViewModelTest {
     }
 
   @Test
-  fun `importBackupFromFile IOException sets Error`() =
+  fun importbackupfromfileIoexceptionSetsError() =
     runTest {
       val inputStream =
         object : InputStream() {
@@ -101,7 +101,7 @@ class BackupViewModelTest {
     }
 
   @Test
-  fun `importBackupFromFile JSONException sets Error`() =
+  fun importbackupfromfileJsonexceptionSetsError() =
     runTest {
       val badJson = "this is not json"
 
@@ -114,7 +114,7 @@ class BackupViewModelTest {
     }
 
   @Test
-  fun `importBackupFromFile IllegalStateException sets Error`() =
+  fun importbackupfromfileIllegalstateexceptionSetsError() =
     runTest {
       fakeRepo.importShouldThrow = IllegalStateException("UNIQUE constraint failed")
 
@@ -239,5 +239,7 @@ class BackupViewModelTest {
     override suspend fun deleteAccount(account: AccountEntity) {}
 
     override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
+
+    override suspend fun getMaxDisplayOrder(): Int = -1
   }
 }

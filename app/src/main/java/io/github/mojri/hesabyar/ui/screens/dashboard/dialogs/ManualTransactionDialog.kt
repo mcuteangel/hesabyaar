@@ -134,7 +134,7 @@ internal fun ManualTransactionDialog(
                   customDate = customDate,
                   categories = categories,
                   transactionToEdit = transactionToEdit,
-                  accountId = selectedAccountId ?: 1L,
+                  accountId = selectedAccountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
                   destinationAccountId = destinationAccountId
                 )
 
@@ -191,7 +191,7 @@ internal fun ManualTransactionDialog(
     if (selectedType == "TRANSFER") {
       DestinationAccountSelector(
         accounts = accounts,
-        sourceAccountId = selectedAccountId ?: 1L,
+        sourceAccountId = selectedAccountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
         selectedDestinationAccountId = destinationAccountId,
         onDestinationAccountSelected = { destinationAccountId = it }
       )

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import android.util.Log
 import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
@@ -15,6 +16,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -27,7 +29,7 @@ class ManageBackupUseCase(
   private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
   private companion object {
-    const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L
+    const val TAG = "ManageBackupUseCase"
   }
 
   suspend fun parseBackupJson(jsonString: String): BackupPayload? =
@@ -79,8 +81,9 @@ class ManageBackupUseCase(
               },
             settings = parseSettings(rootJson)
           )
-        } catch (_: IllegalArgumentException) {
+        } catch (e: IllegalArgumentException) {
           // Malformed/outdated enum strings — fall back to Kotlin-only parsing
+          Log.w(TAG, "Rust→Kotlin mapping failed, falling back to Kotlin parser", e)
           parseBackupJsonKotlin(jsonString)
         }
       } else {
@@ -92,7 +95,8 @@ class ManageBackupUseCase(
   private fun parseRawJson(jsonString: String): JSONObject? =
     try {
       JSONObject(jsonString)
-    } catch (_: Exception) {
+    } catch (e: org.json.JSONException) {
+      Log.w(TAG, "parseRawJson: malformed JSON input", e)
       null
     }
 
@@ -114,6 +118,7 @@ class ManageBackupUseCase(
     }
   }
 
+  @Suppress("TooGenericExceptionCaught") // NPE safety net for backup JSON constructor params
   private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
     val root = parseRawJson(jsonString) ?: return null
     return try {
@@ -130,7 +135,18 @@ class ManageBackupUseCase(
         accounts = parseAccountsFromJson(root),
         settings = parseSettings(root)
       )
-    } catch (_: Exception) {
+    } catch (e: IllegalArgumentException) {
+      Log.w(TAG, "Kotlin backup parse: invalid enum value", e)
+      null
+    } catch (e: NumberFormatException) {
+      Log.w(TAG, "Kotlin backup parse: malformed number in backup JSON", e)
+      null
+    } catch (e: org.json.JSONException) {
+      Log.w(TAG, "Kotlin backup parse: malformed JSON structure", e)
+      null
+    } catch (e: NullPointerException) {
+      // Safety net: opt* methods return defaults but constructor params may still NPE
+      Log.w(TAG, "Kotlin backup parse: null field in backup JSON", e)
       null
     }
   }

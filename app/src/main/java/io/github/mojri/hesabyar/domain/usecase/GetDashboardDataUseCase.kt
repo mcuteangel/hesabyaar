@@ -56,7 +56,8 @@ class GetDashboardDataUseCase(
       transactions.isNotEmpty() ||
         loans.isNotEmpty() ||
         installments.isNotEmpty() ||
-        bankLoans.isNotEmpty()
+        bankLoans.isNotEmpty() ||
+        accounts.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
         .mapDashboardData(rustResult, installments, accounts)

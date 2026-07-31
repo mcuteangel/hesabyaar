@@ -11,6 +11,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Currency-scale accuracy tests for the offline budget advice path.
@@ -20,6 +21,7 @@ import org.junit.Test
  * presented 10x larger than reality. These tests lock that invariant for the
  * offline advice generator (loans/installments and the data summary).
  */
+@Category(RustTest::class)
 class BudgetAdviceGeneratorTest {
   @Rule
   @JvmField
@@ -56,7 +58,7 @@ class BudgetAdviceGeneratorTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `handleAdviceResult - invalid AI advice falls back to offline when Rust available`() =
+  fun handleadviceresultInvalidAiAdviceFallsBackToOfflineWhenRustAvailable() =
     runTest {
       // "سلام" is too short for the native validator, so with Rust available the
       // result must be discarded and the offline advice returned (never the raw
@@ -82,7 +84,7 @@ class BudgetAdviceGeneratorTest {
     }
 
   @Test
-  fun `handleAdviceResult - valid AI advice is returned as-is when Rust available`() =
+  fun handleadviceresultValidAiAdviceIsReturnedAsisWhenRustAvailable() =
     runTest {
       // A well-formed Persian response passes validation and is surfaced directly.
       val aiText = "شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید."
@@ -98,7 +100,7 @@ class BudgetAdviceGeneratorTest {
     }
 
   @Test
-  fun `installment advice divides Rial by 10 and labels Toman`() {
+  fun installmentAdviceDividesRialBy10AndLabelsToman() {
     // 10,000,000 Rial installment must read as "1,000,000 تومان".
     val installments = listOf(createInstallment("قسط ماشین", 10_000_000, isPaid = false))
     val result =
@@ -119,7 +121,7 @@ class BudgetAdviceGeneratorTest {
   }
 
   @Test
-  fun `loan advice divides Rial by 10 and labels Toman`() {
+  fun loanAdviceDividesRialBy10AndLabelsToman() {
     // The loan original/remaining amounts surface in the data summary that is
     // fed to the AI prompt. 20,000,000 Rial → "2,000,000 تومان",
     // 12,000,000 Rial → "1,200,000 تومان".
@@ -146,7 +148,7 @@ class BudgetAdviceGeneratorTest {
   }
 
   @Test
-  fun `transaction-based advice summary divides Rial by 10 and labels Toman`() {
+  fun transactionbasedAdviceSummaryDividesRialBy10AndLabelsToman() {
     // A 10,000,000 Rial income + 10,000,000 Rial expense must read as
     // "1,000,000 تومان" in the data summary (income/expense/balance).
     val transactions =

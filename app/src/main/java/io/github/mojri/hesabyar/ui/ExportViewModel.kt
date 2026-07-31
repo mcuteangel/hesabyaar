@@ -28,6 +28,7 @@ class ExportViewModel
 
     val exportState = mutableStateOf<ExportState>(ExportState.Idle)
 
+    @Suppress("TooGenericExceptionCaught") // Rust FFI can rethrow RuntimeException; justified safety net
     fun exportExcel() {
       viewModelScope.launch {
         exportState.value = ExportState.Exporting
@@ -65,6 +66,20 @@ class ExportViewModel
           exportState.value =
             ExportState.Error(
               "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+            )
+        } catch (e: IllegalArgumentException) {
+          android.util.Log.e("ExportViewModel", "Invalid argument during Excel export", e)
+          exportState.value =
+            ExportState.Error(
+              "خطای پارامتر در خروجی اکسل: ${e.localizedMessage ?: "پارامتر نامعتبر"}"
+            )
+        } catch (e: Exception) {
+          // Safety net: Rust FFI (rustCallSync) can rethrow RuntimeException
+          // including NPE from the Rust bridge. Without this catch the app crashes.
+          android.util.Log.e("ExportViewModel", "Unexpected error during Excel export", e)
+          exportState.value =
+            ExportState.Error(
+              "خطای غیرمنتظره در خروجی اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
             )
         }
       }

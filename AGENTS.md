@@ -117,7 +117,21 @@ Before writing or refactoring any code, ALWAYS verify the implementation against
 - **Eliminate Boilerplate:** Keep implementations clean, minimal, and free of redundant wrapper code or dead logic.
 - **Refactor On-The-Fly:** When modifying any existing file, actively scan for pre-existing code duplication or anti-patterns and refactor/optimize them as part of the task.
 
-### 4. Test Naming Convention (Codacy Compliance)
+### 4. JUnit `assertEquals` Argument Order
+
+The 3-argument `assertEquals` signature is `assertEquals(String message, expected, actual)`,
+**not** `assertEquals(expected, actual, String message)`. Passing the message last causes a
+compile-time type mismatch (`Int` vs `String`). Always put the message first:
+
+```kotlin
+// ✅ Correct
+assertEquals("Should have 2 distinct orders", 2, orders.size)
+
+// ❌ Wrong — compile error
+assertEquals(2, orders.size, "Should have 2 distinct orders")
+```
+
+### 5. Test Naming Convention (Codacy Compliance)
 - **No backtick-quoted test names.** Codacy flags `` `fun \`name with spaces\`` `` as violations of `[a-z][a-zA-Z0-9]*`. Use camelCase instead:
   - Bad: `` fun `putForecast then getForecast returns same value`() ``
   - Good: `fun putForecastThenGetForecastReturnsSameValue()`
@@ -177,51 +191,6 @@ app `VERSION` file and the core `CORE_VERSION`:
 - `docs/ROADMAP.md` — feature status
 - `docs/architecture/ARCHITECTURE.md` — full architecture guide
 
-<!-- headroom:rtk-instructions -->
-# RTK (Rust Token Killer) - Token-Optimized Commands
-
-When running shell commands, **always prefix with `rtk`**. This reduces context
-usage by 60-90% with zero behavior change. If rtk has no filter for a command,
-it passes through unchanged — so it is always safe to use.
-
-## Key Commands
-
-```bash
-# Git (59-80% savings)
-rtk git status          rtk git diff            rtk git log
-
-# Files & Search (60-75% savings)
-rtk ls <path>           rtk read <file>         rtk grep <pattern>
-rtk find <pattern>      rtk diff <file>
-
-# Test (90-99% savings) — shows failures only
-rtk pytest tests/       rtk cargo test          rtk test <cmd>
-
-# Build & Lint (80-90% savings) — shows errors only
-rtk tsc                 rtk lint                rtk cargo build
-rtk prettier --check    rtk mypy                rtk ruff check
-
-# Analysis (70-90% savings)
-rtk err <cmd>           rtk log <file>          rtk json <file>
-rtk summary <cmd>       rtk deps                rtk env
-
-# GitHub (26-87% savings)
-rtk gh pr view <n>      rtk gh run list         rtk gh issue list
-
-# Infrastructure (85% savings)
-rtk docker ps           rtk kubectl get         rtk docker logs <c>
-
-# Package managers (70-90% savings)
-rtk pip list            rtk pnpm install        rtk npm run <script>
-```
-
-## Rules
-
-- In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
-- For debugging, use raw command without rtk prefix
-- `rtk proxy <cmd>` runs command without filtering but tracks usage
-<!-- /headroom:rtk-instructions -->
-
 ## 🛡️ Mandatory Post-Modification Verification Workflow
 
 Every time you modify, refactor, or introduce new code in the codebase, you **MUST** execute the following verification steps before marking the task as complete or asking for user feedback. Do not skip this under any circumstances, except when the user explicitly overrides this workflow or the change is a trivial documentation/edit with no behavioral impact.
@@ -231,23 +200,35 @@ Every time you modify, refactor, or introduce new code in the codebase, you **MU
 First, auto-fix any code-style violations (formatting, imports, etc.):
 
 ```bash
-rtk ./gradlew ktlintFormat --no-daemon
+./gradlew ktlintFormat --no-daemon
 ```
 
 Then run the linting and static analysis checks to ensure no cognitive-complexity or remaining style regressions:
 
 ```bash
-rtk ./gradlew ktlintCheck detekt --no-daemon
+./gradlew ktlintCheck detekt --no-daemon
 ```
 
 ### 2. Unit Testing Suite
 
 Run the local testing suite to ensure all components and boundaries function properly:
 
-**Kotlin/Android Tests:**
+**All Kotlin tests (non-Rust + Rust isolated):**
 
 ```bash
-rtk ./gradlew test --no-daemon
+./gradlew test --no-daemon
+```
+
+**Fast iteration (non-Rust tests only — ~4m vs ~10m combined):**
+
+```bash
+./gradlew testDebugUnitTest --no-daemon
+```
+
+**Rust-bridge tests only (when Rust bridge code was touched):**
+
+```bash
+./gradlew testDebugUnitTestRust --no-daemon
 ```
 
 **Rust Core Tests (If Rust modules were touched):**
@@ -266,7 +247,7 @@ cargo test
 If ktlint still fails after the initial `ktlintFormat`, you may attempt another auto-fix:
 
 ```bash
-rtk ./gradlew ktlintFormat --no-daemon
+./gradlew ktlintFormat --no-daemon
 ```
 
 If detekt fails, fix the findings manually — `ktlintFormat` does not resolve detekt issues.
@@ -277,3 +258,42 @@ If compilation or tests fail, analyze the logs immediately, debug the root cause
 
 - Keep this workflow readable and well-structured in `AGENTS.md`.
 - Do not overwrite existing instructions; only append or integrate this verification lifecycle cleanly.
+
+## ⚠️ Detekt Findings: Fix, Never Suppress
+
+All detekt findings must be resolved through proper refactoring — **never** by adding
+`@Suppress` annotations without a documented, justified reason. The goal is a clean
+codebase, not a silent one.
+
+### Allowed Suppressions (with justification required)
+
+- `@Suppress("LongMethod")` in **test files** — test functions are naturally longer
+  due to Arrange-Act-Assert blocks, multiple assertions, and test data setup. This is
+  the only acceptable context for this suppression.
+- `@Suppress("TooGenericExceptionCaught")` — **only** in two cases:
+  1. Rethrowing `CancellationException` in coroutine scopes (structured concurrency).
+  2. Safety-net `catch (e: Exception)` blocks where the Rust FFI layer (`RustBridge.rustCallSync`) can rethrow unchecked `RuntimeException` (including NPE). Place the annotation on the **enclosing function**, not inside the catch body. Always add a justification comment (see `ExportViewModel.exportExcel()` and `ManageBackupUseCase.parseBackupJsonKotlin()` for the pattern).
+- Naming: use camelCase test names per the [Test Naming Convention](#4-test-naming-convention-codacy-compliance)
+  instead of backtick-quoted names.
+
+### Forbidden Suppressions
+
+- `@Suppress("MagicNumber")` — extract constants or use descriptive variables instead.
+- `@Suppress("UnusedPrivateMember")` — remove dead code; don't hide it.
+- `@Suppress("LongParameterList")` — refactor into data classes or builder patterns.
+- `@Suppress("ComplexMethod")` / `@Suppress("CognitiveComplexMethod")` — decompose
+  into smaller, named functions.
+- Any suppression used to avoid fixing the underlying issue.
+
+### Refactoring Strategy for Detekt Failures
+
+1. **Long functions** → extract named helper functions until the main function reads
+   as a high-level workflow.
+2. **Magic numbers** → extract to `companion object` constants or named `val`s with
+   descriptive names.
+3. **Long parameter lists** → group related parameters into data classes or use a builder.
+4. **Complex methods** → decompose conditional logic into small, well-named functions.
+5. **Cognitive complexity** → restructure control flow; prefer early returns over deep nesting.
+
+If a detekt rule genuinely doesn't apply to a specific file (e.g., test files with
+naturally long functions), add the suppression with a comment explaining WHY:

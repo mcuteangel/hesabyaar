@@ -101,7 +101,7 @@ class RepositoryLogicTest {
     )
 
   @Test
-  fun `addPaymentToLoan - reduces remaining amount`() {
+  fun addpaymenttoloanReducesRemainingAmount() {
     var remainingAmount = 5_000_000L
     val paymentAmount = 2_000_000L
 
@@ -111,7 +111,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - settles loan when remaining is zero`() {
+  fun addpaymenttoloanSettlesLoanWhenRemainingIsZero() {
     var remainingAmount = 2_000_000L
     val paymentAmount = 2_000_000L
 
@@ -122,7 +122,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - overpayment clamps to zero`() {
+  fun addpaymenttoloanOverpaymentClampsToZero() {
     var remainingAmount = 1_000_000L
     val paymentAmount = 5_000_000L
 
@@ -132,7 +132,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - multiple payments accumulate`() {
+  fun addpaymenttoloanMultiplePaymentsAccumulate() {
     var remainingAmount = 10_000_000L
     val payments = listOf(3_000_000L, 2_000_000L, 5_000_000L)
 
@@ -144,21 +144,21 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - creditor creates expense transaction`() {
+  fun addpaymenttoloanCreditorCreatesExpenseTransaction() {
     val loanType = "CREDITOR"
     val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
     assertEquals("EXPENSE", transactionType)
   }
 
   @Test
-  fun `addPaymentToLoan - debtor creates income transaction`() {
+  fun addpaymenttoloanDebtorCreatesIncomeTransaction() {
     val loanType = "DEBTOR"
     val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
     assertEquals("INCOME", transactionType)
   }
 
   @Test
-  fun `addPaymentToLoan - creditor description format`() {
+  fun addpaymenttoloanCreditorDescriptionFormat() {
     val loan =
       Loan(
         personName = "Ali",
@@ -179,7 +179,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - debtor description format`() {
+  fun addpaymenttoloanDebtorDescriptionFormat() {
     val loan =
       Loan(
         personName = "Reza",
@@ -200,7 +200,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `importBackup - clears and inserts`() {
+  fun importbackupClearsAndInserts() {
     val existingTransactions =
       mutableListOf(
         Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 100L, description = "old")
@@ -219,7 +219,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `replaceAllFromBackup - replaces all data`() {
+  fun replaceallfrombackupReplacesAllData() {
     val existingCategories =
       mutableListOf(
         Category(id = 1L, name = "Old", key = "Old", icon = "Test", color = 0L, type = CategoryType.EXPENSE)
@@ -237,7 +237,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - updates existing category`() {
+  fun mergefrombackupUpdatesExistingCategory() {
     val existing =
       Category(
         id = 1,
@@ -267,7 +267,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - inserts new category`() {
+  fun mergefrombackupInsertsNewCategory() {
     val existingKeys = setOf("Food", "Transportation")
     val backupCategory =
       Category(
@@ -284,7 +284,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `updateInstallment paid creates expense transaction`() {
+  fun updateinstallmentPaidCreatesExpenseTransaction() {
     val installment =
       Installment(title = "Car", amount = 2_000_000L, dueDate = System.currentTimeMillis(), isPaid = true)
     assertTrue(installment.isPaid)
@@ -301,7 +301,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `loan payment creates correct transaction type mapping`() {
+  fun loanPaymentCreatesCorrectTransactionTypeMapping() {
     val scenarios =
       mapOf(
         "CREDITOR" to "EXPENSE",
@@ -314,7 +314,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - remaps bankLoanId linkage for installments`() =
+  fun mergefrombackupRemapsBankloanidLinkageForInstallments() =
     runTest {
       val repo = createRepository()
 
@@ -361,7 +361,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `backup payload preserves all fields`() {
+  fun backupPayloadPreservesAllFields() {
     val backup =
       BackupPayload(
         version = 2,
@@ -402,7 +402,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - overpayment records effective amount`() =
+  fun addpaymenttoloanOverpaymentRecordsEffectiveAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -424,7 +424,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects zero amount`() =
+  fun addpaymenttoloanRejectsZeroAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -444,7 +444,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects negative amount`() =
+  fun addpaymenttoloanRejectsNegativeAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -464,7 +464,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects payment on settled loan`() =
+  fun addpaymenttoloanRejectsPaymentOnSettledLoan() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(0L, isSettled = true)
@@ -484,7 +484,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `mergeFromBackup - remaps loanId and installmentId linkage`() =
+  fun mergefrombackupRemapsLoanidAndInstallmentidLinkage() =
     runTest {
       val repo = createRepository()
       val category =

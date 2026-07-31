@@ -14,6 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Exercises the real [ExcelExporter.export] against the loaded native core:
@@ -21,6 +22,7 @@ import org.junit.Test
  * byte array plus correct summary counts. Also locks in the unavailable-Rust
  * fallback (throws rather than producing a corrupt workbook).
  */
+@Category(RustTest::class)
 class ExcelExporterRealTest {
   @Rule
   @JvmField
@@ -69,7 +71,7 @@ class ExcelExporterRealTest {
   }
 
   @Test
-  fun `export returns byte array with correct counts when rust available`() =
+  fun exportReturnsByteArrayWithCorrectCountsWhenRustAvailable() =
     runTest {
       assertTrue(RustBridge.isAvailable)
       val (txs, loans, insts) = makeData()
@@ -89,7 +91,7 @@ class ExcelExporterRealTest {
     }
 
   @Test
-  fun `export filename follows the documented pattern`() =
+  fun exportFilenameFollowsTheDocumentedPattern() =
     runTest {
       val (txs, loans, insts) = makeData()
       val result = ExcelExporter().export(txs, loans, insts, emptyList())
@@ -100,7 +102,7 @@ class ExcelExporterRealTest {
     }
 
   @Test
-  fun `export handles empty input`() =
+  fun exportHandlesEmptyInput() =
     runTest {
       val result = ExcelExporter().export(emptyList(), emptyList(), emptyList(), emptyList())
       assertEquals(0, result.transactionCount)
@@ -110,7 +112,7 @@ class ExcelExporterRealTest {
     }
 
   @Test
-  fun `export delegates to native core when available`() =
+  fun exportDelegatesToNativeCoreWhenAvailable() =
     runTest {
       // generateExcel() returns null only when the native core is unavailable
       // (see RustBridge). In unit tests the library is always loaded, so we

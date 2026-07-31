@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -13,6 +14,7 @@ import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
+@Category(RustTest::class)
 class GeminiParserLogLevelTest {
   private var previousRustState = false
 
@@ -33,7 +35,7 @@ class GeminiParserLogLevelTest {
   }
 
   @Test
-  fun `parseSentenceOffline logs at debug level`() {
+  fun parsesentenceofflineLogsAtDebugLevel() {
     GeminiParser.parseSentenceOffline("امروز مرغ خریدم ۵ میلیون")
 
     val logs = ShadowLog.getLogs()
@@ -45,7 +47,7 @@ class GeminiParserLogLevelTest {
   }
 
   @Test
-  fun `parseSentenceOffline logs are brief without full AI response text`() {
+  fun parsesentenceofflineLogsAreBriefWithoutFullAiResponseText() {
     GeminiParser.parseSentenceOffline("بنزین زدم ۶۰۰ هزار تومان")
 
     val logs = ShadowLog.getLogs()

@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Tests the Kotlin fallback computation in [GetDashboardDataUseCase].
@@ -30,6 +31,7 @@ import org.junit.Test
  * Branches 2 and 3 require the native library and are covered by
  * instrumented/integration tests.
  */
+@Category(RustTest::class)
 class GetDashboardDataUseCaseTest {
   @Rule
   @JvmField
@@ -63,7 +65,7 @@ class GetDashboardDataUseCaseTest {
   // -- Branch 1 & 3: Kotlin fallback computation -----------------------------
 
   @Test
-  fun `fallback computes monthly income and expenses from recent transactions`() {
+  fun fallbackComputesMonthlyIncomeAndExpensesFromRecentTransactions() {
     val now = System.currentTimeMillis()
     val (jalaliMonthStart, jalaliMonthEndExclusive) =
       JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
@@ -95,7 +97,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback aggregates debtor and creditor totals from unsettled loans`() {
+  fun fallbackAggregatesDebtorAndCreditorTotalsFromUnsettledLoans() {
     val transactions = listOf(tx(TransactionType.INCOME, 10_000_000))
     val loans =
       listOf(
@@ -111,7 +113,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback filters unpaid installments as upcoming`() {
+  fun fallbackFiltersUnpaidInstallmentsAsUpcoming() {
     val now = System.currentTimeMillis()
     val upcoming = inst(1_000_000, paid = false, dueDate = now + 5L * 24 * 60 * 60 * 1000)
     val paid = inst(2_000_000, paid = true)
@@ -123,7 +125,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback computes savings rate correctly`() {
+  fun fallbackComputesSavingsRateCorrectly() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 10_000_000, now), tx(TransactionType.EXPENSE, 3_000_000, now))
 
@@ -134,7 +136,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback computes debt-to-income ratio from creditor loans`() {
+  fun fallbackComputesDebttoincomeRatioFromCreditorLoans() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Creditor loan remaining 12M → monthly debt = 12M/12 = 1M
@@ -147,7 +149,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback debt-to-income sums current-cycle installments with prorated creditor loans`() {
+  fun fallbackDebttoincomeSumsCurrentcycleInstallmentsWithProratedCreditorLoans() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Creditor loan remaining 12M → prorated monthly = 1M
@@ -169,7 +171,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback returns all zeros for empty input`() {
+  fun fallbackReturnsAllZerosForEmptyInput() {
     val result = GetDashboardDataUseCase.computeFallbackDashboardData(emptyList(), emptyList(), emptyList())
 
     assertEquals(0L, result.currentBalance)
@@ -183,7 +185,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback with only expenses shows negative balance`() {
+  fun fallbackWithOnlyExpensesShowsNegativeBalance() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.EXPENSE, 4_000_000, now))
 
@@ -194,7 +196,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback with only income shows positive balance`() {
+  fun fallbackWithOnlyIncomeShowsPositiveBalance() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 8_000_000, now))
 
@@ -207,7 +209,7 @@ class GetDashboardDataUseCaseTest {
   // -- Edge cases requested by reviewer --------------------------------------
 
   @Test
-  fun `fallback clamps savings rate to zero when expenses exceed income`() {
+  fun fallbackClampsSavingsRateToZeroWhenExpensesExceedIncome() {
     // Both transactions fall inside the current Jalali month (date defaults to now).
     val transactions =
       listOf(
@@ -223,7 +225,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback returns debt-to-income ratio of one when income is zero and debt exists`() {
+  fun fallbackReturnsDebttoincomeRatioOfOneWhenIncomeIsZeroAndDebtExists() {
     // No income transactions -> monthlyIncome == 0.
     // An unpaid installment due within the current cycle creates monthly debt.
     val installments = listOf(inst(2_000_000, paid = false))
@@ -236,7 +238,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback includes transaction inside UTC month boundary but excludes next month start`() {
+  fun fallbackIncludesTransactionInsideUtcMonthBoundaryButExcludesNextMonthStart() {
     // The fallback uses UTC half-open [start, end) boundaries matching the Rust
     // core, so a transaction one ms before the exclusive end is included while
     // one exactly at the next-month start is excluded.
@@ -258,7 +260,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun `fallback debt-to-income filters installments on UTC month boundary matching Rust`() {
+  fun fallbackDebttoincomeFiltersInstallmentsOnUtcMonthBoundaryMatchingRust() {
     val now = System.currentTimeMillis()
     val (_, jalaliMonthEndExclusive) =
       JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
@@ -266,7 +268,7 @@ class GetDashboardDataUseCaseTest {
     val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Unpaid installment due one ms before the UTC month end (exclusive) is in
     // the current cycle; one exactly at the next-month start is not. This mirrors
-    // Rust compute_dashboard_data's `due_date < month_end_ms` half-open filter.
+    // Rust compute_dashboard_data's due_dateMonth_end_ms half-open filter.
     val inside = inst(2_000_000, paid = false, dueDate = jalaliMonthEndExclusive - 1L)
     val outside = inst(5_000_000, paid = false, dueDate = jalaliMonthEndExclusive)
 

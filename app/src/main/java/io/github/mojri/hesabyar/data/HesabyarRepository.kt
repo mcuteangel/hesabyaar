@@ -205,6 +205,8 @@ class HesabyarRepository(
   override suspend fun getTransactionCountForAccount(accountId: Long): Int =
     accountDao.getTransactionCountForAccount(accountId)
 
+  override suspend fun getMaxDisplayOrder(): Int = accountDao.getMaxDisplayOrder()
+
   override suspend fun replaceAllFromBackup(backup: BackupPayload) =
     database.withTransaction {
       transactionDao.deleteAllTransactions()

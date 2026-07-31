@@ -1,9 +1,11 @@
 package io.github.mojri.hesabyar.rust
-
+import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
+@Category(RustTest::class)
 class RustMappersTest {
   private fun map(txType: io.github.mojri.hesabyar.rust.TransactionType): TransactionType =
     RustMappers
@@ -24,17 +26,17 @@ class RustMappersTest {
       ).type
 
   @Test
-  fun `fromRustTransaction - Expense maps to EXPENSE`() {
+  fun fromrusttransactionExpenseMapsToExpense() {
     assertEquals(TransactionType.EXPENSE, map(io.github.mojri.hesabyar.rust.TransactionType.EXPENSE))
   }
 
   @Test
-  fun `fromRustTransaction - Income maps to INCOME`() {
+  fun fromrusttransactionIncomeMapsToIncome() {
     assertEquals(TransactionType.INCOME, map(io.github.mojri.hesabyar.rust.TransactionType.INCOME))
   }
 
   @Test
-  fun `fromRustTransaction - LoanDebtor collapses to EXPENSE`() {
+  fun fromrusttransactionLoandebtorCollapsesToExpense() {
     assertEquals(
       TransactionType.EXPENSE,
       map(io.github.mojri.hesabyar.rust.TransactionType.LOAN_DEBTOR)
@@ -42,7 +44,7 @@ class RustMappersTest {
   }
 
   @Test
-  fun `fromRustTransaction - LoanCreditor collapses to INCOME`() {
+  fun fromrusttransactionLoancreditorCollapsesToIncome() {
     assertEquals(
       TransactionType.INCOME,
       map(io.github.mojri.hesabyar.rust.TransactionType.LOAN_CREDITOR)
@@ -50,7 +52,7 @@ class RustMappersTest {
   }
 
   @Test
-  fun `fromRustTransaction - Installment collapses to EXPENSE`() {
+  fun fromrusttransactionInstallmentCollapsesToExpense() {
     assertEquals(
       TransactionType.EXPENSE,
       map(io.github.mojri.hesabyar.rust.TransactionType.INSTALLMENT)

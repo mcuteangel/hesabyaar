@@ -1,6 +1,6 @@
 package io.github.mojri.hesabyar.rust
-
 import io.github.mojri.hesabyar.RustIsolationRule
+import io.github.mojri.hesabyar.RustTest
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,22 +8,24 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Locks in AI advice **validation + sanitization** via the real native core
- * ([RustBridge.validateAiAdvice], which delegates to Rust `validate_ai_advice`).
+ * ([RustBridge.validateAiAdvice], which delegates to Rust validate_ai_advice).
  *
- * The Rust implementation strips dangerous tags (`<script`, `</script>`,
- * `javascript:`) while keeping the text, flags over-short input as invalid, and
+ * The Rust implementation strips dangerous tags (script, script,
+ * javascript) while keeping the text, flags over-short input as invalid, and
  * warns (without rejecting) when no Persian characters are present.
  */
+@Category(RustTest::class)
 class AiAdviceSanitizationTest {
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
   @Test
-  fun `script tag is stripped and flagged`() =
+  fun scriptTagIsStrippedAndFlagged() =
     runTest {
       val text = "نصیحت خوب <script>alert('x')</script> ادامه متن"
       val result = RustBridge.validateAiAdvice(text)
@@ -39,7 +41,7 @@ class AiAdviceSanitizationTest {
     }
 
   @Test
-  fun `javascript scheme is stripped`() =
+  fun javascriptSchemeIsStripped() =
     runTest {
       val text = "برای صرفه جویی javascript:void(0) این کار را انجام دهید"
       val result = RustBridge.validateAiAdvice(text)
@@ -48,7 +50,7 @@ class AiAdviceSanitizationTest {
     }
 
   @Test
-  fun `too short advice is rejected`() =
+  fun tooShortAdviceIsRejected() =
     runTest {
       val result = RustBridge.validateAiAdvice("سلام")
       assertFalse(result.isValid)
@@ -56,7 +58,7 @@ class AiAdviceSanitizationTest {
     }
 
   @Test
-  fun `valid persian advice passes clean`() =
+  fun validPersianAdvicePassesClean() =
     runTest {
       val text = "شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید."
       val result = RustBridge.validateAiAdvice(text)
@@ -66,7 +68,7 @@ class AiAdviceSanitizationTest {
     }
 
   @Test
-  fun `english only advice is valid but warned`() =
+  fun englishOnlyAdviceIsValidButWarned() =
     runTest {
       val text = "Your savings rate is excellent at twenty percent of income."
       val result = RustBridge.validateAiAdvice(text)

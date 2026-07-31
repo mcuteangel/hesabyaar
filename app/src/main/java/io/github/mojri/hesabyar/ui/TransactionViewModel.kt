@@ -29,7 +29,7 @@ class TransactionViewModel
       description: String,
       personName: String? = null,
       customDate: Long? = null,
-      accountId: Long = 1L
+      accountId: Long = io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
     ) {
       viewModelScope.launch {
         manageTransactionUseCase.addTransaction(

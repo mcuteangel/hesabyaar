@@ -52,7 +52,7 @@ class InstallmentViewModelTest {
   }
 
   @Test
-  fun `setBankLoanFilter filters visibleInstallments to matching bankLoanId`() =
+  fun setbankloanfilterFiltersVisibleinstallmentsToMatchingBankloanid() =
     runTest(testDispatcher) {
       collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
@@ -63,7 +63,7 @@ class InstallmentViewModelTest {
     }
 
   @Test
-  fun `setBankLoanFilter null shows all installments`() =
+  fun setbankloanfilterNullShowsAllInstallments() =
     runTest(testDispatcher) {
       collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
@@ -175,5 +175,7 @@ class InstallmentViewModelTest {
     override suspend fun deleteAccount(account: AccountEntity) {}
 
     override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
+
+    override suspend fun getMaxDisplayOrder(): Int = -1
   }
 }

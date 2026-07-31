@@ -1,7 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
-
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.RustIsolationRule
+import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.BankLoan
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -10,7 +10,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
+@Category(RustTest::class)
 class GetAnalyticsUseCaseFallbackTest {
   private val useCase = GetAnalyticsUseCase()
 
@@ -29,7 +31,7 @@ class GetAnalyticsUseCaseFallbackTest {
   }
 
   @Test
-  fun `kotlin fallback populates bank loan summaries`() =
+  fun kotlinFallbackPopulatesBankLoanSummaries() =
     runTest {
       val bankLoans =
         listOf(
@@ -55,7 +57,7 @@ class GetAnalyticsUseCaseFallbackTest {
     }
 
   @Test
-  fun `kotlin fallback zeroes debt for settled loan`() =
+  fun kotlinFallbackZeroesDebtForSettledLoan() =
     runTest {
       val bankLoans =
         listOf(

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -59,7 +60,7 @@ fun TransactionItem(
         Modifier
           .size(40.dp)
           .clip(CircleShape)
-          .background(categoryColor.copy(alpha = 0.15f)),
+          .background(categoryColor.copy(alpha = Dimens.ICON_CIRCLE_BACKGROUND_ALPHA)),
       contentAlignment = Alignment.Center
     ) {
       Text(

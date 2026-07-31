@@ -41,7 +41,7 @@ class SubmitManualTransactionUseCase(
     val customDate: Long,
     val categories: List<Category>,
     val transactionToEdit: Transaction? = null,
-    val accountId: Long = 1L,
+    val accountId: Long = io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
     val destinationAccountId: Long? = null
   )
 
@@ -164,7 +164,7 @@ class SubmitManualTransactionUseCase(
     customDate: Long,
     transactionToEdit: Transaction?,
     categories: List<Category>,
-    accountId: Long = 1L
+    accountId: Long = io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
   ): SubmitResult {
     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }

@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Tests for parse() which now delegates to Rust core.
@@ -19,6 +20,7 @@ import org.junit.Test
  * in the Rust test suite (hesabyar-core).
  */
 
+@Category(RustTest::class)
 class OfflineParserTest {
   private var previousRustState = false
 
@@ -42,7 +44,7 @@ class OfflineParserTest {
       ?: throw AssertionError("parseSentenceOffline returned null for: $sentence")
 
   @Test
-  fun `parse expense with million`() {
+  fun parseExpenseWithMillion() {
     val result = parse("امروز مرغ خریدم 5 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals(50_000_000L, result.amount)
@@ -50,7 +52,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse expense with thousand`() {
+  fun parseExpenseWithThousand() {
     val result = parse("بنزین خریدم 450 هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals(4_500_000L, result.amount)
@@ -58,7 +60,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse income with million`() {
+  fun parseIncomeWithMillion() {
     val result = parse("حقوق گرفتم 20 میلیون")
     assertEquals("INCOME", result.type)
     assertEquals(200_000_000L, result.amount)
@@ -66,7 +68,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse loan creditor`() {
+  fun parseLoanCreditor() {
     val result = parse("از علی 5 میلیون قرض گرفتم")
     assertEquals("LOAN_CREDITOR", result.type)
     assertEquals(50_000_000L, result.amount)
@@ -74,14 +76,14 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse loan debtor`() {
+  fun parseLoanDebtor() {
     val result = parse("به رضا 2 میلیون قرض دادم")
     assertEquals("LOAN_DEBTOR", result.type)
     assertEquals(20_000_000L, result.amount)
   }
 
   @Test
-  fun `parse installment`() {
+  fun parseInstallment() {
     val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals(30_000_000L, result.amount)
@@ -89,39 +91,39 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse date offset - yesterday`() {
+  fun parseDateOffsetYesterday() {
     val result = parse("دیروز 500 هزار خرج کردم")
     assertEquals(-1, result.dateOffsetDays)
   }
 
   @Test
-  fun `parse date offset - tomorrow`() {
+  fun parseDateOffsetTomorrow() {
     val result = parse("فردا 1 میلیون واریز می‌کنم")
     assertEquals(1, result.dateOffsetDays)
   }
 
   @Test
-  fun `parse amount without multiplier`() {
+  fun parseAmountWithoutMultiplier() {
     val result = parse("1200 تومان خرج کردم")
     assertEquals(12_000L, result.amount)
   }
 
   @Test
-  fun `parse shopping expense`() {
+  fun parseShoppingExpense() {
     val result = parse("لباس خریدم 800 هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals("Shopping", result.category)
   }
 
   @Test
-  fun `parse bill payment`() {
+  fun parseBillPayment() {
     val result = parse("قبض برق دادم 200 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Bills", result.category)
   }
 
   @Test
-  fun `parse haircut expense with thousand`() {
+  fun parseHaircutExpenseWithThousand() {
     val result = parse("اصلاح کردم 200 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(2_000_000L, result.amount)
@@ -129,14 +131,14 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse amount with persian numerals`() {
+  fun parseAmountWithPersianNumerals() {
     val result = parse("بنزین زدم ۶۰۰ هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals(6_000_000L, result.amount)
   }
 
   @Test
-  fun `parse salon visit`() {
+  fun parseSalonVisit() {
     val result = parse("آرایشگاه رفتم ۱۵۰ هزار تومان")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
@@ -144,26 +146,26 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parse description extracted from sentence`() {
+  fun parseDescriptionExtractedFromSentence() {
     val result = parse("اصلاح کردم 200 هزار تومن")
     assertTrue(result.description.isNotBlank())
   }
 
   @Test
-  fun `installment description is future-oriented not paid`() {
+  fun installmentDescriptionIsFutureorientedNotPaid() {
     val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("قسط آینده", result.description)
   }
 
   @Test
-  fun `installment notes indicate pending status`() {
+  fun installmentNotesIndicatePendingStatus() {
     val result = parse("قسط ماشین 3 میلیون")
     assertEquals("قسط در انتظار پرداخت", result.notes)
   }
 
   @Test
-  fun `installment with specific jalali date calculates correct days`() {
+  fun installmentWithSpecificJalaliDateCalculatesCorrectDays() {
     val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
@@ -177,7 +179,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `installment with mordad month extracts days`() {
+  fun installmentWithMordadMonthExtractsDays() {
     val result = parse("قسط خانه 15 مرداد 5 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
@@ -186,14 +188,14 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `installment without specific date defaults to 30`() {
+  fun installmentWithoutSpecificDateDefaultsTo30() {
     val result = parse("قسط جدید 2 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals(30, result.daysFromNow)
   }
 
   @Test
-  fun `installment with persian numerals in date`() {
+  fun installmentWithPersianNumeralsInDate() {
     val result = parse("قسط ماشین ۲۰ مهر ۸ میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
@@ -202,19 +204,19 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `installment title is extracted correctly`() {
+  fun installmentTitleIsExtractedCorrectly() {
     val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals("قسط ماشین", result.title)
   }
 
   @Test
-  fun `installment for mortgage loan extracts correct title`() {
+  fun installmentForMortgageLoanExtractsCorrectTitle() {
     val result = parse("قسط وام مسکن 10 مرداد 5 میلیون")
     assertEquals("قسط وام مسکن", result.title)
   }
 
   @Test
-  fun `installment amount is correct`() {
+  fun installmentAmountIsCorrect() {
     val result = parse("قسط ماشین 25 تیر 10 میلیون")
     assertEquals(100_000_000L, result.amount)
   }
@@ -224,49 +226,49 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `parse soda purchase as expense not income`() {
+  fun parseSodaPurchaseAsExpenseNotIncome() {
     val result = parse("نوشابه گرفتم 85 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(850_000L, result.amount)
   }
 
   @Test
-  fun `parse internet package as expense not income`() {
+  fun parseInternetPackageAsExpenseNotIncome() {
     val result = parse("دیروز بسته ایترنت گرفتم 109 هزار و 800 تومن")
     assertEquals("EXPENSE", result.type)
     assertEquals(1_098_000L, result.amount)
   }
 
   @Test
-  fun `income description includes subject`() {
+  fun incomeDescriptionIncludesSubject() {
     val result = parse("بابت فروش پرتقال ها 200 هزار تومن گرفتم")
     assertEquals("INCOME", result.type)
     assertTrue("Description should mention subject", result.description.contains("پرتقال"))
   }
 
   @Test
-  fun `expense description includes subject`() {
+  fun expenseDescriptionIncludesSubject() {
     val result = parse("بسته اینترنت خریدم 100 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should mention subject", result.description.contains("بسته اینترنت"))
   }
 
   @Test
-  fun `expense description for food includes item`() {
+  fun expenseDescriptionForFoodIncludesItem() {
     val result = parse("مرغ خریدم 80 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should mention food item", result.description.contains("مرغ"))
   }
 
   @Test
-  fun `soda purchase description includes soda`() {
+  fun sodaPurchaseDescriptionIncludesSoda() {
     val result = parse("نوشابه خریدم 85 هزار تومن")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should contain soda", result.description.contains("نوشابه"))
   }
 
   @Test
-  fun `soda with time word excludes time from subject`() {
+  fun sodaWithTimeWordExcludesTimeFromSubject() {
     val result = parse("دیشب نوشابه گرفتم")
     assertEquals("EXPENSE", result.type)
     assertTrue("Description should not contain دیشب", !result.description.contains("دیشب"))
@@ -278,7 +280,7 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `category inference - food keywords`() {
+  fun categoryInferenceFoodKeywords() {
     val foodSentences =
       listOf(
         "مرغ خریدم 80 هزار تومن",
@@ -300,7 +302,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - transportation keywords`() {
+  fun categoryInferenceTransportationKeywords() {
     val transportSentences =
       listOf(
         "بنزین زدم 200 هزار",
@@ -315,7 +317,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - shopping keywords`() {
+  fun categoryInferenceShoppingKeywords() {
     val shoppingSentences =
       listOf(
         "لباس خریدم 500 هزار",
@@ -329,7 +331,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - bills keywords`() {
+  fun categoryInferenceBillsKeywords() {
     val billSentences =
       listOf(
         "قبض برق دادم 200 هزار",
@@ -342,7 +344,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - personal care keywords`() {
+  fun categoryInferencePersonalCareKeywords() {
     val personalSentences =
       listOf(
         "اصلاح کردم 100 هزار",
@@ -356,7 +358,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - education keywords`() {
+  fun categoryInferenceEducationKeywords() {
     val educationSentences =
       listOf(
         "کلاس ثبت نام کردم 500 هزار",
@@ -369,7 +371,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - income keywords`() {
+  fun categoryInferenceIncomeKeywords() {
     val incomeSentences =
       listOf(
         "حقوق گرفتم 20 میلیون",
@@ -383,7 +385,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - loans keywords`() {
+  fun categoryInferenceLoansKeywords() {
     val loanSentences =
       listOf(
         "قرض دادم 5 میلیون",
@@ -396,7 +398,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category inference - default to Other`() {
+  fun categoryInferenceDefaultToOther() {
     val otherSentences =
       listOf(
         "چیز عجیبی خریدم 50 هزار"
@@ -412,19 +414,19 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `confidence - multiple factors increase confidence`() {
+  fun confidenceMultipleFactorsIncreaseConfidence() {
     val result = parse("دیروز مرغ خریدم 80 هزار تومن به علی")
     assertTrue("Confidence should be >= 0.85", result.confidence >= 0.85f)
   }
 
   @Test
-  fun `confidence - amount only gives moderate confidence`() {
+  fun confidenceAmountOnlyGivesModerateConfidence() {
     val result = parse("500 هزار تومان")
     assertTrue("Confidence should be >= 0.70", result.confidence >= 0.70f)
   }
 
   @Test
-  fun `confidence - no money keywords gives low confidence`() {
+  fun confidenceNoMoneyKeywordsGivesLowConfidence() {
     val result = parse("متن بدون پول")
     assertTrue("Confidence should be <= 0.65", result.confidence <= 0.65f)
   }
@@ -434,7 +436,7 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `kotlin fallback returns null for non-monetary numeric string`() {
+  fun kotlinFallbackReturnsNullForNonmonetaryNumericString() {
     // A bare year must not be parsed as a transaction (false positive).
     assertNull(GeminiParser.kotlinFallbackParse("سال 1403"))
     // Persian digits are normalized, so a year in Arabic-Indic digits is blocked too.
@@ -444,7 +446,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `kotlin fallback ignores phone numbers containing the telephone keyword`() {
+  fun kotlinFallbackIgnoresPhoneNumbersContainingTheTelephoneKeyword() {
     // "تلفن" is a bill category keyword, but a phone NUMBER must not be parsed
     // as a transaction (the whole number would otherwise be extracted as an amount).
     assertNull(GeminiParser.kotlinFallbackParse("شماره تلفن ۰۹۱۲۳۴۵۶۷۸۹"))
@@ -454,7 +456,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `kotlin fallback still parses a real telephone bill`() {
+  fun kotlinFallbackStillParsesARealTelephoneBill() {
     // Phone BILLS carry stronger keywords (قبض/هزینه) so they must still parse.
     val result = GeminiParser.kotlinFallbackParse("قبض تلفن ۵۰ هزار")
     assertNotNull(result)
@@ -463,7 +465,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `kotlin fallback parses bill that embeds the account phone number`() {
+  fun kotlinFallbackParsesBillThatEmbedsTheAccountPhoneNumber() {
     // A bill description that includes the account's phone number alongside a
     // real monetary signal must still parse (phone check only applies to pure
     // phone numbers lacking any bill/payment keyword).
@@ -475,7 +477,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `kotlin fallback parses bill with phone number and مبلغ amount without unit`() {
+  fun kotlinFallbackParsesBillWithPhoneNumberAndAmountWithoutUnit() {
     // A bill that embeds the account phone number and states the amount via
     // "مبلغ <number>" WITHOUT a currency suffix must still parse, and the amount
     // must come from the مبلغ token (not the phone digits).
@@ -487,7 +489,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `kotlin fallback still parses valid monetary numeric string`() {
+  fun kotlinFallbackStillParsesValidMonetaryNumericString() {
     // A number WITH monetary context must still parse (regression guard).
     val result = GeminiParser.kotlinFallbackParse("خرید 500 تومان")
     assertNotNull(result)
@@ -499,7 +501,7 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `paid installment with tasvie returns expense`() {
+  fun paidInstallmentWithTasvieReturnsExpense() {
     val result = parse("قسط ماشین را تسویه کردم 3 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
@@ -507,7 +509,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `paid installment with pardakht returns expense`() {
+  fun paidInstallmentWithPardakhtReturnsExpense() {
     val result = parse("قسط خانه پرداخت کردم 5 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
@@ -515,7 +517,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `paid installment with dadam returns expense`() {
+  fun paidInstallmentWithDadamReturnsExpense() {
     val result = parse("قسط ماشین دادم 3 میلیون")
     assertEquals("EXPENSE", result.type)
     assertEquals("Installments", result.category)
@@ -523,7 +525,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `pending installment without paid keyword returns installment type`() {
+  fun pendingInstallmentWithoutPaidKeywordReturnsInstallmentType() {
     val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("Installments", result.category)
@@ -531,14 +533,14 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `installment with variz does not force expense`() {
+  fun installmentWithVarizDoesNotForceExpense() {
     val result = parse("قسط ماشین واریز شد 3 میلیون")
     assertEquals("INSTALLMENT", result.type)
     assertEquals("Installments", result.category)
   }
 
   @Test
-  fun `category OTHER expense description does not include subject in parentheses`() {
+  fun categoryOtherExpenseDescriptionDoesNotIncludeSubjectInParentheses() {
     val result = parse("چیز عجیبی خریدم 50 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
@@ -550,7 +552,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `category OTHER expense uses base description without formatting`() {
+  fun categoryOtherExpenseUsesBaseDescriptionWithoutFormatting() {
     val result = parse("خرج غیرمعمول 100 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Other", result.category)
@@ -561,7 +563,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `non-OTHER category expense includes subject in parentheses`() {
+  fun nonotherCategoryExpenseIncludesSubjectInParentheses() {
     val result = parse("مرغ خریدم 80 هزار")
     assertEquals("EXPENSE", result.type)
     assertEquals("Food", result.category)
@@ -576,7 +578,7 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun `parseJsonResultOffline - valid expense JSON`() {
+  fun parsejsonresultofflineValidExpenseJson() {
     val json =
       """{"type":"EXPENSE","amount":5000000,"category":"Food","""" +
         """description":"مرغ","personName":null,"dateOffsetDays":0}"""
@@ -592,7 +594,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - valid income JSON`() {
+  fun parsejsonresultofflineValidIncomeJson() {
     val json =
       """{"type":"INCOME","amount":20000000,"category":"Income","""" +
         """description":"حقوق","personName":null,"dateOffsetDays":0}"""
@@ -605,7 +607,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - valid loan with personName`() {
+  fun parsejsonresultofflineValidLoanWithPersonname() {
     val json =
       """{"type":"LOAN_CREDITOR","amount":10000000,"category":"Loans","""" +
         """description":"قرض به علی","personName":"علی","dateOffsetDays":0}"""
@@ -616,7 +618,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - valid installment`() {
+  fun parsejsonresultofflineValidInstallment() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط ماشین","personName":null,"dateOffsetDays":0,"daysFromNow":30,"title":"قسط ماشین","""" +
@@ -630,7 +632,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - valid with confidence`() {
+  fun parsejsonresultofflineValidWithConfidence() {
     val json = """{"type":"EXPENSE","amount":1000000,"category":"Food","description":"نان","confidence":0.95}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -638,7 +640,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - valid without categoryAlias`() {
+  fun parsejsonresultofflineValidWithoutCategoryalias() {
     val json = """{"type":"EXPENSE","amount":500000,"category":"Other","description":"test"}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -646,50 +648,50 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - null input returns null`() {
+  fun parsejsonresultofflineNullInputReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("null"))
   }
 
   @Test
-  fun `parseJsonResultOffline - empty string returns null`() {
+  fun parsejsonresultofflineEmptyStringReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline(""))
   }
 
   @Test
-  fun `parseJsonResultOffline - malformed JSON returns null`() {
+  fun parsejsonresultofflineMalformedJsonReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("{invalid json"))
   }
 
   @Test
-  fun `parseJsonResultOffline - missing required fields returns null`() {
+  fun parsejsonresultofflineMissingRequiredFieldsReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("""{"type":"EXPENSE"}"""))
   }
 
   @Test
-  fun `parseJsonResultOffline - random text returns null`() {
+  fun parsejsonresultofflineRandomTextReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("just some text"))
   }
 
   @Test
-  fun `parseJsonResultOffline - zero amount returns null`() {
+  fun parsejsonresultofflineZeroAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":0,"category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun `parseJsonResultOffline - negative amount returns null`() {
+  fun parsejsonresultofflineNegativeAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":-5000,"category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun `parseJsonResultOffline - missing amount returns null`() {
+  fun parsejsonresultofflineMissingAmountReturnsNull() {
     val json = """{"type":"EXPENSE","category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun `parseJsonResultOffline - null daysFromNow preserved as null`() {
+  fun parsejsonresultofflineNullDaysfromnowPreservedAsNull() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":null}"""
@@ -699,7 +701,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - missing daysFromNow preserved as null`() {
+  fun parsejsonresultofflineMissingDaysfromnowPreservedAsNull() {
     val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط"}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -707,7 +709,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - non-numeric daysFromNow preserved as null`() {
+  fun parsejsonresultofflineNonnumericDaysfromnowPreservedAsNull() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":"abc"}"""
@@ -717,7 +719,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun `parseJsonResultOffline - daysFromNow zero is preserved`() {
+  fun parsejsonresultofflineDaysfromnowZeroIsPreserved() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":0}"""

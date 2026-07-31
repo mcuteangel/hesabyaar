@@ -189,17 +189,20 @@ fun AccountManagementScreen(
     dialogState = dialogState,
     onDismiss = { dialogState = AccountDialogState.None },
     onSaveAccount = { form ->
-      accountViewModel.addAccount(
-        name = form.name,
-        type = form.type,
-        bankName = form.bankName,
-        cardNumber = form.cardNumber,
-        accountNumber = form.accountNumber,
-        iban = form.iban,
-        initialBalance = form.initialBalance,
-        color = form.color
-      )
-      dialogState = AccountDialogState.None
+      val result =
+        accountViewModel.addAccount(
+          name = form.name,
+          type = form.type,
+          bankName = form.bankName,
+          cardNumber = form.cardNumber,
+          accountNumber = form.accountNumber,
+          iban = form.iban,
+          initialBalance = form.initialBalance,
+          color = form.color
+        )
+      if (result is AccountViewModel.AddAccountResult.Success) {
+        dialogState = AccountDialogState.None
+      }
     },
     onUpdateAccount = { account, form ->
       accountViewModel.updateAccount(
