@@ -42,11 +42,9 @@ infrastructure, always verify with a cache-busting run:**
 
 ```bash
 # Option A: clean + test (guarantees fresh compilation)
-./gradlew clean test --no-daemon
-
+./gradlew clean test
 # Option B: rerun-tasks (re-executes everything without deleting build artifacts)
-./gradlew test --rerun-tasks --no-daemon
-```
+./gradlew test --rerun-tasks```
 
 A plain `./gradlew test` may report "BUILD SUCCESSFUL" based on stale cached results
 even when tests would actually fail. This is especially dangerous after changes to
@@ -145,10 +143,8 @@ generated into `app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
 
 - After **any change to Rust source** (`rust/**`), the Kotlin FFI bindings and the
   host library must be regenerated, otherwise the build/FFI calls won't reflect the change.
-- Run: `./gradlew :app:generateAndFixBindings --no-daemon`
+- Run: `./gradlew :app:generateAndFixBindings`
   (alias `:app:generateRustBindings` skips the package-patch/install step).
-- Append `--no-daemon` to every `./gradlew` command unless the user explicitly asks
-  for a daemonized run.
 - Do not manually edit the generated `hesabyar_core.kt`; it is overwritten by the task.
 
 ## Rust Core Versioning
@@ -200,14 +196,12 @@ Every time you modify, refactor, or introduce new code in the codebase, you **MU
 First, auto-fix any code-style violations (formatting, imports, etc.):
 
 ```bash
-./gradlew ktlintFormat --no-daemon
-```
+./gradlew ktlintFormat```
 
 Then run the linting and static analysis checks to ensure no cognitive-complexity or remaining style regressions:
 
 ```bash
-./gradlew ktlintCheck detekt --no-daemon
-```
+./gradlew ktlintCheck detekt```
 
 ### 2. Unit Testing Suite
 
@@ -216,20 +210,17 @@ Run the local testing suite to ensure all components and boundaries function pro
 **All Kotlin tests (non-Rust + Rust isolated):**
 
 ```bash
-./gradlew test --no-daemon
-```
+./gradlew test```
 
 **Fast iteration (non-Rust tests only — ~4m vs ~10m combined):**
 
 ```bash
-./gradlew testDebugUnitTest --no-daemon
-```
+./gradlew testDebugUnitTest```
 
 **Rust-bridge tests only (when Rust bridge code was touched):**
 
 ```bash
-./gradlew testDebugUnitTestRust --no-daemon
-```
+./gradlew testDebugUnitTestRust```
 
 **Rust Core Tests (If Rust modules were touched):**
 
@@ -237,18 +228,12 @@ Run the local testing suite to ensure all components and boundaries function pro
 cargo test
 ```
 
-### 3. Critical Process Isolation Flag (`--no-daemon`)
-
-- **Rule:** You MUST append the `--no-daemon` flag to every single `./gradlew` command you execute, unless the user explicitly requests a daemonized run or the command is a non-build utility that has no daemon.
-- **Reason:** Running Gradle in-process or leaving background compiler daemons alive will cause the agent environment to freeze, hang, or lock file descriptors, breaking the execution loop. Forcing `--no-daemon` ensures the process terminates cleanly after compilation/testing finishes.
-
-### 4. Debugging & Auto-Correction
+### 3. Debugging & Auto-Correction
 
 If ktlint still fails after the initial `ktlintFormat`, you may attempt another auto-fix:
 
 ```bash
-./gradlew ktlintFormat --no-daemon
-```
+./gradlew ktlintFormat```
 
 If detekt fails, fix the findings manually — `ktlintFormat` does not resolve detekt issues.
 
