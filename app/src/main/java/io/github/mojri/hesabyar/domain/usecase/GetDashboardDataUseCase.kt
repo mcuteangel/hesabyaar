@@ -247,13 +247,14 @@ class GetDashboardDataUseCase(
             }
           }
 
-          // Month-over-month delta: (currentNet - prevNet) / max(abs(prevNet), 1)
-          // When prevNet is below noise threshold, show 0.0 to avoid
-          // misleading percentages near zero (e.g. +8000000%).
+          // Month-over-month delta: (currentNet - prevNet) / abs(prevNet)
+          // Guard: prevNet == 0 to prevent division by zero;
+          // below noise threshold to avoid misleading percentages near zero
+          // (e.g. +8000000%).
           val currentNet = monthlyIncome - monthlyExpenses
           val prevNet = prevIncome - prevExpenses
           val monthlyDelta =
-            if (kotlin.math.abs(prevNet) < DELTA_PREV_NET_THRESHOLD) {
+            if (prevNet == 0L || kotlin.math.abs(prevNet) < DELTA_PREV_NET_THRESHOLD) {
               0.0
             } else {
               (currentNet - prevNet).toDouble() / kotlin.math.abs(prevNet).toDouble()

@@ -902,4 +902,28 @@ class GetDashboardDataUseCaseTest {
       deltaNormal in -10.0..10.0,
     )
   }
+
+  @Test
+  fun monthlyDeltaExactZeroPrevNetWithCancellingTransactions() {
+    val fixedNowMs = 1752580800000L
+    val (_, prevEnd) =
+      JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(
+        JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs).first,
+      )
+    val prevMid = prevEnd - 15L * 24 * 60 * 60 * 1000
+
+    val accounts = listOf(account(1, "Active", AccountType.BANK))
+
+    // Previous month: income == expense → prevNet = 0 (exact zero)
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 500_000, prevMid, accountId = 1),
+        tx(TransactionType.EXPENSE, 500_000, prevMid + 1, accountId = 1),
+        tx(TransactionType.INCOME, 1_000_000, fixedNowMs + 1, accountId = 1),
+      )
+
+    val delta = computeDeltaForTxs(txs, accounts, fixedNowMs)
+    assertDeltaIsValid(delta, "exact zero prevNet with cancelling txs")
+    assertEquals("delta=0.0 when prevNet is exact zero from cancelling txs", 0.0, delta, 1e-10)
+  }
 }
