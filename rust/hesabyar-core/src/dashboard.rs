@@ -25,13 +25,62 @@ pub fn compute_dashboard_data(
     include_archived: bool,
     now_ms: i64,
 ) -> DashboardData {
+    // --- Filter transactions first (before calendar check) ---
+    // When include_archived is false, exclude transactions whose source or
+    // destination account is archived. This must happen *before* the
+    // account_id filter so archived accounts never leak into totals.
+    let non_archived_txs: Vec<&Transaction> = if include_archived {
+        transactions.iter().collect()
+    } else {
+        let archived_ids: std::collections::HashSet<i64> = accounts
+            .iter()
+            .filter(|a| a.is_archived)
+            .map(|a| a.id)
+            .collect();
+        transactions
+            .iter()
+            .filter(|tx| {
+                !archived_ids.contains(&tx.account_id)
+                    && !archived_ids.contains(&tx.destination_account_id.unwrap_or(-1))
+            })
+            .collect()
+    };
+
+    // Filter by account_id if provided. Use iter() to keep non_archived_txs
+    // available for compute_account_summaries in the normal path.
+    let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
+        non_archived_txs
+            .iter()
+            .filter(|tx| tx.account_id == acc_id || tx.destination_account_id == Some(acc_id))
+            .copied()
+            .collect()
+    } else {
+        non_archived_txs.clone()
+    };
+
+    // Sum of initial balances for selected accounts (used by both paths).
+    let initial_balance_sum: i64 = if let Some(acc_id) = account_id {
+        accounts
+            .iter()
+            .find(|a| a.id == acc_id)
+            .map(|a| a.initial_balance)
+            .unwrap_or(0)
+    } else {
+        accounts
+            .iter()
+            .filter(|a| !a.is_archived)
+            .map(|a| a.initial_balance)
+            .sum()
+    };
+
     // --- Current Jalali month boundaries ---
     let (jy, jm) = match gregorian_to_jalali(now_ms) {
         Ok(jd) => (jd.year, jd.month),
         Err(_) => {
-            // Fallback: return zeros for monthly aggregates
+            // Fallback: return zeros for monthly aggregates, but preserve
+            // account-linkage filtering and initial_balance for current_balance.
             return DashboardData {
-                current_balance: compute_all_time_balance(transactions),
+                current_balance: compute_all_time_balance(&filtered_txs) + initial_balance_sum,
                 monthly_expenses: 0,
                 monthly_income: 0,
                 debtors_total: compute_debtors_total(loans),
@@ -67,29 +116,8 @@ pub fn compute_dashboard_data(
     let prev_month_start_ms = jalali_to_month_start_ms(prev_jy, prev_jm);
     let prev_month_end_ms = month_start_ms;
 
-    // When include_archived is false, exclude transactions whose source or
-    // destination account is archived. This must happen *before* the
-    // account_id filter so archived accounts never leak into totals.
-    let non_archived_txs: Vec<&Transaction> = if include_archived {
-        transactions.iter().collect()
-    } else {
-        let archived_ids: std::collections::HashSet<i64> = accounts
-            .iter()
-            .filter(|a| a.is_archived)
-            .map(|a| a.id)
-            .collect();
-        transactions
-            .iter()
-            .filter(|tx| {
-                !archived_ids.contains(&tx.account_id)
-                    && !archived_ids.contains(&tx.destination_account_id.unwrap_or(-1))
-            })
-            .collect()
-    };
-
-    // Compute per-account summaries using non_archived_txs (before account_id
-    // filter consumes the vec). Always exclude archived accounts from the card
-    // list (current-state view).
+    // Compute per-account summaries using non_archived_txs. Always exclude
+    // archived accounts from the card list (current-state view).
     let account_summaries = compute_account_summaries(
         &non_archived_txs,
         accounts,
@@ -100,33 +128,19 @@ pub fn compute_dashboard_data(
     );
     let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
 
-    // Filter transactions by account_id if provided.
-    // Include both source (account_id) and destination (destination_account_id) transactions
-    // for per-account views so transfers show correctly from both sides.
-    let filtered_txs: Vec<&Transaction> = if let Some(acc_id) = account_id {
-        non_archived_txs
-            .into_iter()
-            .filter(|tx| tx.account_id == acc_id || tx.destination_account_id == Some(acc_id))
-            .collect()
-    } else {
-        non_archived_txs
-    };
-
     // --- Aggregate transactions ---
-    let mut current_balance: i64 = 0;
+    let current_balance = compute_all_time_balance(&filtered_txs) + initial_balance_sum;
     let mut monthly_income: i64 = 0;
     let mut monthly_expenses: i64 = 0;
 
     for tx in &filtered_txs {
         match tx.tx_type {
             TransactionType::Income => {
-                current_balance += tx.amount;
                 if tx.date >= month_start_ms && tx.date < month_end_ms {
                     monthly_income += tx.amount;
                 }
             }
             TransactionType::Expense => {
-                current_balance -= tx.amount;
                 if tx.date >= month_start_ms && tx.date < month_end_ms {
                     monthly_expenses += tx.amount;
                 }
@@ -307,7 +321,7 @@ fn compute_account_summaries(
         .collect()
 }
 
-fn compute_all_time_balance(transactions: &[Transaction]) -> i64 {
+fn compute_all_time_balance(transactions: &[&Transaction]) -> i64 {
     transactions
         .iter()
         .map(|t| match t.tx_type {
@@ -374,6 +388,8 @@ mod tests {
             icon: None,
             is_archived: false,
             display_order: 0,
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
@@ -730,6 +746,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
 
@@ -758,6 +776,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
         let txs = vec![
@@ -815,6 +835,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
         let txs = vec![
@@ -873,6 +895,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
         let txs = vec![
@@ -931,6 +955,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
         let txs = vec![
@@ -991,6 +1017,8 @@ mod tests {
                 icon: None,
                 is_archived: true,
                 display_order: 0,
+                created_at: 0,
+                updated_at: 0,
             },
         ];
         // Transfer FROM active account TO archived account
@@ -1017,6 +1045,122 @@ mod tests {
         // But account summaries always exclude archived (current-state view)
         assert_eq!(result.accounts.len(), 1);
         assert_eq!(result.accounts[0].account_id, 1);
+    }
+
+    // =====================================================================
+    // Calendar-error fallback: balance computation uses filtered_txs +
+    // initial_balance_sum, not the raw transaction list.
+    // =====================================================================
+
+    /// Regression test: current_balance must be computed from the
+    /// filtered transaction set (account_id + include_archived) plus
+    /// the selected account's initial_balance — the same computation
+    /// used by the calendar-error fallback path in compute_dashboard_data.
+    ///
+    /// gregorian_to_jalali(now_ms) cannot deterministically fail for
+    /// any i64 input (timestamp_to_gregorian always produces valid
+    /// month/day), so this test exercises the identical balance
+    /// formula through the normal path, proving the filtering logic
+    /// that the error path also relies on.
+    #[test]
+    fn test_current_balance_uses_filtered_transactions_not_raw() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            Account {
+                id: 2,
+                name: "Archived".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF757575,
+                icon: None,
+                is_archived: true,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            },
+            Account {
+                id: 3,
+                name: "Other".to_string(),
+                account_type: "CASH_WALLET".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 200_000,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            },
+        ];
+        let txs = vec![
+            // Belongs to account 1 (selected) — included in filtered set
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            // Belongs to account 2 (archived) — excluded by include_archived=false
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Expense,
+                category_id: 2,
+                amount: 300_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2,
+                destination_account_id: None,
+            },
+            // Belongs to account 3 (different account) — excluded by account_id filter
+            Transaction {
+                id: 3,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 3,
+                destination_account_id: None,
+            },
+        ];
+
+        // Filter by account 1 with include_archived=false
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms);
+
+        // filtered_txs = only tx 1 (account 1, non-archived)
+        // compute_all_time_balance(filtered_txs) = +1_000_000
+        // initial_balance_sum = accounts[0].initial_balance = 0
+        // expected current_balance = 1_000_000
+        assert_eq!(result.current_balance, 1_000_000);
+
+        // Prove the wrong alternatives are NOT the result:
+        // Raw list (all 3 txs): +1M - 300K + 500K = 1_200_000
+        // With archived tx included: +1M - 300K = 700_000
+        // With other-account tx included: +1M + 500K = 1_500_000
+        assert_ne!(result.current_balance, 1_200_000);
+        assert_ne!(result.current_balance, 700_000);
+        assert_ne!(result.current_balance, 1_500_000);
     }
 
     // =====================================================================

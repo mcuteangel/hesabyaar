@@ -110,6 +110,10 @@ pub struct Account {
     pub is_archived: bool,
     #[serde(default, alias = "displayOrder")]
     pub display_order: i32,
+    #[serde(default, alias = "createdAt")]
+    pub created_at: i64,
+    #[serde(default, alias = "updatedAt")]
+    pub updated_at: i64,
 }
 
 fn default_color() -> i64 {
@@ -660,6 +664,8 @@ mod tests {
             icon: Some("AccountBalance".to_string()),
             is_archived: false,
             display_order: 0,
+            created_at: 0,
+            updated_at: 0,
         };
         let json = serde_json::to_string(&account).unwrap();
         let restored: Account = serde_json::from_str(&json).unwrap();
@@ -696,6 +702,8 @@ mod tests {
                     icon: None,
                     is_archived: false,
                     display_order: 0,
+                    created_at: 0,
+                    updated_at: 0,
                 },
                 Account {
                     id: 2,
@@ -710,6 +718,8 @@ mod tests {
                     icon: None,
                     is_archived: false,
                     display_order: 1,
+                    created_at: 0,
+                    updated_at: 0,
                 },
             ],
         };

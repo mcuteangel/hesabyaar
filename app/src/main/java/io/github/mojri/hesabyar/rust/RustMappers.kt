@@ -323,8 +323,9 @@ object RustMappers {
   fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =
     list.map { fromRustPaymentHistory(it) }
 
-  fun fromRustAccount(rust: io.github.mojri.hesabyar.rust.Account): AccountEntity =
-    AccountEntity(
+  fun fromRustAccount(rust: io.github.mojri.hesabyar.rust.Account): AccountEntity {
+    val now = System.currentTimeMillis()
+    return AccountEntity(
       id = rust.id,
       name = rust.name,
       type = AccountType.safeValueOf(rust.accountType),
@@ -337,7 +338,10 @@ object RustMappers {
       icon = rust.icon,
       isArchived = rust.isArchived,
       displayOrder = rust.displayOrder,
+      createdAt = if (rust.createdAt != 0L) rust.createdAt else now,
+      updatedAt = if (rust.updatedAt != 0L) rust.updatedAt else now,
     )
+  }
 
   fun fromRustAccounts(list: List<io.github.mojri.hesabyar.rust.Account>): List<AccountEntity> =
     list.map { fromRustAccount(it) }
@@ -356,6 +360,8 @@ object RustMappers {
       icon = account.icon,
       isArchived = account.isArchived,
       displayOrder = account.displayOrder,
+      createdAt = account.createdAt,
+      updatedAt = account.updatedAt,
     )
 
   fun mapAccounts(accounts: List<AccountEntity>): List<io.github.mojri.hesabyar.rust.Account> =

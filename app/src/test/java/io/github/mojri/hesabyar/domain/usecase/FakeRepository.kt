@@ -202,7 +202,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun getTransactionCountForAccount(accountId: Long): Int =
-    _allTransactions.value.count { it.accountId == accountId }
+    _allTransactions.value.count {
+      it.accountId == accountId || it.destinationAccountId == accountId
+    }
 
   override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
 }

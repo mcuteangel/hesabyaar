@@ -41,6 +41,7 @@ import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
+import java.util.Locale
 import kotlin.math.abs
 
 private val SELECTED_BACKGROUND_ALPHA = Dimens.ICON_CIRCLE_BACKGROUND_ALPHA
@@ -159,11 +160,11 @@ private fun CardCardContent(
  *
  * - `delta > 0` → green text with ▲ arrow (e.g. "+4% ▲")
  * - `delta < 0` → red text with ▼ arrow (e.g. "-12% ▼")
- * - `delta == 0.0` → no indicator shown
+ * - `delta == 0.0`, NaN, or Infinity → no indicator shown
  */
 @Composable
 private fun TrendIndicator(delta: Double) {
-  if (delta == 0.0) return
+  if (delta == 0.0 || delta.isNaN() || delta.isInfinite()) return
 
   val isPositive = delta > 0
   val color = if (isPositive) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
@@ -174,7 +175,7 @@ private fun TrendIndicator(delta: Double) {
     if (abs(delta - delta.toLong()) < 0.005) {
       "${delta.toLong()}"
     } else {
-      String.format("%.1f", delta)
+      String.format(Locale.US, "%.1f", delta)
     }
 
   // Force LTR layout so the sign (±) always appears on the left of the

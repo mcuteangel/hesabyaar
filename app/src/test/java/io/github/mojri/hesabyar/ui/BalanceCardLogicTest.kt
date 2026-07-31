@@ -60,7 +60,7 @@ class BalanceCardLogicTest {
   }
 
   @Test
-  fun gradientStartsWithPurpleaccentAt0_2Alpha() {
+  fun gradientStartsWithPurpleAccentAt02Alpha() {
     val gradientStart = FinancialColors.PurpleAccent.copy(alpha = 0.2f)
     assertEquals(0.2f, gradientStart.alpha, 0.001f)
     assertEquals(FinancialColors.PurpleAccent.red, gradientStart.red, 0.001f)

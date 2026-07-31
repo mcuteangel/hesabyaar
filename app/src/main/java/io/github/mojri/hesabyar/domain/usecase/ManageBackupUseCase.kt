@@ -2,12 +2,14 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import android.util.Log
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -16,7 +18,6 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -165,7 +166,14 @@ class ManageBackupUseCase(
           personName = o.optString("personName", "").ifBlank { null },
           date = o.optLong("date", 0L),
           dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
-          installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L }
+          installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L },
+          accountId = o.optLong("accountId", DEFAULT_ACCOUNT_ID),
+          destinationAccountId =
+            if (o.has("destinationAccountId") && !o.isNull("destinationAccountId")) {
+              o.optLong("destinationAccountId")
+            } else {
+              null
+            }
         )
       }
     } ?: emptyList()
@@ -259,6 +267,7 @@ class ManageBackupUseCase(
 
   private fun parseAccountsFromJson(root: JSONObject): List<io.github.mojri.hesabyar.data.AccountEntity> =
     root.optJSONArray("accounts")?.let { arr ->
+      val now = System.currentTimeMillis()
       (0 until arr.length()).mapNotNull { i ->
         val o = arr.optJSONObject(i) ?: return@mapNotNull null
         val type = parseType(o, io.github.mojri.hesabyar.data.AccountType.BANK)
@@ -278,10 +287,12 @@ class ManageBackupUseCase(
             },
           iban = if (o.has("iban") && !o.isNull("iban")) o.optString("iban") else null,
           initialBalance = o.optLong("initialBalance", 0L),
-          color = o.optLong("color", DEFAULT_ACCOUNT_COLOR),
+          color = o.optLong("color", AccountEntity.DEFAULT_COLOR),
           icon = if (o.has("icon") && !o.isNull("icon")) o.optString("icon") else null,
           isArchived = o.optBoolean("isArchived", false),
-          displayOrder = o.optInt("displayOrder", 0)
+          displayOrder = o.optInt("displayOrder", 0),
+          createdAt = o.optLong("createdAt", now),
+          updatedAt = o.optLong("updatedAt", now)
         )
       }
     } ?: emptyList()
@@ -478,6 +489,8 @@ class ManageBackupUseCase(
           put("date", it.date)
           put("dueDate", it.dueDate ?: 0L)
           put("installmentId", it.installmentId ?: 0L)
+          put("accountId", it.accountId)
+          put("destinationAccountId", it.destinationAccountId ?: JSONObject.NULL)
         }
       )
     }
@@ -567,6 +580,8 @@ class ManageBackupUseCase(
           put("icon", it.icon ?: JSONObject.NULL)
           put("isArchived", it.isArchived)
           put("displayOrder", it.displayOrder)
+          put("createdAt", it.createdAt)
+          put("updatedAt", it.updatedAt)
         }
       )
     }

@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -327,5 +328,39 @@ class ManageBackupUseCaseTest {
     assertTrue(result.installments.isEmpty())
     assertTrue(result.categories.isEmpty())
     assertFalse(result.toString().isEmpty())
+  }
+
+  // --- round-trip: accountId / destinationAccountId preservation ---
+
+  @Test
+  fun `exportBackupJson and parseBackupJson round-trip preserves accountId and destinationAccountId`() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    val nonDefaultAccountId = 5L
+    val destAccountId = 3L
+
+    runBlocking {
+      repo.insertTransaction(
+        Transaction(
+          id = 1L,
+          type = TransactionType.EXPENSE,
+          categoryId = 1L,
+          amount = 100_000L,
+          description = "transfer out",
+          accountId = nonDefaultAccountId,
+          destinationAccountId = destAccountId
+        )
+      )
+    }
+
+    val json = runBlocking { useCase.exportBackupJson() }
+    val result = runBlocking { useCase.parseBackupJson(json.toString()) }
+
+    assertTrue(result != null)
+    assertEquals(1, result!!.transactions.size)
+    val tx = result.transactions[0]
+    assertEquals(nonDefaultAccountId, tx.accountId)
+    assertEquals(destAccountId, tx.destinationAccountId)
   }
 }

@@ -8,29 +8,29 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 
 ```bash
 # Debug build (only needs GEMINI_API_KEY in .env)
-./gradlew installDebug
+./gradlew --no-daemon installDebug
 
 # Release signing (requires .env with KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD)
-./gradlew generateKeystore   # first time only
-./gradlew checkSigningConfig  # verify signing setup
+./gradlew --no-daemon generateKeystore   # first time only
+./gradlew --no-daemon checkSigningConfig  # verify signing setup
 
 # Run all unit tests (non-Rust + Rust isolated)
-./gradlew test
+./gradlew --no-daemon test
 
 # Run fast (non-Rust) tests only — no JNI fork overhead (~2m vs ~7m)
-./gradlew testDebugUnitTest
+./gradlew --no-daemon testDebugUnitTest
 
 # Run Rust-bridge tests only — with JNI isolation (forkEvery=1)
-./gradlew testDebugUnitTestRust
+./gradlew --no-daemon testDebugUnitTestRust
 
 # Run single test class
-./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionTest"
+./gradlew --no-daemon testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionTest"
 
 # Lint / static analysis (no custom config, uses Android defaults)
-./gradlew lint
+./gradlew --no-daemon lint
 ```
 
-### ⚠️ Test Reliability: Rust JNI State Leakage
+## ⚠️ Test Reliability: Rust JNI State Leakage
 
 The Rust native library (`hesabyar_core`) uses global mutable state that cannot be
 reset between test classes sharing the same JVM. Tests touching the Rust bridge are
@@ -42,11 +42,11 @@ infrastructure, always verify with a cache-busting run:**
 
 ```bash
 # Option A: clean + test (guarantees fresh compilation)
-./gradlew clean test
+./gradlew --no-daemon clean test
 # Option B: rerun-tasks (re-executes everything without deleting build artifacts)
-./gradlew test --rerun-tasks```
+./gradlew --no-daemon test --rerun-tasks```
 
-A plain `./gradlew test` may report "BUILD SUCCESSFUL" based on stale cached results
+A plain `./gradlew --no-daemon test` may report "BUILD SUCCESSFUL" based on stale cached results
 even when tests would actually fail. This is especially dangerous after changes to
 `RustIsolationRule`, `HesabyarApp`, or `RustBridge`.
 
@@ -143,7 +143,7 @@ generated into `app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
 
 - After **any change to Rust source** (`rust/**`), the Kotlin FFI bindings and the
   host library must be regenerated, otherwise the build/FFI calls won't reflect the change.
-- Run: `./gradlew :app:generateAndFixBindings`
+- Run: `./gradlew --no-daemon :app:generateAndFixBindings`
   (alias `:app:generateRustBindings` skips the package-patch/install step).
 - Do not manually edit the generated `hesabyar_core.kt`; it is overwritten by the task.
 
@@ -196,12 +196,14 @@ Every time you modify, refactor, or introduce new code in the codebase, you **MU
 First, auto-fix any code-style violations (formatting, imports, etc.):
 
 ```bash
-./gradlew ktlintFormat```
+./gradlew ktlintFormat --no-daemon
+```
 
 Then run the linting and static analysis checks to ensure no cognitive-complexity or remaining style regressions:
 
 ```bash
-./gradlew ktlintCheck detekt```
+./gradlew ktlintCheck detekt --no-daemon
+```
 
 ### 2. Unit Testing Suite
 
@@ -210,17 +212,20 @@ Run the local testing suite to ensure all components and boundaries function pro
 **All Kotlin tests (non-Rust + Rust isolated):**
 
 ```bash
-./gradlew test```
+./gradlew test --no-daemon
+```
 
 **Fast iteration (non-Rust tests only — ~4m vs ~10m combined):**
 
 ```bash
-./gradlew testDebugUnitTest```
+./gradlew testDebugUnitTest --no-daemon
+```
 
 **Rust-bridge tests only (when Rust bridge code was touched):**
 
 ```bash
-./gradlew testDebugUnitTestRust```
+./gradlew testDebugUnitTestRust --no-daemon
+```
 
 **Rust Core Tests (If Rust modules were touched):**
 
@@ -233,7 +238,8 @@ cargo test
 If ktlint still fails after the initial `ktlintFormat`, you may attempt another auto-fix:
 
 ```bash
-./gradlew ktlintFormat```
+./gradlew ktlintFormat --no-daemon
+```
 
 If detekt fails, fix the findings manually — `ktlintFormat` does not resolve detekt issues.
 

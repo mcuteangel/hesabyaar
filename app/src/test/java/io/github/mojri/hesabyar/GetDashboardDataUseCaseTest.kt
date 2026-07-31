@@ -859,8 +859,7 @@ class GetDashboardDataUseCaseTest {
   fun monthlyDeltaNeverNanOrInfinity() {
     val fixedNowMs = 1752580800000L
     val (curStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs)
-    val (_, prevEnd) = JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(curStart)
-    val prevStart = prevEnd - 30L * 24 * 60 * 60 * 1000
+    val (prevStart, prevEnd) = JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(curStart)
 
     val accounts = listOf(account(1, "Active", AccountType.BANK))
 
@@ -906,11 +905,11 @@ class GetDashboardDataUseCaseTest {
   @Test
   fun monthlyDeltaExactZeroPrevNetWithCancellingTransactions() {
     val fixedNowMs = 1752580800000L
-    val (_, prevEnd) =
+    val (prevStart, prevEnd) =
       JalaliCalendarHelper.getUtcJalaliPreviousMonthBoundaries(
         JalaliCalendarHelper.getUtcJalaliMonthBoundaries(fixedNowMs).first,
       )
-    val prevMid = prevEnd - 15L * 24 * 60 * 60 * 1000
+    val prevMid = prevStart + (prevEnd - prevStart) / 2
 
     val accounts = listOf(account(1, "Active", AccountType.BANK))
 

@@ -38,7 +38,7 @@ data class AccountEntity(
   val accountNumber: String? = null,
   val iban: String? = null,
   val initialBalance: Long = 0L, // Rial
-  val color: Long = 0xFF4CAF50L,
+  val color: Long = DEFAULT_COLOR,
   val icon: String? = null,
   val isArchived: Boolean = false,
   val displayOrder: Int = 0,
@@ -47,6 +47,9 @@ data class AccountEntity(
 ) : Serializable {
   companion object {
     private const val serialVersionUID: Long = 2L
+
+    /** Default account colour (green) — single source of truth for this value. */
+    const val DEFAULT_COLOR: Long = 0xFF4CAF50L
 
     val DEFAULT_ACCOUNT =
       AccountEntity(

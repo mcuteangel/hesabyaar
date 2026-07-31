@@ -361,6 +361,8 @@ mod tests {
             icon: None,
             is_archived: false,
             display_order: 0,
+            created_at: 0,
+            updated_at: 0,
         }
     }
 

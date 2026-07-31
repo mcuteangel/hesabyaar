@@ -151,7 +151,7 @@ abstract class AppDatabase : RoomDatabase() {
               accountNumber TEXT,
               iban TEXT,
               initialBalance INTEGER NOT NULL DEFAULT 0,
-              color INTEGER NOT NULL DEFAULT ${0xFF4CAF50L},
+              color INTEGER NOT NULL DEFAULT ${AccountEntity.DEFAULT_COLOR},
               icon TEXT,
               isArchived INTEGER NOT NULL DEFAULT 0,
               displayOrder INTEGER NOT NULL DEFAULT 0
