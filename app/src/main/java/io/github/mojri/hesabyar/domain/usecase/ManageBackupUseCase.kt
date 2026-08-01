@@ -31,6 +31,23 @@ class ManageBackupUseCase(
 ) {
   private companion object {
     const val TAG = "ManageBackupUseCase"
+
+    /** Number of trailing characters to preserve when redacting sensitive fields. */
+    const val REDACT_KEEP_CHARS = 4
+
+    /**
+     * Redacts all but the last [keep] characters of [value], replacing the
+     * leading portion with `*` characters.  Returns the original string when
+     * it is shorter than or equal to [keep] (nothing to mask).
+     */
+    fun redactTrailing(
+      value: String,
+      keep: Int
+    ): String {
+      if (value.length <= keep) return value
+      val masked = "*".repeat(value.length - keep)
+      return masked + value.takeLast(keep)
+    }
   }
 
   suspend fun parseBackupJson(jsonString: String): BackupPayload? =
@@ -106,6 +123,20 @@ class ManageBackupUseCase(
     return BackupSettings(darkMode = obj.optBoolean("darkMode", true))
   }
 
+  /** Absent type → BANK (backward compat); present-but-unknown → OTHER via safeValueOf. */
+  private fun parseAccountType(obj: JSONObject): io.github.mojri.hesabyar.data.AccountType {
+    val typeStr = obj.optString("type", "")
+    return if (typeStr.isEmpty()) {
+      io.github.mojri.hesabyar.data.AccountType.BANK
+    } else {
+      io.github.mojri.hesabyar.data.AccountType
+        .safeValueOf(typeStr)
+    }
+  }
+
+  /** Returns [JSONObject.NULL] as Kotlin null, or the string value if present and non-null. */
+  private fun JSONObject.nullableString(key: String): String? = if (has(key) && !isNull(key)) optString(key) else null
+
   private inline fun <reified T : Enum<T>> parseType(
     obj: JSONObject,
     default: T
@@ -136,11 +167,11 @@ class ManageBackupUseCase(
         accounts = parseAccountsFromJson(root),
         settings = parseSettings(root)
       )
-    } catch (e: IllegalArgumentException) {
-      Log.w(TAG, "Kotlin backup parse: invalid enum value", e)
-      null
     } catch (e: NumberFormatException) {
       Log.w(TAG, "Kotlin backup parse: malformed number in backup JSON", e)
+      null
+    } catch (e: IllegalArgumentException) {
+      Log.w(TAG, "Kotlin backup parse: invalid enum value", e)
       null
     } catch (e: org.json.JSONException) {
       Log.w(TAG, "Kotlin backup parse: malformed JSON structure", e)
@@ -270,25 +301,17 @@ class ManageBackupUseCase(
       val now = System.currentTimeMillis()
       (0 until arr.length()).mapNotNull { i ->
         val o = arr.optJSONObject(i) ?: return@mapNotNull null
-        val type = parseType(o, io.github.mojri.hesabyar.data.AccountType.BANK)
         io.github.mojri.hesabyar.data.AccountEntity(
           id = o.optLong("id", 0L),
           name = o.optString("name", ""),
-          type = type,
-          bankName = if (o.has("bankName") && !o.isNull("bankName")) o.optString("bankName") else null,
-          cardNumber = if (o.has("cardNumber") && !o.isNull("cardNumber")) o.optString("cardNumber") else null,
-          accountNumber =
-            if (o.has("accountNumber") &&
-              !o.isNull("accountNumber")
-            ) {
-              o.optString("accountNumber")
-            } else {
-              null
-            },
-          iban = if (o.has("iban") && !o.isNull("iban")) o.optString("iban") else null,
+          type = parseAccountType(o),
+          bankName = o.nullableString("bankName"),
+          cardNumber = o.nullableString("cardNumber"),
+          accountNumber = o.nullableString("accountNumber"),
+          iban = o.nullableString("iban"),
           initialBalance = o.optLong("initialBalance", 0L),
           color = o.optLong("color", AccountEntity.DEFAULT_COLOR),
-          icon = if (o.has("icon") && !o.isNull("icon")) o.optString("icon") else null,
+          icon = o.nullableString("icon"),
           isArchived = o.optBoolean("isArchived", false),
           displayOrder = o.optInt("displayOrder", 0),
           createdAt = o.optLong("createdAt", now),
@@ -328,14 +351,21 @@ class ManageBackupUseCase(
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
     withContext(dispatcher) {
       if (io.github.mojri.hesabyar.rust.RustBridge.isAvailable) {
-        val rustResult =
-          io.github.mojri.hesabyar.rust.RustBridge
-            .validateBackupPayloadSync(backup.toRustPayload())
+        try {
+          val rustResult =
+            io.github.mojri.hesabyar.rust.RustBridge
+              .validateBackupPayloadSync(backup.toRustPayload())
 
-        if (rustResult.isValid) {
-          BackupValidationResult.Valid
-        } else {
-          BackupValidationResult.Invalid(rustResult.errors)
+          if (rustResult.isValid) {
+            BackupValidationResult.Valid
+          } else {
+            BackupValidationResult.Invalid(rustResult.errors)
+          }
+        } catch (e: IllegalArgumentException) {
+          // Mapping to Rust payload failed (e.g. from mapAccounts/mapCategories);
+          // fall back to Kotlin validation instead of escaping as an unhandled exception.
+          Log.w(TAG, "Rust→Kotlin mapping failed during validation, falling back to Kotlin", e)
+          validateBackupKotlin(backup)
         }
       } else {
         // Rust unavailable — fall back to local Kotlin validation
@@ -356,6 +386,7 @@ class ManageBackupUseCase(
     validateBackupCategories(backup.categories, errors)
     validateBackupPaymentHistories(backup.paymentHistories, errors)
     validateBackupBankLoans(backup.bankLoans, errors)
+    validateBackupAccounts(backup.accounts, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid
@@ -426,6 +457,16 @@ class ManageBackupUseCase(
       if (bankLoan.numberOfInstallments <= 0) errors.add("تعداد اقساط وام #$i نامعتبر است")
       if (bankLoan.monthlyInstallmentAmount <= 0) errors.add("مبلغ قسط ماهانه وام #$i نامعتبر است")
       if (bankLoan.startDate <= 0) errors.add("تاریخ شروع وام #$i نامعتبر است")
+    }
+  }
+
+  private fun validateBackupAccounts(
+    accounts: List<io.github.mojri.hesabyar.data.AccountEntity>,
+    errors: MutableList<String>
+  ) {
+    accounts.forEachIndexed { i, account ->
+      if (account.name.isBlank()) errors.add("نام حساب #$i خالی است")
+      if (account.createdAt <= 0) errors.add("تاریخ ایجاد حساب #$i نامعتبر است")
     }
   }
 
@@ -572,9 +613,14 @@ class ManageBackupUseCase(
           put("name", it.name)
           put("type", it.type.name)
           put("bankName", it.bankName ?: JSONObject.NULL)
-          put("cardNumber", it.cardNumber ?: JSONObject.NULL)
-          put("accountNumber", it.accountNumber ?: JSONObject.NULL)
-          put("iban", it.iban ?: JSONObject.NULL)
+          // Security: redact sensitive banking identifiers in backup exports.
+          // Only the last 4 characters are preserved for identification; the
+          // full values must never leave the app in plaintext.  On restore the
+          // user re-enters the masked fields (or a future encrypted-backup
+          // feature handles this properly).
+          put("cardNumber", it.cardNumber?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
+          put("accountNumber", it.accountNumber?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
+          put("iban", it.iban?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
           put("initialBalance", it.initialBalance)
           put("color", it.color)
           put("icon", it.icon ?: JSONObject.NULL)

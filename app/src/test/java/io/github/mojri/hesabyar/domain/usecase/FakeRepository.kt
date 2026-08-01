@@ -22,7 +22,17 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
   private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
   private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
-  private val accountsList = mutableListOf<AccountEntity>()
+  val accountsList = mutableListOf<AccountEntity>()
+
+  // --- Failure simulation (used by AccountViewModelTest error-path tests) ---
+  var shouldThrowOnInsert = false
+  var shouldThrowOnUpdate = false
+  var shouldThrowOnDelete = false
+  var shouldThrowOnTransactionCount = false
+
+  /** Overrides the computed transaction count when non-null. */
+  var transactionCountOverride: Int? = null
+
   private var nextId = 1L
 
   override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
@@ -170,7 +180,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   // --- Account CRUD ---
 
-  private fun refreshAccounts() {
+  fun refreshAccounts() {
     _allAccounts.value = accountsList.toList()
   }
 
@@ -181,6 +191,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun getAccountById(id: Long): AccountEntity? = accountsList.firstOrNull { it.id == id }
 
   override suspend fun insertAccount(account: AccountEntity): Long {
+    if (shouldThrowOnInsert) throw IllegalStateException("Simulated DB failure")
     val id = if (account.id != 0L) account.id else nextId++
     nextId = maxOf(nextId, id + 1)
     accountsList.add(account.copy(id = id))
@@ -189,6 +200,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun updateAccount(account: AccountEntity) {
+    if (shouldThrowOnUpdate) throw IllegalStateException("Simulated DB failure")
     val idx = accountsList.indexOfFirst { it.id == account.id }
     if (idx >= 0) {
       accountsList[idx] = account
@@ -197,14 +209,18 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun deleteAccount(account: AccountEntity) {
+    if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
     accountsList.removeIf { it.id == account.id }
     refreshAccounts()
   }
 
-  override suspend fun getTransactionCountForAccount(accountId: Long): Int =
-    _allTransactions.value.count {
-      it.accountId == accountId || it.destinationAccountId == accountId
-    }
+  override suspend fun getTransactionCountForAccount(accountId: Long): Int {
+    if (shouldThrowOnTransactionCount) throw IllegalStateException("Simulated DB failure")
+    return transactionCountOverride
+      ?: _allTransactions.value.count {
+        it.accountId == accountId || it.destinationAccountId == accountId
+      }
+  }
 
   override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
 }

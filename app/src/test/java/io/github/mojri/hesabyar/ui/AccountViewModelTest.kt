@@ -2,20 +2,9 @@ package io.github.mojri.hesabyar.ui
 
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
-import io.github.mojri.hesabyar.data.BackupPayload
-import io.github.mojri.hesabyar.data.BankLoan
-import io.github.mojri.hesabyar.data.Category
-import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
-import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.data.Loan
-import io.github.mojri.hesabyar.data.PaymentHistory
-import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.usecase.FakeRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -31,13 +20,13 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class AccountViewModelTest {
   private lateinit var viewModel: AccountViewModel
-  private lateinit var fakeRepo: AccountFakeRepository
+  private lateinit var fakeRepo: FakeRepository
   private val testDispatcher = StandardTestDispatcher()
 
   @Before
   fun setup() {
     Dispatchers.setMain(testDispatcher)
-    fakeRepo = AccountFakeRepository()
+    fakeRepo = FakeRepository()
     viewModel = AccountViewModel(fakeRepo)
   }
 
@@ -47,14 +36,15 @@ class AccountViewModelTest {
   }
 
   @Test
-  fun addAccountWithBlankNameReturnsValidationError() {
-    val result =
-      viewModel.addAccount(
-        name = "",
-        type = AccountType.BANK
-      )
-    assertTrue(result is AccountViewModel.AddAccountResult.ValidationError)
-  }
+  fun addAccountWithBlankNameReturnsValidationError() =
+    runTest {
+      val result =
+        viewModel.addAccount(
+          name = "",
+          type = AccountType.BANK
+        )
+      assertTrue(result is AccountViewModel.AddAccountResult.ValidationError)
+    }
 
   @Test
   fun addAccountWithBlankNameDoesNotInsert() =
@@ -156,7 +146,7 @@ class AccountViewModelTest {
   @Test
   fun canDeleteAccountReturnsFalseWhenTransactionsExist() =
     runTest {
-      fakeRepo.transactionCount = 3
+      fakeRepo.transactionCountOverride = 3
       var result = true
       viewModel.canDeleteAccount(1L) { result = it }
       advanceUntilIdle()
@@ -186,10 +176,12 @@ class AccountViewModelTest {
         launch {
           viewModel.errorEvents.collect { errorMessages.add(it) }
         }
-
-      viewModel.addAccount(name = "fail test", type = AccountType.BANK)
       advanceUntilIdle()
 
+      val result = viewModel.addAccount(name = "fail test", type = AccountType.BANK)
+      advanceUntilIdle()
+
+      assertTrue(result is AccountViewModel.AddAccountResult.InsertError)
       assertTrue(errorMessages.isNotEmpty())
       assertTrue(errorMessages[0].contains("خطا"))
       job.cancel()
@@ -277,135 +269,4 @@ class AccountViewModelTest {
       assertTrue(errorMessages[0].contains("خطا"))
       job.cancel()
     }
-
-  private class AccountFakeRepository : HesabyarRepositoryInterface {
-    val accountsList = mutableListOf<AccountEntity>()
-    private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
-    var transactionCount = 0
-    var shouldThrowOnInsert = false
-    var shouldThrowOnUpdate = false
-    var shouldThrowOnDelete = false
-    var shouldThrowOnTransactionCount = false
-
-    fun refreshAccounts() {
-      _allAccounts.value = accountsList.toList()
-    }
-
-    override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-    override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
-    override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
-    override val allCategories: Flow<List<Category>> = flowOf(emptyList())
-    override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
-    override val allAccounts: Flow<List<AccountEntity>> = _allAccounts.asStateFlow()
-
-    override fun getTransactionsInRange(
-      start: Long,
-      end: Long
-    ): Flow<List<Transaction>> = flowOf(emptyList())
-
-    override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
-
-    override suspend fun getCategoryById(id: Long): Category? = null
-
-    override suspend fun getCategoryByKey(key: String): Category? = null
-
-    override suspend fun insertCategory(category: Category): Long = 0L
-
-    override suspend fun updateCategory(category: Category) {}
-
-    override suspend fun deleteCategory(category: Category) {}
-
-    override suspend fun insertTransaction(transaction: Transaction): Long = 0L
-
-    override suspend fun deleteTransaction(transaction: Transaction) {}
-
-    override suspend fun updateTransaction(transaction: Transaction) {}
-
-    override suspend fun insertLoan(loan: Loan): Long = 0L
-
-    override suspend fun updateLoan(loan: Loan) {}
-
-    override suspend fun deleteLoan(loan: Loan) {}
-
-    override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> = flowOf(emptyList())
-
-    override suspend fun addPaymentToLoan(
-      loanId: Long,
-      amount: Long,
-      notes: String,
-      customDate: Long?
-    ): Boolean = false
-
-    override suspend fun insertInstallment(installment: Installment): Long = 0L
-
-    override suspend fun updateInstallment(installment: Installment) {}
-
-    override suspend fun deleteInstallment(installment: Installment) {}
-
-    override suspend fun getBankLoanById(id: Long): BankLoan? = null
-
-    override suspend fun insertBankLoan(bankLoan: BankLoan): Long = 0L
-
-    override suspend fun updateBankLoan(bankLoan: BankLoan) {}
-
-    override suspend fun deleteBankLoan(bankLoan: BankLoan) {}
-
-    override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> = emptyList()
-
-    override suspend fun addBankLoanWithInstallments(
-      bankLoan: BankLoan,
-      installments: List<Installment>
-    ): Long = 0L
-
-    override suspend fun importBackup(
-      transactions: List<Transaction>,
-      loans: List<Loan>,
-      installments: List<Installment>,
-      paymentHistories: List<PaymentHistory>,
-      bankLoans: List<BankLoan>
-    ) {
-    }
-
-    override suspend fun replaceAllFromBackup(backup: BackupPayload) {}
-
-    override suspend fun mergeFromBackup(backup: BackupPayload) {}
-
-    override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
-
-    override suspend fun getActiveAccounts(): List<AccountEntity> = accountsList.filter { !it.isArchived }
-
-    override suspend fun getAllAccounts(): List<AccountEntity> = accountsList.toList()
-
-    override suspend fun getAccountById(id: Long): AccountEntity? = accountsList.firstOrNull { it.id == id }
-
-    override suspend fun insertAccount(account: AccountEntity): Long {
-      if (shouldThrowOnInsert) throw IllegalStateException("Simulated DB failure")
-      val id = if (account.id != 0L) account.id else 1L
-      accountsList.add(account.copy(id = id))
-      refreshAccounts()
-      return id
-    }
-
-    override suspend fun updateAccount(account: AccountEntity) {
-      if (shouldThrowOnUpdate) throw IllegalStateException("Simulated DB failure")
-      val idx = accountsList.indexOfFirst { it.id == account.id }
-      if (idx >= 0) {
-        accountsList[idx] = account
-        refreshAccounts()
-      }
-    }
-
-    override suspend fun deleteAccount(account: AccountEntity) {
-      if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
-      accountsList.removeIf { it.id == account.id }
-      refreshAccounts()
-    }
-
-    override suspend fun getTransactionCountForAccount(accountId: Long): Int {
-      if (shouldThrowOnTransactionCount) throw IllegalStateException("Simulated DB failure")
-      return transactionCount
-    }
-
-    override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
-  }
 }

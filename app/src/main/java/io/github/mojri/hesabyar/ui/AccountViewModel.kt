@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,19 +31,36 @@ class AccountViewModel
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Emits user-facing error messages for snackbar display. */
-    private val _errorEvents = MutableSharedFlow<String>()
+    private val _errorEvents =
+      MutableSharedFlow<String>(
+        extraBufferCapacity = 5,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+      )
     val errorEvents: SharedFlow<String> = _errorEvents.asSharedFlow()
 
-    /** Sealed result type for addAccount to communicate validation errors. */
+    /** Sealed result type for addAccount to communicate validation/insert outcomes. */
     sealed class AddAccountResult {
       data object Success : AddAccountResult()
 
       data class ValidationError(
         val message: String
       ) : AddAccountResult()
+
+      data class InsertError(
+        val message: String
+      ) : AddAccountResult()
     }
 
-    fun addAccount(
+    /**
+     * Creates a new account after validating the [name].
+     *
+     * Returns [AddAccountResult.ValidationError] immediately when the name is
+     * blank.  Otherwise **awaits** the database insert and returns
+     * [AddAccountResult.Success] only after the row is persisted.  Database
+     * errors are emitted via [errorEvents] (for the snackbar) and reported as
+     * [AddAccountResult.InsertError] so callers can keep the dialog open.
+     */
+    suspend fun addAccount(
       name: String,
       type: AccountType,
       bankName: String? = null,
@@ -55,108 +73,94 @@ class AccountViewModel
       if (name.isBlank()) {
         return AddAccountResult.ValidationError("نام حساب نمی‌تواند خالی باشد")
       }
-      viewModelScope.launch {
-        try {
-          val now = System.currentTimeMillis()
-          // TODO(#152): TOCTOU — read then write is not atomic. Low risk due to
-          // SQLite single-writer serialization, but not architecturally guaranteed.
-          val nextOrder = repository.getMaxDisplayOrder() + 1
-          val account =
-            AccountEntity(
-              name = name,
-              type = type,
-              bankName = bankName,
-              cardNumber = cardNumber,
-              accountNumber = accountNumber,
-              iban = iban,
-              initialBalance = initialBalance,
-              color = color,
-              displayOrder = nextOrder,
-              createdAt = now,
-              updatedAt = now
-            )
-          repository.insertAccount(account)
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: SQLiteException) {
-          Log.e(TAG, "addAccount failed", e)
-          _errorEvents.emit("خطا در ایجاد حساب: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-        } catch (e: IllegalStateException) {
-          Log.e(TAG, "addAccount failed", e)
-          _errorEvents.emit("خطا در ایجاد حساب: ${e.localizedMessage ?: "خطای ناشناخته"}")
-        }
-      }
-      return AddAccountResult.Success
-    }
-
-    fun updateAccount(account: AccountEntity) {
-      viewModelScope.launch {
-        try {
-          repository.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: SQLiteException) {
-          Log.e(TAG, "updateAccount failed", e)
-          _errorEvents.emit("خطا در ویرایش حساب: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-        } catch (e: IllegalStateException) {
-          Log.e(TAG, "updateAccount failed", e)
-          _errorEvents.emit("خطا در ویرایش حساب: ${e.localizedMessage ?: "خطای ناشناخته"}")
-        }
+      return try {
+        val now = System.currentTimeMillis()
+        // TODO(#152): TOCTOU — read then write is not atomic. Low risk due to
+        // SQLite single-writer serialization, but not architecturally guaranteed.
+        val nextOrder = repository.getMaxDisplayOrder() + 1
+        val account =
+          AccountEntity(
+            name = name,
+            type = type,
+            bankName = bankName,
+            cardNumber = cardNumber,
+            accountNumber = accountNumber,
+            iban = iban,
+            initialBalance = initialBalance,
+            color = color,
+            displayOrder = nextOrder,
+            createdAt = now,
+            updatedAt = now
+          )
+        repository.insertAccount(account)
+        AddAccountResult.Success
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: SQLiteException) {
+        emitAddAccountError(e, "خطای پایگاه داده")
+      } catch (e: IllegalStateException) {
+        emitAddAccountError(e, "خطای ناشناخته")
       }
     }
 
-    fun deleteAccount(account: AccountEntity) {
-      viewModelScope.launch {
-        try {
-          repository.deleteAccount(account)
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: SQLiteException) {
-          Log.e(TAG, "deleteAccount failed", e)
-          _errorEvents.emit("خطا در حذف حساب: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-        } catch (e: IllegalStateException) {
-          Log.e(TAG, "deleteAccount failed", e)
-          _errorEvents.emit("خطا در حذف حساب: ${e.localizedMessage ?: "خطای ناشناخته"}")
-        }
-      }
+    /** Emits an error event (snackbar) and returns the insert-failure result. */
+    private suspend fun emitAddAccountError(
+      e: Exception,
+      fallbackMessage: String
+    ): AddAccountResult.InsertError {
+      Log.e(TAG, "addAccount failed", e)
+      val message = "خطا در ایجاد حساب: ${e.localizedMessage ?: fallbackMessage}"
+      _errorEvents.emit(message)
+      return AddAccountResult.InsertError(message)
     }
+
+    fun updateAccount(account: AccountEntity) =
+      runGuarded(errorPrefix = "ویرایش حساب") {
+        repository.updateAccount(account.copy(updatedAt = System.currentTimeMillis()))
+      }
+
+    fun deleteAccount(account: AccountEntity) =
+      runGuarded(errorPrefix = "حذف حساب") {
+        repository.deleteAccount(account)
+      }
 
     fun canDeleteAccount(
       accountId: Long,
       onResult: (Boolean) -> Unit
+    ) = runGuarded(errorPrefix = "بررسی حساب", onError = { onResult(false) }) {
+      val count = repository.getTransactionCountForAccount(accountId)
+      onResult(count == 0)
+    }
+
+    fun archiveAccount(account: AccountEntity) =
+      runGuarded(errorPrefix = "بایگانی حساب") {
+        repository.updateAccount(
+          account.copy(isArchived = true, updatedAt = System.currentTimeMillis())
+        )
+      }
+
+    /**
+     * Runs [action] in the viewModelScope and converts DB-layer failures into
+     * user-facing error events. Keeps the account operations above DRY.
+     */
+    private fun runGuarded(
+      errorPrefix: String,
+      onError: (() -> Unit)? = null,
+      action: suspend () -> Unit
     ) {
       viewModelScope.launch {
         try {
-          val count = repository.getTransactionCountForAccount(accountId)
-          onResult(count == 0)
+          action()
         } catch (e: CancellationException) {
           throw e
         } catch (e: SQLiteException) {
-          Log.e(TAG, "canDeleteAccount failed", e)
-          _errorEvents.emit("خطا در بررسی حساب: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-          onResult(false)
+          Log.e(TAG, "$errorPrefix failed", e)
+          _errorEvents.emit("خطا در $errorPrefix: ${e.localizedMessage ?: "خطای پایگاه داده"}")
+          onError?.invoke()
         } catch (e: IllegalStateException) {
-          Log.e(TAG, "canDeleteAccount failed", e)
-          _errorEvents.emit("خطا در بررسی حساب: ${e.localizedMessage ?: "خطای ناشناخته"}")
-          onResult(false)
-        }
-      }
-    }
-
-    fun archiveAccount(account: AccountEntity) {
-      viewModelScope.launch {
-        try {
-          repository.updateAccount(
-            account.copy(isArchived = true, updatedAt = System.currentTimeMillis())
-          )
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: SQLiteException) {
-          Log.e(TAG, "archiveAccount failed", e)
-          _errorEvents.emit("خطا در بایگانی حساب: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-        } catch (e: IllegalStateException) {
-          Log.e(TAG, "archiveAccount failed", e)
-          _errorEvents.emit("خطا در بایگانی حساب: ${e.localizedMessage ?: "خطای ناشناخته"}")
+          Log.e(TAG, "$errorPrefix failed", e)
+          _errorEvents.emit("خطا در $errorPrefix: ${e.localizedMessage ?: "خطای ناشناخته"}")
+          onError?.invoke()
         }
       }
     }

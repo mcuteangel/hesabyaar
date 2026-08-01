@@ -9,7 +9,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
@@ -20,13 +19,13 @@ import org.junit.experimental.categories.Category
  * "تومان" must therefore be divided by 10 before formatting, otherwise advice is
  * presented 10x larger than reality. These tests lock that invariant for the
  * offline advice generator (loans/installments and the data summary).
+ *
+ * Isolation is provided by [RustTest] category routing (forkEvery=1 in
+ * testDebugUnitTestRust), NOT by [RustIsolationRule] which would disable the
+ * native path this class needs to exercise.
  */
 @Category(RustTest::class)
 class BudgetAdviceGeneratorTest {
-  @Rule
-  @JvmField
-  val rustIsolationRule = RustIsolationRule()
-
   private fun createInstallment(
     title: String = "test",
     amount: Long,
@@ -58,7 +57,7 @@ class BudgetAdviceGeneratorTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun handleadviceresultInvalidAiAdviceFallsBackToOfflineWhenRustAvailable() =
+  fun handleAdviceResultInvalidAiAdviceFallsBackToOfflineWhenRustAvailable() =
     runTest {
       // "سلام" is too short for the native validator, so with Rust available the
       // result must be discarded and the offline advice returned (never the raw
@@ -84,7 +83,7 @@ class BudgetAdviceGeneratorTest {
     }
 
   @Test
-  fun handleadviceresultValidAiAdviceIsReturnedAsisWhenRustAvailable() =
+  fun handleAdviceResultValidAiAdviceIsReturnedAsisWhenRustAvailable() =
     runTest {
       // A well-formed Persian response passes validation and is surfaced directly.
       val aiText = "شما در ماه گذشته بیست درصد از درآمد خود را پس انداز کرده اید."

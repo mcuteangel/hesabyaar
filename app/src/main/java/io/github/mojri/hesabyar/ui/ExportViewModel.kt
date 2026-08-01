@@ -43,10 +43,10 @@ class ExportViewModel
               append(savedPath)
               append("\n\n")
               append("${result.accountCount} حساب")
-              append(", ${result.transactionCount} تراکنش")
+              append("، ${result.transactionCount} تراکنش")
               if (result.incomeCount > 0) append(" (${result.incomeCount} دریافتی)")
               if (result.expenseCount > 0) append(" (${result.expenseCount} پرداختی)")
-              append(", ${result.loanCount} وام, ${result.installmentCount} قسط")
+              append("، ${result.loanCount} وام، ${result.installmentCount} قسط")
             }
 
           exportState.value = ExportState.Success(summary)

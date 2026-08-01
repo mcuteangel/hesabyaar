@@ -2,13 +2,11 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
@@ -22,22 +20,9 @@ import org.junit.experimental.categories.Category
 
 @Category(RustTest::class)
 class OfflineParserTest {
-  private var previousRustState = false
-
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
-
-  @Before
-  fun setUp() {
-    previousRustState = HesabyarApp.isRustInitialized()
-    HesabyarApp.setRustInitializedForTesting(false)
-  }
-
-  @After
-  fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(previousRustState)
-  }
 
   private fun parse(sentence: String) =
     GeminiParser.parseSentenceOffline(sentence)
@@ -578,7 +563,7 @@ class OfflineParserTest {
   // ============================================================
 
   @Test
-  fun parsejsonresultofflineValidExpenseJson() {
+  fun parseJsonResultOfflineValidExpenseJson() {
     val json =
       """{"type":"EXPENSE","amount":5000000,"category":"Food","""" +
         """description":"مرغ","personName":null,"dateOffsetDays":0}"""
@@ -594,7 +579,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineValidIncomeJson() {
+  fun parseJsonResultOfflineValidIncomeJson() {
     val json =
       """{"type":"INCOME","amount":20000000,"category":"Income","""" +
         """description":"حقوق","personName":null,"dateOffsetDays":0}"""
@@ -607,7 +592,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineValidLoanWithPersonname() {
+  fun parseJsonResultOfflineValidLoanWithPersonname() {
     val json =
       """{"type":"LOAN_CREDITOR","amount":10000000,"category":"Loans","""" +
         """description":"قرض به علی","personName":"علی","dateOffsetDays":0}"""
@@ -618,7 +603,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineValidInstallment() {
+  fun parseJsonResultOfflineValidInstallment() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط ماشین","personName":null,"dateOffsetDays":0,"daysFromNow":30,"title":"قسط ماشین","""" +
@@ -632,7 +617,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineValidWithConfidence() {
+  fun parseJsonResultOfflineValidWithConfidence() {
     val json = """{"type":"EXPENSE","amount":1000000,"category":"Food","description":"نان","confidence":0.95}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -640,7 +625,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineValidWithoutCategoryalias() {
+  fun parseJsonResultOfflineValidWithoutCategoryalias() {
     val json = """{"type":"EXPENSE","amount":500000,"category":"Other","description":"test"}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -648,50 +633,50 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineNullInputReturnsNull() {
+  fun parseJsonResultOfflineNullInputReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("null"))
   }
 
   @Test
-  fun parsejsonresultofflineEmptyStringReturnsNull() {
+  fun parseJsonResultOfflineEmptyStringReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline(""))
   }
 
   @Test
-  fun parsejsonresultofflineMalformedJsonReturnsNull() {
+  fun parseJsonResultOfflineMalformedJsonReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("{invalid json"))
   }
 
   @Test
-  fun parsejsonresultofflineMissingRequiredFieldsReturnsNull() {
+  fun parseJsonResultOfflineMissingRequiredFieldsReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("""{"type":"EXPENSE"}"""))
   }
 
   @Test
-  fun parsejsonresultofflineRandomTextReturnsNull() {
+  fun parseJsonResultOfflineRandomTextReturnsNull() {
     assertNull(GeminiParser.parseJsonResultOffline("just some text"))
   }
 
   @Test
-  fun parsejsonresultofflineZeroAmountReturnsNull() {
+  fun parseJsonResultOfflineZeroAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":0,"category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun parsejsonresultofflineNegativeAmountReturnsNull() {
+  fun parseJsonResultOfflineNegativeAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":-5000,"category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun parsejsonresultofflineMissingAmountReturnsNull() {
+  fun parseJsonResultOfflineMissingAmountReturnsNull() {
     val json = """{"type":"EXPENSE","category":"Food","description":"test"}"""
     assertNull(GeminiParser.parseJsonResultOffline(json))
   }
 
   @Test
-  fun parsejsonresultofflineNullDaysfromnowPreservedAsNull() {
+  fun parseJsonResultOfflineNullDaysfromnowPreservedAsNull() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":null}"""
@@ -701,7 +686,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineMissingDaysfromnowPreservedAsNull() {
+  fun parseJsonResultOfflineMissingDaysfromnowPreservedAsNull() {
     val json = """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","description":"قسط"}"""
     val result = GeminiParser.parseJsonResultOffline(json)
     assertNotNull(result)
@@ -709,7 +694,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineNonnumericDaysfromnowPreservedAsNull() {
+  fun parseJsonResultOfflineNonnumericDaysfromnowPreservedAsNull() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":"abc"}"""
@@ -719,7 +704,7 @@ class OfflineParserTest {
   }
 
   @Test
-  fun parsejsonresultofflineDaysfromnowZeroIsPreserved() {
+  fun parseJsonResultOfflineDaysfromnowZeroIsPreserved() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط","daysFromNow":0}"""

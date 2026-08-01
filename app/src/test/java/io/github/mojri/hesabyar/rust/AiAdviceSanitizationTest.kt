@@ -1,12 +1,11 @@
 package io.github.mojri.hesabyar.rust
-import io.github.mojri.hesabyar.RustIsolationRule
+
 import io.github.mojri.hesabyar.RustTest
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
@@ -17,13 +16,13 @@ import org.junit.experimental.categories.Category
  * The Rust implementation strips dangerous tags (script, script,
  * javascript) while keeping the text, flags over-short input as invalid, and
  * warns (without rejecting) when no Persian characters are present.
+ *
+ * Isolation is provided by [RustTest] category routing (forkEvery=1 in
+ * testDebugUnitTestRust), NOT by [io.github.mojri.hesabyar.RustIsolationRule]
+ * which would disable the native path this class needs to exercise.
  */
 @Category(RustTest::class)
 class AiAdviceSanitizationTest {
-  @Rule
-  @JvmField
-  val rustIsolationRule = RustIsolationRule()
-
   @Test
   fun scriptTagIsStrippedAndFlagged() =
     runTest {

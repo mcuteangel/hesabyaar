@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +83,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
+import kotlinx.coroutines.launch
 
 private val ACCOUNT_TYPE_ICONS: Map<AccountType, ImageVector> =
   mapOf(
@@ -140,6 +142,7 @@ fun AccountManagementScreen(
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
   var dialogState by remember { mutableStateOf<AccountDialogState>(AccountDialogState.None) }
+  val scope = rememberCoroutineScope()
 
   val currentDialog = dialogState
   if (currentDialog is AccountDialogState.PendingDelete) {
@@ -189,19 +192,21 @@ fun AccountManagementScreen(
     dialogState = dialogState,
     onDismiss = { dialogState = AccountDialogState.None },
     onSaveAccount = { form ->
-      val result =
-        accountViewModel.addAccount(
-          name = form.name,
-          type = form.type,
-          bankName = form.bankName,
-          cardNumber = form.cardNumber,
-          accountNumber = form.accountNumber,
-          iban = form.iban,
-          initialBalance = form.initialBalance,
-          color = form.color
-        )
-      if (result is AccountViewModel.AddAccountResult.Success) {
-        dialogState = AccountDialogState.None
+      scope.launch {
+        val result =
+          accountViewModel.addAccount(
+            name = form.name,
+            type = form.type,
+            bankName = form.bankName,
+            cardNumber = form.cardNumber,
+            accountNumber = form.accountNumber,
+            iban = form.iban,
+            initialBalance = form.initialBalance,
+            color = form.color
+          )
+        if (result is AccountViewModel.AddAccountResult.Success) {
+          dialogState = AccountDialogState.None
+        }
       }
     },
     onUpdateAccount = { account, form ->

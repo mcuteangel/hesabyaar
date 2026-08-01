@@ -370,6 +370,11 @@ afterEvaluate {
       testClassesDirs = sourceTask.testClassesDirs
       jvmArgs(rustJvmArgs)
 
+      // Ensure test classes are compiled AND the Rust host library exists before
+      // JNA-backed tests attempt to load it.
+      dependsOn("compileDebugUnitTestKotlin")
+      dependsOn("compileRustCore")
+
       useJUnit {
         includeCategories("io.github.mojri.hesabyar.RustTest")
       }

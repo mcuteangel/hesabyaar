@@ -23,8 +23,11 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 # Run Rust-bridge tests only — with JNI isolation (forkEvery=1)
 ./gradlew --no-daemon testDebugUnitTestRust
 
-# Run single test class
+# Run single non-Rust test class (fast task — Rust-tagged classes are excluded here)
 ./gradlew --no-daemon testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionTest"
+
+# Run single Rust-tagged test class (must use the isolated task)
+./gradlew --no-daemon testDebugUnitTestRust --tests "io.github.mojri.hesabyar.rust.AiAdviceSanitizationTest"
 
 # Lint / static analysis (no custom config, uses Android defaults)
 ./gradlew --no-daemon lint
@@ -44,7 +47,8 @@ infrastructure, always verify with a cache-busting run:**
 # Option A: clean + test (guarantees fresh compilation)
 ./gradlew --no-daemon clean test
 # Option B: rerun-tasks (re-executes everything without deleting build artifacts)
-./gradlew --no-daemon test --rerun-tasks```
+./gradlew --no-daemon test --rerun-tasks
+```
 
 A plain `./gradlew --no-daemon test` may report "BUILD SUCCESSFUL" based on stale cached results
 even when tests would actually fail. This is especially dangerous after changes to
@@ -264,7 +268,7 @@ codebase, not a silent one.
 - `@Suppress("TooGenericExceptionCaught")` — **only** in two cases:
   1. Rethrowing `CancellationException` in coroutine scopes (structured concurrency).
   2. Safety-net `catch (e: Exception)` blocks where the Rust FFI layer (`RustBridge.rustCallSync`) can rethrow unchecked `RuntimeException` (including NPE). Place the annotation on the **enclosing function**, not inside the catch body. Always add a justification comment (see `ExportViewModel.exportExcel()` and `ManageBackupUseCase.parseBackupJsonKotlin()` for the pattern).
-- Naming: use camelCase test names per the [Test Naming Convention](#4-test-naming-convention-codacy-compliance)
+- Naming: use camelCase test names per the [Test Naming Convention](#5-test-naming-convention-codacy-compliance)
   instead of backtick-quoted names.
 
 ### Forbidden Suppressions
