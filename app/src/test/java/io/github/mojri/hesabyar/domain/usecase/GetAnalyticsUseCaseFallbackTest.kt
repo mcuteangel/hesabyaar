@@ -3,6 +3,9 @@ import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -79,5 +82,95 @@ class GetAnalyticsUseCaseFallbackTest {
 
       assertEquals(0L, result.bankLoansTotalDebt)
       assertTrue(result.bankLoans.all { it.remainingDebt == 0L })
+    }
+
+  // --- AccountId fallback filtering (T2-8) ---
+
+  private fun tx(
+    type: TransactionType,
+    amount: Long,
+    accountId: Long,
+    destId: Long? = null
+  ) = Transaction(
+    type = type,
+    categoryId = 1L,
+    amount = amount,
+    description = "test",
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destId
+  )
+
+  private fun cat(
+    id: Long,
+    name: String
+  ) = io.github.mojri.hesabyar.data.Category(
+    id = id,
+    name = name,
+    key = "test",
+    icon = "",
+    color = 0xFF000000L,
+    type = CategoryType.EXPENSE
+  )
+
+  @Test
+  fun fallbackAccountIdFiltersAnalyticsToMatchingTransactions() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val txs =
+        listOf(
+          tx(TransactionType.INCOME, 5_000_000, accountId = 1),
+          tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          tx(TransactionType.INCOME, 3_000_000, accountId = 2),
+          tx(TransactionType.EXPENSE, 500_000, accountId = 2),
+        )
+
+      // accountId=1: only account 1's transactions
+      val result1 =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accountId = 1
+        )
+      assertEquals("account 1 monthlyIncome", 5_000_000L, result1.monthlySpending.first().income)
+      assertEquals("account 1 monthlyExpense", 1_000_000L, result1.monthlySpending.first().expense)
+
+      // accountId=2: only account 2's transactions
+      val result2 =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accountId = 2
+        )
+      assertEquals("account 2 monthlyIncome", 3_000_000L, result2.monthlySpending.first().income)
+      assertEquals("account 2 monthlyExpense", 500_000L, result2.monthlySpending.first().expense)
+    }
+
+  @Test
+  fun fallbackNullAccountIdIncludesAllTransactions() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val txs =
+        listOf(
+          tx(TransactionType.INCOME, 5_000_000, accountId = 1),
+          tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          tx(TransactionType.INCOME, 3_000_000, accountId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accountId = null
+        )
+      // null → all accounts: income=8M, expense=1M
+      assertEquals(8_000_000L, result.monthlySpending.first().income)
+      assertEquals(1_000_000L, result.monthlySpending.first().expense)
     }
 }

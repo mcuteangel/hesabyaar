@@ -1,7 +1,10 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.ExcelExporter
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
@@ -268,5 +271,123 @@ class ExcelExporterTest {
       )
     val total = transactions.sumOf { it.amount }
     assertEquals(1_700_000L, total)
+  }
+
+  // --- Cell-count-per-row assertion tests (T1-1) ---
+
+  private fun tx(
+    type: TransactionType,
+    amount: Long,
+    accountId: Long = 1,
+    destId: Long? = null
+  ) = Transaction(
+    type = type,
+    categoryId = 1L,
+    amount = amount,
+    description = "test",
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destId
+  )
+
+  private fun account(
+    id: Long,
+    name: String
+  ) = AccountEntity(id = id, name = name, type = AccountType.BANK)
+
+  /**
+   * Reflection helper — invokes the private buildTransactionsSheet method.
+   * Returns the SheetData so we can assert header/row cell counts.
+   */
+  private fun callBuildTransactionsSheet(
+    exporter: ExcelExporter,
+    transactions: List<Transaction>,
+    categoryMap: Map<Long, Category>,
+    accountMap: Map<Long, AccountEntity>
+  ): io.github.mojri.hesabyar.rust.SheetData {
+    val method =
+      ExcelExporter::class.java.getDeclaredMethod(
+        "buildTransactionsSheet",
+        List::class.java,
+        Map::class.java,
+        Map::class.java
+      )
+    method.isAccessible = true
+    @Suppress("UNCHECKED_CAST")
+    return method.invoke(exporter, transactions, categoryMap, accountMap)
+      as io.github.mojri.hesabyar.rust.SheetData
+  }
+
+  /**
+   * Reflection helper — invokes the private buildSummaryTxSheet method.
+   */
+  private fun callBuildSummaryTxSheet(
+    exporter: ExcelExporter,
+    name: String,
+    transactions: List<Transaction>,
+    categoryMap: Map<Long, Category>
+  ): io.github.mojri.hesabyar.rust.SheetData {
+    val method =
+      ExcelExporter::class.java.getDeclaredMethod(
+        "buildSummaryTxSheet",
+        String::class.java,
+        List::class.java,
+        Map::class.java
+      )
+    method.isAccessible = true
+    @Suppress("UNCHECKED_CAST")
+    return method.invoke(exporter, name, transactions, categoryMap)
+      as io.github.mojri.hesabyar.rust.SheetData
+  }
+
+  @Test
+  fun buildTransactionsSheetRowsMatchHeaderCount() {
+    val exporter = ExcelExporter()
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000),
+        tx(TransactionType.EXPENSE, 1_000_000, destId = 2),
+        tx(TransactionType.TRANSFER, 2_000_000, destId = 2)
+      )
+    val accounts = listOf(account(1, "Bank"), account(2, "Wallet"))
+    val accountMap = accounts.associateBy { it.id }
+
+    val sheet = callBuildTransactionsSheet(exporter, txs, emptyMap(), accountMap)
+    val headerCount = sheet.headers.size
+
+    // buildTransactionsSheet has 8 headers
+    assertEquals("headers count", 8, headerCount)
+    // Every row must have exactly headerCount cells
+    for ((i, row) in sheet.rows.withIndex()) {
+      assertEquals(
+        "row $i cell count must equal header count",
+        headerCount,
+        row.size
+      )
+    }
+  }
+
+  @Test
+  fun buildSummaryTxSheetRowsMatchHeaderCount() {
+    val exporter = ExcelExporter()
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000),
+        tx(TransactionType.EXPENSE, 1_000_000)
+      )
+
+    val sheet = callBuildSummaryTxSheet(exporter, "دریافتی\u200Cها", txs, emptyMap())
+    val headerCount = sheet.headers.size
+
+    // buildSummaryTxSheet has 5 headers (no type, no account columns)
+    assertEquals("headers count", 5, headerCount)
+    // Every data row must have exactly headerCount cells
+    for ((i, row) in sheet.rows.withIndex()) {
+      assertEquals(
+        "row $i cell count must equal header count",
+        headerCount,
+        row.size
+      )
+    }
   }
 }

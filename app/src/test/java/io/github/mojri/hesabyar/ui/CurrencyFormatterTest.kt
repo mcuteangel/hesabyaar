@@ -262,4 +262,45 @@ class CurrencyFormatterTest {
     val (sign, _) = CurrencyFormatter.formatSignedParts(0L)
     assertEquals("+", sign)
   }
+
+  // --- Long.MIN_VALUE overflow guard (T1-3) ---
+
+  @Test
+  fun formatsignedpartsMinValueDoesNotOverflow() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val (sign, amount) = CurrencyFormatter.formatSignedParts(Long.MIN_VALUE)
+    // Must produce "-" sign (negative), not overflow to positive
+    assertEquals("Long.MIN_VALUE must be treated as negative", "-", sign)
+    // Amount must be a finite formatted string, not a sign-flipped artifact
+    val stripped = amount.stripLrm()
+    assertTrue("amount must be non-empty", stripped.isNotEmpty())
+    assertTrue("amount must not start with -", !stripped.startsWith("-"))
+    assertTrue("amount must not start with +", !stripped.startsWith("+"))
+  }
+
+  @Test
+  fun formatsignedMinValueDoesNotOverflow() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.formatSigned(Long.MIN_VALUE)
+    assertTrue("must start with minus", result.startsWith("-"))
+    val stripped = result.stripLrm()
+    // After the minus sign, there must be a valid formatted number
+    assertTrue("after minus must have digits", stripped.drop(1).isNotEmpty())
+  }
+
+  @Test
+  fun formatMinValueClampsMagnitudeToMaxValue() {
+    // Long.MIN_VALUE is negative — the sign must be preserved (same as any
+    // other negative value); only the magnitude is clamped to Long.MAX_VALUE
+    // so that kotlin.math.abs() cannot overflow and flip the sign.
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val result = CurrencyFormatter.format(Long.MIN_VALUE).stripLrm()
+    assertTrue("must start with minus", result.startsWith("-"))
+    assertTrue("must contain toman", result.endsWith("تومان"))
+    // Magnitude must be identical to format(Long.MAX_VALUE) — the clamped
+    // value, not an overflow artifact (abs(Long.MIN_VALUE) == Long.MIN_VALUE).
+    val magnitude = result.drop(1)
+    val expectedMagnitude = CurrencyFormatter.format(Long.MAX_VALUE).stripLrm()
+    assertEquals("magnitude must equal clamped format(Long.MAX_VALUE)", expectedMagnitude, magnitude)
+  }
 }

@@ -112,6 +112,18 @@ internal fun ManualTransactionDialog(
                   CurrencyFormatter.toRial(finalAmountDisplay)
                 }
 
+              if (selectedAccountId == null) {
+                showToast(context, "لطفاً حساب مبدا را انتخاب کنید")
+                isSubmitting = false
+                return@launch
+              }
+
+              if (selectedType == "TRANSFER" && destinationAccountId == null) {
+                showToast(context, "لطفاً حساب مقصد را انتخاب کنید")
+                isSubmitting = false
+                return@launch
+              }
+
               if (selectedType == "TRANSFER" &&
                 destinationAccountId != null &&
                 destinationAccountId == selectedAccountId
@@ -134,7 +146,7 @@ internal fun ManualTransactionDialog(
                   customDate = customDate,
                   categories = categories,
                   transactionToEdit = transactionToEdit,
-                  accountId = selectedAccountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+                  accountId = selectedAccountId,
                   destinationAccountId = destinationAccountId
                 )
 
@@ -191,7 +203,7 @@ internal fun ManualTransactionDialog(
     if (selectedType == "TRANSFER") {
       DestinationAccountSelector(
         accounts = accounts,
-        sourceAccountId = selectedAccountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+        sourceAccountId = selectedAccountId ?: 0L,
         selectedDestinationAccountId = destinationAccountId,
         onDestinationAccountSelected = { destinationAccountId = it }
       )

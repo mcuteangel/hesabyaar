@@ -121,6 +121,11 @@ class AccountViewModel
 
     fun deleteAccount(account: AccountEntity) =
       runGuarded(errorPrefix = "حذف حساب") {
+        val count = repository.getTransactionCountForAccount(account.id)
+        if (count > 0) {
+          _errorEvents.emit("حساب «${account.name}» دارای تراکنش است و قابل حذف نیست")
+          return@runGuarded
+        }
         repository.deleteAccount(account)
       }
 

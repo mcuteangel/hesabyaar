@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
@@ -36,6 +37,14 @@ class GetDashboardDataUseCaseTest {
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
+
+  @Before
+  fun setUp() {
+    // RustIsolationRule resets the flag to false; re-enable it so cross-path
+    // consistency tests that call RustBridge.computeDashboardDataSync directly
+    // exercise the native Rust path rather than returning null.
+    HesabyarApp.setRustInitializedForTesting(true)
+  }
 
   private fun tx(
     type: TransactionType,
@@ -924,5 +933,96 @@ class GetDashboardDataUseCaseTest {
     val delta = computeDeltaForTxs(txs, accounts, fixedNowMs)
     assertDeltaIsValid(delta, "exact zero prevNet with cancelling txs")
     assertEquals("delta=0.0 when prevNet is exact zero from cancelling txs", 0.0, delta, 1e-10)
+  }
+
+  // -- AccountId fallback filtering (T2-8) ------------------------------------
+
+  @Test
+  fun fallbackAccountIdFiltersToMatchingTransactionsOnly() {
+    val now = System.currentTimeMillis()
+    val acc1 = account(1, "Bank", AccountType.BANK)
+    val acc2 = account(2, "Wallet", AccountType.CASH_WALLET)
+    val accounts = listOf(acc1, acc2)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000, now, accountId = 1),
+        tx(TransactionType.EXPENSE, 1_000_000, now, accountId = 1),
+        tx(TransactionType.INCOME, 3_000_000, now, accountId = 2),
+        tx(TransactionType.EXPENSE, 500_000, now, accountId = 2),
+        tx(TransactionType.TRANSFER, 200_000, now, accountId = 1, destId = 2),
+      )
+
+    // accountId=1: only account 1's transactions + transfers where account 1 is source or dest
+    val resultAcc1 =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = now,
+        includeArchived = false,
+        accountId = 1,
+      )
+
+    // Account 1: +5M income, -1M expense = net +4_000_000.
+    // The transfer matches account 1 as source, but balance is income-expense
+    // and TRANSFER counts toward neither.
+    assertEquals("balance for account 1", 4_000_000L, resultAcc1.currentBalance)
+    assertEquals("monthlyIncome for account 1", 5_000_000L, resultAcc1.monthlyIncome)
+    assertEquals("monthlyExpenses for account 1", 1_000_000L, resultAcc1.monthlyExpenses)
+
+    // accountId=2: only account 2's transactions + transfers where account 2 is source or dest
+    val resultAcc2 =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = now,
+        includeArchived = false,
+        accountId = 2,
+      )
+
+    // Account 2: +3M income, -500k expense = net +2_500_000.
+    // The transfer matches account 2 as destination, but TRANSFER counts
+    // toward neither income nor expense.
+    assertEquals("balance for account 2", 2_500_000L, resultAcc2.currentBalance)
+    assertEquals("monthlyIncome for account 2", 3_000_000L, resultAcc2.monthlyIncome)
+    assertEquals("monthlyExpenses for account 2", 500_000L, resultAcc2.monthlyExpenses)
+  }
+
+  @Test
+  fun fallbackNullAccountIdIncludesAllTransactions() {
+    val now = System.currentTimeMillis()
+    val acc1 = account(1, "Bank", AccountType.BANK)
+    val acc2 = account(2, "Wallet", AccountType.CASH_WALLET)
+    val accounts = listOf(acc1, acc2)
+
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000, now, accountId = 1),
+        tx(TransactionType.EXPENSE, 1_000_000, now, accountId = 1),
+        tx(TransactionType.INCOME, 3_000_000, now, accountId = 2),
+      )
+
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = now,
+        includeArchived = false,
+        accountId = null,
+      )
+
+    // null accountId → all accounts: total income=8M, expense=1M, balance=7M
+    assertEquals(7_000_000L, result.currentBalance)
+    assertEquals(8_000_000L, result.monthlyIncome)
+    assertEquals(1_000_000L, result.monthlyExpenses)
   }
 }

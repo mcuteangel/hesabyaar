@@ -22,7 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowForward
@@ -30,9 +29,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -77,6 +72,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.ACCOUNT_PICKER_COLORS
 import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -84,14 +80,6 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import kotlinx.coroutines.launch
-
-private val ACCOUNT_TYPE_ICONS: Map<AccountType, ImageVector> =
-  mapOf(
-    AccountType.BANK to Icons.Filled.AccountBalance,
-    AccountType.CASH_WALLET to Icons.Filled.Wallet,
-    AccountType.SAVINGS_INVESTMENT to Icons.Filled.Savings,
-    AccountType.OTHER to Icons.Filled.Payments,
-  )
 
 private const val COLOR_PICKER_COLUMNS = 8
 
@@ -184,7 +172,9 @@ fun AccountManagementScreen(
       accounts = accounts,
       modifier = modifier,
       innerPadding = innerPadding,
-      onOverflowClick = { dialogState = AccountDialogState.OverflowMenu(it) }
+      onOverflowEdit = { dialogState = AccountDialogState.Edit(it) },
+      onOverflowArchive = { accountViewModel.archiveAccount(it) },
+      onOverflowDelete = { dialogState = AccountDialogState.PendingDelete(it) },
     )
   }
 
@@ -225,18 +215,8 @@ fun AccountManagementScreen(
       dialogState = AccountDialogState.None
     },
     onDeleteAccount = { account -> accountViewModel.deleteAccount(account) },
-    onOverflowAction = { account, action ->
-      dialogState = AccountDialogState.None
-      when (action) {
-        OverflowAction.EDIT -> dialogState = AccountDialogState.Edit(account)
-        OverflowAction.ARCHIVE -> accountViewModel.archiveAccount(account)
-        OverflowAction.DELETE -> dialogState = AccountDialogState.PendingDelete(account)
-      }
-    },
   )
 }
-
-private enum class OverflowAction { EDIT, ARCHIVE, DELETE }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,7 +226,6 @@ private fun AccountManagementDialogs(
   onSaveAccount: (AccountFormData) -> Unit,
   onUpdateAccount: (AccountEntity, AccountFormData) -> Unit,
   onDeleteAccount: (AccountEntity) -> Unit,
-  onOverflowAction: (AccountEntity, OverflowAction) -> Unit,
 ) {
   when (dialogState) {
     AccountDialogState.None -> {}
@@ -287,13 +266,7 @@ private fun AccountManagementDialogs(
         onDismiss = onDismiss,
         confirmColor = MaterialTheme.colorScheme.primary
       )
-    is AccountDialogState.OverflowMenu ->
-      AccountOverflowMenu(
-        onDismiss = onDismiss,
-        onEdit = { onOverflowAction(dialogState.account, OverflowAction.EDIT) },
-        onArchive = { onOverflowAction(dialogState.account, OverflowAction.ARCHIVE) },
-        onDelete = { onOverflowAction(dialogState.account, OverflowAction.DELETE) }
-      )
+    is AccountDialogState.OverflowMenu -> {}
     is AccountDialogState.PendingDelete -> {}
   }
 }
@@ -303,7 +276,9 @@ private fun AccountManagementContent(
   accounts: List<AccountEntity>,
   modifier: Modifier,
   innerPadding: PaddingValues,
-  onOverflowClick: (AccountEntity) -> Unit
+  onOverflowEdit: (AccountEntity) -> Unit,
+  onOverflowArchive: (AccountEntity) -> Unit,
+  onOverflowDelete: (AccountEntity) -> Unit,
 ) {
   if (accounts.isEmpty()) {
     Box(
@@ -323,7 +298,12 @@ private fun AccountManagementContent(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
       items(accounts, key = { it.id }) { account ->
-        AccountItem(account = account, onOverflow = onOverflowClick)
+        AccountItem(
+          account = account,
+          onOverflowEdit = onOverflowEdit,
+          onOverflowArchive = onOverflowArchive,
+          onOverflowDelete = onOverflowDelete,
+        )
       }
       item { Spacer(modifier = Modifier.height(SpacingTokens.lg)) }
     }
@@ -334,10 +314,13 @@ private fun AccountManagementContent(
 @Composable
 private fun AccountItem(
   account: AccountEntity,
-  onOverflow: (AccountEntity) -> Unit
+  onOverflowEdit: (AccountEntity) -> Unit,
+  onOverflowArchive: (AccountEntity) -> Unit,
+  onOverflowDelete: (AccountEntity) -> Unit,
 ) {
-  val typeIcon = ACCOUNT_TYPE_ICONS[account.type] ?: Icons.Filled.AccountBalance
+  val typeIcon = account.type.icon()
   val accountColor = account.color.toComposeColor()
+  var menuExpanded by remember { mutableStateOf(false) }
 
   HesabyarCard(
     modifier = Modifier.fillMaxWidth().padding(horizontal = SpacingTokens.lg),
@@ -390,7 +373,7 @@ private fun AccountItem(
       }
       Box {
         IconButton(
-          onClick = { onOverflow(account) },
+          onClick = { menuExpanded = true },
           modifier = Modifier.size(Dimens.ButtonHeight)
         ) {
           Icon(
@@ -400,6 +383,22 @@ private fun AccountItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
+        AccountOverflowMenu(
+          expanded = menuExpanded,
+          onDismiss = { menuExpanded = false },
+          onEdit = {
+            menuExpanded = false
+            onOverflowEdit(account)
+          },
+          onArchive = {
+            menuExpanded = false
+            onOverflowArchive(account)
+          },
+          onDelete = {
+            menuExpanded = false
+            onOverflowDelete(account)
+          },
+        )
       }
     }
   }
@@ -407,12 +406,13 @@ private fun AccountItem(
 
 @Composable
 private fun AccountOverflowMenu(
+  expanded: Boolean,
   onDismiss: () -> Unit,
   onEdit: () -> Unit,
   onArchive: () -> Unit,
   onDelete: () -> Unit
 ) {
-  DropdownMenu(expanded = true, onDismissRequest = onDismiss) {
+  DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
     DropdownMenuItem(
       text = { Text("ویرایش") },
       leadingIcon = {
@@ -487,6 +487,8 @@ private fun AccountDialogForm(
   var accountNumber by remember { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
   var iban by remember { mutableStateOf(initialAccount?.iban.orEmpty()) }
   var initialBalance by remember { mutableStateOf(initialAccount?.initialBalance?.toString() ?: "0") }
+  val parsedBalance = initialBalance.trim().toLongOrNull()
+  val balanceError = initialBalance.isNotBlank() && parsedBalance == null
   var selectedColor by remember { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -530,7 +532,8 @@ private fun AccountDialogForm(
         androidx.compose.foundation.text
           .KeyboardOptions(keyboardType = KeyboardType.Number),
       visualTransformation = VisualTransformation.None,
-      supportingText = "مبلغ ریال"
+      supportingText = if (balanceError) "مقدار نامعتبر" else "مبلغ ریال",
+      isError = balanceError
     )
     AccountDialogColorPicker(
       selectedColor = selectedColor,
@@ -547,14 +550,14 @@ private fun AccountDialogForm(
             cardNumber = cardNumber.trim().ifBlank { null },
             accountNumber = accountNumber.trim().ifBlank { null },
             iban = iban.trim().ifBlank { null },
-            initialBalance = initialBalance.trim().toLongOrNull() ?: 0L,
+            initialBalance = parsedBalance ?: 0L,
             color = selectedColor
           )
         )
       },
       text = "ذخیره",
       variant = ButtonVariant.Filled,
-      enabled = name.isNotBlank()
+      enabled = name.isNotBlank() && !balanceError
     )
   }
 }
@@ -717,7 +720,7 @@ private fun AccountDialogPreviewRow(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
-    val previewIcon = ACCOUNT_TYPE_ICONS[selectedType] ?: Icons.Filled.AccountBalance
+    val previewIcon = selectedType.icon()
     val previewColor = selectedColor.toComposeColor()
     IconCircle(
       icon = previewIcon,

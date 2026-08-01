@@ -80,10 +80,20 @@ internal fun TransactionDetailDialog(
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
           Text(
-            text = if (isIncome) "درآمد" else "هزینه",
+            text =
+              when (transaction.type) {
+                TransactionType.INCOME -> "درآمد"
+                TransactionType.TRANSFER -> "انتقال وجه"
+                else -> "هزینه"
+              },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            color =
+              when (transaction.type) {
+                TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+                TransactionType.TRANSFER -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.error
+              }
           )
         }
 

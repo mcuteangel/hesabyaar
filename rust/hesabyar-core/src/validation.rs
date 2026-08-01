@@ -31,8 +31,17 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
         | TransactionType::Income
         | TransactionType::LoanDebtor
         | TransactionType::LoanCreditor
-        | TransactionType::Installment
-        | TransactionType::Transfer => {}
+        | TransactionType::Installment => {}
+        TransactionType::Transfer => {
+            if tx.destination_account_id.is_none() {
+                return Err("Transfer must have a destination_account_id".into());
+            }
+            if tx.destination_account_id == Some(tx.account_id) {
+                return Err(
+                    "Transfer source and destination accounts must differ".into(),
+                );
+            }
+        }
     }
     if tx.date <= 0 {
         return Err("Transaction date must be positive".into());
@@ -421,6 +430,40 @@ mod tests {
     }
 
     #[test]
+    fn test_transfer_missing_destination_rejected() {
+        let tx = Transaction {
+            tx_type: TransactionType::Transfer,
+            ..make_tx(50000, "transfer", 1)
+        };
+        // destination_account_id defaults to None via make_tx
+        let err = validate_transaction(&tx).unwrap_err();
+        assert!(err.contains("destination_account_id"));
+    }
+
+    #[test]
+    fn test_transfer_same_source_and_destination_rejected() {
+        let tx = Transaction {
+            tx_type: TransactionType::Transfer,
+            account_id: 1,
+            destination_account_id: Some(1),
+            ..make_tx(50000, "transfer", 1)
+        };
+        let err = validate_transaction(&tx).unwrap_err();
+        assert!(err.contains("differ"));
+    }
+
+    #[test]
+    fn test_transfer_valid_different_accounts() {
+        let tx = Transaction {
+            tx_type: TransactionType::Transfer,
+            account_id: 1,
+            destination_account_id: Some(2),
+            ..make_tx(50000, "transfer", 1)
+        };
+        assert!(validate_transaction(&tx).is_ok());
+    }
+
+    #[test]
     fn test_transaction_all_types_valid() {
         for tx_type in [
             TransactionType::Expense,
@@ -428,12 +471,16 @@ mod tests {
             TransactionType::LoanDebtor,
             TransactionType::LoanCreditor,
             TransactionType::Installment,
-            TransactionType::Transfer,
         ] {
             let mut tx = make_tx(50000, "test", 1);
             tx.tx_type = tx_type;
             assert!(validate_transaction(&tx).is_ok());
         }
+        // Transfer requires a different destination account
+        let mut tx = make_tx(50000, "test", 1);
+        tx.tx_type = TransactionType::Transfer;
+        tx.destination_account_id = Some(2);
+        assert!(validate_transaction(&tx).is_ok());
     }
 
     // =====================================================================

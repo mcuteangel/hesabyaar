@@ -74,7 +74,16 @@ object CurrencyFormatter {
     fallback: (Long) -> String = { kotlinFallback(it) }
   ): String {
     val isNegative = value < 0
-    val absValue = if (isNegative) -value else value
+    // kotlin.math.abs(Long.MIN_VALUE) overflows and returns Long.MIN_VALUE,
+    // so we guard against that edge case explicitly.
+    val absValue =
+      if (value == Long.MIN_VALUE) {
+        Long.MAX_VALUE
+      } else if (isNegative) {
+        -value
+      } else {
+        value
+      }
     val rustResult = formatAbs(absValue)
     val formatted =
       if (rustResult.isNotEmpty()) {
@@ -119,7 +128,9 @@ object CurrencyFormatter {
    */
   fun formatSignedParts(signedValue: Long): Pair<String, String> {
     val prefix = if (signedValue >= 0) "+" else "-"
-    return prefix to format(kotlin.math.abs(signedValue))
+    // kotlin.math.abs(Long.MIN_VALUE) overflows — use explicit guard.
+    val absValue = if (signedValue == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(signedValue)
+    return prefix to format(absValue)
   }
 
   private fun kotlinFallback(value: Long): String {

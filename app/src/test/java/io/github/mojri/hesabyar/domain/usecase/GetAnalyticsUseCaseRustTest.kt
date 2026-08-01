@@ -1,4 +1,5 @@
 package io.github.mojri.hesabyar.domain.usecase
+import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.BankLoan
@@ -8,6 +9,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
@@ -26,6 +28,13 @@ class GetAnalyticsUseCaseRustTest {
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
+
+  @Before
+  fun setUp() {
+    // RustIsolationRule resets the flag to false; re-enable it so these tests
+    // exercise the native Rust path rather than the Kotlin fallback.
+    HesabyarApp.setRustInitializedForTesting(true)
+  }
 
   private val useCase = GetAnalyticsUseCase()
 

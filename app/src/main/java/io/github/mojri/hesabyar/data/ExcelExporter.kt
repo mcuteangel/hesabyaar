@@ -114,7 +114,7 @@ class ExcelExporter {
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>,
     includeType: Boolean,
-    accountMap: Map<Long, AccountEntity> = emptyMap()
+    accountMap: Map<Long, AccountEntity>? = null
   ): List<List<Cell>> =
     transactions.mapIndexed { index, tx ->
       buildList {
@@ -126,8 +126,10 @@ class ExcelExporter {
         add(Cell(value = formatAmount(tx.amount), bold = false))
         add(Cell(value = tx.description, bold = false))
         add(Cell(value = formatDate(tx.date), bold = false))
-        add(Cell(value = accountMap[tx.accountId]?.name.orEmpty(), bold = false))
-        add(Cell(value = tx.destinationAccountId?.let { accountMap[it]?.name }.orEmpty(), bold = false))
+        if (accountMap != null) {
+          add(Cell(value = accountMap[tx.accountId]?.name.orEmpty(), bold = false))
+          add(Cell(value = tx.destinationAccountId?.let { accountMap[it]?.name }.orEmpty(), bold = false))
+        }
       }
     }
 

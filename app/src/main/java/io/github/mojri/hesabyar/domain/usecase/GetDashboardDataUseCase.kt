@@ -73,6 +73,7 @@ class GetDashboardDataUseCase(
       accounts,
       now = nowMs,
       includeArchived = includeArchived,
+      accountId = accountId,
     )
   }
 
@@ -99,8 +100,16 @@ class GetDashboardDataUseCase(
       accounts: List<AccountEntity> = emptyList(),
       now: Long = System.currentTimeMillis(),
       includeArchived: Boolean = false,
+      accountId: Long? = null,
     ): DashboardData {
-      val effectiveTransactions = filterArchivedTransactions(transactions, accounts, includeArchived)
+      val effectiveTransactions =
+        filterArchivedTransactions(transactions, accounts, includeArchived).let { txs ->
+          if (accountId != null) {
+            txs.filter { it.accountId == accountId || it.destinationAccountId == accountId }
+          } else {
+            txs
+          }
+        }
 
       // Current Jalali month boundaries in UTC, half-open [start, endExclusive),
       // matching the Rust core's compute_dashboard_data (which interprets
