@@ -4,7 +4,10 @@ import io.github.mojri.hesabyar.api.AdviceValidationPolicy
 import io.github.mojri.hesabyar.rust.AdviceValidation
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Locks in the AI-advice validation-failure decision
@@ -17,7 +20,17 @@ import org.junit.Test
  * through [io.github.mojri.hesabyar.rust.RustBridge.isAvailable]; it is covered
  * here directly.
  */
+@Category(RustTest::class)
 class AdviceValidationPolicyTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
+  @Before
+  fun setUp() {
+    HesabyarApp.setRustInitializedForTesting(true)
+  }
+
   private fun validation(isValid: Boolean) =
     AdviceValidation(
       isValid = isValid,

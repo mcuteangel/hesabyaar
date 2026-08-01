@@ -51,7 +51,7 @@ class AccountViewModelTest {
     runTest {
       viewModel.addAccount(name = "  ", type = AccountType.CASH_WALLET)
       advanceUntilIdle()
-      assertEquals(0, fakeRepo.accountsList.size)
+      assertEquals("blank name should not insert", 0, fakeRepo.accountsList.size)
     }
 
   @Test
@@ -65,9 +65,9 @@ class AccountViewModelTest {
         )
       assertTrue(result is AccountViewModel.AddAccountResult.Success)
       advanceUntilIdle()
-      assertEquals(1, fakeRepo.accountsList.size)
-      assertEquals(".test account", fakeRepo.accountsList[0].name)
-      assertEquals(1000L, fakeRepo.accountsList[0].initialBalance)
+      assertEquals("should have 1 account", 1, fakeRepo.accountsList.size)
+      assertEquals("name should match", ".test account", fakeRepo.accountsList[0].name)
+      assertEquals("initial balance should match", 1000L, fakeRepo.accountsList[0].initialBalance)
     }
 
   @Test
@@ -81,9 +81,9 @@ class AccountViewModelTest {
       viewModel.addAccount(name = "new account", type = AccountType.CASH_WALLET)
       advanceUntilIdle()
 
-      assertEquals(2, fakeRepo.accountsList.size)
+      assertEquals("should have 2 accounts", 2, fakeRepo.accountsList.size)
       val newAccount = fakeRepo.accountsList.first { it.name == "new account" }
-      assertEquals(6, newAccount.displayOrder)
+      assertEquals("displayOrder should be max+1", 6, newAccount.displayOrder)
     }
 
   @Test
@@ -94,7 +94,7 @@ class AccountViewModelTest {
       advanceUntilIdle()
       val after = System.currentTimeMillis()
 
-      assertEquals(1, fakeRepo.accountsList.size)
+      assertEquals("should have 1 account", 1, fakeRepo.accountsList.size)
       val account = fakeRepo.accountsList[0]
       assertTrue(account.createdAt in before..after)
       assertTrue(account.updatedAt in before..after)
@@ -117,7 +117,7 @@ class AccountViewModelTest {
       advanceUntilIdle()
 
       val updated = fakeRepo.accountsList.first { it.id == 10L }
-      assertEquals("new", updated.name)
+      assertEquals("name should be updated", "new", updated.name)
       assertTrue(updated.updatedAt > 100L)
     }
 
@@ -150,7 +150,7 @@ class AccountViewModelTest {
       var result = true
       viewModel.canDeleteAccount(1L) { result = it }
       advanceUntilIdle()
-      assertEquals(false, result)
+      assertEquals("should not be deletable", false, result)
     }
 
   @Test
@@ -245,7 +245,7 @@ class AccountViewModelTest {
 
       assertTrue(errorMessages.isNotEmpty())
       assertTrue(errorMessages[0].contains("خطا"))
-      assertEquals(false, result)
+      assertEquals("should not be deletable", false, result)
       job.cancel()
     }
 

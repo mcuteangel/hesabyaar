@@ -56,22 +56,22 @@ class BalanceCardLogicTest {
   fun largeBalanceWithCommas() {
     val balance = 1234567890L
     val display = formatter.format(balance)
-    assertEquals("1,234,567,890", display)
+    assertEquals("formatted with commas", "1,234,567,890", display)
   }
 
   @Test
   fun gradientStartsWithPurpleAccentAt02Alpha() {
     val gradientStart = FinancialColors.PurpleAccent.copy(alpha = 0.2f)
-    assertEquals(0.2f, gradientStart.alpha, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.red, gradientStart.red, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.green, gradientStart.green, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.blue, gradientStart.blue, 0.001f)
+    assertEquals("alpha should be 0.2", 0.2f, gradientStart.alpha, 0.001f)
+    assertEquals("red should match PurpleAccent", FinancialColors.PurpleAccent.red, gradientStart.red, 0.001f)
+    assertEquals("green should match PurpleAccent", FinancialColors.PurpleAccent.green, gradientStart.green, 0.001f)
+    assertEquals("blue should match PurpleAccent", FinancialColors.PurpleAccent.blue, gradientStart.blue, 0.001f)
   }
 
   @Test
   fun gradientEndsWithTransparent() {
     val gradientEnd = Color.Transparent
-    assertEquals(0f, gradientEnd.alpha, 0.001f)
+    assertEquals("Transparent alpha should be 0", 0f, gradientEnd.alpha, 0.001f)
   }
 
   @Test
