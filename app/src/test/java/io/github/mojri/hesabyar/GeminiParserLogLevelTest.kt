@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.api.GeminiParser
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
@@ -15,10 +14,6 @@ import org.robolectric.shadows.ShadowLog
 @Config(manifest = Config.NONE, sdk = [34])
 @Category(RustTest::class)
 class GeminiParserLogLevelTest {
-  @Rule
-  @JvmField
-  val rustIsolationRule = RustIsolationRule()
-
   @Before
   fun setUp() {
     ShadowLog.clear()

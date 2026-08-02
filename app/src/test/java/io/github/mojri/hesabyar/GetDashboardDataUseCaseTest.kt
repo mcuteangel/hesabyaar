@@ -13,7 +13,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
 
@@ -34,15 +33,8 @@ import org.junit.experimental.categories.Category
  */
 @Category(RustTest::class)
 class GetDashboardDataUseCaseTest {
-  @Rule
-  @JvmField
-  val rustIsolationRule = RustIsolationRule()
-
   @Before
   fun setUp() {
-    // RustIsolationRule resets the flag to false; re-enable it so cross-path
-    // consistency tests that call RustBridge.computeDashboardDataSync directly
-    // exercise the native Rust path rather than returning null.
     HesabyarApp.setRustInitializedForTesting(true)
   }
 
@@ -145,7 +137,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun fallbackComputesDebttoincomeRatioFromCreditorLoans() {
+  fun fallbackComputesDebtToIncomeRatioFromCreditorLoans() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Creditor loan remaining 12M → monthly debt = 12M/12 = 1M
@@ -158,7 +150,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun fallbackDebttoincomeSumsCurrentcycleInstallmentsWithProratedCreditorLoans() {
+  fun fallbackDebtToIncomeSumsCurrentCycleInstallmentsWithProratedCreditorLoans() {
     val now = System.currentTimeMillis()
     val transactions = listOf(tx(TransactionType.INCOME, 12_000_000, now))
     // Creditor loan remaining 12M → prorated monthly = 1M
@@ -234,7 +226,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun fallbackReturnsDebttoincomeRatioOfOneWhenIncomeIsZeroAndDebtExists() {
+  fun fallbackReturnsDebtToIncomeRatioOfOneWhenIncomeIsZeroAndDebtExists() {
     // No income transactions -> monthlyIncome == 0.
     // An unpaid installment due within the current cycle creates monthly debt.
     val installments = listOf(inst(2_000_000, paid = false))
@@ -269,7 +261,7 @@ class GetDashboardDataUseCaseTest {
   }
 
   @Test
-  fun fallbackDebttoincomeFiltersInstallmentsOnUtcMonthBoundaryMatchingRust() {
+  fun fallbackDebtToIncomeFiltersInstallmentsOnUtcMonthBoundaryMatchingRust() {
     val now = System.currentTimeMillis()
     val (_, jalaliMonthEndExclusive) =
       JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
@@ -344,11 +336,11 @@ class GetDashboardDataUseCaseTest {
         includeArchived = false,
       )
 
-    assertEquals(1_000_000L, result.currentBalance)
-    assertEquals(1_000_000L, result.monthlyIncome)
+    assertEquals("currentBalance excludes archived account", 1_000_000L, result.currentBalance)
+    assertEquals("monthlyIncome excludes archived account", 1_000_000L, result.monthlyIncome)
     // Only active account in summaries
-    assertEquals(1, result.accounts.size)
-    assertEquals(1L, result.accounts[0].accountId)
+    assertEquals("only active account in summaries", 1, result.accounts.size)
+    assertEquals("active account id preserved", 1L, result.accounts[0].accountId)
   }
 
   @Test
@@ -382,8 +374,8 @@ class GetDashboardDataUseCaseTest {
         includeArchived = false,
       )
 
-    assertEquals(0L, result.currentBalance) // transfer is balance-neutral anyway
-    assertEquals(1, result.accounts.size) // only active account in summaries
+    assertEquals("transfer is balance-neutral anyway", 0L, result.currentBalance)
+    assertEquals("only active account in summaries", 1, result.accounts.size)
   }
 
   @Test
@@ -413,8 +405,8 @@ class GetDashboardDataUseCaseTest {
         now = now,
       )
 
-    assertEquals(0L, result.currentBalance) // archived transaction excluded by default
-    assertEquals(0, result.accounts.size) // no accounts in summaries
+    assertEquals("archived transaction excluded by default", 0L, result.currentBalance)
+    assertEquals("no accounts in summaries", 0, result.accounts.size)
   }
 
   // -- Cross-path consistency test (deterministic) ----------------------------
@@ -680,8 +672,8 @@ class GetDashboardDataUseCaseTest {
         now = now,
         includeArchived = false,
       )
-    assertEquals(3_300_000L, beforeArchive.currentBalance)
-    assertEquals(2, beforeArchive.accounts.size)
+    assertEquals("balance with both accounts active", 3_300_000L, beforeArchive.currentBalance)
+    assertEquals("both accounts active", 2, beforeArchive.accounts.size)
 
     // Step 2: Archive accountB (mark isArchived=true)
     val archivedAccountB = account(2, "Secondary", AccountType.CASH_WALLET, isArchived = true)
@@ -698,9 +690,9 @@ class GetDashboardDataUseCaseTest {
         includeArchived = false,
       )
     // Balance must drop by accountB's net: (1M - 200k) = 800_000
-    assertEquals(2_500_000L, afterArchive.currentBalance)
-    assertEquals(1, afterArchive.accounts.size) // only accountA in summaries
-    assertEquals(1L, afterArchive.accounts[0].accountId)
+    assertEquals("balance after archive excludes accountB", 2_500_000L, afterArchive.currentBalance)
+    assertEquals("only accountA in summaries", 1, afterArchive.accounts.size)
+    assertEquals("remaining account is accountA", 1L, afterArchive.accounts[0].accountId)
 
     // Step 3: Unarchive accountB — balance restored
     val unarchived = listOf(accountA, accountB)
@@ -719,7 +711,7 @@ class GetDashboardDataUseCaseTest {
       beforeArchive.currentBalance,
       afterUnarchive.currentBalance,
     )
-    assertEquals(2, afterUnarchive.accounts.size)
+    assertEquals("both accounts restored after unarchive", 2, afterUnarchive.accounts.size)
   }
 
   // -- Phase 5: "All accounts" sum invariant ----------------------------------
@@ -764,9 +756,9 @@ class GetDashboardDataUseCaseTest {
       activeSum,
     )
     // Also verify the expected total
-    assertEquals(2_300_000L, result.currentBalance)
+    assertEquals("expected total balance for active accounts", 2_300_000L, result.currentBalance)
     // Verify only 2 active accounts in summaries
-    assertEquals(2, result.accounts.size)
+    assertEquals("only 2 active accounts in summaries", 2, result.accounts.size)
   }
 
   // -- Phase 5: Comprehensive Rust fallback comparison (all three fields) -----

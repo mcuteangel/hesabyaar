@@ -45,6 +45,7 @@ import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.ExportState
 import io.github.mojri.hesabyar.ui.ExportViewModel
+import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
@@ -94,7 +95,7 @@ fun SettingsScreen(
         try {
           val outputStream: OutputStream? = context.contentResolver.openOutputStream(uri)
           if (outputStream != null) {
-            backupViewModel.exportBackupToFile(outputStream)
+            backupViewModel.writeStagedExportToFile(outputStream)
           } else {
             settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
           }
@@ -126,6 +127,8 @@ fun SettingsScreen(
   val pendingRestore = backupViewModel.pendingRestoreBackup
   val restoreMode by backupViewModel.selectedRestoreMode
   val exportState by exportViewModel.exportState
+  val passphraseDialog by backupViewModel.passphraseDialogState
+  val isCryptoInProgress by backupViewModel.isCryptoInProgress
 
   LaunchedEffect(exportState) {
     when (val state = exportState) {
@@ -243,6 +246,142 @@ fun SettingsScreen(
       dismissButton = {
         HesabyarButton(
           onClick = { backupViewModel.cancelPendingRestore() },
+          text = CANCEL_LABEL,
+          variant = ButtonVariant.Text
+        )
+      }
+    )
+  }
+
+  // --- Export passphrase dialog ---
+  if (passphraseDialog is PassphraseDialogState.ExportPassphrase) {
+    var passphrase by remember { mutableStateOf("") }
+    var confirmPassphrase by remember { mutableStateOf("") }
+    val passwordsMatch = passphrase.isNotEmpty() && passphrase == confirmPassphrase
+    val canConfirm = passwordsMatch && !isCryptoInProgress
+
+    AlertDialog(
+      onDismissRequest = { backupViewModel.cancelPassphraseDialog() },
+      title = { Text("رمزگذاری اطلاعات حساس", fontWeight = FontWeight.Bold) },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          Text(
+            text = "اگر این رمز را فراموش کنید، اطلاعات کارت/حساب/شبا در این بکاپ قابل بازیابی نخواهند بود.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            fontWeight = FontWeight.Bold
+          )
+          Spacer(modifier = Modifier.height(SpacingTokens.xs))
+          OutlinedTextField(
+            value = passphrase,
+            onValueChange = { passphrase = it },
+            label = { Text("رمز عبور") },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+          )
+          OutlinedTextField(
+            value = confirmPassphrase,
+            onValueChange = { confirmPassphrase = it },
+            label = { Text("تأیید رمز عبور") },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            isError = confirmPassphrase.isNotEmpty() && !passwordsMatch,
+            supportingText =
+              if (confirmPassphrase.isNotEmpty() && !passwordsMatch) {
+                { Text("رمز عبور مطابقت ندارد") }
+              } else {
+                null
+              },
+            modifier = Modifier.fillMaxWidth()
+          )
+          if (isCryptoInProgress) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+          }
+        }
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = {
+            backupViewModel.exportWithPassphrase(passphrase)
+            exportFileLauncher.launch(
+              "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
+            )
+          },
+          text = "رمزگذاری و ذخیره",
+          enabled = canConfirm
+        )
+      },
+      dismissButton = {
+        Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          HesabyarButton(
+            onClick = {
+              backupViewModel.exportWithoutPassphrase()
+              exportFileLauncher.launch(
+                "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
+              )
+            },
+            text = "ذخیره بدون رمز",
+            variant = ButtonVariant.Outlined
+          )
+          HesabyarButton(
+            onClick = { backupViewModel.cancelPassphraseDialog() },
+            text = CANCEL_LABEL,
+            variant = ButtonVariant.Text
+          )
+        }
+      }
+    )
+  }
+
+  // --- Import passphrase dialog ---
+  if (passphraseDialog is PassphraseDialogState.ImportPassphrase) {
+    var passphrase by remember { mutableStateOf("") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+      onDismissRequest = { backupViewModel.cancelPassphraseDialog() },
+      title = { Text("رمزگشایی پشتیبان", fontWeight = FontWeight.Bold) },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          Text(
+            text = "این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:",
+            style = MaterialTheme.typography.bodyMedium
+          )
+          OutlinedTextField(
+            value = passphrase,
+            onValueChange = {
+              passphrase = it
+              errorMsg = null
+            },
+            label = { Text("رمز عبور") },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            isError = errorMsg != null,
+            modifier = Modifier.fillMaxWidth()
+          )
+          if (errorMsg != null) {
+            Text(
+              text = errorMsg!!,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.error
+            )
+          }
+          if (isCryptoInProgress) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+          }
+        }
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = { backupViewModel.decryptAndStageImport(passphrase) },
+          text = "رمزگشایی",
+          enabled = passphrase.isNotEmpty() && !isCryptoInProgress
+        )
+      },
+      dismissButton = {
+        HesabyarButton(
+          onClick = { backupViewModel.cancelPassphraseDialog() },
           text = CANCEL_LABEL,
           variant = ButtonVariant.Text
         )
@@ -457,16 +596,12 @@ fun SettingsScreen(
           )
 
           HesabyarButton(
-            onClick = {
-              exportFileLauncher.launch(
-                "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
-              )
-            },
+            onClick = { backupViewModel.requestExportPassphraseDialog() },
             modifier = Modifier.weight(1.1f).testTag("backup_button"),
             text = "ذخیره فایل پشتیبان",
             icon = Icons.Filled.Save,
-            loading = operationState is BackupOperationState.Exporting,
-            enabled = operationState !is BackupOperationState.Exporting
+            loading = operationState is BackupOperationState.Exporting || isCryptoInProgress,
+            enabled = operationState !is BackupOperationState.Exporting && !isCryptoInProgress
           )
         }
       }

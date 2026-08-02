@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.domain.usecase
 
 import android.util.Log
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
@@ -24,31 +25,68 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.GeneralSecurityException
 
 class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface,
   private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-  private companion object {
-    const val TAG = "ManageBackupUseCase"
-
-    /** Number of trailing characters to preserve when redacting sensitive fields. */
-    const val REDACT_KEEP_CHARS = 4
+  companion object {
+    private const val TAG = "ManageBackupUseCase"
+    private const val ENCRYPTION_KEY = "sensitiveFieldsEncryption"
+    private const val SALT_KEY = "salt"
+    private const val ITERATIONS_KEY = "iterations"
 
     /**
-     * Redacts all but the last [keep] characters of [value], replacing the
-     * leading portion with `*` characters.  Returns the original string when
-     * it is shorter than or equal to [keep] (nothing to mask).
+     * Returns true if the backup JSON indicates that sensitive banking fields
+     * (cardNumber, accountNumber, iban) are encrypted with a passphrase.
      */
-    fun redactTrailing(
-      value: String,
-      keep: Int
-    ): String {
-      if (value.length <= keep) return value
-      val masked = "*".repeat(value.length - keep)
-      return masked + value.takeLast(keep)
-    }
+    fun isEncryptedBackup(rootJson: JSONObject): Boolean = rootJson.has(ENCRYPTION_KEY)
+
+    /**
+     * Extracts the PBKDF2 salt from the encryption metadata in the backup JSON.
+     * @return the hex-encoded salt string, or null if no encryption metadata is present
+     */
+    fun getEncryptionSalt(rootJson: JSONObject): String? = rootJson.optJSONObject(ENCRYPTION_KEY)?.optString(SALT_KEY)
   }
+
+  /**
+   * Decrypts the sensitive banking fields (cardNumber, accountNumber, iban) in all
+   * accounts of a parsed [BackupPayload], using the raw JSON to re-read the encrypted
+   * values and [passphrase] to derive the decryption key.
+   *
+   * This method uses the same parsing path (Rust or Kotlin) that [parseBackupJson]
+   * originally used — it re-parses accounts from the raw JSON and applies decryption,
+   * rather than introducing a second independent parser.
+   *
+   * @throws GeneralSecurityException if the passphrase is wrong or the ciphertext is tampered
+   * @throws IllegalArgumentException if the encrypted data is malformed
+   */
+  suspend fun decryptBackupWithPassphrase(
+    backup: BackupPayload,
+    rootJson: JSONObject,
+    passphrase: String
+  ): BackupPayload =
+    withContext(dispatcher) {
+      val salt =
+        getEncryptionSalt(rootJson)
+          ?: throw IllegalArgumentException("Backup does not contain encryption metadata")
+      val key = BackupCipher.deriveKey(passphrase, salt)
+      val accountsArray = rootJson.optJSONArray("accounts") ?: return@withContext backup
+      val decryptedAccounts =
+        (0 until accountsArray.length()).mapNotNull { i ->
+          val o = accountsArray.optJSONObject(i) ?: return@mapNotNull null
+          val original =
+            backup.accounts.getOrNull(i)
+              ?: return@mapNotNull null
+          original.copy(
+            cardNumber = BackupCipher.decryptOrNull(o.opt("cardNumber"), key),
+            accountNumber = BackupCipher.decryptOrNull(o.opt("accountNumber"), key),
+            iban = BackupCipher.decryptOrNull(o.opt("iban"), key)
+          )
+        }
+      backup.copy(accounts = decryptedAccounts)
+    }
 
   suspend fun parseBackupJson(jsonString: String): BackupPayload? =
     withContext(dispatcher) {
@@ -480,11 +518,34 @@ class ManageBackupUseCase(
     }
   }
 
-  suspend fun exportBackupJson(isDarkMode: Boolean = true): JSONObject {
+  // TODO(automatic-backups): Background/automatic backups cannot prompt for a passphrase
+  // interactively. When automatic backups are implemented, they will need either a persisted
+  // passphrase (protected via EncryptedSharedPreferences) or a default no-encryption fallback,
+  // since the user cannot be prompted during a headless export.
+  suspend fun exportBackupJson(
+    isDarkMode: Boolean = true,
+    passphrase: String? = null
+  ): JSONObject {
     val rootJson = JSONObject()
     rootJson.put("version", BuildConfig.BACKUP_SCHEMA_VERSION)
     rootJson.put("timestamp", System.currentTimeMillis())
     rootJson.put("appVersion", BuildConfig.VERSION_NAME)
+
+    // Derive encryption key if passphrase is provided
+    val encryptionKey =
+      if (passphrase != null) {
+        val salt = BackupCipher.generateSalt()
+        rootJson.put(
+          ENCRYPTION_KEY,
+          JSONObject().apply {
+            put(SALT_KEY, salt)
+            put(ITERATIONS_KEY, 600_000)
+          }
+        )
+        BackupCipher.deriveKey(passphrase, salt)
+      } else {
+        null
+      }
 
     rootJson.put(
       "settings",
@@ -613,14 +674,19 @@ class ManageBackupUseCase(
           put("name", it.name)
           put("type", it.type.name)
           put("bankName", it.bankName ?: JSONObject.NULL)
-          // Security: redact sensitive banking identifiers in backup exports.
-          // Only the last 4 characters are preserved for identification; the
-          // full values must never leave the app in plaintext.  On restore the
-          // user re-enters the masked fields (or a future encrypted-backup
-          // feature handles this properly).
-          put("cardNumber", it.cardNumber?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
-          put("accountNumber", it.accountNumber?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
-          put("iban", it.iban?.let { v -> redactTrailing(v, REDACT_KEEP_CHARS) } ?: JSONObject.NULL)
+          // When a passphrase is provided, encrypt sensitive banking identifiers;
+          // otherwise store them as plaintext.  Encrypted values are base64-encoded
+          // AES-GCM ciphertext and pass through Rust/serde deserialization as-is
+          // (they're still Option<String>).
+          if (encryptionKey != null) {
+            put("cardNumber", BackupCipher.encryptOrNull(it.cardNumber, encryptionKey))
+            put("accountNumber", BackupCipher.encryptOrNull(it.accountNumber, encryptionKey))
+            put("iban", BackupCipher.encryptOrNull(it.iban, encryptionKey))
+          } else {
+            put("cardNumber", it.cardNumber ?: JSONObject.NULL)
+            put("accountNumber", it.accountNumber ?: JSONObject.NULL)
+            put("iban", it.iban ?: JSONObject.NULL)
+          }
           put("initialBalance", it.initialBalance)
           put("color", it.color)
           put("icon", it.icon ?: JSONObject.NULL)

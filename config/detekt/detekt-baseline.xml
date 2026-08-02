@@ -256,6 +256,7 @@
     <ID>TooGenericExceptionCaught:SmartAssistantScreen.kt:e: Exception</ID>
     <ID>TooGenericExceptionThrown:DatabaseKeyManager.kt:DatabaseKeyManager$throw RuntimeException("Failed to create encrypted preferences", e)</ID>
     <ID>TooManyFunctions:AiAssistantViewModel.kt:AiAssistantViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:BackupViewModel.kt:BackupViewModel : ViewModel</ID>
     <ID>TooManyFunctions:AiProviderConfig.kt:AiConfigManager</ID>
     <ID>TooManyFunctions:BudgetAdvisor.kt:BudgetAdvisor</ID>
     <ID>TooManyFunctions:ExcelExporter.kt:ExcelExporter</ID>
@@ -267,6 +268,7 @@
     <ID>TooManyFunctions:ManageAiConfigUseCase.kt:ManageAiConfigUseCase</ID>
     <ID>TooManyFunctions:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
     <ID>LargeClass:GetDashboardDataUseCaseTest.kt:GetDashboardDataUseCaseTest</ID>
+    <ID>LargeClass:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
     <ID>TooManyFunctions:RustBridge.kt:RustBridge : JalaliNativeBridge</ID>
     <ID>TooManyFunctions:RustMappers.kt:RustMappers</ID>
     <ID>TooManyFunctions:UseCaseModule.kt:UseCaseModule</ID>

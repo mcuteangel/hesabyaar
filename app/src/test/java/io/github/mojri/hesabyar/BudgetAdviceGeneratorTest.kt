@@ -147,7 +147,7 @@ class BudgetAdviceGeneratorTest {
   }
 
   @Test
-  fun transactionbasedAdviceSummaryDividesRialBy10AndLabelsToman() {
+  fun transactionBasedAdviceSummaryDividesRialBy10AndLabelsToman() {
     // A 10,000,000 Rial income + 10,000,000 Rial expense must read as
     // "1,000,000 تومان" in the data summary (income/expense/balance).
     val transactions =
