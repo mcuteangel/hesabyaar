@@ -506,4 +506,109 @@ class ManageBackupUseCaseTest {
       }
     }
   }
+
+  @Test
+  fun decryptReorderedRawAccountsMatchesByAccountIdNotByIndex() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+    val firstCard = "1111111111111111"
+    val secondCard = "2222222222222222"
+    val firstIban = "IR101010"
+    val secondIban = "IR202020"
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اول",
+          type = AccountType.BANK,
+          cardNumber = firstCard,
+          iban = firstIban
+        )
+      )
+      repo.insertAccount(
+        AccountEntity(
+          id = 2,
+          name = "حساب دوم",
+          type = AccountType.BANK,
+          cardNumber = secondCard,
+          iban = secondIban
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+    assertEquals("sanity: two accounts must be parsed", 2, parsed.accounts.size)
+
+    // Swap the raw JSON accounts so index 0 now holds account id=2's ciphertext
+    // and index 1 holds account id=1's. Index-based matching would attach the
+    // ciphertext to the wrong account; id-based matching must not.
+    val tamperedRoot = JSONObject(jsonString)
+    val rawAccounts = tamperedRoot.getJSONArray("accounts")
+    val first = rawAccounts.getJSONObject(0)
+    val second = rawAccounts.getJSONObject(1)
+    tamperedRoot.put("accounts", JSONArray().put(second).put(first))
+
+    val decrypted =
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, tamperedRoot, passphrase)
+      }
+
+    assertEquals("account id 1 keeps its own card", firstCard, decrypted.accounts[0].cardNumber)
+    assertEquals("account id 1 keeps its own iban", firstIban, decrypted.accounts[0].iban)
+    assertEquals("account id 2 keeps its own card", secondCard, decrypted.accounts[1].cardNumber)
+    assertEquals("account id 2 keeps its own iban", secondIban, decrypted.accounts[1].iban)
+  }
+
+  @Test
+  fun decryptMalformedRawEntryThrowsInsteadOfMisassigning() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // A raw entry that lost its account id makes 1:1 matching by id impossible —
+    // matching must fail loudly instead of silently guessing by index.
+    val missingIdRoot = JSONObject(jsonString)
+    missingIdRoot.getJSONArray("accounts").getJSONObject(0).remove("id")
+    org.junit.Assert.assertThrows(
+      "Raw entry missing id must fail",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, missingIdRoot, passphrase)
+      }
+    }
+
+    // A raw entry that is JSON null (not an object) must also fail.
+    val nullEntryRoot = JSONObject(jsonString)
+    val nullEntryAccounts = nullEntryRoot.getJSONArray("accounts")
+    nullEntryAccounts.put(0, JSONObject.NULL)
+    org.junit.Assert.assertThrows(
+      "JSON null raw entry must fail",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nullEntryRoot, passphrase)
+      }
+    }
+  }
 }

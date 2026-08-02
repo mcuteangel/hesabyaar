@@ -44,9 +44,9 @@ tagged with `@Category(RustTest::class)` and run in a separate Gradle task
 infrastructure, always verify with a cache-busting run:**
 
 ```bash
-# Option A: clean + test (guarantees fresh compilation)
-./gradlew --no-daemon clean test
-# Option B: rerun-tasks (re-executes everything without deleting build artifacts)
+# rerun-tasks (re-executes everything without deleting build artifacts)
+# Do NOT use `clean` — it forces full binary/NDK rebuilds and can hit Windows
+# file-lock failures on `app/build` (e.g. open R.jar) when a daemon lingers.
 ./gradlew --no-daemon test --rerun-tasks
 ```
 

@@ -56,11 +56,21 @@ class ManageBackupUseCase(
    * values and [passphrase] to derive the decryption key.
    *
    * This method uses the same parsing path (Rust or Kotlin) that [parseBackupJson]
-   * originally used — it re-parses accounts from the raw JSON and applies decryption,
-   * rather than introducing a second independent parser.
+   * originally used — the parsed [backup] was produced by [parseBackupJson] and the
+   * raw JSON is only re-read to obtain the encrypted field values, rather than
+   * introducing a second independent parser.
+   *
+   * Raw JSON accounts are matched to parsed accounts by their stable `id` field
+   * (present in both the serialized JSON and [io.github.mojri.hesabyar.data.AccountEntity]),
+   * NOT by positional index. Index-based matching could attach ciphertext to the
+   * wrong account if a raw entry is missing or the array is reordered; id matching
+   * makes that impossible. Any malformed raw entry, duplicate id, or parsed account
+   * with no raw counterpart fails loudly instead of returning misaligned financial data.
    *
    * @throws GeneralSecurityException if the passphrase is wrong or the ciphertext is tampered
    * @throws IllegalArgumentException if the encrypted data is malformed
+   * @throws IllegalStateException if the raw accounts array cannot be matched 1:1 with
+   *   the parsed accounts by id (malformed entry, duplicate id, or missing counterpart)
    */
   suspend fun decryptBackupWithPassphrase(
     backup: BackupPayload,
@@ -73,16 +83,41 @@ class ManageBackupUseCase(
           ?: throw IllegalArgumentException("Backup does not contain encryption metadata")
       val key = BackupCipher.deriveKey(passphrase, salt)
       val accountsArray = rootJson.optJSONArray("accounts") ?: return@withContext backup
+
+      // Index raw JSON accounts by stable account id. A raw entry that is not an
+      // object, lacks an id, or duplicates another id would make id-based matching
+      // ambiguous — reject instead of guessing.
+      val encryptedById = HashMap<Long, JSONObject>(accountsArray.length() * 2)
+      for (i in 0 until accountsArray.length()) {
+        val o =
+          accountsArray.optJSONObject(i)
+            ?: throw IllegalStateException(
+              "Account entry #$i in encrypted backup is not a JSON object"
+            )
+        if (!o.has("id")) {
+          throw IllegalStateException("Account entry #$i in encrypted backup has no id field")
+        }
+        val id = o.optLong("id")
+        if (encryptedById.containsKey(id)) {
+          throw IllegalStateException("Duplicate account id $id in encrypted backup")
+        }
+        encryptedById[id] = o
+      }
+
+      // Each parsed account must have exactly one raw counterpart to decrypt.
+      // A missing counterpart means the parsed payload and raw JSON diverged —
+      // failing beats silently preserving the wrong account's ciphertext.
       val decryptedAccounts =
-        (0 until accountsArray.length()).mapNotNull { i ->
-          val o = accountsArray.optJSONObject(i) ?: return@mapNotNull null
-          val original =
-            backup.accounts.getOrNull(i)
-              ?: return@mapNotNull null
-          original.copy(
-            cardNumber = BackupCipher.decryptOrNull(o.opt("cardNumber"), key),
-            accountNumber = BackupCipher.decryptOrNull(o.opt("accountNumber"), key),
-            iban = BackupCipher.decryptOrNull(o.opt("iban"), key)
+        backup.accounts.map { account ->
+          val raw =
+            encryptedById[account.id]
+              ?: throw IllegalStateException(
+                "Parsed account ${account.id} has no counterpart in encrypted backup"
+              )
+          account.copy(
+            cardNumber = BackupCipher.decryptOrNull(raw.opt("cardNumber"), key),
+            accountNumber = BackupCipher.decryptOrNull(raw.opt("accountNumber"), key),
+            iban = BackupCipher.decryptOrNull(raw.opt("iban"), key)
           )
         }
       backup.copy(accounts = decryptedAccounts)
