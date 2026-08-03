@@ -206,6 +206,16 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             }
         }
 
+        // Validate accounts and transaction account references via the
+        // shared helper so both FFI and internal paths enforce identical rules.
+        if let Some(first_err) =
+            crate::validation::validate_accounts_and_references(payload).first()
+        {
+            return Err(HesabyarError::BackupValidation {
+                detail: first_err.clone(),
+            });
+        }
+
         Ok(())
     })?;
     r

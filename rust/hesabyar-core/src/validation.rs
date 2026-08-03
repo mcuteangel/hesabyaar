@@ -1,5 +1,9 @@
 use crate::models::*;
 
+// WARNING: Must match Kotlin AccountType enum exactly.
+// Add new entries here when AccountType gains new variants in the app.
+const VALID_ACCOUNT_TYPES: &[&str] = &["BANK", "CASH_WALLET", "SAVINGS_INVESTMENT"];
+
 /// Result of batch validation — collects all errors.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ValidationResult {
@@ -268,12 +272,98 @@ pub fn validate_payment_history_batch(payment_histories: &[PaymentHistory]) -> V
     }
 }
 
+/// Validate accounts and cross-reference transactions against them.
+///
+/// This is the single source of truth for account validation and
+/// referential-integrity checks on transaction account fields. Both
+/// `validate_backup_payload` (collect-all-errors path) and `validate_backup`
+/// in `lib.rs` (fail-fast FFI path) call this function to avoid drift.
+///
+/// Legacy backups (pre-multi-account) omit the `accounts` list entirely.
+/// When `accounts` is empty but transactions exist, every transaction must
+/// reference the legacy default account ID (1). This prevents corrupted
+/// backups from injecting arbitrary/non-existent account IDs that would
+/// create orphaned balances after restore.
+pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // --- Account structural validation ---
+    let mut seen_ids: std::collections::HashSet<i64> =
+        std::collections::HashSet::new();
+    for (i, acc) in payload.accounts.iter().enumerate() {
+        if acc.name.trim().is_empty() {
+            errors.push(format!("Account[{}] has empty name", i));
+        }
+        if !seen_ids.insert(acc.id) {
+            errors.push(format!("Duplicate account id {}", acc.id));
+        }
+        if !VALID_ACCOUNT_TYPES.contains(&acc.account_type.as_str()) {
+            errors.push(format!(
+                "Account[{}] has invalid type '{}'",
+                i, acc.account_type
+            ));
+        }
+    }
+
+    // --- Transaction account reference validation ---
+    let account_ids: std::collections::HashSet<i64> =
+        payload.accounts.iter().map(|a| a.id).collect();
+
+    if !payload.accounts.is_empty() {
+        // Modern backup: validate transactions against declared accounts.
+        for (i, tx) in payload.transactions.iter().enumerate() {
+            if !account_ids.contains(&tx.account_id) {
+                errors.push(format!(
+                    "Transaction[{}] references non-existent source account {}",
+                    i, tx.account_id
+                ));
+            }
+            if let Some(dest_id) = tx.destination_account_id {
+                if !account_ids.contains(&dest_id) {
+                    errors.push(format!(
+                        "Transaction[{}] references non-existent destination account {}",
+                        i, dest_id
+                    ));
+                }
+            }
+        }
+    } else if !payload.transactions.is_empty() {
+        // Legacy backup (no accounts list): every transaction must reference
+        // the legacy default account ID (1). This is the single account that
+        // existed before multi-account support. Rejecting arbitrary IDs here
+        // prevents orphaned balances from tampered old backups.
+        for (i, tx) in payload.transactions.iter().enumerate() {
+            if tx.account_id != 1 {
+                errors.push(format!(
+                    "Transaction[{}] references non-legacy account {} (accounts list is empty; expected 1)",
+                    i, tx.account_id
+                ));
+            }
+            if let Some(dest_id) = tx.destination_account_id {
+                if dest_id != 1 {
+                    errors.push(format!(
+                        "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected 1)",
+                        i, dest_id
+                    ));
+                }
+            }
+        }
+    }
+
+    errors
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
     if payload.version < 1 {
         errors.push("Invalid backup version".into());
     }
+
+    // Account validation + transaction account reference checks.
+    // Single shared helper — both FFI and internal paths enforce the same rules.
+    errors.extend(validate_accounts_and_references(payload));
+
     // Category cross-reference check (mirrors FFI validate_backup).
     // Only check positive IDs — zero is a legacy default tolerated by
     // validate_transaction, so treating it as missing would break old backups.
@@ -961,5 +1051,414 @@ mod tests {
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+    }
+
+    // =====================================================================
+    // Account validation
+    // =====================================================================
+
+    #[test]
+    fn test_backup_rejects_empty_account_name() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: String::new(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("empty name")));
+    }
+
+    #[test]
+    fn test_backup_rejects_duplicate_account_ids() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![
+                Account {
+                    id: 1,
+                    name: "Main".to_string(),
+                    account_type: "BANK".to_string(),
+                    bank_name: None,
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 0,
+                    color: 0xFF4CAF50,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 0,
+                    created_at: 1710000000000,
+                    updated_at: 1710000000000,
+                },
+                Account {
+                    id: 1,
+                    name: "Duplicate".to_string(),
+                    account_type: "CASH_WALLET".to_string(),
+                    bank_name: None,
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 0,
+                    color: 0xFF4CAF50,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 0,
+                    created_at: 1710000000000,
+                    updated_at: 1710000000000,
+                },
+            ],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Duplicate account id")));
+    }
+
+    #[test]
+    fn test_backup_rejects_invalid_account_type() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "INVALID_TYPE".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("invalid type")));
+    }
+
+    // =====================================================================
+    // Transaction account reference validation
+    // =====================================================================
+
+    #[test]
+    fn test_backup_rejects_tx_with_nonexistent_source_account() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50000,
+                description: "coffee".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 99, // no such account
+                destination_account_id: None,
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-existent source account")));
+    }
+
+    #[test]
+    fn test_backup_rejects_tx_with_nonexistent_destination_account() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(99), // no such account
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-existent destination account")));
+    }
+
+    #[test]
+    fn test_backup_valid_with_all_accounts_referenced() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2),
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![
+                Account {
+                    id: 1,
+                    name: "Main".to_string(),
+                    account_type: "BANK".to_string(),
+                    bank_name: None,
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 0,
+                    color: 0xFF4CAF50,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 0,
+                    created_at: 1710000000000,
+                    updated_at: 1710000000000,
+                },
+                Account {
+                    id: 2,
+                    name: "Savings".to_string(),
+                    account_type: "SAVINGS_INVESTMENT".to_string(),
+                    bank_name: None,
+                    card_number: None,
+                    account_number: None,
+                    iban: None,
+                    initial_balance: 0,
+                    color: 0xFF4CAF50,
+                    icon: None,
+                    is_archived: false,
+                    display_order: 0,
+                    created_at: 1710000000000,
+                    updated_at: 1710000000000,
+                },
+            ],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "Expected valid payload, got errors: {:?}",
+            result.errors
+        );
+    }
+
+    // =====================================================================
+    // Legacy backup: accounts list empty, transactions must use legacy ID=1
+    // =====================================================================
+
+    #[test]
+    fn test_backup_rejects_non_legacy_account_id_when_accounts_empty() {
+        // Corrupted old backup: accounts=[], tx references account_id=999.
+        // Must fail fast to prevent orphaned balances.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50000,
+                description: "coffee".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 999, // non-legacy, no accounts list to reference
+                destination_account_id: None,
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![], // old backup format — no accounts
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-legacy account")));
+    }
+
+    #[test]
+    fn test_backup_accepts_legacy_account_id_when_accounts_empty() {
+        // Genuine old backup: accounts=[], tx references account_id=1.
+        // This is the single legacy account that existed before multi-account.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50000,
+                description: "coffee".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1, // legacy default
+                destination_account_id: None,
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![], // old backup format
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(result.is_valid, "Expected valid legacy payload, got errors: {:?}", result.errors);
+    }
+
+    #[test]
+    fn test_backup_rejects_non_legacy_dest_account_when_accounts_empty() {
+        // Old backup with transfer to a non-legacy destination account.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(99), // non-legacy
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![], // old backup format
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-legacy destination account")));
     }
 }
