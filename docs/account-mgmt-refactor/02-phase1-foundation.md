@@ -37,7 +37,7 @@
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt` | حذف `AccountDao` (انتقال به فایل جداگانه) |
 | `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | حذف Account CRUD methods (انتقال به `AccountRepositoryImpl`) |
-| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | حذف Account-related methods |
+| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | نگه‌داشتن Account-related methods (deprecated تا همه consumers مهاجرت کنن) — دیده‌شده در نکات خاص (خط ۱۵۳) |
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | اضافه کردن `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | اضافه کردن `AccountDao` provision |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | تغییر از Repository به UseCaseها |

@@ -371,9 +371,11 @@ afterEvaluate {
       jvmArgs(rustJvmArgs)
 
       // Ensure test classes are compiled AND the Rust host library exists before
-      // JNA-backed tests attempt to load it.
+      // JNA-backed tests attempt to load it. buildHostRustLib produces the host
+      // library at rust/target/release that JNA loads; compileRustCore only
+      // builds Android .so files via cargo-ndk and would require the NDK.
       dependsOn("compileDebugUnitTestKotlin")
-      dependsOn("compileRustCore")
+      dependsOn("buildHostRustLib")
 
       useJUnit {
         includeCategories("io.github.mojri.hesabyar.RustTest")
@@ -888,6 +890,41 @@ tasks.register("compileRustCore") {
   outputs.dir(file("$projectDir/src/main/jniLibs"))
   // Local debug keeps incremental caching; CI/release always recompiles.
   outputs.upToDateWhen { !forceRustRegen }
+}
+
+// ---------------------------------------------------------------------------
+// buildHostRustLib — host-native Rust library for JNA-backed unit tests
+//
+// JNA-backed Rust tests (testDebugUnitTestRust) load the HOST library from
+// rust/target/release (see rustJvmArgs), NOT the Android .so files produced by
+// compileRustCore via cargo-ndk. Wiring the test task to this task instead of
+// compileRustCore means `./gradlew test` no longer requires the Android NDK.
+// ---------------------------------------------------------------------------
+tasks.register("buildHostRustLib") {
+  group = "rust"
+  description = "Build the host-native Rust library loaded by JNA-backed unit tests"
+  dependsOn("syncCoreVersion")
+  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.lock"))
+  inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
+  val osName = System.getProperty("os.name").lowercase()
+  val hostLib =
+    when {
+      osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
+      osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
+      else -> rustTargetDir.resolve("release/libhesabyar_core.so")
+    }
+  outputs.file(hostLib)
+  // Local debug keeps incremental caching; CI/release always recompiles.
+  outputs.upToDateWhen { !forceRustRegen }
+  doLast {
+    buildHostLibrary()
+    if (!hostLib.exists()) {
+      throw GradleException("Host library not found after build: ${hostLib.absolutePath}")
+    }
+  }
 }
 
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {

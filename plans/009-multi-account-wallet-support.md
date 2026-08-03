@@ -14,7 +14,7 @@ Introduce first-class support for multiple financial accounts (bank accounts, ca
 1. **Categorize** their money across distinct accounts (bank, wallet, savings).
 2. **Track** income, expenses, and transfers per account.
 3. **View** per-account balances, analytics, and a consolidated net-worth summary.
-4. **Transfer** funds between accounts with proper double-entry bookkeeping.
+4. **Transfer** funds between accounts — each transfer is a single `Transaction` record with `type = TRANSFER`, `accountId` (source), and `destinationAccountId` (destination), implementing double-entry bookkeeping in one row.
 
 All monetary calculations remain strictly integer-based (`Long` in Kotlin / `i64` in Rust) — zero floating-point money math.
 
@@ -290,7 +290,15 @@ Implement the new interface methods using `AccountDao`.
 - Add `accountId: Long` to `SubmitManualTransactionRequest`.
 - Add optional `destinationAccountId: Long?` for transfer transactions.
 - Validate that source ≠ destination for transfers.
-- For transfers: create a pair of transactions (expense from source, income to destination) or a single transfer record.
+- For transfers: create a **single transfer record** — a `Transaction` with `type = TransactionType.TRANSFER`, `accountId` set to the source account, and `destinationAccountId` set to the destination account. This is the canonical model used throughout the codebase.
+
+  **Canonical transfer contract:**
+  - **Persistence:** One row in `transactions` table. `destinationAccountId` is non-null for transfers, null otherwise.
+  - **Backup/restore:** `destinationAccountId` is serialized to JSON and restored; the single record round-trips intact.
+  - **Deletion:** Deleting a transfer removes the single record from both accounts' perspectives.
+  - **Balance:** Source account balance decreases by the amount; destination account balance increases by the same amount. Handled in `balanceDeltaForAccount()` (Kotlin fallback) and `compute_account_summaries()` (Rust).
+  - **Dashboard & Analytics:** Transfers are included when filtering by `accountId` via `tx.accountId == accountId || tx.destinationAccountId == accountId`. In the overall (non-per-account) view, transfers are neutral — they contribute neither to `monthlyIncome` nor `monthlyExpense`.
+  - **Account filtering:** Both `accountId` and `destinationAccountId` are checked so transfers appear on both the source and destination accounts.
 
 ---
 
