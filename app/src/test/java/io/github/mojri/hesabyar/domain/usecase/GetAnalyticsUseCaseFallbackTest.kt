@@ -228,4 +228,102 @@ class GetAnalyticsUseCaseFallbackTest {
       assertEquals(3_500_000L, withArchived.monthlySpending.first().income)
       assertEquals(1_200_000L, withArchived.monthlySpending.first().expense)
     }
+
+  // --- Transfer semantics: account-filtered analytics ---
+
+  @Test
+  fun fallbackTransferNeutralWhenAccountIdNull() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val accounts = listOf(account(1), account(2))
+      val txs =
+        listOf(
+          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = accounts,
+          accountId = null
+        )
+      // All-accounts view: transfers are neutral
+      assertEquals(0L, result.monthlySpending.first().income)
+      assertEquals(0L, result.monthlySpending.first().expense)
+    }
+
+  @Test
+  fun fallbackTransferSourceIsSelectedAccountCountedAsExpense() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val accounts = listOf(account(1), account(2))
+      val txs =
+        listOf(
+          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = accounts,
+          accountId = 1
+        )
+      // Selected account is source → counted as expense
+      assertEquals(500_000L, result.monthlySpending.first().expense)
+      assertEquals(0L, result.monthlySpending.first().income)
+    }
+
+  @Test
+  fun fallbackTransferDestIsSelectedAccountCountedAsIncome() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val accounts = listOf(account(1), account(2))
+      val txs =
+        listOf(
+          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = accounts,
+          accountId = 2
+        )
+      // Selected account is destination → counted as income
+      assertEquals(500_000L, result.monthlySpending.first().income)
+      assertEquals(0L, result.monthlySpending.first().expense)
+    }
+
+  @Test
+  fun fallbackTransferUninvolvedAccountNeutral() =
+    runTest {
+      val categories = listOf(cat(1, "خوراک"))
+      val accounts = listOf(account(1), account(2), account(3))
+      val txs =
+        listOf(
+          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = accounts,
+          accountId = 3
+        )
+      // Selected account is not involved → neutral
+      assertEquals(0L, result.monthlySpending.first().income)
+      assertEquals(0L, result.monthlySpending.first().expense)
+    }
 }

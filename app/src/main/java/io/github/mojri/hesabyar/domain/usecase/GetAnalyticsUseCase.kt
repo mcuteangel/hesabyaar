@@ -131,8 +131,25 @@ class GetAnalyticsUseCase {
 
     val monthLabel =
       if (jalaliDate.month in 1..12) jalaliMonthNames[jalaliDate.month - 1] else ""
-    val monthlyIncomeTotal = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-    val monthlyExpenseTotal = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val transferExpense =
+      if (accountId != null) {
+        monthlyTx
+          .filter { it.type == TransactionType.TRANSFER && it.accountId == accountId }
+          .sumOf { it.amount }
+      } else {
+        0L
+      }
+    val transferIncome =
+      if (accountId != null) {
+        monthlyTx
+          .filter { it.type == TransactionType.TRANSFER && it.destinationAccountId == accountId }
+          .sumOf { it.amount }
+      } else {
+        0L
+      }
+    val monthlyIncomeTotal = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount } + transferIncome
+    val monthlyExpenseTotal =
+      monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount } + transferExpense
 
     val unsettledLoans = loans.filter { !it.isSettled }
     val debtors = mapDebtSummaries(unsettledLoans, LoanType.DEBTOR)
