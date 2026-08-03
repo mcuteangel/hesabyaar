@@ -59,10 +59,13 @@ pub fn compute_dashboard_data(
     };
 
     // Sum of initial balances for selected accounts (used by both paths).
+    // Gate the selected account's opening balance by the same archive
+    // condition as its transactions: when include_archived is false, selecting
+    // an archived account yields no initial_balance (no half-visible account).
     let initial_balance_sum: i64 = if let Some(acc_id) = account_id {
         accounts
             .iter()
-            .find(|a| a.id == acc_id)
+            .find(|a| a.id == acc_id && (include_archived || !a.is_archived))
             .map(|a| a.initial_balance)
             .unwrap_or(0)
     } else {
@@ -1050,6 +1053,71 @@ mod tests {
         let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
+    }
+
+    // =====================================================================
+    // Bug regression: selecting an archived account with a non-zero opening
+    // balance must not leak that initial_balance when include_archived=false.
+    // Its transactions are filtered, so its opening balance must be too —
+    // otherwise the dashboard shows a half-visible account. Defense-in-depth:
+    // the UI avoids selecting archived accounts, but the computation layer
+    // must stay consistent regardless.
+    // =====================================================================
+
+    #[test]
+    fn test_selected_archived_account_include_archived_false_excludes_initial_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "CASH_WALLET", 500_000),
+        ];
+        let txs = vec![Transaction {
+            id: 1,
+            tx_type: TransactionType::Income,
+            category_id: 1,
+            amount: 1_000_000,
+            description: String::new(),
+            person_name: None,
+            date: now_ms,
+            due_date: None,
+            installment_id: None,
+            account_id: 2, // archived account
+            destination_account_id: None,
+        }];
+
+        // include_archived=false + archived selected: neither the archived
+        // transaction (1M) nor its opening balance (500k) may appear.
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms);
+        assert_eq!(result.current_balance, 0);
+        assert_eq!(result.monthly_income, 0);
+    }
+
+    #[test]
+    fn test_selected_archived_account_include_archived_true_includes_initial_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "CASH_WALLET", 500_000),
+        ];
+
+        // No transactions: current_balance comes purely from the opening balance.
+        // include_archived=true + archived selected: opening balance included.
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(2), true, now_ms);
+        assert_eq!(result.current_balance, 500_000);
+    }
+
+    #[test]
+    fn test_selected_active_account_include_archived_false_includes_initial_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            Account { initial_balance: 200_000, ..account(1, "Active", "BANK") },
+            archived_account(2, "Archived", "CASH_WALLET", 500_000),
+        ];
+
+        // No transactions: current_balance comes purely from the opening balance.
+        // include_archived=false + active selected: opening balance still included.
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(1), false, now_ms);
+        assert_eq!(result.current_balance, 200_000);
     }
 
     #[test]

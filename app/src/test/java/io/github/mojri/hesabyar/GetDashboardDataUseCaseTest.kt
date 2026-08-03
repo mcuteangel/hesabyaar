@@ -463,6 +463,88 @@ class GetDashboardDataUseCaseTest {
     assertEquals("currentBalance excludes archived initialBalance", 1_200_000L, result.currentBalance)
   }
 
+  // -- selected-account archive gate: a selected account's opening balance must
+  //    respect includeArchived exactly like its transactions -----------------
+
+  @Test
+  fun fallbackSelectedArchivedAccountIncludeArchivedFalseExcludesInitialBalance() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active", initialBalance = 200_000L)
+    val archivedAccount = account(2, "Archived", isArchived = true, initialBalance = 500_000L)
+
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1_000_000,
+          description = "",
+          date = now,
+          accountId = 2 // archived
+        ),
+      )
+
+    // includeArchived=false + archived selected: its transaction (1M) AND its
+    // opening balance (500k) are both excluded — no half-visible account.
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = false,
+        accountId = 2L,
+      )
+
+    assertEquals("selected archived currentBalance", 0L, result.currentBalance)
+    assertEquals("selected archived monthlyIncome", 0L, result.monthlyIncome)
+  }
+
+  @Test
+  fun fallbackSelectedArchivedAccountIncludeArchivedTrueIncludesInitialBalance() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active", initialBalance = 200_000L)
+    val archivedAccount = account(2, "Archived", isArchived = true, initialBalance = 500_000L)
+
+    // No transactions: currentBalance comes purely from the opening balance.
+    // includeArchived=true + archived selected: opening balance included.
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = emptyList(),
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = true,
+        accountId = 2L,
+      )
+
+    assertEquals("selected archived currentBalance", 500_000L, result.currentBalance)
+  }
+
+  @Test
+  fun fallbackSelectedActiveAccountIncludeArchivedFalseIncludesInitialBalance() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active", initialBalance = 200_000L)
+    val archivedAccount = account(2, "Archived", isArchived = true, initialBalance = 500_000L)
+
+    // No transactions: currentBalance comes purely from the opening balance.
+    // includeArchived=false + active selected: opening balance still included.
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = emptyList(),
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = false,
+        accountId = 1L,
+      )
+
+    assertEquals("selected active currentBalance", 200_000L, result.currentBalance)
+  }
+
   @Test
   fun fallbackDefaultIsIncludeArchivedFalse() {
     val now = System.currentTimeMillis()
