@@ -394,6 +394,47 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
+  fun submitUpdatePathMovesTransactionToRequestedAccountOnEdit() =
+    runTest {
+      val categories = emptyList<Category>()
+      val original =
+        Transaction(
+          id = 10L,
+          type = TransactionType.EXPENSE,
+          categoryId = 1L,
+          amount = 5000L,
+          description = "Old",
+          date = System.currentTimeMillis(),
+          accountId = 5L
+        )
+      fake.insertTransaction(original)
+
+      val result =
+        useCase.submit(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 5000L,
+            selectedType = "EXPENSE",
+            selectedCategoryId = 1L,
+            descriptionText = "Moved",
+            personName = "",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 5000L,
+            customDate = System.currentTimeMillis(),
+            categories = categories,
+            transactionToEdit = original,
+            accountId = 9L
+          )
+        )
+      assertTrue(result.success)
+
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      assertEquals(10L, stored.first().id)
+      assertEquals(9L, stored.first().accountId)
+    }
+
+  @Test
   fun fakeRepositoryAdvancesNextIdAfterExplicitInsert() =
     runTest {
       val explicit =

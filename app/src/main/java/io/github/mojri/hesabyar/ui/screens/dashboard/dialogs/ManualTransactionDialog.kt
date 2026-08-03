@@ -57,6 +57,12 @@ internal fun ManualTransactionDialog(
       }
     )
   }
+  // The source-account selection lives in local dialog state so an edit can
+  // move the transaction to another account. It is seeded from the caller's
+  // selection (falling back to the transaction's own account) and must not be
+  // re-derived from the transaction on every recomposition, which would
+  // discard the user's choice.
+  var sourceAccountId by remember { mutableStateOf(selectedAccountId ?: transactionToEdit?.accountId) }
   val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
   var amountValue by remember {
     mutableStateOf(
@@ -120,7 +126,9 @@ internal fun ManualTransactionDialog(
                   CurrencyFormatter.toRial(finalAmountDisplay)
                 }
 
-              if (selectedAccountId == null) {
+              // Local snapshot so the null-check below smart-casts cleanly.
+              val accountId = sourceAccountId
+              if (accountId == null) {
                 showToast(context, context.getString(io.github.mojri.hesabyar.R.string.select_source_account))
                 isSubmitting = false
                 return@launch
@@ -134,7 +142,7 @@ internal fun ManualTransactionDialog(
 
               if (selectedType == "TRANSFER" &&
                 destinationAccountId != null &&
-                destinationAccountId == selectedAccountId
+                destinationAccountId == accountId
               ) {
                 showToast(
                   context,
@@ -157,7 +165,7 @@ internal fun ManualTransactionDialog(
                   customDate = customDate,
                   categories = categories,
                   transactionToEdit = transactionToEdit,
-                  accountId = selectedAccountId,
+                  accountId = accountId,
                   destinationAccountId = destinationAccountId
                 )
 
@@ -204,8 +212,11 @@ internal fun ManualTransactionDialog(
         )
         AccountSelector(
           accounts = accounts,
-          selectedAccountId = selectedAccountId,
-          onAccountSelected = onAccountSelected,
+          selectedAccountId = sourceAccountId,
+          onAccountSelected = {
+            sourceAccountId = it
+            onAccountSelected(it)
+          },
           includeAllAccountsOption = false
         )
       }
@@ -214,7 +225,7 @@ internal fun ManualTransactionDialog(
     if (selectedType == "TRANSFER") {
       DestinationAccountSelector(
         accounts = accounts,
-        sourceAccountId = selectedAccountId ?: 0L,
+        sourceAccountId = sourceAccountId ?: 0L,
         selectedDestinationAccountId = destinationAccountId,
         onDestinationAccountSelected = { destinationAccountId = it }
       )

@@ -297,8 +297,10 @@ fun DashboardScreen(
       categories = categories,
       transactionToEdit = editingTransaction,
       accounts = accounts,
+      // Seed the dialog from the transaction being edited; the selection is
+      // held in local dialog state, so it must not drive (or be driven by)
+      // the dashboard's account filter while editing.
       selectedAccountId = editingTransaction?.accountId ?: selectedAccountId,
-      onAccountSelected = { dashboardViewModel.selectAccount(it) },
       onDismiss = { editingTransaction = null }
     )
   }

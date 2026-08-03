@@ -778,6 +778,11 @@ fun ReportsScreen(
       onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
+      accounts = accounts,
+      // Seed the dialog from the transaction being edited; the selection is
+      // held in local dialog state, so it must not drive (or be driven by)
+      // any screen-level account filter while editing.
+      selectedAccountId = editingTransaction?.accountId,
       onDismiss = { editingTransaction = null }
     )
   }

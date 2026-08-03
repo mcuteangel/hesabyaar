@@ -170,11 +170,9 @@ class SubmitManualTransactionUseCase(
     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
     if (transactionToEdit != null) {
-      // Preserve the original accountId when editing — the user may
-      // be editing from Reports where no account is selected, and
-      // overriding it with the (possibly null) parameter default
-      // would silently reassign the transaction to DEFAULT_ACCOUNT_ID.
-      val effectiveAccountId = transactionToEdit.accountId
+      // Use the accountId carried by the request. The dialog seeds it from
+      // the transaction being edited, so a plain edit keeps the original
+      // account while an explicit account change moves the transaction.
       val updated =
         transactionToEdit.copy(
           type = TransactionType.valueOf(selectedType),
@@ -182,7 +180,7 @@ class SubmitManualTransactionUseCase(
           amount = finalAmountRial,
           description = desc,
           date = customDate,
-          accountId = effectiveAccountId
+          accountId = accountId
         )
       withContext(NonCancellable) { manageTransaction.updateTransaction(updated) }
     } else {
