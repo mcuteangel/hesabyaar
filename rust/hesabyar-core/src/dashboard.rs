@@ -80,7 +80,7 @@ pub fn compute_dashboard_data(
             // Fallback: return zeros for monthly aggregates, but preserve
             // account-linkage filtering and initial_balance for current_balance.
             return DashboardData {
-                current_balance: compute_all_time_balance(&filtered_txs) + initial_balance_sum,
+                current_balance: compute_all_time_balance(&filtered_txs, account_id) + initial_balance_sum,
                 monthly_expenses: 0,
                 monthly_income: 0,
                 debtors_total: compute_debtors_total(loans),
@@ -129,25 +129,39 @@ pub fn compute_dashboard_data(
     let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
 
     // --- Aggregate transactions ---
-    let current_balance = compute_all_time_balance(&filtered_txs) + initial_balance_sum;
+    let current_balance = compute_all_time_balance(&filtered_txs, account_id) + initial_balance_sum;
     let mut monthly_income: i64 = 0;
     let mut monthly_expenses: i64 = 0;
 
     for tx in &filtered_txs {
+        let in_month = tx.date >= month_start_ms && tx.date < month_end_ms;
         match tx.tx_type {
             TransactionType::Income => {
-                if tx.date >= month_start_ms && tx.date < month_end_ms {
+                if in_month {
                     monthly_income += tx.amount;
                 }
             }
             TransactionType::Expense => {
-                if tx.date >= month_start_ms && tx.date < month_end_ms {
+                if in_month {
                     monthly_expenses += tx.amount;
                 }
             }
-            // Transfer is balance-neutral for the overall view (money stays within
-            // the system). Per-account balances handle debits/credits separately.
-            TransactionType::Transfer => {}
+            // Transfer is balance-neutral only for the all-accounts view (money
+            // stays within the system). When a single account is selected, a
+            // transfer out is an expense for the source and a transfer in is
+            // income for the destination — matching the per-account summaries.
+            TransactionType::Transfer => {
+                if let Some(acc_id) = account_id {
+                    if in_month {
+                        if tx.account_id == acc_id {
+                            monthly_expenses += tx.amount;
+                        }
+                        if tx.destination_account_id == Some(acc_id) {
+                            monthly_income += tx.amount;
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -321,12 +335,32 @@ fn compute_account_summaries(
         .collect()
 }
 
-fn compute_all_time_balance(transactions: &[&Transaction]) -> i64 {
+/// Compute lifetime balance across the given transactions.
+///
+/// Transfers are balance-neutral only for the all-accounts view (`account_id`
+/// is `None`): money stays within the system, so net worth is unchanged. When
+/// a single account is selected, a transfer must debit the source account and
+/// credit the destination account — otherwise the wallet balance silently
+/// ignores money that left or arrived for that account.
+fn compute_all_time_balance(transactions: &[&Transaction], account_id: Option<i64>) -> i64 {
     transactions
         .iter()
         .map(|t| match t.tx_type {
             TransactionType::Income => t.amount,
             TransactionType::Expense => -t.amount,
+            TransactionType::Transfer => match account_id {
+                Some(acc_id) => {
+                    let mut delta = 0i64;
+                    if t.account_id == acc_id {
+                        delta -= t.amount;
+                    }
+                    if t.destination_account_id == Some(acc_id) {
+                        delta += t.amount;
+                    }
+                    delta
+                }
+                None => 0,
+            },
             _ => 0,
         })
         .sum()
@@ -1045,6 +1079,53 @@ mod tests {
         // But account summaries always exclude archived (current-state view)
         assert_eq!(result.accounts.len(), 1);
         assert_eq!(result.accounts[0].account_id, 1);
+    }
+
+    // =====================================================================
+    // Transfers are balance-neutral only for the all-accounts view; when a
+    // single account is selected they debit the source and credit the
+    // destination (both lifetime balance and monthly aggregates).
+    // =====================================================================
+
+    #[test]
+    fn test_transfer_debits_source_and_credits_destination_when_account_selected() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "حساب اصلی", "BANK"),
+            account(2, "کیف پول", "CASH_WALLET"),
+        ];
+        let txs = vec![Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 500_000,
+            description: String::new(),
+            person_name: None,
+            date: now_ms,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: Some(2),
+        }];
+
+        // Selecting the source account: the transfer must debit its balance
+        // (money left the account) instead of being discarded as neutral.
+        let source = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms);
+        assert_eq!(source.current_balance, -500_000);
+        assert_eq!(source.monthly_expenses, 500_000);
+        assert_eq!(source.monthly_income, 0);
+
+        // Selecting the destination account: the transfer must credit it.
+        let dest = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms);
+        assert_eq!(dest.current_balance, 500_000);
+        assert_eq!(dest.monthly_income, 500_000);
+        assert_eq!(dest.monthly_expenses, 0);
+
+        // All-accounts view: transfers remain balance-neutral.
+        let all = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        assert_eq!(all.current_balance, 0);
+        assert_eq!(all.monthly_income, 0);
+        assert_eq!(all.monthly_expenses, 0);
     }
 
     // =====================================================================

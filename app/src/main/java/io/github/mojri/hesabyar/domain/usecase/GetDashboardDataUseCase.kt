@@ -119,18 +119,17 @@ class GetDashboardDataUseCase(
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
           .getUtcJalaliMonthBoundaries(now)
 
-      val monthlyTx = effectiveTransactions.filter { it.date >= jalaliMonthStart && it.date < jalaliMonthEndExclusive }
-      val monthlyIncome = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-      val monthlyExpenses = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+      val deltas = dashboardDeltas(effectiveTransactions, accountId)
+      val monthlyDeltas = monthlyDeltas(effectiveTransactions, deltas, jalaliMonthStart, jalaliMonthEndExclusive)
+      val monthlyIncome = monthlyDeltas.sumOf { it.incomeDelta }
+      val monthlyExpenses = monthlyDeltas.sumOf { it.expenseDelta }
 
       val unsettledLoans = loans.filter { !it.isSettled }
       val debtors = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
       val creditors = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
 
       // currentBalance from all effective transactions (lifetime), not just the filtered month.
-      val totalIncome = effectiveTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-      val totalExpenses = effectiveTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-      val currentBalance = totalIncome - totalExpenses
+      val currentBalance = deltas.sumOf { it.balanceDelta }
 
       val savingsRate =
         if (monthlyIncome > 0) {
@@ -281,6 +280,39 @@ class GetDashboardDataUseCase(
           )
         }
     }
+
+    /** Per-transaction debit/credit deltas for the dashboard header aggregates.
+     *  Transfers are balance-neutral only in the all-accounts view (money stays
+     *  within the system). When a single account is selected, a transfer out is
+     *  an expense for the source and a transfer in is income for the destination
+     *  — matching the per-account summaries (balanceDeltaForAccount). */
+    private fun dashboardDeltas(
+      transactions: List<Transaction>,
+      accountId: Long?,
+    ): List<BalanceDelta> =
+      transactions.map { tx ->
+        if (accountId != null) {
+          balanceDeltaForAccount(tx, accountId)
+        } else {
+          when (tx.type) {
+            TransactionType.INCOME -> BalanceDelta(tx.amount, tx.amount, 0L)
+            TransactionType.EXPENSE -> BalanceDelta(-tx.amount, 0L, tx.amount)
+            else -> BalanceDelta(0L, 0L, 0L)
+          }
+        }
+      }
+
+    /** Deltas of only the transactions inside the current Jalali month window. */
+    private fun monthlyDeltas(
+      transactions: List<Transaction>,
+      deltas: List<BalanceDelta>,
+      monthStartMs: Long,
+      monthEndMs: Long,
+    ): List<BalanceDelta> =
+      transactions
+        .zip(deltas)
+        .filter { it.first.date >= monthStartMs && it.first.date < monthEndMs }
+        .map { it.second }
 
     private data class BalanceDelta(
       val balanceDelta: Long,

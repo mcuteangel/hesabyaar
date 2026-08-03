@@ -959,11 +959,11 @@ class GetDashboardDataUseCaseTest {
       )
 
     // Account 1: +5M income, -1M expense = net +4_000_000.
-    // The transfer matches account 1 as source, but balance is income-expense
-    // and TRANSFER counts toward neither.
-    assertEquals("balance for account 1", 4_000_000L, resultAcc1.currentBalance)
+    // The transfer matches account 1 as source → it debits the balance
+    // (money left the account) and counts as an expense.
+    assertEquals("balance for account 1", 3_800_000L, resultAcc1.currentBalance)
     assertEquals("monthlyIncome for account 1", 5_000_000L, resultAcc1.monthlyIncome)
-    assertEquals("monthlyExpenses for account 1", 1_000_000L, resultAcc1.monthlyExpenses)
+    assertEquals("monthlyExpenses for account 1", 1_200_000L, resultAcc1.monthlyExpenses)
 
     // accountId=2: only account 2's transactions + transfers where account 2 is source or dest
     val resultAcc2 =
@@ -979,11 +979,59 @@ class GetDashboardDataUseCaseTest {
       )
 
     // Account 2: +3M income, -500k expense = net +2_500_000.
-    // The transfer matches account 2 as destination, but TRANSFER counts
-    // toward neither income nor expense.
-    assertEquals("balance for account 2", 2_500_000L, resultAcc2.currentBalance)
-    assertEquals("monthlyIncome for account 2", 3_000_000L, resultAcc2.monthlyIncome)
+    // The transfer matches account 2 as destination → it credits the balance
+    // (money arrived) and counts as income.
+    assertEquals("balance for account 2", 2_700_000L, resultAcc2.currentBalance)
+    assertEquals("monthlyIncome for account 2", 3_200_000L, resultAcc2.monthlyIncome)
     assertEquals("monthlyExpenses for account 2", 500_000L, resultAcc2.monthlyExpenses)
+  }
+
+  // -- Selected account + transfer: Rust and Kotlin fallback must agree -------
+
+  @Test
+  fun rustAndKotlinFallbackMatchForSelectedAccountWithTransfer() {
+    // Fixed timestamp: 2025-07-15 12:00:00 UTC — deterministic Jalali month.
+    val fixedNowMs = 1752580800000L
+    val accounts = listOf(account(1, "Bank", AccountType.BANK), account(2, "Wallet", AccountType.CASH_WALLET))
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 1_000_000, fixedNowMs, accountId = 1),
+        tx(TransactionType.EXPENSE, 200_000, fixedNowMs, accountId = 1),
+        tx(TransactionType.TRANSFER, 500_000, fixedNowMs, accountId = 1, destId = 2),
+      )
+
+    val kotlinResult =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        txs,
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        now = fixedNowMs,
+        includeArchived = false,
+        accountId = 1,
+      )
+
+    val rustResult =
+      io.github.mojri.hesabyar.rust.RustBridge.computeDashboardDataSync(
+        io.github.mojri.hesabyar.rust.RustMappers
+          .mapTransactions(txs),
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        accounts,
+        accountId = 1,
+        includeArchived = false,
+        nowMs = fixedNowMs,
+      )!!
+
+    // Account 1: +1M income, -200k expense, -500k transfer out → 300k net
+    assertEquals("currentBalance", kotlinResult.currentBalance, rustResult.currentBalance)
+    assertEquals("monthlyIncome", kotlinResult.monthlyIncome, rustResult.monthlyIncome)
+    assertEquals("monthlyExpenses", kotlinResult.monthlyExpenses, rustResult.monthlyExpenses)
+    assertEquals(300_000L, kotlinResult.currentBalance)
+    assertEquals(1_000_000L, kotlinResult.monthlyIncome)
+    assertEquals(700_000L, kotlinResult.monthlyExpenses)
   }
 
   @Test
