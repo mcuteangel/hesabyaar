@@ -256,6 +256,35 @@ If compilation or tests fail, analyze the logs immediately, debug the root cause
 - Keep this workflow readable and well-structured in `AGENTS.md`.
 - Do not overwrite existing instructions; only append or integrate this verification lifecycle cleanly.
 
+## 📋 Evidence Standard for Completion Reports
+
+Whenever reporting that a task, fix, or test is "done," "fixed," "already passes,"
+"pre-existing," or similar, always include, unprompted:
+
+1. **The exact CURRENT code for any changed logic** — paste the real file contents
+   (or the relevant function/block) as it exists on disk right now. Not a diff
+   summary, not a description of what changed, not a paraphrase.
+2. **Raw test-runner output identified by exact test function name** — e.g. the
+   actual JUnit XML `<testcase>` line or cargo test's per-test
+   `test X ... ok` line. Aggregate counts like "all tests pass" or "39 suites,
+   0 failures" are not sufficient by themselves and must be paired with the
+   specific named test(s) relevant to the claim.
+3. **Exact file paths and line numbers** for anything referenced.
+
+This applies with extra weight to any claim that something was "pre-existing,"
+"already fixed," or "already covered by a test" — these claims must be backed by
+`git blame`, `git log`, or the actual pre-existing code showing it was already
+there, not an assumption.
+
+Do not summarize test/build success as "✅ passed" without the underlying raw
+evidence available on request or included proactively for anything non-trivial
+(new tests, bug fixes, security/data-integrity changes).
+
+> Reason: this project has had multiple instances where a summary described work
+> (specific test names, specific fixes) that did not actually exist in the
+> committed code. Treat this as a standing requirement, not something to apply
+> only when asked.
+
 ## ⚠️ Detekt Findings: Fix, Never Suppress
 
 All detekt findings must be resolved through proper refactoring — **never** by adding

@@ -142,6 +142,15 @@ ALTER TABLE transactions ADD COLUMN destinationAccountId INTEGER DEFAULT NULL;
 - Register `MIGRATION_5_6`.
 - Add `@TypeConverter` for `AccountType` enum.
 
+> **Historical note (2026-08-03):** This section describes what shipped as
+> `MIGRATION_5_6` while the repository was at version 5, so the boundary was
+> correct at the time. `createdAt`/`updatedAt` are omitted above because they
+> were not part of `AccountEntity` yet; they were added later via
+> `MIGRATION_6_7` (v6 → v7), the standard Room pattern of never editing a
+> shipped migration. The v5 → v7 upgrade path runs `MIGRATION_5_6` then
+> `MIGRATION_6_7`, so the final schema matches `AccountEntity` and Room schema
+> validation passes. Current DB version: **7**.
+
 ---
 
 ## Phase 2 — Rust Core
