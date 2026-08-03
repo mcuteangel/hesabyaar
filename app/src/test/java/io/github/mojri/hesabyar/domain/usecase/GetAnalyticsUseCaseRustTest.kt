@@ -2,10 +2,15 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.RustTest
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -53,6 +58,31 @@ class GetAnalyticsUseCaseRustTest {
       description = "l",
       isSettled = settled
     )
+
+  private fun tx(
+    type: TransactionType,
+    amount: Long,
+    accountId: Long
+  ) = Transaction(
+    type = type,
+    categoryId = 1L,
+    amount = amount,
+    description = "test",
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+  )
+
+  private fun cat(
+    id: Long,
+    name: String
+  ) = io.github.mojri.hesabyar.data.Category(
+    id = id,
+    name = name,
+    key = "test",
+    icon = "",
+    color = 0xFF000000L,
+    type = CategoryType.EXPENSE
+  )
 
   @Test
   fun rustPathYieldsEmptyCollectionsAndZeroTotalsForEmptyInputs() {
@@ -170,5 +200,44 @@ class GetAnalyticsUseCaseRustTest {
     assertEquals("بانک ملت", result.bankLoans[0].bankName)
     assertEquals(120_000_000L, result.bankLoans[0].totalRepayableAmount)
     assertEquals(120_000_000L, result.bankLoansTotalDebt)
+  }
+
+  @Test
+  fun rustPathAllAccountsExcludesArchivedAccountTransactions() {
+    assertTrue(RustBridge.isAvailable)
+    val categories = listOf(cat(1, "خوراک"))
+    val accounts =
+      listOf(
+        AccountEntity(id = 1, name = "Active", type = AccountType.BANK),
+        AccountEntity(id = 2, name = "Archived", type = AccountType.CASH_WALLET, isArchived = true),
+      )
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 3_000_000, accountId = 1),
+        tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+        tx(TransactionType.INCOME, 500_000, accountId = 2),
+        tx(TransactionType.EXPENSE, 200_000, accountId = 2),
+      )
+
+    val result =
+      useCase.computeAnalytics(txs, emptyList(), emptyList(), categories, accounts = accounts)
+    // Archived-account transactions must not leak into all-accounts totals
+    assertEquals(3_000_000L, result.monthlySpending.first().income)
+    assertEquals(1_000_000L, result.monthlySpending.first().expense)
+    assertEquals(1, result.categoryBreakdown.size)
+    assertEquals(1_000_000L, result.categoryBreakdown.first().total)
+
+    // includeArchived = true keeps them
+    val withArchived =
+      useCase.computeAnalytics(
+        txs,
+        emptyList(),
+        emptyList(),
+        categories,
+        accounts = accounts,
+        includeArchived = true
+      )
+    assertEquals(3_500_000L, withArchived.monthlySpending.first().income)
+    assertEquals(1_200_000L, withArchived.monthlySpending.first().expense)
   }
 }

@@ -144,9 +144,10 @@ pub fn compute_analytics(
     bank_loans: Vec<BankLoan>,
     accounts: Vec<Account>,
     account_id: Option<i64>,
+    include_archived: bool,
 ) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
-        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans, &accounts, account_id)
+        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans, &accounts, account_id, include_archived)
     })
     .ok()
 }

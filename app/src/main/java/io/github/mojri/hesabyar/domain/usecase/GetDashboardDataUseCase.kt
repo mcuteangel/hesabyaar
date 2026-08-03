@@ -197,7 +197,10 @@ class GetDashboardDataUseCase(
           )
         }
 
-    private fun filterArchivedTransactions(
+    /** Excludes transactions whose source or destination account is archived
+     *  unless [includeArchived] is true. Shared with the analytics fallback so
+     *  both views agree on what an archived account's money counts toward. */
+    internal fun filterArchivedTransactions(
       transactions: List<Transaction>,
       accounts: List<AccountEntity>,
       includeArchived: Boolean,

@@ -153,6 +153,14 @@ generated into `app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
   (alias `:app:generateRustBindings` skips the package-patch/install step).
 - Do not manually edit the generated `hesabyar_core.kt`; it is overwritten by the task.
 
+> ⚠️ **Hand-maintained compat object:** the task always appends
+> `app/buildSrc/template/HesabyarCore.template.kt` to the generated bindings, but it does
+> **not** patch that template's signatures. When a Rust FFI function's signature changes
+> (new/removed/reordered parameters), you MUST update the matching line in that template
+> (add defaults for any new trailing param) and re-run `:app:generateAndFixBindings` —
+> otherwise the repo's `hesabyar_core.kt` ends up with a stale `HesabyarCore.xxx()` wrapper
+> that calls the regenerated top-level function with the wrong argument count.
+
 ## Rust Core Versioning
 
 The core is bundled with the app (not published separately), so it has its own

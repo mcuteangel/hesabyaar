@@ -4,8 +4,10 @@
 //
 // UniFFI 0.28+ generates top-level functions. This object re-exports them so
 // that existing call sites (HesabyarCore.xxx()) continue to work.
-// Generated automatically by the generateAndFixBindings Gradle task.
-// DO NOT EDIT MANUALLY.
+// The generateAndFixBindings Gradle task appends this template to the freshly
+// generated bindings. The wrapper signatures are HAND-MAINTAINED: when a
+// Rust FFI function's signature changes, update the matching line here too —
+// the task only appends this file, it does not patch its signatures.
 // ============================================================================
 object HesabyarCore {
     fun initialize() = __PKG__.initialize()
@@ -28,7 +30,7 @@ object HesabyarCore {
     fun calculateDebtToIncomeRatio(loans: List<Loan>, installments: List<Installment>, monthlyIncome: Long, bankLoans: List<BankLoan> = emptyList()): Double = __PKG__.calculateDebtToIncomeRatio(loans, installments, bankLoans, monthlyIncome)
     fun predictTimeToGoal(currentSavings: Long, monthlySavings: Long, goalAmount: Long): Int = __PKG__.predictTimeToGoal(currentSavings, monthlySavings, goalAmount)
     fun calculateFinancialHealthScore(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>, bankLoans: List<BankLoan> = emptyList()): Int = __PKG__.calculateFinancialHealthScore(transactions, loans, installments, bankLoans, categories)
-    fun computeAnalytics(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>, bankLoans: List<BankLoan>, accounts: List<Account>, accountId: kotlin.Long?): AnalyticsData? = __PKG__.computeAnalytics(transactions, loans, installments, categories, bankLoans, accounts, accountId)
+    fun computeAnalytics(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, categories: List<Category>, bankLoans: List<BankLoan>, accounts: List<Account>, accountId: kotlin.Long?, includeArchived: kotlin.Boolean = false): AnalyticsData? = __PKG__.computeAnalytics(transactions, loans, installments, categories, bankLoans, accounts, accountId, includeArchived)
     fun computeDashboardData(transactions: List<Transaction>, loans: List<Loan>, installments: List<Installment>, bankLoans: List<BankLoan>, accounts: List<Account>, accountId: kotlin.Long?, includeArchived: kotlin.Boolean, nowMs: kotlin.Long): DashboardData? = __PKG__.computeDashboardData(transactions, loans, installments, bankLoans, accounts, accountId, includeArchived, nowMs)
     fun parseBackupJson(json: String): BackupPayload = __PKG__.parseBackupJson(json)
     @Throws(HesabyarException::class) fun validateBackup(payload: BackupPayload) = __PKG__.validateBackup(payload)

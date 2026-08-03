@@ -54,6 +54,7 @@ class GetAnalyticsUseCase {
     bankLoans: List<BankLoan> = emptyList(),
     accounts: List<io.github.mojri.hesabyar.data.AccountEntity> = emptyList(),
     accountId: Long? = null,
+    includeArchived: Boolean = false,
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -68,6 +69,7 @@ class GetAnalyticsUseCase {
         bankLoans,
         accounts,
         accountId,
+        includeArchived,
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank
@@ -92,7 +94,8 @@ class GetAnalyticsUseCase {
       categories,
       bankLoans,
       accounts,
-      accountId
+      accountId,
+      includeArchived
     )
   }
 
@@ -104,6 +107,7 @@ class GetAnalyticsUseCase {
     bankLoans: List<BankLoan>,
     accounts: List<io.github.mojri.hesabyar.data.AccountEntity>,
     accountId: Long?,
+    includeArchived: Boolean = false,
   ): AnalyticsData {
     val now = System.currentTimeMillis()
     val jalaliDate =
@@ -114,7 +118,8 @@ class GetAnalyticsUseCase {
         .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
         ?.timeInMillis ?: now - 30L * 24 * 60 * 60 * 1000
     val monthlyTx =
-      transactions
+      GetDashboardDataUseCase
+        .filterArchivedTransactions(transactions, accounts, includeArchived)
         .filter { it.date in jalaliMonthStart..now }
         .let { txs ->
           if (accountId != null) {
