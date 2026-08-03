@@ -73,10 +73,32 @@ object RustMappers {
           isPaid = inst.isPaid
         )
       }
+    // Build the flat accountBreakdown (per-account total expenses) from the
+    // per-account analytics.  Each entry reuses CategoryBreakdown but with
+    // accountId as the categoryId so AccountBreakdownCard can render it.
+    val totalExpenseForAccounts = rust.categoryBreakdown.sumOf { it.total }
+    val accountBreakdown: List<KCategoryBreakdown> =
+      rust.accounts.map { acct ->
+        val acctTotalExpense = acct.categoryBreakdown.sumOf { it.total }
+        KCategoryBreakdown(
+          categoryId = acct.accountId,
+          categoryName = acct.accountName,
+          color = 0, // color resolved later from AccountEntity by the caller
+          total = acctTotalExpense,
+          percentage =
+            if (totalExpenseForAccounts > 0) {
+              acctTotalExpense.toFloat() / totalExpenseForAccounts.toFloat() * 100f
+            } else {
+              0f
+            }
+        )
+      }
+
     return KAnalyticsData(
       monthlySpending = rust.monthlySpending.map { mapMonthlyData(it) },
       monthlyIncome = rust.monthlyIncome.map { mapMonthlyData(it) },
       categoryBreakdown = rust.categoryBreakdown.map { mapCategoryBreakdown(it) },
+      accountBreakdown = accountBreakdown,
       debtors = debtors,
       creditors = creditors,
       activeLoans = unsettledLoans,

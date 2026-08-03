@@ -511,6 +511,47 @@ mod tests {
     }
 
     #[test]
+    fn test_transfer_type_round_trip() {
+        // Verify TransactionType::Transfer survives serde round-trip
+        // with both account_id and destination_account_id set.
+        let original = BackupPayload {
+            version: 2,
+            timestamp: 1710000000000,
+            app_version: "1.0.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 0,
+                amount: 300000,
+                description: "Transfer between accounts".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2),
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![],
+        };
+        let json = serde_json::to_string(&original).unwrap();
+        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.transactions.len(), 1);
+        assert_eq!(restored.transactions[0].tx_type, TransactionType::Transfer);
+        assert_eq!(restored.transactions[0].account_id, 1);
+        assert_eq!(
+            restored.transactions[0].destination_account_id,
+            Some(2)
+        );
+        // Verify the serialized form uses "TRANSFER"
+        assert!(json.contains("\"TRANSFER\""));
+    }
+
+    #[test]
     fn test_backup_payload_parses_camel_case_export() {
         // The app's Kotlin exporter (ManageBackupUseCase.exportBackupJson) writes
         // camelCase keys. Rust must parse that exact shape, not just its own output.

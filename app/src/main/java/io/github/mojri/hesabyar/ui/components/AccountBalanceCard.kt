@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -68,9 +69,15 @@ fun AccountBalanceCard(
 
   val cardLabel =
     if (isSelected) {
-      "حساب ${summary.accountName}، انتخاب\u200cشده"
+      stringResource(
+        id = io.github.mojri.hesabyar.R.string.account_selected,
+        summary.accountName
+      )
     } else {
-      "حساب ${summary.accountName}"
+      stringResource(
+        id = io.github.mojri.hesabyar.R.string.account_unselected,
+        summary.accountName
+      )
     }
 
   Box(

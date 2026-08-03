@@ -121,9 +121,12 @@ class AccountViewModel
 
     fun deleteAccount(account: AccountEntity) =
       runGuarded(errorPrefix = "حذف حساب") {
+        // Pre-check for a user-friendly Persian message. The repository
+        // also performs this check atomically within a transaction to
+        // prevent TOCTOU race conditions.
         val count = repository.getTransactionCountForAccount(account.id)
         if (count > 0) {
-          _errorEvents.emit("حساب «${account.name}» دارای تراکنش است و قابل حذف نیست")
+          _errorEvents.emit("حساب «${account.name}» دارای $count تراکنش است و قابل حذف نیست")
           return@runGuarded
         }
         repository.deleteAccount(account)

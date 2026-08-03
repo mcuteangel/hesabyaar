@@ -48,7 +48,9 @@ abstract class AppDatabase : RoomDatabase() {
     @Volatile
     private var instance: AppDatabase? = null
     private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val MIGRATION_1_2 =
+
+    // internal visibility: tested by AppDatabaseMigrationTest
+    internal val MIGRATION_1_2 =
       object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -97,7 +99,7 @@ abstract class AppDatabase : RoomDatabase() {
      * Room guarantees this runs exactly once per DB file via _room_master_table.
      * ponytail: one-shot data fix. Remove after all users migrated to v4+.
      */
-    private val MIGRATION_3_4 =
+    internal val MIGRATION_3_4 =
       object : Migration(3, 4) {
         override fun migrate(db: SupportSQLiteDatabase) {
           // Only divide rows where amounts exceed thresholds that indicate
@@ -112,7 +114,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    private val MIGRATION_4_5 =
+    internal val MIGRATION_4_5 =
       object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -136,7 +138,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    private val MIGRATION_5_6 =
+    internal val MIGRATION_5_6 =
       object : Migration(5, 6) {
         override fun migrate(db: SupportSQLiteDatabase) {
           // 1. Create accounts table
@@ -170,16 +172,18 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    private val MIGRATION_6_7 =
+    internal val MIGRATION_6_7 =
       object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
-          val now = System.currentTimeMillis()
-          db.execSQL("ALTER TABLE accounts ADD COLUMN createdAt INTEGER NOT NULL DEFAULT $now")
-          db.execSQL("ALTER TABLE accounts ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT $now")
+          // Use DEFAULT 0 to match AccountEntity's @ColumnInfo(defaultValue = "0").
+          // Existing accounts get timestamp 0 (legacy sentinel); new accounts created
+          // in Kotlin code use System.currentTimeMillis() at the app layer.
+          db.execSQL("ALTER TABLE accounts ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE accounts ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
         }
       }
 
-    private val MIGRATION_2_3 =
+    internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -249,7 +253,23 @@ abstract class AppDatabase : RoomDatabase() {
               "hesabyar_database"
             ).openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
-            .build()
+            .addCallback(
+              object : androidx.room.RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                  super.onCreate(db)
+                  // Seed the default account on fresh database creation.
+                  // MIGRATION_5_6 seeds it on upgrade from v5, but fresh
+                  // installs bypass migrations and need this fallback.
+                  db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO accounts
+                      (id, name, type, initialBalance, displayOrder, createdAt, updatedAt)
+                    VALUES (1, 'حساب اصلی', 'BANK', 0, 0, 0, 0)
+                    """.trimIndent()
+                  )
+                }
+              }
+            ).build()
         instance = db
         db
       }

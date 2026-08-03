@@ -700,6 +700,7 @@ fun ReportsScreen(
               backgroundColor = sourceAccount.color.toComposeColor(),
               iconSize = 12.dp,
               containerSize = 20.dp,
+              contentDescription = "حساب ${sourceAccount.name}"
             )
             Spacer(modifier = Modifier.width(SpacingTokens.sm))
           }

@@ -3,6 +3,8 @@ package io.github.mojri.hesabyar
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
@@ -20,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -540,4 +543,74 @@ class RepositoryLogicTest {
       assertEquals("بانک ملت", mergedBankLoan.bankName)
       assertEquals(mergedBankLoan.id, inst.bankLoanId)
     }
+
+  @Test
+  fun mergeFromBackupRemapsTransactionAccountIdsWhenBackupIdsDifferFromLocal() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts =
+            listOf(
+              account(id = 5L, name = "Backup Account", color = 0xFFE91E63L),
+              account(id = 10L, name = "Backup Dest", color = 0xFF2196F3L)
+            ),
+          transactions =
+            listOf(
+              transaction(
+                id = 1L,
+                type = TransactionType.TRANSFER,
+                accountId = 5L,
+                destinationAccountId = 10L,
+                amount = 50_000L
+              )
+            )
+        )
+      repo.mergeFromBackup(backup)
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      val mergedTx = txs.first()
+      assertNotEquals(5L, mergedTx.accountId)
+      assertNotEquals(10L, mergedTx.destinationAccountId)
+      requireNotNull(database.accountDao().getById(mergedTx.accountId))
+      requireNotNull(database.accountDao().getById(mergedTx.destinationAccountId!!))
+      assertEquals("Local Account", database.accountDao().getById(5L)?.name)
+    }
+
+  private fun account(
+    id: Long,
+    name: String,
+    type: AccountType = AccountType.BANK,
+    color: Long = 0L
+  ) = AccountEntity(id = id, name = name, type = type, color = color, icon = "", isArchived = false, displayOrder = 0)
+
+  private fun transaction(
+    id: Long,
+    type: TransactionType,
+    accountId: Long,
+    destinationAccountId: Long? = null,
+    amount: Long = 3000L
+  ) = Transaction(
+    id = id,
+    type = type,
+    categoryId = 0L,
+    amount = amount,
+    description = "tx",
+    personName = null,
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destinationAccountId
+  )
+
+  private fun backupPayload(
+    accounts: List<AccountEntity>,
+    transactions: List<Transaction>
+  ) = BackupPayload(
+    version = 1,
+    timestamp = System.currentTimeMillis(),
+    appVersion = "1.0",
+    accounts = accounts,
+    transactions = transactions
+  )
 }

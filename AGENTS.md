@@ -12,7 +12,7 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 
 # Release signing (requires .env with KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD)
 ./gradlew --no-daemon generateKeystore   # first time only
-./gradlew --no-daemon checkSigningConfig  # verify signing setup
+./gradlew --no-daemon checkSigningConfig  # verify signing config
 
 # Run all unit tests (non-Rust + Rust isolated)
 ./gradlew --no-daemon test
@@ -32,6 +32,8 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 # Lint / static analysis (no custom config, uses Android defaults)
 ./gradlew --no-daemon lint
 ```
+
+⚠️ **Always run `./gradlew --no-daemon compileDebugKotlin` before running tests** to ensure code compiles and catches type errors early.
 
 ## ⚠️ Test Reliability: Rust JNI State Leakage
 

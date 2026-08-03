@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.CategoryBreakdown
@@ -39,7 +40,7 @@ internal fun AccountBreakdownCard(accountBreakdown: List<CategoryBreakdown>) {
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
       Text(
-        text = "🏦 توزیع هزینه\u200cها بر اساس حساب",
+        text = stringResource(id = io.github.mojri.hesabyar.R.string.expense_distribution_by_account),
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary

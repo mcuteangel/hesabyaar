@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -32,7 +33,7 @@ fun AccountSelector(
         HesabyarChip(
           selected = selectedAccountId == null,
           onClick = { onAccountSelected(null) },
-          label = "همه حساب‌ها",
+          label = stringResource(id = io.github.mojri.hesabyar.R.string.all_accounts_option),
           shape = ShapeTokens.Small,
         )
       }

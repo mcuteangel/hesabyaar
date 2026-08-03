@@ -147,7 +147,8 @@ class SubmitManualTransactionUseCase(
             request.descriptionText,
             request.customDate,
             request.accountId,
-            destAccountId
+            destAccountId,
+            request.transactionToEdit
           )
         }
       }
@@ -169,6 +170,11 @@ class SubmitManualTransactionUseCase(
     val selectedCategoryName = categories.find { it.id == selectedCategoryId }?.name ?: "سایر"
     val desc = descriptionText.trim().ifEmpty { selectedCategoryName }
     if (transactionToEdit != null) {
+      // Preserve the original accountId when editing — the user may
+      // be editing from Reports where no account is selected, and
+      // overriding it with the (possibly null) parameter default
+      // would silently reassign the transaction to DEFAULT_ACCOUNT_ID.
+      val effectiveAccountId = transactionToEdit.accountId
       val updated =
         transactionToEdit.copy(
           type = TransactionType.valueOf(selectedType),
@@ -176,7 +182,7 @@ class SubmitManualTransactionUseCase(
           amount = finalAmountRial,
           description = desc,
           date = customDate,
-          accountId = accountId
+          accountId = effectiveAccountId
         )
       withContext(NonCancellable) { manageTransaction.updateTransaction(updated) }
     } else {
@@ -247,19 +253,34 @@ class SubmitManualTransactionUseCase(
     descriptionText: String,
     customDate: Long,
     sourceAccountId: Long,
-    destinationAccountId: Long
+    destinationAccountId: Long,
+    transactionToEdit: Transaction? = null
   ): SubmitResult {
     val desc = descriptionText.trim().ifEmpty { "انتقال وجه بین حساب‌ها" }
     withContext(NonCancellable) {
-      manageTransaction.addTransaction(
-        type = TransactionType.TRANSFER,
-        categoryId = 0L,
-        amount = finalAmountRial,
-        description = desc,
-        customDate = customDate,
-        accountId = sourceAccountId,
-        destinationAccountId = destinationAccountId
-      )
+      if (transactionToEdit != null) {
+        // Update existing transfer — preserve the original id
+        // and only change amount, description, date, and account refs.
+        manageTransaction.updateTransaction(
+          transactionToEdit.copy(
+            amount = finalAmountRial,
+            description = desc,
+            date = customDate,
+            accountId = sourceAccountId,
+            destinationAccountId = destinationAccountId
+          )
+        )
+      } else {
+        manageTransaction.addTransaction(
+          type = TransactionType.TRANSFER,
+          categoryId = 0L,
+          amount = finalAmountRial,
+          description = desc,
+          customDate = customDate,
+          accountId = sourceAccountId,
+          destinationAccountId = destinationAccountId
+        )
+      }
     }
     return SubmitResult(success = true)
   }

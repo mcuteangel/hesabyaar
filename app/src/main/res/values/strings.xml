@@ -10,4 +10,22 @@
     <string name="category_type_income">درآمد</string>
     <string name="category_type_both">هر دو</string>
     <string name="category_type_unknown">نامشخص</string>
+
+    <!-- ManualTransactionDialog -->
+    <string name="select_source_account">لطفاً حساب مبدا را انتخاب کنید</string>
+    <string name="select_destination_account">لطفاً حساب مقصد را انتخاب کنید</string>
+    <string name="source_dest_accounts_cannot_be_same">حساب مبدا و مقصد نمی‌توانند یکسان باشند</string>
+
+    <!-- AccountSelector -->
+    <string name="all_accounts_option">همه حساب‌ها</string>
+
+    <!-- AccountBreakdownCard -->
+    <string name="expense_distribution_by_account">توزیع هزینه‌ها بر اساس حساب</string>
+
+    <!-- AccountBalanceCard -->
+    <string name="account_selected">حساب %1$s، انتخاب‌شده</string>
+    <string name="account_unselected">حساب %1$s</string>
+
+    <!-- AccountManagementScreen -->
+    <string name="add_account">افزودن حساب</string>
 </resources>

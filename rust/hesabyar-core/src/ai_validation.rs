@@ -181,6 +181,14 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     }
     let tx_type = map_tx_type(&type_str);
 
+    // TRANSFER requires accountId/destinationAccountId which the AI parser
+    // cannot provide. Mark as needing user approval so the Kotlin layer
+    // can prompt for account selection before persisting.
+    if tx_type == TransactionType::Transfer {
+        notes.push("TRANSFER requires account selection before saving".to_string());
+        was_repaired = true;
+    }
+
     // --- Amount ---
     let amount = raw.amount.ok_or_else(|| HesabyarError::ValidationError {
         detail: "AI JSON missing 'amount' field".to_string(),
@@ -533,7 +541,11 @@ mod tests {
         let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other", "confidence": 0.8}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Transfer);
-        assert!(!result.was_repaired);
+        // TRANSFER is always marked as repaired because the AI parser
+        // cannot set accountId/destinationAccountId — the user must
+        // select accounts before saving.
+        assert!(result.was_repaired);
+        assert!(result.repair_notes.iter().any(|n| n.contains("TRANSFER")));
     }
 
     #[test]

@@ -95,14 +95,9 @@ fun TransactionItem(
           CurrencyFormatter.formatSignedParts(
             if (isIncome) amount else -amount
           )
+        val fullAmountText = "$sign$formattedAmount"
         Text(
-          text = sign,
-          style = MaterialTheme.typography.bodyLarge,
-          fontWeight = FontWeight.Medium,
-          color = amountColor,
-        )
-        Text(
-          text = formattedAmount,
+          text = fullAmountText,
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.Medium,
           color = amountColor,

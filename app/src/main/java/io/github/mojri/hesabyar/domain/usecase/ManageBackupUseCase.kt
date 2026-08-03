@@ -539,7 +539,9 @@ class ManageBackupUseCase(
   ) {
     accounts.forEachIndexed { i, account ->
       if (account.name.isBlank()) errors.add("نام حساب #$i خالی است")
-      if (account.createdAt <= 0) errors.add("تاریخ ایجاد حساب #$i نامعتبر است")
+      // createdAt == 0 is a legacy sentinel from the v6→v7 migration
+      // (MIGRATION_6_7 used DEFAULT 0 for accounts that existed before
+      // timestamps were tracked). Accept it as valid.
     }
   }
 

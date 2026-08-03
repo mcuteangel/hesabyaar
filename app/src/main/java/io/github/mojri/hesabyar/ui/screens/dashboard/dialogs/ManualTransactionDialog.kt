@@ -48,7 +48,15 @@ internal fun ManualTransactionDialog(
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
   var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
-  var destinationAccountId by remember { mutableStateOf<Long?>(null) }
+  var destinationAccountId by remember {
+    mutableStateOf(
+      if (isEditMode && transactionToEdit.type == TransactionType.TRANSFER) {
+        transactionToEdit.destinationAccountId
+      } else {
+        null
+      }
+    )
+  }
   val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
   var amountValue by remember {
     mutableStateOf(
@@ -113,13 +121,13 @@ internal fun ManualTransactionDialog(
                 }
 
               if (selectedAccountId == null) {
-                showToast(context, "لطفاً حساب مبدا را انتخاب کنید")
+                showToast(context, context.getString(io.github.mojri.hesabyar.R.string.select_source_account))
                 isSubmitting = false
                 return@launch
               }
 
               if (selectedType == "TRANSFER" && destinationAccountId == null) {
-                showToast(context, "لطفاً حساب مقصد را انتخاب کنید")
+                showToast(context, context.getString(io.github.mojri.hesabyar.R.string.select_destination_account))
                 isSubmitting = false
                 return@launch
               }
@@ -128,7 +136,10 @@ internal fun ManualTransactionDialog(
                 destinationAccountId != null &&
                 destinationAccountId == selectedAccountId
               ) {
-                showToast(context, "حساب مبدا و مقصد نمی‌توانند یکسان باشند")
+                showToast(
+                  context,
+                  context.getString(io.github.mojri.hesabyar.R.string.source_dest_accounts_cannot_be_same)
+                )
                 isSubmitting = false
                 return@launch
               }

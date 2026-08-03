@@ -1,8 +1,9 @@
 # 009 — Multi-Account / Multi-Wallet Support
 
-**Status:** Proposed
+**Status:** In Progress (Phases 1-4 complete; 5-7 mostly complete; 8 in progress)
 **Created:** 2026-07-27
 **Branch:** `feature/multi-account-wallet`
+**Last Updated:** 2026-08-02
 
 ---
 
@@ -384,20 +385,25 @@ object AccountDetail : Screen("accounts/{accountId}")
 
 ### 8.1 Unit Tests
 
-| Test | Location |
-|------|----------|
-| `MIGRATION_5_6` correctness | `MigrationTest.kt` |
-| Account CRUD operations | `AccountDaoTest.kt` |
-| Per-account balance calculation | `DashboardCalculationTest.kt` |
-| Transfer logic (double-entry) | `TransferLogicTest.kt` |
-| Backup v2 export/import round-trip | `BackupV2Test.kt` |
+| Test | Location | Status |
+|------|----------|--------|
+| `MIGRATION_5_6` correctness | `AppDatabaseMigrationTest.kt` | Done |
+| Account CRUD operations | `AccountSelectionTest.kt` | Done |
+| Account data survives encryption conversion | `AppDatabaseMigrationTest.kt` | Done |
+| Per-account balance calculation | `AnalyticsTest.kt` | Done |
+| Transfer logic (accountId preservation) | `SubmitManualTransactionUseCaseTest.kt` | Done |
+| Backup v2 export/import round-trip | `BackupValidationTest.kt` | Done |
+| `TransactionType::Transfer` serde round-trip | `models/mod.rs` (Rust) | Done |
+| Account-scoped dashboard/analytics | `GetDashboardDataUseCaseTest.kt`, `AnalyticsTest.kt` | Done |
 
 ### 8.2 Rust Tests
 
-- Account filtering in `dashboard.rs`
-- Per-account analytics in `analytics.rs`
-- Net worth aggregation
-- Backup serialization with accounts
+- [x] Account filtering in `dashboard.rs`
+- [x] Per-account analytics in `analytics.rs`
+- [x] Net worth aggregation
+- [x] Backup serialization with accounts
+- [x] `TransactionType::Transfer` round-trip serialization
+- [x] AI validation recognizes `TRANSFER` type and marks repair note
 
 ---
 
@@ -408,6 +414,15 @@ object AccountDetail : Screen("accounts/{accountId}")
 - [x] Backup v1 still importable (serde defaults)
 - [x] No destructive column changes (only additions)
 - [x] SQLCipher encryption unaffected
+- [x] Room schema validation passes after MIGRATION_5_6 and MIGRATION_6_7
+- [x] Account data survives encryption conversion round-trip
+- [x] Account ID integrity preserved across backup merge/import
+- [x] Persian-first UX maintained (RTL, Vazirmatn, Persian terminology)
+- [x] Accessibility labels added for account indicators and transaction amounts
+- [x] Test coverage added for transfer accountId preservation paths
+- [x] Rust `TransactionType::Transfer` round-trip serialization verified
+- [x] Detekt/ktlint compliance — LongMethod refactored into helpers
+- [x] CI runs both `testDebugUnitTest` and `testDebugUnitTestRust`
 
 ---
 
@@ -453,17 +468,16 @@ object AccountDetail : Screen("accounts/{accountId}")
 
 ## Estimated Effort
 
-| Phase | Effort |
-|-------|--------|
-| Phase 1: Room DB | Medium |
-| Phase 2: Rust Core | High |
-| Phase 3: FFI Bridge | Medium |
-| Phase 4: Repository & Domain | Medium |
-| Phase 5: ViewModels | Medium |
-| Phase 6: UI | High |
-| Phase 7: Backup | Low |
-| Phase 8: Testing | Medium |
-| **Total** | **High** |
+| Phase | Effort | Status |
+|-------|--------|--------|
+| Phase 1: Room DB | Medium | Done |
+| Phase 2: Rust Core | High | Done |
+| Phase 3: FFI Bridge | Medium | Done |
+| Phase 4: Repository & Domain | Medium | Done |
+| Phase 5: ViewModels | Medium | Mostly done |
+| Phase 6: UI | High | Mostly done |
+| Phase 7: Backup | Low | Done |
+| Phase 8: Testing | Medium | In progress |
 
 ---
 
