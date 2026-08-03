@@ -68,7 +68,7 @@ pub fn compute_dashboard_data(
     } else {
         accounts
             .iter()
-            .filter(|a| !a.is_archived)
+            .filter(|a| include_archived || !a.is_archived)
             .map(|a| a.initial_balance)
             .sum()
     };
@@ -421,6 +421,25 @@ mod tests {
             color: 0xFF4CAF50,
             icon: None,
             is_archived: false,
+            display_order: 0,
+            created_at: 0,
+            updated_at: 0,
+        }
+    }
+
+    fn archived_account(id: i64, name: &str, account_type: &str, initial_balance: i64) -> Account {
+        Account {
+            id,
+            name: name.to_string(),
+            account_type: account_type.to_string(),
+            bank_name: None,
+            card_number: None,
+            account_number: None,
+            iban: None,
+            initial_balance,
+            color: 0xFF757575,
+            icon: None,
+            is_archived: true,
             display_order: 0,
             created_at: 0,
             updated_at: 0,
@@ -1416,5 +1435,99 @@ mod tests {
         // Account 1 prev: income=200k, expenses=0 → prevNet=200k
         // delta = (-500000 - 200000) / 200000 = -3.5
         assert!((acc1.monthly_delta - (-3.5)).abs() < 1e-10);
+    }
+
+    // =====================================================================
+    // include_archived + initial_balance interaction
+    // =====================================================================
+
+    /// Regression: when include_archived=true, the total balance must include
+    /// the initial_balance of archived accounts (not just their transactions).
+    /// Previously, archived accounts' initial_balance was excluded even when
+    /// their transactions were included, producing a partial balance.
+    #[test]
+    fn test_include_archived_true_includes_archived_initial_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "BANK", 500_000),
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Expense,
+                category_id: 2,
+                amount: 300_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2, // archived account
+                destination_account_id: None,
+            },
+        ];
+
+        // include_archived=true: active tx (+1M) + archived tx (-300k) + archived initial_balance (500k)
+        // expected = 1_000_000 - 300_000 + 500_000 = 1_200_000
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms);
+        assert_eq!(result.current_balance, 1_200_000);
+    }
+
+    /// Regression: when include_archived=false, the total balance must exclude
+    /// both the transactions AND the initial_balance of archived accounts.
+    #[test]
+    fn test_include_archived_false_excludes_archived_initial_balance() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "BANK", 500_000),
+        ];
+        let txs = vec![
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            },
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Expense,
+                category_id: 2,
+                amount: 300_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 2, // archived account
+                destination_account_id: None,
+            },
+        ];
+
+        // include_archived=false: only active tx (+1M), no initial_balance from archived
+        // expected = 1_000_000
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms);
+        assert_eq!(result.current_balance, 1_000_000);
     }
 }

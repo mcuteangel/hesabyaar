@@ -128,8 +128,10 @@ class GetDashboardDataUseCase(
       val debtors = unsettledLoans.filter { it.type == LoanType.DEBTOR }.sumOf { it.remainingAmount }
       val creditors = unsettledLoans.filter { it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount }
 
+      val initialBalanceSum = initialBalanceSum(accounts, includeArchived)
+
       // currentBalance from all effective transactions (lifetime), not just the filtered month.
-      val currentBalance = deltas.sumOf { it.balanceDelta }
+      val currentBalance = deltas.sumOf { it.balanceDelta } + initialBalanceSum
 
       val savingsRate =
         if (monthlyIncome > 0) {
@@ -212,6 +214,20 @@ class GetDashboardDataUseCase(
           (tx.destinationAccountId == null || tx.destinationAccountId !in archivedIds)
       }
     }
+
+    /** Sum of initial balances for the given accounts, applying the
+     *  same [includeArchived] logic as the Rust core: when true, archived
+     *  accounts' opening balances are included so the total reflects their
+     *  full historical contribution. */
+    private fun initialBalanceSum(
+      accounts: List<AccountEntity>,
+      includeArchived: Boolean,
+    ): Long =
+      if (includeArchived) {
+        accounts.sumOf { it.initialBalance }
+      } else {
+        accounts.filter { !it.isArchived }.sumOf { it.initialBalance }
+      }
 
     /** Noise threshold for previous-month net (Rial). When abs(prevNet) is
      *  below this, the delta is set to 0.0 to avoid misleading percentages. */

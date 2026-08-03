@@ -292,11 +292,13 @@ class GetDashboardDataUseCaseTest {
     name: String,
     type: AccountType = AccountType.BANK,
     isArchived: Boolean = false,
+    initialBalance: Long = 0L,
   ) = AccountEntity(
     id = id,
     name = name,
     type = type,
     isArchived = isArchived,
+    initialBalance = initialBalance,
   )
 
   @Test
@@ -376,6 +378,89 @@ class GetDashboardDataUseCaseTest {
 
     assertEquals("transfer is balance-neutral anyway", 0L, result.currentBalance)
     assertEquals("only active account in summaries", 1, result.accounts.size)
+  }
+
+  @Test
+  fun fallbackIncludeArchivedTrueIncludesArchivedInitialBalance() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active", initialBalance = 200_000L)
+    val archivedAccount = account(2, "Archived", isArchived = true, initialBalance = 500_000L)
+
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1_000_000,
+          description = "",
+          date = now,
+          accountId = 1
+        ),
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = 2L,
+          amount = 300_000,
+          description = "",
+          date = now,
+          accountId = 2
+        ),
+      )
+
+    // includeArchived=true: active tx (1M) + archived tx (-300k) + archived initialBalance (500k)
+    // active initialBalance (200k) is always included
+    // expected = 200k + 1M - 300k + 500k = 1_400_000
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = true,
+      )
+
+    assertEquals("currentBalance includes archived initialBalance", 1_400_000L, result.currentBalance)
+  }
+
+  @Test
+  fun fallbackIncludeArchivedFalseExcludesArchivedInitialBalance() {
+    val now = System.currentTimeMillis()
+    val activeAccount = account(1, "Active", initialBalance = 200_000L)
+    val archivedAccount = account(2, "Archived", isArchived = true, initialBalance = 500_000L)
+
+    val transactions =
+      listOf(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = 1L,
+          amount = 1_000_000,
+          description = "",
+          date = now,
+          accountId = 1
+        ),
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = 2L,
+          amount = 300_000,
+          description = "",
+          date = now,
+          accountId = 2
+        ),
+      )
+
+    // includeArchived=false: only active tx (1M) + active initialBalance (200k), no archived
+    // expected = 200k + 1M = 1_200_000
+    val result =
+      GetDashboardDataUseCase.computeFallbackDashboardData(
+        transactions = transactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        accounts = listOf(activeAccount, archivedAccount),
+        now = now,
+        includeArchived = false,
+      )
+
+    assertEquals("currentBalance excludes archived initialBalance", 1_200_000L, result.currentBalance)
   }
 
   @Test
