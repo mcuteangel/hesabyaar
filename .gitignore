@@ -83,5 +83,6 @@ app/src/main/java/io/github/mojri/hesabyar/rust/generated/
 .serena/
 .gh_review_state.json
 .kilocode/
+.kilo/
 # SQLite temp files (e.g. .freebuff from database tools)
 .freebuff/
