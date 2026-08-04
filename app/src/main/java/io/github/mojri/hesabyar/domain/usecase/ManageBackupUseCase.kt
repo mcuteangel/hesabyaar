@@ -97,7 +97,12 @@ class ManageBackupUseCase(
         if (!o.has("id")) {
           throw IllegalStateException("Account entry #$i in encrypted backup has no id field")
         }
-        val id = o.optLong("id")
+        val id = o.optLong("id", -1L)
+        if (id <= 0L) {
+          throw IllegalStateException(
+            "Account entry #$i in encrypted backup has invalid id: $id"
+          )
+        }
         if (encryptedById.containsKey(id)) {
           throw IllegalStateException("Duplicate account id $id in encrypted backup")
         }

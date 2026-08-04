@@ -611,4 +611,77 @@ class ManageBackupUseCaseTest {
       }
     }
   }
+
+  @Test
+  fun decryptNullAccountIdInEncryptedBackupThrowsInsteadOfSilentlyUsingZero() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // "id": null in JSON causes optLong to silently resolve to 0L,
+    // which would bypass the duplicate-id check and land in encryptedById[0].
+    // The fix rejects id <= 0 with a clear error.
+    val nullIdRoot = JSONObject(jsonString)
+    nullIdRoot.getJSONArray("accounts").getJSONObject(0).put("id", JSONObject.NULL)
+    org.junit.Assert.assertThrows(
+      "Null account id must fail loudly, not silently resolve to 0",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nullIdRoot, passphrase)
+      }
+    }
+  }
+
+  @Test
+  fun decryptNonNumericAccountIdInEncryptedBackupThrowsInsteadOfSilentlyUsingZero() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // A non-numeric "id" value (e.g. "abc") causes optLong to return the
+    // fallback (-1L), which must be rejected as invalid.
+    val nonNumericIdRoot = JSONObject(jsonString)
+    nonNumericIdRoot.getJSONArray("accounts").getJSONObject(0).put("id", "abc")
+    org.junit.Assert.assertThrows(
+      "Non-numeric account id must fail loudly instead of silently resolving to fallback",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nonNumericIdRoot, passphrase)
+      }
+    }
+  }
 }
