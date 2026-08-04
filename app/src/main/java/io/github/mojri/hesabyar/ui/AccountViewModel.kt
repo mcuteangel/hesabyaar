@@ -129,6 +129,11 @@ class AccountViewModel
           _errorEvents.emit("حساب «${account.name}» دارای $count تراکنش است و قابل حذف نیست")
           return@runGuarded
         }
+        val allAccounts = repository.getAllAccounts()
+        if (allAccounts.size == 1 && allAccounts[0].id == account.id) {
+          _errorEvents.emit("حساب «${account.name}» آخرین حساب است و قابل حذف نیست")
+          return@runGuarded
+        }
         repository.deleteAccount(account)
       }
 
@@ -137,7 +142,13 @@ class AccountViewModel
       onResult: (Boolean) -> Unit
     ) = runGuarded(errorPrefix = "بررسی حساب", onError = { onResult(false) }) {
       val count = repository.getTransactionCountForAccount(accountId)
-      onResult(count == 0)
+      if (count > 0) {
+        onResult(false)
+        return@runGuarded
+      }
+      val allAccounts = repository.getAllAccounts()
+      val isLastAccount = allAccounts.size == 1 && allAccounts[0].id == accountId
+      onResult(!isLastAccount)
     }
 
     fun archiveAccount(account: AccountEntity) =

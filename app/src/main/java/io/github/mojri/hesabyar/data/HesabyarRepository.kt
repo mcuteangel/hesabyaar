@@ -202,6 +202,12 @@ class HesabyarRepository(
 
   override suspend fun deleteAccount(account: AccountEntity) =
     database.withTransaction {
+      val allAccounts = accountDao.getAllAccountsBlocking()
+      if (allAccounts.size == 1 && allAccounts[0].id == account.id) {
+        throw IllegalStateException(
+          "Account ${account.id} is the last remaining account and cannot be deleted"
+        )
+      }
       val count = accountDao.getTransactionCountForAccount(account.id)
       if (count > 0) {
         throw IllegalStateException("Account ${account.id} has $count transactions and cannot be deleted")

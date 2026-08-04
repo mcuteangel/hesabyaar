@@ -210,6 +210,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun deleteAccount(account: AccountEntity) {
     if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
+    if (accountsList.size == 1 && accountsList[0].id == account.id) {
+      throw IllegalStateException("Account ${account.id} is the last remaining account and cannot be deleted")
+    }
     accountsList.removeIf { it.id == account.id }
     refreshAccounts()
   }

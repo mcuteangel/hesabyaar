@@ -125,6 +125,7 @@ class AccountViewModelTest {
   fun deleteAccountRemovesFromRepository() =
     runTest {
       val account = AccountEntity(id = 5, name = "to delete", type = AccountType.BANK)
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "other", type = AccountType.BANK))
       fakeRepo.accountsList.add(account)
       fakeRepo.refreshAccounts()
 
@@ -132,6 +133,34 @@ class AccountViewModelTest {
       advanceUntilIdle()
 
       assertTrue(fakeRepo.accountsList.none { it.id == 5L })
+      assertEquals("should have 1 account remaining", 1, fakeRepo.accountsList.size)
+    }
+
+  @Test
+  fun deleteAccountRejectsDeletingLastAccount() =
+    runTest {
+      val account = AccountEntity(id = 5, name = "only account", type = AccountType.BANK)
+      fakeRepo.accountsList.add(account)
+      fakeRepo.refreshAccounts()
+
+      viewModel.deleteAccount(account)
+      advanceUntilIdle()
+
+      assertEquals("last account should not be deleted", 1, fakeRepo.accountsList.size)
+    }
+
+  @Test
+  fun canDeleteAccountReturnsFalseForLastAccountEvenWithZeroTransactions() =
+    runTest {
+      val account = AccountEntity(id = 5, name = "only account", type = AccountType.BANK)
+      fakeRepo.accountsList.add(account)
+      fakeRepo.refreshAccounts()
+
+      var result = true
+      viewModel.canDeleteAccount(account.id) { result = it }
+      advanceUntilIdle()
+
+      assertEquals("last account should not be deletable", false, result)
     }
 
   @Test
@@ -218,7 +247,8 @@ class AccountViewModelTest {
           viewModel.errorEvents.collect { errorMessages.add(it) }
         }
 
-      val account = AccountEntity(id = 1, name = "test", type = AccountType.BANK)
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "other", type = AccountType.BANK))
+      val account = AccountEntity(id = 2, name = "test", type = AccountType.BANK)
       fakeRepo.accountsList.add(account)
       fakeRepo.refreshAccounts()
       viewModel.deleteAccount(account)

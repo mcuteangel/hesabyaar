@@ -112,6 +112,10 @@ private sealed interface AccountDialogState {
     val account: AccountEntity
   ) : AccountDialogState
 
+  data class LastAccountWarning(
+    val account: AccountEntity
+  ) : AccountDialogState
+
   data class OverflowMenu(
     val account: AccountEntity
   ) : AccountDialogState
@@ -140,6 +144,8 @@ fun AccountManagementScreen(
         dialogState =
           if (canDelete) {
             AccountDialogState.DeleteConfirmation(currentDialog.account)
+          } else if (accounts.size == 1 && accounts[0].id == currentDialog.account.id) {
+            AccountDialogState.LastAccountWarning(currentDialog.account)
           } else {
             AccountDialogState.TransactionWarning(currentDialog.account)
           }
@@ -264,6 +270,18 @@ private fun AccountManagementDialogs(
           "حساب «${dialogState.account.name}» دارای تراکنش‌های فعال است " +
             "و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، " +
             "از گزینه آرشیو استفاده کنید.",
+        confirmText = "متوجه شدم",
+        dismissText = "",
+        onConfirm = onDismiss,
+        onDismiss = onDismiss,
+        confirmColor = MaterialTheme.colorScheme.primary
+      )
+    is AccountDialogState.LastAccountWarning ->
+      ConfirmDialog(
+        title = "امکان حذف حساب",
+        message =
+          "حساب «${dialogState.account.name}» آخرین حساب است " +
+            "و قابل حذف نیست. حداقل یک حساب باید همیشه باقی بماند.",
         confirmText = "متوجه شدم",
         dismissText = "",
         onConfirm = onDismiss,
