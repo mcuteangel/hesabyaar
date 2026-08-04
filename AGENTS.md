@@ -35,6 +35,12 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 
 ⚠️ **Always run `./gradlew --no-daemon compileDebugKotlin` before running tests** to ensure code compiles and catches type errors early.
 
+For release-variant verification (signing config, ProGuard, etc.):
+
+```bash
+./gradlew --no-daemon compileReleaseKotlin
+```
+
 ## ⚠️ Test Reliability: Rust JNI State Leakage
 
 The Rust native library (`hesabyar_core`) uses global mutable state that cannot be

@@ -283,6 +283,16 @@ class BackupViewModel
       pendingImportSalt = null
     }
 
+    /**
+     * Called when the user cancels the export file picker (SAF).
+     * Clears the staged export JSON and resets [operationState] to [BackupOperationState.Idle]
+     * so the export button is re-enabled. Cancellation is a normal user action, not an error.
+     */
+    fun onExportPickerCancelled() {
+      pendingExportJsonText = null
+      operationState.value = BackupOperationState.Idle
+    }
+
     private suspend fun stageValidatedBackup(backup: BackupPayload) {
       val result = manageBackupUseCase.validateBackup(backup)
       when (result) {

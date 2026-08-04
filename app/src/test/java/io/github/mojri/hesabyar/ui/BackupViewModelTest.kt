@@ -28,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
 
@@ -137,6 +138,59 @@ class BackupViewModelTest {
       val state = viewModel.operationState.value
       assertTrue("Expected Error but got $state", state is BackupOperationState.Error)
       assertTrue((state as BackupOperationState.Error).message.contains("وارد کردن پشتیبان"))
+    }
+
+  @Test
+  fun onExportPickerCancelledResetsStateToIdle() =
+    runTest {
+      viewModel.exportWithoutPassphrase()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Expected Exporting after staging export, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Exporting
+      )
+
+      viewModel.onExportPickerCancelled()
+
+      assertTrue(
+        "Expected Idle after picker cancel, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Idle
+      )
+    }
+
+  @Test
+  fun onExportPickerCancelledClearsStagedData() =
+    runTest {
+      viewModel.exportWithoutPassphrase()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      viewModel.onExportPickerCancelled()
+
+      val outputStream = ByteArrayOutputStream()
+      viewModel.writeStagedExportToFile(outputStream)
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val state = viewModel.operationState.value
+      assertTrue("Expected Error after cancel, got $state", state is BackupOperationState.Error)
+      assertTrue((state as BackupOperationState.Error).message.contains("آماده نیست"))
+    }
+
+  @Test
+  fun writeStagedExportToFileSuccessAfterExportStaging() =
+    runTest {
+      viewModel.exportWithoutPassphrase()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val outputStream = ByteArrayOutputStream()
+      viewModel.writeStagedExportToFile(outputStream)
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val state = viewModel.operationState.value
+      assertTrue(
+        "Expected ExportSuccess, got $state",
+        state is BackupOperationState.ExportSuccess
+      )
     }
 
   private class FakeRepository : HesabyarRepositoryInterface {

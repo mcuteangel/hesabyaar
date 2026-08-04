@@ -103,6 +103,8 @@ fun SettingsScreen(
           AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
           settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
         }
+      } else {
+        backupViewModel.onExportPickerCancelled()
       }
     }
 
