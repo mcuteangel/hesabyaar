@@ -33,7 +33,8 @@ sealed class PassphraseDialogState {
 
   /** Import dialog: backup contains encrypted fields, user must enter passphrase. */
   data class ImportPassphrase(
-    val salt: String
+    val salt: String,
+    val errorMessage: String? = null
   ) : PassphraseDialogState()
 }
 
@@ -191,8 +192,11 @@ class BackupViewModel
 
     // --- Import passphrase flow ---
 
-    private var pendingImportRawJson: String? = null
-    private var pendingImportSalt: String? = null
+    @VisibleForTesting
+    internal var pendingImportRawJson: String? = null
+
+    @VisibleForTesting
+    internal var pendingImportSalt: String? = null
 
     /**
      * Reads the backup file, parses it, and checks for encrypted fields.
@@ -252,24 +256,36 @@ class BackupViewModel
 
       viewModelScope.launch {
         isCryptoInProgress.value = true
-        passphraseDialogState.value = PassphraseDialogState.Hidden
         try {
-          val parsed = parseBackupOrReportError(rawJson) ?: return@launch
+          val parsed =
+            parseBackupOrReportError(rawJson) ?: run {
+              // Structural parse error — clear staged data and dismiss dialog
+              pendingImportRawJson = null
+              pendingImportSalt = null
+              passphraseDialogState.value = PassphraseDialogState.Hidden
+              return@launch
+            }
           val rootJson = JSONObject(rawJson)
           val decrypted =
             withContext(cryptoDispatcher) {
               manageBackupUseCase.decryptBackupWithPassphrase(parsed, rootJson, passphrase)
             }
+          // Success — clear staged data and dismiss dialog
+          pendingImportRawJson = null
+          pendingImportSalt = null
+          passphraseDialogState.value = PassphraseDialogState.Hidden
           stageValidatedBackup(decrypted)
         } catch (_: Exception) {
-          // Wrong passphrase or tampered ciphertext — both throw, but we cannot
-          // distinguish them (AEADBadTagException vs IllegalArgumentException).
+          // Wrong passphrase or tampered ciphertext — keep staged data for retry
+          passphraseDialogState.value =
+            PassphraseDialogState.ImportPassphrase(
+              salt,
+              "رمز عبور اشتباه است یا فایل بکاپ خراب است"
+            )
           operationState.value =
             BackupOperationState.Error("رمز عبور اشتباه است یا فایل بکاپ خراب است")
         } finally {
           isCryptoInProgress.value = false
-          pendingImportRawJson = null
-          pendingImportSalt = null
         }
       }
     }

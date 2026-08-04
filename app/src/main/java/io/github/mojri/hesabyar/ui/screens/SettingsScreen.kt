@@ -49,10 +49,12 @@ import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.CANCEL_LABEL
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.ImportPassphraseDialog
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -72,8 +74,6 @@ fun Context.findActivity(): FragmentActivity? {
   }
   return null
 }
-
-private const val CANCEL_LABEL = "انصراف"
 
 @Composable
 fun SettingsScreen(
@@ -338,56 +338,12 @@ fun SettingsScreen(
 
   // --- Import passphrase dialog ---
   if (passphraseDialog is PassphraseDialogState.ImportPassphrase) {
-    var passphrase by remember { mutableStateOf("") }
-    var errorMsg by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-      onDismissRequest = { backupViewModel.cancelPassphraseDialog() },
-      title = { Text("رمزگشایی پشتیبان", fontWeight = FontWeight.Bold) },
-      text = {
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          Text(
-            text = "این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:",
-            style = MaterialTheme.typography.bodyMedium
-          )
-          OutlinedTextField(
-            value = passphrase,
-            onValueChange = {
-              passphrase = it
-              errorMsg = null
-            },
-            label = { Text("رمز عبور") },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            isError = errorMsg != null,
-            modifier = Modifier.fillMaxWidth()
-          )
-          if (errorMsg != null) {
-            Text(
-              text = errorMsg!!,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.error
-            )
-          }
-          if (isCryptoInProgress) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-          }
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = { backupViewModel.decryptAndStageImport(passphrase) },
-          text = "رمزگشایی",
-          enabled = passphrase.isNotEmpty() && !isCryptoInProgress
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { backupViewModel.cancelPassphraseDialog() },
-          text = CANCEL_LABEL,
-          variant = ButtonVariant.Text
-        )
-      }
+    val importPassphrase = passphraseDialog as PassphraseDialogState.ImportPassphrase
+    ImportPassphraseDialog(
+      errorMessage = importPassphrase.errorMessage,
+      isCryptoInProgress = isCryptoInProgress,
+      onConfirm = backupViewModel::decryptAndStageImport,
+      onDismiss = backupViewModel::cancelPassphraseDialog
     )
   }
 
