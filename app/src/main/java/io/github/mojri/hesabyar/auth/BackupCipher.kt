@@ -20,6 +20,12 @@ import javax.crypto.spec.SecretKeySpec
  * The IV is prepended to the ciphertext (standard pattern — IV is not secret, just unique).
  * Each [encrypt] call generates a fresh random IV, so the same plaintext encrypted twice
  * produces different ciphertext.
+ *
+ * Every [encrypt]/[decrypt] also takes an AAD context (see [accountFieldAad]) binding the
+ * ciphertext to the account + field it was produced for. A backup shares a single key, so
+ * without AAD a valid ciphertext could be moved between accounts or between fields (e.g.
+ * cardNumber ↔ iban) and still decrypt; with AAD such a substitution fails the GCM tag
+ * check with [javax.crypto.AEADBadTagException].
  */
 object BackupCipher {
   private const val PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256"
@@ -66,21 +72,40 @@ object BackupCipher {
   }
 
   /**
-   * Encrypts [plaintext] using AES-GCM with a random IV.
+   * Builds the AAD context that binds an encrypted value to its backup field.
+   *
+   * @param accountId the account's stable id (serialized as the backup's `id` field,
+   *   available on both the export and import paths)
+   * @param fieldName the JSON field name the ciphertext is stored under
+   *   (e.g. "cardNumber", "accountNumber", "iban")
+   * @return the AAD string to pass to [encrypt]/[decrypt]
+   */
+  fun accountFieldAad(
+    accountId: Long,
+    fieldName: String
+  ): String = "accountId:$accountId|field:$fieldName"
+
+  /**
+   * Encrypts [plaintext] using AES-GCM with a random IV and AAD binding.
    *
    * @param plaintext the string to encrypt
    * @param key the AES key (derived via [deriveKey])
+   * @param aad additional authenticated data binding the ciphertext to its
+   *   account + field context (see [accountFieldAad]); must be passed again
+   *   to [decrypt], otherwise verification fails
    * @return base64-encoded string: IV (12 bytes) + ciphertext + GCM tag (16 bytes)
    */
   fun encrypt(
     plaintext: String,
-    key: SecretKey
+    key: SecretKey,
+    aad: String
   ): String {
     val cipher = Cipher.getInstance(AES_ALGORITHM)
     val iv = ByteArray(IV_LENGTH_BYTES)
     SecureRandom().nextBytes(iv)
     val spec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
     cipher.init(Cipher.ENCRYPT_MODE, key, spec)
+    cipher.updateAAD(aad.toByteArray(Charsets.UTF_8))
     val ciphertext = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
     val combined = iv + ciphertext
     return Base64.getEncoder().encodeToString(combined)
@@ -91,13 +116,17 @@ object BackupCipher {
    *
    * @param encryptedBase64 base64-encoded IV + ciphertext + GCM tag
    * @param key the AES key (derived via [deriveKey])
+   * @param aad the same AAD context passed to [encrypt]; decrypting under a
+   *   different account or field fails verification
    * @return the original plaintext string
-   * @throws javax.crypto.AEADBadTagException if the passphrase is wrong or ciphertext is tampered
+   * @throws javax.crypto.AEADBadTagException if the passphrase is wrong, the AAD
+   *   context does not match, or the ciphertext is tampered
    * @throws IllegalArgumentException if the ciphertext is too short or malformed
    */
   fun decrypt(
     encryptedBase64: String,
-    key: SecretKey
+    key: SecretKey,
+    aad: String
   ): String {
     val combined = Base64.getDecoder().decode(encryptedBase64)
     // Minimum: IV (12) + 1 byte ciphertext + GCM tag (16) = 29 bytes
@@ -110,6 +139,7 @@ object BackupCipher {
     val cipher = Cipher.getInstance(AES_ALGORITHM)
     val spec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
     cipher.init(Cipher.DECRYPT_MODE, key, spec)
+    cipher.updateAAD(aad.toByteArray(Charsets.UTF_8))
     val plaintext = cipher.doFinal(ciphertext)
     return String(plaintext, Charsets.UTF_8)
   }
@@ -120,20 +150,23 @@ object BackupCipher {
    */
   fun encryptOrNull(
     value: String?,
-    key: SecretKey
-  ): Any = if (value != null) encrypt(value, key) else org.json.JSONObject.NULL
+    key: SecretKey,
+    aad: String
+  ): Any = if (value != null) encrypt(value, key, aad) else org.json.JSONObject.NULL
 
   /**
    * Decrypts [value] if it is a non-null string, returns null otherwise.
    * Convenience wrapper for backup account field deserialization.
    *
-   * @throws javax.crypto.AEADBadTagException if the passphrase is wrong or ciphertext is tampered
+   * @throws javax.crypto.AEADBadTagException if the passphrase is wrong, the AAD
+   *   context does not match, or the ciphertext is tampered
    * @throws IllegalArgumentException if the ciphertext is malformed
    */
   fun decryptOrNull(
     value: Any?,
-    key: SecretKey
-  ): String? = if (value is String && value.isNotEmpty()) decrypt(value, key) else null
+    key: SecretKey,
+    aad: String
+  ): String? = if (value is String && value.isNotEmpty()) decrypt(value, key, aad) else null
 
   private fun hexToBytes(hex: String): ByteArray {
     require(hex.length % 2 == 0) { "Hex string must have even length" }

@@ -115,9 +115,24 @@ class ManageBackupUseCase(
                 "Parsed account ${account.id} has no counterpart in encrypted backup"
               )
           account.copy(
-            cardNumber = BackupCipher.decryptOrNull(raw.opt("cardNumber"), key),
-            accountNumber = BackupCipher.decryptOrNull(raw.opt("accountNumber"), key),
-            iban = BackupCipher.decryptOrNull(raw.opt("iban"), key)
+            cardNumber =
+              BackupCipher.decryptOrNull(
+                raw.opt("cardNumber"),
+                key,
+                BackupCipher.accountFieldAad(account.id, "cardNumber")
+              ),
+            accountNumber =
+              BackupCipher.decryptOrNull(
+                raw.opt("accountNumber"),
+                key,
+                BackupCipher.accountFieldAad(account.id, "accountNumber")
+              ),
+            iban =
+              BackupCipher.decryptOrNull(
+                raw.opt("iban"),
+                key,
+                BackupCipher.accountFieldAad(account.id, "iban")
+              )
           )
         }
       backup.copy(accounts = decryptedAccounts)
@@ -716,9 +731,30 @@ class ManageBackupUseCase(
           // AES-GCM ciphertext and pass through Rust/serde deserialization as-is
           // (they're still Option<String>).
           if (encryptionKey != null) {
-            put("cardNumber", BackupCipher.encryptOrNull(it.cardNumber, encryptionKey))
-            put("accountNumber", BackupCipher.encryptOrNull(it.accountNumber, encryptionKey))
-            put("iban", BackupCipher.encryptOrNull(it.iban, encryptionKey))
+            put(
+              "cardNumber",
+              BackupCipher.encryptOrNull(
+                it.cardNumber,
+                encryptionKey,
+                BackupCipher.accountFieldAad(it.id, "cardNumber")
+              )
+            )
+            put(
+              "accountNumber",
+              BackupCipher.encryptOrNull(
+                it.accountNumber,
+                encryptionKey,
+                BackupCipher.accountFieldAad(it.id, "accountNumber")
+              )
+            )
+            put(
+              "iban",
+              BackupCipher.encryptOrNull(
+                it.iban,
+                encryptionKey,
+                BackupCipher.accountFieldAad(it.id, "iban")
+              )
+            )
           } else {
             put("cardNumber", it.cardNumber ?: JSONObject.NULL)
             put("accountNumber", it.accountNumber ?: JSONObject.NULL)
