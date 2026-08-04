@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -90,14 +91,25 @@ fun TransactionItem(
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        // formatSignedParts requires the sign and amount in separate Texts so
+        // the bidi algorithm cannot reorder the sign across the digits; merging
+        // descendants keeps TalkBack announcing the pair as a single node.
+        modifier = Modifier.semantics(mergeDescendants = true) {}.testTag("transaction_item_amount")
+      ) {
         val (sign, formattedAmount) =
           CurrencyFormatter.formatSignedParts(
             if (isIncome) amount else -amount
           )
-        val fullAmountText = "$sign$formattedAmount"
         Text(
-          text = fullAmountText,
+          text = sign,
+          style = MaterialTheme.typography.bodyLarge,
+          fontWeight = FontWeight.Medium,
+          color = amountColor,
+        )
+        Text(
+          text = formattedAmount,
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.Medium,
           color = amountColor,
