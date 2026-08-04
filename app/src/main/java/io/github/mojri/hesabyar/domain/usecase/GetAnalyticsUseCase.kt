@@ -82,7 +82,7 @@ class GetAnalyticsUseCase {
         bankLoans.isNotEmpty()
     if (rustResult != null && !(hasData && rustResult.isBlank())) {
       return io.github.mojri.hesabyar.rust.RustMappers
-        .mapAnalyticsData(rustResult, loans, installments)
+        .mapAnalyticsData(rustResult, loans, installments, accounts)
     }
 
     // Kotlin fallback when Rust FFI is unavailable, panicked, or returned

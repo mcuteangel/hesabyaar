@@ -50,7 +50,8 @@ object RustMappers {
   fun mapAnalyticsData(
     rust: AnalyticsData,
     loans: List<io.github.mojri.hesabyar.data.Loan>,
-    installments: List<Installment>
+    installments: List<Installment>,
+    accounts: List<AccountEntity> = emptyList(),
   ): KAnalyticsData {
     val unsettledLoans = loans.filter { !it.isSettled }
     val debtors =
@@ -83,7 +84,9 @@ object RustMappers {
         KCategoryBreakdown(
           categoryId = acct.accountId,
           categoryName = acct.accountName,
-          color = 0, // color resolved later from AccountEntity by the caller
+          // The Rust core carries no account color — resolve it from the DB
+          // entity here (same source as the Kotlin fallback's buildAccountBreakdown).
+          color = accountColorFor(acct.accountId, accounts),
           total = acctTotalExpense,
           percentage =
             if (totalExpenseForAccounts > 0) {
@@ -389,11 +392,18 @@ object RustMappers {
   fun mapAccounts(accounts: List<AccountEntity>): List<io.github.mojri.hesabyar.rust.Account> =
     accounts.map { mapAccount(it) }
 
+  /** Resolve an account's configured color from the DB entities, falling back
+   *  to the canonical default account color when the account is absent. */
+  private fun accountColorFor(
+    accountId: Long,
+    accounts: List<AccountEntity>
+  ): Long = accounts.firstOrNull { it.id == accountId }?.color ?: AccountEntity.DEFAULT_COLOR
+
   fun mapAccountDashboardSummary(
     rust: io.github.mojri.hesabyar.rust.AccountDashboardSummary,
     accounts: List<AccountEntity> = emptyList(),
   ): AccountDashboardSummary {
-    val accountColor = accounts.firstOrNull { it.id == rust.accountId }?.color ?: 0xFF4CAF50L
+    val accountColor = accountColorFor(rust.accountId, accounts)
     return AccountDashboardSummary(
       accountId = rust.accountId,
       accountName = rust.accountName,

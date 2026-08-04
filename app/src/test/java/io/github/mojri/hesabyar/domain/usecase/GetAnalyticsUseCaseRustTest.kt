@@ -240,4 +240,31 @@ class GetAnalyticsUseCaseRustTest {
     assertEquals(3_500_000L, withArchived.monthlySpending.first().income)
     assertEquals(1_200_000L, withArchived.monthlySpending.first().expense)
   }
+
+  @Test
+  fun rustPathAccountBreakdownCarriesAccountColor() {
+    assertTrue(RustBridge.isAvailable)
+    val categories = listOf(cat(1, "خوراک"))
+    val accounts =
+      listOf(
+        AccountEntity(
+          id = 1,
+          name = "Active",
+          type = AccountType.BANK,
+          color = 0xFF2196F3L
+        )
+      )
+    val txs =
+      listOf(
+        tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+      )
+
+    val result =
+      useCase.computeAnalytics(txs, emptyList(), emptyList(), categories, accounts = accounts)
+
+    // The Rust core carries no account color; the mapper must resolve it from
+    // the AccountEntity so the donut chart segments render in the account color.
+    assertEquals(1, result.accountBreakdown.size)
+    assertEquals("segment color must come from the AccountEntity", 0xFF2196F3L, result.accountBreakdown[0].color)
+  }
 }
