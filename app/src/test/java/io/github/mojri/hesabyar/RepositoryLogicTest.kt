@@ -43,6 +43,10 @@ class RepositoryLogicTest {
         .inMemoryDatabaseBuilder(context, AppDatabase::class.java)
         .allowMainThreadQueries()
         .build()
+    // Production seeds the default account (id=1) on fresh create
+    // (AppDatabase onCreate) and on upgrade (MIGRATION_5_6); the in-memory
+    // test DB bypasses both, so mirror the invariant here.
+    database.accountDao().insertAllBlocking(listOf(AccountEntity.DEFAULT_ACCOUNT))
   }
 
   @After
@@ -576,6 +580,73 @@ class RepositoryLogicTest {
       requireNotNull(database.accountDao().getById(mergedTx.accountId))
       requireNotNull(database.accountDao().getById(mergedTx.destinationAccountId!!))
       assertEquals("Local Account", database.accountDao().getById(5L)?.name)
+    }
+
+  @Test
+  fun mergeFromBackupSkipsTransactionWhoseSourceAccountIsNotInBackupOrLocalDb() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
+          transactions =
+            listOf(
+              transaction(id = 1L, type = TransactionType.INCOME, accountId = 99L, amount = 10_000L),
+              transaction(id = 2L, type = TransactionType.EXPENSE, accountId = 5L, amount = 5_000L)
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      assertEquals(5_000L, txs.first().amount)
+      assertTrue("orphaned accountId=99 must not be written", txs.none { it.accountId == 99L })
+    }
+
+  @Test
+  fun mergeFromBackupSkipsTransferWhoseDestinationAccountIsNotInBackup() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
+          transactions =
+            listOf(
+              transaction(
+                id = 1L,
+                type = TransactionType.TRANSFER,
+                accountId = 5L,
+                destinationAccountId = 99L,
+                amount = 50_000L
+              )
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertTrue("transfer with dangling destination must not be written", txs.isEmpty())
+    }
+
+  @Test
+  fun mergeFromBackupKeepsLegacyDefaultAccountIdWhenAccountsSectionIsEmpty() =
+    runTest {
+      val repo = createRepository()
+      val backup =
+        backupPayload(
+          accounts = emptyList(),
+          transactions =
+            listOf(
+              transaction(id = 1L, type = TransactionType.EXPENSE, accountId = 1L, amount = 3_000L)
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      assertEquals(1L, txs.first().accountId)
+      requireNotNull(database.accountDao().getById(txs.first().accountId))
     }
 
   private fun account(

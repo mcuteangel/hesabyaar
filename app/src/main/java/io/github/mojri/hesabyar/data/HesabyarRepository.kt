@@ -307,15 +307,38 @@ class HesabyarRepository(
     accountIdMap: Map<Long, Long>
   ) {
     val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
+    // Accounts were merged before this call, so the local table reflects the
+    // full target state. Transactions whose source/destination account
+    // resolves to no local account (orphaned foreign ID from a malformed or
+    // tampered backup) are skipped — writing them would create dangling
+    // references that never surface in account dashboards. Legacy backups
+    // without an accounts list keep DEFAULT_ACCOUNT_ID (1) via the
+    // `?: it` fallback; the existence check below still guards that ID.
+    val localAccountIds = accountDao.getAllAccountsBlocking().map { it.id }.toSet()
     for (transaction in transactions) {
+      val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
+      val mappedDestinationAccountId =
+        transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
+      val destinationResolved =
+        when (mappedDestinationAccountId) {
+          null -> transaction.destinationAccountId == null
+          else -> localAccountIds.contains(mappedDestinationAccountId)
+        }
+      if (!localAccountIds.contains(mappedAccountId) || !destinationResolved) {
+        AppLogger.w(
+          "HesabyarRepository",
+          "mergeFromBackup: skipping transaction=${transaction.id} " +
+            "accountId=${transaction.accountId}->$mappedAccountId " +
+            "destinationAccountId=${transaction.destinationAccountId}->$mappedDestinationAccountId " +
+            "because no local account matches"
+        )
+        continue
+      }
       val mappedCategoryId =
         categoryIdMap[transaction.categoryId]
           ?: otherCategoryId
           ?: transaction.categoryId
       val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
-      val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
-      val mappedDestinationAccountId =
-        transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
       transactionDao.insertTransaction(
         transaction.copy(
           id = 0,
