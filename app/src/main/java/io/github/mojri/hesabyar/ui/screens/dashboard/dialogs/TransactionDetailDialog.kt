@@ -21,9 +21,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
@@ -82,9 +84,9 @@ internal fun TransactionDetailDialog(
           Text(
             text =
               when (transaction.type) {
-                TransactionType.INCOME -> "درآمد"
-                TransactionType.TRANSFER -> "انتقال وجه"
-                else -> "هزینه"
+                TransactionType.INCOME -> stringResource(R.string.category_type_income)
+                TransactionType.TRANSFER -> stringResource(R.string.transaction_type_transfer)
+                else -> stringResource(R.string.category_type_expense)
               },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,

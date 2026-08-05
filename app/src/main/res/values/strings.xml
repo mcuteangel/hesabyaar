@@ -19,6 +19,9 @@
     <!-- AccountSelector -->
     <string name="all_accounts_option">همه حساب‌ها</string>
 
+    <!-- TransactionDetailDialog -->
+    <string name="transaction_type_transfer">انتقال وجه</string>
+
     <!-- AccountBreakdownCard -->
     <string name="expense_distribution_by_account">توزیع هزینه‌ها بر اساس حساب</string>
 
