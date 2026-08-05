@@ -108,6 +108,19 @@ fun SettingsScreen(
       }
     }
 
+  val exportPickerLaunchRequest by backupViewModel.exportPickerLaunchRequest
+
+  // Launch the save-location picker only after staging finished. Launching it
+  // inline in the click handler raced the async PBKDF2/encryption: the picker
+  // opened even when staging would fail, and a fast picker return could hit
+  // writeStagedExportToFile before the JSON was staged.
+  LaunchedEffect(exportPickerLaunchRequest) {
+    if (exportPickerLaunchRequest) {
+      exportFileLauncher.launch("hesabyar_backup_${System.currentTimeMillis() / 1000}.json")
+      backupViewModel.consumeExportPickerLaunchRequest()
+    }
+  }
+
   val importFileLauncher =
     rememberLauncherForActivityResult(
       contract = ActivityResultContracts.GetContent()
@@ -304,12 +317,7 @@ fun SettingsScreen(
       },
       confirmButton = {
         HesabyarButton(
-          onClick = {
-            backupViewModel.exportWithPassphrase(passphrase)
-            exportFileLauncher.launch(
-              "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
-            )
-          },
+          onClick = { backupViewModel.exportWithPassphrase(passphrase) },
           text = "رمزگذاری و ذخیره",
           enabled = canConfirm
         )
@@ -317,12 +325,7 @@ fun SettingsScreen(
       dismissButton = {
         Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
           HesabyarButton(
-            onClick = {
-              backupViewModel.exportWithoutPassphrase()
-              exportFileLauncher.launch(
-                "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
-              )
-            },
+            onClick = { backupViewModel.exportWithoutPassphrase() },
             text = "ذخیره بدون رمز",
             variant = ButtonVariant.Outlined
           )

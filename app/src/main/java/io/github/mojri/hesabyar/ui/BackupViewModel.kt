@@ -69,6 +69,15 @@ class BackupViewModel
     private var pendingExportJsonText: String? = null
 
     /**
+     * One-shot signal raised once staging completes so the screen launches the
+     * SAF save-location picker from a LaunchedEffect instead of inline in the
+     * click handler. The old inline launch raced the async PBKDF2/encryption —
+     * the picker callback could run while [pendingExportJsonText] was still null,
+     * and the picker opened even when staging would fail.
+     */
+    val exportPickerLaunchRequest = mutableStateOf(false)
+
+    /**
      * Called from SettingsScreen after export button tap.
      * Shows the export passphrase dialog.
      */
@@ -79,13 +88,14 @@ class BackupViewModel
     /**
      * Called from the export passphrase dialog with the user-entered passphrase.
      * Runs PBKDF2 derivation + encryption on [cryptoDispatcher], stages the JSON,
-     * and clears the dialog. The file picker is launched by the screen after
-     * this returns successfully (observe [pendingExportJsonText]).
+     * clears the dialog, and raises [exportPickerLaunchRequest] so the screen
+     * launches the picker only after staging fully succeeded.
      */
     @Suppress("TooGenericExceptionCaught") // Safety net: PBKDF2/Cipher can throw unchecked RuntimeException
     fun exportWithPassphrase(passphrase: String) {
       viewModelScope.launch {
         isCryptoInProgress.value = true
+        exportPickerLaunchRequest.value = false
         passphraseDialogState.value = PassphraseDialogState.Hidden
         try {
           val rootJson =
@@ -94,6 +104,7 @@ class BackupViewModel
             }
           pendingExportJsonText = rootJson.toString(2)
           operationState.value = BackupOperationState.Exporting
+          exportPickerLaunchRequest.value = true
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
@@ -116,11 +127,13 @@ class BackupViewModel
     @Suppress("TooGenericExceptionCaught") // Safety net: repository/JSON operations can throw unchecked exceptions
     fun exportWithoutPassphrase() {
       viewModelScope.launch {
+        exportPickerLaunchRequest.value = false
         passphraseDialogState.value = PassphraseDialogState.Hidden
         operationState.value = BackupOperationState.Exporting
         try {
           val rootJson = manageBackupUseCase.exportBackupJson()
           pendingExportJsonText = rootJson.toString(2)
+          exportPickerLaunchRequest.value = true
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
@@ -306,7 +319,15 @@ class BackupViewModel
      */
     fun onExportPickerCancelled() {
       pendingExportJsonText = null
+      exportPickerLaunchRequest.value = false
       operationState.value = BackupOperationState.Idle
+    }
+
+    /**
+     * Resets [exportPickerLaunchRequest] once the screen has launched the picker.
+     */
+    fun consumeExportPickerLaunchRequest() {
+      exportPickerLaunchRequest.value = false
     }
 
     private suspend fun stageValidatedBackup(backup: BackupPayload) {

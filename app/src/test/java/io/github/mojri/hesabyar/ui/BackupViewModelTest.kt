@@ -14,6 +14,7 @@ import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -195,6 +196,75 @@ class BackupViewModelTest {
     }
 
   @Test
+  fun exportPickerLaunchRequestStaysFalseUntilStagingCompletes() =
+    runTest {
+      viewModel.exportWithoutPassphrase()
+      // Staging is queued on the test dispatcher; this mirrors the instant
+      // between the click handler returning and the picker callback firing.
+      assertTrue(
+        "Picker launch must not be requested before staging completes",
+        !viewModel.exportPickerLaunchRequest.value
+      )
+
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Expected picker launch request after staging, got ${viewModel.operationState.value}",
+        viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  @Test
+  fun exportWithPassphraseRaisesPickerLaunchRequestOnlyAfterStaging() =
+    runTest {
+      viewModel.exportWithPassphrase("secret")
+      assertTrue(
+        "Picker launch must not be requested before encrypted staging completes",
+        !viewModel.exportPickerLaunchRequest.value
+      )
+
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Expected picker launch request after encrypted staging, got ${viewModel.operationState.value}",
+        viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  @Test
+  fun failedExportStagingDoesNotRaisePickerLaunchRequest() =
+    runTest {
+      fakeRepo.exportShouldThrow = IllegalStateException("simulated export failure")
+
+      viewModel.exportWithPassphrase("secret")
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Expected Error state, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Error
+      )
+      assertTrue(
+        "Failed staging must not raise the picker launch request",
+        !viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  @Test
+  fun consumeExportPickerLaunchRequestClearsTheSignal() =
+    runTest {
+      viewModel.exportWithoutPassphrase()
+      testDispatcher.scheduler.advanceUntilIdle()
+      assertTrue(viewModel.exportPickerLaunchRequest.value)
+
+      viewModel.consumeExportPickerLaunchRequest()
+
+      assertTrue(
+        "Signal must clear after the screen launches the picker",
+        !viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  @Test
   fun decryptAndStageImportWrongPassphrasePreservesStagedData() =
     runTest {
       // Use a plaintext backup JSON that parseBackupJson can definitely parse.
@@ -302,12 +372,17 @@ class BackupViewModelTest {
 
   private class FakeRepository : HesabyarRepositoryInterface {
     var importShouldThrow: Exception? = null
+    var exportShouldThrow: Exception? = null
     val accountsList = mutableListOf<AccountEntity>()
 
     override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
     override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
     override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
-    override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+    override val allCategories: Flow<List<Category>> =
+      flow {
+        exportShouldThrow?.let { throw it }
+        emit(emptyList())
+      }
     override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
     override val allAccounts: Flow<List<AccountEntity>> = flowOf(accountsList.toList())
 
