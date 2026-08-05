@@ -1,6 +1,6 @@
 # 009 — Multi-Account / Multi-Wallet Support
 
-**Status:** In Progress (Phases 1-4 complete; 5-7 mostly complete; 8 in progress)
+**Status:** In Progress (Phases 1-4 complete; 5-7 mostly complete; 8 done)
 **Created:** 2026-07-27
 **Branch:** `feature/multi-account-wallet`
 **Last Updated:** 2026-08-02
@@ -405,13 +405,13 @@ object AccountDetail : Screen("accounts/{accountId}")
 | Test | Location | Status |
 |------|----------|--------|
 | `MIGRATION_5_6` correctness | `AppDatabaseMigrationTest.kt` | Done |
-| Account CRUD operations | `AccountSelectionTest.kt` | Done |
+| Account CRUD operations | `AccountViewModelTest.kt` | Done |
 | Account data survives encryption conversion | `AppDatabaseMigrationTest.kt` | Done |
-| Per-account balance calculation | `AnalyticsTest.kt` | Done |
+| Per-account balance calculation | `GetDashboardDataUseCaseTest.kt` | Done |
 | Transfer logic (accountId preservation) | `SubmitManualTransactionUseCaseTest.kt` | Done |
 | Backup v2 export/import round-trip | `BackupValidationTest.kt` | Done |
 | `TransactionType::Transfer` serde round-trip | `models/mod.rs` (Rust) | Done |
-| Account-scoped dashboard/analytics | `GetDashboardDataUseCaseTest.kt`, `AnalyticsTest.kt` | Done |
+| Account-scoped dashboard/analytics | `GetDashboardDataUseCaseTest.kt` | Done |
 
 ### 8.2 Rust Tests
 
@@ -454,7 +454,7 @@ object AccountDetail : Screen("accounts/{accountId}")
 | `app/src/main/java/.../ui/screens/AccountManagementScreen.kt` | Account list/management UI |
 | `app/src/main/java/.../ui/screens/account/AccountSelector.kt` | Reusable selector component |
 | `app/src/test/.../data/MigrationTest.kt` | Migration unit test |
-| `app/src/test/.../data/AccountDaoTest.kt` | DAO unit test |
+| `app/src/test/.../data/AccountDaoTest.kt` | DAO unit test — **not created**; CRUD covered indirectly via `AccountViewModelTest.kt` (FakeRepository) and `RepositoryLogicTest.kt` (real Room, insert/query only) |
 
 ## Files to Modify
 
@@ -494,7 +494,7 @@ object AccountDetail : Screen("accounts/{accountId}")
 | Phase 5: ViewModels | Medium | Mostly done |
 | Phase 6: UI | High | Mostly done |
 | Phase 7: Backup | Low | Done |
-| Phase 8: Testing | Medium | In progress |
+| Phase 8: Testing | Medium | Done |
 
 ---
 
