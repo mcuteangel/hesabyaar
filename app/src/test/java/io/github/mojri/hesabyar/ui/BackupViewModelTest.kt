@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.ui
 
 import android.content.Context
 import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
@@ -11,6 +12,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +43,7 @@ class BackupViewModelTest {
   private lateinit var viewModel: BackupViewModel
   private lateinit var fakeRepo: FakeRepository
   private lateinit var context: Context
+  private lateinit var useCase: ManageBackupUseCase
   private val testDispatcher = StandardTestDispatcher()
 
   @Before
@@ -47,7 +51,7 @@ class BackupViewModelTest {
     Dispatchers.setMain(testDispatcher)
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
-    val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
+    useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
     viewModel = BackupViewModel(context, useCase)
     viewModel.ioDispatcher = testDispatcher
     viewModel.cryptoDispatcher = testDispatcher
@@ -370,9 +374,178 @@ class BackupViewModelTest {
       )
     }
 
+  @Test
+  fun requestExportPassphraseDialogShowsExportDialog() =
+    runTest {
+      assertTrue(
+        "Expected Hidden initially, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+
+      viewModel.requestExportPassphraseDialog()
+
+      assertTrue(
+        "Expected ExportPassphrase after request, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.ExportPassphrase
+      )
+    }
+
+  @Test
+  fun exportWithPassphraseTogglesCryptoProgressAndClearsDialog() =
+    runTest {
+      val gate = CompletableDeferred<Unit>()
+      fakeRepo.exportGate = gate
+      viewModel.requestExportPassphraseDialog()
+
+      viewModel.exportWithPassphrase("secret")
+      // Staging suspends on the gate; while PBKDF2 derivation + encryption is
+      // in flight the dialog must already be closed and the crypto flag raised.
+      testDispatcher.scheduler.runCurrent()
+      assertTrue(
+        "isCryptoInProgress must be true during crypto work",
+        viewModel.isCryptoInProgress.value
+      )
+      assertTrue(
+        "Dialog must close as soon as export starts",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+
+      gate.complete(Unit)
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "isCryptoInProgress must be false after crypto work finishes",
+        !viewModel.isCryptoInProgress.value
+      )
+      assertTrue(
+        "Expected Exporting after staging, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Exporting
+      )
+      assertTrue(
+        "Expected picker launch request after staging",
+        viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  @Test
+  fun exportWithoutPassphraseClearsDialogAndStagesExport() =
+    runTest {
+      viewModel.requestExportPassphraseDialog()
+
+      viewModel.exportWithoutPassphrase()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Dialog must close on plaintext export",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+      assertTrue(
+        "Expected Exporting after staging, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Exporting
+      )
+      assertTrue(
+        "Expected picker launch request after staging",
+        viewModel.exportPickerLaunchRequest.value
+      )
+    }
+
+  private suspend fun encryptedBackupFixture(): Pair<String, String> {
+    fakeRepo.accountsList +=
+      AccountEntity(
+        id = 1,
+        name = "کارت نمونه",
+        type = AccountType.BANK,
+        bankName = "ملی",
+        cardNumber = "6037-9971-1234-5678",
+        accountNumber = "123456789",
+        iban = "IR123456789012345678901234"
+      )
+    val encryptedJson = useCase.exportBackupJson(passphrase = "secret")
+    val salt =
+      requireNotNull(ManageBackupUseCase.getEncryptionSalt(encryptedJson)) {
+        "Encrypted backup must carry a PBKDF2 salt"
+      }
+    return encryptedJson.toString(2) to salt
+  }
+
+  @Test
+  fun decryptAndStageImportCorrectPassphraseOnFirstTrySucceeds() =
+    runTest {
+      // Build a genuinely encrypted backup (PBKDF2 + AES-GCM) via the use case,
+      // then decrypt it with the correct passphrase on the first attempt.
+      val (rawJson, salt) = encryptedBackupFixture()
+
+      viewModel.pendingImportRawJson = rawJson
+      viewModel.pendingImportSalt = salt
+
+      viewModel.decryptAndStageImport("secret")
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val staged = viewModel.pendingRestoreBackup.value
+      assertTrue(
+        "Expected staged backup after successful decrypt, got ${viewModel.pendingRestoreBackup.value}",
+        staged != null
+      )
+      assertEquals(
+        "Sensitive fields must round-trip through encryption",
+        "6037-9971-1234-5678",
+        staged!!.accounts.single().cardNumber
+      )
+      assertTrue(
+        "Dialog must close after successful decrypt",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+      assertTrue(
+        "Staged raw JSON must be cleared after successful decrypt",
+        viewModel.pendingImportRawJson == null
+      )
+      assertTrue(
+        "Staged salt must be cleared after successful decrypt",
+        viewModel.pendingImportSalt == null
+      )
+      assertTrue(
+        "isCryptoInProgress must be false after decrypt completes",
+        !viewModel.isCryptoInProgress.value
+      )
+    }
+
+  @Test
+  fun decryptAndStageImportWrongPassphraseOnEncryptedBackupKeepsStagedData() =
+    runTest {
+      val (rawJson, salt) = encryptedBackupFixture()
+
+      viewModel.pendingImportRawJson = rawJson
+      viewModel.pendingImportSalt = salt
+
+      viewModel.decryptAndStageImport("wrong-passphrase")
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      // The wrong key fails the AES-GCM authentication check; staged data must
+      // be preserved so the user can retry with the correct passphrase.
+      assertTrue(
+        "Expected Error after failed decrypt, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Error
+      )
+      assertTrue(
+        "pendingImportRawJson must be preserved after failed decrypt",
+        viewModel.pendingImportRawJson != null
+      )
+      assertTrue(
+        "pendingImportSalt must be preserved after failed decrypt",
+        viewModel.pendingImportSalt != null
+      )
+      assertTrue(
+        "Dialog must stay open for retry, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.ImportPassphrase
+      )
+    }
+
   private class FakeRepository : HesabyarRepositoryInterface {
     var importShouldThrow: Exception? = null
     var exportShouldThrow: Exception? = null
+
+    /** When set, the first repository flow collected by exportBackupJson suspends until released. */
+    var exportGate: CompletableDeferred<Unit>? = null
     val accountsList = mutableListOf<AccountEntity>()
 
     override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
@@ -380,11 +553,15 @@ class BackupViewModelTest {
     override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
     override val allCategories: Flow<List<Category>> =
       flow {
+        exportGate?.await()
         exportShouldThrow?.let { throw it }
         emit(emptyList())
       }
     override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
-    override val allAccounts: Flow<List<AccountEntity>> = flowOf(accountsList.toList())
+
+    // Cold flow: must read the live list at collection time, not snapshot it at
+    // construction — tests populate accountsList after the repo is created.
+    override val allAccounts: Flow<List<AccountEntity>> = flow { emit(accountsList.toList()) }
 
     override fun getTransactionsInRange(
       start: Long,

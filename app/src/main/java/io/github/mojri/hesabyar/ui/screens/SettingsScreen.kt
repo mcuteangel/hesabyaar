@@ -51,6 +51,7 @@ import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ExportPassphraseDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
@@ -271,72 +272,11 @@ fun SettingsScreen(
 
   // --- Export passphrase dialog ---
   if (passphraseDialog is PassphraseDialogState.ExportPassphrase) {
-    var passphrase by remember { mutableStateOf("") }
-    var confirmPassphrase by remember { mutableStateOf("") }
-    val passwordsMatch = passphrase.isNotEmpty() && passphrase == confirmPassphrase
-    val canConfirm = passwordsMatch && !isCryptoInProgress
-
-    AlertDialog(
-      onDismissRequest = { backupViewModel.cancelPassphraseDialog() },
-      title = { Text(stringResource(R.string.passphrase_export_title), fontWeight = FontWeight.Bold) },
-      text = {
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          Text(
-            text = stringResource(R.string.passphrase_export_warning),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-            fontWeight = FontWeight.Bold
-          )
-          Spacer(modifier = Modifier.height(SpacingTokens.xs))
-          OutlinedTextField(
-            value = passphrase,
-            onValueChange = { passphrase = it },
-            label = { Text(stringResource(R.string.passphrase_label)) },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-          )
-          OutlinedTextField(
-            value = confirmPassphrase,
-            onValueChange = { confirmPassphrase = it },
-            label = { Text(stringResource(R.string.passphrase_confirm_label)) },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            isError = confirmPassphrase.isNotEmpty() && !passwordsMatch,
-            supportingText =
-              if (confirmPassphrase.isNotEmpty() && !passwordsMatch) {
-                { Text(stringResource(R.string.passphrase_mismatch_error)) }
-              } else {
-                null
-              },
-            modifier = Modifier.fillMaxWidth()
-          )
-          if (isCryptoInProgress) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-          }
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = { backupViewModel.exportWithPassphrase(passphrase) },
-          text = stringResource(R.string.passphrase_encrypt_and_save),
-          enabled = canConfirm
-        )
-      },
-      dismissButton = {
-        Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          HesabyarButton(
-            onClick = { backupViewModel.exportWithoutPassphrase() },
-            text = stringResource(R.string.passphrase_save_without_encryption),
-            variant = ButtonVariant.Outlined
-          )
-          HesabyarButton(
-            onClick = { backupViewModel.cancelPassphraseDialog() },
-            text = stringResource(R.string.cancel_label),
-            variant = ButtonVariant.Text
-          )
-        }
-      }
+    ExportPassphraseDialog(
+      isCryptoInProgress = isCryptoInProgress,
+      onConfirm = backupViewModel::exportWithPassphrase,
+      onSaveWithoutEncryption = backupViewModel::exportWithoutPassphrase,
+      onDismiss = backupViewModel::cancelPassphraseDialog
     )
   }
 
