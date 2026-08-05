@@ -233,6 +233,28 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Seeds the default account (id=1) on genuinely fresh database creation.
+     * MIGRATION_5_6 seeds the same row on upgrades from v5, but fresh installs
+     * start at the latest schema and never run migrations, so this callback is
+     * their only seeding path. `INSERT OR IGNORE` keeps the row unique if id=1
+     * already exists (e.g. [migratePlaintextToEncryptedIfNeeded] rebuilds the
+     * encrypted database from an older install's data).
+     */
+    internal val DEFAULT_ACCOUNT_SEED_CALLBACK =
+      object : RoomDatabase.Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+          super.onCreate(db)
+          db.execSQL(
+            """
+            INSERT OR IGNORE INTO accounts
+              (id, name, type, initialBalance, displayOrder, createdAt, updatedAt)
+            VALUES (1, 'حساب اصلی', 'BANK', 0, 0, 0, 0)
+            """.trimIndent()
+          )
+        }
+      }
+
     fun getDatabase(context: Context): AppDatabase {
       instance?.let { return it }
       return synchronized(this) {
@@ -253,23 +275,8 @@ abstract class AppDatabase : RoomDatabase() {
               "hesabyar_database"
             ).openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
-            .addCallback(
-              object : androidx.room.RoomDatabase.Callback() {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                  super.onCreate(db)
-                  // Seed the default account on fresh database creation.
-                  // MIGRATION_5_6 seeds it on upgrade from v5, but fresh
-                  // installs bypass migrations and need this fallback.
-                  db.execSQL(
-                    """
-                    INSERT OR IGNORE INTO accounts
-                      (id, name, type, initialBalance, displayOrder, createdAt, updatedAt)
-                    VALUES (1, 'حساب اصلی', 'BANK', 0, 0, 0, 0)
-                    """.trimIndent()
-                  )
-                }
-              }
-            ).build()
+            .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
+            .build()
         instance = db
         db
       }
