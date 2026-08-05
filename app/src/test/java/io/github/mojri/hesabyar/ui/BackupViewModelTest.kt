@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
@@ -246,6 +247,16 @@ class BackupViewModelTest {
       assertTrue(
         "Expected Error state, got ${viewModel.operationState.value}",
         viewModel.operationState.value is BackupOperationState.Error
+      )
+      assertTrue(
+        "Export failure must surface the encryption error message",
+        (viewModel.operationState.value as BackupOperationState.Error)
+          .message
+          .contains("رمزگذاری پشتیبان")
+      )
+      assertTrue(
+        "isCryptoInProgress must be false after failed export staging",
+        !viewModel.isCryptoInProgress.value
       )
       assertTrue(
         "Failed staging must not raise the picker launch request",
@@ -537,6 +548,57 @@ class BackupViewModelTest {
       assertTrue(
         "Dialog must stay open for retry, got ${viewModel.passphraseDialogState.value}",
         viewModel.passphraseDialogState.value is PassphraseDialogState.ImportPassphrase
+      )
+      val message = context.getString(R.string.passphrase_wrong_or_corrupt)
+      assertEquals(
+        "Dialog must show the wrong-passphrase error message",
+        message,
+        (viewModel.passphraseDialogState.value as PassphraseDialogState.ImportPassphrase).errorMessage
+      )
+      assertEquals(
+        "Operation state must show the wrong-passphrase error message",
+        message,
+        (viewModel.operationState.value as BackupOperationState.Error).message
+      )
+      assertTrue(
+        "isCryptoInProgress must be false after failed decrypt",
+        !viewModel.isCryptoInProgress.value
+      )
+    }
+
+  @Test
+  fun validateAndStageImportEncryptedBackupShowsImportPassphraseDialog() =
+    runTest {
+      // End-to-end detection: a genuinely encrypted backup read from an input
+      // stream must stage the raw JSON + salt and open the passphrase dialog.
+      val (rawJson, salt) = encryptedBackupFixture()
+
+      viewModel.validateAndStageImport(ByteArrayInputStream(rawJson.toByteArray()))
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val dialog = viewModel.passphraseDialogState.value
+      assertTrue(
+        "Expected ImportPassphrase dialog for encrypted backup, got $dialog",
+        dialog is PassphraseDialogState.ImportPassphrase
+      )
+      assertEquals(
+        "Dialog must carry the backup's PBKDF2 salt",
+        salt,
+        (dialog as PassphraseDialogState.ImportPassphrase).salt
+      )
+      assertEquals(
+        "Raw JSON must be staged for decryption",
+        rawJson,
+        viewModel.pendingImportRawJson
+      )
+      assertEquals(
+        "Salt must be staged for decryption",
+        salt,
+        viewModel.pendingImportSalt
+      )
+      assertTrue(
+        "Detection must not report an error, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Idle
       )
     }
 
