@@ -28,4 +28,19 @@
 
     <!-- AccountManagementScreen -->
     <string name="add_account">افزودن حساب</string>
+
+    <!-- Export passphrase dialog (SettingsScreen) -->
+    <string name="passphrase_export_title">رمزگذاری اطلاعات حساس</string>
+    <string name="passphrase_export_warning">اگر این رمز را فراموش کنید، اطلاعات کارت/حساب/شبا در این بکاپ قابل بازیابی نخواهند بود.</string>
+    <string name="passphrase_label">رمز عبور</string>
+    <string name="passphrase_confirm_label">تأیید رمز عبور</string>
+    <string name="passphrase_mismatch_error">رمز عبور مطابقت ندارد</string>
+    <string name="passphrase_encrypt_and_save">رمزگذاری و ذخیره</string>
+    <string name="passphrase_save_without_encryption">ذخیره بدون رمز</string>
+
+    <!-- Import passphrase dialog (ImportPassphraseDialog) -->
+    <string name="passphrase_import_title">رمزگشایی پشتیبان</string>
+    <string name="passphrase_import_body">این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:</string>
+    <string name="passphrase_decrypt">رمزگشایی</string>
+    <string name="passphrase_wrong_or_corrupt">رمز عبور اشتباه است یا فایل بکاپ خراب است</string>
 </resources>

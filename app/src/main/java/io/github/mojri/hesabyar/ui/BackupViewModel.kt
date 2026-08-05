@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BackupValidationResult
@@ -293,10 +294,10 @@ class BackupViewModel
           passphraseDialogState.value =
             PassphraseDialogState.ImportPassphrase(
               salt,
-              "رمز عبور اشتباه است یا فایل بکاپ خراب است"
+              application.getString(R.string.passphrase_wrong_or_corrupt)
             )
           operationState.value =
-            BackupOperationState.Error("رمز عبور اشتباه است یا فایل بکاپ خراب است")
+            BackupOperationState.Error(application.getString(R.string.passphrase_wrong_or_corrupt))
         } finally {
           isCryptoInProgress.value = false
         }

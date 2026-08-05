@@ -14,11 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-
-internal const val CANCEL_LABEL = "انصراف"
 
 /**
  * Passphrase entry dialog shown when an imported backup contains encrypted
@@ -42,11 +42,11 @@ fun ImportPassphraseDialog(
 
   AlertDialog(
     onDismissRequest = onDismiss,
-    title = { Text("رمزگشایی پشتیبان", fontWeight = FontWeight.Bold) },
+    title = { Text(stringResource(R.string.passphrase_import_title), fontWeight = FontWeight.Bold) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
         Text(
-          text = "این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:",
+          text = stringResource(R.string.passphrase_import_body),
           style = MaterialTheme.typography.bodyMedium
         )
         OutlinedTextField(
@@ -55,7 +55,7 @@ fun ImportPassphraseDialog(
             passphrase = it
             userEditedSinceError = true
           },
-          label = { Text("رمز عبور") },
+          label = { Text(stringResource(R.string.passphrase_label)) },
           visualTransformation = PasswordVisualTransformation(),
           singleLine = true,
           isError = errorMessage != null && !userEditedSinceError,
@@ -81,14 +81,14 @@ fun ImportPassphraseDialog(
           userEditedSinceError = false
           onConfirm(passphrase)
         },
-        text = "رمزگشایی",
+        text = stringResource(R.string.passphrase_decrypt),
         enabled = passphrase.isNotEmpty() && !isCryptoInProgress
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
-        text = CANCEL_LABEL,
+        text = stringResource(R.string.cancel_label),
         variant = ButtonVariant.Text
       )
     }

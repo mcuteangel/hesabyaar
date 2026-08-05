@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.auth.BiometricHelper
@@ -49,7 +51,6 @@ import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
-import io.github.mojri.hesabyar.ui.components.CANCEL_LABEL
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
@@ -261,7 +262,7 @@ fun SettingsScreen(
       dismissButton = {
         HesabyarButton(
           onClick = { backupViewModel.cancelPendingRestore() },
-          text = CANCEL_LABEL,
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
@@ -277,11 +278,11 @@ fun SettingsScreen(
 
     AlertDialog(
       onDismissRequest = { backupViewModel.cancelPassphraseDialog() },
-      title = { Text("رمزگذاری اطلاعات حساس", fontWeight = FontWeight.Bold) },
+      title = { Text(stringResource(R.string.passphrase_export_title), fontWeight = FontWeight.Bold) },
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
           Text(
-            text = "اگر این رمز را فراموش کنید، اطلاعات کارت/حساب/شبا در این بکاپ قابل بازیابی نخواهند بود.",
+            text = stringResource(R.string.passphrase_export_warning),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
             fontWeight = FontWeight.Bold
@@ -290,7 +291,7 @@ fun SettingsScreen(
           OutlinedTextField(
             value = passphrase,
             onValueChange = { passphrase = it },
-            label = { Text("رمز عبور") },
+            label = { Text(stringResource(R.string.passphrase_label)) },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -298,13 +299,13 @@ fun SettingsScreen(
           OutlinedTextField(
             value = confirmPassphrase,
             onValueChange = { confirmPassphrase = it },
-            label = { Text("تأیید رمز عبور") },
+            label = { Text(stringResource(R.string.passphrase_confirm_label)) },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             isError = confirmPassphrase.isNotEmpty() && !passwordsMatch,
             supportingText =
               if (confirmPassphrase.isNotEmpty() && !passwordsMatch) {
-                { Text("رمز عبور مطابقت ندارد") }
+                { Text(stringResource(R.string.passphrase_mismatch_error)) }
               } else {
                 null
               },
@@ -318,7 +319,7 @@ fun SettingsScreen(
       confirmButton = {
         HesabyarButton(
           onClick = { backupViewModel.exportWithPassphrase(passphrase) },
-          text = "رمزگذاری و ذخیره",
+          text = stringResource(R.string.passphrase_encrypt_and_save),
           enabled = canConfirm
         )
       },
@@ -326,12 +327,12 @@ fun SettingsScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
           HesabyarButton(
             onClick = { backupViewModel.exportWithoutPassphrase() },
-            text = "ذخیره بدون رمز",
+            text = stringResource(R.string.passphrase_save_without_encryption),
             variant = ButtonVariant.Outlined
           )
           HesabyarButton(
             onClick = { backupViewModel.cancelPassphraseDialog() },
-            text = CANCEL_LABEL,
+            text = stringResource(R.string.cancel_label),
             variant = ButtonVariant.Text
           )
         }
@@ -765,7 +766,7 @@ fun SecuritySection(
             showVerifyPinDialog = false
             pendingDisable = false
           },
-          text = CANCEL_LABEL,
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
@@ -827,7 +828,7 @@ fun SecuritySection(
       dismissButton = {
         HesabyarButton(
           onClick = { showSetPinDialog = false },
-          text = CANCEL_LABEL,
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
@@ -1252,7 +1253,7 @@ fun AiConfigDialog(
           onClearModelFetchState()
           onDismiss()
         },
-        text = CANCEL_LABEL,
+        text = stringResource(R.string.cancel_label),
         variant = ButtonVariant.Text
       )
     }
