@@ -291,15 +291,22 @@ class HesabyarRepository(
     }
 
   private suspend fun mergeAccounts(accounts: List<AccountEntity>): Map<Long, Long> {
+    // Name-to-id lookup seeded from the DB snapshot and updated after every
+    // insert, so two backup entries sharing a name map to the SAME local row
+    // (mirrors mergeCategories' keyed dedup). A snapshot captured only once
+    // would miss accounts inserted earlier in this same loop and silently
+    // create duplicate rows (no unique index on accounts.name).
+    val accountIdsByName =
+      accountDao.getAllAccountsBlocking().associateTo(mutableMapOf()) { it.name to it.id }
     val accountIdMap = mutableMapOf<Long, Long>()
-    val allAccounts = accountDao.getAllAccountsBlocking()
     for (account in accounts) {
-      val existing = allAccounts.firstOrNull { it.name == account.name }
-      if (existing != null) {
-        accountDao.update(account.copy(id = existing.id))
-        accountIdMap[account.id] = existing.id
+      val existingId = accountIdsByName[account.name]
+      if (existingId != null) {
+        accountDao.update(account.copy(id = existingId))
+        accountIdMap[account.id] = existingId
       } else {
         val newId = accountDao.insert(account.copy(id = 0))
+        accountIdsByName[account.name] = newId
         accountIdMap[account.id] = newId
       }
     }
