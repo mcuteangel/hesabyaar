@@ -554,7 +554,14 @@ private fun AccountDialogForm(
         androidx.compose.foundation.text
           .KeyboardOptions(keyboardType = KeyboardType.Number),
       visualTransformation = VisualTransformation.None,
-      supportingText = if (balanceError) "مقدار نامعتبر" else "مبلغ ریال",
+      supportingText =
+        if (balanceError) {
+          stringResource(
+            id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
+          )
+        } else {
+          stringResource(id = io.github.mojri.hesabyar.R.string.balance_amount_label)
+        },
       isError = balanceError
     )
     AccountDialogColorPicker(

@@ -113,7 +113,10 @@ class BackupViewModel
           // provider failures). All crypto errors surface as a single user-facing message.
           operationState.value =
             BackupOperationState.Error(
-              "خطا در رمزگذاری پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+              application.getString(
+                R.string.error_encrypting_backup,
+                e.localizedMessage ?: "خطای ناشناخته"
+              )
             )
         } finally {
           isCryptoInProgress.value = false
@@ -141,7 +144,10 @@ class BackupViewModel
           // Safety net: repository/JSON operations can throw unchecked exceptions.
           operationState.value =
             BackupOperationState.Error(
-              "خطا در تهیه پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+              application.getString(
+                R.string.error_preparing_backup,
+                e.localizedMessage ?: "خطای ناشناخته"
+              )
             )
         }
       }
@@ -156,7 +162,7 @@ class BackupViewModel
     fun writeStagedExportToFile(outputStream: OutputStream) {
       val json = pendingExportJsonText
       if (json == null) {
-        operationState.value = BackupOperationState.Error("خطا: داده پشتیبان آماده نیست")
+        operationState.value = BackupOperationState.Error(application.getString(R.string.error_backup_data_not_ready))
         return
       }
       viewModelScope.launch {
@@ -175,12 +181,18 @@ class BackupViewModel
         } catch (e: IOException) {
           operationState.value =
             BackupOperationState.Error(
-              "خطا در ذخیره پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
+              application.getString(
+                R.string.error_saving_backup,
+                e.localizedMessage ?: "خطای ورودی/خروجی"
+              )
             )
         } catch (e: JSONException) {
           operationState.value =
             BackupOperationState.Error(
-              "خطا در پردازش JSON پشتیبان: ${e.localizedMessage ?: "خطای نامشخص JSON"}"
+              application.getString(
+                R.string.error_processing_backup_json,
+                e.localizedMessage ?: "خطای نامشخص JSON"
+              )
             )
         } finally {
           pendingExportJsonText = null
@@ -189,19 +201,20 @@ class BackupViewModel
     }
 
     private fun buildExportSummary(root: JSONObject?): String {
-      if (root == null) return "پشتیبان با موفقیت ذخیره شد."
+      if (root == null) return application.getString(R.string.backup_saved_success) + "."
       val txCount = root.optJSONArray("transactions")?.length() ?: 0
       val loanCount = root.optJSONArray("loans")?.length() ?: 0
       val instCount = root.optJSONArray("installments")?.length() ?: 0
       val catCount = root.optJSONArray("categories")?.length() ?: 0
       val accountCount = root.optJSONArray("accounts")?.length() ?: 0
-      return "پشتیبان با موفقیت ذخیره شد. ${manageBackupUseCase.buildExportSummary(
-        txCount,
-        loanCount,
-        instCount,
-        catCount,
-        accountCount = accountCount
-      )}"
+      return application.getString(R.string.backup_saved_success) +
+        ". ${manageBackupUseCase.buildExportSummary(
+          txCount,
+          loanCount,
+          instCount,
+          catCount,
+          accountCount = accountCount
+        )}"
     }
 
     // --- Import passphrase flow ---
@@ -243,12 +256,18 @@ class BackupViewModel
         } catch (e: IOException) {
           operationState.value =
             BackupOperationState.Error(
-              "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+              application.getString(
+                R.string.error_reading_backup_file,
+                e.localizedMessage ?: "خطای ناشناخته"
+              )
             )
         } catch (e: JSONException) {
           operationState.value =
             BackupOperationState.Error(
-              "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
+              application.getString(
+                R.string.error_parsing_backup_file,
+                e.localizedMessage ?: "خطای ناشناخته"
+              )
             )
         }
       }
@@ -392,7 +411,7 @@ class BackupViewModel
       pendingRestoreBackup.value = null
       operationState.value =
         BackupOperationState.Error(
-          "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
+          application.getString(R.string.error_invalid_backup_structure)
         )
     }
 

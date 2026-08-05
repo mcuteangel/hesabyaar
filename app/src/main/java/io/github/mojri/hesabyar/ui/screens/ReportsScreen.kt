@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
@@ -700,7 +702,7 @@ fun ReportsScreen(
               backgroundColor = sourceAccount.color.toComposeColor(),
               iconSize = 12.dp,
               containerSize = 20.dp,
-              contentDescription = "حساب ${sourceAccount.name}"
+              contentDescription = stringResource(id = R.string.account_content_description, sourceAccount.name)
             )
             Spacer(modifier = Modifier.width(SpacingTokens.sm))
           }
