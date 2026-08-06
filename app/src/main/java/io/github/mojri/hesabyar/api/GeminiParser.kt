@@ -313,17 +313,28 @@ object GeminiParser {
    *
    * Maps from Rust's [io.github.mojri.hesabyar.rust.ParsedResult] (which uses
    * [TransactionType] enum) to the Kotlin [ParsedResult] (which uses a String type).
+   *
+   * @param rawSentence The user's input sentence in Persian.
+   * @param nowMs Epoch milliseconds (UTC) used for Jalali date-relative
+   *   computations (daysFromNow, dateOffsetDays). Defaults to
+   *   [System.currentTimeMillis] so production behavior is unchanged.
    */
-  fun parseSentenceOffline(rawSentence: String): ParsedResult? {
+  fun parseSentenceOffline(
+    rawSentence: String,
+    nowMs: Long = System.currentTimeMillis(),
+  ): ParsedResult? {
     AppLogger.d(TAG, "Using offline Rust parser")
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge
-        .parseSentenceOfflineSync(rawSentence)
+        .parseSentenceOfflineSync(rawSentence, nowMs)
     if (rustResult != null) {
       return mapRustParsedResult(rustResult)
     }
     AppLogger.d(TAG, "Rust parser unavailable, using Kotlin fallback")
-    return kotlinFallbackParse(rawSentence)
+    return kotlinFallbackParse(
+      rawSentence,
+      JalaliCalendarHelper.gregorianToJalali(nowMs),
+    )
   }
 
   /**
@@ -384,7 +395,10 @@ object GeminiParser {
     return phoneNumberPattern.containsMatchIn(normalized)
   }
 
-  internal fun kotlinFallbackParse(rawSentence: String): ParsedResult? {
+  internal fun kotlinFallbackParse(
+    rawSentence: String,
+    today: JalaliCalendarHelper.JalaliDate = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis()),
+  ): ParsedResult? {
     val normalized = normalizePersianDigits(rawSentence)
     // Validation gate: block non-monetary numeric strings (e.g. a year "۱۴۰۳"
     // or a bare phone number) that contain digits but no financial context.
@@ -417,7 +431,7 @@ object GeminiParser {
     val type = detectType(rawSentence)
     val category = detectCategory(rawSentence, type)
     val personName = extractPersonName(rawSentence)
-    val dateOffsetDays = detectDateOffset(rawSentence)
+    val dateOffsetDays = detectDateOffset(rawSentence, today)
     return ParsedResult(
       type = type,
       amount = amount,
@@ -588,8 +602,11 @@ object GeminiParser {
     return null
   }
 
-  private fun detectDateOffset(text: String): Int {
-    detectExplicitJalaliOffset(text)?.let { return it }
+  private fun detectDateOffset(
+    text: String,
+    today: JalaliCalendarHelper.JalaliDate
+  ): Int {
+    detectExplicitJalaliOffset(text, today)?.let { return it }
     return when {
       text.contains("دیروز") -> -1
       text.contains("پریروز") -> -2
@@ -604,7 +621,10 @@ object GeminiParser {
    * from today (same-year assumption, mirroring the AI prompt's date math). Returns null when no
    * Jalali date is found so callers fall back to relative-word detection.
    */
-  private fun detectExplicitJalaliOffset(text: String): Int? {
+  private fun detectExplicitJalaliOffset(
+    text: String,
+    today: JalaliCalendarHelper.JalaliDate
+  ): Int? {
     val normalized = normalizePersianDigits(text)
     val monthByName =
       mapOf(
@@ -622,17 +642,17 @@ object GeminiParser {
         "اسفند" to 12
       )
     return monthByName.entries.firstNotNullOfOrNull { (name, month) ->
-      computeJalaliDayOffset(normalized, name, month)
+      computeJalaliDayOffset(normalized, name, month, today)
     }
   }
 
   private fun computeJalaliDayOffset(
     normalized: String,
     name: String,
-    month: Int
+    month: Int,
+    today: JalaliCalendarHelper.JalaliDate = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis()),
   ): Int? {
     val dayNum = extractJalaliDay(normalized, name) ?: return null
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
     val targetYear =
       if (month < today.month || month == today.month && dayNum < today.day) {
         today.year + 1

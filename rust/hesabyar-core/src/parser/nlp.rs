@@ -266,8 +266,8 @@ fn extract_subject(sentence: &str) -> String {
 
 /// Classify the type of a Persian sentence.
 /// Ported from GeminiParser.classifyType()
-fn classify_type(sentence: &str, is_income: bool, person_name: Option<&str>) -> TypeClassification {
-    if let Some(c) = classify_installment(sentence) { return c; }
+fn classify_type(sentence: &str, is_income: bool, person_name: Option<&str>, now_ms: i64) -> TypeClassification {
+    if let Some(c) = classify_installment(sentence, now_ms) { return c; }
     if let Some(c) = classify_loan(sentence, person_name) { return c; }
     if is_income { return classify_income(sentence); }
     classify_expense(sentence)
@@ -275,7 +275,7 @@ fn classify_type(sentence: &str, is_income: bool, person_name: Option<&str>) -> 
 
 /// Classify installment from sentence.
 /// Ported from GeminiParser.classifyInstallment()
-fn classify_installment(sentence: &str) -> Option<TypeClassification> {
+fn classify_installment(sentence: &str, now_ms: i64) -> Option<TypeClassification> {
     if !sentence.contains("قسط") { return None; }
 
     let installment_title = if sentence.contains("ماشین") {
@@ -305,7 +305,7 @@ fn classify_installment(sentence: &str) -> Option<TypeClassification> {
             category: CATEGORY_INSTALLMENTS.to_string(),
             description: "قسط آینده".to_string(),
             installment_title,
-            days_from_now: Some(extract_jalali_days_from_now(sentence)),
+            days_from_now: Some(extract_jalali_days_from_now_inner(sentence, now_ms + TEHRAN_OFFSET_MS)),
             notes: Some("قسط در انتظار پرداخت".to_string()),
         })
     }
@@ -495,14 +495,19 @@ pub fn extract_person_name(sentence: &str) -> Option<String> {
 const TEHRAN_OFFSET_MS: i64 = 3 * 3600 * 1000 + 30 * 60 * 1000;
 const MS_PER_DAY: i64 = 86_400_000;
 
+/// Current epoch milliseconds (UTC), matching the Kotlin
+/// `System.currentTimeMillis()` convention used by the rest of the pipeline.
+pub(crate) fn real_now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
 /// Extract Jalali days from now.
 /// Ported from GeminiParser.extractJalaliDaysFromNow()
 pub fn extract_jalali_days_from_now(sentence: &str) -> i32 {
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as i64;
-    extract_jalali_days_from_now_inner(sentence, now_ms + TEHRAN_OFFSET_MS)
+    extract_jalali_days_from_now_inner(sentence, real_now_ms() + TEHRAN_OFFSET_MS)
 }
 
 fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
@@ -572,8 +577,10 @@ pub fn extract_description(sentence: &str) -> String {
 }
 
 /// Full offline sentence parser.
-/// Ported from GeminiParser.parseSentenceOffline()
-pub fn parse_sentence_offline_full(raw_sentence: &str) -> ParsedResult {
+/// Ported from GeminiParser.parseSentenceOffline().
+/// `now_ms` is the current epoch timestamp (UTC ms) — supply a fixed value
+/// for deterministic tests, or `real_now_ms()` for production use.
+pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedResult {
     let sentence = preprocess_persian_text(raw_sentence);
     let amount_toman = parse_amount(&sentence, true);
     let date_offset_days = extract_date_offset(&sentence);
@@ -618,7 +625,7 @@ pub fn parse_sentence_offline_full(raw_sentence: &str) -> ParsedResult {
     let is_income = income_keywords.iter().any(|&kw| sentence.contains(kw));
     let is_expense = expense_keywords.iter().any(|&kw| sentence.contains(kw));
 
-    let classification = classify_type(&sentence, is_income, person_name.as_deref());
+    let classification = classify_type(&sentence, is_income, person_name.as_deref(), now_ms);
 
     let mut factors = 0i32;
     if amount_toman > 0 { factors += 1; }
@@ -654,6 +661,14 @@ pub fn parse_sentence_offline_full(raw_sentence: &str) -> ParsedResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fixed "today" for all parser integration tests — 1405/04/10 (10 Tir 1405).
+    /// Supply this to `parse_sentence_offline_full` / `classify_installment` so
+    /// date-relative fields (daysFromNow, dateOffsetDays) never depend on the
+    /// wall clock.
+    fn test_now_ms() -> i64 {
+        jalali_to_gregorian(1405, 4, 10).unwrap()
+    }
 
     // =========================================================================
     // infer_expense_category_full tests
@@ -945,13 +960,13 @@ mod tests {
 
     #[test]
     fn test_installment_not_detected() {
-        let result = classify_installment("پرداخت قبض برق");
+        let result = classify_installment("پرداخت قبض برق", test_now_ms());
         assert!(result.is_none());
     }
 
     #[test]
     fn test_installment_paid_car() {
-        let result = classify_installment("قسط ماشین پرداخت کردم").unwrap();
+        let result = classify_installment("قسط ماشین پرداخت کردم", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "EXPENSE");
         assert_eq!(result.category, "Installments");
         assert_eq!(result.description, "پرداخت قسط ماشین");
@@ -961,28 +976,28 @@ mod tests {
 
     #[test]
     fn test_installment_paid_house() {
-        let result = classify_installment("قسط خانه دادم").unwrap();
+        let result = classify_installment("قسط خانه دادم", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "EXPENSE");
         assert_eq!(result.description, "پرداخت قسط وام مسکن");
     }
 
     #[test]
     fn test_installment_paid_loan() {
-        let result = classify_installment("قسط وام تسویه کردم").unwrap();
+        let result = classify_installment("قسط وام تسویه کردم", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "EXPENSE");
         assert_eq!(result.description, "پرداخت قسط وام");
     }
 
     #[test]
     fn test_installment_paid_generic() {
-        let result = classify_installment("قسط جدید پرداخت کردم").unwrap();
+        let result = classify_installment("قسط جدید پرداخت کردم", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "EXPENSE");
         assert_eq!(result.description, "پرداخت قسط جدید");
     }
 
     #[test]
     fn test_installment_unpaid() {
-        let result = classify_installment("قسط ماشین فردا").unwrap();
+        let result = classify_installment("قسط ماشین فردا", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "INSTALLMENT");
         assert_eq!(result.description, "قسط آینده");
         assert_eq!(result.installment_title, Some("قسط ماشین".to_string()));
@@ -991,7 +1006,7 @@ mod tests {
 
     #[test]
     fn test_installment_unpaid_house() {
-        let result = classify_installment("قسط مسکن ۱۵ فروردین").unwrap();
+        let result = classify_installment("قسط مسکن ۱۵ فروردین", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "INSTALLMENT");
         assert_eq!(result.installment_title, Some("قسط وام مسکن".to_string()));
     }
@@ -1405,82 +1420,82 @@ mod tests {
 
     #[test]
     fn test_parse_simple_expense() {
-        let result = parse_sentence_offline_full("۵۰۰۰ تومان خرید نان");
+        let result = parse_sentence_offline_full("۵۰۰۰ تومان خرید نان", test_now_ms());
         assert_eq!(result.amount, 50000); // 5000 toman * 10 = 50000 rial
         assert_eq!(result.category, "Food");
     }
 
     #[test]
     fn test_parse_expense_with_date() {
-        let result = parse_sentence_offline_full("فردا ۱۰۰۰۰ تومان خرید نان");
+        let result = parse_sentence_offline_full("فردا ۱۰۰۰۰ تومان خرید نان", test_now_ms());
         assert_eq!(result.amount, 100000);
         assert_eq!(result.date_offset_days, Some(1));
     }
 
     #[test]
     fn test_parse_income() {
-        let result = parse_sentence_offline_full("حقوق ۵۰۰۰۰۰ تومان واریز شد");
+        let result = parse_sentence_offline_full("حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
         assert_eq!(result.amount, 5000000);
         assert_eq!(result.tx_type, TransactionType::Income);
     }
 
     #[test]
     fn test_parse_loan_received() {
-        let result = parse_sentence_offline_full("قرض گرفتم از علی ۱۰۰۰۰۰ تومان");
+        let result = parse_sentence_offline_full("قرض گرفتم از علی ۱۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::LoanCreditor);
         assert_eq!(result.person_name, Some("علی".to_string()));
     }
 
     #[test]
     fn test_parse_loan_given() {
-        let result = parse_sentence_offline_full("قرض دادم به رضا ۲۰۰۰۰۰ تومان");
+        let result = parse_sentence_offline_full("قرض دادم به رضا ۲۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::LoanDebtor);
         assert_eq!(result.person_name, Some("رضا".to_string()));
     }
 
     #[test]
     fn test_parse_installment() {
-        let result = parse_sentence_offline_full("قسط ماشین فردا ۳۰۰۰۰۰ تومان");
+        let result = parse_sentence_offline_full("قسط ماشین فردا ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Installment);
         assert_eq!(result.title, Some("قسط ماشین".to_string()));
     }
 
     #[test]
     fn test_parse_installment_paid() {
-        let result = parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان");
+        let result = parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Expense);
         assert_eq!(result.category, "Installments");
     }
 
     #[test]
     fn test_parse_with_time() {
-        let result = parse_sentence_offline_full("ساعت 14 جلسه دارم");
+        let result = parse_sentence_offline_full("ساعت 14 جلسه دارم", test_now_ms());
         assert_eq!(result.hour, Some(14));
     }
 
     #[test]
     fn test_parse_confidence_high() {
         // Multiple factors: amount + income keyword + time
-        let result = parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد");
+        let result = parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
         assert!(result.confidence >= 0.90);
     }
 
     #[test]
     fn test_parse_confidence_low() {
         // No factors
-        let result = parse_sentence_offline_full("چیز عجیبی");
+        let result = parse_sentence_offline_full("چیز عجیبی", test_now_ms());
         assert!(result.confidence <= 0.65);
     }
 
     #[test]
     fn test_parse_persian_digits() {
-        let result = parse_sentence_offline_full("۵۰۰۰ تومان خرید نان");
+        let result = parse_sentence_offline_full("۵۰۰۰ تومان خرید نان", test_now_ms());
         assert_eq!(result.amount, 50000);
     }
 
     #[test]
     fn test_parse_empty() {
-        let result = parse_sentence_offline_full("");
+        let result = parse_sentence_offline_full("", test_now_ms());
         assert_eq!(result.amount, 0);
         assert_eq!(result.confidence, 0.60);
     }

@@ -20,6 +20,7 @@ object HesabyarCore {
     fun fromRial(rial: Long, unit: CurrencyUnit): Long = __PKG__.fromRial(rial, unit)
     fun formatNumber(value: Long): String = __PKG__.formatNumber(value)
     fun parseSentenceOffline(rawSentence: String): ParsedResult = __PKG__.parseSentenceOffline(rawSentence)
+    fun parseSentenceOfflineAt(rawSentence: String, nowMs: Long): ParsedResult = __PKG__.parseSentenceOfflineAt(rawSentence, nowMs)
     fun inferExpenseCategory(sentence: String): CategoryGuess = __PKG__.inferExpenseCategory(sentence)
     fun parsePersianAmount(sentence: String): Long = __PKG__.parsePersianAmount(sentence)
     fun containsMoney(sentence: String): Boolean = __PKG__.containsMoney(sentence)

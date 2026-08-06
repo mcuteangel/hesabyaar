@@ -1,7 +1,7 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
-import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -24,9 +24,21 @@ class OfflineParserTest {
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
-  private fun parse(sentence: String) =
-    GeminiParser.parseSentenceOffline(sentence)
-      ?: throw AssertionError("parseSentenceOffline returned null for: $sentence")
+  /** Fixed "today" (1405/04/10 = 10 Tir 1405) used by date-sensitive tests.
+   *  UTC-midnight of that Jalali date — the exact epoch-ms convention the
+   *  Rust parser's date math uses — so results are deterministic regardless
+   *  of which real-world day the test runs on. */
+  private fun fixedNow(
+    year: Int,
+    month: Int,
+    day: Int
+  ): Long = RustBridge.jalaliToGregorianSync(year, month, day)
+
+  private fun parse(
+    sentence: String,
+    nowMs: Long = System.currentTimeMillis()
+  ) = GeminiParser.parseSentenceOffline(sentence, nowMs)
+    ?: throw AssertionError("parseSentenceOffline returned null for: $sentence")
 
   @Test
   fun parseExpenseWithMillion() {
@@ -151,25 +163,25 @@ class OfflineParserTest {
 
   @Test
   fun installmentWithSpecificJalaliDateCalculatesCorrectDays() {
-    val result = parse("قسط ماشین 25 تیر 10 میلیون")
+    // Pinned "today" = 1405/04/10 (10 Tir). Target = 25 Tir → exactly
+    // 15 days ahead, no year-rollover. The fixed nowMs makes this
+    // deterministic on every calendar day.
+    val todayMs = fixedNow(1405, 4, 10)
+    val result = parse("قسط ماشین 25 تیر 10 میلیون", todayMs)
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-    val targetYear = if (4 < today.month || 4 == today.month && 25 < today.day) today.year + 1 else today.year
-    val targetCal = JalaliCalendarHelper.jalaliToGregorian(targetYear, 4, 25)
-    val todayCal = JalaliCalendarHelper.jalaliToGregorian(today.year, today.month, today.day)
-    val expected = ((targetCal!!.timeInMillis - todayCal!!.timeInMillis) / (24L * 60 * 60 * 1000)).toInt()
-    assertEquals("daysFromNow should match days to 25 Tir", expected, result.daysFromNow ?: 0)
-    assertTrue("daysFromNow should be non-negative", result.daysFromNow ?: 0 >= 0)
+    assertEquals("daysFromNow for 25 Tir from 10 Tir", 15, result.daysFromNow ?: 0)
   }
 
   @Test
   fun installmentWithMordadMonthExtractsDays() {
-    val result = parse("قسط خانه 15 مرداد 5 میلیون")
+    // Pinned "today" = 1405/05/10 (10 Mordad). Target = 15 Mordad →
+    // exactly 5 days ahead, unambiguously in the future.
+    val todayMs = fixedNow(1405, 5, 10)
+    val result = parse("قسط خانه 15 مرداد 5 میلیون", todayMs)
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
-    @Suppress("UnnecessaryParentheses")
-    assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
+    assertEquals("daysFromNow for 15 Mordad from 10 Mordad", 5, result.daysFromNow ?: 0)
   }
 
   @Test
@@ -181,11 +193,13 @@ class OfflineParserTest {
 
   @Test
   fun installmentWithPersianNumeralsInDate() {
-    val result = parse("قسط ماشین ۲۰ مهر ۸ میلیون")
+    // Pinned "today" = 1405/07/05 (5 Mehr). Target = 20 Mehr →
+    // exactly 15 days ahead, unambiguously in the future.
+    val todayMs = fixedNow(1405, 7, 5)
+    val result = parse("قسط ماشین ۲۰ مهر ۸ میلیون", todayMs)
     assertEquals("INSTALLMENT", result.type)
     assertNotNull(result.daysFromNow)
-    @Suppress("UnnecessaryParentheses")
-    assertTrue("daysFromNow should be positive", (result.daysFromNow ?: 0) > 0)
+    assertEquals("daysFromNow for 20 Mehr from 5 Mehr", 15, result.daysFromNow ?: 0)
   }
 
   @Test

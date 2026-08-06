@@ -128,7 +128,12 @@ object RustBridge : JalaliNativeBridge {
   // ===========================================================================
 
   fun parseSentenceOfflineSync(rawSentence: String): ParsedResult? =
-    rustCallSync(null) { HesabyarCore.parseSentenceOffline(rawSentence) }
+    parseSentenceOfflineSync(rawSentence, System.currentTimeMillis())
+
+  fun parseSentenceOfflineSync(
+    rawSentence: String,
+    nowMs: Long,
+  ): ParsedResult? = rustCallSync(null) { HesabyarCore.parseSentenceOfflineAt(rawSentence, nowMs) }
 
   fun inferExpenseCategorySync(sentence: String): CategoryGuess =
     rustCallSync(CategoryGuess(category = "Other", subcategory = "")) {
