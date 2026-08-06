@@ -107,10 +107,13 @@ class BackupExportCoordinator(
     scope.launch {
       exportPickerLaunchRequest.value = false
       passphraseDialogState.value = PassphraseDialogState.Hidden
-      operationState.value = BackupOperationState.Exporting
       try {
-        val rootJson = manageBackupUseCase.exportBackupJson()
+        val rootJson =
+          withContext(cryptoDispatcher) {
+            manageBackupUseCase.exportBackupJson()
+          }
         pendingExportJsonText = rootJson.toString(2)
+        operationState.value = BackupOperationState.Exporting
         exportPickerLaunchRequest.value = true
       } catch (e: CancellationException) {
         throw e
