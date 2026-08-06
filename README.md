@@ -6,8 +6,21 @@
   <img src="https://img.shields.io/badge/language-Rust-E74C3C?style=for-the-badge" alt="Rust">
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
-     
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge) [![CodeFactor](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge)](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage) 
+</p>
+
+<p align="center">
+  <a href="https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge">
+    <img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed">
+  </a>
+  <a href="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar">
+    <img src="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge" alt="CodeFactor">
+  </a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade">
+    <img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade">
+  </a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage">
+    <img src="https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Coverage">
+  </a>
 </p>
 
 <p align="center">
