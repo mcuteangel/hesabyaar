@@ -116,10 +116,6 @@ private sealed interface AccountDialogState {
     val account: AccountEntity
   ) : AccountDialogState
 
-  data class OverflowMenu(
-    val account: AccountEntity
-  ) : AccountDialogState
-
   data class PendingDelete(
     val account: AccountEntity
   ) : AccountDialogState
@@ -288,7 +284,6 @@ private fun AccountManagementDialogs(
         onDismiss = onDismiss,
         confirmColor = MaterialTheme.colorScheme.primary
       )
-    is AccountDialogState.OverflowMenu -> {}
     is AccountDialogState.PendingDelete -> {}
   }
 }
