@@ -57,8 +57,10 @@ class BackupViewModelTest {
     fakeRepo = FakeRepository()
     useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
     viewModel = BackupViewModel(context, useCase)
-    viewModel.ioDispatcher = testDispatcher
-    viewModel.cryptoDispatcher = testDispatcher
+    viewModel.importCoordinator.ioDispatcher = testDispatcher
+    viewModel.importCoordinator.cryptoDispatcher = testDispatcher
+    viewModel.exportCoordinator.ioDispatcher = testDispatcher
+    viewModel.exportCoordinator.cryptoDispatcher = testDispatcher
   }
 
   @After
@@ -82,7 +84,7 @@ class BackupViewModelTest {
         }
         """.trimIndent()
 
-      viewModel.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
+      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -103,7 +105,7 @@ class BackupViewModelTest {
           ): Int = throw IOException("disk read failed")
         }
 
-      viewModel.importBackupFromFile(inputStream)
+      viewModel.importCoordinator.importBackupFromFile(inputStream)
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -116,7 +118,7 @@ class BackupViewModelTest {
     runTest {
       val badJson = "this is not json"
 
-      viewModel.importBackupFromFile(ByteArrayInputStream(badJson.toByteArray()))
+      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(badJson.toByteArray()))
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -142,7 +144,7 @@ class BackupViewModelTest {
         }
         """.trimIndent()
 
-      viewModel.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
+      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -153,7 +155,7 @@ class BackupViewModelTest {
   @Test
   fun onExportPickerCancelledResetsStateToIdle() =
     runTest {
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       testDispatcher.scheduler.advanceUntilIdle()
 
       assertTrue(
@@ -161,7 +163,7 @@ class BackupViewModelTest {
         viewModel.operationState.value is BackupOperationState.Exporting
       )
 
-      viewModel.onExportPickerCancelled()
+      viewModel.exportCoordinator.onExportPickerCancelled()
 
       assertTrue(
         "Expected Idle after picker cancel, got ${viewModel.operationState.value}",
@@ -172,13 +174,13 @@ class BackupViewModelTest {
   @Test
   fun onExportPickerCancelledClearsStagedData() =
     runTest {
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       testDispatcher.scheduler.advanceUntilIdle()
 
-      viewModel.onExportPickerCancelled()
+      viewModel.exportCoordinator.onExportPickerCancelled()
 
       val outputStream = ByteArrayOutputStream()
-      viewModel.writeStagedExportToFile(outputStream)
+      viewModel.exportCoordinator.writeStagedExportToFile(outputStream)
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -189,11 +191,11 @@ class BackupViewModelTest {
   @Test
   fun writeStagedExportToFileSuccessAfterExportStaging() =
     runTest {
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       testDispatcher.scheduler.advanceUntilIdle()
 
       val outputStream = ByteArrayOutputStream()
-      viewModel.writeStagedExportToFile(outputStream)
+      viewModel.exportCoordinator.writeStagedExportToFile(outputStream)
       testDispatcher.scheduler.advanceUntilIdle()
 
       val state = viewModel.operationState.value
@@ -206,7 +208,7 @@ class BackupViewModelTest {
   @Test
   fun exportPickerLaunchRequestStaysFalseUntilStagingCompletes() =
     runTest {
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       // Staging is queued on the test dispatcher; this mirrors the instant
       // between the click handler returning and the picker callback firing.
       assertTrue(
@@ -225,7 +227,7 @@ class BackupViewModelTest {
   @Test
   fun exportWithPassphraseRaisesPickerLaunchRequestOnlyAfterStaging() =
     runTest {
-      viewModel.exportWithPassphrase("secret")
+      viewModel.exportCoordinator.exportWithPassphrase("secret")
       assertTrue(
         "Picker launch must not be requested before encrypted staging completes",
         !viewModel.exportPickerLaunchRequest.value
@@ -244,7 +246,7 @@ class BackupViewModelTest {
     runTest {
       fakeRepo.exportShouldThrow = IllegalStateException("simulated export failure")
 
-      viewModel.exportWithPassphrase("secret")
+      viewModel.exportCoordinator.exportWithPassphrase("secret")
       testDispatcher.scheduler.advanceUntilIdle()
 
       assertTrue(
@@ -270,11 +272,11 @@ class BackupViewModelTest {
   @Test
   fun consumeExportPickerLaunchRequestClearsTheSignal() =
     runTest {
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       testDispatcher.scheduler.advanceUntilIdle()
       assertTrue(viewModel.exportPickerLaunchRequest.value)
 
-      viewModel.consumeExportPickerLaunchRequest()
+      viewModel.exportCoordinator.consumeExportPickerLaunchRequest()
 
       assertTrue(
         "Signal must clear after the screen launches the picker",
@@ -303,20 +305,20 @@ class BackupViewModelTest {
         """.trimIndent()
       val salt = "test-salt"
 
-      viewModel.pendingImportRawJson = plainJson
-      viewModel.pendingImportSalt = salt
+      viewModel.importCoordinator.pendingImportRawJson = plainJson
+      viewModel.importCoordinator.pendingImportSalt = salt
 
-      viewModel.decryptAndStageImport("wrong-passphrase")
+      viewModel.importCoordinator.decryptAndStageImport("wrong-passphrase")
       testDispatcher.scheduler.advanceUntilIdle()
 
       // Staged data must be preserved so the user can retry
       assertTrue(
         "pendingImportRawJson must be preserved after decryption failure",
-        viewModel.pendingImportRawJson != null
+        viewModel.importCoordinator.pendingImportRawJson != null
       )
       assertTrue(
         "pendingImportSalt must be preserved after decryption failure",
-        viewModel.pendingImportSalt != null
+        viewModel.importCoordinator.pendingImportSalt != null
       )
 
       // Error state allows retry
@@ -344,11 +346,11 @@ class BackupViewModelTest {
         """.trimIndent()
       val salt = "test-salt"
 
-      viewModel.pendingImportRawJson = plainJson
-      viewModel.pendingImportSalt = salt
+      viewModel.importCoordinator.pendingImportRawJson = plainJson
+      viewModel.importCoordinator.pendingImportSalt = salt
 
       // First attempt with wrong passphrase
-      viewModel.decryptAndStageImport("wrong-passphrase")
+      viewModel.importCoordinator.decryptAndStageImport("wrong-passphrase")
       testDispatcher.scheduler.advanceUntilIdle()
 
       assertTrue(
@@ -357,7 +359,7 @@ class BackupViewModelTest {
       )
 
       // Second attempt with correct passphrase — should succeed using staged data
-      viewModel.decryptAndStageImport("correct-passphrase")
+      viewModel.importCoordinator.decryptAndStageImport("correct-passphrase")
       testDispatcher.scheduler.advanceUntilIdle()
 
       // Since there's no encryption metadata, decryptBackupWithPassphrase throws
@@ -366,25 +368,25 @@ class BackupViewModelTest {
       // allowing the second attempt to be made at all.
       assertTrue(
         "pendingImportRawJson must still be preserved for retry",
-        viewModel.pendingImportRawJson != null
+        viewModel.importCoordinator.pendingImportRawJson != null
       )
     }
 
   @Test
   fun cancelPassphraseDialogClearsStagedImportData() =
     runTest {
-      viewModel.pendingImportRawJson = "some-json"
-      viewModel.pendingImportSalt = "some-salt"
+      viewModel.importCoordinator.pendingImportRawJson = "some-json"
+      viewModel.importCoordinator.pendingImportSalt = "some-salt"
 
-      viewModel.cancelPassphraseDialog()
+      viewModel.importCoordinator.cancelPassphraseDialog()
 
       assertTrue(
         "pendingImportRawJson must be null after cancel",
-        viewModel.pendingImportRawJson == null
+        viewModel.importCoordinator.pendingImportRawJson == null
       )
       assertTrue(
         "pendingImportSalt must be null after cancel",
-        viewModel.pendingImportSalt == null
+        viewModel.importCoordinator.pendingImportSalt == null
       )
     }
 
@@ -396,7 +398,7 @@ class BackupViewModelTest {
         viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
       )
 
-      viewModel.requestExportPassphraseDialog()
+      viewModel.exportCoordinator.requestExportPassphraseDialog()
 
       assertTrue(
         "Expected ExportPassphrase after request, got ${viewModel.passphraseDialogState.value}",
@@ -409,9 +411,9 @@ class BackupViewModelTest {
     runTest {
       val gate = CompletableDeferred<Unit>()
       fakeRepo.exportGate = gate
-      viewModel.requestExportPassphraseDialog()
+      viewModel.exportCoordinator.requestExportPassphraseDialog()
 
-      viewModel.exportWithPassphrase("secret")
+      viewModel.exportCoordinator.exportWithPassphrase("secret")
       // Staging suspends on the gate; while PBKDF2 derivation + encryption is
       // in flight the dialog must already be closed and the crypto flag raised.
       testDispatcher.scheduler.runCurrent()
@@ -444,9 +446,9 @@ class BackupViewModelTest {
   @Test
   fun exportWithoutPassphraseClearsDialogAndStagesExport() =
     runTest {
-      viewModel.requestExportPassphraseDialog()
+      viewModel.exportCoordinator.requestExportPassphraseDialog()
 
-      viewModel.exportWithoutPassphrase()
+      viewModel.exportCoordinator.exportWithoutPassphrase()
       testDispatcher.scheduler.advanceUntilIdle()
 
       assertTrue(
@@ -489,10 +491,10 @@ class BackupViewModelTest {
       // then decrypt it with the correct passphrase on the first attempt.
       val (rawJson, salt) = encryptedBackupFixture()
 
-      viewModel.pendingImportRawJson = rawJson
-      viewModel.pendingImportSalt = salt
+      viewModel.importCoordinator.pendingImportRawJson = rawJson
+      viewModel.importCoordinator.pendingImportSalt = salt
 
-      viewModel.decryptAndStageImport("secret")
+      viewModel.importCoordinator.decryptAndStageImport("secret")
       testDispatcher.scheduler.advanceUntilIdle()
 
       val staged = viewModel.pendingRestoreBackup.value
@@ -511,11 +513,11 @@ class BackupViewModelTest {
       )
       assertTrue(
         "Staged raw JSON must be cleared after successful decrypt",
-        viewModel.pendingImportRawJson == null
+        viewModel.importCoordinator.pendingImportRawJson == null
       )
       assertTrue(
         "Staged salt must be cleared after successful decrypt",
-        viewModel.pendingImportSalt == null
+        viewModel.importCoordinator.pendingImportSalt == null
       )
       assertTrue(
         "isCryptoInProgress must be false after decrypt completes",
@@ -528,10 +530,10 @@ class BackupViewModelTest {
     runTest {
       val (rawJson, salt) = encryptedBackupFixture()
 
-      viewModel.pendingImportRawJson = rawJson
-      viewModel.pendingImportSalt = salt
+      viewModel.importCoordinator.pendingImportRawJson = rawJson
+      viewModel.importCoordinator.pendingImportSalt = salt
 
-      viewModel.decryptAndStageImport("wrong-passphrase")
+      viewModel.importCoordinator.decryptAndStageImport("wrong-passphrase")
       testDispatcher.scheduler.advanceUntilIdle()
 
       // The wrong key fails the AES-GCM authentication check; staged data must
@@ -542,11 +544,11 @@ class BackupViewModelTest {
       )
       assertTrue(
         "pendingImportRawJson must be preserved after failed decrypt",
-        viewModel.pendingImportRawJson != null
+        viewModel.importCoordinator.pendingImportRawJson != null
       )
       assertTrue(
         "pendingImportSalt must be preserved after failed decrypt",
-        viewModel.pendingImportSalt != null
+        viewModel.importCoordinator.pendingImportSalt != null
       )
       assertTrue(
         "Dialog must stay open for retry, got ${viewModel.passphraseDialogState.value}",
@@ -585,8 +587,8 @@ class BackupViewModelTest {
           "accounts": []
         }
         """.trimIndent()
-      viewModel.pendingImportRawJson = plainJson
-      viewModel.pendingImportSalt = "test-salt"
+      viewModel.importCoordinator.pendingImportRawJson = plainJson
+      viewModel.importCoordinator.pendingImportSalt = "test-salt"
 
       // A dispatcher with its OWN scheduler (never advanced) keeps the
       // PBKDF2/decrypt step suspended mid-flight so the scope can be cancelled
@@ -594,9 +596,9 @@ class BackupViewModelTest {
       // without a scheduler would fall back to Dispatchers.Main's scheduler
       // (set to testDispatcher here), defeating the purpose.
       val blockedDispatcher = StandardTestDispatcher(TestCoroutineScheduler())
-      viewModel.cryptoDispatcher = blockedDispatcher
+      viewModel.importCoordinator.cryptoDispatcher = blockedDispatcher
 
-      viewModel.decryptAndStageImport("passphrase")
+      viewModel.importCoordinator.decryptAndStageImport("passphrase")
       testDispatcher.scheduler.runCurrent()
       assertTrue(
         "Decrypt must be in flight before cancellation, got isCryptoInProgress=${viewModel.isCryptoInProgress.value}",
@@ -620,11 +622,11 @@ class BackupViewModelTest {
       )
       assertTrue(
         "Staged raw JSON must be preserved on cancellation",
-        viewModel.pendingImportRawJson != null
+        viewModel.importCoordinator.pendingImportRawJson != null
       )
       assertTrue(
         "Staged salt must be preserved on cancellation",
-        viewModel.pendingImportSalt != null
+        viewModel.importCoordinator.pendingImportSalt != null
       )
       assertTrue(
         "isCryptoInProgress must be reset by the finally block after cancellation",
@@ -639,7 +641,7 @@ class BackupViewModelTest {
       // stream must stage the raw JSON + salt and open the passphrase dialog.
       val (rawJson, salt) = encryptedBackupFixture()
 
-      viewModel.validateAndStageImport(ByteArrayInputStream(rawJson.toByteArray()))
+      viewModel.importCoordinator.validateAndStageImport(ByteArrayInputStream(rawJson.toByteArray()))
       testDispatcher.scheduler.advanceUntilIdle()
 
       val dialog = viewModel.passphraseDialogState.value
@@ -655,12 +657,12 @@ class BackupViewModelTest {
       assertEquals(
         "Raw JSON must be staged for decryption",
         rawJson,
-        viewModel.pendingImportRawJson
+        viewModel.importCoordinator.pendingImportRawJson
       )
       assertEquals(
         "Salt must be staged for decryption",
         salt,
-        viewModel.pendingImportSalt
+        viewModel.importCoordinator.pendingImportSalt
       )
       assertTrue(
         "Detection must not report an error, got ${viewModel.operationState.value}",

@@ -97,7 +97,7 @@ fun SettingsScreen(
         try {
           val outputStream: OutputStream? = context.contentResolver.openOutputStream(uri)
           if (outputStream != null) {
-            backupViewModel.writeStagedExportToFile(outputStream)
+            backupViewModel.exportCoordinator.writeStagedExportToFile(outputStream)
           } else {
             settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
           }
@@ -106,7 +106,7 @@ fun SettingsScreen(
           settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
         }
       } else {
-        backupViewModel.onExportPickerCancelled()
+        backupViewModel.exportCoordinator.onExportPickerCancelled()
       }
     }
 
@@ -119,7 +119,7 @@ fun SettingsScreen(
   LaunchedEffect(exportPickerLaunchRequest) {
     if (exportPickerLaunchRequest) {
       exportFileLauncher.launch("hesabyar_backup_${System.currentTimeMillis() / 1000}.json")
-      backupViewModel.consumeExportPickerLaunchRequest()
+      backupViewModel.exportCoordinator.consumeExportPickerLaunchRequest()
     }
   }
 
@@ -131,7 +131,7 @@ fun SettingsScreen(
         try {
           val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
           if (inputStream != null) {
-            backupViewModel.validateAndStageImport(inputStream)
+            backupViewModel.importCoordinator.validateAndStageImport(inputStream)
           }
         } catch (e: Exception) {
           AppLogger.e("SettingsScreen", "خطا در بارگذاری فایل", e)
@@ -186,7 +186,7 @@ fun SettingsScreen(
   if (pendingRestore.value != null) {
     val backup: BackupPayload = pendingRestore.value!!
     AlertDialog(
-      onDismissRequest = { backupViewModel.cancelPendingRestore() },
+      onDismissRequest = { backupViewModel.importCoordinator.cancelPendingRestore() },
       title = {
         Text("بازیابی پشتیبان", fontWeight = FontWeight.Bold)
       },
@@ -250,7 +250,7 @@ fun SettingsScreen(
       },
       confirmButton = {
         HesabyarButton(
-          onClick = { backupViewModel.executeRestore() },
+          onClick = { backupViewModel.importCoordinator.executeRestore() },
           text = if (restoreMode == RestoreMode.REPLACE) "جایگزینی کامل" else "ادغام",
           colors =
             if (restoreMode == RestoreMode.REPLACE) {
@@ -262,7 +262,7 @@ fun SettingsScreen(
       },
       dismissButton = {
         HesabyarButton(
-          onClick = { backupViewModel.cancelPendingRestore() },
+          onClick = { backupViewModel.importCoordinator.cancelPendingRestore() },
           text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
@@ -274,9 +274,9 @@ fun SettingsScreen(
   if (passphraseDialog is PassphraseDialogState.ExportPassphrase) {
     ExportPassphraseDialog(
       isCryptoInProgress = isCryptoInProgress,
-      onConfirm = backupViewModel::exportWithPassphrase,
-      onSaveWithoutEncryption = backupViewModel::exportWithoutPassphrase,
-      onDismiss = backupViewModel::cancelPassphraseDialog
+      onConfirm = backupViewModel.exportCoordinator::exportWithPassphrase,
+      onSaveWithoutEncryption = backupViewModel.exportCoordinator::exportWithoutPassphrase,
+      onDismiss = backupViewModel.importCoordinator::cancelPassphraseDialog
     )
   }
 
@@ -286,8 +286,8 @@ fun SettingsScreen(
     ImportPassphraseDialog(
       errorMessage = importPassphrase.errorMessage,
       isCryptoInProgress = isCryptoInProgress,
-      onConfirm = backupViewModel::decryptAndStageImport,
-      onDismiss = backupViewModel::cancelPassphraseDialog
+      onConfirm = backupViewModel.importCoordinator::decryptAndStageImport,
+      onDismiss = backupViewModel.importCoordinator::cancelPassphraseDialog
     )
   }
 
@@ -498,7 +498,7 @@ fun SettingsScreen(
           )
 
           HesabyarButton(
-            onClick = { backupViewModel.requestExportPassphraseDialog() },
+            onClick = { backupViewModel.exportCoordinator.requestExportPassphraseDialog() },
             modifier = Modifier.weight(1.1f).testTag("backup_button"),
             text = "ذخیره فایل پشتیبان",
             icon = Icons.Filled.Save,

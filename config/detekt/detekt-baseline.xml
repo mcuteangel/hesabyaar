@@ -84,7 +84,6 @@
     <ID>FunctionNaming:SmartAssistantScreen.kt:@Composable fun ParsedResultCard</ID>
     <ID>FunctionNaming:SmartAssistantScreen.kt:@Composable fun SmartAssistantScreen</ID>
     <ID>FunctionNaming:Theme.kt:@Composable fun HesabyarTheme</ID>
-    <ID>FunctionNaming:TransactionItem.kt:@Composable fun TransactionItem</ID>
     <ID>FunctionNaming:DebtHubScreen.kt:@Composable fun DebtHubScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
@@ -95,7 +94,6 @@
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun LoanStatusCard</ID>
     <ID>LongMethod:AppDatabase.kt:AppDatabase.Companion$private fun migratePlaintextToEncryptedIfNeeded</ID>
     <ID>LongMethod:BalanceCard.kt:@Composable fun BalanceCard</ID>
-    <ID>LongMethod:TransactionItem.kt:@Composable fun TransactionItem</ID>
     <ID>LongMethod:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
     <ID>LongMethod:BudgetAdvisor.kt:BudgetAdvisor$suspend fun getBudgetForecast: String</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
@@ -254,7 +252,6 @@
     <ID>TooGenericExceptionCaught:SmartAssistantScreen.kt:e: Exception</ID>
     <ID>TooGenericExceptionThrown:DatabaseKeyManager.kt:DatabaseKeyManager$throw RuntimeException("Failed to create encrypted preferences", e)</ID>
     <ID>TooManyFunctions:AiAssistantViewModel.kt:AiAssistantViewModel : ViewModel</ID>
-    <ID>TooManyFunctions:BackupViewModel.kt:BackupViewModel : ViewModel</ID>
     <ID>TooManyFunctions:AiProviderConfig.kt:AiConfigManager</ID>
     <ID>TooManyFunctions:BudgetAdvisor.kt:BudgetAdvisor</ID>
     <ID>TooManyFunctions:ExcelExporter.kt:ExcelExporter</ID>
@@ -264,9 +261,7 @@
     <ID>TooManyFunctions:HesabyarRepositoryInterface.kt:HesabyarRepositoryInterface</ID>
     <ID>TooManyFunctions:JalaliCalendarHelper.kt:JalaliCalendarHelper</ID>
     <ID>TooManyFunctions:ManageAiConfigUseCase.kt:ManageAiConfigUseCase</ID>
-    <ID>TooManyFunctions:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
     <ID>LargeClass:GetDashboardDataUseCaseTest.kt:GetDashboardDataUseCaseTest</ID>
-    <ID>LargeClass:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
     <ID>TooManyFunctions:RustBridge.kt:RustBridge : JalaliNativeBridge</ID>
     <ID>TooManyFunctions:RustMappers.kt:RustMappers</ID>
     <ID>TooManyFunctions:UseCaseModule.kt:UseCaseModule</ID>
