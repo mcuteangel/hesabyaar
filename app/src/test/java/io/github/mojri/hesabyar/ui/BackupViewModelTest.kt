@@ -39,6 +39,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -186,6 +187,24 @@ class BackupViewModelTest {
       val state = viewModel.operationState.value
       assertTrue("Expected Error after cancel, got $state", state is BackupOperationState.Error)
       assertTrue((state as BackupOperationState.Error).message.contains("آماده نیست"))
+    }
+
+  @Test
+  fun writeStagedExportToFileWithNoStagedDataClosesTheStream() =
+    runTest {
+      // Null-json early return: staging was cancelled (or never ran), yet a
+      // picker callback can still arrive with a live SAF stream. The stream
+      // must be closed on this path too, not leaked.
+      viewModel.exportCoordinator.onExportPickerCancelled()
+      val stream = CloseTrackingOutputStream()
+
+      viewModel.exportCoordinator.writeStagedExportToFile(stream)
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val state = viewModel.operationState.value
+      assertTrue("Expected Error after cancel, got $state", state is BackupOperationState.Error)
+      assertTrue((state as BackupOperationState.Error).message.contains("آماده نیست"))
+      assertTrue("Stream must be closed on the null-json early return", stream.isClosed)
     }
 
   @Test
@@ -669,6 +688,23 @@ class BackupViewModelTest {
         viewModel.operationState.value is BackupOperationState.Idle
       )
     }
+
+  /** Records whether close() ran, so tests can assert stream lifecycle on error paths. */
+  private class CloseTrackingOutputStream : OutputStream() {
+    private val delegate = ByteArrayOutputStream()
+
+    var isClosed = false
+      private set
+
+    override fun write(b: Int) {
+      delegate.write(b)
+    }
+
+    override fun close() {
+      isClosed = true
+      delegate.close()
+    }
+  }
 
   private class FakeRepository : HesabyarRepositoryInterface {
     var importShouldThrow: Exception? = null

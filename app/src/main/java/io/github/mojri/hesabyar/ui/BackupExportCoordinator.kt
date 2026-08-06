@@ -139,6 +139,12 @@ class BackupExportCoordinator(
   fun writeStagedExportToFile(outputStream: OutputStream) {
     val json = pendingExportJsonText
     if (json == null) {
+      try {
+        outputStream.close()
+      } catch (_: IOException) {
+        // Best-effort close: nothing to write, but the SAF stream the caller
+        // handed over must still be released rather than leaked.
+      }
       operationState.value = BackupOperationState.Error(application.getString(R.string.error_backup_data_not_ready))
       return
     }
