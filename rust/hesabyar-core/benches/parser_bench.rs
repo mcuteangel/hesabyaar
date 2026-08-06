@@ -47,6 +47,8 @@ fn bench_budget_advice(c: &mut Criterion) {
             date: 1711000000000 - (i as i64 * 86400000),
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         })
         .collect();
 
@@ -83,6 +85,8 @@ fn bench_search(c: &mut Criterion) {
             date: 1711000000000 - (i as i64 * 86400000),
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         })
         .collect();
 
@@ -150,6 +154,8 @@ fn bench_validation(c: &mut Criterion) {
         date: 1710000000000,
         due_date: None,
         installment_id: None,
+        account_id: 1,
+        destination_account_id: None,
     };
 
     c.bench_function("validate_transaction", |b| {
@@ -168,6 +174,8 @@ fn bench_validation(c: &mut Criterion) {
             date: 1710000000000,
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         })
         .collect();
 
@@ -181,6 +189,7 @@ fn bench_validation(c: &mut Criterion) {
         bank_loans: vec![],
         payment_histories: vec![],
         categories: vec![],
+        accounts: vec![],
     };
 
     c.bench_function("validate_backup_payload_1000_tx", |b| {
@@ -241,6 +250,8 @@ fn make_tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id:
         date: date_ms,
         due_date: None,
         installment_id: None,
+        account_id: 1,
+        destination_account_id: None,
     }
 }
 
@@ -345,6 +356,7 @@ fn bench_dashboard(c: &mut Criterion) {
     let large_bank_loans: Vec<BankLoan> = (0..50)
         .map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0))
         .collect();
+    let no_accounts: Vec<Account> = vec![];
 
     c.bench_function("dashboard_100_tx", |b| {
         b.iter(|| {
@@ -353,6 +365,10 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(&small_loans),
                 black_box(&small_installments),
                 black_box(&small_bank_loans),
+                black_box(&no_accounts),
+                black_box(None),
+                black_box(false),
+                black_box(now_ms),
             )
         })
     });
@@ -364,6 +380,10 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(&large_loans),
                 black_box(&large_installments),
                 black_box(&large_bank_loans),
+                black_box(&no_accounts),
+                black_box(None),
+                black_box(false),
+                black_box(now_ms),
             )
         })
     });
@@ -379,6 +399,7 @@ fn bench_analytics(c: &mut Criterion) {
     let no_loans: Vec<Loan> = vec![];
     let no_installments: Vec<Installment> = vec![];
     let no_bank_loans: Vec<BankLoan> = vec![];
+    let no_accounts: Vec<Account> = vec![];
 
     let small_tx: Vec<Transaction> = (0..100)
         .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
@@ -402,6 +423,9 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_installments),
                 black_box(&categories),
                 black_box(&no_bank_loans),
+                black_box(&no_accounts),
+                black_box(None),
+                black_box(false),
             )
         })
     });
@@ -414,6 +438,9 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&large_installments),
                 black_box(&categories),
                 black_box(&no_bank_loans),
+                black_box(&no_accounts),
+                black_box(None),
+                black_box(false),
             )
         })
     });
@@ -433,6 +460,9 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_installments),
                 black_box(&categories),
                 black_box(&bench_bank_loans),
+                black_box(&no_accounts),
+                black_box(None),
+                black_box(false),
             )
         })
     });
