@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.GeneralSecurityException
+import javax.crypto.SecretKey
 
 class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface,
@@ -648,8 +649,26 @@ class ManageBackupUseCase(
     val allPayments = repository.getAllPaymentHistories()
     val curAccounts = repository.allAccounts.firstOrNull() ?: emptyList()
 
+    rootJson.put("categories", buildCategoriesArray(curCategories))
+
+    rootJson.put("transactions", buildTransactionsArray(curTrans))
+
+    rootJson.put("loans", buildLoansArray(curLoans))
+
+    rootJson.put("installments", buildInstallmentsArray(curInstallments))
+
+    rootJson.put("bankLoans", buildBankLoansArray(curBankLoans))
+
+    rootJson.put("paymentHistories", buildPaymentHistoriesArray(allPayments))
+
+    rootJson.put("accounts", buildAccountsArray(curAccounts, encryptionKey))
+
+    return rootJson
+  }
+
+  private fun buildCategoriesArray(categories: List<Category>): JSONArray {
     val catArray = JSONArray()
-    curCategories.forEach {
+    categories.forEach {
       catArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -662,10 +681,12 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("categories", catArray)
+    return catArray
+  }
 
+  private fun buildTransactionsArray(transactions: List<Transaction>): JSONArray {
     val transArray = JSONArray()
-    curTrans.forEach {
+    transactions.forEach {
       transArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -682,10 +703,12 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("transactions", transArray)
+    return transArray
+  }
 
+  private fun buildLoansArray(loans: List<Loan>): JSONArray {
     val loansArray = JSONArray()
-    curLoans.forEach {
+    loans.forEach {
       loansArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -699,10 +722,12 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("loans", loansArray)
+    return loansArray
+  }
 
+  private fun buildInstallmentsArray(installments: List<Installment>): JSONArray {
     val instArray = JSONArray()
-    curInstallments.forEach {
+    installments.forEach {
       instArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -716,10 +741,12 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("installments", instArray)
+    return instArray
+  }
 
+  private fun buildBankLoansArray(bankLoans: List<BankLoan>): JSONArray {
     val bankLoansArray = JSONArray()
-    curBankLoans.forEach {
+    bankLoans.forEach {
       bankLoansArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -736,10 +763,12 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("bankLoans", bankLoansArray)
+    return bankLoansArray
+  }
 
+  private fun buildPaymentHistoriesArray(payments: List<PaymentHistory>): JSONArray {
     val paymentsArray = JSONArray()
-    allPayments.forEach {
+    payments.forEach {
       paymentsArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -750,10 +779,15 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("paymentHistories", paymentsArray)
+    return paymentsArray
+  }
 
+  private fun buildAccountsArray(
+    accounts: List<AccountEntity>,
+    encryptionKey: SecretKey?
+  ): JSONArray {
     val accountsArray = JSONArray()
-    curAccounts.forEach {
+    accounts.forEach {
       accountsArray.put(
         JSONObject().apply {
           put("id", it.id)
@@ -804,9 +838,7 @@ class ManageBackupUseCase(
         }
       )
     }
-    rootJson.put("accounts", accountsArray)
-
-    return rootJson
+    return accountsArray
   }
 
   suspend fun importBackupFromFile(backup: BackupPayload) {
