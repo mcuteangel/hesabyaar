@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
@@ -16,10 +17,12 @@ import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -562,6 +565,69 @@ class BackupViewModelTest {
       )
       assertTrue(
         "isCryptoInProgress must be false after failed decrypt",
+        !viewModel.isCryptoInProgress.value
+      )
+    }
+
+  @Test
+  fun decryptAndStageImportCancellationPropagatesNotWrongPassphraseError() =
+    runTest {
+      val plainJson =
+        """
+        {
+          "version": 1,
+          "timestamp": 1710000000000,
+          "appVersion": "1.0",
+          "transactions": [],
+          "loans": [],
+          "installments": [],
+          "categories": [],
+          "accounts": []
+        }
+        """.trimIndent()
+      viewModel.pendingImportRawJson = plainJson
+      viewModel.pendingImportSalt = "test-salt"
+
+      // A dispatcher with its OWN scheduler (never advanced) keeps the
+      // PBKDF2/decrypt step suspended mid-flight so the scope can be cancelled
+      // while the coroutine is inside the try block. Note: StandardTestDispatcher()
+      // without a scheduler would fall back to Dispatchers.Main's scheduler
+      // (set to testDispatcher here), defeating the purpose.
+      val blockedDispatcher = StandardTestDispatcher(TestCoroutineScheduler())
+      viewModel.cryptoDispatcher = blockedDispatcher
+
+      viewModel.decryptAndStageImport("passphrase")
+      testDispatcher.scheduler.runCurrent()
+      assertTrue(
+        "Decrypt must be in flight before cancellation, got isCryptoInProgress=${viewModel.isCryptoInProgress.value}",
+        viewModel.isCryptoInProgress.value
+      )
+
+      // Cancel the scope while the decrypt is suspended — the cancellation must
+      // propagate (CancellationException rethrown), not be swallowed by the
+      // generic catch and shown as a wrong-passphrase/corrupt-backup failure.
+      viewModel.viewModelScope.cancel()
+      blockedDispatcher.scheduler.advanceUntilIdle()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "Cancellation must not surface as a wrong-passphrase error, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Idle
+      )
+      assertTrue(
+        "Dialog must show no wrong-passphrase error after cancellation, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+      assertTrue(
+        "Staged raw JSON must be preserved on cancellation",
+        viewModel.pendingImportRawJson != null
+      )
+      assertTrue(
+        "Staged salt must be preserved on cancellation",
+        viewModel.pendingImportSalt != null
+      )
+      assertTrue(
+        "isCryptoInProgress must be reset by the finally block after cancellation",
         !viewModel.isCryptoInProgress.value
       )
     }

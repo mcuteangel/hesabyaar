@@ -308,6 +308,10 @@ class BackupViewModel
           pendingImportSalt = null
           passphraseDialogState.value = PassphraseDialogState.Hidden
           stageValidatedBackup(decrypted)
+        } catch (e: CancellationException) {
+          // Coroutine cancelled (e.g. ViewModel cleared) — propagate, do not
+          // surface it as a wrong-passphrase/corrupt-backup failure.
+          throw e
         } catch (_: Exception) {
           // Wrong passphrase or tampered ciphertext — keep staged data for retry
           passphraseDialogState.value =
