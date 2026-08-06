@@ -50,14 +50,17 @@ class AppDatabaseFreshInstallTest {
     assertEquals("Fresh install must have exactly 1 seeded account", 1, accounts.size)
 
     val seeded = accounts.first()
-    assertEquals("Seeded account id", 1L, seeded.id)
-    assertEquals("Seeded account name", "حساب اصلی", seeded.name)
-    assertEquals("Seeded account type", AccountType.BANK, seeded.type)
-    assertEquals("Seeded account initialBalance", 0L, seeded.initialBalance)
-    assertEquals("Seeded account displayOrder", 0, seeded.displayOrder)
-    assertEquals("Seeded account createdAt", 0L, seeded.createdAt)
-    assertEquals("Seeded account updatedAt", 0L, seeded.updatedAt)
-    // color is not set by the seed SQL, so the schema column default applies
-    assertEquals("Seeded account color falls back to DEFAULT_COLOR", AccountEntity.DEFAULT_COLOR, seeded.color)
+    // Assert against the constant (not literals) so a future divergence
+    // between DEFAULT_ACCOUNT and the seed fails this test directly.
+    val expected = AccountEntity.DEFAULT_ACCOUNT
+    assertEquals("Seeded account id", expected.id, seeded.id)
+    assertEquals("Seeded account name", expected.name, seeded.name)
+    assertEquals("Seeded account type", expected.type, seeded.type)
+    assertEquals("Seeded account initialBalance", expected.initialBalance, seeded.initialBalance)
+    assertEquals("Seeded account displayOrder", expected.displayOrder, seeded.displayOrder)
+    assertEquals("Seeded account createdAt", expected.createdAt, seeded.createdAt)
+    assertEquals("Seeded account updatedAt", expected.updatedAt, seeded.updatedAt)
+    // The seed now writes color explicitly from the constant
+    assertEquals("Seeded account color matches the constant", expected.color, seeded.color)
   }
 }

@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.data
 
+import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import androidx.room.Database
 import androidx.room.Room
@@ -162,6 +164,11 @@ abstract class AppDatabase : RoomDatabase() {
           )
 
           // 2. Insert default main bank account
+          // Intentionally NOT referencing AccountEntity.DEFAULT_ACCOUNT —
+          // migrations must stay historically deterministic and frozen
+          // regardless of future changes to the constant. The onCreate
+          // callback (DEFAULT_ACCOUNT_SEED_CALLBACK) is the live seeding path
+          // for fresh installs and reads the constant.
           db.execSQL(
             "INSERT INTO accounts (id, name, type, initialBalance, displayOrder) VALUES (1, 'حساب اصلی', 'BANK', 0, 0)"
           )
@@ -240,18 +247,35 @@ abstract class AppDatabase : RoomDatabase() {
      * their only seeding path. `INSERT OR IGNORE` keeps the row unique if id=1
      * already exists (e.g. [migratePlaintextToEncryptedIfNeeded] rebuilds the
      * encrypted database from an older install's data).
+     *
+     * The row is built from [AccountEntity.DEFAULT_ACCOUNT] — the single
+     * source of truth for the default account — so fresh installs always
+     * reflect the current definition. Unlike MIGRATION_5_6 (which is
+     * intentionally frozen), this callback is allowed to track the constant.
      */
     internal val DEFAULT_ACCOUNT_SEED_CALLBACK =
       object : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
           super.onCreate(db)
-          db.execSQL(
-            """
-            INSERT OR IGNORE INTO accounts
-              (id, name, type, initialBalance, displayOrder, createdAt, updatedAt)
-            VALUES (1, 'حساب اصلی', 'BANK', 0, 0, 0, 0)
-            """.trimIndent()
-          )
+          val defaultAccount = AccountEntity.DEFAULT_ACCOUNT
+          val values =
+            ContentValues().apply {
+              put("id", defaultAccount.id)
+              put("name", defaultAccount.name)
+              put("type", defaultAccount.type.name)
+              put("bankName", defaultAccount.bankName)
+              put("cardNumber", defaultAccount.cardNumber)
+              put("accountNumber", defaultAccount.accountNumber)
+              put("iban", defaultAccount.iban)
+              put("initialBalance", defaultAccount.initialBalance)
+              put("color", defaultAccount.color)
+              put("icon", defaultAccount.icon)
+              put("isArchived", defaultAccount.isArchived)
+              put("displayOrder", defaultAccount.displayOrder)
+              put("createdAt", defaultAccount.createdAt)
+              put("updatedAt", defaultAccount.updatedAt)
+            }
+          db.insert("accounts", SQLiteDatabase.CONFLICT_IGNORE, values)
         }
       }
 
