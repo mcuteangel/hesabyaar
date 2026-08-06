@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.CategoryType
@@ -400,7 +401,11 @@ class ManageBackupUseCaseTest {
     assertTrue("sensitiveFieldsEncryption must be present", rootJson.has("sensitiveFieldsEncryption"))
     val encMeta = rootJson.getJSONObject("sensitiveFieldsEncryption")
     assertTrue("salt must be present", encMeta.has("salt"))
-    assertEquals("iterations must be 600000", 600_000, encMeta.getInt("iterations"))
+    assertEquals(
+      "iterations must match the current PBKDF2 work factor",
+      BackupCipher.PBKDF2_ITERATIONS,
+      encMeta.getInt("iterations")
+    )
 
     // Verify fields are encrypted (not plaintext)
     val accountJson = rootJson.getJSONArray("accounts").getJSONObject(0)

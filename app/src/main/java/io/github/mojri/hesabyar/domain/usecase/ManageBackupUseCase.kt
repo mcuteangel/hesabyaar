@@ -38,6 +38,14 @@ class ManageBackupUseCase(
     private const val ITERATIONS_KEY = "iterations"
 
     /**
+     * Restore-side floor for the declared PBKDF2 work factor. The export side always
+     * writes [BackupCipher.PBKDF2_ITERATIONS] (600k), but a tampered/attacker-crafted
+     * backup could declare a tiny count (e.g. 1) to force a fast brute-force of the
+     * passphrase — reject anything below this floor instead of deriving a weak key.
+     */
+    private const val MIN_ITERATIONS_FLOOR = 100_000
+
+    /**
      * Returns true if the backup JSON indicates that sensitive banking fields
      * (cardNumber, accountNumber, iban) are encrypted with a passphrase.
      */
@@ -48,6 +56,27 @@ class ManageBackupUseCase(
      * @return the hex-encoded salt string, or null if no encryption metadata is present
      */
     fun getEncryptionSalt(rootJson: JSONObject): String? = rootJson.optJSONObject(ENCRYPTION_KEY)?.optString(SALT_KEY)
+
+    /**
+     * Extracts the PBKDF2 iteration count from the encryption metadata in the backup JSON.
+     *
+     * @return the declared iteration count, or [BackupCipher.PBKDF2_ITERATIONS] when the
+     *   field is absent (defensive fallback — every encrypted backup written by this app
+     *   includes it, but a foreign or hand-edited backup may not)
+     * @throws IllegalArgumentException if the declared count is below [MIN_ITERATIONS_FLOOR],
+     *   so a tampered backup cannot force a weak key derivation
+     */
+    fun getEncryptionIterations(rootJson: JSONObject): Int {
+      val iterations =
+        rootJson
+          .optJSONObject(ENCRYPTION_KEY)
+          ?.optInt(ITERATIONS_KEY, BackupCipher.PBKDF2_ITERATIONS)
+          ?: BackupCipher.PBKDF2_ITERATIONS
+      require(iterations >= MIN_ITERATIONS_FLOOR) {
+        "Backup declares PBKDF2 iteration count $iterations, below the minimum allowed floor $MIN_ITERATIONS_FLOOR"
+      }
+      return iterations
+    }
   }
 
   /**
@@ -81,7 +110,7 @@ class ManageBackupUseCase(
       val salt =
         getEncryptionSalt(rootJson)
           ?: throw IllegalArgumentException("Backup does not contain encryption metadata")
-      val key = BackupCipher.deriveKey(passphrase, salt)
+      val key = BackupCipher.deriveKey(passphrase, salt, getEncryptionIterations(rootJson))
       val accountsArray = rootJson.optJSONArray("accounts") ?: return@withContext backup
 
       // Index raw JSON accounts by stable account id. A raw entry that is not an
@@ -596,7 +625,7 @@ class ManageBackupUseCase(
           ENCRYPTION_KEY,
           JSONObject().apply {
             put(SALT_KEY, salt)
-            put(ITERATIONS_KEY, 600_000)
+            put(ITERATIONS_KEY, BackupCipher.PBKDF2_ITERATIONS)
           }
         )
         BackupCipher.deriveKey(passphrase, salt)

@@ -12,8 +12,8 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Passphrase-based encryption for sensitive banking fields in backup exports.
  *
- * Uses PBKDF2WithHmacSHA256 (600k iterations) for key derivation — same parameters
- * as [PinStorage] — and AES-GCM for authenticated encryption.
+ * Uses PBKDF2WithHmacSHA256 (default 600k iterations) for key derivation — same
+ * parameters as [PinStorage] — and AES-GCM for authenticated encryption.
  *
  * Encrypted value format: `base64(12-byte-IV || ciphertext || 16-byte-GCM-tag)`
  *
@@ -29,7 +29,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 object BackupCipher {
   private const val PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256"
-  private const val PBKDF2_ITERATIONS = 600_000
+  internal const val PBKDF2_ITERATIONS = 600_000
   private const val PBKDF2_KEY_LENGTH_BITS = 256
   private const val SALT_LENGTH_BYTES = 16
   private const val IV_LENGTH_BYTES = 12
@@ -43,18 +43,23 @@ object BackupCipher {
    *
    * @param passphrase the user-supplied passphrase (any length)
    * @param saltHex hex-encoded salt string (32 hex chars = 16 bytes), as produced by [generateSalt]
+   * @param iterations PBKDF2 work factor; defaults to [PBKDF2_ITERATIONS]. Callers
+   *   restoring an encrypted backup must pass the iteration count declared in the
+   *   backup's encryption metadata (see `ManageBackupUseCase.getEncryptionIterations`),
+   *   otherwise a backup encrypted under a different count derives the wrong key.
    * @return a [SecretKey] suitable for AES-GCM encryption
    */
   fun deriveKey(
     passphrase: String,
-    saltHex: String
+    saltHex: String,
+    iterations: Int = PBKDF2_ITERATIONS
   ): SecretKey {
     val saltBytes = hexToBytes(saltHex)
     val spec =
       PBEKeySpec(
         passphrase.toCharArray(),
         saltBytes,
-        PBKDF2_ITERATIONS,
+        iterations,
         PBKDF2_KEY_LENGTH_BITS
       )
     val factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
