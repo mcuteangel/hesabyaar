@@ -7,6 +7,12 @@ object Dimens {
   val IconMedium = 24.dp
   val IconLarge = 32.dp
 
+  /** Compact icon size for menu/dropdown leading icons (Material 18dp spec). */
+  val IconMenu = 18.dp
+
+  /** Icon size used inside medium avatar circles (40dp container). */
+  val IconAvatarMedium = 20.dp
+
   val AvatarSmall = 32.dp
   val AvatarMedium = 40.dp
   val AvatarLarge = 56.dp

@@ -20,9 +20,14 @@ class BackupCipherTest {
   private val account1CardNumberAad = BackupCipher.accountFieldAad(1L, "cardNumber")
   private val account2IbanAad = BackupCipher.accountFieldAad(2L, "iban")
 
+  // Clearly synthetic stand-ins for card-number / IBAN field values — never
+  // realistic PANs, so the test data cannot be mistaken for real account data.
+  private val syntheticCardNumber = "0000-0000-0000-0000"
+  private val syntheticIban = "IR00 0000 0000 0000 0000 0000 00"
+
   @Test
   fun encryptThenDecryptRecoversOriginalValue() {
-    val plaintext = "621986101234567890123456"
+    val plaintext = syntheticCardNumber
     val encrypted = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     val decrypted = BackupCipher.decrypt(encrypted, key, account1IbanAad)
     assertEquals("Decrypted value must match original", plaintext, decrypted)
@@ -30,7 +35,7 @@ class BackupCipherTest {
 
   @Test(expected = AEADBadTagException::class)
   fun wrongPassphraseThrowsAEADBadTagException() {
-    val plaintext = "621986101234567890123456"
+    val plaintext = syntheticCardNumber
     val encrypted = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     val wrongKey = BackupCipher.deriveKey("wrong-passphrase", salt)
     BackupCipher.decrypt(encrypted, wrongKey, account1IbanAad)
@@ -38,7 +43,7 @@ class BackupCipherTest {
 
   @Test(expected = AEADBadTagException::class)
   fun decryptUnderDifferentAccountIdAadThrowsAEADBadTagException() {
-    val plaintext = "IR123456789012345678901234"
+    val plaintext = syntheticIban
     val encrypted = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     // Same key and ciphertext, but the AAD was bound to accountId=1 while
     // decrypting as accountId=2 — a cross-account substitution must fail.
@@ -47,7 +52,7 @@ class BackupCipherTest {
 
   @Test(expected = AEADBadTagException::class)
   fun decryptUnderDifferentFieldAadThrowsAEADBadTagException() {
-    val plaintext = "IR123456789012345678901234"
+    val plaintext = syntheticIban
     val encrypted = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     // Same key, ciphertext and account, but the AAD was bound to the "iban"
     // field while decrypting as "cardNumber" — a cross-field substitution
@@ -57,26 +62,42 @@ class BackupCipherTest {
 
   @Test
   fun differentSaltsProduceDifferentCiphertext() {
-    val plaintext = "IR12 3456 7890 1234 5678 9012 34"
+    val plaintext = syntheticIban
     val salt2 = BackupCipher.generateSalt()
     val key2 = BackupCipher.deriveKey(passphrase, salt2)
     val encrypted1 = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     val encrypted2 = BackupCipher.encrypt(plaintext, key2, account1IbanAad)
     assertNotEquals("Different salts must produce different ciphertext", encrypted1, encrypted2)
     // Both must still decrypt correctly
-    assertEquals(plaintext, BackupCipher.decrypt(encrypted1, key, account1IbanAad))
-    assertEquals(plaintext, BackupCipher.decrypt(encrypted2, key2, account1IbanAad))
+    assertEquals(
+      "ciphertext from salt A must still decrypt with key A",
+      plaintext,
+      BackupCipher.decrypt(encrypted1, key, account1IbanAad)
+    )
+    assertEquals(
+      "ciphertext from salt B must still decrypt with key B",
+      plaintext,
+      BackupCipher.decrypt(encrypted2, key2, account1IbanAad)
+    )
   }
 
   @Test
   fun ivIsRandomPerEncryption() {
-    val plaintext = "4567890123456789"
+    val plaintext = syntheticCardNumber
     val encrypted1 = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     val encrypted2 = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     assertNotEquals("Same plaintext encrypted twice must differ (different IVs)", encrypted1, encrypted2)
     // Both must decrypt to the same plaintext
-    assertEquals(plaintext, BackupCipher.decrypt(encrypted1, key, account1IbanAad))
-    assertEquals(plaintext, BackupCipher.decrypt(encrypted2, key, account1IbanAad))
+    assertEquals(
+      "ciphertext from first IV must decrypt to the original",
+      plaintext,
+      BackupCipher.decrypt(encrypted1, key, account1IbanAad)
+    )
+    assertEquals(
+      "ciphertext from second IV must decrypt to the original",
+      plaintext,
+      BackupCipher.decrypt(encrypted2, key, account1IbanAad)
+    )
   }
 
   @Test(expected = IllegalArgumentException::class)
@@ -120,7 +141,7 @@ class BackupCipherTest {
 
   @Test(expected = AEADBadTagException::class)
   fun decryptingTamperedButWellFormedCiphertextThrowsAEADBadTagException() {
-    val plaintext = "98765432109876543210"
+    val plaintext = syntheticCardNumber
     val encrypted = BackupCipher.encrypt(plaintext, key, account1IbanAad)
     // Tamper: flip a character in the base64 to change a byte in the ciphertext
     // The encrypted string is long enough that changing one char alters a byte
@@ -152,8 +173,8 @@ class BackupCipherTest {
 
   @Test
   fun roundTripWithNullFieldsInAccountContext() {
-    val realCard = "6219861012345678"
-    val realIban = "IR123456789012345678901234"
+    val realCard = syntheticCardNumber
+    val realIban = syntheticIban
 
     // Simulate account export with some null fields, each encrypted under its
     // own field's AAD context (as exportBackupJson does)

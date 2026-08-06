@@ -40,7 +40,7 @@ class AdviceValidationPolicyTest {
     )
 
   @Test
-  fun `invalid advice is discarded when Rust validator is available`() {
+  fun invalidAdviceIsDiscardedWhenRustValidatorIsAvailable() {
     assertTrue(
       AdviceValidationPolicy.shouldDiscardOnValidationFailure(
         validation(isValid = false),
@@ -50,7 +50,7 @@ class AdviceValidationPolicyTest {
   }
 
   @Test
-  fun `invalid advice is kept when Rust validator is unavailable`() {
+  fun invalidAdviceIsKeptWhenRustValidatorIsUnavailable() {
     // Regression guard: the unavailable engine must NOT force a silent fallback
     // to offline advice, or every AI response would be discarded on devices
     // where the native core failed to load.
@@ -64,7 +64,7 @@ class AdviceValidationPolicyTest {
   }
 
   @Test
-  fun `valid advice is always kept regardless of Rust availability`() {
+  fun validAdviceIsAlwaysKeptRegardlessOfRustAvailability() {
     assertFalse(
       AdviceValidationPolicy.shouldDiscardOnValidationFailure(
         validation(isValid = true),

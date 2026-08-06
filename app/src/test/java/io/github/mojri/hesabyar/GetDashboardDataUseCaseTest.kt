@@ -1131,6 +1131,18 @@ class GetDashboardDataUseCaseTest {
     assertEquals("balance for account 1", 3_800_000L, resultAcc1.currentBalance)
     assertEquals("monthlyIncome for account 1", 5_000_000L, resultAcc1.monthlyIncome)
     assertEquals("monthlyExpenses for account 1", 1_200_000L, resultAcc1.monthlyExpenses)
+    // Per-account summaries must reflect the transfer's source/destination
+    // attribution: account 1's summary counts the transfer out as an expense,
+    // while account 2's summary — inside account 1's view — sees only the
+    // transfer credit, since account 2's own transactions were filtered out.
+    val acc1SummaryInAcc1 = resultAcc1.accounts.first { it.accountId == 1L }
+    assertEquals("acc1 summary balance includes transfer out", 3_800_000L, acc1SummaryInAcc1.balance)
+    assertEquals("acc1 summary income has no transfer", 5_000_000L, acc1SummaryInAcc1.monthlyIncome)
+    assertEquals("acc1 summary expenses include transfer out", 1_200_000L, acc1SummaryInAcc1.monthlyExpenses)
+    val acc2SummaryInAcc1 = resultAcc1.accounts.first { it.accountId == 2L }
+    assertEquals("acc2 summary inside acc1 view = transfer credit only", 200_000L, acc2SummaryInAcc1.balance)
+    assertEquals("acc2 summary income inside acc1 view = transfer in", 200_000L, acc2SummaryInAcc1.monthlyIncome)
+    assertEquals("acc2 summary expenses inside acc1 view = none", 0L, acc2SummaryInAcc1.monthlyExpenses)
 
     // accountId=2: only account 2's transactions + transfers where account 2 is source or dest
     val resultAcc2 =
@@ -1151,6 +1163,15 @@ class GetDashboardDataUseCaseTest {
     assertEquals("balance for account 2", 2_700_000L, resultAcc2.currentBalance)
     assertEquals("monthlyIncome for account 2", 3_200_000L, resultAcc2.monthlyIncome)
     assertEquals("monthlyExpenses for account 2", 500_000L, resultAcc2.monthlyExpenses)
+    // Mirror the per-account checks: account 1's summary inside account 2's
+    // view sees only the transfer out, and account 2's own summary includes
+    // the transfer in.
+    val acc1SummaryInAcc2 = resultAcc2.accounts.first { it.accountId == 1L }
+    assertEquals("acc1 summary inside acc2 view = transfer debit only", -200_000L, acc1SummaryInAcc2.balance)
+    assertEquals("acc1 summary expenses inside acc2 view = transfer out", 200_000L, acc1SummaryInAcc2.monthlyExpenses)
+    val acc2SummaryInAcc2 = resultAcc2.accounts.first { it.accountId == 2L }
+    assertEquals("acc2 summary balance includes transfer in", 2_700_000L, acc2SummaryInAcc2.balance)
+    assertEquals("acc2 summary income includes transfer in", 3_200_000L, acc2SummaryInAcc2.monthlyIncome)
   }
 
   // -- Selected account + transfer: Rust and Kotlin fallback must agree -------
@@ -1196,9 +1217,9 @@ class GetDashboardDataUseCaseTest {
     assertEquals("currentBalance", kotlinResult.currentBalance, rustResult.currentBalance)
     assertEquals("monthlyIncome", kotlinResult.monthlyIncome, rustResult.monthlyIncome)
     assertEquals("monthlyExpenses", kotlinResult.monthlyExpenses, rustResult.monthlyExpenses)
-    assertEquals(300_000L, kotlinResult.currentBalance)
-    assertEquals(1_000_000L, kotlinResult.monthlyIncome)
-    assertEquals(700_000L, kotlinResult.monthlyExpenses)
+    assertEquals("kotlin currentBalance for account 1", 300_000L, kotlinResult.currentBalance)
+    assertEquals("kotlin monthlyIncome for account 1", 1_000_000L, kotlinResult.monthlyIncome)
+    assertEquals("kotlin monthlyExpenses for account 1", 700_000L, kotlinResult.monthlyExpenses)
   }
 
   @Test

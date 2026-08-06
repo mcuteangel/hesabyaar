@@ -295,51 +295,6 @@ class ExcelExporterTest {
     name: String
   ) = AccountEntity(id = id, name = name, type = AccountType.BANK)
 
-  /**
-   * Reflection helper — invokes the private buildTransactionsSheet method.
-   * Returns the SheetData so we can assert header/row cell counts.
-   */
-  private fun callBuildTransactionsSheet(
-    exporter: ExcelExporter,
-    transactions: List<Transaction>,
-    categoryMap: Map<Long, Category>,
-    accountMap: Map<Long, AccountEntity>
-  ): io.github.mojri.hesabyar.rust.SheetData {
-    val method =
-      ExcelExporter::class.java.getDeclaredMethod(
-        "buildTransactionsSheet",
-        List::class.java,
-        Map::class.java,
-        Map::class.java
-      )
-    method.isAccessible = true
-    @Suppress("UNCHECKED_CAST")
-    return method.invoke(exporter, transactions, categoryMap, accountMap)
-      as io.github.mojri.hesabyar.rust.SheetData
-  }
-
-  /**
-   * Reflection helper — invokes the private buildSummaryTxSheet method.
-   */
-  private fun callBuildSummaryTxSheet(
-    exporter: ExcelExporter,
-    name: String,
-    transactions: List<Transaction>,
-    categoryMap: Map<Long, Category>
-  ): io.github.mojri.hesabyar.rust.SheetData {
-    val method =
-      ExcelExporter::class.java.getDeclaredMethod(
-        "buildSummaryTxSheet",
-        String::class.java,
-        List::class.java,
-        Map::class.java
-      )
-    method.isAccessible = true
-    @Suppress("UNCHECKED_CAST")
-    return method.invoke(exporter, name, transactions, categoryMap)
-      as io.github.mojri.hesabyar.rust.SheetData
-  }
-
   @Test
   fun buildTransactionsSheetRowsMatchHeaderCount() {
     val exporter = ExcelExporter()
@@ -352,7 +307,7 @@ class ExcelExporterTest {
     val accounts = listOf(account(1, "Bank"), account(2, "Wallet"))
     val accountMap = accounts.associateBy { it.id }
 
-    val sheet = callBuildTransactionsSheet(exporter, txs, emptyMap(), accountMap)
+    val sheet = exporter.buildTransactionsSheet(txs, emptyMap(), accountMap)
     val headerCount = sheet.headers.size
 
     // buildTransactionsSheet has 8 headers
@@ -376,7 +331,7 @@ class ExcelExporterTest {
         tx(TransactionType.EXPENSE, 1_000_000)
       )
 
-    val sheet = callBuildSummaryTxSheet(exporter, "دریافتی\u200Cها", txs, emptyMap())
+    val sheet = exporter.buildSummaryTxSheet("دریافتی\u200Cها", txs, emptyMap())
     val headerCount = sheet.headers.size
 
     // buildSummaryTxSheet has 5 headers (no type, no account columns)
@@ -389,5 +344,13 @@ class ExcelExporterTest {
         row.size
       )
     }
+    // The totals row must also match the header width, so a hardcoded width
+    // drift in buildTotalRow is caught.
+    val summaryRow = checkNotNull(sheet.summaryRow) { "summary row must exist" }
+    assertEquals(
+      "summary row cell count must equal header count",
+      headerCount,
+      summaryRow.size
+    )
   }
 }

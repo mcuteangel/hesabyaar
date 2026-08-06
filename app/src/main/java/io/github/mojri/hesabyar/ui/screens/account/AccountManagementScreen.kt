@@ -354,7 +354,7 @@ private fun AccountItem(
         tint = accountColor,
         backgroundColor = accountColor,
         containerSize = Dimens.AvatarMedium,
-        iconSize = 20.dp
+        iconSize = Dimens.IconAvatarMedium
       )
       Column(modifier = Modifier.weight(1f)) {
         Text(
@@ -396,7 +396,7 @@ private fun AccountItem(
           Icon(
             imageVector = Icons.Filled.MoreVert,
             contentDescription = "گزینه‌های بیشتر",
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(Dimens.IconMenu),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
@@ -436,7 +436,7 @@ private fun AccountOverflowMenu(
         Icon(
           imageVector = Icons.Filled.Edit,
           contentDescription = null,
-          modifier = Modifier.size(18.dp)
+          modifier = Modifier.size(Dimens.IconMenu)
         )
       },
       onClick = { onEdit() }
@@ -447,7 +447,7 @@ private fun AccountOverflowMenu(
         Icon(
           imageVector = Icons.Filled.Archive,
           contentDescription = null,
-          modifier = Modifier.size(18.dp)
+          modifier = Modifier.size(Dimens.IconMenu)
         )
       },
       onClick = { onArchive() }
@@ -458,7 +458,7 @@ private fun AccountOverflowMenu(
         Icon(
           imageVector = Icons.Filled.Delete,
           contentDescription = null,
-          modifier = Modifier.size(18.dp),
+          modifier = Modifier.size(Dimens.IconMenu),
           tint = MaterialTheme.colorScheme.error
         )
       },
@@ -751,7 +751,7 @@ private fun AccountDialogPreviewRow(
       tint = previewColor,
       backgroundColor = previewColor,
       containerSize = Dimens.AvatarMedium,
-      iconSize = 20.dp
+      iconSize = Dimens.IconAvatarMedium
     )
     Column {
       Text(

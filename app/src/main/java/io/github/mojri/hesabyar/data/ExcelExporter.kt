@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.rust.Cell
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.SheetData
@@ -69,7 +70,8 @@ class ExcelExporter {
     const val HEADER_DESCRIPTION = "توضیحات"
   }
 
-  private fun buildTransactionsSheet(
+  @VisibleForTesting
+  internal fun buildTransactionsSheet(
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>,
     accountMap: Map<Long, AccountEntity> = emptyMap()
@@ -89,7 +91,8 @@ class ExcelExporter {
     return SheetData(name = "همه تراکنش\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
-  private fun buildSummaryTxSheet(
+  @VisibleForTesting
+  internal fun buildSummaryTxSheet(
     name: String,
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>

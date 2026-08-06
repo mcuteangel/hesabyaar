@@ -14,6 +14,10 @@ import java.math.RoundingMode
 class GetAnalyticsUseCase {
   private companion object {
     const val DEFAULT_FALLBACK_COLOR = 0xFF999999L
+
+    /** Display name for breakdown entries whose metadata (category/account)
+     *  cannot be resolved — e.g. after the category or account was deleted. */
+    const val DEFAULT_FALLBACK_NAME = "سایر"
   }
 
   private val jalaliMonthNames =
@@ -236,7 +240,7 @@ class GetAnalyticsUseCase {
       monthlyTx,
       keySelector = { it.categoryId },
       metadataResolver = { id -> categories.find { it.id == id } },
-      nameResolver = { it?.name ?: "سایر" },
+      nameResolver = { it?.name ?: DEFAULT_FALLBACK_NAME },
       colorResolver = { it?.color ?: DEFAULT_FALLBACK_COLOR },
       totalExpense = totalExpense
     )
@@ -250,7 +254,7 @@ class GetAnalyticsUseCase {
       monthlyTx,
       keySelector = { it.accountId },
       metadataResolver = { id -> accounts.find { it.id == id } },
-      nameResolver = { it?.name ?: "سایر" },
+      nameResolver = { it?.name ?: DEFAULT_FALLBACK_NAME },
       colorResolver = { it?.color ?: DEFAULT_FALLBACK_COLOR },
       totalExpense = totalExpense
     )
