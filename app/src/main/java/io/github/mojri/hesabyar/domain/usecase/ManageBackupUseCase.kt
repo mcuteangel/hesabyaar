@@ -32,9 +32,16 @@ class ManageBackupUseCase(
 
     /**
      * Extracts the PBKDF2 salt from the encryption metadata in the backup JSON.
-     * @return the hex-encoded salt string, or null if no encryption metadata is present
+     * @return the hex-encoded salt string, or null if no encryption metadata is
+     *   present or the salt field is absent/empty — org.json's `optString` falls
+     *   back to "" for an absent key, so an explicit empty check is needed for
+     *   the `?:` guard at the decrypt call site to fire
      */
-    fun getEncryptionSalt(rootJson: JSONObject): String? = rootJson.optJSONObject(ENCRYPTION_KEY)?.optString(SALT_KEY)
+    fun getEncryptionSalt(rootJson: JSONObject): String? =
+      rootJson
+        .optJSONObject(ENCRYPTION_KEY)
+        ?.optString(SALT_KEY)
+        ?.takeIf { it.isNotEmpty() }
 
     /**
      * Extracts the PBKDF2 iteration count from the encryption metadata in the backup JSON.

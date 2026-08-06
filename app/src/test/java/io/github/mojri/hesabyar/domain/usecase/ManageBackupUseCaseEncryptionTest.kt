@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -187,6 +188,58 @@ class ManageBackupUseCaseEncryptionTest {
       "No encryption metadata must fall back to the current work factor",
       BackupCipher.PBKDF2_ITERATIONS,
       ManageBackupUseCase.getEncryptionIterations(JSONObject())
+    )
+  }
+
+  @Test
+  fun getEncryptionSaltReturnsNullWhenMetadataPresentButSaltKeyAbsent() {
+    // ENCRYPTION_KEY object is present but has no "salt" member — org.json's
+    // optString(name) falls back to "" for an absent key, so without the empty check
+    // this would return "" and the `?:` guard at the decrypt call site would never fire.
+    val rootJson =
+      JSONObject().apply {
+        put(
+          "sensitiveFieldsEncryption",
+          JSONObject().apply { put("iterations", BackupCipher.PBKDF2_ITERATIONS) }
+        )
+      }
+
+    assertNull(
+      "Encryption object present but salt key absent must yield null, not empty string",
+      ManageBackupUseCase.getEncryptionSalt(rootJson)
+    )
+  }
+
+  @Test
+  fun decryptRejectsEncryptedBackupWithoutSaltKey() {
+    val passphrase = "my-secret-passphrase"
+    val account =
+      AccountEntity(
+        id = 1,
+        name = "حساب اصلی",
+        type = AccountType.BANK,
+        cardNumber = "6219861012345678",
+        iban = "IR12345"
+      )
+    // A backup declaring encryption metadata but no salt can never derive a key —
+    // the salt guard must fire with the metadata error instead of failing deep in
+    // the PBKDF2 provider (empty-salt PBEKeySpec throws InvalidKeySpecException).
+    val (rootJson, parsed) =
+      encryptedBackupFixture(passphrase, BackupCipher.PBKDF2_ITERATIONS, account)
+    rootJson.getJSONObject("sensitiveFieldsEncryption").remove("salt")
+
+    val e =
+      org.junit.Assert.assertThrows(
+        "Encrypted backup without a salt must be rejected by the metadata guard",
+        IllegalArgumentException::class.java
+      ) {
+        runBlocking {
+          useCase.decryptBackupWithPassphrase(parsed, rootJson, passphrase)
+        }
+      }
+    assertTrue(
+      "Error must identify the missing metadata, got: ${e.message}",
+      e.message!!.contains("does not contain encryption metadata")
     )
   }
 }
