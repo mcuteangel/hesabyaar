@@ -689,6 +689,55 @@ class BackupViewModelTest {
       )
     }
 
+  @Test
+  fun validateAndStageImportEncryptedBackupWithoutSaltShowsErrorInsteadOfDialog() =
+    runTest {
+      // Foreign/hand-edited backup with the encryption marker but no PBKDF2 salt.
+      // Detection must reject it with an error: opening the dialog would be a
+      // dead-end, because decryptAndStageImport silently hides the dialog when
+      // pendingImportSalt is null (no passphrase can ever succeed).
+      val rawJson =
+        """
+        {
+          "version": 1,
+          "timestamp": 1710000000000,
+          "appVersion": "1.0",
+          "sensitiveFieldsEncryption": {},
+          "transactions": [],
+          "loans": [],
+          "installments": [],
+          "categories": [],
+          "accounts": []
+        }
+        """.trimIndent()
+
+      viewModel.importCoordinator.validateAndStageImport(ByteArrayInputStream(rawJson.toByteArray()))
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      val state = viewModel.operationState.value
+      assertTrue(
+        "Expected Error for salt-less encrypted backup, got $state",
+        state is BackupOperationState.Error
+      )
+      assertEquals(
+        "Error must name the incomplete encryption metadata",
+        context.getString(R.string.error_backup_encryption_incomplete),
+        (state as BackupOperationState.Error).message
+      )
+      assertTrue(
+        "Dialog must NOT open for a salt-less encrypted backup, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+      assertTrue(
+        "Staged raw JSON must be cleared, pendingImportRawJson=${viewModel.importCoordinator.pendingImportRawJson}",
+        viewModel.importCoordinator.pendingImportRawJson == null
+      )
+      assertTrue(
+        "Staged salt must be cleared, pendingImportSalt=${viewModel.importCoordinator.pendingImportSalt}",
+        viewModel.importCoordinator.pendingImportSalt == null
+      )
+    }
+
   /** Records whether close() ran, so tests can assert stream lifecycle on error paths. */
   private class CloseTrackingOutputStream : OutputStream() {
     private val delegate = ByteArrayOutputStream()

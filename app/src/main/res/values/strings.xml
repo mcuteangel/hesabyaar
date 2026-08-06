@@ -57,6 +57,7 @@
     <string name="error_reading_backup_file">خطا در خواندن فایل پشتیبان: %s</string>
     <string name="error_parsing_backup_file">خطا در تجزیه فایل پشتیبان: %s</string>
     <string name="error_invalid_backup_structure">خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است</string>
+    <string name="error_backup_encryption_incomplete">فایل پشتیبان رمزگذاری‌شده است اما اطلاعات رمزنگاری آن ناقص است</string>
 
     <!-- ReportsScreen -->
     <string name="account_content_description">حساب %1$s</string>

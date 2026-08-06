@@ -75,9 +75,22 @@ class BackupImportCoordinator(
         if (rootJson != null && ManageBackupUseCase.isEncryptedBackup(rootJson)) {
           // Encrypted backup — pause and ask for passphrase
           val salt = ManageBackupUseCase.getEncryptionSalt(rootJson)
+          if (salt == null) {
+            // Encryption marker present but no PBKDF2 salt (foreign or hand-edited
+            // backup): reject at detection. Opening the dialog with an empty-salt
+            // fallback would be a dead-end — decryptAndStageImport silently hides
+            // the dialog when pendingImportSalt is null, with no error surfaced.
+            pendingImportRawJson = null
+            pendingImportSalt = null
+            operationState.value =
+              BackupOperationState.Error(
+                application.getString(R.string.error_backup_encryption_incomplete)
+              )
+            return@launch
+          }
           pendingImportRawJson = text
           pendingImportSalt = salt
-          passphraseDialogState.value = PassphraseDialogState.ImportPassphrase(salt ?: "")
+          passphraseDialogState.value = PassphraseDialogState.ImportPassphrase(salt)
           return@launch
         }
 
