@@ -33,7 +33,7 @@ Persian-first personal finance app (Android). Offline-first. AI (Gemini/OpenRout
 ./gradlew --no-daemon lint
 ```
 
-⚠️ **Always run `./gradlew --no-daemon compileDebugKotlin` before running tests** to ensure code compiles and catches type errors early.
+⚠️ **Optional production-source check:** Run `./gradlew --no-daemon compileDebugKotlin` before a broad test run to catch production Kotlin type errors early. Test tasks compile test sources separately.
 
 For release-variant verification (signing config, ProGuard, etc.):
 
