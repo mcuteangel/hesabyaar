@@ -34,6 +34,7 @@ object BackupCipher {
   private const val SALT_LENGTH_BYTES = 16
   private const val IV_LENGTH_BYTES = 12
   private const val GCM_TAG_LENGTH_BITS = 128
+  private const val GCM_TAG_LENGTH_BYTES = GCM_TAG_LENGTH_BITS / 8
   private const val AES_ALGORITHM = "AES/GCM/NoPadding"
   private const val HEX_RADIX = 16
 
@@ -129,8 +130,11 @@ object BackupCipher {
     aad: String
   ): String {
     val combined = Base64.getDecoder().decode(encryptedBase64)
-    // Minimum: IV (12) + 1 byte ciphertext + GCM tag (16) = 29 bytes
-    val minLen = IV_LENGTH_BYTES + 1
+    // Minimum: IV (12) + full GCM tag (16). The tag is required even when the
+    // plaintext is empty (ciphertext length 0, payload exactly 28 bytes); any
+    // shorter payload is a truncated record and is rejected here rather than
+    // by the Cipher provider.
+    val minLen = IV_LENGTH_BYTES + GCM_TAG_LENGTH_BYTES
     require(combined.size >= minLen) {
       "Encrypted data too short: ${combined.size} bytes (minimum $minLen)"
     }

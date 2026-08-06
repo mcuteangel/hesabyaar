@@ -89,6 +89,35 @@ class BackupCipherTest {
     BackupCipher.decrypt(tooShort, key, account1IbanAad)
   }
 
+  @Test(expected = IllegalArgumentException::class)
+  fun decryptingTruncatedTagThrowsIllegalArgumentException() {
+    // Start from a valid ciphertext and cut the GCM tag from 16 to 8 bytes
+    // (IV 12 + half tag 8 = 20 bytes). 20 bytes clears any "IV + 1 byte" check,
+    // so only a full IV + tag-length validation rejects it at the require layer —
+    // the Cipher provider would otherwise throw a different exception type.
+    val encrypted = BackupCipher.encrypt("621986101234567890123456", key, account1IbanAad)
+    val truncated =
+      java.util.Base64
+        .getDecoder()
+        .decode(encrypted)
+        .copyOfRange(0, 20)
+    BackupCipher.decrypt(
+      java.util.Base64
+        .getEncoder()
+        .encodeToString(truncated),
+      key,
+      account1IbanAad
+    )
+  }
+
+  @Test
+  fun decryptingEmptyPlaintextRoundTripsAtTheBoundary() {
+    // Empty plaintext: IV (12) + no ciphertext + full GCM tag (16) = 28 bytes,
+    // exactly the validation minimum — must still decrypt to an empty string.
+    val encrypted = BackupCipher.encrypt("", key, account1IbanAad)
+    assertEquals("Empty plaintext must round-trip", "", BackupCipher.decrypt(encrypted, key, account1IbanAad))
+  }
+
   @Test(expected = AEADBadTagException::class)
   fun decryptingTamperedButWellFormedCiphertextThrowsAEADBadTagException() {
     val plaintext = "98765432109876543210"
