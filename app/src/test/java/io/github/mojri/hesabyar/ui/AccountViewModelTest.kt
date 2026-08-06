@@ -150,6 +150,38 @@ class AccountViewModelTest {
     }
 
   @Test
+  fun deleteAccountBlockedWhenTransactionsExist() =
+    runTest {
+      fakeRepo.transactionCountOverride = 3
+      val account = AccountEntity(id = 5, name = "has transactions", type = AccountType.BANK)
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "other", type = AccountType.BANK))
+      fakeRepo.accountsList.add(account)
+      fakeRepo.refreshAccounts()
+
+      val errorMessages = mutableListOf<String>()
+      val job =
+        launch {
+          viewModel.errorEvents.collect { errorMessages.add(it) }
+        }
+      advanceUntilIdle()
+
+      viewModel.deleteAccount(account)
+      advanceUntilIdle()
+
+      assertTrue(
+        "account with transactions should not be deleted",
+        fakeRepo.accountsList.any { it.id == 5L }
+      )
+      assertEquals("should have 2 accounts remaining", 2, fakeRepo.accountsList.size)
+      assertEquals(
+        "transaction-count error should be emitted",
+        "حساب «has transactions» دارای 3 تراکنش است و قابل حذف نیست",
+        errorMessages.single()
+      )
+      job.cancel()
+    }
+
+  @Test
   fun canDeleteAccountReturnsFalseForLastAccountEvenWithZeroTransactions() =
     runTest {
       val account = AccountEntity(id = 5, name = "only account", type = AccountType.BANK)
