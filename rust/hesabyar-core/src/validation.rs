@@ -28,8 +28,8 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     if tx.amount <= 0 {
         return Err("Transaction amount must be positive".into());
     }
-    // All five TransactionType variants are valid — no invalid variant can exist
-    // after deserialization, but we validate defensively.
+    // All six TransactionType variants are handled here; five are accepted
+    // unconditionally, while Transfer requires a valid destination account.
     match tx.tx_type {
         TransactionType::Expense
         | TransactionType::Income

@@ -62,9 +62,16 @@ object BackupCipher {
         iterations,
         PBKDF2_KEY_LENGTH_BITS
       )
-    val factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
-    val keyBytes = factory.generateSecret(spec).encoded
-    return SecretKeySpec(keyBytes, "AES")
+    return try {
+      val factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM)
+      val keyBytes = factory.generateSecret(spec).encoded
+      SecretKeySpec(keyBytes, "AES")
+    } finally {
+      // Zero out the passphrase char array held by the spec so the sensitive
+      // material is not retained in heap memory — whether derivation
+      // succeeded or threw.
+      spec.clearPassword()
+    }
   }
 
   /**

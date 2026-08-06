@@ -49,9 +49,12 @@ class BackupViewModel
     @VisibleForTesting
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
-    /** Dispatcher for CPU-intensive PBKDF2 key derivation (600k iterations). */
+    /**
+     * Dispatcher for CPU-intensive PBKDF2 key derivation (600k iterations) —
+     * CPU-bound work belongs on [Dispatchers.Default], not the I/O pool.
+     */
     @VisibleForTesting
-    internal var cryptoDispatcher: CoroutineDispatcher = Dispatchers.IO
+    internal var cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default
 
     private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
 
