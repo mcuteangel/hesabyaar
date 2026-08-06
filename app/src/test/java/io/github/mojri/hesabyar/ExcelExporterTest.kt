@@ -320,6 +320,11 @@ class ExcelExporterTest {
         row.size
       )
     }
+    // Type column (header index 1) must label each transaction correctly:
+    // TRANSFER must not collapse into the binary income/expense branch.
+    assertEquals("دریافتی", sheet.rows[0][1].value)
+    assertEquals("پرداختی", sheet.rows[1][1].value)
+    assertEquals("انتقال وجه", sheet.rows[2][1].value)
   }
 
   @Test

@@ -123,7 +123,20 @@ class ExcelExporter {
       buildList {
         add(Cell(value = (index + 1).toString(), bold = false))
         if (includeType) {
-          add(Cell(value = if (tx.type == TransactionType.INCOME) "دریافتی" else "پرداختی", bold = false))
+          add(
+            Cell(
+              value =
+                when (tx.type) {
+                  TransactionType.INCOME -> "دریافتی"
+                  // Matches the transaction_type_transfer string resource used by
+                  // TransactionDetailDialog — transfers must not collapse into
+                  // the binary income/expense branch.
+                  TransactionType.TRANSFER -> "انتقال وجه"
+                  else -> "پرداختی"
+                },
+              bold = false
+            )
+          )
         }
         add(Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false))
         add(Cell(value = formatAmount(tx.amount), bold = false))
