@@ -3,6 +3,8 @@ package io.github.mojri.hesabyar
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupSettings
@@ -20,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +43,10 @@ class RepositoryLogicTest {
         .inMemoryDatabaseBuilder(context, AppDatabase::class.java)
         .allowMainThreadQueries()
         .build()
+    // Production seeds the default account (id=1) on fresh create
+    // (AppDatabase onCreate) and on upgrade (MIGRATION_5_6); the in-memory
+    // test DB bypasses both, so mirror the invariant here.
+    database.accountDao().insertAllBlocking(listOf(AccountEntity.DEFAULT_ACCOUNT))
   }
 
   @After
@@ -55,6 +62,7 @@ class RepositoryLogicTest {
       database.paymentHistoryDao(),
       database.categoryDao(),
       database.bankLoanDao(),
+      database.accountDao(),
       database
     )
 
@@ -100,7 +108,7 @@ class RepositoryLogicTest {
     )
 
   @Test
-  fun `addPaymentToLoan - reduces remaining amount`() {
+  fun addpaymenttoloanReducesRemainingAmount() {
     var remainingAmount = 5_000_000L
     val paymentAmount = 2_000_000L
 
@@ -110,7 +118,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - settles loan when remaining is zero`() {
+  fun addpaymenttoloanSettlesLoanWhenRemainingIsZero() {
     var remainingAmount = 2_000_000L
     val paymentAmount = 2_000_000L
 
@@ -121,7 +129,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - overpayment clamps to zero`() {
+  fun addpaymenttoloanOverpaymentClampsToZero() {
     var remainingAmount = 1_000_000L
     val paymentAmount = 5_000_000L
 
@@ -131,7 +139,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - multiple payments accumulate`() {
+  fun addpaymenttoloanMultiplePaymentsAccumulate() {
     var remainingAmount = 10_000_000L
     val payments = listOf(3_000_000L, 2_000_000L, 5_000_000L)
 
@@ -143,21 +151,21 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - creditor creates expense transaction`() {
+  fun addpaymenttoloanCreditorCreatesExpenseTransaction() {
     val loanType = "CREDITOR"
     val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
     assertEquals("EXPENSE", transactionType)
   }
 
   @Test
-  fun `addPaymentToLoan - debtor creates income transaction`() {
+  fun addpaymenttoloanDebtorCreatesIncomeTransaction() {
     val loanType = "DEBTOR"
     val transactionType = if (loanType == "CREDITOR") "EXPENSE" else "INCOME"
     assertEquals("INCOME", transactionType)
   }
 
   @Test
-  fun `addPaymentToLoan - creditor description format`() {
+  fun addpaymenttoloanCreditorDescriptionFormat() {
     val loan =
       Loan(
         personName = "Ali",
@@ -178,7 +186,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - debtor description format`() {
+  fun addpaymenttoloanDebtorDescriptionFormat() {
     val loan =
       Loan(
         personName = "Reza",
@@ -199,7 +207,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `importBackup - clears and inserts`() {
+  fun importbackupClearsAndInserts() {
     val existingTransactions =
       mutableListOf(
         Transaction(type = TransactionType.EXPENSE, categoryId = 1L, amount = 100L, description = "old")
@@ -218,7 +226,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `replaceAllFromBackup - replaces all data`() {
+  fun replaceallfrombackupReplacesAllData() {
     val existingCategories =
       mutableListOf(
         Category(id = 1L, name = "Old", key = "Old", icon = "Test", color = 0L, type = CategoryType.EXPENSE)
@@ -236,7 +244,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - updates existing category`() {
+  fun mergefrombackupUpdatesExistingCategory() {
     val existing =
       Category(
         id = 1,
@@ -266,7 +274,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - inserts new category`() {
+  fun mergefrombackupInsertsNewCategory() {
     val existingKeys = setOf("Food", "Transportation")
     val backupCategory =
       Category(
@@ -283,7 +291,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `updateInstallment paid creates expense transaction`() {
+  fun updateinstallmentPaidCreatesExpenseTransaction() {
     val installment =
       Installment(title = "Car", amount = 2_000_000L, dueDate = System.currentTimeMillis(), isPaid = true)
     assertTrue(installment.isPaid)
@@ -300,7 +308,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `loan payment creates correct transaction type mapping`() {
+  fun loanPaymentCreatesCorrectTransactionTypeMapping() {
     val scenarios =
       mapOf(
         "CREDITOR" to "EXPENSE",
@@ -313,7 +321,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `mergeFromBackup - remaps bankLoanId linkage for installments`() =
+  fun mergefrombackupRemapsBankloanidLinkageForInstallments() =
     runTest {
       val repo = createRepository()
 
@@ -360,7 +368,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `backup payload preserves all fields`() {
+  fun backupPayloadPreservesAllFields() {
     val backup =
       BackupPayload(
         version = 2,
@@ -401,7 +409,7 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun `addPaymentToLoan - overpayment records effective amount`() =
+  fun addpaymenttoloanOverpaymentRecordsEffectiveAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -423,7 +431,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects zero amount`() =
+  fun addpaymenttoloanRejectsZeroAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -443,7 +451,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects negative amount`() =
+  fun addpaymenttoloanRejectsNegativeAmount() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
@@ -463,7 +471,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `addPaymentToLoan - rejects payment on settled loan`() =
+  fun addpaymenttoloanRejectsPaymentOnSettledLoan() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(0L, isSettled = true)
@@ -483,7 +491,7 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun `mergeFromBackup - remaps loanId and installmentId linkage`() =
+  fun mergefrombackupRemapsLoanidAndInstallmentidLinkage() =
     runTest {
       val repo = createRepository()
       val category =
@@ -539,4 +547,141 @@ class RepositoryLogicTest {
       assertEquals("بانک ملت", mergedBankLoan.bankName)
       assertEquals(mergedBankLoan.id, inst.bankLoanId)
     }
+
+  @Test
+  fun mergeFromBackupRemapsTransactionAccountIdsWhenBackupIdsDifferFromLocal() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts =
+            listOf(
+              account(id = 5L, name = "Backup Account", color = 0xFFE91E63L),
+              account(id = 10L, name = "Backup Dest", color = 0xFF2196F3L)
+            ),
+          transactions =
+            listOf(
+              transaction(
+                id = 1L,
+                type = TransactionType.TRANSFER,
+                accountId = 5L,
+                destinationAccountId = 10L,
+                amount = 50_000L
+              )
+            )
+        )
+      repo.mergeFromBackup(backup)
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      val mergedTx = txs.first()
+      assertNotEquals(5L, mergedTx.accountId)
+      assertNotEquals(10L, mergedTx.destinationAccountId)
+      requireNotNull(database.accountDao().getById(mergedTx.accountId))
+      requireNotNull(database.accountDao().getById(mergedTx.destinationAccountId!!))
+      assertEquals("Local Account", database.accountDao().getById(5L)?.name)
+    }
+
+  @Test
+  fun mergeFromBackupSkipsTransactionWhoseSourceAccountIsNotInBackupOrLocalDb() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
+          transactions =
+            listOf(
+              transaction(id = 1L, type = TransactionType.INCOME, accountId = 99L, amount = 10_000L),
+              transaction(id = 2L, type = TransactionType.EXPENSE, accountId = 5L, amount = 5_000L)
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      assertEquals(5_000L, txs.first().amount)
+      assertTrue("orphaned accountId=99 must not be written", txs.none { it.accountId == 99L })
+    }
+
+  @Test
+  fun mergeFromBackupSkipsTransferWhoseDestinationAccountIsNotInBackup() =
+    runTest {
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
+      val backup =
+        backupPayload(
+          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
+          transactions =
+            listOf(
+              transaction(
+                id = 1L,
+                type = TransactionType.TRANSFER,
+                accountId = 5L,
+                destinationAccountId = 99L,
+                amount = 50_000L
+              )
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertTrue("transfer with dangling destination must not be written", txs.isEmpty())
+    }
+
+  @Test
+  fun mergeFromBackupKeepsLegacyDefaultAccountIdWhenAccountsSectionIsEmpty() =
+    runTest {
+      val repo = createRepository()
+      val backup =
+        backupPayload(
+          accounts = emptyList(),
+          transactions =
+            listOf(
+              transaction(id = 1L, type = TransactionType.EXPENSE, accountId = 1L, amount = 3_000L)
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      assertEquals(1L, txs.first().accountId)
+      requireNotNull(database.accountDao().getById(txs.first().accountId))
+    }
+
+  private fun account(
+    id: Long,
+    name: String,
+    type: AccountType = AccountType.BANK,
+    color: Long = 0L
+  ) = AccountEntity(id = id, name = name, type = type, color = color, icon = "", isArchived = false, displayOrder = 0)
+
+  private fun transaction(
+    id: Long,
+    type: TransactionType,
+    accountId: Long,
+    destinationAccountId: Long? = null,
+    amount: Long = 3000L
+  ) = Transaction(
+    id = id,
+    type = type,
+    categoryId = 0L,
+    amount = amount,
+    description = "tx",
+    personName = null,
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destinationAccountId
+  )
+
+  private fun backupPayload(
+    accounts: List<AccountEntity>,
+    transactions: List<Transaction>
+  ) = BackupPayload(
+    version = 1,
+    timestamp = System.currentTimeMillis(),
+    appVersion = "1.0",
+    accounts = accounts,
+    transactions = transactions
+  )
 }

@@ -21,7 +21,9 @@ class ManageTransactionUseCase(
     amount: Long,
     description: String,
     personName: String? = null,
-    customDate: Long? = null
+    customDate: Long? = null,
+    accountId: Long = io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+    destinationAccountId: Long? = null
   ): Long =
     repository.insertTransaction(
       Transaction(
@@ -30,7 +32,9 @@ class ManageTransactionUseCase(
         amount = amount,
         description = description,
         personName = personName,
-        date = customDate ?: System.currentTimeMillis()
+        date = customDate ?: System.currentTimeMillis(),
+        accountId = accountId,
+        destinationAccountId = destinationAccountId
       )
     )
 

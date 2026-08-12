@@ -28,6 +28,7 @@ class ExportViewModel
 
     val exportState = mutableStateOf<ExportState>(ExportState.Idle)
 
+    @Suppress("TooGenericExceptionCaught") // Rust FFI can rethrow RuntimeException; justified safety net
     fun exportExcel() {
       viewModelScope.launch {
         exportState.value = ExportState.Exporting
@@ -41,10 +42,11 @@ class ExportViewModel
               append("فایل اکسل در پوشه Downloads ذخیره شد:\n")
               append(savedPath)
               append("\n\n")
-              append("${result.transactionCount} تراکنش")
+              append("${result.accountCount} حساب")
+              append("، ${result.transactionCount} تراکنش")
               if (result.incomeCount > 0) append(" (${result.incomeCount} دریافتی)")
               if (result.expenseCount > 0) append(" (${result.expenseCount} پرداختی)")
-              append(", ${result.loanCount} وام, ${result.installmentCount} قسط")
+              append("، ${result.loanCount} وام، ${result.installmentCount} قسط")
             }
 
           exportState.value = ExportState.Success(summary)
@@ -64,6 +66,20 @@ class ExportViewModel
           exportState.value =
             ExportState.Error(
               "خطا در تولید فایل اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
+            )
+        } catch (e: IllegalArgumentException) {
+          android.util.Log.e("ExportViewModel", "Invalid argument during Excel export", e)
+          exportState.value =
+            ExportState.Error(
+              "خطای پارامتر در خروجی اکسل: ${e.localizedMessage ?: "پارامتر نامعتبر"}"
+            )
+        } catch (e: Exception) {
+          // Safety net: Rust FFI (rustCallSync) can rethrow RuntimeException
+          // including NPE from the Rust bridge. Without this catch the app crashes.
+          android.util.Log.e("ExportViewModel", "Unexpected error during Excel export", e)
+          exportState.value =
+            ExportState.Error(
+              "خطای غیرمنتظره در خروجی اکسل: ${e.localizedMessage ?: "خطای ناشناخته"}"
             )
         }
       }

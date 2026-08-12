@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.rust
 import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.CancellationException
@@ -127,7 +128,12 @@ object RustBridge : JalaliNativeBridge {
   // ===========================================================================
 
   fun parseSentenceOfflineSync(rawSentence: String): ParsedResult? =
-    rustCallSync(null) { HesabyarCore.parseSentenceOffline(rawSentence) }
+    parseSentenceOfflineSync(rawSentence, System.currentTimeMillis())
+
+  fun parseSentenceOfflineSync(
+    rawSentence: String,
+    nowMs: Long,
+  ): ParsedResult? = rustCallSync(null) { HesabyarCore.parseSentenceOfflineAt(rawSentence, nowMs) }
 
   fun inferExpenseCategorySync(sentence: String): CategoryGuess =
     rustCallSync(CategoryGuess(category = "Other", subcategory = "")) {
@@ -258,7 +264,10 @@ object RustBridge : JalaliNativeBridge {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
+    accountId: Long? = null,
+    includeArchived: Boolean = false,
   ): AnalyticsData? =
     rustCallSync(null) {
       HesabyarCore.computeAnalytics(
@@ -266,7 +275,10 @@ object RustBridge : JalaliNativeBridge {
         loans,
         installments,
         categories,
-        RustMappers.mapBankLoans(bankLoans)
+        RustMappers.mapBankLoans(bankLoans),
+        RustMappers.mapAccounts(accounts),
+        accountId,
+        includeArchived,
       )
     }
 
@@ -274,14 +286,22 @@ object RustBridge : JalaliNativeBridge {
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
+    accountId: Long? = null,
+    includeArchived: Boolean = false,
+    nowMs: Long = System.currentTimeMillis(),
   ): DashboardData? =
     rustCallSync(null) {
       HesabyarCore.computeDashboardData(
         transactions,
         loans,
         installments,
-        RustMappers.mapBankLoans(bankLoans)
+        RustMappers.mapBankLoans(bankLoans),
+        RustMappers.mapAccounts(accounts),
+        accountId,
+        includeArchived,
+        nowMs,
       )
     }
 

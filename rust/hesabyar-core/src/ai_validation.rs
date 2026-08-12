@@ -110,6 +110,7 @@ fn map_tx_type(s: &str) -> TransactionType {
         "LOAN_DEBTOR" => TransactionType::LoanDebtor,
         "LOAN_CREDITOR" => TransactionType::LoanCreditor,
         "INSTALLMENT" => TransactionType::Installment,
+        "TRANSFER" => TransactionType::Transfer,
         _ => TransactionType::Expense,
     }
 }
@@ -172,13 +173,21 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     let type_str = raw.tx_type.unwrap_or_else(|| "EXPENSE".to_string());
     let was_type_repaired = !matches!(
         type_str.trim().to_uppercase().as_str(),
-        "EXPENSE" | "INCOME" | "LOAN_DEBTOR" | "LOAN_CREDITOR" | "INSTALLMENT"
+        "EXPENSE" | "INCOME" | "LOAN_DEBTOR" | "LOAN_CREDITOR" | "INSTALLMENT" | "TRANSFER"
     );
     if was_type_repaired {
         notes.push(format!("type '{}' → EXPENSE (unknown type)", type_str));
         was_repaired = true;
     }
     let tx_type = map_tx_type(&type_str);
+
+    // TRANSFER requires accountId/destinationAccountId which the AI parser
+    // cannot provide. Mark as needing user approval so the Kotlin layer
+    // can prompt for account selection before persisting.
+    if tx_type == TransactionType::Transfer {
+        notes.push("TRANSFER requires account selection before saving".to_string());
+        was_repaired = true;
+    }
 
     // --- Amount ---
     let amount = raw.amount.ok_or_else(|| HesabyarError::ValidationError {
@@ -503,6 +512,7 @@ mod tests {
             ("LOAN_DEBTOR", TransactionType::LoanDebtor),
             ("LOAN_CREDITOR", TransactionType::LoanCreditor),
             ("INSTALLMENT", TransactionType::Installment),
+            ("TRANSFER", TransactionType::Transfer),
         ] {
             let json = format!(r#"{{"type": "{}", "amount": 1000, "category": "Food"}}"#, type_str);
             let result = parse_ai_transaction_json(&json).unwrap();
@@ -512,11 +522,11 @@ mod tests {
 
     #[test]
     fn test_unknown_type_repaired_to_expense() {
-        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Food"}"#;
+        let json = r#"{"type": "UNKNOWN_TYPE", "amount": 1000, "category": "Food"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
         assert!(result.was_repaired);
-        assert!(result.repair_notes.iter().any(|n| n.contains("TRANSFER")));
+        assert!(result.repair_notes.iter().any(|n| n.contains("UNKNOWN_TYPE")));
     }
 
     #[test]
@@ -524,6 +534,18 @@ mod tests {
         let json = r#"{"amount": 1000, "category": "Food"}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
+    }
+
+    #[test]
+    fn test_transfer_type_recognized() {
+        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other", "confidence": 0.8}"#;
+        let result = parse_ai_transaction_json(json).unwrap();
+        assert_eq!(result.result.tx_type, TransactionType::Transfer);
+        // TRANSFER is always marked as repaired because the AI parser
+        // cannot set accountId/destinationAccountId — the user must
+        // select accounts before saving.
+        assert!(result.was_repaired);
+        assert!(result.repair_notes.iter().any(|n| n.contains("TRANSFER")));
     }
 
     #[test]
@@ -855,11 +877,12 @@ mod tests {
         assert_eq!(map_tx_type("LOAN_DEBTOR"), TransactionType::LoanDebtor);
         assert_eq!(map_tx_type("LOAN_CREDITOR"), TransactionType::LoanCreditor);
         assert_eq!(map_tx_type("INSTALLMENT"), TransactionType::Installment);
+        assert_eq!(map_tx_type("TRANSFER"), TransactionType::Transfer);
     }
 
     #[test]
     fn test_map_tx_type_unknown() {
-        assert_eq!(map_tx_type("TRANSFER"), TransactionType::Expense);
+        assert_eq!(map_tx_type("UNKNOWN"), TransactionType::Expense);
         assert_eq!(map_tx_type(""), TransactionType::Expense);
     }
 }

@@ -101,6 +101,20 @@ Release builds:
 ./gradlew lint
 ```
 
+> **⚠️ Important:** The Rust native library uses global mutable JNI state. To get
+> reliable test results (especially before merging Rust-related changes), always use
+> one of these cache-busting approaches instead of plain `./gradlew test`:
+>
+> ```bash
+> # Option A: clean build (recommended before merge)
+> ./gradlew clean test --no-daemon
+>
+> # Option B: rerun all tasks without cleaning
+> ./gradlew test --rerun-tasks --no-daemon
+> ```
+>
+> A plain `./gradlew test` may report false passes from Gradle's incremental cache.
+
 ---
 
 ## Build Variants

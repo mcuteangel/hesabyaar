@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.data
 
+import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import androidx.room.Database
 import androidx.room.Room
@@ -22,9 +24,10 @@ import java.io.IOException
     Installment::class,
     PaymentHistory::class,
     Category::class,
-    BankLoan::class
+    BankLoan::class,
+    AccountEntity::class
   ],
-  version = 5,
+  version = 7,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -41,11 +44,15 @@ abstract class AppDatabase : RoomDatabase() {
 
   abstract fun bankLoanDao(): BankLoanDao
 
+  abstract fun accountDao(): AccountDao
+
   companion object {
     @Volatile
     private var instance: AppDatabase? = null
     private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val MIGRATION_1_2 =
+
+    // internal visibility: tested by AppDatabaseMigrationTest
+    internal val MIGRATION_1_2 =
       object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -94,7 +101,7 @@ abstract class AppDatabase : RoomDatabase() {
      * Room guarantees this runs exactly once per DB file via _room_master_table.
      * ponytail: one-shot data fix. Remove after all users migrated to v4+.
      */
-    private val MIGRATION_3_4 =
+    internal val MIGRATION_3_4 =
       object : Migration(3, 4) {
         override fun migrate(db: SupportSQLiteDatabase) {
           // Only divide rows where amounts exceed thresholds that indicate
@@ -109,7 +116,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    private val MIGRATION_4_5 =
+    internal val MIGRATION_4_5 =
       object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -133,7 +140,57 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
-    private val MIGRATION_2_3 =
+    internal val MIGRATION_5_6 =
+      object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          // 1. Create accounts table
+          db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS accounts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              name TEXT NOT NULL,
+              type TEXT NOT NULL,
+              bankName TEXT,
+              cardNumber TEXT,
+              accountNumber TEXT,
+              iban TEXT,
+              initialBalance INTEGER NOT NULL DEFAULT 0,
+              color INTEGER NOT NULL DEFAULT ${AccountEntity.DEFAULT_COLOR},
+              icon TEXT,
+              isArchived INTEGER NOT NULL DEFAULT 0,
+              displayOrder INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+          )
+
+          // 2. Insert default main bank account
+          // Intentionally NOT referencing AccountEntity.DEFAULT_ACCOUNT —
+          // migrations must stay historically deterministic and frozen
+          // regardless of future changes to the constant. The onCreate
+          // callback (DEFAULT_ACCOUNT_SEED_CALLBACK) is the live seeding path
+          // for fresh installs and reads the constant.
+          db.execSQL(
+            "INSERT INTO accounts (id, name, type, initialBalance, displayOrder) VALUES (1, 'حساب اصلی', 'BANK', 0, 0)"
+          )
+
+          // 3. Add accountId and destinationAccountId to transactions
+          db.execSQL("ALTER TABLE transactions ADD COLUMN accountId INTEGER NOT NULL DEFAULT 1")
+          db.execSQL("ALTER TABLE transactions ADD COLUMN destinationAccountId INTEGER DEFAULT NULL")
+        }
+      }
+
+    internal val MIGRATION_6_7 =
+      object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          // Use DEFAULT 0 to match AccountEntity's @ColumnInfo(defaultValue = "0").
+          // Existing accounts get timestamp 0 (legacy sentinel); new accounts created
+          // in Kotlin code use System.currentTimeMillis() at the app layer.
+          db.execSQL("ALTER TABLE accounts ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE accounts ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        }
+      }
+
+    internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL(
@@ -183,6 +240,45 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Seeds the default account (id=1) on genuinely fresh database creation.
+     * MIGRATION_5_6 seeds the same row on upgrades from v5, but fresh installs
+     * start at the latest schema and never run migrations, so this callback is
+     * their only seeding path. `INSERT OR IGNORE` keeps the row unique if id=1
+     * already exists (e.g. [migratePlaintextToEncryptedIfNeeded] rebuilds the
+     * encrypted database from an older install's data).
+     *
+     * The row is built from [AccountEntity.DEFAULT_ACCOUNT] — the single
+     * source of truth for the default account — so fresh installs always
+     * reflect the current definition. Unlike MIGRATION_5_6 (which is
+     * intentionally frozen), this callback is allowed to track the constant.
+     */
+    internal val DEFAULT_ACCOUNT_SEED_CALLBACK =
+      object : RoomDatabase.Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+          super.onCreate(db)
+          val defaultAccount = AccountEntity.DEFAULT_ACCOUNT
+          val values =
+            ContentValues().apply {
+              put("id", defaultAccount.id)
+              put("name", defaultAccount.name)
+              put("type", defaultAccount.type.name)
+              put("bankName", defaultAccount.bankName)
+              put("cardNumber", defaultAccount.cardNumber)
+              put("accountNumber", defaultAccount.accountNumber)
+              put("iban", defaultAccount.iban)
+              put("initialBalance", defaultAccount.initialBalance)
+              put("color", defaultAccount.color)
+              put("icon", defaultAccount.icon)
+              put("isArchived", defaultAccount.isArchived)
+              put("displayOrder", defaultAccount.displayOrder)
+              put("createdAt", defaultAccount.createdAt)
+              put("updatedAt", defaultAccount.updatedAt)
+            }
+          db.insert("accounts", SQLiteDatabase.CONFLICT_IGNORE, values)
+        }
+      }
+
     fun getDatabase(context: Context): AppDatabase {
       instance?.let { return it }
       return synchronized(this) {
@@ -202,7 +298,8 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
             .build()
         instance = db
         db
@@ -242,9 +339,10 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
           .build()
 
+      val accounts = plaintextDb.accountDao().getAllAccountsBlocking()
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
       val transactions = plaintextDb.transactionDao().getAllTransactionsBlocking()
       val loans = plaintextDb.loanDao().getAllLoansBlocking()
@@ -265,10 +363,11 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
 
         encryptedDb.runInTransaction {
+          if (accounts.isNotEmpty()) encryptedDb.accountDao().insertAllBlocking(accounts)
           if (categories.isNotEmpty()) encryptedDb.categoryDao().insertAllBlocking(categories)
           if (transactions.isNotEmpty()) encryptedDb.transactionDao().insertAllBlocking(transactions)
           if (loans.isNotEmpty()) encryptedDb.loanDao().insertAllBlocking(loans)

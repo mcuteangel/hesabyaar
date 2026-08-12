@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
@@ -51,7 +52,7 @@ class InstallmentViewModelTest {
   }
 
   @Test
-  fun `setBankLoanFilter filters visibleInstallments to matching bankLoanId`() =
+  fun setbankloanfilterFiltersVisibleinstallmentsToMatchingBankloanid() =
     runTest(testDispatcher) {
       collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
@@ -62,7 +63,7 @@ class InstallmentViewModelTest {
     }
 
   @Test
-  fun `setBankLoanFilter null shows all installments`() =
+  fun setbankloanfilterNullShowsAllInstallments() =
     runTest(testDispatcher) {
       collectForTest(viewModel.visibleInstallments)
       viewModel.setBankLoanFilter(10)
@@ -86,6 +87,7 @@ class InstallmentViewModelTest {
     override val allInstallments: Flow<List<Installment>> = flowOf(installmentList)
     override val allCategories: Flow<List<Category>> = flowOf(emptyList())
     override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
+    override val allAccounts: Flow<List<AccountEntity>> = flowOf(emptyList())
 
     override fun getTransactionsInRange(
       start: Long,
@@ -159,5 +161,21 @@ class InstallmentViewModelTest {
     override suspend fun mergeFromBackup(backup: BackupPayload) {}
 
     override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
+
+    override suspend fun getActiveAccounts(): List<AccountEntity> = emptyList()
+
+    override suspend fun getAllAccounts(): List<AccountEntity> = emptyList()
+
+    override suspend fun getAccountById(id: Long): AccountEntity? = null
+
+    override suspend fun insertAccount(account: AccountEntity): Long = 0L
+
+    override suspend fun updateAccount(account: AccountEntity) {}
+
+    override suspend fun deleteAccount(account: AccountEntity) {}
+
+    override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
+
+    override suspend fun getMaxDisplayOrder(): Int = -1
   }
 }

@@ -74,7 +74,16 @@ object CurrencyFormatter {
     fallback: (Long) -> String = { kotlinFallback(it) }
   ): String {
     val isNegative = value < 0
-    val absValue = if (isNegative) -value else value
+    // kotlin.math.abs(Long.MIN_VALUE) overflows and returns Long.MIN_VALUE,
+    // so we guard against that edge case explicitly.
+    val absValue =
+      if (value == Long.MIN_VALUE) {
+        Long.MAX_VALUE
+      } else if (isNegative) {
+        -value
+      } else {
+        value
+      }
     val rustResult = formatAbs(absValue)
     val formatted =
       if (rustResult.isNotEmpty()) {
@@ -82,7 +91,46 @@ object CurrencyFormatter {
       } else {
         fallback(absValue)
       }
-    return if (isNegative) "-$formatted" else formatted
+    // LRM (U+200E) forces LTR rendering of the number block so the minus
+    // sign stays on the left in RTL layout (Persian/Arabic).
+    return if (isNegative) "\u200E-$formatted" else "\u200E$formatted"
+  }
+
+  /**
+   * Format a signed amount with a directional prefix (+ or −) for display.
+   *
+   * Use this instead of manually prepending "+" or "-" to [format] output.
+   *
+   * **Important:** For correct BIDI rendering in RTL layout, callers should
+   * render [Pair.first] (sign) and [Pair.second] (amount) in **separate**
+   * `Text` composables so the sign character is not reordered by the BIDI
+   * algorithm. See [formatSignedParts].
+   *
+   * @param signedValue Positive or negative amount in Rial.
+   * @return Formatted string like "+۱٬۰۰۰ تومان" or "-۱٬۰۰۰ تومان".
+   */
+  fun formatSigned(signedValue: Long): String {
+    val (sign, amount) = formatSignedParts(signedValue)
+    return "$sign$amount"
+  }
+
+  /**
+   * Format a signed amount and return the sign and amount as separate strings.
+   *
+   * Render them in **separate** `Text` composables to prevent BIDI reordering:
+   * ```
+   * Text(sign, color = amountColor)
+   * Text(amount, color = amountColor)
+   * ```
+   *
+   * @param signedValue Positive or negative amount in Rial.
+   * @return Pair of (sign, formattedAmount) — e.g. ("+", "۱٬۰۰۰ تومان").
+   */
+  fun formatSignedParts(signedValue: Long): Pair<String, String> {
+    val prefix = if (signedValue >= 0) "+" else "-"
+    // kotlin.math.abs(Long.MIN_VALUE) overflows — use explicit guard.
+    val absValue = if (signedValue == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(signedValue)
+    return prefix to format(absValue)
   }
 
   private fun kotlinFallback(value: Long): String {

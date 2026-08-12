@@ -6,6 +6,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.mojri.hesabyar.data.AccountDao
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BankLoanDao
 import io.github.mojri.hesabyar.data.CategoryDao
@@ -41,4 +42,7 @@ object DatabaseModule {
 
   @Provides
   fun provideBankLoanDao(database: AppDatabase): BankLoanDao = database.bankLoanDao()
+
+  @Provides
+  fun provideAccountDao(database: AppDatabase): AccountDao = database.accountDao()
 }

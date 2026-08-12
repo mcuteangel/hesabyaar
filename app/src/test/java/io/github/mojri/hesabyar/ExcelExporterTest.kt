@@ -1,7 +1,10 @@
 package io.github.mojri.hesabyar
 
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.ExcelExporter
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
@@ -268,5 +271,91 @@ class ExcelExporterTest {
       )
     val total = transactions.sumOf { it.amount }
     assertEquals(1_700_000L, total)
+  }
+
+  // --- Cell-count-per-row assertion tests (T1-1) ---
+
+  private fun tx(
+    type: TransactionType,
+    amount: Long,
+    accountId: Long = 1,
+    destId: Long? = null
+  ) = Transaction(
+    type = type,
+    categoryId = 1L,
+    amount = amount,
+    description = "test",
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destId
+  )
+
+  private fun account(
+    id: Long,
+    name: String
+  ) = AccountEntity(id = id, name = name, type = AccountType.BANK)
+
+  @Test
+  fun buildTransactionsSheetRowsMatchHeaderCount() {
+    val exporter = ExcelExporter()
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000),
+        tx(TransactionType.EXPENSE, 1_000_000, destId = 2),
+        tx(TransactionType.TRANSFER, 2_000_000, destId = 2)
+      )
+    val accounts = listOf(account(1, "Bank"), account(2, "Wallet"))
+    val accountMap = accounts.associateBy { it.id }
+
+    val sheet = exporter.buildTransactionsSheet(txs, emptyMap(), accountMap)
+    val headerCount = sheet.headers.size
+
+    // buildTransactionsSheet has 8 headers
+    assertEquals("headers count", 8, headerCount)
+    // Every row must have exactly headerCount cells
+    for ((i, row) in sheet.rows.withIndex()) {
+      assertEquals(
+        "row $i cell count must equal header count",
+        headerCount,
+        row.size
+      )
+    }
+    // Type column (header index 1) must label each transaction correctly:
+    // TRANSFER must not collapse into the binary income/expense branch.
+    assertEquals("دریافتی", sheet.rows[0][1].value)
+    assertEquals("پرداختی", sheet.rows[1][1].value)
+    assertEquals("انتقال وجه", sheet.rows[2][1].value)
+  }
+
+  @Test
+  fun buildSummaryTxSheetRowsMatchHeaderCount() {
+    val exporter = ExcelExporter()
+    val txs =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000),
+        tx(TransactionType.EXPENSE, 1_000_000)
+      )
+
+    val sheet = exporter.buildSummaryTxSheet("دریافتی\u200Cها", txs, emptyMap())
+    val headerCount = sheet.headers.size
+
+    // buildSummaryTxSheet has 5 headers (no type, no account columns)
+    assertEquals("headers count", 5, headerCount)
+    // Every data row must have exactly headerCount cells
+    for ((i, row) in sheet.rows.withIndex()) {
+      assertEquals(
+        "row $i cell count must equal header count",
+        headerCount,
+        row.size
+      )
+    }
+    // The totals row must also match the header width, so a hardcoded width
+    // drift in buildTotalRow is caught.
+    val summaryRow = checkNotNull(sheet.summaryRow) { "summary row must exist" }
+    assertEquals(
+      "summary row cell count must equal header count",
+      headerCount,
+      summaryRow.size
+    )
   }
 }

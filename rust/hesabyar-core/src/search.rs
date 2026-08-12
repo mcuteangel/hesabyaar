@@ -275,6 +275,8 @@ mod tests {
             date,
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         }
     }
 
@@ -464,6 +466,8 @@ mod tests {
                 date: 0,
                 due_date: None,
                 installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
             },
             Transaction {
                 id: 2,
@@ -475,6 +479,8 @@ mod tests {
                 date: 0,
                 due_date: None,
                 installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
             },
         ];
 

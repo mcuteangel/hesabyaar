@@ -358,6 +358,8 @@ mod tests {
             date,
             due_date: None,
             installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
         }
     }
 

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
-
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
+import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupValidationResult
 import io.github.mojri.hesabyar.data.Category
@@ -15,18 +16,24 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
  * Exercises [ManageBackupUseCase.validateBackup] on its **native (Rust)**
- * path — the only path reachable in unit tests, because the `hesabyar_core`
- * library always loads here (the Kotlin fallback in `validateBackupKotlin`
+ * path — the only path reachable in unit tests, because the hesabyar_core
+ * library always loads here (the Kotlin fallback in validatebackupkotlin
  * is exercised by an instrumentation run without the native library).
  *
  * This locks in the dispatch + Rust-backed validation contract: a well-formed
- * payload is accepted, and a structurally broken one is surfaced as `Invalid`.
+ * payload is accepted, and a structurally broken one is surfaced as invalid.
  */
+@org.junit.experimental.categories.Category(RustTest::class)
 class ManageBackupUseCaseValidationTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(true)
@@ -40,7 +47,7 @@ class ManageBackupUseCaseValidationTest {
   private val useCase = ManageBackupUseCase(FakeRepository())
 
   @Test
-  fun `well formed payload is valid`() =
+  fun wellFormedPayloadIsValid() =
     runTest {
       val payload =
         BackupPayload(
@@ -90,7 +97,7 @@ class ManageBackupUseCaseValidationTest {
     }
 
   @Test
-  fun `malformed json style payload is surfaced as Invalid`() =
+  fun malformedJsonStylePayloadIsSurfacedAsInvalid() =
     runTest {
       // A transaction with a non-positive amount is invalid by every validator
       // (Kotlin fallback and the Rust core agree), so this must not pass as Valid.
@@ -113,34 +120,38 @@ class ManageBackupUseCaseValidationTest {
     }
 
   @Test
-  fun `kotlin fallback flags invalid bank loan`() =
+  fun kotlinFallbackFlagsInvalidBankLoan() =
     runTest {
       // Force the Kotlin validation path (no native library).
+      val previousState = HesabyarApp.isRustInitialized()
       HesabyarApp.setRustInitializedForTesting(false)
-      val payload =
-        BackupPayload(
-          bankLoans =
-            listOf(
-              // Blank bank name + non-positive amounts => invalid.
-              io.github.mojri.hesabyar.data.BankLoan(
-                bankName = "",
-                loanName = "x",
-                receivedAmount = 0L,
-                monthlyInstallmentAmount = 0L,
-                numberOfInstallments = 0,
-                totalRepayableAmount = 0L,
-                totalInterest = 0L,
-                startDate = 0L,
-                description = ""
+      try {
+        val payload =
+          BackupPayload(
+            bankLoans =
+              listOf(
+                // Blank bank name + non-positive amounts => invalid.
+                io.github.mojri.hesabyar.data.BankLoan(
+                  bankName = "",
+                  loanName = "x",
+                  receivedAmount = 0L,
+                  monthlyInstallmentAmount = 0L,
+                  numberOfInstallments = 0,
+                  totalRepayableAmount = 0L,
+                  totalInterest = 0L,
+                  startDate = 0L,
+                  description = ""
+                )
               )
-            )
-        )
+          )
 
-      val result = useCase.validateBackup(payload)
-      assertTrue(
-        "expected $result to be Invalid for malformed bank loan",
-        result is BackupValidationResult.Invalid
-      )
-      HesabyarApp.setRustInitializedForTesting(true)
+        val result = useCase.validateBackup(payload)
+        assertTrue(
+          "expected $result to be Invalid for malformed bank loan",
+          result is BackupValidationResult.Invalid
+        )
+      } finally {
+        HesabyarApp.setRustInitializedForTesting(previousState)
+      }
     }
 }

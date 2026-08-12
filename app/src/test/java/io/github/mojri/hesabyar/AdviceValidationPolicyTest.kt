@@ -4,7 +4,10 @@ import io.github.mojri.hesabyar.api.AdviceValidationPolicy
 import io.github.mojri.hesabyar.rust.AdviceValidation
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Locks in the AI-advice validation-failure decision
@@ -17,7 +20,17 @@ import org.junit.Test
  * through [io.github.mojri.hesabyar.rust.RustBridge.isAvailable]; it is covered
  * here directly.
  */
+@Category(RustTest::class)
 class AdviceValidationPolicyTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
+  @Before
+  fun setUp() {
+    HesabyarApp.setRustInitializedForTesting(true)
+  }
+
   private fun validation(isValid: Boolean) =
     AdviceValidation(
       isValid = isValid,
@@ -27,7 +40,7 @@ class AdviceValidationPolicyTest {
     )
 
   @Test
-  fun `invalid advice is discarded when Rust validator is available`() {
+  fun invalidAdviceIsDiscardedWhenRustValidatorIsAvailable() {
     assertTrue(
       AdviceValidationPolicy.shouldDiscardOnValidationFailure(
         validation(isValid = false),
@@ -37,7 +50,7 @@ class AdviceValidationPolicyTest {
   }
 
   @Test
-  fun `invalid advice is kept when Rust validator is unavailable`() {
+  fun invalidAdviceIsKeptWhenRustValidatorIsUnavailable() {
     // Regression guard: the unavailable engine must NOT force a silent fallback
     // to offline advice, or every AI response would be discarded on devices
     // where the native core failed to load.
@@ -51,7 +64,7 @@ class AdviceValidationPolicyTest {
   }
 
   @Test
-  fun `valid advice is always kept regardless of Rust availability`() {
+  fun validAdviceIsAlwaysKeptRegardlessOfRustAvailability() {
     assertFalse(
       AdviceValidationPolicy.shouldDiscardOnValidationFailure(
         validation(isValid = true),

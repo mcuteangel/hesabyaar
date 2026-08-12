@@ -15,10 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
@@ -33,10 +37,13 @@ import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ManualTransactionDialog
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDialog
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
@@ -58,6 +65,7 @@ fun ReportsScreen(
 ) {
   val transactions by dashboardViewModel.transactions.collectAsState()
   val categories by dashboardViewModel.categories.collectAsState()
+  val accounts by dashboardViewModel.accounts.collectAsState()
 
   var selectedCategoryFilter by remember { mutableStateOf<Long?>(null) }
   var selectedPreset by remember { mutableStateOf<String?>(null) }
@@ -263,12 +271,31 @@ fun ReportsScreen(
               style = MaterialTheme.typography.titleSmall,
               fontWeight = FontWeight.Bold
             )
-            Text(
-              text = (if (balance >= 0) "+" else "") + CurrencyFormatter.format(balance),
-              color = if (balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                val (sign, amount) = CurrencyFormatter.formatSignedParts(balance)
+                val balanceColor =
+                  if (balance >=
+                    0
+                  ) {
+                    MaterialTheme.colorScheme.primary
+                  } else {
+                    MaterialTheme.colorScheme.error
+                  }
+                Text(
+                  text = sign,
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = balanceColor
+                )
+                Text(
+                  text = amount,
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = balanceColor
+                )
+              }
+            }
           }
         }
       }
@@ -655,6 +682,7 @@ fun ReportsScreen(
       }
     } else {
       items(displayList) { transaction ->
+        val sourceAccount = accounts.find { it.id == transaction.accountId }
         Row(
           modifier =
             Modifier
@@ -666,6 +694,18 @@ fun ReportsScreen(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
+          // Account color indicator — primary signal for account identity
+          if (sourceAccount != null) {
+            IconCircle(
+              icon = sourceAccount.type.icon(),
+              tint = sourceAccount.color.toComposeColor(),
+              backgroundColor = sourceAccount.color.toComposeColor(),
+              iconSize = 12.dp,
+              containerSize = 20.dp,
+              contentDescription = stringResource(id = R.string.account_content_description, sourceAccount.name)
+            )
+            Spacer(modifier = Modifier.width(SpacingTokens.sm))
+          }
           Column(modifier = Modifier.weight(1f)) {
             Text(
               text = transaction.description,
@@ -682,21 +722,28 @@ fun ReportsScreen(
           }
 
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-              text =
-                (if (transaction.type == TransactionType.INCOME) "+" else "-") +
-                  CurrencyFormatter.format(transaction.amount),
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Bold,
-              color =
-                if (transaction.type ==
-                  TransactionType.INCOME
-                ) {
-                  MaterialTheme.colorScheme.primary
-                } else {
-                  MaterialTheme.colorScheme.error
-                }
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                val isTxIncome = transaction.type == TransactionType.INCOME
+                val (txSign, txAmount) =
+                  CurrencyFormatter.formatSignedParts(
+                    if (isTxIncome) transaction.amount else -transaction.amount
+                  )
+                val txColor = if (isTxIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                Text(
+                  text = txSign,
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = txColor
+                )
+                Text(
+                  text = txAmount,
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = txColor
+                )
+              }
+            }
             IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,
@@ -715,6 +762,7 @@ fun ReportsScreen(
     TransactionDetailDialog(
       transaction = showDetailTransaction!!,
       categories = categories,
+      accounts = accounts,
       onEdit = {
         editingTransaction = showDetailTransaction
         showDetailTransaction = null
@@ -732,6 +780,11 @@ fun ReportsScreen(
       onSubmit = onSubmitTransaction,
       categories = categories,
       transactionToEdit = editingTransaction,
+      accounts = accounts,
+      // Seed the dialog from the transaction being edited; the selection is
+      // held in local dialog state, so it must not drive (or be driven by)
+      // any screen-level account filter while editing.
+      selectedAccountId = editingTransaction?.accountId,
       onDismiss = { editingTransaction = null }
     )
   }

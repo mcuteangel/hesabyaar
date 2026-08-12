@@ -1,8 +1,12 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.auth.BackupCipher
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -12,6 +16,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.security.GeneralSecurityException
 
 class ManageBackupUseCaseTest {
   private val useCase = ManageBackupUseCase(FakeRepository())
@@ -327,5 +332,361 @@ class ManageBackupUseCaseTest {
     assertTrue(result.installments.isEmpty())
     assertTrue(result.categories.isEmpty())
     assertFalse(result.toString().isEmpty())
+  }
+
+  // --- round-trip: accountId / destinationAccountId preservation ---
+
+  @Test
+  fun exportAndParseBackupJsonRoundTripPreservesAccountAndDestinationAccountId() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    val nonDefaultAccountId = 5L
+    val destAccountId = 3L
+
+    runBlocking {
+      repo.insertTransaction(
+        Transaction(
+          id = 1L,
+          type = TransactionType.EXPENSE,
+          categoryId = 1L,
+          amount = 100_000L,
+          description = "transfer out",
+          accountId = nonDefaultAccountId,
+          destinationAccountId = destAccountId
+        )
+      )
+    }
+
+    val json = runBlocking { useCase.exportBackupJson() }
+    val result = runBlocking { useCase.parseBackupJson(json.toString()) }
+
+    assertTrue(result != null)
+    assertEquals("transaction count should be 1", 1, result!!.transactions.size)
+    val tx = result.transactions[0]
+    assertEquals("accountId preserved through round-trip", nonDefaultAccountId, tx.accountId)
+    assertEquals("destinationAccountId preserved through round-trip", destAccountId, tx.destinationAccountId)
+  }
+
+  // --- encrypted backup round-trip ---
+
+  @Test
+  fun exportWithPassphraseThenImportRecoversOriginalValues() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+    val passphrase = "my-secret-passphrase"
+
+    val realCard = "621986101234567890123456"
+    val realAccountNum = "123456789012"
+    val realIban = "IR123456789012345678901234"
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = realCard,
+          accountNumber = realAccountNum,
+          iban = realIban
+        )
+      )
+    }
+
+    // Export with passphrase
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+
+    // Verify encryption metadata is present
+    assertTrue("sensitiveFieldsEncryption must be present", rootJson.has("sensitiveFieldsEncryption"))
+    val encMeta = rootJson.getJSONObject("sensitiveFieldsEncryption")
+    assertTrue("salt must be present", encMeta.has("salt"))
+    assertEquals(
+      "iterations must match the current PBKDF2 work factor",
+      BackupCipher.PBKDF2_ITERATIONS,
+      encMeta.getInt("iterations")
+    )
+
+    // Verify fields are encrypted (not plaintext)
+    val accountJson = rootJson.getJSONArray("accounts").getJSONObject(0)
+    val cardValue = accountJson.get("cardNumber")
+    val accountNumValue = accountJson.get("accountNumber")
+    val ibanValue = accountJson.get("iban")
+    assertTrue("cardNumber must be encrypted string", cardValue is String)
+    assertTrue("accountNumber must be encrypted string", accountNumValue is String)
+    assertTrue("iban must be encrypted string", ibanValue is String)
+    assertFalse("cardNumber must not be plaintext", cardValue == realCard)
+    assertFalse("accountNumber must not be plaintext", accountNumValue == realAccountNum)
+    assertFalse("iban must not be plaintext", ibanValue == realIban)
+
+    // Parse (Rust or Kotlin path — both accept encrypted base64 strings)
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }
+    assertTrue("backup must parse successfully", parsed != null)
+
+    // Verify isEncryptedBackup detects encryption
+    val parsedRoot = JSONObject(jsonString)
+    assertTrue("isEncryptedBackup must return true", ManageBackupUseCase.isEncryptedBackup(parsedRoot))
+
+    // Decrypt with correct passphrase
+    val decrypted =
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed!!, parsedRoot, passphrase)
+      }
+
+    assertEquals("cardNumber must be recovered", realCard, decrypted.accounts[0].cardNumber)
+    assertEquals("accountNumber must be recovered", realAccountNum, decrypted.accounts[0].accountNumber)
+    assertEquals("iban must be recovered", realIban, decrypted.accounts[0].iban)
+  }
+
+  @Test
+  fun exportWithoutPassphraseStoresPlaintext() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    val realCard = "6219861012345678"
+    val realIban = "IR9876543210"
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "کیف پول",
+          type = AccountType.CASH_WALLET,
+          cardNumber = realCard,
+          iban = realIban
+        )
+      )
+    }
+
+    // Export without passphrase (plaintext)
+    val rootJson = runBlocking { useCase.exportBackupJson() }
+    val jsonString = rootJson.toString()
+
+    // Verify no encryption metadata
+    assertFalse("sensitiveFieldsEncryption must be absent", rootJson.has("sensitiveFieldsEncryption"))
+
+    // Verify fields are plaintext
+    val accountJson = rootJson.getJSONArray("accounts").getJSONObject(0)
+    assertEquals("cardNumber must be plaintext", realCard, accountJson.getString("cardNumber"))
+    assertEquals("iban must be plaintext", realIban, accountJson.getString("iban"))
+
+    // Verify isEncryptedBackup returns false
+    assertFalse("isEncryptedBackup must return false", ManageBackupUseCase.isEncryptedBackup(rootJson))
+
+    // Parse and verify values match
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }
+    assertEquals("cardNumber preserved", realCard, parsed!!.accounts[0].cardNumber)
+    assertEquals("iban preserved", realIban, parsed.accounts[0].iban)
+  }
+
+  @Test
+  fun importWithWrongPassphraseFailsGracefully() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = "correct-passphrase") }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }
+    val parsedRoot = JSONObject(jsonString)
+
+    // Attempt decryption with wrong passphrase — must throw
+    org.junit.Assert.assertThrows(
+      "GeneralSecurityException must be thrown on wrong passphrase",
+      GeneralSecurityException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed!!, parsedRoot, "wrong-passphrase")
+      }
+    }
+  }
+
+  @Test
+  fun decryptReorderedRawAccountsMatchesByAccountIdNotByIndex() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+    val firstCard = "1111111111111111"
+    val secondCard = "2222222222222222"
+    val firstIban = "IR101010"
+    val secondIban = "IR202020"
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اول",
+          type = AccountType.BANK,
+          cardNumber = firstCard,
+          iban = firstIban
+        )
+      )
+      repo.insertAccount(
+        AccountEntity(
+          id = 2,
+          name = "حساب دوم",
+          type = AccountType.BANK,
+          cardNumber = secondCard,
+          iban = secondIban
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+    assertEquals("sanity: two accounts must be parsed", 2, parsed.accounts.size)
+
+    // Swap the raw JSON accounts so index 0 now holds account id=2's ciphertext
+    // and index 1 holds account id=1's. Index-based matching would attach the
+    // ciphertext to the wrong account; id-based matching must not.
+    val tamperedRoot = JSONObject(jsonString)
+    val rawAccounts = tamperedRoot.getJSONArray("accounts")
+    val first = rawAccounts.getJSONObject(0)
+    val second = rawAccounts.getJSONObject(1)
+    tamperedRoot.put("accounts", JSONArray().put(second).put(first))
+
+    val decrypted =
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, tamperedRoot, passphrase)
+      }
+
+    assertEquals("account id 1 keeps its own card", firstCard, decrypted.accounts[0].cardNumber)
+    assertEquals("account id 1 keeps its own iban", firstIban, decrypted.accounts[0].iban)
+    assertEquals("account id 2 keeps its own card", secondCard, decrypted.accounts[1].cardNumber)
+    assertEquals("account id 2 keeps its own iban", secondIban, decrypted.accounts[1].iban)
+  }
+
+  @Test
+  fun decryptMalformedRawEntryThrowsInsteadOfMisassigning() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // A raw entry that lost its account id makes 1:1 matching by id impossible —
+    // matching must fail loudly instead of silently guessing by index.
+    val missingIdRoot = JSONObject(jsonString)
+    missingIdRoot.getJSONArray("accounts").getJSONObject(0).remove("id")
+    org.junit.Assert.assertThrows(
+      "Raw entry missing id must fail",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, missingIdRoot, passphrase)
+      }
+    }
+
+    // A raw entry that is JSON null (not an object) must also fail.
+    val nullEntryRoot = JSONObject(jsonString)
+    val nullEntryAccounts = nullEntryRoot.getJSONArray("accounts")
+    nullEntryAccounts.put(0, JSONObject.NULL)
+    org.junit.Assert.assertThrows(
+      "JSON null raw entry must fail",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nullEntryRoot, passphrase)
+      }
+    }
+  }
+
+  @Test
+  fun decryptNullAccountIdInEncryptedBackupThrowsInsteadOfSilentlyUsingZero() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // "id": null in JSON causes optLong to silently resolve to 0L,
+    // which would bypass the duplicate-id check and land in encryptedById[0].
+    // The fix rejects id <= 0 with a clear error.
+    val nullIdRoot = JSONObject(jsonString)
+    nullIdRoot.getJSONArray("accounts").getJSONObject(0).put("id", JSONObject.NULL)
+    org.junit.Assert.assertThrows(
+      "Null account id must fail loudly, not silently resolve to 0",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nullIdRoot, passphrase)
+      }
+    }
+  }
+
+  @Test
+  fun decryptNonNumericAccountIdInEncryptedBackupThrowsInsteadOfSilentlyUsingZero() {
+    val repo = FakeRepository()
+    val useCase = ManageBackupUseCase(repo)
+
+    runBlocking {
+      repo.insertAccount(
+        AccountEntity(
+          id = 1,
+          name = "حساب اصلی",
+          type = AccountType.BANK,
+          cardNumber = "6219861012345678",
+          iban = "IR12345"
+        )
+      )
+    }
+
+    val passphrase = "correct-passphrase"
+    val rootJson = runBlocking { useCase.exportBackupJson(passphrase = passphrase) }
+    val jsonString = rootJson.toString()
+    val parsed = runBlocking { useCase.parseBackupJson(jsonString) }!!
+
+    // A non-numeric "id" value (e.g. "abc") causes optLong to return the
+    // fallback (-1L), which must be rejected as invalid.
+    val nonNumericIdRoot = JSONObject(jsonString)
+    nonNumericIdRoot.getJSONArray("accounts").getJSONObject(0).put("id", "abc")
+    org.junit.Assert.assertThrows(
+      "Non-numeric account id must fail loudly instead of silently resolving to fallback",
+      IllegalStateException::class.java
+    ) {
+      runBlocking {
+        useCase.decryptBackupWithPassphrase(parsed, nonNumericIdRoot, passphrase)
+      }
+    }
   }
 }

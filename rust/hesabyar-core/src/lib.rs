@@ -49,9 +49,24 @@ pub fn initialize() {
 }
 
 /// Full offline sentence parser (ported from GeminiParser.parseSentenceOffline).
+/// Uses the real wall clock — deterministic only if the caller supplies a
+/// fixed `now_ms` via [parse_sentence_offline_at].
 #[uniffi::export]
 pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, HesabyarError> {
-    crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence))
+    let now_ms = parser::nlp::real_now_ms();
+    crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence, now_ms))
+}
+
+/// Same as [parse_sentence_offline] but with an explicit "now" timestamp
+/// (epoch ms), so callers can make date-relative fields (daysFromNow,
+/// dateOffsetDays) deterministic in tests. Production code uses the
+/// real-time default via [parse_sentence_offline].
+#[uniffi::export]
+pub fn parse_sentence_offline_at(
+    raw_sentence: &str,
+    now_ms: i64,
+) -> Result<ParsedResult, HesabyarError> {
+    crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence, now_ms))
 }
 
 /// Infer expense category from a Persian sentence (full 200+ keyword version).
@@ -204,6 +219,16 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
                     detail: format!("Category {} has empty name", cat.id),
                 });
             }
+        }
+
+        // Validate accounts and transaction account references via the
+        // shared helper so both FFI and internal paths enforce identical rules.
+        if let Some(first_err) =
+            crate::validation::validate_accounts_and_references(payload).first()
+        {
+            return Err(HesabyarError::BackupValidation {
+                detail: first_err.clone(),
+            });
         }
 
         Ok(())

@@ -3,8 +3,12 @@ package io.github.mojri.hesabyar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.Installment
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -36,10 +40,43 @@ class DashboardViewModel
       getDashboardDataUseCase.bankLoans
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val accounts: StateFlow<List<AccountEntity>> =
+      getDashboardDataUseCase.accounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedAccountId = MutableStateFlow<Long?>(null)
+    val selectedAccountId: StateFlow<Long?> = _selectedAccountId.asStateFlow()
+
+    fun selectAccount(accountId: Long?) {
+      _selectedAccountId.value = accountId
+    }
+
     val dashboardState: StateFlow<DashboardData> =
-      combine(transactions, loans, installments, bankLoans) { trans, loanList, instList, bankLoanList ->
-        getDashboardDataUseCase.computeDashboardData(trans, loanList, instList, bankLoanList)
+      combine(
+        combine(transactions, loans, installments, bankLoans) { trans, loanList, instList, bankLoanList ->
+          DashboardCoreData(trans, loanList, instList, bankLoanList)
+        },
+        combine(accounts, _selectedAccountId) { accList, selectedId ->
+          Pair(accList, selectedId)
+        }
+      ) { core, (accList, selectedId) ->
+        getDashboardDataUseCase.computeDashboardData(
+          core.transactions,
+          core.loans,
+          core.installments,
+          core.bankLoans,
+          accList,
+          selectedId,
+          includeArchived = false,
+        )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardData())
+
+    private data class DashboardCoreData(
+      val transactions: List<Transaction>,
+      val loans: List<Loan>,
+      val installments: List<Installment>,
+      val bankLoans: List<BankLoan>
+    )
   }

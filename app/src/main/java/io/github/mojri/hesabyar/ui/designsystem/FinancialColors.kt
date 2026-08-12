@@ -13,6 +13,29 @@ data class FinancialPalette(
   val purpleAccent: Color
 )
 
+/** Curated palette for account colour picker (material 300-range tones). */
+val ACCOUNT_PICKER_COLORS =
+  listOf(
+    0xFF4CAF50L,
+    0xFFFF9800L,
+    0xFF2196F3L,
+    0xFF009688L,
+    0xFFF44336L,
+    0xFF9C27B0L,
+    0xFF757575L,
+    0xFFE91E63L,
+    0xFF3F51B5L,
+    0xFF00BCD4L,
+    0xFF8BC34AL,
+    0xFFFF5722L,
+    0xFF607D8BL,
+    0xFF795548L,
+    0xFFCDDC39L,
+    0xFF03A9F4L,
+  )
+
+const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L
+
 private val LightFinancialPalette =
   FinancialPalette(
     incomeGreen = Color(0xFF2ECC71),

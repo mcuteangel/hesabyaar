@@ -1,10 +1,10 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.GeminiParser
-import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.experimental.categories.Category
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -12,23 +12,15 @@ import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
+@Category(RustTest::class)
 class GeminiParserLogLevelTest {
-  private var previousRustState = false
-
   @Before
   fun setUp() {
     ShadowLog.clear()
-    previousRustState = HesabyarApp.isRustInitialized()
-    HesabyarApp.setRustInitializedForTesting(false)
-  }
-
-  @After
-  fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(previousRustState)
   }
 
   @Test
-  fun `parseSentenceOffline logs at debug level`() {
+  fun parseSentenceOfflineLogsAtDebugLevel() {
     GeminiParser.parseSentenceOffline("امروز مرغ خریدم ۵ میلیون")
 
     val logs = ShadowLog.getLogs()
@@ -40,7 +32,7 @@ class GeminiParserLogLevelTest {
   }
 
   @Test
-  fun `parseSentenceOffline logs are brief without full AI response text`() {
+  fun parseSentenceOfflineLogsAreBriefWithoutFullAiResponseText() {
     GeminiParser.parseSentenceOffline("بنزین زدم ۶۰۰ هزار تومان")
 
     val logs = ShadowLog.getLogs()

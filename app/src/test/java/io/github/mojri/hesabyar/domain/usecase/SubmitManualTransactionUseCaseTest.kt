@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Loan
@@ -392,6 +394,47 @@ class SubmitManualTransactionUseCaseTest {
     }
 
   @Test
+  fun submitUpdatePathMovesTransactionToRequestedAccountOnEdit() =
+    runTest {
+      val categories = emptyList<Category>()
+      val original =
+        Transaction(
+          id = 10L,
+          type = TransactionType.EXPENSE,
+          categoryId = 1L,
+          amount = 5000L,
+          description = "Old",
+          date = System.currentTimeMillis(),
+          accountId = 5L
+        )
+      fake.insertTransaction(original)
+
+      val result =
+        useCase.submit(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 5000L,
+            selectedType = "EXPENSE",
+            selectedCategoryId = 1L,
+            descriptionText = "Moved",
+            personName = "",
+            title = "",
+            daysFromNowText = "30",
+            amountRial = 5000L,
+            customDate = System.currentTimeMillis(),
+            categories = categories,
+            transactionToEdit = original,
+            accountId = 9L
+          )
+        )
+      assertTrue(result.success)
+
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      assertEquals(10L, stored.first().id)
+      assertEquals(9L, stored.first().accountId)
+    }
+
+  @Test
   fun fakeRepositoryAdvancesNextIdAfterExplicitInsert() =
     runTest {
       val explicit =
@@ -478,4 +521,97 @@ class SubmitManualTransactionUseCaseTest {
         )
       assertTrue(result is SubmitManualTransactionUseCase.ValidationResult.Error)
     }
+
+  @Test
+  fun submitTransferPreservesAccountIdsOnCreate() =
+    runTest {
+      val sourceAccount = account(id = 5L, name = "Source")
+      val destAccount = account(id = 9L, name = "Dest")
+      fake.insertAccount(sourceAccount)
+      fake.insertAccount(destAccount)
+
+      val result =
+        useCase.submit(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 5000L,
+            selectedType = "TRANSFER",
+            selectedCategoryId = 0L,
+            descriptionText = "Transfer desc",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 5000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            accountId = 5L,
+            destinationAccountId = 9L
+          )
+        )
+      assertTrue(result.success)
+
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      assertEquals(TransactionType.TRANSFER, stored.first().type)
+      assertEquals(5L, stored.first().accountId)
+      assertEquals(9L, stored.first().destinationAccountId)
+    }
+
+  @Test
+  fun submitTransferPreservesAccountIdsOnEdit() =
+    runTest {
+      val sourceAccount = account(id = 5L, name = "Source")
+      val destAccount = account(id = 9L, name = "Dest")
+      fake.insertAccount(sourceAccount)
+      fake.insertAccount(destAccount)
+      val original = transaction(id = 10L, type = TransactionType.TRANSFER, accountId = 5L, destinationAccountId = 9L)
+      fake.insertTransaction(original)
+      val result =
+        useCase.submit(
+          SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
+            amountDisplay = 4000L,
+            selectedType = "TRANSFER",
+            selectedCategoryId = 0L,
+            descriptionText = "Updated transfer",
+            personName = "",
+            title = "",
+            daysFromNowText = "",
+            amountRial = 4000L,
+            customDate = System.currentTimeMillis(),
+            categories = emptyList(),
+            transactionToEdit = original,
+            accountId = 5L,
+            destinationAccountId = 9L
+          )
+        )
+      assertTrue(result.success)
+      val stored = fake.allTransactions.first()
+      assertEquals(1, stored.size)
+      assertEquals(10L, stored.first().id)
+      assertEquals(5L, stored.first().accountId)
+      assertEquals(9L, stored.first().destinationAccountId)
+    }
+
+  private fun account(
+    id: Long,
+    name: String,
+    type: AccountType = AccountType.BANK,
+    color: Long = 0L
+  ) = AccountEntity(id = id, name = name, type = type, color = color, icon = "", isArchived = false, displayOrder = 0)
+
+  private fun transaction(
+    id: Long,
+    type: TransactionType,
+    accountId: Long,
+    destinationAccountId: Long? = null
+  ) = Transaction(
+    id = id,
+    type = type,
+    categoryId = 0L,
+    amount = 3000L,
+    description = "tx",
+    personName = null,
+    date = System.currentTimeMillis(),
+    accountId = accountId,
+    destinationAccountId = destinationAccountId
+  )
 }

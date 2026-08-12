@@ -1,206 +1,84 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
-import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.mojri.hesabyar.data.BackupPayload
-import io.github.mojri.hesabyar.data.BackupSettings
-import io.github.mojri.hesabyar.data.BackupValidationResult
-import io.github.mojri.hesabyar.data.RestoreMode
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONException
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import javax.inject.Inject
 
+/** UI state for the passphrase dialog shown during export or import. */
+sealed class PassphraseDialogState {
+  data object Hidden : PassphraseDialogState()
+
+  /** Export dialog: user can enter a passphrase or skip (plaintext export). */
+  data object ExportPassphrase : PassphraseDialogState()
+
+  /** Import dialog: backup contains encrypted fields, user must enter passphrase. */
+  data class ImportPassphrase(
+    val salt: String,
+    val errorMessage: String? = null
+  ) : PassphraseDialogState()
+}
+
+/**
+ * Orchestrates the backup UI flows. The export half lives in
+ * [BackupExportCoordinator] and the import/restore half in
+ * [BackupImportCoordinator]; this class owns only the cross-flow state
+ * ([operationState], [isCryptoInProgress]) and re-exposes the coordinators'
+ * state fields so SettingsScreen keeps reading them off the ViewModel.
+ */
 @HiltViewModel
 class BackupViewModel
   @Inject
   constructor(
-    @ApplicationContext private val application: Context,
-    private val manageBackupUseCase: ManageBackupUseCase
+    @ApplicationContext application: Context,
+    manageBackupUseCase: ManageBackupUseCase
   ) : ViewModel() {
-    @VisibleForTesting
-    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-
-    private val sharedPrefs = application.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
-
     val operationState = mutableStateOf<BackupOperationState>(BackupOperationState.Idle)
-    val pendingRestoreBackup = mutableStateOf<BackupPayload?>(null)
-    val selectedRestoreMode = mutableStateOf(RestoreMode.REPLACE)
 
-    fun validateAndStageImport(inputStream: InputStream) {
-      viewModelScope.launch {
-        try {
-          val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = parseBackupOrReportError(text) ?: return@launch
+    /** True while PBKDF2 derivation + encrypt/decrypt is running (shows loading spinner). */
+    val isCryptoInProgress = mutableStateOf(false)
 
-          val result = manageBackupUseCase.validateBackup(backup)
-          when (result) {
-            is BackupValidationResult.Invalid -> {
-              operationState.value = BackupOperationState.ValidationFailed(result.errors)
-            }
-            is BackupValidationResult.Valid -> {
-              pendingRestoreBackup.value = backup
-            }
-          }
-        } catch (e: IOException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-            )
-        } catch (e: JSONException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-            )
-        }
-      }
-    }
+    /** Import flow: passphrase dialog, validation, restore execution. */
+    val importCoordinator =
+      BackupImportCoordinator(
+        application = application,
+        manageBackupUseCase = manageBackupUseCase,
+        scope = viewModelScope,
+        operationState = operationState,
+        isCryptoInProgress = isCryptoInProgress
+      )
 
-    fun executeRestore() {
-      val backup = pendingRestoreBackup.value ?: return
-      val mode = selectedRestoreMode.value
+    /** Export flow: passphrase dialog, staging, SAF picker launch signal. */
+    val exportCoordinator =
+      BackupExportCoordinator(
+        application = application,
+        manageBackupUseCase = manageBackupUseCase,
+        scope = viewModelScope,
+        operationState = operationState,
+        passphraseDialogState = importCoordinator.passphraseDialogState,
+        isCryptoInProgress = isCryptoInProgress
+      )
 
-      viewModelScope.launch {
-        operationState.value = BackupOperationState.Importing
-        try {
-          manageBackupUseCase.executeRestore(backup, mode)
-          applySettings(backup.settings)
-          operationState.value =
-            BackupOperationState.ImportSuccess(
-              when (mode) {
-                RestoreMode.REPLACE -> "بازیابی کامل با موفقیت انجام شد. ${manageBackupUseCase.buildBackupSummary(
-                  backup
-                )}"
-                RestoreMode.MERGE -> "ادغام پشتیبان با موفقیت انجام شد."
-                else -> "عملیات با موفقیت انجام شد."
-              }
-            )
-          pendingRestoreBackup.value = null
-        } catch (e: IOException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در دسترسی به فایل پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
-            )
-        } catch (e: SecurityException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "دسترسی به فایل پشتیبان غیرمجاز است: ${e.localizedMessage ?: ""}"
-            )
-        } catch (e: IllegalArgumentException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "تنظیمات پشتیبان نامعتبر است: ${e.localizedMessage ?: ""}"
-            )
-        }
-      }
-    }
+    // State re-exposed from the coordinators so existing `by` reads on the
+    // ViewModel keep working without call-site changes.
 
-    private fun applySettings(settings: BackupSettings) {
-      sharedPrefs.edit().putBoolean("dark_mode", settings.darkMode).apply()
-    }
+    /** One-shot signal raised once staging completes so the screen launches the SAF picker. */
+    val exportPickerLaunchRequest get() = exportCoordinator.exportPickerLaunchRequest
 
-    private fun reportInvalidBackupParse() {
-      pendingRestoreBackup.value = null
-      operationState.value =
-        BackupOperationState.Error(
-          "خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است"
-        )
-    }
+    /** Backup validated and awaiting restore mode confirmation. */
+    val pendingRestoreBackup get() = importCoordinator.pendingRestoreBackup
 
-    private suspend fun parseBackupOrReportError(text: String): BackupPayload? {
-      val backup = manageBackupUseCase.parseBackupJson(text)
-      if (backup == null) reportInvalidBackupParse()
-      return backup
-    }
+    /** Restore mode selected in the confirm-restore dialog (REPLACE or MERGE). */
+    val selectedRestoreMode get() = importCoordinator.selectedRestoreMode
 
-    fun cancelPendingRestore() {
-      pendingRestoreBackup.value = null
-    }
+    /** Current passphrase dialog state. */
+    val passphraseDialogState get() = importCoordinator.passphraseDialogState
 
     fun clearOperationState() {
       operationState.value = BackupOperationState.Idle
-    }
-
-    fun exportBackupToFile(outputStream: OutputStream) {
-      viewModelScope.launch {
-        operationState.value = BackupOperationState.Exporting
-        try {
-          val rootJson = manageBackupUseCase.exportBackupJson()
-
-          withContext(ioDispatcher) {
-            outputStream.use { os ->
-              os.write(rootJson.toString(2).toByteArray())
-            }
-          }
-
-          val summary =
-            rootJson.let {
-              val txCount = it.optJSONArray("transactions")?.length() ?: 0
-              val loanCount = it.optJSONArray("loans")?.length() ?: 0
-              val instCount = it.optJSONArray("installments")?.length() ?: 0
-              val catCount = it.optJSONArray("categories")?.length() ?: 0
-              "پشتیبان با موفقیت ذخیره شد. ${manageBackupUseCase.buildExportSummary(
-                txCount,
-                loanCount,
-                instCount,
-                catCount
-              )}"
-            }
-
-          operationState.value = BackupOperationState.ExportSuccess(summary)
-        } catch (e: IOException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در ذخیره پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
-            )
-        } catch (e: JSONException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در پردازش JSON پشتیبان: ${e.localizedMessage ?: "خطای نامشخص JSON"}"
-            )
-        }
-      }
-    }
-
-    fun importBackupFromFile(inputStream: InputStream) {
-      viewModelScope.launch {
-        operationState.value = BackupOperationState.Importing
-        try {
-          val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-          val backup = parseBackupOrReportError(text) ?: return@launch
-          manageBackupUseCase.importBackupFromFile(backup)
-          operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
-        } catch (e: IOException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-            )
-        } catch (e: JSONException) {
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-            )
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: IllegalStateException) {
-          // Database constraint violations from Room
-          operationState.value =
-            BackupOperationState.Error(
-              "خطا در وارد کردن پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-            )
-        }
-      }
     }
   }

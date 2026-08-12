@@ -10,7 +10,6 @@
     <ID>CyclomaticComplexMethod:InstallmentScreen.kt:@Composable fun InstallmentScreen</ID>
     <ID>CyclomaticComplexMethod:JalaliDatePickerDialog.kt:@Composable fun JalaliDatePickerDialog</ID>
     <ID>CyclomaticComplexMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
-    <ID>CyclomaticComplexMethod:ManageBackupUseCase.kt:ManageBackupUseCase$suspend fun exportBackupJson: JSONObject</ID>
     <ID>CyclomaticComplexMethod:PinScreen.kt:@Composable fun PinScreen</ID>
     <ID>CyclomaticComplexMethod:ReportsScreen.kt:@Composable fun ReportsScreen</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt:@Composable fun SecuritySection</ID>
@@ -85,7 +84,6 @@
     <ID>FunctionNaming:SmartAssistantScreen.kt:@Composable fun ParsedResultCard</ID>
     <ID>FunctionNaming:SmartAssistantScreen.kt:@Composable fun SmartAssistantScreen</ID>
     <ID>FunctionNaming:Theme.kt:@Composable fun HesabyarTheme</ID>
-    <ID>FunctionNaming:TransactionItem.kt:@Composable fun TransactionItem</ID>
     <ID>FunctionNaming:DebtHubScreen.kt:@Composable fun DebtHubScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
@@ -121,7 +119,6 @@
     <ID>LongMethod:LoanManagementScreen.kt:@Composable fun LoanManagementScreen</ID>
     <ID>LongMethod:LockScreen.kt:@Composable fun LockScreen</ID>
     <ID>LongMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
-    <ID>LongMethod:ManageBackupUseCase.kt:ManageBackupUseCase$suspend fun exportBackupJson: JSONObject</ID>
     <ID>LongMethod:PinScreen.kt:@Composable fun PinScreen</ID>
     <ID>LongMethod:ReportsScreen.kt:@Composable fun ReportsScreen</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable fun DebugLogsSection</ID>
@@ -258,12 +255,13 @@
     <ID>TooManyFunctions:AiProviderConfig.kt:AiConfigManager</ID>
     <ID>TooManyFunctions:BudgetAdvisor.kt:BudgetAdvisor</ID>
     <ID>TooManyFunctions:ExcelExporter.kt:ExcelExporter</ID>
+    <ID>TooManyFunctions:CurrencyFormatter.kt:CurrencyFormatter</ID>
     <ID>TooManyFunctions:GeminiParser.kt:GeminiParser</ID>
     <ID>TooManyFunctions:HesabyarRepository.kt:HesabyarRepository : HesabyarRepositoryInterface</ID>
     <ID>TooManyFunctions:HesabyarRepositoryInterface.kt:HesabyarRepositoryInterface</ID>
     <ID>TooManyFunctions:JalaliCalendarHelper.kt:JalaliCalendarHelper</ID>
     <ID>TooManyFunctions:ManageAiConfigUseCase.kt:ManageAiConfigUseCase</ID>
-    <ID>TooManyFunctions:ManageBackupUseCase.kt:ManageBackupUseCase</ID>
+    <ID>LargeClass:GetDashboardDataUseCaseTest.kt:GetDashboardDataUseCaseTest</ID>
     <ID>TooManyFunctions:RustBridge.kt:RustBridge : JalaliNativeBridge</ID>
     <ID>TooManyFunctions:RustMappers.kt:RustMappers</ID>
     <ID>TooManyFunctions:UseCaseModule.kt:UseCaseModule</ID>

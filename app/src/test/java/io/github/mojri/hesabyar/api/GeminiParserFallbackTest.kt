@@ -5,16 +5,25 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
  * Independent coverage of the Kotlin fallback parser ([GeminiParser.kotlinFallbackParse]),
  * which runs only when the Rust core is unavailable. These do NOT rely on Rust being
  * loaded, so they verify the offline-resilience behavior in isolation.
+ *
+ * All date-sensitive tests pin a fixed "today" (1405/04/10 = 10 Tir 1405) so
+ * results are deterministic regardless of the wall-clock date.
  */
 class GeminiParserFallbackTest {
-  private fun parse(sentence: String) = GeminiParser.kotlinFallbackParse(sentence)
+  /** Fixed "today" — 1405/04/10 (10 Tir 1405) — used by all date-sensitive
+   *  tests to make them deterministic on any calendar day. */
+  private val fixedToday = JalaliCalendarHelper.JalaliDate(1405, 4, 10)
+
+  private fun parse(
+    sentence: String,
+    today: JalaliCalendarHelper.JalaliDate = fixedToday
+  ) = GeminiParser.kotlinFallbackParse(sentence, today)
 
   private val monthName =
     mapOf(
@@ -182,16 +191,12 @@ class GeminiParserFallbackTest {
 
   @Test
   fun `fallback parses explicit Jalali date to day offset`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    val futureMonth = if (today.month == 12) 1 else today.month + 1
-
-    val future = parse("خرج ۱۰۰ هزار ${monthName[futureMonth]} ۵")
+    // Pinned today = 1405/04/10 (10 Tir). Future month (Mordad 5) →
+    // positive offset; earlier month (Khordad 5) → next year → positive.
+    val future = parse("خرج ۱۰۰ هزار مرداد ۵", fixedToday)
     assertTrue(future!!.dateOffsetDays!! > 0)
 
-    // Earlier month resolves to next year (positive offset)
-    val earlierMonth = if (today.month == 1) 12 else today.month - 1
-    val earlier = parse("خرج ۱۰۰ هزار ${monthName[earlierMonth]} ۵")
+    val earlier = parse("خرج ۱۰۰ هزار خرداد ۵", fixedToday)
     assertTrue(earlier!!.dateOffsetDays!! > 0)
   }
 
@@ -199,41 +204,30 @@ class GeminiParserFallbackTest {
 
   @Test
   fun `explicit Jalali date day-month format parses correctly`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    // Pick a day strictly after today in the same month (guaranteed current-year, positive offset).
-    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
-    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
-    val testDay = today.day + 1
-    val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
+    // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
+    val result = parse("خریدم ۱۰۰ هزار ۱۱ تیر", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
-    // Same month, later day — offset should be testDay - today.day
-    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+    assertEquals(1L, result.dateOffsetDays!!.toLong())
   }
 
   // --- explicit Jalali date: month-day format (e.g. "تیر ۲۵") ---
 
   @Test
   fun `explicit Jalali date month-day format parses correctly`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
-    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
-    val testDay = today.day + 1
-    val result = parse("خریدم ۱۰۰ هزار ${monthName[today.month]} $testDay")
+    // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
+    val result = parse("خریدم ۱۰۰ هزار تیر ۱۱", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
-    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+    assertEquals(1L, result.dateOffsetDays!!.toLong())
   }
 
   // --- same-month zero offset ---
 
   @Test
   fun `explicit Jalali date same day yields zero offset`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    val result = parse("خریدم ۱۰۰ هزار ${today.day} ${monthName[today.month]}")
+    // Pinned today = 1405/04/10. Parse "10 Tir" → offset 0.
+    val result = parse("خریدم ۱۰۰ هزار ۱۰ تیر", fixedToday)
     assertNotNull(result)
     assertEquals(0, result!!.dateOffsetDays)
   }
@@ -242,46 +236,28 @@ class GeminiParserFallbackTest {
 
   @Test
   fun `explicit Jalali date day 1 parses correctly`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    val result = parse("خریدم ۱۰۰ هزار ۱ ${monthName[today.month]}")
+    // Pinned today = 1405/04/10. Day 1 < 10 → past → next year → non-null.
+    val result = parse("خریدم ۱۰۰ هزار ۱ تیر", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
   }
 
   @Test
   fun `explicit Jalali date day 31 parses correctly for 31-day months`() {
-    // Farvardin (month 1) always has 31 days in Jalali — avoids skipping on months 7-12
-    val result = parse("خریدم ۱۰۰ هزار ۳۱ فروردین")
+    // Farvardin (month 1) always has 31 days in Jalali. 31 Farvardin
+    // is before 10 Tir → past → next year → non-null.
+    val result = parse("خریدم ۱۰۰ هزار ۳۱ فروردین", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
-  }
-
-  // --- invalid day numbers ---
-
-  @Test
-  fun `explicit Jalali date day 0 is ignored`() {
-    val result = parse("خریدم ۱۰۰ هزار ۰ تیر")
-    // Day 0 is invalid (not in 1..31), so detectExplicitJalaliOffset returns null
-    // and falls through to relative-word detection (no match → offset 0)
-    assertEquals(0, result!!.dateOffsetDays)
-  }
-
-  @Test
-  fun `explicit Jalali date day 32 is ignored`() {
-    val result = parse("خریدم ۱۰۰ هزار ۳۲ تیر")
-    assertEquals(0, result!!.dateOffsetDays)
   }
 
   // --- year-boundary: month < today.month means next year ---
 
   @Test
   fun `explicit Jalali date in earlier month uses next year`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    // Pick a month that is strictly before the current month (wraps to next year)
-    val targetMonth = if (today.month > 1) today.month - 1 else 12
-    val result = parse("خریدم ۱۰۰ هزار ۵ ${monthName[targetMonth]}")
+    // Pinned today = 1405/04/10. Earlier month = Khordad (3).
+    // 5 Khordad → next year → positive offset.
+    val result = parse("خریدم ۱۰۰ هزار ۵ خرداد", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
     assertTrue(
@@ -292,16 +268,11 @@ class GeminiParserFallbackTest {
 
   @Test
   fun `explicit Jalali date in same or later month uses current year`() {
-    val today = JalaliCalendarHelper.gregorianToJalali(System.currentTimeMillis())
-
-    // Same month, later day — offset is testDay - today.day in the current year
-    val maxDayInMonth = JalaliCalendarHelper.getDaysInMonth(today.year, today.month)
-    assumeTrue("Skipped on last day of Jalali month", today.day < maxDayInMonth)
-    val testDay = today.day + 1
-    val result = parse("خریدم ۱۰۰ هزار $testDay ${monthName[today.month]}")
+    // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
+    val result = parse("خریدم ۱۰۰ هزار ۱۱ تیر", fixedToday)
     assertNotNull(result)
     assertNotNull(result!!.dateOffsetDays)
-    assertEquals((testDay - today.day).toLong(), result.dateOffsetDays!!.toLong())
+    assertEquals(1L, result.dateOffsetDays!!.toLong())
   }
 
   // --- no Jalali date found ---

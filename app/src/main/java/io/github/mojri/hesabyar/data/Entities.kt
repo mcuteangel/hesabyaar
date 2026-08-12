@@ -90,21 +90,36 @@ data class Transaction(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val type: TransactionType,
   val categoryId: Long,
-  val amount: Long, // Rial
+  // Rial
+  val amount: Long,
   val description: String,
   val personName: String? = null,
   val date: Long = System.currentTimeMillis(),
   val dueDate: Long? = null,
-  val installmentId: Long? = null
+  val installmentId: Long? = null,
+  // FK to accounts (default: main account).
+  // No @ForeignKey constraint here — requires a Room migration to ensure the default
+  // account exists before the constraint is applied. Tracked as tech-debt in #151.
+  // Referential integrity is enforced at the application layer
+  // (SubmitManualTransactionUseCase validates accountId before insert).
+  val accountId: Long = DEFAULT_ACCOUNT_ID,
+  // For internal transfers
+  val destinationAccountId: Long? = null
 ) : Serializable
+
+/** Default account ID used for backward-compatible data and new-transaction defaults.
+ *  Must match AccountEntity.DEFAULT_ACCOUNT.id and the migration INSERT. */
+const val DEFAULT_ACCOUNT_ID = 1L
 
 @Entity(tableName = "loans")
 data class Loan(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val personName: String,
   val type: LoanType,
-  val originalAmount: Long, // Rial
-  val remainingAmount: Long, // Rial
+  // Rial
+  val originalAmount: Long,
+  // Rial
+  val remainingAmount: Long,
   val description: String,
   val date: Long = System.currentTimeMillis(),
   val isSettled: Boolean = false
@@ -114,7 +129,8 @@ data class Loan(
 data class Installment(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val title: String,
-  val amount: Long, // Rial
+  // Rial
+  val amount: Long,
   val dueDate: Long,
   val isPaid: Boolean = false,
   val reminderEnabled: Boolean = true,

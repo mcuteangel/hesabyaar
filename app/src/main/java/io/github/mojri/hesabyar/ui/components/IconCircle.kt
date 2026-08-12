@@ -37,7 +37,7 @@ fun IconCircle(
   modifier: Modifier = Modifier,
   tint: Color = MaterialTheme.colorScheme.primary,
   backgroundColor: Color = MaterialTheme.colorScheme.primary,
-  backgroundAlpha: Float = 0.15f,
+  backgroundAlpha: Float = Dimens.ICON_CIRCLE_BACKGROUND_ALPHA,
   iconSize: Dp = Dimens.IconSmall,
   containerSize: Dp = Dimens.AvatarSmall,
   contentDescription: String? = null

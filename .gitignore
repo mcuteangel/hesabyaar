@@ -35,6 +35,9 @@ keystore-backups/my-upload-key.jks.bak
 # Claude Code
 .claude/
 
+# ZCode
+.zcode/
+
 # Serena
 .serena/
 
@@ -74,9 +77,12 @@ rust/uniffi/
 # Gradle-generated Rust core version (run :app:syncCoreVersion to regenerate)
 rust/hesabyar-core/src/generated/
 
-# Generated UniFFI bindings (run ./gradlew :app:generateAndFixBindings to regenerate)
+# Generated UniFFI bindings (run ./gradlew :app:generateAndFixBindings or :generateRustBindings to regenerate)
 app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt
+app/src/main/java/io/github/mojri/hesabyar/rust/generated/
 .serena/
 .gh_review_state.json
 .kilocode/
 .kilo/
+# SQLite temp files (e.g. .freebuff from database tools)
+.freebuff/

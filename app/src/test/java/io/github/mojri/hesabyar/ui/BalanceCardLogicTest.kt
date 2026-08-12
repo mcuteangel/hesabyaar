@@ -18,6 +18,9 @@ import java.text.DecimalFormat
  * - Zero balance display
  */
 class BalanceCardLogicTest {
+  /** Strip LRM prefix so tests focus on formatting logic, not BIDI control chars. */
+  private fun String.stripLrm(): String = removePrefix("\u200E")
+
   @Before
   fun setUp() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -29,9 +32,9 @@ class BalanceCardLogicTest {
   private val expectedSuffix = CurrencyUnit.TOMAN.label
 
   @Test
-  fun `balance formatted with separators and currency suffix`() {
+  fun balanceFormattedWithSeparatorsAndCurrencySuffix() {
     val balance = 5000000L // 5M rial
-    val display = CurrencyFormatter.format(balance)
+    val display = CurrencyFormatter.format(balance).stripLrm()
     assertEquals("۵۰۰٬۰۰۰", display.substringBeforeLast(" ")) // 5M rial = 500k TOMAN
     assertTrue(
       "Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",
@@ -40,8 +43,8 @@ class BalanceCardLogicTest {
   }
 
   @Test
-  fun `zero balance displays correctly`() {
-    val display = CurrencyFormatter.format(0L)
+  fun zeroBalanceDisplaysCorrectly() {
+    val display = CurrencyFormatter.format(0L).stripLrm()
     assertEquals("۰", display.substringBeforeLast(" "))
     assertTrue(
       "Suffix should match $expectedSuffix but was: ${display.substringAfterLast(" ")}",
@@ -50,35 +53,35 @@ class BalanceCardLogicTest {
   }
 
   @Test
-  fun `large balance with commas`() {
+  fun largeBalanceWithCommas() {
     val balance = 1234567890L
     val display = formatter.format(balance)
-    assertEquals("1,234,567,890", display)
+    assertEquals("formatted with commas", "1,234,567,890", display)
   }
 
   @Test
-  fun `gradient starts with PurpleAccent at 0_2 alpha`() {
+  fun gradientStartsWithPurpleAccentAt02Alpha() {
     val gradientStart = FinancialColors.PurpleAccent.copy(alpha = 0.2f)
-    assertEquals(0.2f, gradientStart.alpha, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.red, gradientStart.red, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.green, gradientStart.green, 0.001f)
-    assertEquals(FinancialColors.PurpleAccent.blue, gradientStart.blue, 0.001f)
+    assertEquals("alpha should be 0.2", 0.2f, gradientStart.alpha, 0.001f)
+    assertEquals("red should match PurpleAccent", FinancialColors.PurpleAccent.red, gradientStart.red, 0.001f)
+    assertEquals("green should match PurpleAccent", FinancialColors.PurpleAccent.green, gradientStart.green, 0.001f)
+    assertEquals("blue should match PurpleAccent", FinancialColors.PurpleAccent.blue, gradientStart.blue, 0.001f)
   }
 
   @Test
-  fun `gradient ends with Transparent`() {
+  fun gradientEndsWithTransparent() {
     val gradientEnd = Color.Transparent
-    assertEquals(0f, gradientEnd.alpha, 0.001f)
+    assertEquals("Transparent alpha should be 0", 0f, gradientEnd.alpha, 0.001f)
   }
 
   @Test
-  fun `clickable when onClick is provided`() {
+  fun clickableWhenOnclickIsProvided() {
     val onClick: (() -> Unit)? = { }
     assertTrue("Should be clickable", onClick != null)
   }
 
   @Test
-  fun `not clickable when onClick is null`() {
+  fun notClickableWhenOnclickIsNull() {
     val onClick: (() -> Unit)? = null
     assertEquals(false, onClick != null)
   }

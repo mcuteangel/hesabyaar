@@ -10,4 +10,59 @@
     <string name="category_type_income">درآمد</string>
     <string name="category_type_both">هر دو</string>
     <string name="category_type_unknown">نامشخص</string>
+
+    <!-- ManualTransactionDialog -->
+    <string name="select_source_account">لطفاً حساب مبدا را انتخاب کنید</string>
+    <string name="select_destination_account">لطفاً حساب مقصد را انتخاب کنید</string>
+    <string name="source_dest_accounts_cannot_be_same">حساب مبدا و مقصد نمی‌توانند یکسان باشند</string>
+
+    <!-- AccountSelector -->
+    <string name="all_accounts_option">همه حساب‌ها</string>
+
+    <!-- TransactionDetailDialog -->
+    <string name="transaction_type_transfer">انتقال وجه</string>
+
+    <!-- AccountBreakdownCard -->
+    <string name="expense_distribution_by_account">توزیع هزینه‌ها بر اساس حساب</string>
+
+    <!-- AccountBalanceCard -->
+    <string name="account_selected">حساب %1$s، انتخاب‌شده</string>
+    <string name="account_unselected">حساب %1$s</string>
+
+    <!-- AccountManagementScreen -->
+    <string name="add_account">افزودن حساب</string>
+
+    <!-- Export passphrase dialog (SettingsScreen) -->
+    <string name="passphrase_export_title">رمزگذاری اطلاعات حساس</string>
+    <string name="passphrase_export_warning">اگر این رمز را فراموش کنید، اطلاعات کارت/حساب/شبا در این بکاپ قابل بازیابی نخواهند بود.</string>
+    <string name="passphrase_label">رمز عبور</string>
+    <string name="passphrase_confirm_label">تأیید رمز عبور</string>
+    <string name="passphrase_mismatch_error">رمز عبور مطابقت ندارد</string>
+    <string name="passphrase_encrypt_and_save">رمزگذاری و ذخیره</string>
+    <string name="passphrase_save_without_encryption">ذخیره بدون رمز</string>
+
+    <!-- Import passphrase dialog (ImportPassphraseDialog) -->
+    <string name="passphrase_import_title">رمزگشایی پشتیبان</string>
+    <string name="passphrase_import_body">این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:</string>
+    <string name="passphrase_decrypt">رمزگشایی</string>
+    <string name="passphrase_wrong_or_corrupt">رمز عبور اشتباه است یا فایل بکاپ خراب است</string>
+
+    <!-- BackupViewModel -->
+    <string name="error_encrypting_backup">خطا در رمزگذاری پشتیبان: %s</string>
+    <string name="error_preparing_backup">خطا در تهیه پشتیبان: %s</string>
+    <string name="error_backup_data_not_ready">خطا: داده پشتیبان آماده نیست</string>
+    <string name="error_saving_backup">خطا در ذخیره پشتیبان: %s</string>
+    <string name="error_processing_backup_json">خطا در پردازش JSON پشتیبان: %s</string>
+    <string name="backup_saved_success">پشتیبان با موفقیت ذخیره شد</string>
+    <string name="error_reading_backup_file">خطا در خواندن فایل پشتیبان: %s</string>
+    <string name="error_parsing_backup_file">خطا در تجزیه فایل پشتیبان: %s</string>
+    <string name="error_invalid_backup_structure">خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است</string>
+    <string name="error_backup_encryption_incomplete">فایل پشتیبان رمزگذاری‌شده است اما اطلاعات رمزنگاری آن ناقص است</string>
+
+    <!-- ReportsScreen -->
+    <string name="account_content_description">حساب %1$s</string>
+
+    <!-- AccountManagementScreen -->
+    <string name="balance_invalid_amount">مقدار نامعتبر</string>
+    <string name="balance_amount_label">مبلغ ریال</string>
 </resources>

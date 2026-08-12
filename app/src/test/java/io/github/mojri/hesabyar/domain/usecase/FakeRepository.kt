@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
@@ -20,6 +21,18 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val _allBankLoans = MutableStateFlow<List<BankLoan>>(emptyList())
   private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
   private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
+  private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
+  val accountsList = mutableListOf<AccountEntity>()
+
+  // --- Failure simulation (used by AccountViewModelTest error-path tests) ---
+  var shouldThrowOnInsert = false
+  var shouldThrowOnUpdate = false
+  var shouldThrowOnDelete = false
+  var shouldThrowOnTransactionCount = false
+
+  /** Overrides the computed transaction count when non-null. */
+  var transactionCountOverride: Int? = null
+
   private var nextId = 1L
 
   override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
@@ -27,6 +40,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
   override val allCategories: Flow<List<Category>> = flowOf(emptyList())
   override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
+  override val allAccounts: Flow<List<AccountEntity>> = _allAccounts.asStateFlow()
 
   override fun getTransactionsInRange(
     start: Long,
@@ -163,4 +177,53 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun mergeFromBackup(backup: BackupPayload) {}
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
+
+  // --- Account CRUD ---
+
+  fun refreshAccounts() {
+    _allAccounts.value = accountsList.toList()
+  }
+
+  override suspend fun getActiveAccounts(): List<AccountEntity> = accountsList.filter { !it.isArchived }
+
+  override suspend fun getAllAccounts(): List<AccountEntity> = accountsList.toList()
+
+  override suspend fun getAccountById(id: Long): AccountEntity? = accountsList.firstOrNull { it.id == id }
+
+  override suspend fun insertAccount(account: AccountEntity): Long {
+    if (shouldThrowOnInsert) throw IllegalStateException("Simulated DB failure")
+    val id = if (account.id != 0L) account.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    accountsList.add(account.copy(id = id))
+    refreshAccounts()
+    return id
+  }
+
+  override suspend fun updateAccount(account: AccountEntity) {
+    if (shouldThrowOnUpdate) throw IllegalStateException("Simulated DB failure")
+    val idx = accountsList.indexOfFirst { it.id == account.id }
+    if (idx >= 0) {
+      accountsList[idx] = account
+      refreshAccounts()
+    }
+  }
+
+  override suspend fun deleteAccount(account: AccountEntity) {
+    if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
+    if (accountsList.size == 1 && accountsList[0].id == account.id) {
+      throw IllegalStateException("Account ${account.id} is the last remaining account and cannot be deleted")
+    }
+    accountsList.removeIf { it.id == account.id }
+    refreshAccounts()
+  }
+
+  override suspend fun getTransactionCountForAccount(accountId: Long): Int {
+    if (shouldThrowOnTransactionCount) throw IllegalStateException("Simulated DB failure")
+    return transactionCountOverride
+      ?: _allTransactions.value.count {
+        it.accountId == accountId || it.destinationAccountId == accountId
+      }
+  }
+
+  override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
 }

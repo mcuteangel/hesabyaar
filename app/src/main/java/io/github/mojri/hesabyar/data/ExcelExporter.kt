@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.rust.Cell
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.SheetData
@@ -17,7 +18,8 @@ class ExcelExporter {
     val expenseCount: Int,
     val loanCount: Int,
     val installmentCount: Int,
-    val bankLoanCount: Int
+    val bankLoanCount: Int,
+    val accountCount: Int
   )
 
   suspend fun export(
@@ -26,14 +28,17 @@ class ExcelExporter {
     installments: List<Installment>,
     categories: List<Category>,
     bankLoans: List<BankLoan> = emptyList(),
+    accounts: List<AccountEntity> = emptyList(),
   ): ExportResult {
     val categoryMap = categories.associateBy { it.id }
+    val accountMap = accounts.associateBy { it.id }
     val incomeTransactions = transactions.filter { it.type == TransactionType.INCOME }
     val expenseTransactions = transactions.filter { it.type == TransactionType.EXPENSE }
 
     val sheets =
       listOf(
-        buildTransactionsSheet(transactions, categoryMap),
+        buildAccountsSheet(accounts),
+        buildTransactionsSheet(transactions, categoryMap, accountMap),
         buildIncomeSheet(incomeTransactions, categoryMap),
         buildExpensesSheet(expenseTransactions, categoryMap),
         buildLoansSheet(loans),
@@ -53,7 +58,8 @@ class ExcelExporter {
       expenseCount = expenseTransactions.size,
       loanCount = loans.size,
       installmentCount = installments.size,
-      bankLoanCount = bankLoans.size
+      bankLoanCount = bankLoans.size,
+      accountCount = accounts.size
     )
   }
 
@@ -64,16 +70,29 @@ class ExcelExporter {
     const val HEADER_DESCRIPTION = "توضیحات"
   }
 
-  private fun buildTransactionsSheet(
+  @VisibleForTesting
+  internal fun buildTransactionsSheet(
     transactions: List<Transaction>,
-    categoryMap: Map<Long, Category>
+    categoryMap: Map<Long, Category>,
+    accountMap: Map<Long, AccountEntity> = emptyMap()
   ): SheetData {
-    val headers = listOf("ردیف", "نوع", HEADER_CATEGORY, "مبلغ", HEADER_DESCRIPTION, "تاریخ")
-    val rows = buildTxRows(transactions, categoryMap, includeType = true)
+    val headers =
+      listOf(
+        "ردیف",
+        "نوع",
+        HEADER_CATEGORY,
+        "مبلغ",
+        HEADER_DESCRIPTION,
+        "تاریخ",
+        "حساب مبدأ",
+        "حساب مقصد"
+      )
+    val rows = buildTxRows(transactions, categoryMap, includeType = true, accountMap = accountMap)
     return SheetData(name = "همه تراکنش\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
-  private fun buildSummaryTxSheet(
+  @VisibleForTesting
+  internal fun buildSummaryTxSheet(
     name: String,
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>
@@ -97,18 +116,36 @@ class ExcelExporter {
   private fun buildTxRows(
     transactions: List<Transaction>,
     categoryMap: Map<Long, Category>,
-    includeType: Boolean
+    includeType: Boolean,
+    accountMap: Map<Long, AccountEntity>? = null
   ): List<List<Cell>> =
     transactions.mapIndexed { index, tx ->
       buildList {
         add(Cell(value = (index + 1).toString(), bold = false))
         if (includeType) {
-          add(Cell(value = if (tx.type == TransactionType.INCOME) "دریافتی" else "پرداختی", bold = false))
+          add(
+            Cell(
+              value =
+                when (tx.type) {
+                  TransactionType.INCOME -> "دریافتی"
+                  // Matches the transaction_type_transfer string resource used by
+                  // TransactionDetailDialog — transfers must not collapse into
+                  // the binary income/expense branch.
+                  TransactionType.TRANSFER -> "انتقال وجه"
+                  else -> "پرداختی"
+                },
+              bold = false
+            )
+          )
         }
         add(Cell(value = categoryMap[tx.categoryId]?.name ?: "سایر", bold = false))
         add(Cell(value = formatAmount(tx.amount), bold = false))
         add(Cell(value = tx.description, bold = false))
         add(Cell(value = formatDate(tx.date), bold = false))
+        if (accountMap != null) {
+          add(Cell(value = accountMap[tx.accountId]?.name.orEmpty(), bold = false))
+          add(Cell(value = tx.destinationAccountId?.let { accountMap[it]?.name }.orEmpty(), bold = false))
+        }
       }
     }
 
@@ -187,6 +224,22 @@ class ExcelExporter {
         )
       }
     return SheetData(name = "وام\u200Cهای بانکی", headers = headers, rows = rows, summaryRow = null)
+  }
+
+  private fun buildAccountsSheet(accounts: List<AccountEntity>): SheetData {
+    val headers = listOf("ردیف", "نام حساب", "نوع حساب", "نام بانک", "موجودی اولیه", "وضعیت")
+    val rows =
+      accounts.mapIndexed { index, account ->
+        listOf(
+          Cell(value = (index + 1).toString(), bold = false),
+          Cell(value = account.name, bold = false),
+          Cell(value = account.type.displayName, bold = false),
+          Cell(value = account.bankName.orEmpty(), bold = false),
+          Cell(value = formatAmount(account.initialBalance), bold = false),
+          Cell(value = if (account.isArchived) "آرشیو" else "فعال", bold = false)
+        )
+      }
+    return SheetData(name = "حساب\u200Cها", headers = headers, rows = rows, summaryRow = null)
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────

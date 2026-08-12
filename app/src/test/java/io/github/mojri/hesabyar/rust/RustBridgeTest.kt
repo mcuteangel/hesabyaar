@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.rust
-
 import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
+import io.github.mojri.hesabyar.RustTest
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -10,11 +11,13 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.experimental.categories.Category
 
 /**
  * Exercises [RustBridge] against the real native core (the unit-test JVM loads
- * the `hesabyar_core` library, so [RustBridge.isAvailable] is true here).
+ * the hesabyar_core library, so [RustBridge.isAvailable] is true here).
  *
  * These tests raise coverage of the bridge's delegation paths and lock in that
  * the native-backed results are shaped and bounded as the app expects.
@@ -24,7 +27,12 @@ import org.junit.Test
  * library always loads here; they are covered by an instrumentation test that
  * runs without the native library present.
  */
+@Category(RustTest::class)
 class RustBridgeTest {
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(true)
@@ -36,7 +44,7 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `isAvailable is true when the native core is loaded`() {
+  fun isavailableIsTrueWhenTheNativeCoreIsLoaded() {
     assertTrue(RustBridge.isAvailable)
   }
 
@@ -45,7 +53,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `calendar sync calls delegate to the native core`() {
+  fun calendarSyncCallsDelegateToTheNativeCore() {
     assertTrue(RustBridge.gregorianToJalaliSync(1_700_000_000_000L) != 0L)
     assertTrue(RustBridge.jalaliToGregorianSync(1403, 1, 1) != 0L)
     val days = RustBridge.getJalaliDaysInMonthSync(1403, 1)
@@ -60,12 +68,12 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `currency sync calls delegate to the native core`() {
+  fun currencySyncCallsDelegateToTheNativeCore() {
     // The numeric substring is produced by the Rust core (currency.rs
-    // `format_number`), which emits ASCII digits ('0'..'9') and an ASCII ','
+    // format_number), which emits ASCII digits ('0'..'9') and an ASCII ','
     // thousands separator unconditionally — it performs no locale-aware
     // formatting. The output is therefore independent of the JVM/OS locale this
-    // test runs under, so `contains("1,000,000")` is not locale-fragile. (If the
+    // test runs under, so contains1000000 is not locale-fragile. (If the
     // core ever switched to Persian/Arabic digits, these assertions SHOULD fail
     // as a regression signal — do not loosen them to accept alternate digits.)
     assertTrue(RustBridge.formatCurrencySync(1_000_000L, CurrencyUnit.RIAL).contains("1,000,000"))
@@ -80,7 +88,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `parser sync calls delegate to the native core`() {
+  fun parserSyncCallsDelegateToTheNativeCore() {
     val parsed = RustBridge.parseSentenceOfflineSync("خرید نان 5000")
     assertNotNull(parsed)
     assertEquals(TransactionType.EXPENSE, parsed!!.txType)
@@ -99,7 +107,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `validateAiAdvice delegates to the native core without throwing`() =
+  fun validateaiadviceDelegatesToTheNativeCoreWithoutThrowing() =
     runTest {
       val result = RustBridge.validateAiAdvice("پیشنهاد ساختگی برای صرفه جویی")
       assertNotNull(result)
@@ -107,7 +115,7 @@ class RustBridgeTest {
     }
 
   @Test
-  fun `parseAiTransactionJsonSync parses a valid transaction`() {
+  fun parseaitransactionjsonsyncParsesAValidTransaction() {
     val parsed = RustBridge.parseAiTransactionJsonSync("""{"type":"EXPENSE","amount":1000}""")
     assertNotNull(parsed)
     assertEquals(TransactionType.EXPENSE, parsed!!.result.txType)
@@ -118,7 +126,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `boolean validators accept valid entities`() {
+  fun booleanValidatorsAcceptValidEntities() {
     val txn =
       Transaction(
         id = 1L,
@@ -129,7 +137,9 @@ class RustBridgeTest {
         personName = null,
         date = 1_700_000_000_000L,
         dueDate = null,
-        installmentId = null
+        installmentId = null,
+        accountId = 1L,
+        destinationAccountId = null
       )
     val loan =
       Loan(
@@ -162,26 +172,28 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `budget and forecast sync calls produce advice text`() {
+  fun budgetAndForecastSyncCallsProduceAdviceText() {
     assertTrue(RustBridge.getOfflineBudgetAdviceSync(emptyList(), emptyList()).isNotEmpty())
     assertTrue(RustBridge.getOfflineForecastSync(emptyList(), emptyList(), emptyList()).isNotEmpty())
   }
 
   @Test
-  fun `budget numeric sync calls compute expected values`() {
+  fun budgetNumericSyncCallsComputeExpectedValues() {
     assertEquals(0.0, RustBridge.calculateDebtToIncomeRatioSync(emptyList(), emptyList(), 1_000_000L), 0.0)
     assertEquals(10, RustBridge.predictTimeToGoalSync(0L, 100_000L, 1_000_000L))
     assertEquals(0, RustBridge.calculateFinancialHealthScoreSync(emptyList(), emptyList(), emptyList(), emptyList()))
   }
 
   @Test
-  fun `analytics and dashboard sync calls return data structures`() {
-    assertNotNull(RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList()))
+  fun analyticsAndDashboardSyncCallsReturnDataStructures() {
+    assertNotNull(
+      RustBridge.computeAnalyticsSync(emptyList(), emptyList(), emptyList(), emptyList(), accounts = emptyList())
+    )
     assertNotNull(RustBridge.computeDashboardDataSync(emptyList(), emptyList(), emptyList()))
   }
 
   @Test
-  fun `searchTransactionsSync returns an empty result for no data`() {
+  fun searchtransactionssyncReturnsAnEmptyResultForNoData() {
     val query =
       SearchQuery(
         text = "",
@@ -204,7 +216,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `rustCallSync rethrows RuntimeException (NullPointerException)`() {
+  fun rustcallsyncRethrowsRuntimeexceptionnullpointerexception() {
     assertThrows(NullPointerException::class.java) {
       RustBridge.rustCallSync("fallback") {
         throw NullPointerException("boom")
@@ -213,7 +225,7 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `rustCallSync rethrows RuntimeException (IllegalStateException)`() {
+  fun rustcallsyncRethrowsRuntimeexceptionillegalstateexception() {
     assertThrows(IllegalStateException::class.java) {
       RustBridge.rustCallSync("fallback") {
         throw IllegalStateException("boom")
@@ -222,7 +234,7 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `rustCallSync rethrows InterruptedException and restores interrupted flag`() {
+  fun rustcallsyncRethrowsInterruptedexceptionAndRestoresInterruptedFlag() {
     try {
       assertThrows(InterruptedException::class.java) {
         RustBridge.rustCallSync("fallback") {
@@ -236,7 +248,7 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `rustCallSync returns fallback for non-critical exceptions`() {
+  fun rustcallsyncReturnsFallbackForNoncriticalExceptions() {
     val result =
       RustBridge.rustCallSync("fallback") {
         throw java.io.IOException("transient network failure")
@@ -249,7 +261,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `backup sync calls behave on valid and invalid input`() {
+  fun backupSyncCallsBehaveOnValidAndInvalidInput() {
     // Invalid JSON is handled gracefully (null) rather than throwing.
     assertNull(RustBridge.parseBackupJsonSync("this is not json"))
     val result = RustBridge.validateBackupPayloadSync(emptyBackupPayload())
@@ -257,7 +269,7 @@ class RustBridgeTest {
   }
 
   @Test
-  fun `validateBackup completes without throwing`() =
+  fun validatebackupCompletesWithoutThrowing() =
     runTest {
       RustBridge.validateBackup(emptyBackupPayload())
     }
@@ -267,7 +279,7 @@ class RustBridgeTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `checksum and excel sync calls delegate to the native core`() {
+  fun checksumAndExcelSyncCallsDelegateToTheNativeCore() {
     assertTrue(RustBridge.computeChecksumSync(byteArrayOf(1, 2, 3)).isNotEmpty())
     assertFalse(RustBridge.verifyChecksumSync(byteArrayOf(1), "abc"))
     assertNotNull(RustBridge.generateExcel(WorkbookData(emptyList())))
@@ -283,6 +295,7 @@ class RustBridgeTest {
       installments = emptyList(),
       bankLoans = emptyList(),
       paymentHistories = emptyList(),
-      categories = emptyList()
+      categories = emptyList(),
+      accounts = emptyList()
     )
 }

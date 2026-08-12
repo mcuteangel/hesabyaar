@@ -31,17 +31,38 @@ fun runUniffiGen(
     )
   val pb = ProcessBuilder(cmd)
   pb.directory(rustDir)
-  pb.inheritIO()
-  return pb.start().waitFor()
+  // Redirect to temp files to avoid pipe-buffer deadlock on Windows
+  val stdoutTmp = File.createTempFile("uniffi-gen-stdout-", ".log")
+  val stderrTmp = File.createTempFile("uniffi-gen-stderr-", ".log")
+  stdoutTmp.deleteOnExit()
+  stderrTmp.deleteOnExit()
+  pb.redirectOutput(stdoutTmp)
+  pb.redirectError(stderrTmp)
+  val proc = pb.start()
+  val exitCode = proc.waitFor()
+  if (exitCode != 0) {
+    val stderrText = stderrTmp.readText().takeLast(4000)
+    throw GradleException("uniffi-gen failed (exit $exitCode)\n$stderrText")
+  }
+  return exitCode
 }
 
 fun buildHostLibrary() {
   logger.lifecycle("Step 1/4: Building host-native Rust library...")
   val cargoBuild = ProcessBuilder("cargo", "build", "--release")
   cargoBuild.directory(rustDir)
-  cargoBuild.inheritIO()
-  if (cargoBuild.start().waitFor() != 0) {
-    throw GradleException("cargo build --release failed")
+  // Redirect to temp files to avoid pipe-buffer deadlock on Windows
+  val stdoutTmp = File.createTempFile("cargo-build-stdout-", ".log")
+  val stderrTmp = File.createTempFile("cargo-build-stderr-", ".log")
+  stdoutTmp.deleteOnExit()
+  stderrTmp.deleteOnExit()
+  cargoBuild.redirectOutput(stdoutTmp)
+  cargoBuild.redirectError(stderrTmp)
+  val proc = cargoBuild.start()
+  val exitCode = proc.waitFor()
+  if (exitCode != 0) {
+    val stderrText = stderrTmp.readText().takeLast(4000)
+    throw GradleException("cargo build --release failed (exit $exitCode)\n$stderrText")
   }
 }
 
@@ -297,15 +318,79 @@ android.sourceSets.named("main") {
   jniLibs.srcDir("src/main/jniLibs")
 }
 
-// Make the host-native Rust library available to JNA during unit tests.
-// The generateAndFixBindings task builds the DLL/SO into rust/target/release/.
-// JNA 5.x searches jna.library.path first, then java.library.path.
+// ── Test configuration ──────────────────────────────────────────────────
+// Tests are split into two groups to balance speed vs. Rust JNI isolation:
+//
+// 1. Non-Rust tests (default task): Run with normal Gradle parallelism.
+//    No fork-per-class overhead. Covers ~40 pure-Kotlin test classes.
+//
+// 2. Rust-bridge tests (testDebugUnitTestRust): Tagged with
+//    @Category(RustTest::class). Run with forkEvery=1 and maxParallelForks=1
+//    to prevent JNI global-state leakage across test classes.
+//    Covers ~13 test classes that call into hesabyar_core.
+//
+// Run both groups:  ./gradlew test
+// Run non-Rust only: ./gradlew testDebugUnitTest  (fast)
+// Run Rust only:     ./gradlew testDebugUnitTestRust  (slow, isolated)
+
+// Rust library path for JNA — only needed by the Rust test task.
 val rustReleaseDir = file("${rootProject.projectDir}/rust/target/release")
-tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-  jvmArgs(
+val rustJvmArgs =
+  listOf(
     "-Djna.library.path=${rustReleaseDir.absolutePath}",
     "-Djava.library.path=${rustReleaseDir.absolutePath}"
   )
+
+// Configure all unit test tasks: JVM args for JNA/Rust library discovery.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+  jvmArgs(rustJvmArgs)
+}
+
+// After Android plugin configures the test variant, set up category filtering
+// and create the Rust-only test task with JNI isolation.
+afterEvaluate {
+  // Main task: exclude Rust-tagged tests (fast, parallel).
+  tasks.named<org.gradle.api.tasks.testing.Test>("testDebugUnitTest") {
+    useJUnit {
+      excludeCategories("io.github.mojri.hesabyar.RustTest")
+    }
+  }
+
+  // Rust-bridge test task: clone config from testDebugUnitTest, then restrict
+  // to Rust-tagged classes with fork-per-class isolation.
+  val debugUnitTest = tasks.named<org.gradle.api.tasks.testing.Test>("testDebugUnitTest")
+  val rustTest =
+    tasks.register<org.gradle.api.tasks.testing.Test>("testDebugUnitTestRust") {
+      description = "Runs Rust-bridge unit tests with JNI global-state isolation"
+      group = "verification"
+
+      // Inherit classpath and test classes from the debug unit test task.
+      val sourceTask = debugUnitTest.get()
+      classpath = sourceTask.classpath
+      testClassesDirs = sourceTask.testClassesDirs
+      jvmArgs(rustJvmArgs)
+
+      // Ensure test classes are compiled AND the Rust host library exists before
+      // JNA-backed tests attempt to load it. buildHostRustLib produces the host
+      // library at rust/target/release that JNA loads; compileRustCore only
+      // builds Android .so files via cargo-ndk and would require the NDK.
+      dependsOn("compileDebugUnitTestKotlin")
+      dependsOn("buildHostRustLib")
+
+      useJUnit {
+        includeCategories("io.github.mojri.hesabyar.RustTest")
+      }
+      // The Rust native library (hesabyar_core) uses global mutable state that is
+      // not thread-safe and not resettable between test classes. forkEvery=1 creates
+      // a fresh JVM per class so each gets a clean native library state.
+      maxParallelForks = 1
+      forkEvery = 1
+    }
+
+  // Ensure ./gradlew test runs BOTH non-Rust and Rust test groups.
+  tasks.named("test") {
+    dependsOn(rustTest)
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -443,7 +528,10 @@ androidComponents {
 }
 
 tasks.register<JacocoReport>("jacocoTestReport") {
-  dependsOn("testDebugUnitTest")
+  // Coverage must include both the fast non-Rust tests and the isolated
+  // Rust-bridge tests (testDebugUnitTestRust) — executionData below globs
+  // every build/jacoco/*.exec, so both tasks must run before the report.
+  dependsOn("testDebugUnitTest", "testDebugUnitTestRust")
   executionData.setFrom(fileTree("build/jacoco") { include("*.exec") })
   sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
   classDirectories.setFrom(
@@ -731,9 +819,28 @@ activeRustTargets.forEach { target ->
         )
       val pb = ProcessBuilder(cmd)
       pb.directory(rustDir)
-      pb.inheritIO()
-      val exitCode = pb.start().waitFor()
-      if (exitCode != 0) throw GradleException("cargo ndk failed for ${target.abi} (exit $exitCode)")
+      // Redirect stdout/stderr to temp files instead of inheritIO().
+      // On Windows, cargo-ndk writes heavily to both streams; with inheritIO()
+      // the pipe buffers fill up and deadlock the child process — the .so files
+      // are produced but waitFor() never returns.
+      val stdoutTmp = File.createTempFile("cargo-ndk-stdout-", ".log")
+      val stderrTmp = File.createTempFile("cargo-ndk-stderr-", ".log")
+      stdoutTmp.deleteOnExit()
+      stderrTmp.deleteOnExit()
+      pb.redirectOutput(stdoutTmp)
+      pb.redirectError(stderrTmp)
+      val proc = pb.start()
+      val exitCode = proc.waitFor()
+      // Surface cargo-ndk output on failure so the error is diagnosable
+      if (exitCode != 0) {
+        val stderrText = stderrTmp.readText().takeLast(4000)
+        val stdoutText = stdoutTmp.readText().takeLast(2000)
+        throw GradleException(
+          "cargo ndk failed for ${target.abi} (exit $exitCode)\n" +
+            "--- stderr (last 4000 chars) ---\n$stderrText\n" +
+            "--- stdout (last 2000 chars) ---\n$stdoutText"
+        )
+      }
       val foundLib =
         outDir.walkTopDown().firstOrNull { it.name == target.jniLib }
           ?: throw GradleException(
@@ -788,6 +895,41 @@ tasks.register("compileRustCore") {
   outputs.upToDateWhen { !forceRustRegen }
 }
 
+// ---------------------------------------------------------------------------
+// buildHostRustLib — host-native Rust library for JNA-backed unit tests
+//
+// JNA-backed Rust tests (testDebugUnitTestRust) load the HOST library from
+// rust/target/release (see rustJvmArgs), NOT the Android .so files produced by
+// compileRustCore via cargo-ndk. Wiring the test task to this task instead of
+// compileRustCore means `./gradlew test` no longer requires the Android NDK.
+// ---------------------------------------------------------------------------
+tasks.register("buildHostRustLib") {
+  group = "rust"
+  description = "Build the host-native Rust library loaded by JNA-backed unit tests"
+  dependsOn("syncCoreVersion")
+  inputs.dir(rustDir.resolve("hesabyar-core/src"))
+  inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.toml"))
+  inputs.file(rustDir.resolve("Cargo.lock"))
+  inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
+  val osName = System.getProperty("os.name").lowercase()
+  val hostLib =
+    when {
+      osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
+      osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
+      else -> rustTargetDir.resolve("release/libhesabyar_core.so")
+    }
+  outputs.file(hostLib)
+  // Local debug keeps incremental caching; CI/release always recompiles.
+  outputs.upToDateWhen { !forceRustRegen }
+  doLast {
+    buildHostLibrary()
+    if (!hostLib.exists()) {
+      throw GradleException("Host library not found after build: ${hostLib.absolutePath}")
+    }
+  }
+}
+
 if (System.getenv("ANDROID_NDK_HOME").isNullOrBlank()) {
   logger.lifecycle(
     "ANDROID_NDK_HOME not set — skipping automatic Rust cross-compile before Kotlin compilation."
@@ -816,17 +958,19 @@ tasks.register("generateRustBindings") {
   inputs.file(rustDir.resolve("hesabyar-core/Cargo.toml"))
   inputs.file(rustDir.resolve("Cargo.toml"))
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
-  val generatedDir = file("$projectDir/src/main/java/${appId.replace(".", "/")}/rust/generated")
-  outputs.dir(generatedDir)
+  inputs.file(file("buildSrc/template/HesabyarCore.template.kt"))
+  val dest = file("src/main/java/${appId.replace(".", "/")}/rust/hesabyar_core.kt")
+  outputs.file(dest)
   // Local debug keeps incremental caching; CI/release always regenerates.
   outputs.upToDateWhen { !forceRustRegen }
   doLast {
     buildHostLibrary()
     val hostLib = resolveHostArtifact()
-    generatedDir.mkdirs()
-    val exitCode = runUniffiGen(hostLib, generatedDir)
-    if (exitCode != 0) throw GradleException("Binding generation failed (exit $exitCode)")
-    logger.lifecycle("Kotlin bindings generated at: ${generatedDir.absolutePath}")
+    val tempDir = file("${rootProject.buildDir}/tmp/uniffi-bindings")
+    generateBindings(hostLib, tempDir)
+    patchAndInstallOutput(tempDir, dest)
+    tempDir.deleteRecursively()
+    logger.lifecycle("Kotlin bindings installed at: ${dest.absolutePath}")
   }
 }
 

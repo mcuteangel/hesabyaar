@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.auth.BiometricHelper
@@ -45,13 +47,16 @@ import io.github.mojri.hesabyar.ui.BackupViewModel
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.ExportState
 import io.github.mojri.hesabyar.ui.ExportViewModel
+import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ExportPassphraseDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.ImportPassphraseDialog
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -71,8 +76,6 @@ fun Context.findActivity(): FragmentActivity? {
   }
   return null
 }
-
-private const val CANCEL_LABEL = "انصراف"
 
 @Composable
 fun SettingsScreen(
@@ -94,7 +97,7 @@ fun SettingsScreen(
         try {
           val outputStream: OutputStream? = context.contentResolver.openOutputStream(uri)
           if (outputStream != null) {
-            backupViewModel.exportBackupToFile(outputStream)
+            backupViewModel.exportCoordinator.writeStagedExportToFile(outputStream)
           } else {
             settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
           }
@@ -102,8 +105,23 @@ fun SettingsScreen(
           AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
           settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
         }
+      } else {
+        backupViewModel.exportCoordinator.onExportPickerCancelled()
       }
     }
+
+  val exportPickerLaunchRequest by backupViewModel.exportPickerLaunchRequest
+
+  // Launch the save-location picker only after staging finished. Launching it
+  // inline in the click handler raced the async PBKDF2/encryption: the picker
+  // opened even when staging would fail, and a fast picker return could hit
+  // writeStagedExportToFile before the JSON was staged.
+  LaunchedEffect(exportPickerLaunchRequest) {
+    if (exportPickerLaunchRequest) {
+      exportFileLauncher.launch("hesabyar_backup_${System.currentTimeMillis() / 1000}.json")
+      backupViewModel.exportCoordinator.consumeExportPickerLaunchRequest()
+    }
+  }
 
   val importFileLauncher =
     rememberLauncherForActivityResult(
@@ -113,7 +131,7 @@ fun SettingsScreen(
         try {
           val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
           if (inputStream != null) {
-            backupViewModel.validateAndStageImport(inputStream)
+            backupViewModel.importCoordinator.validateAndStageImport(inputStream)
           }
         } catch (e: Exception) {
           AppLogger.e("SettingsScreen", "خطا در بارگذاری فایل", e)
@@ -126,6 +144,8 @@ fun SettingsScreen(
   val pendingRestore = backupViewModel.pendingRestoreBackup
   val restoreMode by backupViewModel.selectedRestoreMode
   val exportState by exportViewModel.exportState
+  val passphraseDialog by backupViewModel.passphraseDialogState
+  val isCryptoInProgress by backupViewModel.isCryptoInProgress
 
   LaunchedEffect(exportState) {
     when (val state = exportState) {
@@ -166,7 +186,7 @@ fun SettingsScreen(
   if (pendingRestore.value != null) {
     val backup: BackupPayload = pendingRestore.value!!
     AlertDialog(
-      onDismissRequest = { backupViewModel.cancelPendingRestore() },
+      onDismissRequest = { backupViewModel.importCoordinator.cancelPendingRestore() },
       title = {
         Text("بازیابی پشتیبان", fontWeight = FontWeight.Bold)
       },
@@ -230,7 +250,7 @@ fun SettingsScreen(
       },
       confirmButton = {
         HesabyarButton(
-          onClick = { backupViewModel.executeRestore() },
+          onClick = { backupViewModel.importCoordinator.executeRestore() },
           text = if (restoreMode == RestoreMode.REPLACE) "جایگزینی کامل" else "ادغام",
           colors =
             if (restoreMode == RestoreMode.REPLACE) {
@@ -242,11 +262,32 @@ fun SettingsScreen(
       },
       dismissButton = {
         HesabyarButton(
-          onClick = { backupViewModel.cancelPendingRestore() },
-          text = CANCEL_LABEL,
+          onClick = { backupViewModel.importCoordinator.cancelPendingRestore() },
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
+    )
+  }
+
+  // --- Export passphrase dialog ---
+  if (passphraseDialog is PassphraseDialogState.ExportPassphrase) {
+    ExportPassphraseDialog(
+      isCryptoInProgress = isCryptoInProgress,
+      onConfirm = backupViewModel.exportCoordinator::exportWithPassphrase,
+      onSaveWithoutEncryption = backupViewModel.exportCoordinator::exportWithoutPassphrase,
+      onDismiss = backupViewModel.importCoordinator::cancelPassphraseDialog
+    )
+  }
+
+  // --- Import passphrase dialog ---
+  if (passphraseDialog is PassphraseDialogState.ImportPassphrase) {
+    val importPassphrase = passphraseDialog as PassphraseDialogState.ImportPassphrase
+    ImportPassphraseDialog(
+      errorMessage = importPassphrase.errorMessage,
+      isCryptoInProgress = isCryptoInProgress,
+      onConfirm = backupViewModel.importCoordinator::decryptAndStageImport,
+      onDismiss = backupViewModel.importCoordinator::cancelPassphraseDialog
     )
   }
 
@@ -457,16 +498,12 @@ fun SettingsScreen(
           )
 
           HesabyarButton(
-            onClick = {
-              exportFileLauncher.launch(
-                "hesabyar_backup_${System.currentTimeMillis() / 1000}.json"
-              )
-            },
+            onClick = { backupViewModel.exportCoordinator.requestExportPassphraseDialog() },
             modifier = Modifier.weight(1.1f).testTag("backup_button"),
             text = "ذخیره فایل پشتیبان",
             icon = Icons.Filled.Save,
-            loading = operationState is BackupOperationState.Exporting,
-            enabled = operationState !is BackupOperationState.Exporting
+            loading = operationState is BackupOperationState.Exporting || isCryptoInProgress,
+            enabled = operationState !is BackupOperationState.Exporting && !isCryptoInProgress
           )
         }
       }
@@ -669,7 +706,7 @@ fun SecuritySection(
             showVerifyPinDialog = false
             pendingDisable = false
           },
-          text = CANCEL_LABEL,
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
@@ -731,7 +768,7 @@ fun SecuritySection(
       dismissButton = {
         HesabyarButton(
           onClick = { showSetPinDialog = false },
-          text = CANCEL_LABEL,
+          text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
       }
@@ -1156,7 +1193,7 @@ fun AiConfigDialog(
           onClearModelFetchState()
           onDismiss()
         },
-        text = CANCEL_LABEL,
+        text = stringResource(R.string.cancel_label),
         variant = ButtonVariant.Text
       )
     }

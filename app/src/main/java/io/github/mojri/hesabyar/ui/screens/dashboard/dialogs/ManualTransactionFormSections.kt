@@ -21,15 +21,23 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.components.icon
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 @Composable
 internal fun TransactionTypeSelector(
@@ -60,7 +68,8 @@ internal fun TransactionTypeSelector(
             Pair("INCOME", "درآمد"),
             Pair("LOAN_DEBTOR", "طلب (قرض دادم)"),
             Pair("LOAN_CREDITOR", "بدهی (قرض گرفتم)"),
-            Pair("INSTALLMENT", "قسط")
+            Pair("INSTALLMENT", "قسط"),
+            Pair("TRANSFER", "انتقال")
           )
         }
       types.forEach { (typeKey, typeLabel) ->
@@ -283,19 +292,60 @@ private fun resolveTypeColor(typeKey: String) =
   when (typeKey) {
     "INCOME", "LOAN_DEBTOR" -> MaterialTheme.colorScheme.primary
     "EXPENSE", "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
+    "TRANSFER" -> MaterialTheme.colorScheme.tertiary
     else -> MaterialTheme.colorScheme.tertiary
   }
 
 private fun resolveDefaultCategoryId(
   typeKey: String,
   categories: List<Category>
-): Long {
-  val defaultId = 1L
-  return when (typeKey) {
-    "INCOME" -> categories.find { it.key == "Income" }?.id ?: defaultId
-    "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: defaultId
-    "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: defaultId
-    "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: defaultId
-    else -> defaultId
+): Long =
+  when (typeKey) {
+    "INCOME" -> categories.find { it.key == "Income" }?.id ?: 1L
+    "EXPENSE" -> categories.find { it.key == "Expense" }?.id ?: 1L
+    "LOAN_DEBTOR", "LOAN_CREDITOR" -> categories.find { it.key == "Loans" }?.id ?: 1L
+    "INSTALLMENT" -> categories.find { it.key == "Installments" }?.id ?: 1L
+    "TRANSFER" -> 0L
+    else -> 1L
+  }
+
+@Composable
+internal fun DestinationAccountSelector(
+  accounts: List<AccountEntity>,
+  sourceAccountId: Long,
+  selectedDestinationAccountId: Long?,
+  onDestinationAccountSelected: (Long?) -> Unit
+) {
+  Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+    Text(
+      text = "حساب مقصد:",
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      accounts.filter { !it.isArchived && it.id != sourceAccountId }.forEach { account ->
+        HesabyarChip(
+          selected = selectedDestinationAccountId == account.id,
+          onClick = { onDestinationAccountSelected(account.id) },
+          label = account.name,
+          leadingIcon = {
+            IconCircle(
+              icon = account.type.icon(),
+              tint = account.color.toComposeColor(),
+              backgroundColor = account.color.toComposeColor(),
+              iconSize = 12.dp,
+              containerSize = Dimens.IconSmall,
+            )
+          },
+          shape = ShapeTokens.Small,
+        )
+      }
+    }
   }
 }
