@@ -54,10 +54,63 @@
     <string name="error_saving_backup">خطا در ذخیره پشتیبان: %s</string>
     <string name="error_processing_backup_json">خطا در پردازش JSON پشتیبان: %s</string>
     <string name="backup_saved_success">پشتیبان با موفقیت ذخیره شد</string>
+    <string name="restore_success_replace">بازیابی کامل با موفقیت انجام شد. %1$d تراکنش، %2$d وام، %3$d قسط، %4$d دسته‌بندی، %5$d وام بانکی، %6$d حساب بازیابی شد.</string>
+    <string name="export_summary_counts">%1$d تراکنش، %2$d وام، %3$d قسط، %4$d دسته‌بندی، %5$d وام بانکی، %6$d حساب</string>
     <string name="error_reading_backup_file">خطا در خواندن فایل پشتیبان: %s</string>
     <string name="error_parsing_backup_file">خطا در تجزیه فایل پشتیبان: %s</string>
     <string name="error_invalid_backup_structure">خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است</string>
     <string name="error_backup_encryption_incomplete">فایل پشتیبان رمزگذاری‌شده است اما اطلاعات رمزنگاری آن ناقص است</string>
+
+    <!-- BackupImportCoordinator -->
+    <string name="restore_success_merge">ادغام پشتیبان با موفقیت انجام شد.</string>
+    <string name="error_backup_file_access">خطا در دسترسی به فایل پشتیبان: %s</string>
+    <string name="error_backup_file_access_denied">دسترسی به فایل پشتیبان غیرمجاز است: %s</string>
+    <string name="error_backup_invalid_settings">تنظیمات پشتیبان نامعتبر است: %s</string>
+    <string name="error_restore_generic">خطا در بازگردانی پشتیبان: %s</string>
+    <string name="error_unknown">خطای ناشناخته</string>
+    <string name="error_io">خطای ورودی/خروجی</string>
+    <string name="error_unspecified">خطای نامشخص</string>
+
+    <!-- BackupJsonValidator (Kotlin fallback validation messages) -->
+    <string name="backup_validation_version_invalid">نسخه پشتیبان نامعتبر است</string>
+    <string name="backup_validation_app_version_invalid">نسخه برنامه پشتیبان نامعتبر است</string>
+    <string name="backup_validation_timestamp_invalid">زمان تهیه پشتیبان نامعتبر است</string>
+    <string name="backup_validation_tx_amount_invalid">مبلغ تراکنش #%1$d نامعتبر است</string>
+    <string name="backup_validation_tx_date_invalid">تاریخ تراکنش #%1$d نامعتبر است</string>
+    <string name="backup_validation_tx_category_invalid">دسته‌بندی تراکنش #%1$d نامعتبر است</string>
+    <string name="backup_validation_loan_person_blank">نام شخص وام #%1$d خالی است</string>
+    <string name="backup_validation_loan_date_invalid">تاریخ وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_loan_original_invalid">مبلغ اولیه وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_loan_remaining_invalid">مبلغ باقی‌مانده وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_installment_title_blank">عنوان قسط #%1$d خالی است</string>
+    <string name="backup_validation_installment_amount_invalid">مبلغ قسط #%1$d نامعتبر است</string>
+    <string name="backup_validation_installment_due_invalid">تاریخ سررسید قسط #%1$d نامعتبر است</string>
+    <string name="backup_validation_category_name_blank">نام دسته‌بندی #%1$d خالی است</string>
+    <string name="backup_validation_payment_amount_invalid">مبلغ پرداخت #%1$d نامعتبر است</string>
+    <string name="backup_validation_payment_date_invalid">تاریخ پرداخت #%1$d نامعتبر است</string>
+    <string name="backup_validation_payment_loan_id_invalid">شناسه وام پرداخت #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_name_blank">نام بانک وام #%1$d خالی است</string>
+    <string name="backup_validation_bankloan_received_invalid">مبلغ دریافتی وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_installment_count_invalid">تعداد اقساط وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_monthly_invalid">مبلغ قسط ماهانه وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_start_invalid">تاریخ شروع وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_repayable_invalid">مبلغ کل بازپرداخت وام #%1$d نامعتبر است</string>
+    <string name="backup_validation_bankloan_repayable_overflow">مبلغ کل بازپرداخت وام #%1$d در محاسبه سرریز می‌کند</string>
+    <string name="backup_validation_bankloan_repayable_mismatch">مبلغ کل بازپرداخت وام #%1$d با حاصل ضرب مبلغ قسط ماهانه در تعداد اقساط برابر نیست</string>
+    <string name="backup_validation_bankloan_repayable_below_received">مبلغ کل بازپرداخت وام #%1$d نباید کمتر از مبلغ دریافتی باشد</string>
+    <string name="backup_validation_bankloan_interest_mismatch">سود وام #%1$d با مبلغ کل بازپرداخت منهای مبلغ دریافتی برابر نیست</string>
+    <string name="backup_validation_account_name_blank">نام حساب #%1$d خالی است</string>
+
+    <!-- AccountManagementScreen delete dialogs -->
+    <string name="account_delete_title">حذف حساب</string>
+    <string name="delete_label">حذف</string>
+    <string name="account_delete_confirm_message">آیا از حذف حساب «%1$s» اطمینان دارید؟</string>
+    <string name="account_delete_not_allowed_title">امکان حذف حساب</string>
+    <string name="account_delete_transaction_warning_message">حساب «%1$s» دارای تراکنش‌های فعال است و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، از گزینه آرشیو استفاده کنید.</string>
+    <string name="account_delete_last_account_warning_message">حساب «%1$s» آخرین حساب است و قابل حذف نیست. حداقل یک حساب باید همیشه باقی بماند.</string>
+    <string name="account_delete_transaction_count_error">حساب «%1$s» دارای %2$d تراکنش است و قابل حذف نیست</string>
+    <string name="account_delete_last_active_account_error">حساب «%1$s» آخرین حساب فعال است و قابل حذف نیست</string>
+    <string name="understood_label">متوجه شدم</string>
 
     <!-- ReportsScreen -->
     <string name="account_content_description">حساب %1$s</string>

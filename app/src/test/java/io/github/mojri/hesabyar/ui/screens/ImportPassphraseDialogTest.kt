@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -75,5 +76,29 @@ class ImportPassphraseDialogTest {
 
     composeRule.onNode(hasSetTextAction()).performTextInput("some-passphrase")
     composeRule.onNodeWithText("رمزگشایی").assertIsEnabled()
+  }
+
+  @Test
+  fun passphraseFieldDisabledWhileCryptoInProgress() {
+    composeRule.setContent {
+      ImportPassphraseDialog(
+        errorMessage = null,
+        isCryptoInProgress = true,
+        onConfirm = {},
+        onDismiss = {}
+      )
+    }
+
+    // The passphrase cannot be edited while a decrypt attempt is in flight —
+    // otherwise the text the error would refer to may have changed by the time
+    // the attempt's outcome arrives.
+    composeRule.onNodeWithTag("passphrase_field").assertIsNotEnabled()
+  }
+
+  @Test
+  fun passphraseFieldEnabledWhenIdle() {
+    launchDialog()
+
+    composeRule.onNodeWithTag("passphrase_field").assertIsEnabled()
   }
 }

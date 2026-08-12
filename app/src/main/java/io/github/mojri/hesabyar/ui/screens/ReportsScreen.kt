@@ -725,11 +725,19 @@ fun ReportsScreen(
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
               Row(verticalAlignment = Alignment.CenterVertically) {
                 val isTxIncome = transaction.type == TransactionType.INCOME
+                val isTxTransfer = transaction.type == TransactionType.TRANSFER
                 val (txSign, txAmount) =
                   CurrencyFormatter.formatSignedParts(
-                    if (isTxIncome) transaction.amount else -transaction.amount
+                    if (isTxIncome || isTxTransfer) transaction.amount else -transaction.amount
                   )
-                val txColor = if (isTxIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                val txColor =
+                  if (isTxIncome) {
+                    MaterialTheme.colorScheme.primary
+                  } else if (isTxTransfer) {
+                    MaterialTheme.colorScheme.tertiary
+                  } else {
+                    MaterialTheme.colorScheme.error
+                  }
                 Text(
                   text = txSign,
                   style = MaterialTheme.typography.bodyMedium,

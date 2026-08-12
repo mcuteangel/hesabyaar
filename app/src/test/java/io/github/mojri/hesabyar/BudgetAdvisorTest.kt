@@ -12,7 +12,6 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,21 +21,16 @@ import org.junit.Test
 
 @org.junit.experimental.categories.Category(RustTest::class)
 class BudgetAdvisorTest {
-  private var previousRustState = false
-
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
   @Before
   fun setUp() {
-    previousRustState = HesabyarApp.isRustInitialized()
-    HesabyarApp.setRustInitializedForTesting(false)
-  }
-
-  @After
-  fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(previousRustState)
+    // These tests assert the native offline-advice output, so force the Rust
+    // availability decision explicitly. (RustIsolationRule restores the prior
+    // override after the class, so no state leaks to later classes.)
+    HesabyarApp.setRustInitializedForTesting(true)
   }
 
   private val dayMs = 24L * 60 * 60 * 1000
@@ -445,40 +439,6 @@ class BudgetAdvisorTest {
     assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(expense), now))
   }
 
-  // ---------------------------------------------------------------------------
-  // calculateFinancialHealthScore (local fallback when Rust is unavailable)
-  // ---------------------------------------------------------------------------
-
-  @Test
-  fun calculatefinancialhealthscoreLocalFallbackWhenRustUnavailable() {
-    val transactions =
-      listOf(
-        createTransaction(TransactionType.INCOME, 10_000_000),
-        createTransaction(TransactionType.EXPENSE, 2_000_000)
-      )
-    val score =
-      BudgetAdvisor.calculateFinancialHealthScore(
-        transactions,
-        emptyList(),
-        emptyList(),
-        emptyList()
-      )
-    // Deterministic local computation: savings rate 0.8 (+25) + no debt (+15) + 1 category (+0) = 90.
-    assertEquals(90, score)
-    assertTrue(score in 0..100)
-
-    // Determinism: a second call yields the same result (no flaky time dependence).
-    assertEquals(
-      score,
-      BudgetAdvisor.calculateFinancialHealthScore(transactions, emptyList(), emptyList(), emptyList())
-    )
-  }
-
-  @Test
-  fun calculatefinancialhealthscoreEmptyDataReturnsZeroViaLocalFallback() {
-    assertEquals(
-      0,
-      BudgetAdvisor.calculateFinancialHealthScore(emptyList(), emptyList(), emptyList(), emptyList())
-    )
-  }
+  // calculateFinancialHealthScore local-fallback coverage moved to
+  // [BudgetAdvisorFallbackTest] (forces the Kotlin path via override + rule).
 }

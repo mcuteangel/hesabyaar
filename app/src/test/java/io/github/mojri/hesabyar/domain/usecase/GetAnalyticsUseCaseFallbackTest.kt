@@ -1,23 +1,26 @@
 package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.RustIsolationRule
-import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BankLoan
-import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.experimental.categories.Category
 
-@Category(RustTest::class)
+/**
+ * Kotlin-fallback analytics coverage. The @Before forces the Rust availability
+ * decision off, so these tests genuinely execute
+ * [GetAnalyticsUseCase.computeFallbackAnalytics] even though the native
+ * library sits on the test class path (see the `rustJvmArgs` wiring in
+ * `app/build.gradle.kts`). [GetAnalyticsUseCaseRustTest] is the native-path
+ * counterpart.
+ */
 class GetAnalyticsUseCaseFallbackTest {
   private val useCase = GetAnalyticsUseCase()
 
@@ -28,11 +31,6 @@ class GetAnalyticsUseCaseFallbackTest {
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(false)
-  }
-
-  @After
-  fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(true)
   }
 
   @Test
@@ -88,43 +86,16 @@ class GetAnalyticsUseCaseFallbackTest {
 
   // --- AccountId fallback filtering (T2-8) ---
 
-  private fun tx(
-    type: TransactionType,
-    amount: Long,
-    accountId: Long,
-    destId: Long? = null
-  ) = Transaction(
-    type = type,
-    categoryId = 1L,
-    amount = amount,
-    description = "test",
-    date = System.currentTimeMillis(),
-    accountId = accountId,
-    destinationAccountId = destId
-  )
-
-  private fun cat(
-    id: Long,
-    name: String
-  ) = io.github.mojri.hesabyar.data.Category(
-    id = id,
-    name = name,
-    key = "test",
-    icon = "",
-    color = 0xFF000000L,
-    type = CategoryType.EXPENSE
-  )
-
   @Test
   fun fallbackAccountIdFiltersAnalyticsToMatchingTransactions() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val txs =
         listOf(
-          tx(TransactionType.INCOME, 5_000_000, accountId = 1),
-          tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
-          tx(TransactionType.INCOME, 3_000_000, accountId = 2),
-          tx(TransactionType.EXPENSE, 500_000, accountId = 2),
+          analyticsTx(TransactionType.INCOME, 5_000_000, accountId = 1),
+          analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          analyticsTx(TransactionType.INCOME, 3_000_000, accountId = 2),
+          analyticsTx(TransactionType.EXPENSE, 500_000, accountId = 2),
         )
 
       // accountId=1: only account 1's transactions
@@ -155,12 +126,12 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackNullAccountIdIncludesAllTransactions() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val txs =
         listOf(
-          tx(TransactionType.INCOME, 5_000_000, accountId = 1),
-          tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
-          tx(TransactionType.INCOME, 3_000_000, accountId = 2),
+          analyticsTx(TransactionType.INCOME, 5_000_000, accountId = 1),
+          analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          analyticsTx(TransactionType.INCOME, 3_000_000, accountId = 2),
         )
 
       val result =
@@ -191,14 +162,14 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackAllAccountsExcludesArchivedAccountTransactions() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val accounts = listOf(account(1), account(2, archived = true))
       val txs =
         listOf(
-          tx(TransactionType.INCOME, 3_000_000, accountId = 1),
-          tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
-          tx(TransactionType.INCOME, 500_000, accountId = 2),
-          tx(TransactionType.EXPENSE, 200_000, accountId = 2),
+          analyticsTx(TransactionType.INCOME, 3_000_000, accountId = 1),
+          analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          analyticsTx(TransactionType.INCOME, 500_000, accountId = 2),
+          analyticsTx(TransactionType.EXPENSE, 200_000, accountId = 2),
         )
 
       val result =
@@ -234,11 +205,11 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackTransferNeutralWhenAccountIdNull() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val accounts = listOf(account(1), account(2))
       val txs =
         listOf(
-          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+          analyticsTx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
         )
 
       val result =
@@ -258,11 +229,11 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackTransferSourceIsSelectedAccountCountedAsExpense() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val accounts = listOf(account(1), account(2))
       val txs =
         listOf(
-          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+          analyticsTx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
         )
 
       val result =
@@ -282,11 +253,11 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackTransferDestIsSelectedAccountCountedAsIncome() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val accounts = listOf(account(1), account(2))
       val txs =
         listOf(
-          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+          analyticsTx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
         )
 
       val result =
@@ -306,11 +277,11 @@ class GetAnalyticsUseCaseFallbackTest {
   @Test
   fun fallbackTransferUninvolvedAccountNeutral() =
     runTest {
-      val categories = listOf(cat(1, "خوراک"))
+      val categories = listOf(analyticsCat(1, "خوراک"))
       val accounts = listOf(account(1), account(2), account(3))
       val txs =
         listOf(
-          tx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
+          analyticsTx(TransactionType.TRANSFER, 500_000, accountId = 1, destId = 2),
         )
 
       val result =
@@ -325,5 +296,101 @@ class GetAnalyticsUseCaseFallbackTest {
       // Selected account is not involved → neutral
       assertEquals(0L, result.monthlySpending.first().income)
       assertEquals(0L, result.monthlySpending.first().expense)
+    }
+
+  // --- Account-breakdown parity: the reference the Rust path must match ---
+
+  @Test
+  fun fallbackAccountBreakdownContainsOnlySelectedAccountWhenAccountIdSet() =
+    runTest {
+      val categories = listOf(analyticsCat(1, "خوراک"))
+      val accounts = listOf(account(1), account(2))
+      val txs =
+        listOf(
+          analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+          analyticsTx(TransactionType.EXPENSE, 500_000, accountId = 2),
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = accounts,
+          accountId = 1
+        )
+      // monthlyTx is filtered by accountId first, so only account 1's expense
+      // transactions reach buildAccountBreakdown → a single segment.
+      assertEquals("only the selected account may appear", 1, result.accountBreakdown.size)
+      assertEquals("segment carries the selected account id", 1L, result.accountBreakdown[0].categoryId)
+      assertEquals(
+        "segment total matches the selected account's expenses",
+        1_000_000L,
+        result.accountBreakdown[0].total
+      )
+      assertEquals("single segment owns 100%", 100f, result.accountBreakdown[0].percentage, 0.001f)
+    }
+
+  // --- Regression: breakdown percentage denominator must exclude transfers ---
+
+  @Test
+  fun fallbackBreakdownPercentageDenominatorExcludesTransfers() =
+    runTest {
+      val categories = listOf(analyticsCat(1, "خوراک"), analyticsCat(2, "حمل‌ونقل"))
+      val now = System.currentTimeMillis()
+      val txs =
+        listOf(
+          Transaction(
+            type = TransactionType.EXPENSE,
+            categoryId = 1L,
+            amount = 300_000,
+            description = "food",
+            date = now,
+            accountId = 1L,
+            destinationAccountId = null
+          ),
+          Transaction(
+            type = TransactionType.EXPENSE,
+            categoryId = 2L,
+            amount = 100_000,
+            description = "transport",
+            date = now,
+            accountId = 1L,
+            destinationAccountId = null
+          ),
+          Transaction(
+            type = TransactionType.TRANSFER,
+            categoryId = 1L,
+            amount = 400_000,
+            description = "transfer out",
+            date = now,
+            accountId = 1L,
+            destinationAccountId = 2L
+          )
+        )
+
+      val result =
+        useCase.computeAnalytics(
+          txs,
+          emptyList(),
+          emptyList(),
+          categories,
+          accounts = listOf(account(1), account(2)),
+          accountId = 1L
+        )
+
+      // The transfer-out (400k) must NOT inflate the breakdown denominator:
+      // food = 300k/400k = 75%, transport = 100k/400k = 25%. A transfer-inclusive
+      // denominator (800k) would instead yield 37.5% / 12.5%.
+      val food = result.categoryBreakdown.first { it.categoryId == 1L }
+      val transport = result.categoryBreakdown.first { it.categoryId == 2L }
+      assertEquals("food percentage", 75f, food.percentage, 0.001f)
+      assertEquals("transport percentage", 25f, transport.percentage, 0.001f)
+      assertEquals(
+        "monthly spending series still counts the transfer-out",
+        800_000L,
+        result.monthlySpending.first().expense
+      )
     }
 }

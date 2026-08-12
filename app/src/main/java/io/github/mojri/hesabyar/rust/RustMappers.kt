@@ -204,7 +204,8 @@ object RustMappers {
       dueDate = inst.dueDate,
       isPaid = inst.isPaid,
       reminderEnabled = inst.reminderEnabled,
-      notes = inst.notes
+      notes = inst.notes,
+      bankLoanId = inst.bankLoanId
     )
 
   fun mapBankLoan(bankLoan: BankLoan): io.github.mojri.hesabyar.rust.BankLoan =
@@ -307,7 +308,8 @@ object RustMappers {
       dueDate = inst.dueDate,
       isPaid = inst.isPaid,
       reminderEnabled = inst.reminderEnabled,
-      notes = inst.notes
+      notes = inst.notes,
+      bankLoanId = inst.bankLoanId
     )
 
   fun fromRustBankLoan(bankLoan: io.github.mojri.hesabyar.rust.BankLoan): BankLoan =

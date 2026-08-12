@@ -17,13 +17,20 @@ const CATEGORY_INSTALLMENTS: &str = "Installments";
 const CATEGORY_LOANS: &str = "Loans";
 const CATEGORY_INCOME: &str = "Income";
 const CATEGORY_OTHER: &str = "Other";
-const CATEGORY_PERSONAL_CARE: &str = "Personal Care";
-const CATEGORY_EDUCATION: &str = "Education";
-const CATEGORY_RENT_UTILITIES: &str = "Rent & Utilities";
-const CATEGORY_LOANS_DEBT: &str = "Loans & Debt";
-const CATEGORY_EVENTS_GIFTS: &str = "Events & Gifts";
-const CATEGORY_CHARITY: &str = "Charity";
-const CATEGORY_INVESTMENT: &str = "Investment";
+
+// Mirrors the full Kotlin category taxonomy (GeminiParser categoryKeywords).
+// The offline parser does not infer these categories; normalize_category
+// collapses them to "Other". Kept as documentation of the complete taxonomy.
+#[allow(dead_code)]
+mod unused_categories {
+    pub const CATEGORY_PERSONAL_CARE: &str = "Personal Care";
+    pub const CATEGORY_EDUCATION: &str = "Education";
+    pub const CATEGORY_RENT_UTILITIES: &str = "Rent & Utilities";
+    pub const CATEGORY_LOANS_DEBT: &str = "Loans & Debt";
+    pub const CATEGORY_EVENTS_GIFTS: &str = "Events & Gifts";
+    pub const CATEGORY_CHARITY: &str = "Charity";
+    pub const CATEGORY_INVESTMENT: &str = "Investment";
+}
 
 #[derive(Debug, Clone)]
 struct TypeClassification {
@@ -1002,6 +1009,9 @@ mod tests {
         assert_eq!(result.description, "قسط آینده");
         assert_eq!(result.installment_title, Some("قسط ماشین".to_string()));
         assert!(result.notes.is_some());
+        // "فردا" (tomorrow) is a relative keyword, not a month name — the
+        // day-extraction helper falls through to the 30-day default.
+        assert_eq!(result.days_from_now, Some(30));
     }
 
     #[test]
@@ -1009,6 +1019,24 @@ mod tests {
         let result = classify_installment("قسط مسکن ۱۵ فروردین", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "INSTALLMENT");
         assert_eq!(result.installment_title, Some("قسط وام مسکن".to_string()));
+        // "۱۵ فروردین" is month 1, day 15.  test_now_ms() is Tir 10, 1405, so
+        // Farvardin 15, 1405 has already passed this year and the helper rolls
+        // to the same day next year (Farvardin 15, 1406).  The difference is
+        // 277 days.
+        assert_eq!(result.days_from_now, Some(277));
+    }
+
+    #[test]
+    fn test_installment_unpaid_same_year_future_date() {
+        // "۱۵ مرداد" is month 5, day 15 — a future date in the same Jalali
+        // year as test_now_ms() (Tir 10, 1405), so no year-rollover occurs.
+        let result = classify_installment("قسط وام ۱۵ مرداد", test_now_ms()).unwrap();
+        assert_eq!(result.tx_type, "INSTALLMENT");
+        assert_eq!(
+            result.installment_title,
+            Some("قسط وام".to_string())
+        );
+        assert_eq!(result.days_from_now, Some(36));
     }
 
     // =========================================================================

@@ -5,6 +5,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -41,6 +42,15 @@ class BackupExportCoordinator(
   @VisibleForTesting
   internal var cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default
 
+  /**
+   * Reads the current persisted dark-mode setting (the same source
+   * [SettingsViewModel] reflects) so the exported backup's `settings.darkMode`
+   * matches what the user actually chose, instead of hardcoding `true`.
+   */
+  private val settingsUseCase: GetSettingsUseCase by lazy {
+    GetSettingsUseCase(application.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
+  }
+
   private var pendingExportJsonText: String? = null
 
   /**
@@ -63,21 +73,23 @@ class BackupExportCoordinator(
   /**
    * Called from the export passphrase dialog with the user-entered passphrase.
    * Runs PBKDF2 derivation + encryption on [cryptoDispatcher], stages the JSON,
-   * clears the dialog, and raises [exportPickerLaunchRequest] so the screen
-   * launches the picker only after staging fully succeeded.
+   * closes the dialog, and raises [exportPickerLaunchRequest] so the screen
+   * launches the picker only after staging fully succeeded. The dialog stays
+   * visible (with its progress indicator) while crypto is in flight, matching
+   * the import flow; on failure it remains open so the user can retry.
    */
   @Suppress("TooGenericExceptionCaught") // Safety net: PBKDF2/Cipher can throw unchecked RuntimeException
   fun exportWithPassphrase(passphrase: String) {
     scope.launch {
       isCryptoInProgress.value = true
       exportPickerLaunchRequest.value = false
-      passphraseDialogState.value = PassphraseDialogState.Hidden
       try {
         val rootJson =
           withContext(cryptoDispatcher) {
-            manageBackupUseCase.exportBackupJson(passphrase = passphrase)
+            manageBackupUseCase.exportBackupJson(isDarkMode = settingsUseCase.isDarkMode(), passphrase = passphrase)
           }
         pendingExportJsonText = rootJson.toString(2)
+        passphraseDialogState.value = PassphraseDialogState.Hidden
         operationState.value = BackupOperationState.Exporting
         exportPickerLaunchRequest.value = true
       } catch (e: CancellationException) {
@@ -89,7 +101,7 @@ class BackupExportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_encrypting_backup,
-              e.localizedMessage ?: "خطای ناشناخته"
+              e.localizedMessage ?: application.getString(R.string.error_unknown)
             )
           )
       } finally {
@@ -104,13 +116,19 @@ class BackupExportCoordinator(
    */
   @Suppress("TooGenericExceptionCaught") // Safety net: repository/JSON operations can throw unchecked exceptions
   fun exportWithoutPassphrase() {
+    // In-flight guard: drop a duplicate submission (e.g. a double-tap on "save
+    // without encryption"). Setting isCryptoInProgress synchronously before the
+    // launch makes the check-and-set atomic on the single-threaded Main
+    // dispatcher, mirroring executeRestore's Importing guard.
+    if (isCryptoInProgress.value) return
+    isCryptoInProgress.value = true
     scope.launch {
       exportPickerLaunchRequest.value = false
       passphraseDialogState.value = PassphraseDialogState.Hidden
       try {
         val rootJson =
           withContext(cryptoDispatcher) {
-            manageBackupUseCase.exportBackupJson()
+            manageBackupUseCase.exportBackupJson(isDarkMode = settingsUseCase.isDarkMode())
           }
         pendingExportJsonText = rootJson.toString(2)
         operationState.value = BackupOperationState.Exporting
@@ -123,9 +141,11 @@ class BackupExportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_preparing_backup,
-              e.localizedMessage ?: "خطای ناشناخته"
+              e.localizedMessage ?: application.getString(R.string.error_unknown)
             )
           )
+      } finally {
+        isCryptoInProgress.value = false
       }
     }
   }
@@ -150,14 +170,14 @@ class BackupExportCoordinator(
     }
     scope.launch {
       try {
-        withContext(ioDispatcher) {
-          outputStream.use { os -> os.write(json.toByteArray()) }
-        }
         val root =
-          try {
-            JSONObject(json)
-          } catch (_: JSONException) {
-            null
+          withContext(ioDispatcher) {
+            outputStream.use { os -> os.write(json.toByteArray()) }
+            try {
+              JSONObject(json)
+            } catch (_: JSONException) {
+              null
+            }
           }
         val summary = buildExportSummary(root)
         operationState.value = BackupOperationState.ExportSuccess(summary)
@@ -166,7 +186,7 @@ class BackupExportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_saving_backup,
-              e.localizedMessage ?: "خطای ورودی/خروجی"
+              e.localizedMessage ?: application.getString(R.string.error_io)
             )
           )
       } catch (e: JSONException) {
@@ -174,7 +194,7 @@ class BackupExportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_processing_backup_json,
-              e.localizedMessage ?: "خطای نامشخص JSON"
+              e.localizedMessage ?: application.getString(R.string.error_unspecified)
             )
           )
       } finally {
@@ -183,21 +203,26 @@ class BackupExportCoordinator(
     }
   }
 
-  private fun buildExportSummary(root: JSONObject?): String {
+  @VisibleForTesting
+  internal fun buildExportSummary(root: JSONObject?): String {
     if (root == null) return application.getString(R.string.backup_saved_success) + "."
     val txCount = root.optJSONArray("transactions")?.length() ?: 0
     val loanCount = root.optJSONArray("loans")?.length() ?: 0
     val instCount = root.optJSONArray("installments")?.length() ?: 0
     val catCount = root.optJSONArray("categories")?.length() ?: 0
     val accountCount = root.optJSONArray("accounts")?.length() ?: 0
+    val bankLoanCount = root.optJSONArray("bankLoans")?.length() ?: 0
     return application.getString(R.string.backup_saved_success) +
-      ". ${manageBackupUseCase.buildExportSummary(
+      ". " +
+      application.getString(
+        R.string.export_summary_counts,
         txCount,
         loanCount,
         instCount,
         catCount,
-        accountCount = accountCount
-      )}"
+        bankLoanCount,
+        accountCount
+      )
   }
 
   /**

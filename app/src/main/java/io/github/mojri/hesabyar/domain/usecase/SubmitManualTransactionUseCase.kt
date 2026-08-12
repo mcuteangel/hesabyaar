@@ -257,10 +257,12 @@ class SubmitManualTransactionUseCase(
     val desc = descriptionText.trim().ifEmpty { "انتقال وجه بین حساب‌ها" }
     withContext(NonCancellable) {
       if (transactionToEdit != null) {
-        // Update existing transfer — preserve the original id
-        // and only change amount, description, date, and account refs.
+        // Update existing transfer — preserve the original id and explicitly
+        // pin the type (matching submitTransaction) so an edit can never
+        // silently keep a non-TRANSFER type.
         manageTransaction.updateTransaction(
           transactionToEdit.copy(
+            type = TransactionType.TRANSFER,
             amount = finalAmountRial,
             description = desc,
             date = customDate,

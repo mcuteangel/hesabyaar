@@ -144,6 +144,9 @@ abstract class AppDatabase : RoomDatabase() {
       object : Migration(5, 6) {
         override fun migrate(db: SupportSQLiteDatabase) {
           // 1. Create accounts table
+          // Shipped literals only — the DEFAULT_COLOR interpolation was replaced
+          // with its compiled value (0xFF4CAF50 = 4283215696) so the historical
+          // migration is fully frozen, like the DEFAULT_ACCOUNT seed below.
           db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS accounts (
@@ -155,7 +158,7 @@ abstract class AppDatabase : RoomDatabase() {
               accountNumber TEXT,
               iban TEXT,
               initialBalance INTEGER NOT NULL DEFAULT 0,
-              color INTEGER NOT NULL DEFAULT ${AccountEntity.DEFAULT_COLOR},
+              color INTEGER NOT NULL DEFAULT 4283215696,
               icon TEXT,
               isArchived INTEGER NOT NULL DEFAULT 0,
               displayOrder INTEGER NOT NULL DEFAULT 0

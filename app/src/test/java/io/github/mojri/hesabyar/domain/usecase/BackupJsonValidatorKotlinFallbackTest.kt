@@ -1,0 +1,462 @@
+package io.github.mojri.hesabyar.domain.usecase
+
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
+import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.BackupValidationResult
+import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Exercises [BackupJsonValidator.validateBackupKotlin] — the Kotlin-only
+ * validation path — DIRECTLY, without the Rust core. This is the only way to
+ * reach the fallback in unit tests: the host Rust library always loads in the
+ * unit-test JVM, so [BackupJsonValidator.validateBackup] would take its Rust
+ * branch and the kotlinFallback* tests in
+ * [ManageBackupUseCaseValidationTest] never actually exercise this code.
+ *
+ * Every case mirrors a pinned Rust rule so the two validators cannot drift:
+ * see validate_accounts_and_references / validate_backup_payload in
+ * rust/hesabyar-core/src/validation.rs.
+ */
+class BackupJsonValidatorKotlinFallbackTest {
+  private val validator = BackupJsonValidator()
+
+  private fun validate(backup: BackupPayload): BackupValidationResult = validator.validateBackupKotlin(backup)
+
+  @Test
+  fun validPayloadIsValid() {
+    val payload =
+      BackupPayload(
+        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L,
+              accountId = 1L
+            )
+          ),
+        categories =
+          listOf(
+            Category(id = 1L, name = "خوراک", key = "food", icon = "i", color = 0xFF0000L, type = CategoryType.EXPENSE)
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Valid", result is BackupValidationResult.Valid)
+  }
+
+  @Test
+  fun rejectsTransactionWithNonexistentAccountId() {
+    val payload =
+      BackupPayload(
+        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L,
+              accountId = 99L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for non-existent account", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun rejectsTransferWithNonexistentDestinationAccount() {
+    val payload =
+      BackupPayload(
+        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.TRANSFER,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "transfer",
+              date = 1_700_000_000_000L,
+              accountId = 1L,
+              destinationAccountId = 99L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for non-existent destination account",
+      result is BackupValidationResult.Invalid
+    )
+  }
+
+  @Test
+  fun rejectsTransferWithNullDestination() {
+    // Source account is declared (so account-ref checks pass); destination is
+    // null — validateTransferStructure line 80 must reject it.
+    val payload =
+      BackupPayload(
+        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.TRANSFER,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "transfer",
+              date = 1_700_000_000_000L,
+              accountId = 1L,
+              destinationAccountId = null
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for null destination account",
+      result is BackupValidationResult.Invalid
+    )
+    val errors = (result as BackupValidationResult.Invalid).errors
+    assertTrue(
+      "expected the null-destination error, got: $errors",
+      errors.any { it == "تراکنش انتقالی #0 حساب مقصد ندارد" }
+    )
+  }
+
+  @Test
+  fun rejectsTransferWithSameSourceAndDestination() {
+    // Source account is declared and equals the destination —
+    // validateTransferStructure line 81 must reject it.
+    val payload =
+      BackupPayload(
+        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.TRANSFER,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "transfer",
+              date = 1_700_000_000_000L,
+              accountId = 1L,
+              destinationAccountId = 1L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for same source and destination",
+      result is BackupValidationResult.Invalid
+    )
+    val errors = (result as BackupValidationResult.Invalid).errors
+    assertTrue(
+      "expected the same-source-destination error, got: $errors",
+      errors.any { it == "تراکنش انتقالی #0 مبدا و مقصد یکسان دارند" }
+    )
+  }
+
+  @Test
+  fun rejectsTransactionWithNonexistentPositiveCategory() {
+    val payload =
+      BackupPayload(
+        categories =
+          listOf(
+            Category(id = 1L, name = "خوراک", key = "food", icon = "i", color = 0xFF0000L, type = CategoryType.EXPENSE)
+          ),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 99L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for non-existent category",
+      result is BackupValidationResult.Invalid
+    )
+  }
+
+  @Test
+  fun toleratesTransactionWithZeroCategoryId() {
+    val payload =
+      BackupPayload(
+        categories =
+          listOf(
+            Category(id = 1L, name = "خوراک", key = "food", icon = "i", color = 0xFF0000L, type = CategoryType.EXPENSE)
+          ),
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 0L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Valid for legacy category_id=0", result is BackupValidationResult.Valid)
+  }
+
+  @Test
+  fun rejectsPaymentHistoryWithNonexistentPositiveLoan() {
+    val payload =
+      BackupPayload(
+        paymentHistories =
+          listOf(PaymentHistory(id = 1L, loanId = 99L, amount = 100_000L, date = 1_700_000_000_000L))
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for non-existent loan", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun rejectsPaymentHistoryWithZeroLoanId() {
+    // Field-level rule mirroring Rust validate_payment_history: loan_id must be
+    // positive (test_payment_history_zero_loan_id_rejected). The zero tolerance
+    // only applies to the cross-reference lookup itself.
+    val payload =
+      BackupPayload(
+        paymentHistories =
+          listOf(PaymentHistory(id = 1L, loanId = 0L, amount = 100_000L, date = 1_700_000_000_000L))
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for zero loan id", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun toleratesLegacyAccountIdWhenAccountsEmpty() {
+    val payload =
+      BackupPayload(
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L,
+              accountId = DEFAULT_ACCOUNT_ID
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Valid for legacy default account", result is BackupValidationResult.Valid)
+  }
+
+  @Test
+  fun rejectsLegacyTransferToNonLegacyDestination() {
+    // Legacy backup (no accounts list): the destination check must run
+    // independently of the source check. Even with the legacy default source
+    // account, a non-legacy destination is an orphan — mirroring Rust
+    // test_backup_rejects_non_legacy_dest_account_when_accounts_empty.
+    val payload =
+      BackupPayload(
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.TRANSFER,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "transfer",
+              date = 1_700_000_000_000L,
+              accountId = DEFAULT_ACCOUNT_ID,
+              destinationAccountId = 99L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for non-legacy destination account",
+      result is BackupValidationResult.Invalid
+    )
+    val errors = (result as BackupValidationResult.Invalid).errors
+    assertTrue(
+      "expected a destination-account error, got: $errors",
+      errors.any { it.contains("حساب مقصد") }
+    )
+  }
+
+  @Test
+  fun rejectsTransactionWithNegativeCategoryId() {
+    // Field-level rule mirroring Rust validate_transaction: category_id must
+    // not be negative (test_transaction_negative_category_rejected).
+    val payload =
+      BackupPayload(
+        transactions =
+          listOf(
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = -1L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for negative category id", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun acceptsConsistentBankLoan() {
+    // Mirrors Rust test_valid_bank_loan (validation.rs): monthly 1M x 12 =
+    // 12M repayable, interest = 12M - 10M = 2M.
+    val payload =
+      BackupPayload(
+        bankLoans =
+          listOf(
+            BankLoan(
+              bankName = "بانک ملی",
+              loanName = "x",
+              receivedAmount = 10_000_000L,
+              monthlyInstallmentAmount = 1_000_000L,
+              numberOfInstallments = 12,
+              totalRepayableAmount = 12_000_000L,
+              totalInterest = 2_000_000L,
+              startDate = 1_700_000_000_000L,
+              description = ""
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Valid for a consistent bank loan", result is BackupValidationResult.Valid)
+  }
+
+  @Test
+  fun rejectsBankLoanWithRepayableMismatch() {
+    // Mirrors Rust test_bank_loan_repayable_mismatch_rejected: total_repayable
+    // must equal monthly_installment_amount * number_of_installments.
+    val payload =
+      BackupPayload(
+        bankLoans =
+          listOf(
+            BankLoan(
+              bankName = "بانک ملی",
+              loanName = "x",
+              receivedAmount = 10_000_000L,
+              monthlyInstallmentAmount = 1_000_000L,
+              numberOfInstallments = 12,
+              totalRepayableAmount = 12_000_001L, // 1 off from 12 * 1_000_000
+              totalInterest = 2_000_000L,
+              startDate = 1_700_000_000_000L,
+              description = ""
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for a repayable mismatch", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun rejectsBankLoanWithInterestMismatch() {
+    // Mirrors Rust test_bank_loan_interest_mismatch_rejected: total_interest
+    // must equal total_repayable_amount - received_amount.
+    val payload =
+      BackupPayload(
+        bankLoans =
+          listOf(
+            BankLoan(
+              bankName = "بانک ملی",
+              loanName = "x",
+              receivedAmount = 10_000_000L,
+              monthlyInstallmentAmount = 1_000_000L,
+              numberOfInstallments = 12,
+              totalRepayableAmount = 12_000_000L,
+              totalInterest = 2_000_001L, // 1 off from 12_000_000 - 10_000_000
+              startDate = 1_700_000_000_000L,
+              description = ""
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for an interest mismatch", result is BackupValidationResult.Invalid)
+  }
+
+  @Test
+  fun rejectsBankLoanReceivedExceedsRepayable() {
+    // Mirrors Rust test_bank_loan_received_exceeds_repayable_rejected:
+    // total_repayable_amount must not be less than received_amount.
+    val payload =
+      BackupPayload(
+        bankLoans =
+          listOf(
+            BankLoan(
+              bankName = "بانک ملی",
+              loanName = "x",
+              receivedAmount = 20_000_000L, // exceeds the 12M repayable
+              monthlyInstallmentAmount = 1_000_000L,
+              numberOfInstallments = 12,
+              totalRepayableAmount = 12_000_000L,
+              totalInterest = 0L,
+              startDate = 1_700_000_000_000L,
+              description = ""
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid when received exceeds repayable",
+      result is BackupValidationResult.Invalid
+    )
+  }
+
+  @Test
+  fun rejectsBankLoanRepayableOverflow() {
+    // Mirrors Rust checked_mul overflow rejection in validate_bank_loan
+    // (test_bank_loan_repayable_overflow_rejected): the product
+    // monthly_installment_amount * number_of_installments must not overflow i64.
+    val payload =
+      BackupPayload(
+        bankLoans =
+          listOf(
+            BankLoan(
+              bankName = "بانک ملی",
+              loanName = "x",
+              receivedAmount = 1L,
+              monthlyInstallmentAmount = Long.MAX_VALUE,
+              numberOfInstallments = 2, // Long.MAX_VALUE * 2 overflows
+              totalRepayableAmount = 1L,
+              totalInterest = 0L,
+              startDate = 1_700_000_000_000L,
+              description = ""
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for a repayable overflow", result is BackupValidationResult.Invalid)
+  }
+}

@@ -95,7 +95,7 @@ private data class AccountFormData(
   val color: Long,
 )
 
-private sealed interface AccountDialogState {
+internal sealed interface AccountDialogState {
   data object None : AccountDialogState
 
   data object Add : AccountDialogState
@@ -116,10 +116,32 @@ private sealed interface AccountDialogState {
     val account: AccountEntity
   ) : AccountDialogState
 
+  data class DeleteCheckError(
+    val account: AccountEntity,
+    val message: String
+  ) : AccountDialogState
+
   data class PendingDelete(
     val account: AccountEntity
   ) : AccountDialogState
 }
+
+/**
+ * Maps a [AccountViewModel.DeleteCheckResult] to the dialog state to show.
+ * The ViewModel reports the concrete deletion-block reason, so the UI never
+ * has to infer it from the account list (which could conflate a repository
+ * failure with the transaction-block case).
+ */
+internal fun resolveDeleteDialogState(
+  result: AccountViewModel.DeleteCheckResult,
+  account: AccountEntity
+): AccountDialogState =
+  when (result) {
+    AccountViewModel.DeleteCheckResult.CanDelete -> AccountDialogState.DeleteConfirmation(account)
+    AccountViewModel.DeleteCheckResult.LastActiveAccount -> AccountDialogState.LastAccountWarning(account)
+    AccountViewModel.DeleteCheckResult.HasTransactions -> AccountDialogState.TransactionWarning(account)
+    is AccountViewModel.DeleteCheckResult.CheckFailed -> AccountDialogState.DeleteCheckError(account, result.message)
+  }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("LongMethod")
@@ -136,15 +158,8 @@ fun AccountManagementScreen(
   val currentDialog = dialogState
   if (currentDialog is AccountDialogState.PendingDelete) {
     LaunchedEffect(currentDialog.account) {
-      accountViewModel.canDeleteAccount(currentDialog.account.id) { canDelete ->
-        dialogState =
-          if (canDelete) {
-            AccountDialogState.DeleteConfirmation(currentDialog.account)
-          } else if (accounts.size == 1 && accounts[0].id == currentDialog.account.id) {
-            AccountDialogState.LastAccountWarning(currentDialog.account)
-          } else {
-            AccountDialogState.TransactionWarning(currentDialog.account)
-          }
+      accountViewModel.canDeleteAccount(currentDialog.account.id) { result ->
+        dialogState = resolveDeleteDialogState(result, currentDialog.account)
       }
     }
   }
@@ -248,44 +263,80 @@ private fun AccountManagementDialogs(
         onSave = { form -> onUpdateAccount(dialogState.account, form) }
       )
     is AccountDialogState.DeleteConfirmation ->
-      ConfirmDialog(
-        title = "حذف حساب",
-        message = "آیا از حذف حساب «${dialogState.account.name}» اطمینان دارید؟",
-        confirmText = "حذف",
-        dismissText = "انصراف",
+      DeleteAccountConfirmDialog(
+        account = dialogState.account,
         onDismiss = onDismiss,
-        onConfirm = {
-          onDeleteAccount(dialogState.account)
-          onDismiss()
-        }
+        onConfirmDelete = onDeleteAccount
       )
     is AccountDialogState.TransactionWarning ->
-      ConfirmDialog(
-        title = "امکان حذف حساب",
+      AccountDeleteWarningDialog(
         message =
-          "حساب «${dialogState.account.name}» دارای تراکنش‌های فعال است " +
-            "و امکان حذف آن وجود ندارد. برای غیرفعال کردن حساب، " +
-            "از گزینه آرشیو استفاده کنید.",
-        confirmText = "متوجه شدم",
-        dismissText = "",
-        onConfirm = onDismiss,
-        onDismiss = onDismiss,
-        confirmColor = MaterialTheme.colorScheme.primary
+          stringResource(
+            id = io.github.mojri.hesabyar.R.string.account_delete_transaction_warning_message,
+            dialogState.account.name
+          ),
+        onDismiss = onDismiss
       )
     is AccountDialogState.LastAccountWarning ->
-      ConfirmDialog(
-        title = "امکان حذف حساب",
+      AccountDeleteWarningDialog(
         message =
-          "حساب «${dialogState.account.name}» آخرین حساب است " +
-            "و قابل حذف نیست. حداقل یک حساب باید همیشه باقی بماند.",
-        confirmText = "متوجه شدم",
-        dismissText = "",
-        onConfirm = onDismiss,
-        onDismiss = onDismiss,
-        confirmColor = MaterialTheme.colorScheme.primary
+          stringResource(
+            id = io.github.mojri.hesabyar.R.string.account_delete_last_account_warning_message,
+            dialogState.account.name
+          ),
+        onDismiss = onDismiss
+      )
+    is AccountDialogState.DeleteCheckError ->
+      AccountDeleteWarningDialog(
+        message = dialogState.message,
+        onDismiss = onDismiss
       )
     is AccountDialogState.PendingDelete -> {}
   }
+}
+
+@Composable
+private fun DeleteAccountConfirmDialog(
+  account: AccountEntity,
+  onDismiss: () -> Unit,
+  onConfirmDelete: (AccountEntity) -> Unit
+) {
+  ConfirmDialog(
+    title = stringResource(id = io.github.mojri.hesabyar.R.string.account_delete_title),
+    message =
+      stringResource(
+        id = io.github.mojri.hesabyar.R.string.account_delete_confirm_message,
+        account.name
+      ),
+    confirmText = stringResource(id = io.github.mojri.hesabyar.R.string.delete_label),
+    dismissText = stringResource(id = io.github.mojri.hesabyar.R.string.cancel_label),
+    onDismiss = onDismiss,
+    onConfirm = {
+      onConfirmDelete(account)
+      onDismiss()
+    }
+  )
+}
+
+/**
+ * Warning shown when a delete is refused — either it has active transactions,
+ * it is the last remaining account, or the pre-check itself failed. Only the
+ * [message] differs between the cases.
+ */
+@Composable
+private fun AccountDeleteWarningDialog(
+  message: String,
+  onDismiss: () -> Unit
+) {
+  ConfirmDialog(
+    title = stringResource(id = io.github.mojri.hesabyar.R.string.account_delete_not_allowed_title),
+    message = message,
+    confirmText = stringResource(id = io.github.mojri.hesabyar.R.string.understood_label),
+    dismissText = "",
+    onConfirm = onDismiss,
+    onDismiss = onDismiss,
+    confirmColor = MaterialTheme.colorScheme.primary
+  )
 }
 
 @Composable

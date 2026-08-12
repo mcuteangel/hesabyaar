@@ -99,10 +99,14 @@ fun SettingsScreen(
           if (outputStream != null) {
             backupViewModel.exportCoordinator.writeStagedExportToFile(outputStream)
           } else {
+            // openOutputStream returned null (SAF failure). Reset the export
+            // state so the UI doesn't stay stuck in Exporting with staged data.
+            backupViewModel.exportCoordinator.onExportPickerCancelled()
             settingsViewModel.showMessage("خطا در باز کردن نویسنده فایل")
           }
         } catch (e: Exception) {
           AppLogger.e("SettingsScreen", "خطای ناشناخته در شروع خروجی تفصیلی", e)
+          backupViewModel.exportCoordinator.onExportPickerCancelled()
           settingsViewModel.showMessage("خطا در شروع خروجی تفصیلی")
         }
       } else {

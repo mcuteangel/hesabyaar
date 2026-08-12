@@ -229,9 +229,9 @@ class SubmitManualTransactionUseCaseTest {
         )
       assertFalse(submitResult.success)
 
-      assertEquals(0, fake.allTransactions.first().size)
-      assertEquals(0, fake.allLoans.first().size)
-      assertEquals(0, fake.allInstallments.first().size)
+      assertEquals("nothing must be stored when validation fails", 0, fake.allTransactions.first().size)
+      assertEquals("nothing must be stored when validation fails", 0, fake.allLoans.first().size)
+      assertEquals("nothing must be stored when validation fails", 0, fake.allInstallments.first().size)
     }
 
   @Test
@@ -256,14 +256,14 @@ class SubmitManualTransactionUseCaseTest {
           )
         )
       assertTrue(result.success)
-      assertEquals(null, result.errorMessage)
+      assertEquals("successful submit must not set an error message", null, result.errorMessage)
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(TransactionType.INCOME, stored.first().type)
-      assertEquals(1000L, stored.first().amount)
-      assertEquals("Test income", stored.first().description)
-      assertEquals(1L, stored.first().categoryId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored type must be INCOME", TransactionType.INCOME, stored.first().type)
+      assertEquals("stored amount must match the request", 1000L, stored.first().amount)
+      assertEquals("stored description must match the request", "Test income", stored.first().description)
+      assertEquals("stored categoryId must match the request", 1L, stored.first().categoryId)
     }
 
   @Test
@@ -286,14 +286,14 @@ class SubmitManualTransactionUseCaseTest {
           )
         )
       assertTrue(result.success)
-      assertEquals(null, result.errorMessage)
+      assertEquals("successful submit must not set an error message", null, result.errorMessage)
 
       val stored = fake.allLoans.first()
-      assertEquals(1, stored.size)
-      assertEquals(LoanType.DEBTOR, stored.first().type)
-      assertEquals(2000L, stored.first().originalAmount)
-      assertEquals("Loan desc", stored.first().description)
-      assertEquals("رضا", stored.first().personName)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored loan type must be DEBTOR", LoanType.DEBTOR, stored.first().type)
+      assertEquals("stored loan original amount must match the request", 2000L, stored.first().originalAmount)
+      assertEquals("stored loan description must match the request", "Loan desc", stored.first().description)
+      assertEquals("stored loan person name must match the request", "رضا", stored.first().personName)
     }
 
   @Test
@@ -316,14 +316,14 @@ class SubmitManualTransactionUseCaseTest {
           )
         )
       assertTrue(result.success)
-      assertEquals(null, result.errorMessage)
+      assertEquals("successful submit must not set an error message", null, result.errorMessage)
 
       val installments = fake.allInstallments.first()
-      assertEquals(1, installments.size)
-      assertEquals("Car installment", installments.first().title)
-      assertEquals(30000L, installments.first().amount)
-      assertEquals(true, installments.first().reminderEnabled)
-      assertEquals("Installment notes", installments.first().notes)
+      assertEquals("exactly one installment must be stored", 1, installments.size)
+      assertEquals("stored installment title must match the request", "Car installment", installments.first().title)
+      assertEquals("stored installment amount must match the request", 30000L, installments.first().amount)
+      assertEquals("stored installment reminder must be enabled", true, installments.first().reminderEnabled)
+      assertEquals("stored installment notes must match the request", "Installment notes", installments.first().notes)
     }
 
   @Test
@@ -346,7 +346,7 @@ class SubmitManualTransactionUseCaseTest {
           )
         )
       assertFalse(result.success)
-      assertEquals("نوع تراکنش نامعتبر است", result.errorMessage)
+      assertEquals("error message must explain the invalid type", "نوع تراکنش نامعتبر است", result.errorMessage)
     }
 
   @Test
@@ -385,12 +385,12 @@ class SubmitManualTransactionUseCaseTest {
       assertTrue(result.success)
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
       val updated = stored.first()
-      assertEquals(10L, updated.id)
-      assertEquals(1500L, updated.amount)
-      assertEquals("Updated", updated.description)
-      assertEquals(TransactionType.EXPENSE, updated.type)
+      assertEquals("updated transaction must keep its id", 10L, updated.id)
+      assertEquals("updated amount must match the request", 1500L, updated.amount)
+      assertEquals("updated description must be applied", "Updated", updated.description)
+      assertEquals("updated type must be EXPENSE", TransactionType.EXPENSE, updated.type)
     }
 
   @Test
@@ -429,9 +429,9 @@ class SubmitManualTransactionUseCaseTest {
       assertTrue(result.success)
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(10L, stored.first().id)
-      assertEquals(9L, stored.first().accountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("transaction id must be preserved", 10L, stored.first().id)
+      assertEquals("accountId must be updated", 9L, stored.first().accountId)
     }
 
   @Test
@@ -462,9 +462,9 @@ class SubmitManualTransactionUseCaseTest {
       assertTrue(autoId > 50L)
 
       val stored = fake.allTransactions.first()
-      assertEquals(2, stored.size)
-      assertEquals(50L, stored.first().id)
-      assertEquals(autoId, stored.last().id)
+      assertEquals("exactly two transactions must be stored", 2, stored.size)
+      assertEquals("explicit id must be preserved", 50L, stored.first().id)
+      assertEquals("auto-assigned id must be returned by the insert", autoId, stored.last().id)
     }
 
   @Test
@@ -495,9 +495,9 @@ class SubmitManualTransactionUseCaseTest {
       assertTrue(autoId > 25L)
 
       val stored = fake.allLoans.first()
-      assertEquals(2, stored.size)
-      assertEquals(25L, stored.first().id)
-      assertEquals(autoId, stored.last().id)
+      assertEquals("exactly two transactions must be stored", 2, stored.size)
+      assertEquals("explicit loan id must be preserved", 25L, stored.first().id)
+      assertEquals("auto-assigned id must be returned by the insert", autoId, stored.last().id)
     }
 
   @Test
@@ -550,10 +550,10 @@ class SubmitManualTransactionUseCaseTest {
       assertTrue(result.success)
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(TransactionType.TRANSFER, stored.first().type)
-      assertEquals(5L, stored.first().accountId)
-      assertEquals(9L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored type must be TRANSFER", TransactionType.TRANSFER, stored.first().type)
+      assertEquals("source accountId must be preserved", 5L, stored.first().accountId)
+      assertEquals("destination accountId must be preserved", 9L, stored.first().destinationAccountId)
     }
 
   @Test
@@ -585,10 +585,10 @@ class SubmitManualTransactionUseCaseTest {
         )
       assertTrue(result.success)
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(10L, stored.first().id)
-      assertEquals(5L, stored.first().accountId)
-      assertEquals(9L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("transaction id must be preserved", 10L, stored.first().id)
+      assertEquals("source accountId must be preserved", 5L, stored.first().accountId)
+      assertEquals("destination accountId must be preserved", 9L, stored.first().destinationAccountId)
     }
 
   private fun account(

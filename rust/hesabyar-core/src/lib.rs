@@ -58,8 +58,10 @@ pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, Hesaby
 }
 
 /// Same as [parse_sentence_offline] but with an explicit "now" timestamp
-/// (epoch ms), so callers can make date-relative fields (daysFromNow,
-/// dateOffsetDays) deterministic in tests. Production code uses the
+/// (epoch ms), so callers can make the date-relative `daysFromNow` field
+/// (installment due dates) deterministic in tests. `dateOffsetDays` is NOT
+/// affected by `now_ms` — it is derived purely from relative words like
+/// «دیروز»/«فردا» via `extract_date_offset`. Production code uses the
 /// real-time default via [parse_sentence_offline].
 #[uniffi::export]
 pub fn parse_sentence_offline_at(
@@ -133,6 +135,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             && payload.installments.is_empty()
             && payload.bank_loans.is_empty()
             && payload.categories.is_empty()
+            && payload.accounts.is_empty()
         {
             return Err(HesabyarError::BackupValidation {
                 detail: "Backup contains no data".to_string(),

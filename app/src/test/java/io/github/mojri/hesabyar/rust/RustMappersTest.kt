@@ -239,4 +239,64 @@ class RustMappersTest {
     assertTrue("Long.MAX_VALUE percentage is finite", result.accountBreakdown[0].percentage.isFinite())
     assertEquals("Long.MAX_VALUE single account is 100%", 100.0, result.accountBreakdown[0].percentage.toDouble(), 1.0)
   }
+
+  // --- fromRustInstallment bankLoanId preservation ---------------------------
+
+  @Test
+  fun fromRustInstallmentPreservesBankLoanId() {
+    val result =
+      RustMappers.fromRustInstallment(
+        io.github.mojri.hesabyar.rust.Installment(
+          id = 1L,
+          title = "قسط",
+          amount = 2_000_000L,
+          dueDate = 1_700_000_000_000L,
+          isPaid = false,
+          reminderEnabled = true,
+          notes = "",
+          bankLoanId = 7L
+        )
+      )
+
+    assertEquals("bankLoanId survives Rust→Kotlin mapping", 7L, result.bankLoanId)
+  }
+
+  @Test
+  fun fromRustInstallmentPreservesNullBankLoanId() {
+    val result =
+      RustMappers.fromRustInstallment(
+        io.github.mojri.hesabyar.rust.Installment(
+          id = 2L,
+          title = "قسط بدون وام",
+          amount = 1_000_000L,
+          dueDate = 1_700_000_000_000L,
+          isPaid = true,
+          reminderEnabled = false,
+          notes = "",
+          bankLoanId = null
+        )
+      )
+
+    assertEquals("null bankLoanId stays null", null, result.bankLoanId)
+  }
+
+  @Test
+  fun mapInstallmentPreservesBankLoanIdRoundTrip() {
+    val kotlin =
+      io.github.mojri.hesabyar.data.Installment(
+        id = 3L,
+        title = "قسط",
+        amount = 500_000L,
+        dueDate = 1_700_000_000_000L,
+        isPaid = false,
+        reminderEnabled = true,
+        notes = "",
+        bankLoanId = 42L
+      )
+
+    val rust = RustMappers.mapInstallment(kotlin)
+    val roundTripped = RustMappers.fromRustInstallment(rust)
+
+    assertEquals("bankLoanId survives Kotlin→Rust→Kotlin round-trip", 42L, roundTripped.bankLoanId)
+  }
 }

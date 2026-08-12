@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.data
 
+import android.content.Context
 import androidx.annotation.VisibleForTesting
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.rust.Cell
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.SheetData
@@ -9,7 +11,9 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import java.util.Calendar
 
-class ExcelExporter {
+class ExcelExporter(
+  private val context: Context
+) {
   data class ExportResult(
     val bytes: ByteArray,
     val filename: String,
@@ -128,10 +132,10 @@ class ExcelExporter {
               value =
                 when (tx.type) {
                   TransactionType.INCOME -> "دریافتی"
-                  // Matches the transaction_type_transfer string resource used by
-                  // TransactionDetailDialog — transfers must not collapse into
-                  // the binary income/expense branch.
-                  TransactionType.TRANSFER -> "انتقال وجه"
+                  // Uses transaction_type_transfer string resource for consistency with
+                  // TransactionDetailDialog — transfers must not collapse into the
+                  // binary income/expense branch.
+                  TransactionType.TRANSFER -> context.getString(R.string.transaction_type_transfer)
                   else -> "پرداختی"
                 },
               bold = false

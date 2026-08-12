@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import android.content.Context
 import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupValidationResult
@@ -19,7 +20,8 @@ import java.security.GeneralSecurityException
  */
 class ManageBackupUseCase(
   private val repository: HesabyarRepositoryInterface,
-  private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+  private val application: Context? = null
 ) {
   companion object {
     private const val TAG = "ManageBackupUseCase"
@@ -49,8 +51,9 @@ class ManageBackupUseCase(
      * @return the declared iteration count, or [BackupCipher.PBKDF2_ITERATIONS] when the
      *   field is absent (defensive fallback — every encrypted backup written by this app
      *   includes it, but a foreign or hand-edited backup may not)
-     * @throws IllegalArgumentException if the declared count is below [MIN_ITERATIONS_FLOOR],
-     *   so a tampered backup cannot force a weak key derivation
+     * @throws IllegalArgumentException if the declared count is below [MIN_ITERATIONS_FLOOR]
+     *   or above [MAX_ITERATIONS_CEILING], so a tampered backup cannot force a weak
+     *   key derivation on the low end or a hang (DoS/ANR) on the high end
      */
     fun getEncryptionIterations(rootJson: JSONObject): Int {
       val iterations =
@@ -61,12 +64,15 @@ class ManageBackupUseCase(
       require(iterations >= MIN_ITERATIONS_FLOOR) {
         "Backup declares PBKDF2 iteration count $iterations, below the minimum allowed floor $MIN_ITERATIONS_FLOOR"
       }
+      require(iterations <= MAX_ITERATIONS_CEILING) {
+        "Backup declares PBKDF2 iteration count $iterations, above the maximum allowed ceiling $MAX_ITERATIONS_CEILING"
+      }
       return iterations
     }
   }
 
   private val parser = BackupJsonParser(dispatcher)
-  private val validator = BackupJsonValidator(dispatcher)
+  private val validator = BackupJsonValidator(dispatcher, application)
   private val exporter = BackupPayloadExporter(repository)
 
   /**
@@ -94,7 +100,8 @@ class ManageBackupUseCase(
   suspend fun decryptBackupWithPassphrase(
     backup: BackupPayload,
     rootJson: JSONObject,
-    passphrase: String
+    passphrase: String,
+    dispatcher: CoroutineDispatcher = this.dispatcher
   ): BackupPayload =
     withContext(dispatcher) {
       val salt =
@@ -180,19 +187,4 @@ class ManageBackupUseCase(
     isDarkMode: Boolean = true,
     passphrase: String? = null
   ): JSONObject = exporter.exportBackupJson(isDarkMode, passphrase)
-
-  suspend fun importBackupFromFile(backup: BackupPayload) {
-    repository.replaceAllFromBackup(backup)
-  }
-
-  fun buildBackupSummary(backup: BackupPayload): String = exporter.buildBackupSummary(backup)
-
-  fun buildExportSummary(
-    transCount: Int,
-    loanCount: Int,
-    instCount: Int,
-    catCount: Int,
-    bankLoanCount: Int = 0,
-    accountCount: Int = 0
-  ): String = exporter.buildExportSummary(transCount, loanCount, instCount, catCount, bankLoanCount, accountCount)
 }

@@ -26,9 +26,10 @@ sealed class PassphraseDialogState {
 /**
  * Orchestrates the backup UI flows. The export half lives in
  * [BackupExportCoordinator] and the import/restore half in
- * [BackupImportCoordinator]; this class owns only the cross-flow state
- * ([operationState], [isCryptoInProgress]) and re-exposes the coordinators'
- * state fields so SettingsScreen keeps reading them off the ViewModel.
+ * [BackupImportCoordinator]; this class owns the cross-flow state
+ * ([operationState], [passphraseDialogState], [isCryptoInProgress]) and
+ * re-exposes the coordinators' remaining state fields so SettingsScreen keeps
+ * reading them off the ViewModel.
  */
 @HiltViewModel
 class BackupViewModel
@@ -38,6 +39,9 @@ class BackupViewModel
     manageBackupUseCase: ManageBackupUseCase
   ) : ViewModel() {
     val operationState = mutableStateOf<BackupOperationState>(BackupOperationState.Idle)
+
+    /** Current passphrase dialog state, shared by the import and export flows. */
+    val passphraseDialogState = mutableStateOf<PassphraseDialogState>(PassphraseDialogState.Hidden)
 
     /** True while PBKDF2 derivation + encrypt/decrypt is running (shows loading spinner). */
     val isCryptoInProgress = mutableStateOf(false)
@@ -49,6 +53,7 @@ class BackupViewModel
         manageBackupUseCase = manageBackupUseCase,
         scope = viewModelScope,
         operationState = operationState,
+        passphraseDialogState = passphraseDialogState,
         isCryptoInProgress = isCryptoInProgress
       )
 
@@ -59,7 +64,7 @@ class BackupViewModel
         manageBackupUseCase = manageBackupUseCase,
         scope = viewModelScope,
         operationState = operationState,
-        passphraseDialogState = importCoordinator.passphraseDialogState,
+        passphraseDialogState = passphraseDialogState,
         isCryptoInProgress = isCryptoInProgress
       )
 
@@ -74,9 +79,6 @@ class BackupViewModel
 
     /** Restore mode selected in the confirm-restore dialog (REPLACE or MERGE). */
     val selectedRestoreMode get() = importCoordinator.selectedRestoreMode
-
-    /** Current passphrase dialog state. */
-    val passphraseDialogState get() = importCoordinator.passphraseDialogState
 
     fun clearOperationState() {
       operationState.value = BackupOperationState.Idle

@@ -81,8 +81,14 @@ pub struct Transaction {
     pub destination_account_id: Option<i64>,
 }
 
+/// The single account id that existed before multi-account support. Legacy
+/// (pre-multi-account) backups omit the accounts list entirely and every
+/// transaction must reference this id; validation enforces it via this shared
+/// constant so the check cannot drift from the serde default.
+pub const DEFAULT_ACCOUNT_ID: i64 = 1;
+
 fn default_account_id() -> i64 {
-    1
+    DEFAULT_ACCOUNT_ID
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -151,6 +157,8 @@ pub struct Installment {
     #[serde(alias = "reminderEnabled")]
     pub reminder_enabled: bool,
     pub notes: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "bankLoanId")]
+    pub bank_loan_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]

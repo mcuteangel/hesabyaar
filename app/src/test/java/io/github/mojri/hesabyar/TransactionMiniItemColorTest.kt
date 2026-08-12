@@ -143,4 +143,33 @@ class TransactionMiniItemColorTest {
     // Should still render without crash
     composeRule.onNodeWithText("شام").assertIsDisplayed()
   }
+
+  // -- Test d: transfer is neutral + positive, never a red negative expense ----
+
+  @Test
+  fun transferRendersPositiveAmountWithNeutralColor() {
+    val transaction =
+      Transaction(
+        id = 400L,
+        type = TransactionType.TRANSFER,
+        categoryId = 10L,
+        amount = 100_000L,
+        description = "انتقال به کیف پول",
+        date = 1752580800000L,
+        accountId = 1L,
+        destinationAccountId = 2L,
+      )
+
+    composeRule.setContent {
+      TransactionMiniItem(
+        transaction = transaction,
+        categories = listOf(foodCategory),
+        accounts = listOf(bankAccount, cashAccount),
+      )
+    }
+
+    // A transfer is neither income nor expense: it must render a positive (+)
+    // sign rather than the red, negative "expense" treatment.
+    composeRule.onNodeWithText("+").assertIsDisplayed()
+  }
 }

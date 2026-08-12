@@ -66,19 +66,27 @@ fun buildHostLibrary() {
   }
 }
 
-fun resolveHostArtifact(): File {
-  val osName = System.getProperty("os.name").lowercase()
-  return when {
-    osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
-    osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
-    else -> rustTargetDir.resolve("release/libhesabyar_core.so")
-  }.also { hostLib ->
+/**
+ * OS-specific host-native library file for JNA-backed unit tests.
+ * Shared between [resolveHostArtifact] and the [buildHostRustLib] task to
+ * guarantee both compute the same path without drift.
+ */
+fun hostLibFile(): File =
+  rustTargetDir.resolve(
+    when {
+      System.getProperty("os.name").lowercase().contains("win") -> "release/hesabyar_core.dll"
+      System.getProperty("os.name").lowercase().contains("mac") -> "release/libhesabyar_core.dylib"
+      else -> "release/libhesabyar_core.so"
+    }
+  )
+
+fun resolveHostArtifact(): File =
+  hostLibFile().also { hostLib ->
     if (!hostLib.exists()) {
       throw GradleException("Host library not found at: ${hostLib.absolutePath}")
     }
     logger.lifecycle("Step 2/4: Host library at ${hostLib.name}")
   }
-}
 
 fun generateBindings(
   hostLib: File,
@@ -912,13 +920,7 @@ tasks.register("buildHostRustLib") {
   inputs.file(rustDir.resolve("Cargo.toml"))
   inputs.file(rustDir.resolve("Cargo.lock"))
   inputs.file(rustDir.resolve("hesabyar-core/build.rs"))
-  val osName = System.getProperty("os.name").lowercase()
-  val hostLib =
-    when {
-      osName.contains("win") -> rustTargetDir.resolve("release/hesabyar_core.dll")
-      osName.contains("mac") -> rustTargetDir.resolve("release/libhesabyar_core.dylib")
-      else -> rustTargetDir.resolve("release/libhesabyar_core.so")
-    }
+  val hostLib = hostLibFile()
   outputs.file(hostLib)
   // Local debug keeps incremental caching; CI/release always recompiles.
   outputs.upToDateWhen { !forceRustRegen }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
@@ -32,6 +33,7 @@ class BackupImportCoordinator(
   private val manageBackupUseCase: ManageBackupUseCase,
   private val scope: CoroutineScope,
   private val operationState: MutableState<BackupOperationState>,
+  private val passphraseDialogState: MutableState<PassphraseDialogState>,
   private val isCryptoInProgress: MutableState<Boolean>
 ) {
   @VisibleForTesting
@@ -44,11 +46,17 @@ class BackupImportCoordinator(
   @VisibleForTesting
   internal var cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default
 
+  /**
+   * Tracks the in-flight decrypt coroutine so [cancelPassphraseDialog] can stop
+   * it. Without this, cancelling the dialog only cleared UI state while the
+   * launched job kept running and could still stage/error after the user
+   * believed the import was cancelled. Nulled on completion.
+   */
+  @VisibleForTesting
+  internal var decryptJob: Job? = null
+
   val pendingRestoreBackup = mutableStateOf<BackupPayload?>(null)
   val selectedRestoreMode = mutableStateOf(RestoreMode.REPLACE)
-
-  /** Current passphrase dialog state. */
-  val passphraseDialogState = mutableStateOf<PassphraseDialogState>(PassphraseDialogState.Hidden)
 
   @VisibleForTesting
   internal var pendingImportRawJson: String? = null
@@ -62,14 +70,24 @@ class BackupImportCoordinator(
    * If not encrypted, proceeds directly to validation.
    */
   fun validateAndStageImport(inputStream: InputStream) {
+    // In-flight guard: drop a second submission while a restore is already
+    // running or while this staging pass is still reading/parsing. The check and
+    // the Importing set below are both synchronous on the Main thread, so a
+    // concurrent call sees the busy state immediately — no check-then-set race.
+    if (operationState.value is BackupOperationState.Importing) return
+    operationState.value = BackupOperationState.Importing
     scope.launch {
       try {
-        val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-        val rootJson =
-          try {
-            JSONObject(text)
-          } catch (_: JSONException) {
-            null
+        val (text, rootJson) =
+          withContext(ioDispatcher) {
+            val raw = inputStream.bufferedReader().use { it.readText() }
+            val parsed =
+              try {
+                JSONObject(raw)
+              } catch (_: JSONException) {
+                null
+              }
+            raw to parsed
           }
 
         if (rootJson != null && ManageBackupUseCase.isEncryptedBackup(rootJson)) {
@@ -102,7 +120,7 @@ class BackupImportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_reading_backup_file,
-              e.localizedMessage ?: "خطای ناشناخته"
+              e.localizedMessage ?: application.getString(R.string.error_unknown)
             )
           )
       } catch (e: JSONException) {
@@ -110,9 +128,15 @@ class BackupImportCoordinator(
           BackupOperationState.Error(
             application.getString(
               R.string.error_parsing_backup_file,
-              e.localizedMessage ?: "خطای ناشناخته"
+              e.localizedMessage ?: application.getString(R.string.error_unknown)
             )
           )
+      } finally {
+        // Release the busy state unless a terminal state (Error /
+        // ValidationFailed) already replaced it — a later flow may set a new one.
+        if (operationState.value is BackupOperationState.Importing) {
+          operationState.value = BackupOperationState.Idle
+        }
       }
     }
   }
@@ -123,6 +147,7 @@ class BackupImportCoordinator(
    * Uses a single generic error message since wrong-passphrase and tampered-file
    * are cryptographically indistinguishable.
    */
+  @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
   fun decryptAndStageImport(passphrase: String) {
     val rawJson = pendingImportRawJson
     val salt = pendingImportSalt
@@ -131,50 +156,59 @@ class BackupImportCoordinator(
       return
     }
 
-    scope.launch {
-      isCryptoInProgress.value = true
-      try {
-        val parsed =
-          parseBackupOrReportError(rawJson) ?: run {
-            // Structural parse error — clear staged data and dismiss dialog
-            pendingImportRawJson = null
-            pendingImportSalt = null
-            passphraseDialogState.value = PassphraseDialogState.Hidden
-            return@launch
-          }
-        val rootJson = JSONObject(rawJson)
-        val decrypted =
-          withContext(cryptoDispatcher) {
-            manageBackupUseCase.decryptBackupWithPassphrase(parsed, rootJson, passphrase)
-          }
-        // Success — clear staged data and dismiss dialog
-        pendingImportRawJson = null
-        pendingImportSalt = null
-        passphraseDialogState.value = PassphraseDialogState.Hidden
-        stageValidatedBackup(decrypted)
-      } catch (e: CancellationException) {
-        // Coroutine cancelled (e.g. ViewModel cleared) — propagate, do not
-        // surface it as a wrong-passphrase/corrupt-backup failure.
-        throw e
-      } catch (_: Exception) {
-        // Wrong passphrase or tampered ciphertext — keep staged data for retry
-        passphraseDialogState.value =
-          PassphraseDialogState.ImportPassphrase(
-            salt,
-            application.getString(R.string.passphrase_wrong_or_corrupt)
-          )
-        operationState.value =
-          BackupOperationState.Error(application.getString(R.string.passphrase_wrong_or_corrupt))
-      } finally {
-        isCryptoInProgress.value = false
+    // Cancel any prior in-flight decrypt before launching a new attempt so only
+    // one job can ever write dialog/operation/pending state.
+    decryptJob?.cancel()
+    val job =
+      scope.launch {
+        isCryptoInProgress.value = true
+        try {
+          val parsed =
+            parseBackupOrReportError(rawJson) ?: run {
+              // Structural parse error — clear staged data and dismiss dialog
+              pendingImportRawJson = null
+              pendingImportSalt = null
+              passphraseDialogState.value = PassphraseDialogState.Hidden
+              return@launch
+            }
+          val rootJson = JSONObject(rawJson)
+          val decrypted =
+            manageBackupUseCase.decryptBackupWithPassphrase(parsed, rootJson, passphrase, cryptoDispatcher)
+          // Success — clear staged data and dismiss dialog
+          pendingImportRawJson = null
+          pendingImportSalt = null
+          passphraseDialogState.value = PassphraseDialogState.Hidden
+          stageValidatedBackup(decrypted)
+        } catch (e: CancellationException) {
+          // Coroutine cancelled (e.g. ViewModel cleared or dialog cancelled) —
+          // propagate, do not surface it as a wrong-passphrase/corrupt-backup failure.
+          throw e
+        } catch (_: Exception) {
+          // Wrong passphrase or tampered ciphertext — keep staged data for retry
+          passphraseDialogState.value =
+            PassphraseDialogState.ImportPassphrase(
+              salt,
+              application.getString(R.string.passphrase_wrong_or_corrupt)
+            )
+          operationState.value =
+            BackupOperationState.Error(application.getString(R.string.passphrase_wrong_or_corrupt))
+        } finally {
+          isCryptoInProgress.value = false
+          // Only clear the tracked reference if it still points at this coroutine's
+          // job — a newer decryptAndStageImport call may have replaced it.
+          if (decryptJob === coroutineContext[Job]) decryptJob = null
+        }
       }
-    }
+    decryptJob = job
   }
 
   /**
-   * Cancel the passphrase dialog and clean up any staged import data.
+   * Cancel the passphrase dialog, stop any in-flight decrypt, and clean up any
+   * staged import data.
    */
   fun cancelPassphraseDialog() {
+    decryptJob?.cancel()
+    decryptJob = null
     passphraseDialogState.value = PassphraseDialogState.Hidden
     pendingImportRawJson = null
     pendingImportSalt = null
@@ -194,44 +228,86 @@ class BackupImportCoordinator(
 
   // --- Restore execution ---
 
+  // Safety-net: catch general Exception (e.g. Room/SQLite write failure) → Error state;
+  // CancellationException is rethrown first. Placed on the enclosing function per convention.
+  @Suppress("TooGenericExceptionCaught")
   fun executeRestore() {
+    // In-flight guard: drop a duplicate submission (e.g. a double-tap on the
+    // restore-confirm button). Setting Importing synchronously below (before any
+    // launching) makes the check-and-set atomic on the single-threaded Main
+    // dispatcher, so a second call sees the busy state immediately.
+    if (operationState.value is BackupOperationState.Importing) return
     val backup = pendingRestoreBackup.value ?: return
     val mode = selectedRestoreMode.value
 
+    operationState.value = BackupOperationState.Importing
     scope.launch {
-      operationState.value = BackupOperationState.Importing
       try {
         manageBackupUseCase.executeRestore(backup, mode)
         applySettings(backup.settings)
         operationState.value =
           BackupOperationState.ImportSuccess(
             when (mode) {
-              RestoreMode.REPLACE -> "بازیابی کامل با موفقیت انجام شد. ${manageBackupUseCase.buildBackupSummary(
-                backup
-              )}"
-              RestoreMode.MERGE -> "ادغام پشتیبان با موفقیت انجام شد."
-              else -> "عملیات با موفقیت انجام شد."
+              RestoreMode.REPLACE ->
+                application.getString(
+                  R.string.restore_success_replace,
+                  backup.transactions.size,
+                  backup.loans.size,
+                  backup.installments.size,
+                  backup.categories.size,
+                  backup.bankLoans.size,
+                  backup.accounts.size
+                )
+              RestoreMode.MERGE -> application.getString(R.string.restore_success_merge)
             }
           )
         pendingRestoreBackup.value = null
+      } catch (e: CancellationException) {
+        // Coroutine cancelled (e.g. ViewModel cleared) — propagate, do not surface
+        // it as a restore failure (matches decryptAndStageImport convention).
+        throw e
       } catch (e: IOException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "خطا در دسترسی به فایل پشتیبان: ${e.localizedMessage ?: "خطای ورودی/خروجی"}"
-          )
+        operationState.value = restoreErrorState(e)
       } catch (e: SecurityException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "دسترسی به فایل پشتیبان غیرمجاز است: ${e.localizedMessage ?: ""}"
-          )
+        operationState.value = restoreErrorState(e)
       } catch (e: IllegalArgumentException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "تنظیمات پشتیبان نامعتبر است: ${e.localizedMessage ?: ""}"
-          )
+        operationState.value = restoreErrorState(e)
+      } catch (e: Exception) {
+        // Anything else (e.g. a Room/SQLite failure during write) must surface as
+        // an Error state instead of escaping the coroutine uncaught and leaving
+        // the UI stuck in Importing / crashing the scope. This is a safety-net
+        // catch per the AGENTS.md convention (specific catches come first).
+        operationState.value = restoreErrorState(e)
       }
     }
   }
+
+  /**
+   * Maps an exception thrown during restore execution to the user-facing Error
+   * state. The `when` mirrors the specific-catches-first convention of
+   * [executeRestore]: dedicated messages for the known failure types, with the
+   * generic branch as the safety-net for anything else (e.g. a Room/SQLite
+   * write failure).
+   */
+  private fun restoreErrorState(e: Exception): BackupOperationState.Error =
+    BackupOperationState.Error(
+      when (e) {
+        is IOException ->
+          application.getString(
+            R.string.error_backup_file_access,
+            e.localizedMessage ?: application.getString(R.string.error_io)
+          )
+        is SecurityException ->
+          application.getString(R.string.error_backup_file_access_denied, e.localizedMessage ?: "")
+        is IllegalArgumentException ->
+          application.getString(R.string.error_backup_invalid_settings, e.localizedMessage ?: "")
+        else ->
+          application.getString(
+            R.string.error_restore_generic,
+            e.localizedMessage ?: application.getString(R.string.error_unspecified)
+          )
+      }
+    )
 
   private fun applySettings(settings: BackupSettings) {
     application
@@ -257,39 +333,5 @@ class BackupImportCoordinator(
 
   fun cancelPendingRestore() {
     pendingRestoreBackup.value = null
-  }
-
-  /**
-   * Legacy import path (always REPLACE mode, no passphrase support).
-   * Kept for backward compatibility; new code should use
-   * [validateAndStageImport] + [executeRestore].
-   */
-  fun importBackupFromFile(inputStream: InputStream) {
-    scope.launch {
-      operationState.value = BackupOperationState.Importing
-      try {
-        val text = withContext(ioDispatcher) { inputStream.bufferedReader().use { it.readText() } }
-        val backup = parseBackupOrReportError(text) ?: return@launch
-        manageBackupUseCase.importBackupFromFile(backup)
-        operationState.value = BackupOperationState.ImportSuccess("وارد کردن پشتیبان با موفقیت انجام شد.")
-      } catch (e: IOException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "خطا در خواندن فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-          )
-      } catch (e: JSONException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "خطا در تجزیه فایل پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-          )
-      } catch (e: CancellationException) {
-        throw e
-      } catch (e: IllegalStateException) {
-        operationState.value =
-          BackupOperationState.Error(
-            "خطا در وارد کردن پشتیبان: ${e.localizedMessage ?: "خطای ناشناخته"}"
-          )
-      }
-    }
   }
 }

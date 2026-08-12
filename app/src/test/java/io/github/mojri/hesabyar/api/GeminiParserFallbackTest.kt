@@ -44,31 +44,31 @@ class GeminiParserFallbackTest {
   // --- success: amount extraction ---
 
   @Test
-  fun `fallback extracts million amount`() {
+  fun fallbackExtractsMillionAmount() {
     val result = parse("غذا خریدم 5 میلیون")
     assertEquals(50_000_000L, result!!.amount)
   }
 
   @Test
-  fun `fallback extracts thousand amount`() {
+  fun fallbackExtractsThousandAmount() {
     val result = parse("بنزین خریدم 450 هزار تومان")
     assertEquals(4_500_000L, result!!.amount)
   }
 
   @Test
-  fun `fallback extracts plain comma amount`() {
+  fun fallbackExtractsPlainCommaAmount() {
     val result = parse("1,500,000 تومان خرج کردم")
     assertEquals(15_000_000L, result!!.amount)
   }
 
   @Test
-  fun `fallback normalizes persian numerals to amount`() {
+  fun fallbackNormalizesPersianNumeralsToAmount() {
     val result = parse("بنزین زدم ۶۰۰ هزار تومان")
     assertEquals(6_000_000L, result!!.amount)
   }
 
   @Test
-  fun `fallback overflowing million amount returns null instead of wrapping`() {
+  fun fallbackOverflowingMillionAmountReturnsNullInsteadOfWrapping() {
     // 9,999,999,999,999,999 * 1_000_000 * 10 overflows Long; must return null
     // rather than a wrapped/negative amount.
     assertNull(parse("9999999999999999 میلیون خرج کردم"))
@@ -77,7 +77,7 @@ class GeminiParserFallbackTest {
   // --- success: type detection ---
 
   @Test
-  fun `fallback detects income via keyword`() {
+  fun fallbackDetectsIncomeViaKeyword() {
     val result = parse("حقوق گرفتم 20 میلیون")
     assertEquals("INCOME", result!!.type)
     assertEquals("Income", result.category)
@@ -85,21 +85,21 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `fallback detects installment via قسط keyword`() {
+  fun fallbackDetectsInstallmentViaQestKeyword() {
     val result = parse("قسط ماشین 3 میلیون")
     assertEquals("INSTALLMENT", result!!.type)
     assertEquals("Installments", result.category)
   }
 
   @Test
-  fun `fallback does not mistake فروشگاه for sale income`() {
+  fun fallbackDoesNotMistakeForooshgahForSaleIncome() {
     val result = parse("فروشگاه رفتم 200 هزار")
     assertEquals("EXPENSE", result!!.type)
     assertEquals("Shopping", result.category)
   }
 
   @Test
-  fun `fallback detects loan debtor via قرض دادم`() {
+  fun fallbackDetectsLoanDebtorViaGharzDadam() {
     val result = parse("به علی 5 میلیون قرض دادم")
     assertEquals("LOAN_DEBTOR", result!!.type)
     assertEquals("Loans", result.category)
@@ -107,7 +107,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `fallback detects loan creditor via قرض گرفتم`() {
+  fun fallbackDetectsLoanCreditorViaGharzGereftam() {
     val result = parse("از رضا 2 میلیون قرض گرفتم")
     assertEquals("LOAN_CREDITOR", result!!.type)
     assertEquals("Loans", result.category)
@@ -115,7 +115,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `fallback defaults to expense`() {
+  fun fallbackDefaultsToExpense() {
     val result = parse("غذا خریدم 100 هزار")
     assertEquals("EXPENSE", result!!.type)
   }
@@ -123,19 +123,19 @@ class GeminiParserFallbackTest {
   // --- success: category detection ---
 
   @Test
-  fun `fallback maps food keyword to Food`() {
+  fun fallbackMapsFoodKeywordToFood() {
     val result = parse("غذا خریدم 100 هزار")
     assertEquals("Food", result!!.category)
   }
 
   @Test
-  fun `fallback maps bill keyword to Bills`() {
+  fun fallbackMapsBillKeywordToBills() {
     val result = parse("قبض برق دادم 200 هزار")
     assertEquals("Bills", result!!.category)
   }
 
   @Test
-  fun `fallback defaults unknown to Other`() {
+  fun fallbackDefaultsUnknownToOther() {
     val result = parse("شیء عجیب 50 هزار")
     assertEquals("Other", result!!.category)
   }
@@ -143,19 +143,19 @@ class GeminiParserFallbackTest {
   // --- success: person name ---
 
   @Test
-  fun `fallback extracts person name after به`() {
+  fun fallbackExtractsPersonNameAfterTo() {
     val result = parse("به رضا 2 میلیون قرض دادم")
     assertEquals("رضا", result!!.personName)
   }
 
   @Test
-  fun `fallback extracts person name after از`() {
+  fun fallbackExtractsPersonNameAfterFrom() {
     val result = parse("از علی 5 میلیون قرض گرفتم")
     assertEquals("علی", result!!.personName)
   }
 
   @Test
-  fun `fallback has no person name when absent`() {
+  fun fallbackHasNoPersonNameWhenAbsent() {
     val result = parse("غذا خریدم 100 هزار")
     assertNull(result!!.personName)
   }
@@ -163,13 +163,13 @@ class GeminiParserFallbackTest {
   // --- success: date offset ---
 
   @Test
-  fun `fallback detects yesterday offset`() {
+  fun fallbackDetectsYesterdayOffset() {
     val result = parse("دیروز 500 هزار خرج کردم")
     assertEquals(-1, result!!.dateOffsetDays)
   }
 
   @Test
-  fun `explicit date does not match month name inside longer word like دیروز`() {
+  fun explicitDateDoesNotMatchMonthNameInsideLongerWordLikeDirooz() {
     // "5 دیروز" must not be read as "5 دی" (Dey 5); the month name requires a
     // letter boundary after it. The sentence still contains the relative word
     // "دیروز", so the offset should resolve to yesterday (-1), not a Dey offset.
@@ -178,19 +178,19 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `fallback detects tomorrow offset`() {
+  fun fallbackDetectsTomorrowOffset() {
     val result = parse("فردا 1 میلیون واریز می‌کنم")
     assertEquals(1, result!!.dateOffsetDays)
   }
 
   @Test
-  fun `fallback defaults offset to zero`() {
+  fun fallbackDefaultsOffsetToZero() {
     val result = parse("غذا خریدم 100 هزار")
     assertEquals(0, result!!.dateOffsetDays)
   }
 
   @Test
-  fun `fallback parses explicit Jalali date to day offset`() {
+  fun fallbackParsesExplicitJalaliDateToDayOffset() {
     // Pinned today = 1405/04/10 (10 Tir). Future month (Mordad 5) →
     // positive offset; earlier month (Khordad 5) → next year → positive.
     val future = parse("خرج ۱۰۰ هزار مرداد ۵", fixedToday)
@@ -203,7 +203,7 @@ class GeminiParserFallbackTest {
   // --- explicit Jalali date: day-month format (e.g. "۲۵ تیر") ---
 
   @Test
-  fun `explicit Jalali date day-month format parses correctly`() {
+  fun explicitJalaliDateDayMonthFormatParsesCorrectly() {
     // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
     val result = parse("خریدم ۱۰۰ هزار ۱۱ تیر", fixedToday)
     assertNotNull(result)
@@ -214,7 +214,7 @@ class GeminiParserFallbackTest {
   // --- explicit Jalali date: month-day format (e.g. "تیر ۲۵") ---
 
   @Test
-  fun `explicit Jalali date month-day format parses correctly`() {
+  fun explicitJalaliDateMonthDayFormatParsesCorrectly() {
     // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
     val result = parse("خریدم ۱۰۰ هزار تیر ۱۱", fixedToday)
     assertNotNull(result)
@@ -225,7 +225,7 @@ class GeminiParserFallbackTest {
   // --- same-month zero offset ---
 
   @Test
-  fun `explicit Jalali date same day yields zero offset`() {
+  fun explicitJalaliDateSameDayYieldsZeroOffset() {
     // Pinned today = 1405/04/10. Parse "10 Tir" → offset 0.
     val result = parse("خریدم ۱۰۰ هزار ۱۰ تیر", fixedToday)
     assertNotNull(result)
@@ -235,7 +235,7 @@ class GeminiParserFallbackTest {
   // --- edge-case day numbers ---
 
   @Test
-  fun `explicit Jalali date day 1 parses correctly`() {
+  fun explicitJalaliDateDayOneParsesCorrectly() {
     // Pinned today = 1405/04/10. Day 1 < 10 → past → next year → non-null.
     val result = parse("خریدم ۱۰۰ هزار ۱ تیر", fixedToday)
     assertNotNull(result)
@@ -243,7 +243,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `explicit Jalali date day 31 parses correctly for 31-day months`() {
+  fun explicitJalaliDateDay31ParsesCorrectlyFor31DayMonths() {
     // Farvardin (month 1) always has 31 days in Jalali. 31 Farvardin
     // is before 10 Tir → past → next year → non-null.
     val result = parse("خریدم ۱۰۰ هزار ۳۱ فروردین", fixedToday)
@@ -254,7 +254,7 @@ class GeminiParserFallbackTest {
   // --- year-boundary: month < today.month means next year ---
 
   @Test
-  fun `explicit Jalali date in earlier month uses next year`() {
+  fun explicitJalaliDateInEarlierMonthUsesNextYear() {
     // Pinned today = 1405/04/10. Earlier month = Khordad (3).
     // 5 Khordad → next year → positive offset.
     val result = parse("خریدم ۱۰۰ هزار ۵ خرداد", fixedToday)
@@ -267,7 +267,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `explicit Jalali date in same or later month uses current year`() {
+  fun explicitJalaliDateInSameOrLaterMonthUsesCurrentYear() {
     // Pinned today = 1405/04/10. testDay = 11 → same month, 1 day ahead.
     val result = parse("خریدم ۱۰۰ هزار ۱۱ تیر", fixedToday)
     assertNotNull(result)
@@ -278,13 +278,13 @@ class GeminiParserFallbackTest {
   // --- no Jalali date found ---
 
   @Test
-  fun `no Jalali date returns null offset via relative word fallback`() {
+  fun noJalaliDateReturnsNullOffsetViaRelativeWordFallback() {
     val result = parse("خریدم ۱۰۰ هزار غذا")
     assertEquals(0, result!!.dateOffsetDays)
   }
 
   @Test
-  fun `relative word still works when no explicit Jalali date present`() {
+  fun relativeWordStillWorksWhenNoExplicitJalaliDatePresent() {
     val result = parse("دیروز ۱۰۰ هزار خرج کردم")
     assertEquals(-1, result!!.dateOffsetDays)
   }
@@ -292,14 +292,14 @@ class GeminiParserFallbackTest {
   // --- success: fixed fallback metadata ---
 
   @Test
-  fun `fallback uses raw sentence as description`() {
+  fun fallbackUsesRawSentenceAsDescription() {
     val sentence = "غذا خریدم 100 هزار"
     val result = parse(sentence)
     assertEquals(sentence, result!!.description)
   }
 
   @Test
-  fun `fallback sets fixed confidence and null rich fields`() {
+  fun fallbackSetsFixedConfidenceAndNullRichFields() {
     val result = parse("غذا خریدم 100 هزار")
     assertEquals(0.5f, result!!.confidence, 0.001f)
     assertNull(result.daysFromNow)
@@ -312,22 +312,22 @@ class GeminiParserFallbackTest {
   // --- failure paths ---
 
   @Test
-  fun `fallback returns null when no amount present`() {
+  fun fallbackReturnsNullWhenNoAmountPresent() {
     assertNull(parse("متن بدون پول"))
   }
 
   @Test
-  fun `fallback returns null for empty string`() {
+  fun fallbackReturnsNullForEmptyString() {
     assertNull(parse(""))
   }
 
   @Test
-  fun `fallback returns null for blank text`() {
+  fun fallbackReturnsNullForBlankText() {
     assertNull(parse("   "))
   }
 
   @Test
-  fun `fallback returns null when only zero amount`() {
+  fun fallbackReturnsNullWhenOnlyZeroAmount() {
     assertNull(parse("0 تومان"))
   }
 
@@ -338,7 +338,7 @@ class GeminiParserFallbackTest {
   private fun parseJson(json: String) = GeminiParser.parseJsonResultFallback(json)
 
   @Test
-  fun `json fallback converts toman to rial`() {
+  fun jsonFallbackConvertsTomanToRial() {
     val json = """{"type":"EXPENSE","amount":5000000,"category":"Food","description":"مرغ"}"""
     val result = parseJson(json)
     assertNotNull(result)
@@ -346,7 +346,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `json fallback large amount converts correctly`() {
+  fun jsonFallbackLargeAmountConvertsCorrectly() {
     val json = """{"type":"INCOME","amount":20000000,"category":"Income","description":"حقوق"}"""
     val result = parseJson(json)
     assertNotNull(result)
@@ -354,7 +354,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `json fallback small amount converts correctly`() {
+  fun jsonFallbackSmallAmountConvertsCorrectly() {
     val json = """{"type":"EXPENSE","amount":50000,"category":"Food","description":"نان"}"""
     val result = parseJson(json)
     assertNotNull(result)
@@ -362,7 +362,7 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `json fallback one toman converts to ten rial`() {
+  fun jsonFallbackOneTomanConvertsToTenRial() {
     val json = """{"type":"EXPENSE","amount":1,"category":"Other","description":"test"}"""
     val result = parseJson(json)
     assertNotNull(result)
@@ -370,42 +370,42 @@ class GeminiParserFallbackTest {
   }
 
   @Test
-  fun `json fallback zero amount returns null`() {
+  fun jsonFallbackZeroAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":0,"category":"Food","description":"test"}"""
     assertNull(parseJson(json))
   }
 
   @Test
-  fun `json fallback negative amount returns null`() {
+  fun jsonFallbackNegativeAmountReturnsNull() {
     val json = """{"type":"EXPENSE","amount":-5000,"category":"Food","description":"test"}"""
     assertNull(parseJson(json))
   }
 
   @Test
-  fun `json fallback overflowing amount returns null`() {
+  fun jsonFallbackOverflowingAmountReturnsNull() {
     // Long.MAX_VALUE / 10 = 922337203685477580; anything above overflows
     val json = """{"type":"EXPENSE","amount":922337203685477581,"category":"Food","description":"test"}"""
     assertNull(parseJson(json))
   }
 
   @Test
-  fun `json fallback missing amount returns null`() {
+  fun jsonFallbackMissingAmountReturnsNull() {
     val json = """{"type":"EXPENSE","category":"Food","description":"test"}"""
     assertNull(parseJson(json))
   }
 
   @Test
-  fun `json fallback malformed json returns null`() {
+  fun jsonFallbackMalformedJsonReturnsNull() {
     assertNull(parseJson("{invalid json"))
   }
 
   @Test
-  fun `json fallback empty string returns null`() {
+  fun jsonFallbackEmptyStringReturnsNull() {
     assertNull(parseJson(""))
   }
 
   @Test
-  fun `json fallback preserves all fields`() {
+  fun jsonFallbackPreservesAllFields() {
     val json =
       """{"type":"INSTALLMENT","amount":3000000,"category":"Installments","""" +
         """description":"قسط ماشین","personName":"علی","dateOffsetDays":5,"""" +

@@ -1,10 +1,13 @@
 package io.github.mojri.hesabyar.ui
 
+import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -24,6 +27,7 @@ import javax.inject.Inject
 class AccountViewModel
   @Inject
   constructor(
+    @ApplicationContext private val context: Context,
     private val repository: HesabyarRepositoryInterface
   ) : ViewModel() {
     val accounts: StateFlow<List<AccountEntity>> =
@@ -49,6 +53,24 @@ class AccountViewModel
       data class InsertError(
         val message: String
       ) : AddAccountResult()
+    }
+
+    /**
+     * Sealed result type for the delete pre-check ([canDeleteAccount]) so the
+     * UI can distinguish *why* an account cannot be deleted instead of inferring
+     * the reason from the account list — a repository failure must not be shown
+     * as a misleading "has active transactions" warning.
+     */
+    sealed class DeleteCheckResult {
+      data object CanDelete : DeleteCheckResult()
+
+      data object HasTransactions : DeleteCheckResult()
+
+      data object LastActiveAccount : DeleteCheckResult()
+
+      data class CheckFailed(
+        val message: String
+      ) : DeleteCheckResult()
     }
 
     /**
@@ -126,29 +148,58 @@ class AccountViewModel
         // prevent TOCTOU race conditions.
         val count = repository.getTransactionCountForAccount(account.id)
         if (count > 0) {
-          _errorEvents.emit("حساب «${account.name}» دارای $count تراکنش است و قابل حذف نیست")
+          _errorEvents.emit(
+            context.getString(
+              R.string.account_delete_transaction_count_error,
+              account.name,
+              count
+            )
+          )
           return@runGuarded
         }
         val allAccounts = repository.getAllAccounts()
-        if (allAccounts.size == 1 && allAccounts[0].id == account.id) {
-          _errorEvents.emit("حساب «${account.name}» آخرین حساب است و قابل حذف نیست")
+        val activeAccountCount = allAccounts.count { !it.isArchived }
+        if (activeAccountCount == 1 && !account.isArchived) {
+          _errorEvents.emit(
+            context.getString(
+              R.string.account_delete_last_active_account_error,
+              account.name
+            )
+          )
           return@runGuarded
         }
         repository.deleteAccount(account)
       }
 
+    /**
+     * Pre-checks whether [accountId] may be deleted. Reports the concrete
+     * reason via [onResult] — a repository failure is reported as
+     * [DeleteCheckResult.CheckFailed] (with the user-facing message) instead of
+     * being conflated with the transaction-block or last-account cases.
+     */
     fun canDeleteAccount(
       accountId: Long,
-      onResult: (Boolean) -> Unit
-    ) = runGuarded(errorPrefix = "بررسی حساب", onError = { onResult(false) }) {
+      onResult: (DeleteCheckResult) -> Unit
+    ) = runGuarded(
+      errorPrefix = "بررسی حساب",
+      onError = { message -> onResult(DeleteCheckResult.CheckFailed(message)) }
+    ) {
       val count = repository.getTransactionCountForAccount(accountId)
       if (count > 0) {
-        onResult(false)
+        onResult(DeleteCheckResult.HasTransactions)
         return@runGuarded
       }
       val allAccounts = repository.getAllAccounts()
-      val isLastAccount = allAccounts.size == 1 && allAccounts[0].id == accountId
-      onResult(!isLastAccount)
+      val activeAccountCount = allAccounts.count { !it.isArchived }
+      val isLastActiveAccount =
+        activeAccountCount == 1 && allAccounts.firstOrNull { it.id == accountId }?.isArchived == false
+      onResult(
+        if (isLastActiveAccount) {
+          DeleteCheckResult.LastActiveAccount
+        } else {
+          DeleteCheckResult.CanDelete
+        }
+      )
     }
 
     fun archiveAccount(account: AccountEntity) =
@@ -160,11 +211,13 @@ class AccountViewModel
 
     /**
      * Runs [action] in the viewModelScope and converts DB-layer failures into
-     * user-facing error events. Keeps the account operations above DRY.
+     * user-facing error events. [onError] receives the same user-facing message
+     * when present, so callers can report *why* an operation failed rather than
+     * a bare boolean. Keeps the account operations above DRY.
      */
     private fun runGuarded(
       errorPrefix: String,
-      onError: (() -> Unit)? = null,
+      onError: ((String) -> Unit)? = null,
       action: suspend () -> Unit
     ) {
       viewModelScope.launch {
@@ -174,12 +227,14 @@ class AccountViewModel
           throw e
         } catch (e: SQLiteException) {
           Log.e(TAG, "$errorPrefix failed", e)
-          _errorEvents.emit("خطا در $errorPrefix: ${e.localizedMessage ?: "خطای پایگاه داده"}")
-          onError?.invoke()
+          val message = "خطا در $errorPrefix: ${e.localizedMessage ?: "خطای پایگاه داده"}"
+          _errorEvents.emit(message)
+          onError?.invoke(message)
         } catch (e: IllegalStateException) {
           Log.e(TAG, "$errorPrefix failed", e)
-          _errorEvents.emit("خطا در $errorPrefix: ${e.localizedMessage ?: "خطای ناشناخته"}")
-          onError?.invoke()
+          val message = "خطا در $errorPrefix: ${e.localizedMessage ?: "خطای ناشناخته"}"
+          _errorEvents.emit(message)
+          onError?.invoke(message)
         }
       }
     }

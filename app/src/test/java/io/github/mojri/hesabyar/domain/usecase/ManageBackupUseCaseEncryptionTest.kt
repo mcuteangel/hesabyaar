@@ -4,13 +4,17 @@ import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Tests for the PBKDF2 iteration count in the backup encryption metadata:
@@ -147,6 +151,34 @@ class ManageBackupUseCaseEncryptionTest {
   }
 
   @Test
+  fun getEncryptionIterationsRejectsAbsurdAboveCeilingCount() {
+    // An attacker-crafted backup declaring an absurd work factor (e.g. Int.MAX_VALUE)
+    // must be rejected up front by getEncryptionIterations — before any key derivation
+    // is attempted — otherwise PBKDF2 would block the crypto thread for minutes/hours
+    // (DoS/ANR). This is the upper-bound mirror of the below-floor check.
+    val absurdIterations = 50_000_000
+    val rootJson =
+      JSONObject().apply {
+        put(
+          "sensitiveFieldsEncryption",
+          JSONObject().apply { put("iterations", absurdIterations) }
+        )
+      }
+
+    val e =
+      org.junit.Assert.assertThrows(
+        "Above-ceiling iteration count must be rejected before key derivation",
+        IllegalArgumentException::class.java
+      ) {
+        ManageBackupUseCase.getEncryptionIterations(rootJson)
+      }
+    assertTrue(
+      "Error message must name the offending count, got: ${e.message}",
+      e.message!!.contains("50000000")
+    )
+  }
+
+  @Test
   fun decryptFallsBackToDefaultIterationsWhenFieldMissing() {
     val passphrase = "my-secret-passphrase"
     val realCard = "6219861012345678"
@@ -240,6 +272,99 @@ class ManageBackupUseCaseEncryptionTest {
     assertTrue(
       "Error must identify the missing metadata, got: ${e.message}",
       e.message!!.contains("does not contain encryption metadata")
+    )
+  }
+
+  /**
+   * Proves that [ManageBackupUseCase.decryptBackupWithPassphrase] runs the
+   * PBKDF2 key-derivation on the dispatcher supplied by the caller (the
+   * cryptoDispatcher wired in from [io.github.mojri.hesabyar.ui.BackupImportCoordinator]),
+   * NOT on the class-level default (Dispatchers.IO).
+   *
+   * The class is constructed with a "throwing" default dispatcher: if the
+   * function ignored the caller-supplied param and dispatched to the class
+   * default instead, the derivation would throw AssertionError and the test
+   * would fail. The caller-supplied dispatcher is a recording wrapper around
+   * Dispatchers.Default that delegates so the blocking PBKDF2 work actually
+   * executes — and its dispatch flag is asserted true.
+   */
+  @Test
+  fun decryptBackupWithPassphraseRunsDerivationOnCallerDispatcherNotClassDefault() {
+    val passphrase = "my-secret-passphrase"
+    val realCard = "6037997112345678"
+    val realIban = "IR123456789012345678901234"
+    val account =
+      AccountEntity(
+        id = 1,
+        name = "حساب اصلی",
+        type = AccountType.BANK,
+        cardNumber = realCard,
+        iban = realIban
+      )
+    // A backup genuinely encrypted with the passphrase so that only the
+    // correct PBKDF2 key (derived on the caller-supplied dispatcher) can
+    // recover the sensitive fields.
+    val (rootJson, parsed) =
+      encryptedBackupFixture(passphrase, BackupCipher.PBKDF2_ITERATIONS, account)
+
+    // The class-level default dispatcher — if PBKDF2 were run on it (the
+    // old bug where the function ignored the caller's dispatcher param),
+    // this would be dispatched and the test would throw AssertionError.
+    var classDefaultWasUsed = false
+    val throwingClassDefault =
+      object : CoroutineDispatcher() {
+        override fun dispatch(
+          context: CoroutineContext,
+          block: Runnable
+        ) {
+          classDefaultWasUsed = true
+          throw AssertionError(
+            "PBKDF2 derivation must not run on the class default dispatcher; " +
+              "it must honor the caller-supplied dispatcher"
+          )
+        }
+      }
+
+    // The caller-supplied dispatcher (models cryptoDispatcher from
+    // BackupImportCoordinator): records dispatch and delegates to Default
+    // so the blocking PBKDF2 work actually executes.
+    var callerDispatcherWasUsed = false
+    val recordingCallerDispatcher =
+      object : CoroutineDispatcher() {
+        override fun dispatch(
+          context: CoroutineContext,
+          block: Runnable
+        ) {
+          callerDispatcherWasUsed = true
+          Dispatchers.Default.dispatch(context, block)
+        }
+      }
+
+    val useCaseWithThrowingDefault =
+      ManageBackupUseCase(FakeRepository(), throwingClassDefault)
+
+    val decrypted =
+      runBlocking {
+        useCaseWithThrowingDefault.decryptBackupWithPassphrase(
+          backup = parsed,
+          rootJson = rootJson,
+          passphrase = passphrase,
+          dispatcher = recordingCallerDispatcher
+        )
+      }
+
+    assertTrue(
+      "Caller-supplied dispatcher must execute the PBKDF2 derivation",
+      callerDispatcherWasUsed
+    )
+    assertFalse(
+      "Class default dispatcher must NOT execute the PBKDF2 derivation",
+      classDefaultWasUsed
+    )
+    assertEquals(
+      "Decrypted cardNumber must match the original via the correct key",
+      realCard,
+      decrypted.accounts[0].cardNumber
     )
   }
 }

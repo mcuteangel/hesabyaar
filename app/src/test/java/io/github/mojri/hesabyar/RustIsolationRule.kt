@@ -7,12 +7,14 @@ import org.junit.runners.model.Statement
 /**
  * Ensures the Rust bridge global state is clean at test-class boundaries.
  *
- * Usage: add ruleValRustisolationruleRustisolationrule to any test
- * class that calls [HesabyarApp.setRustInitializedForTesting].
+ * Usage: add this rule to any test class that calls
+ * [HesabyarApp.setRustInitializedForTesting].
  *
- * Before the annotated item the Kotlin flag is reset to false (clean slate);
- * after it the saved previous value is restored, so that state cannot leak
- * across test classes even when a test method or [org.junit.After] crashes.
+ * Before the annotated item the test override is cleared (no override — the
+ * real load-based availability applies) and the previous override value is
+ * saved; after it the saved value is restored, so neither a forced-fallback
+ * class nor a forced-Rust class can leak its override to the next class even
+ * when a test method or [org.junit.After] crashes.
  */
 class RustIsolationRule : TestRule {
   override fun apply(
@@ -21,12 +23,12 @@ class RustIsolationRule : TestRule {
   ): Statement =
     object : Statement() {
       override fun evaluate() {
-        val previousState = HesabyarApp.isRustInitialized()
-        HesabyarApp.setRustInitializedForTesting(false)
+        val previousOverride = HesabyarApp.getRustInitializedOverrideForTesting()
+        HesabyarApp.setRustInitializedForTesting(null)
         try {
           base.evaluate()
         } finally {
-          HesabyarApp.setRustInitializedForTesting(previousState)
+          HesabyarApp.setRustInitializedForTesting(previousOverride)
         }
       }
     }

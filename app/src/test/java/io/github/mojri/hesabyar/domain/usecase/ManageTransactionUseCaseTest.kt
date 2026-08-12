@@ -29,11 +29,11 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(TransactionType.TRANSFER, stored.first().type)
-      assertEquals(10L, stored.first().accountId)
-      assertEquals(20L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("stored type must be TRANSFER", TransactionType.TRANSFER, stored.first().type)
+      assertEquals("source accountId must be preserved", 10L, stored.first().accountId)
+      assertEquals("destination accountId must be preserved", 20L, stored.first().destinationAccountId)
     }
 
   @Test
@@ -50,11 +50,15 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(TransactionType.INCOME, stored.first().type)
-      assertEquals(10L, stored.first().accountId)
-      assertEquals(null, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("stored type must be INCOME", TransactionType.INCOME, stored.first().type)
+      assertEquals("source accountId must be preserved", 10L, stored.first().accountId)
+      assertEquals(
+        "non-transfer transaction must store no destination account",
+        null,
+        stored.first().destinationAccountId
+      )
     }
 
   @Test
@@ -71,11 +75,15 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(TransactionType.EXPENSE, stored.first().type)
-      assertEquals(10L, stored.first().accountId)
-      assertEquals(null, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("stored type must be EXPENSE", TransactionType.EXPENSE, stored.first().type)
+      assertEquals("source accountId must be preserved", 10L, stored.first().accountId)
+      assertEquals(
+        "non-transfer transaction must store no destination account",
+        null,
+        stored.first().destinationAccountId
+      )
     }
 
   @Test
@@ -90,10 +98,14 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(DEFAULT_ACCOUNT_ID, stored.first().accountId)
-      assertEquals(null, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("accountId must resolve to the default account", DEFAULT_ACCOUNT_ID, stored.first().accountId)
+      assertEquals(
+        "non-transfer transaction must store no destination account",
+        null,
+        stored.first().destinationAccountId
+      )
     }
 
   @Test
@@ -110,9 +122,9 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(DEFAULT_ACCOUNT_ID, stored.first().accountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("accountId must resolve to the default account", DEFAULT_ACCOUNT_ID, stored.first().accountId)
     }
 
   @Test
@@ -129,10 +141,10 @@ class ManageTransactionUseCaseTest {
         )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(id, stored.first().id)
-      assertEquals(DEFAULT_ACCOUNT_ID, stored.first().accountId)
-      assertEquals(20L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("stored transaction must carry the returned id", id, stored.first().id)
+      assertEquals("accountId must resolve to the default account", DEFAULT_ACCOUNT_ID, stored.first().accountId)
+      assertEquals("destination accountId must be preserved", 20L, stored.first().destinationAccountId)
     }
 
   @Test
@@ -148,9 +160,9 @@ class ManageTransactionUseCaseTest {
       )
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(5L, stored.first().accountId)
-      assertEquals(15L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("source accountId must be preserved", 5L, stored.first().accountId)
+      assertEquals("destination accountId must be preserved", 15L, stored.first().destinationAccountId)
     }
 
   // ── updateTransaction ───────────────────────────────────────────────────
@@ -174,11 +186,11 @@ class ManageTransactionUseCaseTest {
       useCase.updateTransaction(updated)
 
       val stored = fake.allTransactions.first()
-      assertEquals(1, stored.size)
-      assertEquals(10L, stored.first().id)
-      assertEquals("Updated", stored.first().description)
-      assertEquals(7L, stored.first().accountId)
-      assertEquals(12L, stored.first().destinationAccountId)
+      assertEquals("exactly one transaction must be stored", 1, stored.size)
+      assertEquals("transaction id must be preserved on update", 10L, stored.first().id)
+      assertEquals("description must be updated", "Updated", stored.first().description)
+      assertEquals("accountId must be updated", 7L, stored.first().accountId)
+      assertEquals("destinationAccountId must be updated", 12L, stored.first().destinationAccountId)
     }
 
   @Test
@@ -201,9 +213,13 @@ class ManageTransactionUseCaseTest {
       useCase.updateTransaction(updated)
 
       val stored = fake.allTransactions.first()
-      assertEquals(TransactionType.INCOME, stored.first().type)
-      assertEquals(3L, stored.first().accountId)
-      assertEquals(null, stored.first().destinationAccountId)
+      assertEquals("stored type must be INCOME", TransactionType.INCOME, stored.first().type)
+      assertEquals("accountId must be updated", 3L, stored.first().accountId)
+      assertEquals(
+        "non-transfer transaction must store no destination account",
+        null,
+        stored.first().destinationAccountId
+      )
     }
 
   // ── deleteTransaction ───────────────────────────────────────────────────
@@ -239,7 +255,7 @@ class ManageTransactionUseCaseTest {
 
       deleteUseCase.deleteTransaction(tx)
 
-      assertEquals(tx, repo.deleted)
+      assertEquals("full transaction must be delegated to the repository", tx, repo.deleted)
     }
 
   // ── Error handling ──────────────────────────────────────────────────────

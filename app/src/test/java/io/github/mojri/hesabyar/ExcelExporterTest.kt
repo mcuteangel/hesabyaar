@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar
 
+import android.content.Context
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
@@ -9,9 +10,23 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [34])
 class ExcelExporterTest {
+  private lateinit var context: Context
+
+  @Before
+  fun setup() {
+    context = RuntimeEnvironment.getApplication()
+  }
+
   private fun columnLetter(index: Int): String {
     val sb = StringBuilder()
     var i = index
@@ -297,7 +312,7 @@ class ExcelExporterTest {
 
   @Test
   fun buildTransactionsSheetRowsMatchHeaderCount() {
-    val exporter = ExcelExporter()
+    val exporter = ExcelExporter(context)
     val txs =
       listOf(
         tx(TransactionType.INCOME, 5_000_000),
@@ -324,12 +339,12 @@ class ExcelExporterTest {
     // TRANSFER must not collapse into the binary income/expense branch.
     assertEquals("دریافتی", sheet.rows[0][1].value)
     assertEquals("پرداختی", sheet.rows[1][1].value)
-    assertEquals("انتقال وجه", sheet.rows[2][1].value)
+    assertEquals(context.getString(R.string.transaction_type_transfer), sheet.rows[2][1].value)
   }
 
   @Test
   fun buildSummaryTxSheetRowsMatchHeaderCount() {
-    val exporter = ExcelExporter()
+    val exporter = ExcelExporter(context)
     val txs =
       listOf(
         tx(TransactionType.INCOME, 5_000_000),

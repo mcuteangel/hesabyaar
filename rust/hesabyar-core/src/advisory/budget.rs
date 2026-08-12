@@ -104,7 +104,16 @@ pub fn get_offline_forecast(
     let total_obligations =
         upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
 
-    if transactions.is_empty() && total_obligations == 0 {
+    // Active (unsettled) bank-loan debt, summed as total_repayable_amount.
+    // Mirrors Kotlin buildLocalOfflineForecast: bank loans guard the "no data"
+    // message and are rendered as an active-debt line.
+    let active_bank_loans: Vec<&BankLoan> = bank_loans
+        .iter()
+        .filter(|b| !b.is_settled)
+        .collect();
+    let bank_loan_debt: i64 = active_bank_loans.iter().map(|b| b.total_repayable_amount).sum();
+
+    if transactions.is_empty() && total_obligations == 0 && active_bank_loans.is_empty() {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
@@ -134,6 +143,13 @@ pub fn get_offline_forecast(
     sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_income, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_expense, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_currency(total_obligations, CurrencyUnit::Toman)));
+    if !active_bank_loans.is_empty() {
+        sb.push_str(&format!(
+            "- **\u{0628}\u{062F}\u{0647}\u{06CC}\u{0647}\u{0627}\u{06CC} \u{0641}\u{0639}\u{0627}\u{0644}:** {} \u{0645}\u{0648}\u{0631}\u{062F} \u{0628}\u{0647} \u{0645}\u{0628}\u{0644}\u{063A} {}\n",
+            active_bank_loans.len(),
+            format_currency(bank_loan_debt, CurrencyUnit::Toman)
+        ));
+    }
 
     if est_balance < 0 {
         sb.push_str(&format!(
@@ -178,7 +194,9 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
 pub fn calculate_debt_to_income_ratio(
     loans: &[Loan],
     installments: &[Installment],
-    bank_loans: &[BankLoan],
+    // Intentionally excluded from DTI (matches Kotlin local impl; only
+    // consumer loans and installments count toward the ratio).
+    _bank_loans: &[BankLoan],
     monthly_income: i64,
 ) -> f64 {
     let monthly_debt_payments: i64 = installments
@@ -506,6 +524,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
@@ -528,6 +547,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
@@ -545,6 +565,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }];
         let result = get_offline_forecast(&[], &[], &installments, &[]);
         // Has unpaid installments → not empty, shows forecast
@@ -566,6 +587,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Overdue (past-due) unpaid installment is outside the window → must NOT contribute.
@@ -587,10 +609,55 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Due 60 days out is outside the 30-day window → must NOT contribute to obligations.
         assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
+    }
+
+    #[test]
+    fn test_forecast_includes_unsettled_bank_loans() {
+        // One active bank loan: 12,000,000 Rial total repayable → 1,200,000 Toman.
+        let bank_loans = vec![BankLoan {
+            id: 1,
+            bank_name: "\u{0628}\u{0627}\u{0646}\u{06A9} \u{0645}\u{0644}\u{062A}".into(),
+            loan_name: "\u{0648}\u{0627}\u{0645} \u{062E}\u{0648}\u{062F}\u{0631}\u{0648}".into(),
+            received_amount: 10_000_000,
+            monthly_installment_amount: 1_000_000,
+            number_of_installments: 12,
+            total_repayable_amount: 12_000_000,
+            total_interest: 2_000_000,
+            start_date: 0,
+            description: String::new(),
+            is_settled: false,
+        }];
+        let result = get_offline_forecast(&[], &[], &[], &bank_loans);
+        // An unsettled bank loan means the data is not empty → no "no data" message.
+        assert!(!result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
+        // Active bank-loan debt is shown in Toman, not Rial.
+        assert!(result.contains("1,200,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
+        assert!(!result.contains("12,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
+    }
+
+    #[test]
+    fn test_forecast_settled_bank_loans_still_empty() {
+        // A settled bank loan must NOT suppress the "no data" message.
+        let bank_loans = vec![BankLoan {
+            id: 1,
+            bank_name: "\u{0628}\u{0627}\u{0646}\u{06A9} \u{0645}\u{0644}\u{062A}".into(),
+            loan_name: "\u{0648}\u{0627}\u{0645} \u{062E}\u{0648}\u{062F}\u{0631}\u{0648}".into(),
+            received_amount: 10_000_000,
+            monthly_installment_amount: 1_000_000,
+            number_of_installments: 12,
+            total_repayable_amount: 12_000_000,
+            total_interest: 2_000_000,
+            start_date: 0,
+            description: String::new(),
+            is_settled: true,
+        }];
+        let result = get_offline_forecast(&[], &[], &[], &bank_loans);
+        assert!(result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
     }
 
     // -- calculate_financial_health_score tests -----------------------------------
@@ -609,6 +676,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         };
 
         // --- Case A: recent income exists → low debt ratio → bonus ---
