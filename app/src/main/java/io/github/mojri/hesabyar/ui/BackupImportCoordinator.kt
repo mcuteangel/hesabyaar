@@ -278,6 +278,14 @@ class BackupImportCoordinator(
         // the UI stuck in Importing / crashing the scope. This is a safety-net
         // catch per the AGENTS.md convention (specific catches come first).
         operationState.value = restoreErrorState(e)
+      } finally {
+        // Release the busy state unless a terminal state (Error /
+        // ImportSuccess) already replaced it — a cancelled coroutine must not
+        // leave operationState stuck in Importing, or the in-flight guard
+        // blocks any retry.
+        if (operationState.value is BackupOperationState.Importing) {
+          operationState.value = BackupOperationState.Idle
+        }
       }
     }
   }

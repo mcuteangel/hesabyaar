@@ -208,7 +208,7 @@ class HesabyarRepository(
       // Deleting an archived account is always allowed — the active count
       // stays unchanged.
       val activeAccountCount = allAccounts.count { !it.isArchived }
-      if (activeAccountCount == 1 && !account.isArchived) {
+      if (activeAccountCount == 1 && allAccounts.any { it.id == account.id && !it.isArchived }) {
         throw IllegalStateException(
           "Account ${account.id} is the last remaining active account and cannot be deleted"
         )

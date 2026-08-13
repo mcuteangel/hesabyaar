@@ -227,12 +227,22 @@ class AccountViewModel
           throw e
         } catch (e: SQLiteException) {
           Log.e(TAG, "$errorPrefix failed", e)
-          val message = "خطا در $errorPrefix: ${e.localizedMessage ?: "خطای پایگاه داده"}"
+          val message =
+            context.getString(
+              R.string.account_operation_error,
+              errorPrefix,
+              e.localizedMessage ?: context.getString(R.string.database_error_fallback)
+            )
           _errorEvents.emit(message)
           onError?.invoke(message)
         } catch (e: IllegalStateException) {
           Log.e(TAG, "$errorPrefix failed", e)
-          val message = "خطا در $errorPrefix: ${e.localizedMessage ?: "خطای ناشناخته"}"
+          val message =
+            context.getString(
+              R.string.account_operation_error,
+              errorPrefix,
+              e.localizedMessage ?: context.getString(R.string.unknown_error_fallback)
+            )
           _errorEvents.emit(message)
           onError?.invoke(message)
         }

@@ -118,4 +118,9 @@
     <!-- AccountManagementScreen -->
     <string name="balance_invalid_amount">مقدار نامعتبر</string>
     <string name="balance_amount_label">مبلغ ریال</string>
+
+    <!-- AccountViewModel runGuarded error messages -->
+    <string name="account_operation_error">خطا در %1$s: %2$s</string>
+    <string name="database_error_fallback">خطای پایگاه داده</string>
+    <string name="unknown_error_fallback">خطای ناشناخته</string>
 </resources>

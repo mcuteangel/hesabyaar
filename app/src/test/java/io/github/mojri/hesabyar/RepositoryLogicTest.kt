@@ -596,4 +596,30 @@ class RepositoryLogicTest {
       assertNull(database.accountDao().getById(archivedId))
       assertNotNull(database.accountDao().getById(activeId))
     }
+
+  @Test
+  fun deleteAccountAllowsDeletingArchivedAccountEvenWithStaleEntity() =
+    runTest {
+      val repo = createRepository()
+      // setUp seeds DEFAULT_ACCOUNT (id=1, active). Add one archived account so the
+      // active count is 1. Now pass a STALE entity: the DB row is archived but the
+      // in-memory copy still says isArchived=false. The old guard trusted the
+      // stale entity and would delete the only active account. The fix checks
+      // allAccounts, so deletion is allowed (it's archived in the DB).
+      repo.insertAccount(AccountEntity(id = 2, name = "قدیمی", type = AccountType.BANK, isArchived = true))
+      // Stale entity: isArchived=false but DB has isArchived=true
+      val staleEntity = AccountEntity(id = 2, name = "قدیمی", type = AccountType.BANK, isArchived = false)
+
+      // Should NOT throw — the DB version is archived, so the last-active guard must not fire.
+      repo.deleteAccount(staleEntity)
+
+      val remaining = database.accountDao().getAllAccountsBlocking()
+      assertEquals("archived account should be deleted", 1, remaining.size)
+      assertEquals(
+        "default account must remain",
+        DEFAULT_ACCOUNT_ID,
+        database.accountDao().getById(DEFAULT_ACCOUNT_ID)?.id
+      )
+      assertNull("stale archived account should be gone", database.accountDao().getById(2L))
+    }
 }
