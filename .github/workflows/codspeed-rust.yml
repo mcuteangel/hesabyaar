@@ -25,7 +25,7 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
 
@@ -41,10 +41,10 @@ jobs:
         id: cache
         # `cargo install` compiles from source on every run. Cache the installed
         # binary (keyed on version) so CI doesn't recompile the tool each time.
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.cargo/bin/cargo-codspeed
-          key: cargo-codspeed-4.7.0
+          key: cargo-codspeed-5.0.1
 
       - name: Install lld linker
         run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -y lld
@@ -54,10 +54,10 @@ jobs:
         # shim. Without it, cargo bench panics with the NotPresent env error.
         # Pinned + --locked for reproducible installs; skipped when cached.
         if: steps.cache.outputs.cache-hit != 'true'
-        run: cargo install cargo-codspeed --version 4.7.0 --locked
+        run: cargo install cargo-codspeed --version 5.0.1 --locked
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@f99becdce5e5d51fd556489ebef684f4ecfd6286 # v4
+        uses: CodSpeedHQ/action@4296e51e7041e24dadb86d1d6e8b9320d223dbe8 # v5.0.3
         with:
           # Simulation mode: deterministic CPU simulation, <1% variance,
           # automatic flamegraphs. Best for the CPU-bound Rust core.
@@ -71,14 +71,13 @@ jobs:
           # `cargo codspeed run` (not plain `cargo bench`) is required so the
           # shim runs under the instrumented harness that defines
           # CODSPEED_CARGO_WORKSPACE_ROOT.
-          # Pinned to major v1: on runs where CodSpeed OIDC auth is unavailable
-          # (e.g. automation PRs where `id-token: write` is stripped), v1 falls
-          # back to running the suite as plain criterion instead of panicking on a
-          # missing CODSPEED_CARGO_WORKSPACE_ROOT env var. v2 hard-requires that
-          # env and crashes the job in those environments.
+          # Pinned to major v5 to match the cargo-codspeed CLI and CodSpeed runner
+          # versions. The compat shim falls back to running as plain Criterion when
+          # the CodSpeed runner is unavailable (e.g. local builds, or automation
+          # PRs where `id-token: write` is stripped).
           run: |
             cargo remove criterion --dev -p hesabyar-core
-            cargo add codspeed-criterion-compat@1 --rename criterion --dev -p hesabyar-core
+            cargo add codspeed-criterion-compat@5 --rename criterion --dev -p hesabyar-core
             cargo codspeed build -p hesabyar-core -m simulation
             cargo codspeed run -p hesabyar-core
           working-directory: rust
