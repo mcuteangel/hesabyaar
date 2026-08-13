@@ -243,7 +243,7 @@ pub fn compute_analytics(
             categories,
         )
         .into_iter()
-        .filter(|a| !a.category_breakdown.is_empty())
+        .filter(|a| a.category_breakdown.iter().map(|c| c.total).sum::<i64>() > 0)
         .collect(),
         None => compute_account_analytics(&non_archived_txs, accounts, categories),
     };
@@ -982,5 +982,40 @@ mod tests {
 
         let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
         assert!(selected.accounts.is_empty(), "no expenses → no account segments");
+    }
+
+    /// A selected account whose only expense transactions total zero must be
+    /// filtered out — the Kotlin fallback's buildAccountBreakdown returns an
+    /// empty list when the filtered expense total is zero. Previously, Rust
+    /// kept the account because `category_breakdown` was non-empty (it had a
+    /// single zero-total entry). The fix filters on the sum of category totals
+    /// instead.
+    #[test]
+    fn test_selected_account_with_only_zero_expenses_filtered_out() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK")];
+        // Single expense with amount = 0 — cat_totals = {1: 0}, non-empty but
+        // sum is zero. Rust must filter it out to match the Kotlin fallback.
+        let txs = vec![
+            tx_on(1, TransactionType::Expense, 0, now, 1, 1),
+        ];
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert!(
+            selected.accounts.is_empty(),
+            "zero-total expenses should filter out the account, got: {:?}",
+            selected.accounts
+        );
+    }
+
+    /// An account with expenses that sum to > 0 is kept (positive case).
+    #[test]
+    fn test_selected_account_with_positive_expenses_kept() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK")];
+        let txs = vec![
+            tx_on(1, TransactionType::Expense, 100_000, now, 1, 1),
+        ];
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert_eq!(selected.accounts.len(), 1, "positive expenses must keep the account");
     }
 }

@@ -110,6 +110,7 @@
     <string name="account_delete_last_account_warning_message">حساب «%1$s» آخرین حساب است و قابل حذف نیست. حداقل یک حساب باید همیشه باقی بماند.</string>
     <string name="account_delete_transaction_count_error">حساب «%1$s» دارای %2$d تراکنش است و قابل حذف نیست</string>
     <string name="account_delete_last_active_account_error">حساب «%1$s» آخرین حساب فعال است و قابل حذف نیست</string>
+    <string name="account_delete_last_active_account_warning_message">این تنها حساب فعال شماست و نمی‌توان آن را حذف کرد. حساب‌های آرشیوشده وجود دارند ولی قابل استفاده نیستند.</string>
     <string name="understood_label">متوجه شدم</string>
 
     <!-- ReportsScreen -->

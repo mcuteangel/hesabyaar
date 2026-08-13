@@ -459,4 +459,26 @@ class BackupJsonValidatorKotlinFallbackTest {
     val result = validate(payload)
     assertTrue("expected $result to be Invalid for a repayable overflow", result is BackupValidationResult.Invalid)
   }
+
+  @Test
+  fun rejectsDuplicateAccountIds() {
+    // Mirrors Rust test_backup_rejects_duplicate_account_ids (validation.rs:1119):
+    // duplicate account IDs must be detected before toSet() collapses them.
+    val payload =
+      BackupPayload(
+        accounts =
+          listOf(
+            AccountEntity(id = 1L, name = "Main", type = AccountType.BANK),
+            AccountEntity(id = 1L, name = "Duplicate", type = AccountType.CASH_WALLET)
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue("expected $result to be Invalid for duplicate account ids", result is BackupValidationResult.Invalid)
+    val errors = (result as BackupValidationResult.Invalid).errors
+    assertTrue(
+      "expected a duplicate-account-id error, got: $errors",
+      errors.any { it.contains("تکراری") }
+    )
+  }
 }

@@ -281,7 +281,7 @@ private fun AccountManagementDialogs(
       AccountDeleteWarningDialog(
         message =
           stringResource(
-            id = io.github.mojri.hesabyar.R.string.account_delete_last_account_warning_message,
+            id = io.github.mojri.hesabyar.R.string.account_delete_last_active_account_warning_message,
             dialogState.account.name
           ),
         onDismiss = onDismiss

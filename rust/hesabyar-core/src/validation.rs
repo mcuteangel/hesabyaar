@@ -21,31 +21,14 @@ impl Default for ValidationResult {
 // Single-entity validators (return first error)
 // ===========================================================================
 
-/// Validate a single transaction.
-///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
-pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
+/// Validate the shared transaction fields (amount, date, category_id) that
+/// apply to every transaction type. Transfer-specific invariants (destination
+/// present, destination != source) are checked separately in
+/// [validate_transaction] and [validate_accounts_and_references] so they are
+/// not duplicated when `validate_backup_payload` runs both helpers.
+fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     if tx.amount <= 0 {
         return Err("Transaction amount must be positive".into());
-    }
-    // All six TransactionType variants are handled here; five are accepted
-    // unconditionally, while Transfer requires a valid destination account.
-    match tx.tx_type {
-        TransactionType::Expense
-        | TransactionType::Income
-        | TransactionType::LoanDebtor
-        | TransactionType::LoanCreditor
-        | TransactionType::Installment => {}
-        TransactionType::Transfer => {
-            if tx.destination_account_id.is_none() {
-                return Err("Transfer must have a destination_account_id".into());
-            }
-            if tx.destination_account_id == Some(tx.account_id) {
-                return Err(
-                    "Transfer source and destination accounts must differ".into(),
-                );
-            }
-        }
     }
     if tx.date <= 0 {
         return Err("Transaction date must be positive".into());
@@ -57,6 +40,26 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     // it can never reference a valid category.
     if tx.category_id < 0 {
         return Err("Transaction category_id must not be negative".into());
+    }
+    Ok(())
+}
+
+/// Validate a single transaction.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
+    validate_transaction_fields(tx)?;
+    // The five non-Transfer types are accepted unconditionally; Transfer
+    // requires a valid destination account.
+    if tx.tx_type == TransactionType::Transfer {
+        if tx.destination_account_id.is_none() {
+            return Err("Transfer must have a destination_account_id".into());
+        }
+        if tx.destination_account_id == Some(tx.account_id) {
+            return Err(
+                "Transfer source and destination accounts must differ".into(),
+            );
+        }
     }
     Ok(())
 }
@@ -142,10 +145,16 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
 // ===========================================================================
 
 /// Validate a batch of transactions. Collects all errors.
+///
+/// Transfer-specific invariants (destination present, destination != source)
+/// are intentionally NOT checked here — `validate_accounts_and_references`
+/// (called first by `validate_backup_payload`) covers them with fail-fast
+/// parity. Checking them again would produce duplicate errors for the same
+/// violation.
 pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationResult {
     let mut errors = Vec::new();
     for (i, tx) in transactions.iter().enumerate() {
-        if let Err(e) = validate_transaction(tx) {
+        if let Err(e) = validate_transaction_fields(tx) {
             errors.push(format!("Transaction[{}]: {}", i, e));
         }
     }
@@ -1357,6 +1366,126 @@ mod tests {
         };
         let err = crate::validate_backup(&payload).unwrap_err().to_string();
         assert!(err.contains("must differ"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_backup_transfer_missing_destination_not_duplicated() {
+        // validate_backup_payload calls BOTH validate_accounts_and_references
+        // (which checks Transfer structure) AND validate_transaction_batch
+        // (which previously also checked Transfer invariants). After the fix,
+        // validate_transaction_batch skips Transfer checks, so a malformed
+        // Transfer yields exactly ONE error — not two.
+        let tx = Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 50_000,
+            description: "transfer".to_string(),
+            person_name: None,
+            date: 1710000000000,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
+        };
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![tx],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let transfer_errors: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|e| e.contains("destination_account_id"))
+            .collect();
+        assert_eq!(
+            transfer_errors.len(),
+            1,
+            "expected exactly one destination_account_id error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_backup_transfer_same_source_dest_not_duplicated() {
+        // Same as above but for source == destination. Also must produce
+        // exactly ONE error (no duplicates from validate_transaction_batch).
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50_000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(1),
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let transfer_errors: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|e| e.contains("must differ"))
+            .collect();
+        assert_eq!(
+            transfer_errors.len(),
+            1,
+            "expected exactly one must-differ error, got: {:?}",
+            result.errors
+        );
     }
 
     // =====================================================================

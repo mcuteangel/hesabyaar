@@ -39,6 +39,15 @@ internal class BackupReferenceValidator {
     backup: BackupPayload,
     errors: MutableList<String>
   ) {
+    // Check for duplicate account IDs (Rust validation.rs:297-299 parity)
+    val accountIdCounts = backup.accounts.groupingBy { it.id }.eachCount()
+    val duplicateIds = accountIdCounts.filter { it.value > 1 }.keys
+    if (duplicateIds.isNotEmpty()) {
+      duplicateIds.forEach { id ->
+        errors.add("حساب تکراری با شناسه $id")
+      }
+      return
+    }
     val accountIds = backup.accounts.map { it.id }.toSet()
     backup.transactions.forEachIndexed { i, t ->
       if (backup.accounts.isNotEmpty()) {
