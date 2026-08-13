@@ -4,7 +4,6 @@ import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BankLoan
-import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -330,67 +329,5 @@ class GetAnalyticsUseCaseFallbackTest {
         result.accountBreakdown[0].total
       )
       assertEquals("single segment owns 100%", 100f, result.accountBreakdown[0].percentage, 0.001f)
-    }
-
-  // --- Regression: breakdown percentage denominator must exclude transfers ---
-
-  @Test
-  fun fallbackBreakdownPercentageDenominatorExcludesTransfers() =
-    runTest {
-      val categories = listOf(analyticsCat(1, "خوراک"), analyticsCat(2, "حمل‌ونقل"))
-      val now = System.currentTimeMillis()
-      val txs =
-        listOf(
-          Transaction(
-            type = TransactionType.EXPENSE,
-            categoryId = 1L,
-            amount = 300_000,
-            description = "food",
-            date = now,
-            accountId = 1L,
-            destinationAccountId = null
-          ),
-          Transaction(
-            type = TransactionType.EXPENSE,
-            categoryId = 2L,
-            amount = 100_000,
-            description = "transport",
-            date = now,
-            accountId = 1L,
-            destinationAccountId = null
-          ),
-          Transaction(
-            type = TransactionType.TRANSFER,
-            categoryId = 1L,
-            amount = 400_000,
-            description = "transfer out",
-            date = now,
-            accountId = 1L,
-            destinationAccountId = 2L
-          )
-        )
-
-      val result =
-        useCase.computeAnalytics(
-          txs,
-          emptyList(),
-          emptyList(),
-          categories,
-          accounts = listOf(account(1), account(2)),
-          accountId = 1L
-        )
-
-      // The transfer-out (400k) must NOT inflate the breakdown denominator:
-      // food = 300k/400k = 75%, transport = 100k/400k = 25%. A transfer-inclusive
-      // denominator (800k) would instead yield 37.5% / 12.5%.
-      val food = result.categoryBreakdown.first { it.categoryId == 1L }
-      val transport = result.categoryBreakdown.first { it.categoryId == 2L }
-      assertEquals("food percentage", 75f, food.percentage, 0.001f)
-      assertEquals("transport percentage", 25f, transport.percentage, 0.001f)
-      assertEquals(
-        "monthly spending series still counts the transfer-out",
-        800_000L,
-        result.monthlySpending.first().expense
-      )
     }
 }

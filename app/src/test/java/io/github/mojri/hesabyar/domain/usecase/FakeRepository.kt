@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   var shouldThrowOnUpdate = false
   var shouldThrowOnDelete = false
   var shouldThrowOnTransactionCount = false
+
+  /** Forces [deleteAccount] to throw CannotDeleteLastActiveAccountException, simulating a TOCTOU race. */
+  var forceLastActiveAccountException = false
 
   /** Overrides the computed transaction count when non-null. */
   var transactionCountOverride: Int? = null
@@ -212,8 +216,10 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
     // Mirror HesabyarRepository: only the last ACTIVE account is protected.
     val activeAccountCount = accountsList.count { !it.isArchived }
-    if (activeAccountCount == 1 && accountsList.any { it.id == account.id && !it.isArchived }) {
-      throw IllegalStateException("Account ${account.id} is the last remaining active account and cannot be deleted")
+    val isLastActive =
+      activeAccountCount == 1 && accountsList.any { it.id == account.id && !it.isArchived }
+    if (forceLastActiveAccountException || isLastActive) {
+      throw CannotDeleteLastActiveAccountException(account.id)
     }
     accountsList.removeIf { it.id == account.id }
     refreshAccounts()

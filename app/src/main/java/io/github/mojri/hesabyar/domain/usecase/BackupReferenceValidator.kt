@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
@@ -19,8 +20,13 @@ import io.github.mojri.hesabyar.data.TransactionType
  *
  * Kept as its own class so [BackupJsonValidator] stays under the detekt
  * TooManyFunctions threshold.
+ *
+ * User-facing error messages are resolved through [message], which delegates
+ * to [BackupJsonValidator] so they stay in sync with localized string resources.
  */
-internal class BackupReferenceValidator {
+internal class BackupReferenceValidator(
+  private val message: (Int, Array<out Any>) -> String
+) {
   fun validate(
     backup: BackupPayload,
     errors: MutableList<String>
@@ -44,7 +50,7 @@ internal class BackupReferenceValidator {
     val duplicateIds = accountIdCounts.filter { it.value > 1 }.keys
     if (duplicateIds.isNotEmpty()) {
       duplicateIds.forEach { id ->
-        errors.add("حساب تکراری با شناسه $id")
+        errors.add(message(R.string.backup_error_duplicate_account_id, arrayOf<Any>(id.toString())))
       }
       return
     }
@@ -52,11 +58,15 @@ internal class BackupReferenceValidator {
     backup.transactions.forEachIndexed { i, t ->
       if (backup.accounts.isNotEmpty()) {
         if (t.accountId !in accountIds) {
-          errors.add("تراکنش #$i به حساب مبدا ناموجود ${t.accountId} ارجاع می‌دهد")
+          errors.add(
+            message(R.string.backup_error_transaction_invalid_account, arrayOf<Any>(i, t.accountId.toString()))
+          )
         }
         t.destinationAccountId?.let { destId ->
           if (destId !in accountIds) {
-            errors.add("تراکنش #$i به حساب مقصد ناموجود $destId ارجاع می‌دهد")
+            errors.add(
+              message(R.string.backup_error_transaction_invalid_destination_account, arrayOf<Any>(i, destId.toString()))
+            )
           }
         }
       } else {
@@ -64,11 +74,18 @@ internal class BackupReferenceValidator {
         // (mirrors Rust validation.rs — a legacy source does NOT excuse a
         // non-legacy destination).
         if (t.accountId != DEFAULT_ACCOUNT_ID) {
-          errors.add("تراکنش #$i به حساب غیرقدیمی ${t.accountId} ارجاع می‌دهد (فهرست حساب‌ها خالی است)")
+          errors.add(
+            message(R.string.backup_error_transaction_invalid_legacy_account, arrayOf<Any>(i, t.accountId.toString()))
+          )
         }
         t.destinationAccountId?.let { destId ->
           if (destId != DEFAULT_ACCOUNT_ID) {
-            errors.add("تراکنش #$i به حساب مقصد غیرقدیمی $destId ارجاع می‌دهد (فهرست حساب‌ها خالی است)")
+            errors.add(
+              message(
+                R.string.backup_error_transaction_invalid_legacy_destination_account,
+                arrayOf<Any>(i, destId.toString())
+              )
+            )
           }
         }
       }
@@ -86,8 +103,14 @@ internal class BackupReferenceValidator {
     transactions.forEachIndexed { i, t ->
       if (t.type == TransactionType.TRANSFER) {
         when {
-          t.destinationAccountId == null -> errors.add("تراکنش انتقالی #$i حساب مقصد ندارد")
-          t.destinationAccountId == t.accountId -> errors.add("تراکنش انتقالی #$i مبدا و مقصد یکسان دارند")
+          t.destinationAccountId == null ->
+            errors.add(
+              message(R.string.backup_error_transfer_no_destination, arrayOf<Any>(i))
+            )
+          t.destinationAccountId == t.accountId ->
+            errors.add(
+              message(R.string.backup_error_transfer_same_source_destination, arrayOf<Any>(i))
+            )
         }
       }
     }
@@ -106,7 +129,9 @@ internal class BackupReferenceValidator {
     val categoryIds = categories.map { it.id }.toSet()
     transactions.forEachIndexed { i, t ->
       if (t.categoryId > 0 && t.categoryId !in categoryIds) {
-        errors.add("تراکنش #$i به دسته‌بندی ناموجود ${t.categoryId} ارجاع می‌دهد")
+        errors.add(
+          message(R.string.backup_error_transaction_invalid_category, arrayOf<Any>(i, t.categoryId.toString()))
+        )
       }
     }
   }
@@ -123,7 +148,7 @@ internal class BackupReferenceValidator {
     val loanIds = loans.map { it.id }.toSet()
     paymentHistories.forEachIndexed { i, payment ->
       if (payment.loanId > 0 && payment.loanId !in loanIds) {
-        errors.add("پرداخت #$i به وام ناموجود ${payment.loanId} ارجاع می‌دهد")
+        errors.add(message(R.string.backup_error_payment_invalid_loan, arrayOf<Any>(i, payment.loanId.toString())))
       }
     }
   }

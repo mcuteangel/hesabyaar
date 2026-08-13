@@ -101,6 +101,17 @@
     <string name="backup_validation_bankloan_interest_mismatch">سود وام #%1$d با مبلغ کل بازپرداخت منهای مبلغ دریافتی برابر نیست</string>
     <string name="backup_validation_account_name_blank">نام حساب #%1$d خالی است</string>
 
+    <!-- BackupReferenceValidator (cross-reference validation errors) -->
+    <string name="backup_error_duplicate_account_id">حساب تکراری با شناسه %1$s</string>
+    <string name="backup_error_transaction_invalid_account">تراکنش #%1$d به حساب مبدا ناموجود %2$s ارجاع می‌دهد</string>
+    <string name="backup_error_transaction_invalid_destination_account">تراکنش #%1$d به حساب مقصد ناموجود %2$s ارجاع می‌دهد</string>
+    <string name="backup_error_transaction_invalid_legacy_account">تراکنش #%1$d به حساب غیرقدیمی %2$s ارجاع می‌دهد (فهرست حساب‌ها خالی است)</string>
+    <string name="backup_error_transaction_invalid_legacy_destination_account">تراکنش #%1$d به حساب مقصد غیرقدیمی %2$s ارجاع می‌دهد (فهرست حساب‌ها خالی است)</string>
+    <string name="backup_error_transfer_no_destination">تراکنش انتقالی #%1$d حساب مقصد ندارد</string>
+    <string name="backup_error_transfer_same_source_destination">تراکنش انتقالی #%1$d مبدا و مقصد یکسان دارند</string>
+    <string name="backup_error_transaction_invalid_category">تراکنش #%1$d به دسته‌بندی ناموجود %2$s ارجاع می‌دهد</string>
+    <string name="backup_error_payment_invalid_loan">پرداخت #%1$d به وام ناموجود %2$s ارجاع می‌دهد</string>
+
     <!-- AccountManagementScreen delete dialogs -->
     <string name="account_delete_title">حذف حساب</string>
     <string name="delete_label">حذف</string>

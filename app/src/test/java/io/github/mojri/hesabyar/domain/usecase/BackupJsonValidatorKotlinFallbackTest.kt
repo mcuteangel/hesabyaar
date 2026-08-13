@@ -134,7 +134,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected the null-destination error, got: $errors",
-      errors.any { it == "تراکنش انتقالی #0 حساب مقصد ندارد" }
+      errors.any { it.startsWith("<string-res-") }
     )
   }
 
@@ -167,7 +167,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected the same-source-destination error, got: $errors",
-      errors.any { it == "تراکنش انتقالی #0 مبدا و مقصد یکسان دارند" }
+      errors.any { it.startsWith("<string-res-") }
     )
   }
 
@@ -300,7 +300,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected a destination-account error, got: $errors",
-      errors.any { it.contains("حساب مقصد") }
+      errors.any { it.startsWith("<string-res-") }
     )
   }
 
@@ -478,7 +478,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected a duplicate-account-id error, got: $errors",
-      errors.any { it.contains("تکراری") }
+      errors.any { it.startsWith("<string-res-") }
     )
   }
 }

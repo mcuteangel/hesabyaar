@@ -399,4 +399,39 @@ class AccountViewModelTest {
       assertTrue(errorMessages[0].contains("خطا"))
       job.cancel()
     }
+
+  @Test
+  fun deleteAccountRepositoryExceptionEmitsLocalizedMessageNotEnglish() =
+    runTest {
+      // Simulate a TOCTOU race: the ViewModel's pre-check sees 2 active accounts
+      // (so it does NOT short-circuit), but the repository throw is forced via
+      // forceLastActiveAccountException — mirroring a concurrent deletion between
+      // the pre-check and the repository's own check.
+      fakeRepo.forceLastActiveAccountException = true
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "other", type = AccountType.BANK))
+      val account = AccountEntity(id = 2, name = "test", type = AccountType.BANK)
+      fakeRepo.accountsList.add(account)
+      fakeRepo.refreshAccounts()
+
+      val errorMessages = mutableListOf<String>()
+      val job =
+        launch {
+          viewModel.errorEvents.collect { errorMessages.add(it) }
+        }
+      advanceUntilIdle()
+
+      viewModel.deleteAccount(account)
+      advanceUntilIdle()
+
+      assertEquals(
+        "repository exception must emit the localized string",
+        context.getString(R.string.account_delete_last_active_account_error, "test"),
+        errorMessages.single()
+      )
+      assertTrue(
+        "English exception message must not leak to the user, got: $errorMessages",
+        !errorMessages.any { it.contains("is the last remaining active account") }
+      )
+      job.cancel()
+    }
 }

@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -209,9 +210,7 @@ class HesabyarRepository(
       // stays unchanged.
       val activeAccountCount = allAccounts.count { !it.isArchived }
       if (activeAccountCount == 1 && allAccounts.any { it.id == account.id && !it.isArchived }) {
-        throw IllegalStateException(
-          "Account ${account.id} is the last remaining active account and cannot be deleted"
-        )
+        throw CannotDeleteLastActiveAccountException(account.id)
       }
       val count = accountDao.getTransactionCountForAccount(account.id)
       if (count > 0) {

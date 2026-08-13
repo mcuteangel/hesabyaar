@@ -108,7 +108,7 @@ class BackupJsonValidator(
     validateBackupPaymentHistories(backup.paymentHistories, errors)
     validateBackupBankLoans(backup.bankLoans, errors)
     validateBackupAccounts(backup.accounts, errors)
-    BackupReferenceValidator().validate(backup, errors)
+    BackupReferenceValidator { resId, args -> message(resId, *args) }.validate(backup, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid

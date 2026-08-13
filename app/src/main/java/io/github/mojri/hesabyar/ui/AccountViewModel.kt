@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
+import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import io.github.mojri.hesabyar.ui.designsystem.DEFAULT_ACCOUNT_COLOR
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
@@ -170,7 +171,14 @@ class AccountViewModel
           )
           return@runGuarded
         }
-        repository.deleteAccount(account)
+        try {
+          repository.deleteAccount(account)
+        } catch (e: CannotDeleteLastActiveAccountException) {
+          Log.e(TAG, "deleteAccount: last active account guard triggered", e)
+          _errorEvents.emit(
+            context.getString(R.string.account_delete_last_active_account_error, account.name)
+          )
+        }
       }
 
     /**
