@@ -3,6 +3,8 @@ package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -165,7 +167,12 @@ class ManualTransactionDialogAccountEditTest {
     // Editing an existing TRANSFER: the edit-mode chip list must include and
     // select "انتقال". Pre-fix the edit list only had EXPENSE/INCOME, so the
     // TRANSFER chip was absent and nothing was selected.
-    composeRule.onAllNodesWithText("انتقال")[0].assertIsDisplayed()
-    composeRule.onAllNodesWithText("انتقال")[0].assertIsSelected()
+    // The description field of transferOriginal also contains "انتقال", so
+    // onAllNodesWithText("انتقال") matches two nodes with no guaranteed order
+    // (the description text field exposes an OnClick too). Target the chip alone:
+    // it is the only node with both this text and Selectable semantics.
+    val transferChip = composeRule.onNode(hasText("انتقال").and(isSelectable()))
+    transferChip.assertIsDisplayed()
+    transferChip.assertIsSelected()
   }
 }

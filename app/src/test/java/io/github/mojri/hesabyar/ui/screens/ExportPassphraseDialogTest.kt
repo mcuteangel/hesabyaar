@@ -130,4 +130,13 @@ class ExportPassphraseDialogTest {
 
     composeRule.onNodeWithText(confirmLabel).assertIsNotEnabled()
   }
+
+  @Test
+  fun cancelDisabledWhileCryptoInProgress() {
+    launchDialog(isCryptoInProgress = true)
+
+    // The dialog must not be dismissible while crypto runs — otherwise the export
+    // job would continue and launch the save picker after the dialog is gone.
+    composeRule.onNodeWithText("انصراف").assertIsNotEnabled()
+  }
 }

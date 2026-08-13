@@ -173,6 +173,33 @@ class AccountViewModelTest {
     }
 
   @Test
+  fun deleteAccountAllowsDeletingArchivedAccountEvenWithStaleEntity() =
+    runTest {
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "active", type = AccountType.BANK))
+      fakeRepo.accountsList.add(
+        AccountEntity(id = 5, name = "archived", type = AccountType.BANK, isArchived = true)
+      )
+      fakeRepo.refreshAccounts()
+
+      val errorMessages = mutableListOf<String>()
+      val job =
+        launch {
+          viewModel.errorEvents.collect { errorMessages.add(it) }
+        }
+      advanceUntilIdle()
+
+      // Stale entity: isArchived=false, but the fresh allAccounts copy is archived.
+      val staleEntity = AccountEntity(id = 5, name = "archived", type = AccountType.BANK)
+      viewModel.deleteAccount(staleEntity)
+      advanceUntilIdle()
+
+      assertTrue("no last-active error must be emitted", errorMessages.isEmpty())
+      assertTrue("archived account should be deleted", fakeRepo.accountsList.none { it.id == 5L })
+      assertEquals("only the active account remains", 1, fakeRepo.accountsList.size)
+      job.cancel()
+    }
+
+  @Test
   fun deleteAccountBlockedWhenTransactionsExist() =
     runTest {
       fakeRepo.transactionCountOverride = 3

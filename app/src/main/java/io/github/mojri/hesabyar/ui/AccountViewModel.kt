@@ -159,7 +159,9 @@ class AccountViewModel
         }
         val allAccounts = repository.getAllAccounts()
         val activeAccountCount = allAccounts.count { !it.isArchived }
-        if (activeAccountCount == 1 && !account.isArchived) {
+        // Check against the fresh allAccounts rows, not the possibly-stale passed
+        // entity: an archived row must never be treated as the last active account.
+        if (activeAccountCount == 1 && allAccounts.any { it.id == account.id && !it.isArchived }) {
           _errorEvents.emit(
             context.getString(
               R.string.account_delete_last_active_account_error,

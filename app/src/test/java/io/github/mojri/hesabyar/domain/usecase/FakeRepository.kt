@@ -212,7 +212,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
     // Mirror HesabyarRepository: only the last ACTIVE account is protected.
     val activeAccountCount = accountsList.count { !it.isArchived }
-    if (activeAccountCount == 1 && !account.isArchived) {
+    if (activeAccountCount == 1 && accountsList.any { it.id == account.id && !it.isArchived }) {
       throw IllegalStateException("Account ${account.id} is the last remaining active account and cannot be deleted")
     }
     accountsList.removeIf { it.id == account.id }

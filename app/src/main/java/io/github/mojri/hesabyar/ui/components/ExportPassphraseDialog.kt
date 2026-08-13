@@ -42,7 +42,7 @@ fun ExportPassphraseDialog(
   val canConfirm = passwordsMatch && !isCryptoInProgress
 
   AlertDialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!isCryptoInProgress) onDismiss() },
     title = { Text(stringResource(R.string.passphrase_export_title), fontWeight = FontWeight.Bold) },
     text = {
       ExportPassphraseContent(
@@ -70,7 +70,8 @@ fun ExportPassphraseDialog(
         HesabyarButton(
           onClick = onDismiss,
           text = stringResource(R.string.cancel_label),
-          variant = ButtonVariant.Text
+          variant = ButtonVariant.Text,
+          enabled = !isCryptoInProgress
         )
       }
     }
