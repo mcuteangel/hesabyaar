@@ -65,17 +65,30 @@ class BackupImportCoordinator(
   internal var pendingImportSalt: String? = null
 
   /**
+   * In-flight guard shared by the import and restore entry points: drops a
+   * submission while an import/restore is running, while a staging pass is still
+   * reading/parsing, or while an export is in flight (Exporting is busy, not
+   * available). The check and the Importing set are both synchronous on the Main
+   * thread, so a concurrent call sees the busy state immediately — no check-then-set
+   * race. Returns true when the caller must drop the submission.
+   */
+  private fun claimImportState(): Boolean {
+    if (operationState.value is BackupOperationState.Importing ||
+      operationState.value is BackupOperationState.Exporting
+    ) {
+      return true
+    }
+    operationState.value = BackupOperationState.Importing
+    return false
+  }
+
+  /**
    * Reads the backup file, parses it, and checks for encrypted fields.
    * If encrypted, stages the raw JSON and shows the import passphrase dialog.
    * If not encrypted, proceeds directly to validation.
    */
   fun validateAndStageImport(inputStream: InputStream) {
-    // In-flight guard: drop a second submission while a restore is already
-    // running or while this staging pass is still reading/parsing. The check and
-    // the Importing set below are both synchronous on the Main thread, so a
-    // concurrent call sees the busy state immediately — no check-then-set race.
-    if (operationState.value is BackupOperationState.Importing) return
-    operationState.value = BackupOperationState.Importing
+    if (claimImportState()) return
     scope.launch {
       try {
         val (text, rootJson) =
@@ -193,10 +206,14 @@ class BackupImportCoordinator(
           operationState.value =
             BackupOperationState.Error(application.getString(R.string.passphrase_wrong_or_corrupt))
         } finally {
-          isCryptoInProgress.value = false
-          // Only clear the tracked reference if it still points at this coroutine's
-          // job — a newer decryptAndStageImport call may have replaced it.
-          if (decryptJob === coroutineContext[Job]) decryptJob = null
+          // Only clear state if this coroutine's job is still the tracked one —
+          // a newer decryptAndStageImport call may have cancelled and replaced it
+          // mid-flight. Clearing unconditionally would reset isCryptoInProgress
+          // (or drop the job reference) for the newer job that is still running.
+          if (decryptJob === coroutineContext[Job]) {
+            isCryptoInProgress.value = false
+            decryptJob = null
+          }
         }
       }
     decryptJob = job
@@ -209,6 +226,9 @@ class BackupImportCoordinator(
   fun cancelPassphraseDialog() {
     decryptJob?.cancel()
     decryptJob = null
+    // The cancelled job's finally skips its cleanup because decryptJob no longer
+    // points at it (ownership check), so the cancel path clears the flag itself.
+    isCryptoInProgress.value = false
     passphraseDialogState.value = PassphraseDialogState.Hidden
     pendingImportRawJson = null
     pendingImportSalt = null
@@ -232,11 +252,9 @@ class BackupImportCoordinator(
   // CancellationException is rethrown first. Placed on the enclosing function per convention.
   @Suppress("TooGenericExceptionCaught")
   fun executeRestore() {
-    // In-flight guard: drop a duplicate submission (e.g. a double-tap on the
-    // restore-confirm button). Setting Importing synchronously below (before any
-    // launching) makes the check-and-set atomic on the single-threaded Main
-    // dispatcher, so a second call sees the busy state immediately.
-    if (operationState.value is BackupOperationState.Importing) return
+    // claimImportState handles the in-flight guard (Importing/Exporting) and
+    // atomically sets Importing before any launching.
+    if (claimImportState()) return
     val backup = pendingRestoreBackup.value ?: return
     val mode = selectedRestoreMode.value
 

@@ -289,7 +289,13 @@ object BudgetAdvisor {
     val totalDebt = activeLoans.sumOf { it.remainingAmount } + activeBankLoans.sumOf { it.totalRepayableAmount }
     val activeDebtCount = activeLoans.size + activeBankLoans.size
 
-    val hasNoData = transactions.isEmpty() && installments.isEmpty() && loans.isEmpty() && bankLoans.isEmpty()
+    // Parity with the Rust guard (get_offline_forecast): settled loans/bank loans
+    // are not active obligations and must not suppress the "no data" message.
+    val hasNoData =
+      transactions.isEmpty() &&
+        installments.isEmpty() &&
+        activeLoans.isEmpty() &&
+        activeBankLoans.isEmpty()
     if (hasNoData) {
       return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
     }

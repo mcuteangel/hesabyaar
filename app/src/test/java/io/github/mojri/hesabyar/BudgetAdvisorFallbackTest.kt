@@ -1,9 +1,13 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -38,6 +42,30 @@ class BudgetAdvisorFallbackTest {
     categoryId: Long = 1L
   ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
 
+  private fun createBankLoan(isSettled: Boolean): BankLoan =
+    BankLoan(
+      bankName = "بانک ملی",
+      loanName = "وام خودرو",
+      receivedAmount = 10_000_000,
+      monthlyInstallmentAmount = 1_000_000,
+      numberOfInstallments = 12,
+      totalRepayableAmount = 12_000_000,
+      totalInterest = 2_000_000,
+      startDate = 1_700_000_000_000,
+      description = "",
+      isSettled = isSettled
+    )
+
+  private fun createSettledLoan(): Loan =
+    Loan(
+      personName = "test",
+      type = LoanType.CREDITOR,
+      originalAmount = 10_000_000,
+      remainingAmount = 10_000_000,
+      description = "test",
+      isSettled = true
+    )
+
   @Test
   fun calculatefinancialhealthscoreLocalFallbackWhenRustUnavailable() {
     val transactions =
@@ -68,6 +96,53 @@ class BudgetAdvisorFallbackTest {
     assertEquals(
       0,
       BudgetAdvisor.calculateFinancialHealthScore(emptyList(), emptyList(), emptyList(), emptyList())
+    )
+  }
+
+  @Test
+  fun getofflineforecastSettledBankLoansStillNoDataViaLocalFallback() {
+    // A settled bank loan is not an active obligation and must not suppress the
+    // "no data" message — parity with the Rust get_offline_forecast guard.
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        listOf(createBankLoan(isSettled = true))
+      )
+    assertTrue(
+      "settled bank loan must not produce a forecast, got: $result",
+      result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
+  fun getofflineforecastSettledLoansStillNoDataViaLocalFallback() {
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        listOf(createSettledLoan()),
+        emptyList(),
+        emptyList()
+      )
+    assertTrue(
+      "settled loan must not produce a forecast, got: $result",
+      result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
+  fun getofflineforecastActiveBankLoanProducesForecastViaLocalFallback() {
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        listOf(createBankLoan(isSettled = false))
+      )
+    assertFalse(
+      "active bank loan must produce a forecast, got: $result",
+      result.contains("ثبت نشده")
     )
   }
 }

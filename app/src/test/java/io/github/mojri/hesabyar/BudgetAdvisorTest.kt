@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
@@ -98,6 +99,20 @@ class BudgetAdvisorTest {
       amount = amount,
       dueDate = System.currentTimeMillis() + 24L * 60L * 60L * 1000L,
       isPaid = isPaid
+    )
+
+  private fun createBankLoan(isSettled: Boolean): BankLoan =
+    BankLoan(
+      bankName = "بانک ملی",
+      loanName = "وام خودرو",
+      receivedAmount = 10_000_000,
+      monthlyInstallmentAmount = 1_000_000,
+      numberOfInstallments = 12,
+      totalRepayableAmount = 12_000_000,
+      totalInterest = 2_000_000,
+      startDate = 1_700_000_000_000,
+      description = "",
+      isSettled = isSettled
     )
 
   private fun createCategory(
@@ -313,6 +328,23 @@ class BudgetAdvisorTest {
   fun getofflineforecastEmptyData() {
     val result = BudgetAdvisor.getOfflineForecast(emptyList(), emptyList(), emptyList())
     assertTrue(result.contains("هنوز اطلاعات") || result.contains("ثبت نشده"))
+  }
+
+  @Test
+  fun getofflineforecastSettledBankLoansStillNoData() {
+    // A settled bank loan is not an active obligation and must not suppress the
+    // "no data" message (parity with the Kotlin fallback guard).
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        listOf(createBankLoan(isSettled = true))
+      )
+    assertTrue(
+      "settled bank loan must not produce a forecast, got: $result",
+      result.contains("هنوز اطلاعات") || result.contains("ثبت نشده")
+    )
   }
 
   @Test

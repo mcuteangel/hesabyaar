@@ -94,13 +94,16 @@ pub fn get_offline_forecast(
         .iter()
         .filter(|i| !i.is_paid && i.due_date >= now_ms && i.due_date <= now_ms + thirty_days_ms)
         .collect();
-    let upcoming_sum: i64 = upcoming_installments.iter().map(|i| i.amount).sum();
+    let upcoming_sum: i64 = upcoming_installments
+        .iter()
+        .map(|i| i.amount)
+        .fold(0, |total, amount| total.saturating_add(amount));
 
     let unsettled_creditor_loan_monthly: i64 = loans
         .iter()
         .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
         .map(|l| l.remaining_amount / 12)
-        .sum();
+        .fold(0, |total, amount| total.saturating_add(amount));
     let total_obligations =
         upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
 
@@ -111,7 +114,10 @@ pub fn get_offline_forecast(
         .iter()
         .filter(|b| !b.is_settled)
         .collect();
-    let bank_loan_debt: i64 = active_bank_loans.iter().map(|b| b.total_repayable_amount).sum();
+    let bank_loan_debt: i64 = active_bank_loans
+        .iter()
+        .map(|b| b.total_repayable_amount)
+        .fold(0, |total, debt| total.saturating_add(debt));
 
     if transactions.is_empty() && total_obligations == 0 && active_bank_loans.is_empty() {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
@@ -123,8 +129,16 @@ pub fn get_offline_forecast(
         .filter(|t| t.date >= window_start && t.date <= now_ms)
         .collect();
 
-    let recent_income: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Income).map(|t| t.amount).sum();
-    let recent_expense: i64 = recent.iter().filter(|t| t.tx_type == TransactionType::Expense).map(|t| t.amount).sum();
+    let recent_income: i64 = recent
+        .iter()
+        .filter(|t| t.tx_type == TransactionType::Income)
+        .map(|t| t.amount)
+        .fold(0, |total, amount| total.saturating_add(amount));
+    let recent_expense: i64 = recent
+        .iter()
+        .filter(|t| t.tx_type == TransactionType::Expense)
+        .map(|t| t.amount)
+        .fold(0, |total, amount| total.saturating_add(amount));
 
     let days_span = if !recent.is_empty() {
         let oldest_date = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
@@ -658,6 +672,47 @@ mod tests {
         }];
         let result = get_offline_forecast(&[], &[], &[], &bank_loans);
         assert!(result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
+    }
+
+    #[test]
+    fn test_forecast_bank_loan_debt_saturates_on_overflow() {
+        // Two active bank loans whose total_repayable_amounts individually exceed
+        // half of i64::MAX — a plain sum() would overflow (panic in debug builds,
+        // wrap in release). The saturating fold must produce i64::MAX without panicking.
+        let bank_loans = vec![
+            BankLoan {
+                id: 1,
+                bank_name: "A".into(),
+                loan_name: "x".into(),
+                received_amount: i64::MAX,
+                monthly_installment_amount: i64::MAX,
+                number_of_installments: 1,
+                total_repayable_amount: i64::MAX,
+                total_interest: 0,
+                start_date: 0,
+                description: String::new(),
+                is_settled: false,
+            },
+            BankLoan {
+                id: 2,
+                bank_name: "B".into(),
+                loan_name: "y".into(),
+                received_amount: i64::MAX,
+                monthly_installment_amount: i64::MAX,
+                number_of_installments: 1,
+                total_repayable_amount: i64::MAX,
+                total_interest: 0,
+                start_date: 0,
+                description: String::new(),
+                is_settled: false,
+            },
+        ];
+        let result = get_offline_forecast(&[], &[], &[], &bank_loans);
+        // Saturated debt = i64::MAX → Toman = i64::MAX / 10 = 922,337,203,685,477,580.
+        assert!(
+            result.contains("922,337,203,685,477,580 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"),
+            "expected saturated Toman debt in output, got: {result}"
+        );
     }
 
     // -- calculate_financial_health_score tests -----------------------------------
