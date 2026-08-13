@@ -19,8 +19,9 @@ const CATEGORY_INCOME: &str = "Income";
 const CATEGORY_OTHER: &str = "Other";
 
 // Mirrors the full Kotlin category taxonomy (GeminiParser categoryKeywords).
-// The offline parser does not infer these categories; normalize_category
-// collapses them to "Other". Kept as documentation of the complete taxonomy.
+// The offline parser (infer_expense_category_full) CAN infer these categories,
+// but normalize_category collapses them to "Other" in the offline pipeline.
+// Kept as documentation of the complete taxonomy.
 #[allow(dead_code)]
 mod unused_categories {
     pub const CATEGORY_PERSONAL_CARE: &str = "Personal Care";

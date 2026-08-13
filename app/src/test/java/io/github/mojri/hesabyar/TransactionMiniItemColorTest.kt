@@ -147,7 +147,7 @@ class TransactionMiniItemColorTest {
   // -- Test d: transfer is neutral + positive, never a red negative expense ----
 
   @Test
-  fun transferRendersPositiveAmountWithNeutralColor() {
+  fun transferRendersPositiveAmountSign() {
     val transaction =
       Transaction(
         id = 400L,
@@ -170,6 +170,8 @@ class TransactionMiniItemColorTest {
 
     // A transfer is neither income nor expense: it must render a positive (+)
     // sign rather than the red, negative "expense" treatment.
+    // NOTE: This test only verifies the positive sign is present; it does not
+    // assert the text color. See TransactionMiniItem for the tertiary color used.
     composeRule.onNodeWithText("+").assertIsDisplayed()
   }
 }

@@ -43,11 +43,11 @@ class BackupJsonValidatorContextTest {
         )
       )
 
-    val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected Invalid with messages, got $result",
       result is BackupValidationResult.Invalid
     )
+    val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "version message must be the localized string, got: $errors",
       errors.any { it == "نسخه پشتیبان نامعتبر است" }

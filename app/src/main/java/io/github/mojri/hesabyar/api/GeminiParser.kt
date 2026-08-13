@@ -315,12 +315,14 @@ object GeminiParser {
    * [TransactionType] enum) to the Kotlin [ParsedResult] (which uses a String type).
    *
    * @param rawSentence The user's input sentence in Persian.
-   * @param nowMs Epoch milliseconds (UTC) used for the Jalali date-relative
-   *   `daysFromNow` computation (installment due dates). It does NOT affect
-   *   `dateOffsetDays`: that field is derived purely from relative words like
-   *   «دیروز»/«فردا» (see detectDateOffset), which carry no absolute date.
-   *   The value defaults to [System.currentTimeMillis] so production behavior is
-   *   unchanged and tests can pin a fixed "today".
+   * @param nowMs Epoch milliseconds (UTC) used to compute the Jalali "today"
+   *   date. It affects both `daysFromNow` (installment due dates) and
+   *   explicit Jalali date offsets in `dateOffsetDays` (e.g. "۲۵ تیر" is
+   *   resolved to days-from-today via detectDateOffset →
+   *   detectExplicitJalaliOffset, which depends on `today`). Only relative-word
+   *   offsets («دیروز»=-1, «فردا»=+1, etc.) are fixed constants and do not
+   *   depend on `nowMs`. The value defaults to [System.currentTimeMillis] so
+   *   production behavior is unchanged and tests can pin a fixed "today".
    */
   fun parseSentenceOffline(
     rawSentence: String,

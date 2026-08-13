@@ -4,7 +4,7 @@
 
 ## Project Identity
 
-Hesabyar is a personal finance app for Android. It is the first app that uses the Persian language. It works offline. AI support (Gemini/OpenRouter) is optional. It is not part of the main app.
+Hesabyar is a personal finance app for Android. It is Persian-first. It works offline. AI support (Gemini/OpenRouter) is optional. It is not part of the main app.
 
 ## Build & Run
 
