@@ -132,6 +132,15 @@ class ExportPassphraseDialogTest {
   }
 
   @Test
+  fun saveWithoutEncryptionDisabledWhileCryptoInProgress() {
+    launchDialog(isCryptoInProgress = true)
+
+    // The save-without-encryption button must not be clickable while crypto runs,
+    // otherwise a user could bypass encryption while a key-derivation job is active.
+    composeRule.onNodeWithText("ذخیره بدون رمز").assertIsNotEnabled()
+  }
+
+  @Test
   fun cancelDisabledWhileCryptoInProgress() {
     launchDialog(isCryptoInProgress = true)
 

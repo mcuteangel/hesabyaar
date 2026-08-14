@@ -348,6 +348,24 @@ class BudgetAdvisorTest {
   }
 
   @Test
+  fun getofflineforecastNoDataWithOnlyDebtorLoan() {
+    // DEBTOR loans must not suppress the "no data" message in the Kotlin
+    // fallback (parity with Rust get_offline_forecast, which only counts
+    // unsettled CREDITOR loans toward total_obligations).
+    HesabyarApp.setRustInitializedForTesting(false)
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        listOf(createLoan(LoanType.DEBTOR, 1_000_000, 500_000)),
+        emptyList()
+      )
+    assertTrue(
+      "DEBTOR loan must not suppress no-data message in Kotlin fallback, got: $result",
+      result.contains("هنوز اطلاعات") || result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
   fun getofflineforecastNegativeBalanceWarns() {
     val transactions =
       listOf(

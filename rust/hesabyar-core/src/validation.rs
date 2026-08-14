@@ -1413,7 +1413,7 @@ mod tests {
         let payload = BackupPayload {
             version: 1,
             timestamp: 1710000000000,
-            app_version: "1.0".to_string(),
+            app_version: "0.2.0".to_string(),
             transactions: vec![tx],
             loans: vec![],
             installments: vec![],
@@ -1459,7 +1459,7 @@ mod tests {
         let payload = BackupPayload {
             version: 1,
             timestamp: 1710000000000,
-            app_version: "1.0".to_string(),
+            app_version: "0.2.0".to_string(),
             transactions: vec![Transaction {
                 id: 1,
                 tx_type: TransactionType::Transfer,

@@ -65,7 +65,8 @@ fun ExportPassphraseDialog(
         HesabyarButton(
           onClick = onSaveWithoutEncryption,
           text = stringResource(R.string.passphrase_save_without_encryption),
-          variant = ButtonVariant.Outlined
+          variant = ButtonVariant.Outlined,
+          enabled = !isCryptoInProgress
         )
         HesabyarButton(
           onClick = onDismiss,
