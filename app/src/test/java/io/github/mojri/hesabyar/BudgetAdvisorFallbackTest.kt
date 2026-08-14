@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.BudgetAdvisor
 import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
@@ -127,6 +128,59 @@ class BudgetAdvisorFallbackTest {
       )
     assertTrue(
       "settled loan must not produce a forecast, got: $result",
+      result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
+  fun getofflineforecastPaidInstallmentsOnlyNoDataViaLocalFallback() {
+    // Only paid installments — no unpaid installments due within 30 days.
+    // Parity with Rust get_offline_forecast: total_obligations only counts
+    // unpaid upcoming installments, so paid installments must not suppress
+    // the "no data" message.
+    val paidInstallment =
+      Installment(
+        title = "قسط ماهانه",
+        amount = 1_000_000,
+        dueDate = 1_700_000_000_000L,
+        isPaid = true
+      )
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        emptyList(),
+        listOf(paidInstallment),
+        emptyList()
+      )
+    assertTrue(
+      "paid installments must not produce a forecast, got: $result",
+      result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
+  fun getofflineforecastDebtorLoansOnlyNoDataViaLocalFallback() {
+    // Only unsettled DEBTOR loans — Rust's total_obligations only counts
+    // unsettled CREDITOR loans, so DEBTOR loans must not suppress the
+    // "no data" message.
+    val debtorLoan =
+      Loan(
+        personName = "طرف مقابل",
+        type = LoanType.DEBTOR,
+        originalAmount = 5_000_000,
+        remainingAmount = 5_000_000,
+        description = "وام شخصی",
+        isSettled = false
+      )
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        listOf(debtorLoan),
+        emptyList(),
+        emptyList()
+      )
+    assertTrue(
+      "DEBTOR loan must not produce a forecast, got: $result",
       result.contains("ثبت نشده")
     )
   }

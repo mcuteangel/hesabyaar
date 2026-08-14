@@ -52,7 +52,9 @@ internal class BackupReferenceValidator(
       duplicateIds.forEach { id ->
         errors.add(message(R.string.backup_error_duplicate_account_id, arrayOf<Any>(id.toString())))
       }
-      return
+      // Do NOT return here. The Rust validator (validate_accounts_and_references)
+      // records duplicate-ID errors but continues to check transaction account/destination
+      // references. Returning early would skip those checks and break Kotlin-Rust parity.
     }
     val accountIds = backup.accounts.map { it.id }.toSet()
     val isValidAccountId: (Long) -> Boolean =

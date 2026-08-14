@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
@@ -116,7 +117,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected the null-destination error, got: $errors",
-      errors.any { it.startsWith("<string-res-") }
+      errors.any { it == "<string-res-${R.string.backup_error_transfer_no_destination}>" }
     )
   }
 
@@ -131,7 +132,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected the same-source-destination error, got: $errors",
-      errors.any { it.startsWith("<string-res-") }
+      errors.any { it == "<string-res-${R.string.backup_error_transfer_same_source_destination}>" }
     )
   }
 
@@ -264,7 +265,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected a destination-account error, got: $errors",
-      errors.any { it.startsWith("<string-res-") }
+      errors.any { it == "<string-res-${R.string.backup_error_transaction_invalid_legacy_destination_account}>" }
     )
   }
 
@@ -442,7 +443,7 @@ class BackupJsonValidatorKotlinFallbackTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "expected a duplicate-account-id error, got: $errors",
-      errors.any { it.startsWith("<string-res-") }
+      errors.any { it == "<string-res-${R.string.backup_error_duplicate_account_id}>" }
     )
   }
 }

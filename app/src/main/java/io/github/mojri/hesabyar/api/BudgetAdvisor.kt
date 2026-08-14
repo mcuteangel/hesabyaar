@@ -299,7 +299,7 @@ object BudgetAdvisor {
         .sumOf { it.remainingAmount / 12 }
     val hasNoData =
       transactions.isEmpty() &&
-        installments.isEmpty() &&
+        upcomingInstallments.isEmpty() &&
         unsettledCreditorMonthlyObligation == 0L &&
         activeBankLoans.isEmpty()
     if (hasNoData) {
