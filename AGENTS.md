@@ -1,5 +1,3 @@
-# Write in ASD-STE100.
-
 # Hesabyar – Agent Guide
 
 ## Project Identity
