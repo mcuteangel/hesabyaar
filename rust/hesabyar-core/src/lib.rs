@@ -63,6 +63,12 @@ pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, Hesaby
 /// affected by `now_ms` — it is derived purely from relative words like
 /// «دیروز»/«فردا» via `extract_date_offset`. Production code uses the
 /// real-time default via [parse_sentence_offline].
+///
+/// Note: unlike the Kotlin fallback (GeminiParser.parseSentenceOffline), the
+/// Rust parser's `extract_date_offset` handles only relative words. It does
+/// NOT resolve explicit Jalali dates (e.g. "۲۵ تیر") to days-from-today, so
+/// such input yields a 0 offset here. Production code uses the
+/// real-time default via [parse_sentence_offline].
 #[uniffi::export]
 pub fn parse_sentence_offline_at(
     raw_sentence: &str,

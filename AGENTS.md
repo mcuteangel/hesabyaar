@@ -73,7 +73,7 @@ Rule of thumb for test authors: a test that claims to cover the fallback or the 
 - Call the Kotlin function directly.
 - Pair `setRustInitializedForTesting(false)` with `RustIsolationRule`. This saves, clears, and restores the override per class.
 
-`setRustInitializedForTesting(false)` alone does not guarantee fallback execution. Before the fix, it had no effect.
+`setRustInitializedForTesting(false)` alone forces Kotlin fallback execution for every caller. Still pair it with `RustIsolationRule` so the process-global override is saved, cleared, and restored after the test class — otherwise it leaks into every later test class.
 
 ## Environment Setup
 
@@ -177,7 +177,7 @@ The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through the UniFFI
 
 > Doc comments are part of the UniFFI API checksum. A comment-only change to an exported (`#[uniffi::export]`) function still requires binding regeneration. Then the host library fails the `uniffiCheckApiChecksums` check at load time. Every Rust-tagged test fails with "UniFFI API checksum mismatch" before the test logic runs.
 > Locally, the regeneration tasks do nothing unless you force them (`outputs.upToDateWhen`). Use `./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks`. The generated `hesabyar_core.kt` is gitignored. Regeneration leaves no git diff.
-
+>
 > This is a hand-maintained compat object. The task always appends `app/buildSrc/template/HesabyarCore.template.kt` to the generated bindings. It does not patch that template's signatures.
 > When a Rust FFI function's signature changes (new, removed, or reordered parameters), update the matching line in that template. Add defaults for any new trailing parameter. Then run `:app:generateAndFixBindings` again.
 > Otherwise, the repo `hesabyar_core.kt` has a stale `HesabyarCore.xxx()` wrapper. The wrapper calls the regenerated top-level function with the wrong argument count.
