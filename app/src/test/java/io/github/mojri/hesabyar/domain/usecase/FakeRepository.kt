@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   /** Overrides the computed transaction count when non-null. */
   var transactionCountOverride: Int? = null
+
+  /** When set, suspends [getTransactionCountForAccount] until completed — for race tests. */
+  var txCountGate: CompletableDeferred<Unit>? = null
 
   private var nextId = 1L
 
@@ -235,6 +239,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun getTransactionCountForAccount(accountId: Long): Int {
+    txCountGate?.await()
     if (shouldThrowOnTransactionCount) throw IllegalStateException("Simulated DB failure")
     return transactionCountOverride
       ?: _allTransactions.value.count {

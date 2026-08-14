@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,6 +43,16 @@ class AccountViewModel
         onBufferOverflow = BufferOverflow.DROP_OLDEST
       )
     val errorEvents: SharedFlow<String> = _errorEvents.asSharedFlow()
+
+    /**
+     * Monotonic token that invalidates the in-flight [canDeleteAccount] check
+     * each time a new check starts. Because [canDeleteAccount] launches its
+     * work in [viewModelScope] (which outlives Compose's [LaunchedEffect]
+     * cancellation), a stale callback from a previous, same-account check can
+     * still fire after the dialog is dismissed and reopened. The token ensures
+     * only the most recent check's callback is delivered.
+     */
+    private val currentDeleteCheckToken = AtomicLong(0)
 
     /** Sealed result type for addAccount to communicate validation/insert outcomes. */
     sealed class AddAccountResult {
@@ -186,30 +197,47 @@ class AccountViewModel
      * reason via [onResult] — a repository failure is reported as
      * [DeleteCheckResult.CheckFailed] (with the user-facing message) instead of
      * being conflated with the transaction-block or last-account cases.
+     *
+     * Because the check runs in [viewModelScope] (not tied to any single
+     * Compose composition), a dismiss-and-reopen of the same account can cause
+     * the earlier slow check to deliver its callback after the newer one. A
+     * monotonic [currentDeleteCheckToken] ensures only the most recent check's
+     * callback is delivered.
      */
     fun canDeleteAccount(
       accountId: Long,
       onResult: (DeleteCheckResult) -> Unit
-    ) = runGuarded(
-      errorPrefix = "بررسی حساب",
-      onError = { message -> onResult(DeleteCheckResult.CheckFailed(message)) }
     ) {
-      val count = repository.getTransactionCountForAccount(accountId)
-      if (count > 0) {
-        onResult(DeleteCheckResult.HasTransactions)
-        return@runGuarded
-      }
-      val allAccounts = repository.getAllAccounts()
-      val activeAccountCount = allAccounts.count { !it.isArchived }
-      val isLastActiveAccount =
-        activeAccountCount == 1 && allAccounts.firstOrNull { it.id == accountId }?.isArchived == false
-      onResult(
-        if (isLastActiveAccount) {
-          DeleteCheckResult.LastActiveAccount
-        } else {
-          DeleteCheckResult.CanDelete
+      val myToken = currentDeleteCheckToken.incrementAndGet()
+
+      fun emit(result: DeleteCheckResult) {
+        if (myToken == currentDeleteCheckToken.get()) {
+          onResult(result)
         }
-      )
+      }
+      runGuarded(
+        errorPrefix = "بررسی حساب",
+        onError = { message -> emit(DeleteCheckResult.CheckFailed(message)) }
+      ) {
+        val count = repository.getTransactionCountForAccount(accountId)
+        if (myToken != currentDeleteCheckToken.get()) return@runGuarded
+        if (count > 0) {
+          emit(DeleteCheckResult.HasTransactions)
+          return@runGuarded
+        }
+        val allAccounts = repository.getAllAccounts()
+        if (myToken != currentDeleteCheckToken.get()) return@runGuarded
+        val activeAccountCount = allAccounts.count { !it.isArchived }
+        val isLastActiveAccount =
+          activeAccountCount == 1 && allAccounts.firstOrNull { it.id == accountId }?.isArchived == false
+        emit(
+          if (isLastActiveAccount) {
+            DeleteCheckResult.LastActiveAccount
+          } else {
+            DeleteCheckResult.CanDelete
+          }
+        )
+      }
     }
 
     fun archiveAccount(account: AccountEntity) =

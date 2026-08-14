@@ -5,16 +5,20 @@ import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.domain.usecase.FakeRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -270,6 +274,56 @@ class AccountViewModelTest {
       assertTrue(
         "should report HasTransactions, got $result",
         result is AccountViewModel.DeleteCheckResult.HasTransactions
+      )
+    }
+
+  @Test
+  fun canDeleteAccountStaleCallbackSuppressedAfterSameAccountReopen() =
+    runTest {
+      // Simulates: user opens delete dialog for Account A, dismisses it,
+      // then immediately reopens for Account A. The first (slow) check
+      // completes AFTER the second (fast) check. The token guard must
+      // suppress the first callback so stale data doesn't overwrite the
+      // fresh result.
+      // Two accounts so Account 1 (the delete target) is NOT the last active account.
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "test", type = AccountType.BANK))
+      fakeRepo.accountsList.add(AccountEntity(id = 2, name = "other", type = AccountType.BANK))
+      fakeRepo.refreshAccounts()
+
+      // Gate that suspends the first check's repository call until released.
+      val gate = CompletableDeferred<Unit>()
+      fakeRepo.txCountGate = gate
+
+      var staleResult: AccountViewModel.DeleteCheckResult? = null
+      viewModel.canDeleteAccount(1L) { staleResult = it }
+
+      // Let coroutine #1 run until it suspends at the gate.
+      runCurrent()
+      assertEquals(
+        "first check must not have completed yet (suspended at gate)",
+        null,
+        staleResult
+      )
+
+      // Release the gate; immediately start a second check for the SAME account.
+      gate.complete(Unit)
+      var freshResult: AccountViewModel.DeleteCheckResult? = null
+      viewModel.canDeleteAccount(1L) { freshResult = it }
+
+      // Let both coroutines finish.
+      advanceUntilIdle()
+
+      assertNotNull(
+        "second (fresh) check must deliver a result",
+        freshResult
+      )
+      assertTrue(
+        "fresh check should report CanDelete, got $freshResult",
+        freshResult is AccountViewModel.DeleteCheckResult.CanDelete
+      )
+      assertNull(
+        "stale first-check callback must be suppressed by the token guard, got $staleResult",
+        staleResult
       )
     }
 
