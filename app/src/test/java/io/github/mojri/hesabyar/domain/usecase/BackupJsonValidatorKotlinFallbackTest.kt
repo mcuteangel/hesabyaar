@@ -31,6 +31,23 @@ class BackupJsonValidatorKotlinFallbackTest {
 
   private fun validate(backup: BackupPayload): BackupValidationResult = validator.validateBackupKotlin(backup)
 
+  private fun transferPayload(destinationAccountId: Long?): BackupPayload =
+    BackupPayload(
+      accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
+      transactions =
+        listOf(
+          Transaction(
+            type = TransactionType.TRANSFER,
+            categoryId = 1L,
+            amount = 1_000L,
+            description = "transfer",
+            date = 1_700_000_000_000L,
+            accountId = 1L,
+            destinationAccountId = destinationAccountId
+          )
+        )
+    )
+
   @Test
   fun validPayloadIsValid() {
     val payload =
@@ -81,24 +98,7 @@ class BackupJsonValidatorKotlinFallbackTest {
 
   @Test
   fun rejectsTransferWithNonexistentDestinationAccount() {
-    val payload =
-      BackupPayload(
-        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
-        transactions =
-          listOf(
-            Transaction(
-              type = TransactionType.TRANSFER,
-              categoryId = 1L,
-              amount = 1_000L,
-              description = "transfer",
-              date = 1_700_000_000_000L,
-              accountId = 1L,
-              destinationAccountId = 99L
-            )
-          )
-      )
-
-    val result = validate(payload)
+    val result = validate(transferPayload(destinationAccountId = 99L))
     assertTrue(
       "expected $result to be Invalid for non-existent destination account",
       result is BackupValidationResult.Invalid
@@ -107,26 +107,8 @@ class BackupJsonValidatorKotlinFallbackTest {
 
   @Test
   fun rejectsTransferWithNullDestination() {
-    // Source account is declared (so account-ref checks pass); destination is
-    // null — validateTransferStructure line 80 must reject it.
-    val payload =
-      BackupPayload(
-        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
-        transactions =
-          listOf(
-            Transaction(
-              type = TransactionType.TRANSFER,
-              categoryId = 1L,
-              amount = 1_000L,
-              description = "transfer",
-              date = 1_700_000_000_000L,
-              accountId = 1L,
-              destinationAccountId = null
-            )
-          )
-      )
-
-    val result = validate(payload)
+    // Destination is null — transfer structure validation must reject it.
+    val result = validate(transferPayload(destinationAccountId = null))
     assertTrue(
       "expected $result to be Invalid for null destination account",
       result is BackupValidationResult.Invalid
@@ -140,26 +122,8 @@ class BackupJsonValidatorKotlinFallbackTest {
 
   @Test
   fun rejectsTransferWithSameSourceAndDestination() {
-    // Source account is declared and equals the destination —
-    // validateTransferStructure line 81 must reject it.
-    val payload =
-      BackupPayload(
-        accounts = listOf(AccountEntity(id = 1L, name = "اصلی", type = AccountType.BANK)),
-        transactions =
-          listOf(
-            Transaction(
-              type = TransactionType.TRANSFER,
-              categoryId = 1L,
-              amount = 1_000L,
-              description = "transfer",
-              date = 1_700_000_000_000L,
-              accountId = 1L,
-              destinationAccountId = 1L
-            )
-          )
-      )
-
-    val result = validate(payload)
+    // Source account equals destination — transfer structure validation must reject it.
+    val result = validate(transferPayload(destinationAccountId = 1L))
     assertTrue(
       "expected $result to be Invalid for same source and destination",
       result is BackupValidationResult.Invalid

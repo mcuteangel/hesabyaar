@@ -39,7 +39,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allCategories: Flow<List<Category>> =
     flow {
       exportCategoryReadCount++
-      exportGate?.await()
+      val gate = exportGate
+      exportGate = null
+      gate?.await()
       exportShouldThrow?.let { throw it }
       emit(emptyList())
     }

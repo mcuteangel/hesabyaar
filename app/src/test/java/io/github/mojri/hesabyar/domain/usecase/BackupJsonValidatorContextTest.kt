@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
@@ -33,7 +34,8 @@ import org.robolectric.annotation.Config
 class BackupJsonValidatorContextTest {
   @Test
   fun contextWiredValidatorResolvesRealLocalizedMessages() {
-    val validator = BackupJsonValidator(application = RuntimeEnvironment.getApplication())
+    val app = RuntimeEnvironment.getApplication()
+    val validator = BackupJsonValidator(application = app)
 
     val result =
       validator.validateBackupKotlin(
@@ -50,11 +52,11 @@ class BackupJsonValidatorContextTest {
     val errors = (result as BackupValidationResult.Invalid).errors
     assertTrue(
       "version message must be the localized string, got: $errors",
-      errors.any { it == "نسخه پشتیبان نامعتبر است" }
+      errors.any { it == app.getString(R.string.backup_validation_version_invalid) }
     )
     assertTrue(
       "account message must be the localized string, got: $errors",
-      errors.any { it.contains("نام حساب #0 خالی است") }
+      errors.any { it.contains(app.getString(R.string.backup_validation_account_name_blank, 0)) }
     )
     assertFalse(
       "no message may leak the resource-id sentinel, got: $errors",
@@ -98,11 +100,11 @@ class BackupJsonValidatorContextTest {
 
     assertTrue(
       "duplicate-account-id message must be localized, got: $errors",
-      errors.any { it.contains("حساب تکراری") }
+      errors.any { it.contains(app.getString(R.string.backup_error_duplicate_account_id, "1")) }
     )
     assertTrue(
       "transfer-same-source-destination message must be localized, got: $errors",
-      errors.any { it.contains("مبدا و مقصد یکسان دارند") }
+      errors.any { it.contains(app.getString(R.string.backup_error_transfer_same_source_destination, 0)) }
     )
     assertFalse(
       "no message may leak the resource-id sentinel, got: $errors",

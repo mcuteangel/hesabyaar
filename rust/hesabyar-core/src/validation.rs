@@ -23,9 +23,10 @@ impl Default for ValidationResult {
 
 /// Validate the shared transaction fields (amount, date, category_id) that
 /// apply to every transaction type. Transfer-specific invariants (destination
-/// present, destination != source) are checked separately in
-/// [validate_transaction] and [validate_accounts_and_references] so they are
-/// not duplicated when `validate_backup_payload` runs both helpers.
+/// present, destination != source) are checked by the shared
+/// [check_transfer_structure] helper, called from both [validate_transaction]
+/// and [validate_accounts_and_references], so they are not duplicated (or
+/// forgotten) when `validate_backup_payload` runs both paths.
 fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     if tx.amount <= 0 {
         return Err("Transaction amount must be positive".into());
@@ -44,6 +45,34 @@ fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     Ok(())
 }
 
+/// Violation of a Transfer's structural invariants, shared between
+/// [`validate_transaction`] (fail-fast FFI path) and
+/// [`validate_accounts_and_references`] (collect-all batch path) so the
+/// destination/source rules cannot drift when one is modified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TransferIssue {
+    MissingDestination,
+    SameSourceAndDestination,
+}
+
+/// Check Transfer-specific structural invariants (destination present,
+/// destination != source) shared by both validation paths.
+///
+/// Returns `Some(issue)` for the first violation found, or `None` for a valid
+/// transaction (including non-Transfer types, which are accepted here).
+fn check_transfer_structure(tx: &Transaction) -> Option<TransferIssue> {
+    if tx.tx_type != TransactionType::Transfer {
+        return None;
+    }
+    if tx.destination_account_id.is_none() {
+        return Some(TransferIssue::MissingDestination);
+    }
+    if tx.destination_account_id == Some(tx.account_id) {
+        return Some(TransferIssue::SameSourceAndDestination);
+    }
+    None
+}
+
 /// Validate a single transaction.
 ///
 /// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
@@ -51,15 +80,12 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     validate_transaction_fields(tx)?;
     // The five non-Transfer types are accepted unconditionally; Transfer
     // requires a valid destination account.
-    if tx.tx_type == TransactionType::Transfer {
-        if tx.destination_account_id.is_none() {
-            return Err("Transfer must have a destination_account_id".into());
-        }
-        if tx.destination_account_id == Some(tx.account_id) {
-            return Err(
-                "Transfer source and destination accounts must differ".into(),
-            );
-        }
+    if let Some(issue) = check_transfer_structure(tx) {
+        let msg = match issue {
+            TransferIssue::MissingDestination => "Transfer must have a destination_account_id",
+            TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+        };
+        return Err(msg.into());
     }
     Ok(())
 }
@@ -148,9 +174,9 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
 ///
 /// Transfer-specific invariants (destination present, destination != source)
 /// are intentionally NOT checked here — `validate_accounts_and_references`
-/// (called first by `validate_backup_payload`) covers them with fail-fast
-/// parity. Checking them again would produce duplicate errors for the same
-/// violation.
+/// (called first by `validate_backup_payload`) covers them via the shared
+/// [check_transfer_structure] helper. Checking them again would produce
+/// duplicate errors for the same violation.
 pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationResult {
     let mut errors = Vec::new();
     for (i, tx) in transactions.iter().enumerate() {
@@ -360,23 +386,19 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     }
 
     // --- Transfer structure validation ---
-    // Mirrors validate_transaction's Transfer invariants so the fail-fast FFI
-    // path (validate_backup in lib.rs, which only runs this helper) rejects a
-    // Transfer without a destination or one whose destination equals its
-    // source, consistently with the collect-all-errors path.
+    // Uses the shared check_transfer_structure helper so these invariants
+    // cannot drift from validate_transaction (the fail-fast FFI path). Each
+    // caller formats its own indexed message.
     for (i, tx) in payload.transactions.iter().enumerate() {
-        if tx.tx_type == TransactionType::Transfer {
-            if tx.destination_account_id.is_none() {
-                errors.push(format!(
-                    "Transaction[{}] is a Transfer but has no destination_account_id",
-                    i
-                ));
-            } else if tx.destination_account_id == Some(tx.account_id) {
-                errors.push(format!(
-                    "Transaction[{}] Transfer source and destination accounts must differ",
-                    i
-                ));
-            }
+        if let Some(issue) = check_transfer_structure(tx) {
+            errors.push(format!(
+                "Transaction[{}] {}",
+                i,
+                match issue {
+                    TransferIssue::MissingDestination => "is a Transfer but has no destination_account_id",
+                    TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+                }
+            ));
         }
     }
 
