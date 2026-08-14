@@ -1,5 +1,15 @@
 # Hesabyar – Agent Guide
 
+## Documentation Style
+
+Write all agent-facing documentation and code comments in ASD-STE100 (Simplified Technical English):
+
+- Use short, clear sentences (maximum 20 words per sentence).
+- Use active voice.
+- Use one idea per sentence.
+- Use consistent, precise terms — never switch between synonyms for the same concept.
+- Avoid ambiguous words, jargon, and adverbial qualifiers.
+
 ## Project Identity
 
 Hesabyar is a personal finance app for Android. It is Persian-first. It works offline. AI support (Gemini/OpenRouter) is optional. It is not part of the main app.
