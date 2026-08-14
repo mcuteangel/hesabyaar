@@ -30,7 +30,8 @@ class BackupExportCoordinator(
   private val scope: CoroutineScope,
   private val operationState: MutableState<BackupOperationState>,
   private val passphraseDialogState: MutableState<PassphraseDialogState>,
-  private val isCryptoInProgress: MutableState<Boolean>
+  private val isCryptoInProgress: MutableState<Boolean>,
+  private val settingsUseCase: GetSettingsUseCase
 ) {
   @VisibleForTesting
   internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -41,15 +42,6 @@ class BackupExportCoordinator(
    */
   @VisibleForTesting
   internal var cryptoDispatcher: CoroutineDispatcher = Dispatchers.Default
-
-  /**
-   * Reads the current persisted dark-mode setting (the same source
-   * [SettingsViewModel] reflects) so the exported backup's `settings.darkMode`
-   * matches what the user actually chose, instead of hardcoding `true`.
-   */
-  private val settingsUseCase: GetSettingsUseCase by lazy {
-    GetSettingsUseCase(application.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
-  }
 
   private var pendingExportJsonText: String? = null
 
@@ -189,14 +181,6 @@ class BackupExportCoordinator(
               e.localizedMessage ?: application.getString(R.string.error_io)
             )
           )
-      } catch (e: JSONException) {
-        operationState.value =
-          BackupOperationState.Error(
-            application.getString(
-              R.string.error_processing_backup_json,
-              e.localizedMessage ?: application.getString(R.string.error_unspecified)
-            )
-          )
       } finally {
         pendingExportJsonText = null
       }
@@ -205,24 +189,22 @@ class BackupExportCoordinator(
 
   @VisibleForTesting
   internal fun buildExportSummary(root: JSONObject?): String {
-    if (root == null) return application.getString(R.string.backup_saved_success) + "."
+    if (root == null) return application.getString(R.string.backup_saved_success)
     val txCount = root.optJSONArray("transactions")?.length() ?: 0
     val loanCount = root.optJSONArray("loans")?.length() ?: 0
     val instCount = root.optJSONArray("installments")?.length() ?: 0
     val catCount = root.optJSONArray("categories")?.length() ?: 0
     val accountCount = root.optJSONArray("accounts")?.length() ?: 0
     val bankLoanCount = root.optJSONArray("bankLoans")?.length() ?: 0
-    return application.getString(R.string.backup_saved_success) +
-      ". " +
-      application.getString(
-        R.string.export_summary_counts,
-        txCount,
-        loanCount,
-        instCount,
-        catCount,
-        bankLoanCount,
-        accountCount
-      )
+    return application.getString(
+      R.string.export_summary_counts,
+      txCount,
+      loanCount,
+      instCount,
+      catCount,
+      bankLoanCount,
+      accountCount
+    )
   }
 
   /**

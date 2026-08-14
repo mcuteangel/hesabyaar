@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import android.content.Context
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,7 +41,12 @@ class BackupExportCoordinatorTest {
     Dispatchers.setMain(testDispatcher)
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
-    viewModel = BackupViewModel(context, ManageBackupUseCase(fakeRepo, testDispatcher))
+    viewModel =
+      BackupViewModel(
+        context,
+        ManageBackupUseCase(fakeRepo, testDispatcher),
+        GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
+      )
     viewModel.exportCoordinator.ioDispatcher = testDispatcher
     viewModel.exportCoordinator.cryptoDispatcher = testDispatcher
   }

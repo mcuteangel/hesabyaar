@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import javax.inject.Inject
 
@@ -36,7 +37,8 @@ class BackupViewModel
   @Inject
   constructor(
     @ApplicationContext application: Context,
-    manageBackupUseCase: ManageBackupUseCase
+    manageBackupUseCase: ManageBackupUseCase,
+    getSettingsUseCase: GetSettingsUseCase
   ) : ViewModel() {
     val operationState = mutableStateOf<BackupOperationState>(BackupOperationState.Idle)
 
@@ -65,7 +67,8 @@ class BackupViewModel
         scope = viewModelScope,
         operationState = operationState,
         passphraseDialogState = passphraseDialogState,
-        isCryptoInProgress = isCryptoInProgress
+        isCryptoInProgress = isCryptoInProgress,
+        settingsUseCase = getSettingsUseCase
       )
 
     // State re-exposed from the coordinators so existing `by` reads on the

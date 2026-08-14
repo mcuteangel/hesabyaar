@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,12 @@ class BackupViewModelTest {
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
     useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
-    viewModel = BackupViewModel(context, useCase)
+    viewModel =
+      BackupViewModel(
+        context,
+        useCase,
+        GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
+      )
     viewModel.importCoordinator.ioDispatcher = testDispatcher
     viewModel.importCoordinator.cryptoDispatcher = testDispatcher
     viewModel.exportCoordinator.ioDispatcher = testDispatcher

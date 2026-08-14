@@ -284,17 +284,7 @@ class BackupImportCoordinator(
         // Coroutine cancelled (e.g. ViewModel cleared) — propagate, do not surface
         // it as a restore failure (matches decryptAndStageImport convention).
         throw e
-      } catch (e: IOException) {
-        operationState.value = restoreErrorState(e)
-      } catch (e: SecurityException) {
-        operationState.value = restoreErrorState(e)
-      } catch (e: IllegalArgumentException) {
-        operationState.value = restoreErrorState(e)
       } catch (e: Exception) {
-        // Anything else (e.g. a Room/SQLite failure during write) must surface as
-        // an Error state instead of escaping the coroutine uncaught and leaving
-        // the UI stuck in Importing / crashing the scope. This is a safety-net
-        // catch per the AGENTS.md convention (specific catches come first).
         operationState.value = restoreErrorState(e)
       } finally {
         // Release the busy state unless a terminal state (Error /
@@ -324,9 +314,16 @@ class BackupImportCoordinator(
             e.localizedMessage ?: application.getString(R.string.error_io)
           )
         is SecurityException ->
-          application.getString(R.string.error_backup_file_access_denied, e.localizedMessage ?: "")
+          application.getString(
+            R.string.error_backup_file_access_denied,
+            e.localizedMessage ?: application.getString(R.string.error_unspecified)
+          )
         is IllegalArgumentException ->
-          application.getString(R.string.error_backup_invalid_settings, e.localizedMessage ?: "")
+          application.getString(
+            R.string.error_backup_invalid_settings,
+            e.localizedMessage
+              ?: application.getString(R.string.error_unspecified)
+          )
         else ->
           application.getString(
             R.string.error_restore_generic,

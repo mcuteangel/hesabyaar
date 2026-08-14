@@ -1,1 +1,1 @@
-Write in ASD-STE100.
+See AGENTS.md for agent guidance.

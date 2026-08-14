@@ -45,6 +45,7 @@
     <string name="passphrase_import_title">رمزگشایی پشتیبان</string>
     <string name="passphrase_import_body">این پشتیبان رمزگذاری شده است. لطفاً رمز عبور را وارد کنید:</string>
     <string name="passphrase_decrypt">رمزگشایی</string>
+    <string name="decrypt_in_progress_label">در حال رمزگشایی پشتیبان</string>
     <string name="passphrase_wrong_or_corrupt">رمز عبور اشتباه است یا فایل بکاپ خراب است</string>
 
     <!-- BackupViewModel -->
@@ -53,9 +54,9 @@
     <string name="error_backup_data_not_ready">خطا: داده پشتیبان آماده نیست</string>
     <string name="error_saving_backup">خطا در ذخیره پشتیبان: %s</string>
     <string name="error_processing_backup_json">خطا در پردازش JSON پشتیبان: %s</string>
-    <string name="backup_saved_success">پشتیبان با موفقیت ذخیره شد</string>
+    <string name="backup_saved_success">پشتیبان با موفقیت ذخیره شد.</string>
     <string name="restore_success_replace">بازیابی کامل با موفقیت انجام شد. %1$d تراکنش، %2$d وام، %3$d قسط، %4$d دسته‌بندی، %5$d وام بانکی، %6$d حساب بازیابی شد.</string>
-    <string name="export_summary_counts">%1$d تراکنش، %2$d وام، %3$d قسط، %4$d دسته‌بندی، %5$d وام بانکی، %6$d حساب</string>
+    <string name="export_summary_counts">%1$d تراکنش، %2$d وام، %3$d قسط، %4$d دسته‌بندی، %5$d وام بانکی، %6$d حساب.</string>
     <string name="error_reading_backup_file">خطا در خواندن فایل پشتیبان: %s</string>
     <string name="error_parsing_backup_file">خطا در تجزیه فایل پشتیبان: %s</string>
     <string name="error_invalid_backup_structure">خطا در تجزیه فایل پشتیبان: ساختار فایل نامعتبر است</string>
