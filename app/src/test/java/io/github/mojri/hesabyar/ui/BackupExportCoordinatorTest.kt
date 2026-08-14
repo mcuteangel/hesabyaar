@@ -34,12 +34,15 @@ class BackupExportCoordinatorTest {
   private lateinit var viewModel: BackupViewModel
   private lateinit var fakeRepo: FakeRepository
   private lateinit var context: Context
+  private var originalDarkMode = false
   private val testDispatcher = StandardTestDispatcher()
 
   @Before
   fun setup() {
     Dispatchers.setMain(testDispatcher)
     context = RuntimeEnvironment.getApplication()
+    originalDarkMode =
+      context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE).getBoolean("dark_mode", true)
     fakeRepo = FakeRepository()
     viewModel =
       BackupViewModel(
@@ -54,12 +57,12 @@ class BackupExportCoordinatorTest {
   @After
   fun tearDown() {
     Dispatchers.resetMain()
-    // Restore the default dark-mode pref so the persisted value we mutate in the
+    // Restore the original dark-mode pref so the value we mutate in the
     // dark-mode test cannot leak into other tests that share this process.
     context
       .getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE)
       .edit()
-      .putBoolean("dark_mode", true)
+      .putBoolean("dark_mode", originalDarkMode)
       .apply()
   }
 

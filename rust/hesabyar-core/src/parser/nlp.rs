@@ -308,12 +308,23 @@ fn classify_installment(sentence: &str, now_ms: i64) -> Option<TypeClassificatio
             notes: None,
         })
     } else {
+        // Apply relative-day keywords ("فردا"→1, "پس فردا"→2, "دیروز"→-1) before
+        // falling back to Jalali month/day parsing or the 30-day default.
+        let relative_offset = extract_date_offset(sentence);
+        let days_from_now = if relative_offset != 0 {
+            relative_offset
+        } else {
+            extract_jalali_days_from_now_inner(
+                sentence,
+                now_ms + TEHRAN_OFFSET_MS,
+            )
+        };
         Some(TypeClassification {
             tx_type: TYPE_INSTALLMENT.to_string(),
             category: CATEGORY_INSTALLMENTS.to_string(),
             description: "قسط آینده".to_string(),
             installment_title,
-            days_from_now: Some(extract_jalali_days_from_now_inner(sentence, now_ms + TEHRAN_OFFSET_MS)),
+            days_from_now: Some(days_from_now),
             notes: Some("قسط در انتظار پرداخت".to_string()),
         })
     }
@@ -1010,9 +1021,9 @@ mod tests {
         assert_eq!(result.description, "قسط آینده");
         assert_eq!(result.installment_title, Some("قسط ماشین".to_string()));
         assert!(result.notes.is_some());
-        // "فردا" (tomorrow) is a relative keyword, not a month name — the
-        // day-extraction helper falls through to the 30-day default.
-        assert_eq!(result.days_from_now, Some(30));
+        // "فردا" (tomorrow) is a relative keyword resolving to a 1-day offset,
+        // applied before the Jalali month/day parsing fallback.
+        assert_eq!(result.days_from_now, Some(1));
     }
 
     #[test]

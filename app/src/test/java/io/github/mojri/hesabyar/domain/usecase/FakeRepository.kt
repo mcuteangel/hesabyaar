@@ -221,8 +221,17 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     if (forceLastActiveAccountException || isLastActive) {
       throw CannotDeleteLastActiveAccountException(account.id)
     }
+    ensureDeletable(account)
     accountsList.removeIf { it.id == account.id }
     refreshAccounts()
+  }
+
+  /** Mirrors HesabyarRepository: an account that still has transactions cannot be deleted. */
+  private suspend fun ensureDeletable(account: AccountEntity) {
+    val txCount = getTransactionCountForAccount(account.id)
+    if (txCount > 0) {
+      throw IllegalStateException("Account ${account.id} has $txCount transactions and cannot be deleted")
+    }
   }
 
   override suspend fun getTransactionCountForAccount(accountId: Long): Int {

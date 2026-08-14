@@ -168,7 +168,7 @@ class ManageBackupUseCaseValidationTest {
       }
     }
 
-  // --- Rust-path cross-reference validation (mirrors the Kotlin fallback) ---
+  // --- Kotlin-fallback cross-reference validation (mirrors the Rust validator) ---
 
   @Test
   fun kotlinFallbackRejectsTransactionWithNonexistentAccount() =
