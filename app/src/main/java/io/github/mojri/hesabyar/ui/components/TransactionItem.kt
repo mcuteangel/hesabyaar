@@ -34,13 +34,15 @@ fun TransactionItem(
   amount: Long,
   isIncome: Boolean,
   isTransfer: Boolean = false,
-  categoryColor: Color = Color.Gray,
+  categoryColor: Color = Color.Unspecified,
   categoryInitial: String = "",
   date: String? = null,
   modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
   transactionId: Long? = null
 ) {
+  val resolvedCategoryColor =
+    categoryColor.takeUnless { it == Color.Unspecified } ?: MaterialTheme.colorScheme.onSurfaceVariant
   Row(
     modifier =
       modifier
@@ -58,7 +60,7 @@ fun TransactionItem(
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     TransactionItemCategoryIcon(
-      categoryColor = categoryColor,
+      categoryColor = resolvedCategoryColor,
       categoryInitial = categoryInitial
     )
 

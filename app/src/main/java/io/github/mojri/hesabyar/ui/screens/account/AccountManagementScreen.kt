@@ -157,9 +157,13 @@ fun AccountManagementScreen(
 
   val currentDialog = dialogState
   if (currentDialog is AccountDialogState.PendingDelete) {
-    LaunchedEffect(currentDialog.account) {
-      accountViewModel.canDeleteAccount(currentDialog.account.id) { result ->
-        dialogState = resolveDeleteDialogState(result, currentDialog.account)
+    val pendingAccount = currentDialog.account
+    LaunchedEffect(pendingAccount) {
+      accountViewModel.canDeleteAccount(pendingAccount.id) { result ->
+        val current = dialogState
+        if (current is AccountDialogState.PendingDelete && current.account.id == pendingAccount.id) {
+          dialogState = resolveDeleteDialogState(result, pendingAccount)
+        }
       }
     }
   }
