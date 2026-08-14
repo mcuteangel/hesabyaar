@@ -310,35 +310,12 @@ class ManageBackupUseCaseEncryptionTest {
     // The class-level default dispatcher — if PBKDF2 were run on it (the
     // old bug where the function ignored the caller's dispatcher param),
     // this would be dispatched and the test would throw AssertionError.
-    var classDefaultWasUsed = false
-    val throwingClassDefault =
-      object : CoroutineDispatcher() {
-        override fun dispatch(
-          context: CoroutineContext,
-          block: Runnable
-        ) {
-          classDefaultWasUsed = true
-          throw AssertionError(
-            "PBKDF2 derivation must not run on the class default dispatcher; " +
-              "it must honor the caller-supplied dispatcher"
-          )
-        }
-      }
+    val throwingClassDefault = ThrowingDefaultDispatcher()
 
     // The caller-supplied dispatcher (models cryptoDispatcher from
     // BackupImportCoordinator): records dispatch and delegates to Default
     // so the blocking PBKDF2 work actually executes.
-    var callerDispatcherWasUsed = false
-    val recordingCallerDispatcher =
-      object : CoroutineDispatcher() {
-        override fun dispatch(
-          context: CoroutineContext,
-          block: Runnable
-        ) {
-          callerDispatcherWasUsed = true
-          Dispatchers.Default.dispatch(context, block)
-        }
-      }
+    val recordingCallerDispatcher = RecordingCallerDispatcher()
 
     val useCaseWithThrowingDefault =
       ManageBackupUseCase(FakeRepository(), throwingClassDefault)
@@ -355,16 +332,53 @@ class ManageBackupUseCaseEncryptionTest {
 
     assertTrue(
       "Caller-supplied dispatcher must execute the PBKDF2 derivation",
-      callerDispatcherWasUsed
+      recordingCallerDispatcher.wasUsed
     )
     assertFalse(
       "Class default dispatcher must NOT execute the PBKDF2 derivation",
-      classDefaultWasUsed
+      throwingClassDefault.wasUsed
     )
     assertEquals(
       "Decrypted cardNumber must match the original via the correct key",
       realCard,
       decrypted.accounts[0].cardNumber
     )
+  }
+
+  /**
+   * A dispatcher that throws AssertionError if dispatched to — models the class
+   * default dispatcher so that any PBKDF2 derivation routed to it fails loudly.
+   * Also records whether dispatch was attempted.
+   */
+  private class ThrowingDefaultDispatcher : CoroutineDispatcher() {
+    var wasUsed = false
+
+    override fun dispatch(
+      context: CoroutineContext,
+      block: Runnable
+    ) {
+      wasUsed = true
+      throw AssertionError(
+        "PBKDF2 derivation must not run on the class default dispatcher; " +
+          "it must honor the caller-supplied dispatcher"
+      )
+    }
+  }
+
+  /**
+   * A dispatcher that delegates to [Dispatchers.Default] while recording
+   * whether dispatch was attempted. Models the cryptoDispatcher supplied by
+   * BackupImportCoordinator as the caller-supplied dispatcher.
+   */
+  private class RecordingCallerDispatcher : CoroutineDispatcher() {
+    var wasUsed = false
+
+    override fun dispatch(
+      context: CoroutineContext,
+      block: Runnable
+    ) {
+      wasUsed = true
+      Dispatchers.Default.dispatch(context, block)
+    }
   }
 }

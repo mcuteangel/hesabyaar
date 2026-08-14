@@ -55,40 +55,48 @@ internal class BackupReferenceValidator(
       return
     }
     val accountIds = backup.accounts.map { it.id }.toSet()
-    backup.transactions.forEachIndexed { i, t ->
+    val isValidAccountId: (Long) -> Boolean =
       if (backup.accounts.isNotEmpty()) {
-        if (t.accountId !in accountIds) {
-          errors.add(
-            message(R.string.backup_error_transaction_invalid_account, arrayOf<Any>(i, t.accountId.toString()))
-          )
-        }
-        t.destinationAccountId?.let { destId ->
-          if (destId !in accountIds) {
-            errors.add(
-              message(R.string.backup_error_transaction_invalid_destination_account, arrayOf<Any>(i, destId.toString()))
-            )
-          }
-        }
+        { id -> id in accountIds }
       } else {
-        // Legacy path: source and destination are checked independently
-        // (mirrors Rust validation.rs — a legacy source does NOT excuse a
-        // non-legacy destination).
-        if (t.accountId != DEFAULT_ACCOUNT_ID) {
-          errors.add(
-            message(R.string.backup_error_transaction_invalid_legacy_account, arrayOf<Any>(i, t.accountId.toString()))
-          )
-        }
-        t.destinationAccountId?.let { destId ->
-          if (destId != DEFAULT_ACCOUNT_ID) {
-            errors.add(
-              message(
-                R.string.backup_error_transaction_invalid_legacy_destination_account,
-                arrayOf<Any>(i, destId.toString())
-              )
-            )
-          }
-        }
+        { id -> id == DEFAULT_ACCOUNT_ID }
       }
+    val sourceErrorRes =
+      if (backup.accounts.isNotEmpty()) {
+        R.string.backup_error_transaction_invalid_account
+      } else {
+        R.string.backup_error_transaction_invalid_legacy_account
+      }
+    val destErrorRes =
+      if (backup.accounts.isNotEmpty()) {
+        R.string.backup_error_transaction_invalid_destination_account
+      } else {
+        R.string.backup_error_transaction_invalid_legacy_destination_account
+      }
+    backup.transactions.forEachIndexed { i, t ->
+      // Legacy path: source and destination are checked independently
+      // (mirrors Rust validation.rs — a legacy source does NOT excuse a
+      // non-legacy destination).
+      checkAccountId(i, t.accountId, isValidAccountId, sourceErrorRes, errors)
+      t.destinationAccountId?.let { destId ->
+        checkAccountId(i, destId, isValidAccountId, destErrorRes, errors)
+      }
+    }
+  }
+
+  /**
+   * If [accountId] fails [isValid], adds a localized error referencing the
+   * transaction index [i] and the offending account ID.
+   */
+  private fun checkAccountId(
+    i: Int,
+    accountId: Long,
+    isValid: (Long) -> Boolean,
+    errorRes: Int,
+    errors: MutableList<String>
+  ) {
+    if (!isValid(accountId)) {
+      errors.add(message(errorRes, arrayOf<Any>(i, accountId.toString())))
     }
   }
 

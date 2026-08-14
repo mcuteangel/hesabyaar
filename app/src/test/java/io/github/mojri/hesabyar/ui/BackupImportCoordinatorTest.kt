@@ -57,21 +57,33 @@ class BackupImportCoordinatorTest {
     Dispatchers.resetMain()
   }
 
-  @Test
-  fun executeRestoreOnCancellationResetsOperationStateToIdle() =
-    runTest {
-      val fakeRepo = FakeRepository()
-      val scope = CoroutineScope(testDispatcher)
-      val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
-      val coordinator =
+  private data class CoordinatorFixture(
+    val coordinator: BackupImportCoordinator,
+    val fakeRepo: FakeRepository
+  )
+
+  private fun buildCoordinator(): CoordinatorFixture {
+    val fakeRepo = FakeRepository()
+    return CoordinatorFixture(
+      coordinator =
         BackupImportCoordinator(
           application = context,
-          manageBackupUseCase = useCase,
-          scope = scope,
+          manageBackupUseCase = ManageBackupUseCase(fakeRepo, testDispatcher),
+          scope = CoroutineScope(testDispatcher),
           operationState = operationState,
           passphraseDialogState = passphraseDialogState,
           isCryptoInProgress = isCryptoInProgress
-        )
+        ),
+      fakeRepo = fakeRepo
+    )
+  }
+
+  @Test
+  fun executeRestoreOnCancellationResetsOperationStateToIdle() =
+    runTest {
+      val fixture = buildCoordinator()
+      val coordinator = fixture.coordinator
+      val fakeRepo = fixture.fakeRepo
 
       coordinator.pendingRestoreBackup.value = BackupPayload(accounts = emptyList())
       coordinator.selectedRestoreMode.value = RestoreMode.REPLACE
@@ -92,18 +104,7 @@ class BackupImportCoordinatorTest {
   @Test
   fun validateAndStageImportGuardDropsSubmissionWhileExporting() =
     runTest {
-      val fakeRepo = FakeRepository()
-      val scope = CoroutineScope(testDispatcher)
-      val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
-      val coordinator =
-        BackupImportCoordinator(
-          application = context,
-          manageBackupUseCase = useCase,
-          scope = scope,
-          operationState = operationState,
-          passphraseDialogState = passphraseDialogState,
-          isCryptoInProgress = isCryptoInProgress
-        )
+      val coordinator = buildCoordinator().coordinator
 
       operationState.value = BackupOperationState.Exporting
       coordinator.validateAndStageImport(ByteArrayInputStream("{}".toByteArray()))
@@ -117,18 +118,9 @@ class BackupImportCoordinatorTest {
   @Test
   fun executeRestoreGuardDropsWhileExporting() =
     runTest {
-      val fakeRepo = FakeRepository()
-      val scope = CoroutineScope(testDispatcher)
-      val useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
-      val coordinator =
-        BackupImportCoordinator(
-          application = context,
-          manageBackupUseCase = useCase,
-          scope = scope,
-          operationState = operationState,
-          passphraseDialogState = passphraseDialogState,
-          isCryptoInProgress = isCryptoInProgress
-        )
+      val fixture = buildCoordinator()
+      val coordinator = fixture.coordinator
+      val fakeRepo = fixture.fakeRepo
 
       coordinator.pendingRestoreBackup.value = BackupPayload(accounts = emptyList())
       coordinator.selectedRestoreMode.value = RestoreMode.REPLACE
@@ -201,6 +193,44 @@ class BackupImportCoordinatorTest {
       assertFalse(
         "isCryptoInProgress must be cleared once the owning job completes",
         isCryptoInProgress.value
+      )
+    }
+
+  @Test
+  fun executeRestoreDropsSubmissionWhileCryptoInProgress() =
+    runTest {
+      val fixture = buildCoordinator()
+      val coordinator = fixture.coordinator
+
+      coordinator.pendingRestoreBackup.value = BackupPayload(accounts = emptyList())
+      coordinator.selectedRestoreMode.value = RestoreMode.REPLACE
+      isCryptoInProgress.value = true
+
+      coordinator.executeRestore()
+      advanceUntilIdle()
+
+      assertTrue(
+        "Restore must be blocked while crypto is in progress, got ${operationState.value}",
+        operationState.value is BackupOperationState.Idle
+      )
+      assertEquals(
+        "Restore must not execute while crypto is in progress",
+        0,
+        fixture.fakeRepo.executeRestoreCount
+      )
+    }
+
+  @Test
+  fun executeRestoreWithNullPendingBackupDoesNotSetImportingState() =
+    runTest {
+      val coordinator = buildCoordinator().coordinator
+
+      coordinator.executeRestore()
+      advanceUntilIdle()
+
+      assertTrue(
+        "State must remain Idle when pendingRestoreBackup is null, got ${operationState.value}",
+        operationState.value is BackupOperationState.Idle
       )
     }
 }

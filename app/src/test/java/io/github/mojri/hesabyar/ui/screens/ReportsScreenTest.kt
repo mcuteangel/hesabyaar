@@ -50,7 +50,7 @@ class ReportsScreenTest {
   }
 
   @Test
-  fun reportsScreenTransferTransactionShowsPositiveSignAndTertiaryColor() {
+  fun reportsScreenTransferTransactionShowsPositiveSignAndTransferSemanticsTag() {
     val transferTx =
       Transaction(
         id = 1L,
@@ -83,7 +83,7 @@ class ReportsScreenTest {
   }
 
   @Test
-  fun reportsScreenExpenseTransactionShowsMinusSignAndErrorColor() {
+  fun reportsScreenExpenseTransactionShowsMinusSignAndExpenseSemanticsTag() {
     val expenseTx =
       Transaction(
         id = 2L,

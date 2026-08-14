@@ -67,14 +67,16 @@ class BackupImportCoordinator(
   /**
    * In-flight guard shared by the import and restore entry points: drops a
    * submission while an import/restore is running, while a staging pass is still
-   * reading/parsing, or while an export is in flight (Exporting is busy, not
-   * available). The check and the Importing set are both synchronous on the Main
-   * thread, so a concurrent call sees the busy state immediately — no check-then-set
-   * race. Returns true when the caller must drop the submission.
+   * reading/parsing, while a PBKDF2 decrypt is in flight (isCryptoInProgress),
+   * or while an export is in flight (Exporting is busy, not available). The
+   * check and the Importing set are both synchronous on the Main thread, so a
+   * concurrent call sees the busy state immediately — no check-then-set race.
+   * Returns true when the caller must drop the submission.
    */
   private fun claimImportState(): Boolean {
     if (operationState.value is BackupOperationState.Importing ||
-      operationState.value is BackupOperationState.Exporting
+      operationState.value is BackupOperationState.Exporting ||
+      isCryptoInProgress.value
     ) {
       return true
     }
@@ -252,13 +254,13 @@ class BackupImportCoordinator(
   // CancellationException is rethrown first. Placed on the enclosing function per convention.
   @Suppress("TooGenericExceptionCaught")
   fun executeRestore() {
-    // claimImportState handles the in-flight guard (Importing/Exporting) and
-    // atomically sets Importing before any launching.
-    if (claimImportState()) return
+    // Check the pending backup first — if null, bail out before claiming
+    // Importing state so the guard does not get stuck (see finally below).
     val backup = pendingRestoreBackup.value ?: return
     val mode = selectedRestoreMode.value
-
-    operationState.value = BackupOperationState.Importing
+    // claimImportState handles the in-flight guard (Importing/Exporting/isCryptoInProgress)
+    // and atomically sets Importing before any launching.
+    if (claimImportState()) return
     scope.launch {
       try {
         manageBackupUseCase.executeRestore(backup, mode)
