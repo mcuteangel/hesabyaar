@@ -308,11 +308,11 @@ fn classify_installment(sentence: &str, now_ms: i64) -> Option<TypeClassificatio
             notes: None,
         })
     } else {
-        // Apply relative-day keywords ("فردا"→1, "پس فردا"→2, "دیروز"→-1) before
-        // falling back to Jalali month/day parsing or the 30-day default.
-        let relative_offset = extract_date_offset(sentence);
-        let days_from_now = if relative_offset != 0 {
-            relative_offset
+        // Apply relative-day keywords ("فردا"→1, "پس فردا"→2, "دیروز"→-1, "امروز"→0)
+        // before falling back to Jalali month/day parsing or the 30-day default.
+        // "امروز" (today, offset 0) is now distinguishable from "no keyword found" (None).
+        let days_from_now = if let Some(offset) = extract_date_offset(sentence) {
+            offset
         } else {
             extract_jalali_days_from_now_inner(
                 sentence,
@@ -438,14 +438,14 @@ fn classify_expense(sentence: &str) -> TypeClassification {
 
 /// Extract date offset from Persian sentence.
 /// Ported from GeminiParser.extractDateOffset()
-pub fn extract_date_offset(sentence: &str) -> i32 {
-    if sentence.contains("پریروز") { return -2; }
-    if sentence.contains("دیروز") { return -1; }
+pub fn extract_date_offset(sentence: &str) -> Option<i32> {
+    if sentence.contains("پریروز") { return Some(-2); }
+    if sentence.contains("دیروز") { return Some(-1); }
     // Check compact "پسفردا" before "فردا" to avoid false partial match
-    if sentence.contains("پسفردا") || sentence.contains("پسر فردا") || sentence.contains("پس فردا") { return 2; }
-    if sentence.contains("فردا") { return 1; }
-    if sentence.contains("امروز") { return 0; }
-    0
+    if sentence.contains("پسفردا") || sentence.contains("پس فردا") { return Some(2); }
+    if sentence.contains("فردا") { return Some(1); }
+    if sentence.contains("امروز") { return Some(0); }
+    None
 }
 
 /// Extract time from Persian sentence.
@@ -669,7 +669,7 @@ pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedRes
         description: classification.description,
         days_from_now: classification.days_from_now,
         title: classification.installment_title,
-        date_offset_days: Some(date_offset_days),
+        date_offset_days,
         hour,
         minute,
         confidence,
@@ -1245,37 +1245,39 @@ mod tests {
 
     #[test]
     fn test_date_today() {
-        assert_eq!(extract_date_offset("امروز خرید کردم"), 0);
+        // "امروز" (today) returns Some(0) — distinct from None (no keyword found).
+        assert_eq!(extract_date_offset("امروز خرید کردم"), Some(0));
     }
 
     #[test]
     fn test_date_yesterday() {
-        assert_eq!(extract_date_offset("دیروز رفتم"), -1);
+        assert_eq!(extract_date_offset("دیروز رفتم"), Some(-1));
     }
 
     #[test]
     fn test_date_day_before_yesterday() {
-        assert_eq!(extract_date_offset("پریروز رفتم"), -2);
+        assert_eq!(extract_date_offset("پریروز رفتم"), Some(-2));
     }
 
     #[test]
     fn test_date_tomorrow() {
-        assert_eq!(extract_date_offset("فردا می‌روم"), 1);
+        assert_eq!(extract_date_offset("فردا می‌روم"), Some(1));
     }
 
     #[test]
     fn test_date_day_after_tomorrow() {
-        assert_eq!(extract_date_offset("پسر فردا می‌روم"), 2);
+        assert_eq!(extract_date_offset("پس فردا می‌روم"), Some(2));
     }
 
     #[test]
     fn test_date_day_after_tomorrow_compact() {
-        assert_eq!(extract_date_offset("پسفردا می‌روم"), 2);
+        assert_eq!(extract_date_offset("پسفردا می‌روم"), Some(2));
     }
 
     #[test]
     fn test_date_no_match() {
-        assert_eq!(extract_date_offset("ساعت 14 جلسه دارم"), 0);
+        // No relative keyword → None (not Some(0)).
+        assert_eq!(extract_date_offset("ساعت 14 جلسه دارم"), None);
     }
 
     // =========================================================================
@@ -1498,6 +1500,17 @@ mod tests {
         let result = parse_sentence_offline_full("قسط ماشین فردا ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Installment);
         assert_eq!(result.title, Some("قسط ماشین".to_string()));
+    }
+
+    #[test]
+    fn test_parse_installment_today() {
+        // "امروز" is today (offset 0). Must NOT fall through to the 30-day
+        // Jalali-parsing default — days_from_now must be Some(0).
+        let result = parse_sentence_offline_full("قسط ماشین امروز ۳۰۰۰۰۰ تومان", test_now_ms());
+        assert_eq!(result.tx_type, TransactionType::Installment);
+        assert_eq!(result.title, Some("قسط ماشین".to_string()));
+        assert_eq!(result.days_from_now, Some(0));
+        assert_eq!(result.date_offset_days, Some(0));
     }
 
     #[test]

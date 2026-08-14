@@ -150,7 +150,9 @@ pub fn get_offline_forecast(
 
     let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { (recent_income as f64 / months_elapsed) as i64 } else { 0 };
     let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { (recent_expense as f64 / months_elapsed) as i64 } else { 0 };
-    let est_balance = avg_income - avg_expense - total_obligations;
+    // Use saturating_sub to prevent overflow/wrap under extreme values.
+    // All inputs are non-negative i64; underflow would silently wrap in release mode.
+    let est_balance = avg_income.saturating_sub(avg_expense).saturating_sub(total_obligations);
 
     let mut sb = String::new();
     sb.push_str("### \u{1F52E} \u{067E}\u{06CC}\u{0634}\u{0628}\u{06CC}\u{0646}\u{06CC} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F} \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647}\n\n");
@@ -168,7 +170,7 @@ pub fn get_offline_forecast(
     if est_balance < 0 {
         sb.push_str(&format!(
             "\n### \u{1F6A8} \u{0647}\u{0634}\u{062F}\u{0627}\u{0631} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F}: \u{0631}\u{06CC}\u{0633}\u{06A9} \u{06A9}\u{0633}\u{0631}\u{06CC} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0628}\u{0639}\u{062F}!\n\u{0628}\u{0627} \u{0646}\u{06AF}\u{0631}\u{0627}\u{0646}\u{06CC} \u{062E}\u{0641}\u{06CC}\u{0641} \u{062A}\u{0631}\u{0627}\u{0632} \u{0646}\u{0642}\u{062F}\u{06CC} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647} \u{0628}\u{0627} **\u{06A9}\u{0633}\u{0631}\u{06CC} \u{062D}\u{062F}\u{0648}\u{062F} {}** \u{0631}\u{0648}\u{0628}\u{0631}\u{0648} \u{062E}\u{0648}\u{0627}\u{0647}\u{062F}.\n\n",
-            format_currency(est_balance.abs(), CurrencyUnit::Toman)
+            format_currency(est_balance.saturating_abs(), CurrencyUnit::Toman)
         ));
     } else {
         sb.push_str(&format!(
@@ -713,6 +715,32 @@ mod tests {
             result.contains("922,337,203,685,477,580 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"),
             "expected saturated Toman debt in output, got: {result}"
         );
+    }
+
+    #[test]
+    fn test_forecast_est_balance_saturates_under_extreme_values() {
+        // With extreme values, est_balance = avg_income - avg_expense - total_obligations
+        // must not panic. Before the saturating_sub fix, 0 - i64::MAX - (i64::MAX/12)
+        // would underflow (panic in debug, wrap in release). saturating_sub clamps
+        // to i64::MIN, and saturating_abs() on i64::MIN yields i64::MAX without panic.
+        let now = now_ms();
+        let txs = vec![
+            sample_tx(1, TransactionType::Expense, i64::MAX, now - 5 * 24 * 60 * 60 * 1000),
+        ];
+        let loans = vec![Loan {
+            id: 1,
+            person_name: "".into(),
+            loan_type: "CREDITOR".into(),
+            original_amount: i64::MAX,
+            remaining_amount: i64::MAX,
+            description: String::new(),
+            date: now,
+            is_settled: false,
+        }];
+        // Must not panic; returns a negative-balance warning (saturated).
+        let result = get_offline_forecast(&txs, &loans, &[], &[]);
+        assert!(result.contains("\u{0647}\u{0634}\u{062F}\u{0627}\u{0631}"),
+            "expected negative-balance warning, got: {result}");
     }
 
     // -- calculate_financial_health_score tests -----------------------------------
