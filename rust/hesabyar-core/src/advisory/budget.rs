@@ -149,7 +149,7 @@ pub fn get_offline_forecast(
     } else {
         1
     };
-    // Fractional-month normalization: avg = sum * 30 / days_span (days floored to 30).
+    // Fractional-month normalization: avg = sum * 30 / days_span (days clamped to min 30).
     // i128 keeps Rial exact above 2^53; result always ≤ sum, so the as i64 cast is safe.
     let normalization_days: i128 = days_span.max(30) as i128;
 
