@@ -149,11 +149,8 @@ pub fn get_offline_forecast(
     } else {
         1
     };
-    // Fractional-month normalization: avg = sum * 30 / days_span, where days_span
-    // is floored to 30 so short windows (≤30 days) treat the period as one full
-    // month. This restores the old f64 semantics (sum / (days / 30)) while staying
-    // in integer arithmetic via i128 to prevent overflow. Matches the Kotlin
-    // fallback's `localMonthlyIncomeBaseline` fractional-month path.
+    // Fractional-month normalization: avg = sum * 30 / days_span (days floored to 30).
+    // i128 keeps Rial exact above 2^53; result always ≤ sum, so the as i64 cast is safe.
     let normalization_days: i128 = days_span.max(30) as i128;
 
     let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) {
@@ -216,13 +213,9 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
     let ms_per_day: i64 = 24 * 60 * 60 * 1000;
     let oldest = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
     let days = (now_ms.saturating_sub(oldest) + ms_per_day - 1) / ms_per_day;
-    // Fractional-month normalization via i128 to preserve Rial precision above
-    // 2^53 (the f64 mantissa limit) while mirroring the old f64 path's
-    // fractional-month semantics for non-30-day windows. Matches the Kotlin
-    // fallback's `localMonthlyIncomeBaseline` fractional-month path.
-    let normalization_days: i128 = days.max(30) as i128;
+    // Fractional-month baseline: avg = sum * 30 / days (i128 to avoid 2^53 loss).
     let sum: i64 = recent.iter().map(|t| t.amount).fold(0, |acc, a| acc.saturating_add(a));
-    ((sum as i128 * 30) / normalization_days) as i64
+    ((sum as i128 * 30) / (days.max(30) as i128)) as i64
 }
 
 /// Calculate debt-to-income ratio.
