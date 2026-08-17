@@ -280,4 +280,23 @@ class BudgetAdvisorFallbackTest {
     // Rust: (1_000_000_000_000_000_000 * 30) / 45 = 666_666_666_666_666_666.
     assertEquals(666_666_666_666_666_666L, result)
   }
+
+  @Test
+  fun localMonthlyIncomeBaselineHandlesSumOverflowingLong() {
+    // Two income transactions whose sum exceeds Long.MAX_VALUE. The old
+    // sumOf path silently wrapped to a negative Long. BigInteger
+    // accumulation keeps the true sum and clamps the result to Long.MAX_VALUE.
+    val nowMs: Long = 1_700_000_000_000
+    val dayMs: Long = 24 * 60 * 60 * 1000L
+    val halfMaxPlusOne = Long.MAX_VALUE / 2 + 1
+    val txs =
+      listOf(
+        createTransaction(TransactionType.INCOME, halfMaxPlusOne, date = nowMs - 30 * dayMs),
+        createTransaction(TransactionType.INCOME, halfMaxPlusOne, date = nowMs - 20 * dayMs),
+      )
+    val result = BudgetAdvisor.localMonthlyIncomeBaseline(txs, nowMs)
+    // Sum = Long.MAX_VALUE + 1; baseline = (sum * 30) / 30 = Long.MAX_VALUE + 1,
+    // clamped to Long.MAX_VALUE. It must never wrap to a negative value.
+    assertEquals(Long.MAX_VALUE, result)
+  }
 }
