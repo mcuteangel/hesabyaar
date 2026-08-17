@@ -140,16 +140,27 @@ pub fn get_offline_forecast(
         .map(|t| t.amount)
         .fold(0, |total, amount| total.saturating_add(amount));
 
+    let ms_per_day: i64 = 24 * 60 * 60 * 1000;
     let days_span = if !recent.is_empty() {
         let oldest_date = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
-        ((now_ms - oldest_date) as f64 / (24.0 * 60.0 * 60.0 * 1000.0)).max(1.0).ceil()
+        // Ceiling division into whole days, minimum 1. Avoids f64, which cannot
+        // represent Rial amounts above 2^53 exactly.
+        (now_ms.saturating_sub(oldest_date) + ms_per_day - 1) / ms_per_day
     } else {
-        1.0
+        1
     };
-    let months_elapsed = (days_span / 30.0).max(1.0);
+    let months_elapsed: i64 = ((days_span + 29) / 30).max(1);
 
-    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) { (recent_income as f64 / months_elapsed) as i64 } else { 0 };
-    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) { (recent_expense as f64 / months_elapsed) as i64 } else { 0 };
+    let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) {
+        recent_income / months_elapsed
+    } else {
+        0
+    };
+    let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) {
+        recent_expense / months_elapsed
+    } else {
+        0
+    };
     // Use saturating_sub to prevent overflow/wrap under extreme values.
     // All inputs are non-negative i64; underflow would silently wrap in release mode.
     let est_balance = avg_income.saturating_sub(avg_expense).saturating_sub(total_obligations);
@@ -197,13 +208,14 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
     if recent.is_empty() {
         return 0;
     }
+    let ms_per_day: i64 = 24 * 60 * 60 * 1000;
     let oldest = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
-    let days = ((now_ms - oldest) as f64 / (24.0 * 60.0 * 60.0 * 1000.0))
-        .max(1.0)
-        .ceil();
-    let months = (days / 30.0).max(1.0);
-    let sum: i64 = recent.iter().map(|t| t.amount).sum();
-    (sum as f64 / months) as i64
+    let days = (now_ms.saturating_sub(oldest) + ms_per_day - 1) / ms_per_day;
+    let months = ((days + 29) / 30).max(1);
+    // Integer fold prevents overflow; integer division preserves Rial precision
+    // above 2^53 (the f64 mantissa limit).
+    let sum: i64 = recent.iter().map(|t| t.amount).fold(0, |acc, a| acc.saturating_add(a));
+    sum / months
 }
 
 /// Calculate debt-to-income ratio.
@@ -410,6 +422,26 @@ mod tests {
         let monthly = monthly_income_baseline(&txs, now);
         // Only the recent 1_000_000 should count; the ancient income is excluded.
         assert!(monthly > 0 && monthly <= 1_000_000 + 2);
+    }
+
+    #[test]
+    fn test_monthly_income_baseline_preserves_precision_above_2pow53() {
+        // 2^53 + 7 (9_007_199_254_740_999) is at the boundary where f64's 53-bit
+        // mantissa can no longer represent every integer — it rounds up to
+        // 9_007_199_254_741_000. The old code cast `sum as f64`, losing exactness.
+        // Integer division preserves the precise Rial value.
+        let now: i64 = 1_700_000_000_000;
+        let day: i64 = 24 * 60 * 60 * 1000;
+        let amount: i64 = 9_007_199_254_740_999;
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, amount, now - 5 * day),
+        ];
+        let monthly = monthly_income_baseline(&txs, now);
+        // 5 days → months = 1 → avg = sum / 1 = amount (exact, no f64 rounding).
+        assert_eq!(
+            monthly, amount,
+            "f64 cast must not lose precision for values above 2^53"
+        );
     }
 
     // -- get_offline_budget_advice tests -----------------------------------------
@@ -748,6 +780,31 @@ mod tests {
         // which format_currency renders as 922,337,203,685,477,580 تومان.
         assert!(result.contains("922,337,203,685,477,580"),
             "expected saturated deficit value, got: {result}");
+    }
+
+    #[test]
+    fn test_forecast_preserves_f64_precision_above_2pow53() {
+        // 2^53 + 7 (9_007_199_254_740_999) cannot be represented exactly as f64;
+        // it rounds up to 9_007_199_254_741_000. The old code cast
+        // `recent_income as f64`, which changed the Toman display from
+        // "...474,099" to "...474,100". Integer division keeps the exact value.
+        let now = now_ms();
+        let day = 24 * 60 * 60 * 1000_i64;
+        let amount: i64 = 9_007_199_254_740_999;
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, amount, now - 5 * day),
+        ];
+        let result = get_offline_forecast(&txs, &[], &[], &[]);
+        // Exact: 9_007_199_254_740_999 / 10 = 900,719,925,474,099 (floor).
+        assert!(
+            result.contains("900,719,925,474,099"),
+            "expected exact Toman value preserved above 2^53; got: {result}"
+        );
+        // The f64-rounded value (900,719,925,474,100) must not appear.
+        assert!(
+            !result.contains("900,719,925,474,100"),
+            "f64 rounding must not inflate the Rial value; got: {result}"
+        );
     }
 
     // -- calculate_financial_health_score tests -----------------------------------
