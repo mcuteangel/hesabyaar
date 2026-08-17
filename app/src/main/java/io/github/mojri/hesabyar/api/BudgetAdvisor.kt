@@ -13,11 +13,13 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.math.BigInteger
 import kotlin.math.max
 
 object BudgetAdvisor {
   private const val TAG = "BudgetAdvisor"
   private const val IDEAL_SAVINGS_DENOMINATOR = 5
+  private const val DAYS_PER_MONTH = 30L
 
   /**
    * Budget advice entry point used by the app. Delegates to
@@ -555,12 +557,17 @@ object BudgetAdvisor {
     // Ceiling division into whole days, minimum 1 — matches Rust's integer ceiling
     // path and keeps all arithmetic in Long (no f64 precision loss above 2^53).
     val days = max(1L, (nowMs - oldest + msPerDay - 1) / msPerDay)
-    val normalizationDays = days.coerceAtLeast(30L)
+    val normalizationDays = days.coerceAtLeast(DAYS_PER_MONTH)
     val sum = recent.sumOf { it.amount }
-    // sum * 30 can exceed Long.MAX_VALUE; clamp to match Rust's i128 intermediate
-    // without risking silent Long overflow.
-    val sumTimesThirty = if (sum > Long.MAX_VALUE / 30) Long.MAX_VALUE else sum * 30
-    return sumTimesThirty / normalizationDays
+    // sum * 30 can exceed Long.MAX_VALUE (≈9.2e18). Use BigInteger for an
+    // i128-equivalent intermediate. This matches Rust's
+    // ((recent_income as i128 * 30) / normalization_days) as i64 exactly,
+    // including the path where the old clamp-to-Long.MAX_VALUE underreported.
+    val sumBig = BigInteger.valueOf(sum)
+    return sumBig
+      .multiply(BigInteger.valueOf(DAYS_PER_MONTH))
+      .divide(BigInteger.valueOf(normalizationDays))
+      .toLong()
   }
 
   // Adds [days] Jalali days to the date represented by [fromMs] and returns the

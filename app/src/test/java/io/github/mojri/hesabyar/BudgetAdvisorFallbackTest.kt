@@ -262,4 +262,22 @@ class BudgetAdvisorFallbackTest {
     // Rust: (9_007_199_254_740_993 * 30) / 45 = 6_004_799_503_160_662.
     assertEquals(6_004_799_503_160_662L, result)
   }
+
+  @Test
+  fun localMonthlyIncomeBaselineMatchesRustAboveLongMaxDiv30() {
+    // sum = 10^18 exceeds Long.MAX_VALUE / 30 (≈3.07e17). Rust computes
+    // (10^18 * 30) / 45 = 666_666_666_666_666_666 with i128. BigInteger matches
+    // this; the old clamp-to-Long.MAX_VALUE path underreported by ~3x.
+    val nowMs: Long = 1_700_000_000_000
+    val dayMs: Long = 24 * 60 * 60 * 1000L
+    val tx =
+      createTransaction(
+        TransactionType.INCOME,
+        1_000_000_000_000_000_000L, // 10^18 — exceeds Long.MAX_VALUE / 30.
+        date = nowMs - 45 * dayMs
+      )
+    val result = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), nowMs)
+    // Rust: (1_000_000_000_000_000_000 * 30) / 45 = 666_666_666_666_666_666.
+    assertEquals(666_666_666_666_666_666L, result)
+  }
 }
