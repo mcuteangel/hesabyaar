@@ -455,6 +455,53 @@ class AccountViewModelTest {
     }
 
   @Test
+  fun canDeleteAccountStaleErrorSuppressedAfterSameAccountReopen() =
+    runTest {
+      // Simulates: user opens delete dialog for Account A, a check starts (#1).
+      // User dismisses and reopens, starting check #2. When #1 fails, its error
+      // must NOT be emitted to errorEvents — the token guard must suppress it
+      // just as it suppresses the stale onResult callback.
+      fakeRepo.accountsList.add(AccountEntity(id = 1, name = "test", type = AccountType.BANK))
+      fakeRepo.accountsList.add(AccountEntity(id = 2, name = "other", type = AccountType.BANK))
+      fakeRepo.refreshAccounts()
+      fakeRepo.shouldThrowOnTransactionCount = true
+
+      var staleResult: AccountViewModel.DeleteCheckResult? = null
+      var freshResult: AccountViewModel.DeleteCheckResult? = null
+      val errorMessages = mutableListOf<String>()
+      val job =
+        launch {
+          viewModel.errorEvents.collect { errorMessages.add(it) }
+        }
+      advanceUntilIdle()
+
+      // Start check #1 (token=1) and #2 (token=2) without running either yet.
+      viewModel.canDeleteAccount(1L) { staleResult = it }
+      viewModel.canDeleteAccount(1L) { freshResult = it }
+
+      advanceUntilIdle()
+
+      assertNull(
+        "stale check's callback must be suppressed by the token guard, got $staleResult",
+        staleResult
+      )
+      assertNotNull(
+        "fresh check must deliver a result, got $freshResult",
+        freshResult
+      )
+      assertTrue(
+        "fresh check should report CheckFailed, got $freshResult",
+        freshResult is AccountViewModel.DeleteCheckResult.CheckFailed
+      )
+      assertEquals(
+        "only the fresh check's error must be emitted, not the stale one",
+        1,
+        errorMessages.size
+      )
+      job.cancel()
+    }
+
+  @Test
   fun deleteAccountRepositoryExceptionEmitsLocalizedMessageNotEnglish() =
     runTest {
       // Simulate a TOCTOU race: the ViewModel's pre-check sees 2 active accounts

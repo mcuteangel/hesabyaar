@@ -186,6 +186,49 @@ class BudgetAdvisorFallbackTest {
   }
 
   @Test
+  fun getofflineforecastOverflowingCreditorLoansProduceForecastViaLocalFallback() {
+    // With enough large CREDITOR loans, sumOf { remainingAmount / 12 } would
+    // overflow and wrap to 0, causing hasNoData to return true despite active
+    // obligations. 24 loans of Long.MAX_VALUE each contribute
+    // 768614336404564650 (MAX/12), summing to 18,446,744,073,709,551,600.
+    // One more loan of 192 (192/12 = 16) brings the total to 2^64, which
+    // wraps to 0 in Kotlin Long arithmetic. The saturating fold clamps to
+    // Long.MAX_VALUE instead, keeping hasNoData false.
+    val largeCreditorLoans =
+      List(24) {
+        Loan(
+          personName = "creditor $it",
+          type = LoanType.CREDITOR,
+          originalAmount = Long.MAX_VALUE,
+          remainingAmount = Long.MAX_VALUE,
+          description = "test",
+          isSettled = false
+        )
+      } +
+        listOf(
+          Loan(
+            personName = "creditor 24",
+            type = LoanType.CREDITOR,
+            originalAmount = 192L,
+            remainingAmount = 192L,
+            description = "test",
+            isSettled = false
+          )
+        )
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        largeCreditorLoans,
+        emptyList(),
+        emptyList()
+      )
+    assertFalse(
+      "overflowing creditor loans must not trigger no-data, got: $result",
+      result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
   fun getofflineforecastActiveBankLoanProducesForecastViaLocalFallback() {
     val result =
       BudgetAdvisor.getOfflineForecast(

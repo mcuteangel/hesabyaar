@@ -446,4 +446,47 @@ class BackupJsonValidatorKotlinFallbackTest {
       errors.any { it == "<string-res-${R.string.backup_error_duplicate_account_id}>" }
     )
   }
+
+  @Test
+  fun rejectsBothDuplicateIdsAndInvalidReferences() {
+    // Mirrors the Rust behavior in validate_accounts_and_references (validation.rs:322-406)
+    // where duplicate-ID errors are recorded but validation continues, producing
+    // combined error output. After the early-return removal, the Kotlin validator
+    // must also check transaction account references even when duplicate IDs exist.
+    val payload =
+      BackupPayload(
+        accounts =
+          listOf(
+            AccountEntity(id = 1L, name = "Main", type = AccountType.BANK),
+            AccountEntity(id = 1L, name = "Duplicate", type = AccountType.CASH_WALLET)
+          ),
+        transactions =
+          listOf(
+            // accountId 99 does not resolve to any declared account.
+            Transaction(
+              type = TransactionType.EXPENSE,
+              categoryId = 1L,
+              amount = 1_000L,
+              description = "t",
+              date = 1_700_000_000_000L,
+              accountId = 99L
+            )
+          )
+      )
+
+    val result = validate(payload)
+    assertTrue(
+      "expected $result to be Invalid for both duplicate IDs and invalid references",
+      result is BackupValidationResult.Invalid
+    )
+    val errors = (result as BackupValidationResult.Invalid).errors
+    assertTrue(
+      "expected a duplicate-account-id error, got: $errors",
+      errors.any { it == "<string-res-${R.string.backup_error_duplicate_account_id}>" }
+    )
+    assertTrue(
+      "expected an invalid-account-reference error, got: $errors",
+      errors.any { it == "<string-res-${R.string.backup_error_transaction_invalid_account}>" }
+    )
+  }
 }

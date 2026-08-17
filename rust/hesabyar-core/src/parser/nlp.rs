@@ -669,7 +669,7 @@ pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedRes
         description: classification.description,
         days_from_now: classification.days_from_now,
         title: classification.installment_title,
-        date_offset_days,
+        date_offset_days: Some(date_offset_days.unwrap_or(0)),
         hour,
         minute,
         confidence,
@@ -1518,6 +1518,16 @@ mod tests {
         let result = parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Expense);
         assert_eq!(result.category, "Installments");
+    }
+
+    #[test]
+    fn test_parse_no_date_keyword_yields_zero_offset() {
+        // When no relative-date keyword is present, extract_date_offset returns
+        // None. parse_sentence_offline_full must normalize that to Some(0) to
+        // match the Kotlin fallback (GeminiParser fallback uses optInt("dateOffsetDays", 0)).
+        let result = parse_sentence_offline_full("۵۰۰۰ تومان نان خریدم", test_now_ms());
+        assert_eq!(result.date_offset_days, Some(0),
+            "date_offset_days must be Some(0), not None, when no date keyword is present");
     }
 
     #[test]

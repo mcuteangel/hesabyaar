@@ -217,7 +217,8 @@ class AccountViewModel
       }
       runGuarded(
         errorPrefix = "بررسی حساب",
-        onError = { message -> emit(DeleteCheckResult.CheckFailed(message)) }
+        onError = { message -> emit(DeleteCheckResult.CheckFailed(message)) },
+        errorTokenCheck = { myToken == currentDeleteCheckToken.get() }
       ) {
         val count = repository.getTransactionCountForAccount(accountId)
         if (myToken != currentDeleteCheckToken.get()) return@runGuarded
@@ -256,6 +257,7 @@ class AccountViewModel
     private fun runGuarded(
       errorPrefix: String,
       onError: ((String) -> Unit)? = null,
+      errorTokenCheck: (() -> Boolean)? = null,
       action: suspend () -> Unit
     ) {
       viewModelScope.launch {
@@ -271,7 +273,9 @@ class AccountViewModel
               errorPrefix,
               e.localizedMessage ?: context.getString(R.string.database_error_fallback)
             )
-          _errorEvents.emit(message)
+          if (errorTokenCheck?.invoke() != false) {
+            _errorEvents.emit(message)
+          }
           onError?.invoke(message)
         } catch (e: IllegalStateException) {
           Log.e(TAG, "$errorPrefix failed", e)
@@ -281,7 +285,9 @@ class AccountViewModel
               errorPrefix,
               e.localizedMessage ?: context.getString(R.string.unknown_error_fallback)
             )
-          _errorEvents.emit(message)
+          if (errorTokenCheck?.invoke() != false) {
+            _errorEvents.emit(message)
+          }
           onError?.invoke(message)
         }
       }

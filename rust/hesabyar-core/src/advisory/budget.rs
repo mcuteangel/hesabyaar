@@ -739,8 +739,15 @@ mod tests {
         }];
         // Must not panic; returns a negative-balance warning (saturated).
         let result = get_offline_forecast(&txs, &loans, &[], &[]);
-        assert!(result.contains("\u{0647}\u{0634}\u{062F}\u{0627}\u{0631}"),
-            "expected negative-balance warning, got: {result}");
+        // The deficit branch (est_balance < 0) must be taken. "هشدار" alone is
+        // ambiguous because the stable-balance branch also contains it; assert
+        // the deficit-specific text instead.
+        assert!(result.contains("\u{0631}\u{06CC}\u{0633}\u{06A9} \u{06A9}\u{0633}\u{0631}\u{06CC} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647}"),
+            "expected deficit branch, got: {result}");
+        // est_balance saturates to i64::MIN; saturating_abs() yields i64::MAX,
+        // which format_currency renders as 922,337,203,685,477,580 تومان.
+        assert!(result.contains("922,337,203,685,477,580"),
+            "expected saturated deficit value, got: {result}");
     }
 
     // -- calculate_financial_health_score tests -----------------------------------

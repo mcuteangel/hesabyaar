@@ -296,7 +296,10 @@ object BudgetAdvisor {
     val unsettledCreditorMonthlyObligation =
       loans
         .filter { !it.isSettled && it.type == LoanType.CREDITOR }
-        .sumOf { it.remainingAmount / 12 }
+        .fold(0L) { total, loan ->
+          val monthly = loan.remainingAmount / 12
+          if (monthly > 0L && total > Long.MAX_VALUE - monthly) Long.MAX_VALUE else total + monthly
+        }
     val hasNoData =
       transactions.isEmpty() &&
         upcomingInstallments.isEmpty() &&
