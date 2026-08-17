@@ -149,15 +149,20 @@ pub fn get_offline_forecast(
     } else {
         1
     };
-    let months_elapsed: i64 = ((days_span + 29) / 30).max(1);
+    // Fractional-month normalization: avg = sum * 30 / days_span, where days_span
+    // is floored to 30 so short windows (≤30 days) treat the period as one full
+    // month. This restores the old f64 semantics (sum / (days / 30)) while staying
+    // in integer arithmetic via i128 to prevent overflow. Matches the Kotlin
+    // fallback's `localMonthlyIncomeBaseline` fractional-month path.
+    let normalization_days: i128 = days_span.max(30) as i128;
 
     let avg_income = if recent.iter().any(|t| t.tx_type == TransactionType::Income) {
-        recent_income / months_elapsed
+        ((recent_income as i128 * 30) / normalization_days) as i64
     } else {
         0
     };
     let avg_expense = if recent.iter().any(|t| t.tx_type == TransactionType::Expense) {
-        recent_expense / months_elapsed
+        ((recent_expense as i128 * 30) / normalization_days) as i64
     } else {
         0
     };
@@ -211,11 +216,13 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
     let ms_per_day: i64 = 24 * 60 * 60 * 1000;
     let oldest = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
     let days = (now_ms.saturating_sub(oldest) + ms_per_day - 1) / ms_per_day;
-    let months = ((days + 29) / 30).max(1);
-    // Integer fold prevents overflow; integer division preserves Rial precision
-    // above 2^53 (the f64 mantissa limit).
+    // Fractional-month normalization via i128 to preserve Rial precision above
+    // 2^53 (the f64 mantissa limit) while mirroring the old f64 path's
+    // fractional-month semantics for non-30-day windows. Matches the Kotlin
+    // fallback's `localMonthlyIncomeBaseline` fractional-month path.
+    let normalization_days: i128 = days.max(30) as i128;
     let sum: i64 = recent.iter().map(|t| t.amount).fold(0, |acc, a| acc.saturating_add(a));
-    sum / months
+    ((sum as i128 * 30) / normalization_days) as i64
 }
 
 /// Calculate debt-to-income ratio.
@@ -444,6 +451,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_monthly_income_baseline_fractional_months_45_day_window() {
+        // Finding 1+2: 45-day window exercises the months_elapsed > 1 path
+        // (previously untested). With ceiling division, months = 2 and avg =
+        // 1_000_000 / 2 = 500_000 — a regression from the old f64 code which
+        // computed months = 45 / 30 = 1.5 and avg = 1_000_000 / 1.5 = 666,666.
+        // The fractional-month normalization (sum * 30 / days) restores the
+        // correct value: 1_000_000 * 30 / 45 = 666,666.
+        let now: i64 = 1_700_000_000_000;
+        let day: i64 = 24 * 60 * 60 * 1000;
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 1_000_000, now - 45 * day),
+        ];
+        let monthly = monthly_income_baseline(&txs, now);
+        assert_eq!(
+            monthly, 666_666,
+            "45-day window must use fractional-month normalization, not ceiling division"
+        );
+    }
+
     // -- get_offline_budget_advice tests -----------------------------------------
 
     #[test]
@@ -555,6 +582,32 @@ mod tests {
         let result = get_offline_forecast(&txs, &[], &[], &[]);
         // est_balance positive → surplus
         assert!(result.contains("\u{0648}\u{0636}\u{0639}\u{06CC}\u{062A}"));
+    }
+
+    #[test]
+    fn test_forecast_45_day_window_uses_fractional_month_normalization() {
+        // Finding 1+2: 45-day window exercises months_elapsed > 1 (previously
+        // untested). With ceiling division, months = 2 and avg_income =
+        // 1_000_000 / 2 = 500_000 Rial → 50,000 Toman. The old f64 code computed
+        // months = 45 / 30 = 1.5 and avg_income = 1_000_000 / 1.5 = 666,666 Rial
+        // → 66,666 Toman. The fractional-month normalization restores 666,666
+        // Rial → 66,666 Toman.
+        let now = now_ms();
+        let day = 24 * 60 * 60 * 1000_i64;
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 1_000_000, now - 45 * day),
+        ];
+        let result = get_offline_forecast(&txs, &[], &[], &[]);
+        // avg_income = 666,666 Rial → 66,666 Toman in the "درآمد تخمینی" line.
+        assert!(
+            result.contains("66,666"),
+            "45-day fractional avg_income (66,666 Toman) must appear in output; got: {result}"
+        );
+        // The ceiling-division result (500,000 Rial → 50,000 Toman) must NOT appear.
+        assert!(
+            !result.contains("50,000"),
+            "ceiling-division result (50,000 Toman) must not appear; got: {result}"
+        );
     }
 
     #[test]
