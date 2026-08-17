@@ -13,7 +13,6 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.ceil
 import kotlin.math.max
 
 object BudgetAdvisor {
@@ -552,10 +551,16 @@ object BudgetAdvisor {
       }
     if (recent.isEmpty()) return 0L
     val oldest = recent.minOf { it.date }
-    val days = max(1.0, ceil((nowMs - oldest).toDouble() / (24.0 * 60 * 60 * 1000)))
-    val months = max(1.0, days / 30.0)
+    val msPerDay = 24L * 60 * 60 * 1000
+    // Ceiling division into whole days, minimum 1 — matches Rust's integer ceiling
+    // path and keeps all arithmetic in Long (no f64 precision loss above 2^53).
+    val days = max(1L, (nowMs - oldest + msPerDay - 1) / msPerDay)
+    val normalizationDays = days.coerceAtLeast(30L)
     val sum = recent.sumOf { it.amount }
-    return (sum.toDouble() / months).toLong()
+    // sum * 30 can exceed Long.MAX_VALUE; clamp to match Rust's i128 intermediate
+    // without risking silent Long overflow.
+    val sumTimesThirty = if (sum > Long.MAX_VALUE / 30) Long.MAX_VALUE else sum * 30
+    return sumTimesThirty / normalizationDays
   }
 
   // Adds [days] Jalali days to the date represented by [fromMs] and returns the

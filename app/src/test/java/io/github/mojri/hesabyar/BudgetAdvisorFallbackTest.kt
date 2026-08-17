@@ -40,8 +40,9 @@ class BudgetAdvisorFallbackTest {
   private fun createTransaction(
     type: TransactionType,
     amount: Long,
-    categoryId: Long = 1L
-  ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test")
+    categoryId: Long = 1L,
+    date: Long = System.currentTimeMillis()
+  ): Transaction = Transaction(type = type, amount = amount, categoryId = categoryId, description = "test", date = date)
 
   private fun createBankLoan(isSettled: Boolean): BankLoan =
     BankLoan(
@@ -241,5 +242,24 @@ class BudgetAdvisorFallbackTest {
       "active bank loan must produce a forecast, got: $result",
       result.contains("ثبت نشده")
     )
+  }
+
+  @Test
+  fun localMonthlyIncomeBaselineMatchesRustAbove2Pow53() {
+    // Parity with Rust monthly_income_baseline (BudgetAdvisor.kt:544). For sums
+    // above 2^53, the old f64 path (sum.toDouble() / months) rounded sum to
+    // 9_007_199_254_740_992, yielding 6_004_799_503_160_661 instead of the exact
+    // 6_004_799_503_160_662. Integer arithmetic (sum * 30 / days) stays exact.
+    val nowMs: Long = 1_700_000_000_000
+    val dayMs: Long = 24 * 60 * 60 * 1000L
+    val tx =
+      createTransaction(
+        TransactionType.INCOME,
+        9_007_199_254_740_993L, // 2^53 + 1 — not exactly representable as f64.
+        date = nowMs - 45 * dayMs
+      )
+    val result = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), nowMs)
+    // Rust: (9_007_199_254_740_993 * 30) / 45 = 6_004_799_503_160_662.
+    assertEquals(6_004_799_503_160_662L, result)
   }
 }
