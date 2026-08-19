@@ -98,6 +98,7 @@ The system rejects any change that breaks these constraints:
 - Do not use destructive Room migrations. A schema change must preserve existing data.
 - Do not hardcode API keys. Use `.env` or Keystore for all secrets.
 - Do not remove the Jalali calendar or offline support.
+- Do not implement new business logic in Kotlin. New features, calculations, validations, and data transformations MUST go in the Rust core (`rust/hesabyar-core`). Kotlin fallbacks are permitted only for the pre-approved exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation). See `## Business Logic Policy` above.
 - Do not use `GlobalScope`. Use structured coroutine scopes.
 
 ## Architecture
@@ -105,21 +106,35 @@ The system rejects any change that breaks these constraints:
 This is a single-module Android app. The package root is `io.github.mojri.hesabyar`.
 
 ```
-ui/          → Screens (Compose), ViewModels, Theme
-api/         → AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
-data/        → Room entities, DAOs, Repository, ExcelExporter, BackupModels
-reminder/    → WorkManager workers, notification helpers
+ui/           → Screens (Compose), ViewModels, Theme
+api/          → AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
+data/         → Room entities, DAOs, Repository, ExcelExporter, BackupModels
+rust/         → UniFFI bridge (RustBridge.kt), generated bindings (hesabyar_core.kt)
+reminder/     → WorkManager workers, notification helpers
+rust/hesabyar-core/ → Rust core crate (all business logic, calculations, advisory)
 ```
 
-The data flow is: `Screen → ViewModel → Repository → Room/Network`.
+The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core (business logic)` alongside `ViewModel/UseCase → Repository → Room/Network (persistence)`.
 
 
 ## Key Patterns
 
-- Use MVVM and Use Cases. The use cases are not a separate layer yet. The logic lives in the ViewModels and the Repository.
+- Use MVVM and Use Cases. Business logic lives in the Rust core (`rust/hesabyar-core`); Kotlin ViewModels, UseCases, and the Repository orchestrate calls to Rust via `RustBridge` and handle Android-specific concerns (persistence, UI state, DI). They are NOT where new business logic should be added.
 - Use the Jalali calendar through `JalaliCalendarHelper.kt`. All dates use it. Do not use `java.time.LocalDate` directly.
 - Use the AI abstraction. `AiProvider` is the interface with `AiProviderConfig`. Business logic must not link to a specific provider.
 - Use the Persian-first UX. Use full RTL, the Vazirmatn font, and Persian terms in the UI strings.
+
+## Business Logic Policy
+
+Rust Core (`rust/hesabyar-core`) is the sole location for business logic. Any new feature, business rule, calculation, validation, or data transformation MUST be implemented in Rust first. Kotlin fallback implementations are permitted ONLY for the pre-approved exception list:
+
+- Jalali calendar conversions
+- Currency formatting
+- Offline NLP parser
+- Backup JSON parse/validate
+- AI advice validation
+
+These fallbacks exist as safety nets — not as places for new logic. Any PR that adds business logic directly in Kotlin (outside the exception list) should be flagged in review and redirected to Rust. See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md` for the full rationale and the phased removal plan for non-exception fallbacks.
 
 ## Testing
 
@@ -134,6 +149,7 @@ The data flow is: `Screen → ViewModel → Repository → Room/Network`.
 3. Does this affect financial calculation accuracy?
 4. Does this require a Room migration?
 5. Are local backups still compatible?
+6. Does this introduce new business logic in Kotlin that should be in the Rust core instead? (See `## Business Logic Policy`.)
 
 ## Mandatory Development Guidelines
 

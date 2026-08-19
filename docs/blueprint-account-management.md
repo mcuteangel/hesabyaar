@@ -91,19 +91,20 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 ├─────────────────────────────────────────────────────┤
 │                    VIEWMODEL                         │
 │  AccountViewModel · StateFlow · Side effects         │
-│  Responsibility: Business logic coordination          │
+│  Responsibility: Orchestration (calls to Rust core)    │
 ├─────────────────────────────────────────────────────┤
 │                  DOMAIN LAYER                        │
-│  UseCases · Validators · Domain Models · Rules        │
-│  Responsibility: Business rules, validation, mapping  │
+│  UseCases (thin wrappers) · Validators · Domain Models │
+│  Responsibility: Data-shape validation, DTO mapping   │
 ├─────────────────────────────────────────────────────┤
 │                  DATA LAYER                          │
 │  Repository · DAO · Room Entities · Mappers           │
 │  Responsibility: Persistence, data transformation     │
 ├─────────────────────────────────────────────────────┤
-│                   FFI LAYER                          │
-│  RustBridge · RustMappers · UniFFI bindings           │
-│  Responsibility: Rust computation (read-only)         │
+│                   FFI LAYER (RUST CORE)               │
+│  RustBridge · RustMappers · UniFFI bindings            │
+│  Responsibility: All business logic, calculations,      │
+│                 rules, and validation (sole location)   │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -114,11 +115,13 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Render UI | Presentation | Screen composable |
 | Manage UI state | State | UiState sealed class |
 | Handle user events | Presentation → ViewModel | Event sealed class |
-| Validate form data | Domain | AccountValidator |
-| Execute CRUD operations | Domain | UseCase classes |
+| Validate form data (data-shape) | Domain | AccountValidator |
+| Enforce business rules / validation | FFI | Rust core (validation.rs) — results surfaced by Kotlin Validator |
+| Execute CRUD operations | Domain | UseCase classes (thin wrappers around Rust + Repository) |
 | Coordinate side effects | ViewModel | ViewModel |
 | Persist data | Data | Repository → DAO → Room |
-| Compute balances | FFI | RustBridge (read-only) |
+| Compute balances | FFI | Rust core (ffi/) — sole implementation location |
+| All new calculations / business logic | FFI | Rust core — NEVER implement new business logic in Kotlin |
 | Show feedback (Snackbar) | Presentation | Screen via SideEffect |
 | Manage dialog lifecycle | State | DialogState in UiState |
 
@@ -131,6 +134,8 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 - **FFI** depends on: Data (mappers)
 
 **Rule:** Domain layer has ZERO Android/framework dependencies. It is pure Kotlin.
+
+> **Business Logic Policy:** Rust Core (`rust/hesabyar-core`) is the sole location for all new business logic, calculations, validations, and data transformations. The Kotlin Domain and Data layers orchestrate Rust calls and handle persistence/UI state — they must NOT contain new business rule implementations. Kotlin-side validators are limited to surfacing Rust's validation results to the UI. Exceptions: Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, and AI advice validation (per ADR-001). See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ---
 
@@ -736,6 +741,8 @@ After any account CRUD operation:
 | `AccountColor` | Long (ARGB) | Must be in ACCOUNT_PICKER_COLORS palette |
 
 ### 9.3 Business Rules
+
+> **Note:** These business rules should be enforced in Rust (via `validation.rs` or equivalent core logic), with Kotlin-side `Validator`/`ViewModel`/`UseCase` code limited to surfacing Rust's validation results or handling persistence/UI state. New rules MUST NOT be implemented in Kotlin. See `docs/architecture/ADR-001-rust-sole-implementation.md`.
 
 | Rule | Description | Enforcement |
 |---|---|---|

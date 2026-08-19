@@ -50,9 +50,25 @@ AI never modifies financial data without confirmation.
 
 ## Source of Truth
 
-Room Database is the single source of truth.
+Room Database is the single source of truth for **stored data**.
 
-All reports and calculations must derive from stored records.
+Rust Core (`rust/hesabyar-core`) is the single source of truth for **business logic**, calculations, and validation. All reports and calculations must derive from stored records and compute through the Rust core.
+
+## Business Logic Policy
+
+Rust Core (`rust/hesabyar-core`) is the sole location for business logic. Any new feature, business rule, calculation, validation, or data transformation MUST be implemented in Rust first.
+
+Kotlin-side implementations of business logic are permitted ONLY for the pre-approved exception list:
+
+- Jalali calendar conversions
+- Currency formatting
+- Offline NLP parser
+- Backup JSON parse/validate
+- AI advice validation
+
+These are safety nets — not places for new logic. Any PR that adds business logic directly in Kotlin (outside the exception list) should be flagged in review and redirected to Rust.
+
+See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ---
 
@@ -166,12 +182,11 @@ Feature-Based Architecture
 
 Current repository uses:
 
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Room Database
+- **Rust** — sole location for business logic, calculations, and validation (`rust/hesabyar-core`)
+- Kotlin — UI (Jetpack Compose, Material 3), persistence orchestration (Room), and FFI bridge via UniFFI
 - Navigation Compose
-- Firebase AI
+- Firebase AI (optional, for online natural language parsing)
+- Hilt (Dependency Injection)
 
 The project should remain modular and scalable.
 
@@ -235,9 +250,11 @@ UI (Compose Screens)
  ↓
 ViewModel (AndroidViewModel)
  ↓
-Repository (HesabyarRepository)
+UseCase (business logic orchestration)
  ↓
-Room Database (AppDatabase)
+RustBridge → Rust Core (all calculations, validation, advisory)
+ ↓
+Repository ← → Room Database (AppDatabase) ← → Rust Core (FFI read)
  ↓
 Flow<List<T>> emissions
  ↓
@@ -247,14 +264,14 @@ UI Recomposition
 ```
 
 AI Flow:
-```text
+```
 User Text Input
  ↓
 AiAssistantViewModel.parseSmartSentence()
  ↓
 GeminiParser.parseSentence()
  ├── Online: AiProvider.generateContent() → API → JSON parse
- └── Offline: MoneyDetector → PersianAmountParser → keyword inference
+ └── Offline: RustBridge.parseSentenceOfflineSync() → Rust NLP core
  ↓
 ParsedResult (type, amount, category, description, ...)
  ↓

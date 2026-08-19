@@ -72,6 +72,7 @@
 - [ ] هرجا محاسبه‌ی موجودی (initial + محاسبه‌شده) نمایش داده می‌شه، مسیر Rust و Kotlin fallback مقایسه بشن
 - [ ] مخصوصاً فیلتر حساب آرشیوشده در هر دو مسیر یکسان عمل کنه
 - [ ] **تست تأیید:** `./gradlew test --tests "io.github.mojri.hesabyar.GetDashboardDataUseCaseTest.rustAndKotlinFallbackProduceSameResultWithFixedNow" --no-daemon`
+- [ ] **قانون جدید:** این چک‌لیست صرفاً برای کد fallback موجود اعمال می‌شود. هیچ‌گاه منطق جدید یا محاسبه‌ای به سمت طرف Kotlin fallback اضافه نکنید — فقط در Rust. برنامه حذف fallbackهای غیردائم در `plans/2026-08-19-rust-fallback-consolidation-plan.md` مرجع شود.
 
 ### R2. نمایش اعداد منفی (RTL/BIDI)
 - [ ] هرجا مبلغ منفی نمایش داده می‌شه (خصوصاً کامپوننت جدید «موجودی محاسبه‌شده» در Phase 5)، از الگوی تست‌شده‌ی موجود استفاده بشه:

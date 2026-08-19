@@ -23,7 +23,7 @@
 - [x] Gemini Integration
 - [x] Smart Text Parsing (online + offline)
 - [x] Multi Provider Support (Gemini, OpenRouter, Custom)
-- [x] Offline AI Fallback (rule-based parser + advisor)
+- [x] Offline AI Fallback (rule-based parser + advisor) — Rust-backed; Kotlin fallback is a permanent exception for the offline NLP parser only; budget advice/forecast Kotlin fallbacks are temporary (scheduled for removal per `plans/2026-08-19-rust-fallback-consolidation-plan.md` Phases 9–10)
 - [x] Persian Amount Parser (token-based)
 - [x] Money Detector (gate for amount parsing)
 - [x] Category Inference (keyword-based)
@@ -88,6 +88,7 @@
 - [x] AI Provider Abstraction
 - [x] Use Cases Layer
 - [x] Dependency Injection (Hilt)
+- [x] Rust Core (business logic, calculations, validation — sole implementation location)
 - [x] Full Test Coverage
 
 ---
