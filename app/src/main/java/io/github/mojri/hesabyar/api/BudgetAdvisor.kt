@@ -565,10 +565,10 @@ object BudgetAdvisor {
     val sumBig =
       recent.fold(BigInteger.ZERO) { acc, tx ->
         val next = acc.add(BigInteger.valueOf(tx.amount))
-        if (next > BigInteger.valueOf(Long.MAX_VALUE)) {
-          BigInteger.valueOf(Long.MAX_VALUE)
-        } else {
-          next
+        when {
+          next > BigInteger.valueOf(Long.MAX_VALUE) -> BigInteger.valueOf(Long.MAX_VALUE)
+          next < BigInteger.valueOf(Long.MIN_VALUE) -> BigInteger.valueOf(Long.MIN_VALUE)
+          else -> next
         }
       }
     return sumBig
