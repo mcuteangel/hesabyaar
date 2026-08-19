@@ -61,7 +61,7 @@ internal fun TransactionTypeSelector(
     ) {
       val types =
         if (isEditMode) {
-          listOf(Pair("EXPENSE", "هزینه"), Pair("INCOME", "درآمد"))
+          listOf(Pair("EXPENSE", "هزینه"), Pair("INCOME", "درآمد"), Pair("TRANSFER", "انتقال"))
         } else {
           listOf(
             Pair("EXPENSE", "هزینه"),

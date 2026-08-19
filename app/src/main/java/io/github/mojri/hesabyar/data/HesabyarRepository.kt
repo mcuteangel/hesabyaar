@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.core.AppLogger
+import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -203,10 +204,13 @@ class HesabyarRepository(
   override suspend fun deleteAccount(account: AccountEntity) =
     database.withTransaction {
       val allAccounts = accountDao.getAllAccountsBlocking()
-      if (allAccounts.size == 1 && allAccounts[0].id == account.id) {
-        throw IllegalStateException(
-          "Account ${account.id} is the last remaining account and cannot be deleted"
-        )
+      // Only the last ACTIVE (non-archived) account is protected: deleting it
+      // would leave zero usable accounts even though archived ones exist.
+      // Deleting an archived account is always allowed — the active count
+      // stays unchanged.
+      val activeAccountCount = allAccounts.count { !it.isArchived }
+      if (activeAccountCount == 1 && allAccounts.any { it.id == account.id && !it.isArchived }) {
+        throw CannotDeleteLastActiveAccountException(account.id)
       }
       val count = accountDao.getTransactionCountForAccount(account.id)
       if (count > 0) {
@@ -228,6 +232,14 @@ class HesabyarRepository(
       paymentHistoryDao.deleteAllPaymentHistory()
       bankLoanDao.deleteAllBankLoans()
       accountDao.deleteAllAccounts()
+
+      // Legacy backups (pre-multi-account) carry no accounts list; their
+      // transactions reference the default account (id=1), which the delete
+      // above just removed. Re-seed it so those transactions are not orphaned —
+      // mirrors the fresh-install seed (AppDatabase.DEFAULT_ACCOUNT_SEED_CALLBACK).
+      if (backup.accounts.isEmpty()) {
+        accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
+      }
 
       backup.categories.forEach { categoryDao.insertCategory(it) }
       backup.transactions.forEach { transactionDao.insertTransaction(it) }

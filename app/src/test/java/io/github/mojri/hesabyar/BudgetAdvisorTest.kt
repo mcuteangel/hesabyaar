@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
@@ -12,7 +13,6 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,21 +22,16 @@ import org.junit.Test
 
 @org.junit.experimental.categories.Category(RustTest::class)
 class BudgetAdvisorTest {
-  private var previousRustState = false
-
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
   @Before
   fun setUp() {
-    previousRustState = HesabyarApp.isRustInitialized()
-    HesabyarApp.setRustInitializedForTesting(false)
-  }
-
-  @After
-  fun tearDown() {
-    HesabyarApp.setRustInitializedForTesting(previousRustState)
+    // These tests assert the native offline-advice output, so force the Rust
+    // availability decision explicitly. (RustIsolationRule restores the prior
+    // override after the class, so no state leaks to later classes.)
+    HesabyarApp.setRustInitializedForTesting(true)
   }
 
   private val dayMs = 24L * 60 * 60 * 1000
@@ -104,6 +99,20 @@ class BudgetAdvisorTest {
       amount = amount,
       dueDate = System.currentTimeMillis() + 24L * 60L * 60L * 1000L,
       isPaid = isPaid
+    )
+
+  private fun createBankLoan(isSettled: Boolean): BankLoan =
+    BankLoan(
+      bankName = "بانک ملی",
+      loanName = "وام خودرو",
+      receivedAmount = 10_000_000,
+      monthlyInstallmentAmount = 1_000_000,
+      numberOfInstallments = 12,
+      totalRepayableAmount = 12_000_000,
+      totalInterest = 2_000_000,
+      startDate = 1_700_000_000_000,
+      description = "",
+      isSettled = isSettled
     )
 
   private fun createCategory(
@@ -322,6 +331,41 @@ class BudgetAdvisorTest {
   }
 
   @Test
+  fun getofflineforecastSettledBankLoansStillNoData() {
+    // A settled bank loan is not an active obligation and must not suppress the
+    // "no data" message (parity with the Kotlin fallback guard).
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        emptyList(),
+        emptyList(),
+        listOf(createBankLoan(isSettled = true))
+      )
+    assertTrue(
+      "settled bank loan must not produce a forecast, got: $result",
+      result.contains("هنوز اطلاعات") || result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
+  fun getofflineforecastNoDataWithOnlyDebtorLoan() {
+    // DEBTOR loans must not suppress the "no data" message in the Kotlin
+    // fallback (parity with Rust get_offline_forecast, which only counts
+    // unsettled CREDITOR loans toward total_obligations).
+    HesabyarApp.setRustInitializedForTesting(false)
+    val result =
+      BudgetAdvisor.getOfflineForecast(
+        emptyList(),
+        listOf(createLoan(LoanType.DEBTOR, 1_000_000, 500_000)),
+        emptyList()
+      )
+    assertTrue(
+      "DEBTOR loan must not suppress no-data message in Kotlin fallback, got: $result",
+      result.contains("هنوز اطلاعات") || result.contains("ثبت نشده")
+    )
+  }
+
+  @Test
   fun getofflineforecastNegativeBalanceWarns() {
     val transactions =
       listOf(
@@ -445,40 +489,6 @@ class BudgetAdvisorTest {
     assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(expense), now))
   }
 
-  // ---------------------------------------------------------------------------
-  // calculateFinancialHealthScore (local fallback when Rust is unavailable)
-  // ---------------------------------------------------------------------------
-
-  @Test
-  fun calculatefinancialhealthscoreLocalFallbackWhenRustUnavailable() {
-    val transactions =
-      listOf(
-        createTransaction(TransactionType.INCOME, 10_000_000),
-        createTransaction(TransactionType.EXPENSE, 2_000_000)
-      )
-    val score =
-      BudgetAdvisor.calculateFinancialHealthScore(
-        transactions,
-        emptyList(),
-        emptyList(),
-        emptyList()
-      )
-    // Deterministic local computation: savings rate 0.8 (+25) + no debt (+15) + 1 category (+0) = 90.
-    assertEquals(90, score)
-    assertTrue(score in 0..100)
-
-    // Determinism: a second call yields the same result (no flaky time dependence).
-    assertEquals(
-      score,
-      BudgetAdvisor.calculateFinancialHealthScore(transactions, emptyList(), emptyList(), emptyList())
-    )
-  }
-
-  @Test
-  fun calculatefinancialhealthscoreEmptyDataReturnsZeroViaLocalFallback() {
-    assertEquals(
-      0,
-      BudgetAdvisor.calculateFinancialHealthScore(emptyList(), emptyList(), emptyList(), emptyList())
-    )
-  }
+  // calculateFinancialHealthScore local-fallback coverage moved to
+  // [BudgetAdvisorFallbackTest] (forces the Kotlin path via override + rule).
 }

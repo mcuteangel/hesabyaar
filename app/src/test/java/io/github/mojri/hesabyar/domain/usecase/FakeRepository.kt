@@ -9,6 +9,8 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,8 +32,14 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   var shouldThrowOnDelete = false
   var shouldThrowOnTransactionCount = false
 
+  /** Forces [deleteAccount] to throw CannotDeleteLastActiveAccountException, simulating a TOCTOU race. */
+  var forceLastActiveAccountException = false
+
   /** Overrides the computed transaction count when non-null. */
   var transactionCountOverride: Int? = null
+
+  /** When set, suspends [getTransactionCountForAccount] until completed — for race tests. */
+  var txCountGate: CompletableDeferred<Unit>? = null
 
   private var nextId = 1L
 
@@ -210,14 +218,28 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun deleteAccount(account: AccountEntity) {
     if (shouldThrowOnDelete) throw IllegalStateException("Simulated DB failure")
-    if (accountsList.size == 1 && accountsList[0].id == account.id) {
-      throw IllegalStateException("Account ${account.id} is the last remaining account and cannot be deleted")
+    // Mirror HesabyarRepository: only the last ACTIVE account is protected.
+    val activeAccountCount = accountsList.count { !it.isArchived }
+    val isLastActive =
+      activeAccountCount == 1 && accountsList.any { it.id == account.id && !it.isArchived }
+    if (forceLastActiveAccountException || isLastActive) {
+      throw CannotDeleteLastActiveAccountException(account.id)
     }
+    ensureDeletable(account)
     accountsList.removeIf { it.id == account.id }
     refreshAccounts()
   }
 
+  /** Mirrors HesabyarRepository: an account that still has transactions cannot be deleted. */
+  private suspend fun ensureDeletable(account: AccountEntity) {
+    val txCount = getTransactionCountForAccount(account.id)
+    if (txCount > 0) {
+      throw IllegalStateException("Account ${account.id} has $txCount transactions and cannot be deleted")
+    }
+  }
+
   override suspend fun getTransactionCountForAccount(accountId: Long): Int {
+    txCountGate?.await()
     if (shouldThrowOnTransactionCount) throw IllegalStateException("Simulated DB failure")
     return transactionCountOverride
       ?: _allTransactions.value.count {

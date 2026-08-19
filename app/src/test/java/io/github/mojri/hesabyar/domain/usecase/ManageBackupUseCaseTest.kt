@@ -1,6 +1,8 @@
 package io.github.mojri.hesabyar.domain.usecase
 
 import io.github.mojri.hesabyar.BuildConfig
+import io.github.mojri.hesabyar.HesabyarApp
+import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
@@ -15,11 +17,27 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import java.security.GeneralSecurityException
 
 class ManageBackupUseCaseTest {
   private val useCase = ManageBackupUseCase(FakeRepository())
+
+  @Rule
+  @JvmField
+  val rustIsolationRule = RustIsolationRule()
+
+  @Before
+  fun forceKotlinParser() {
+    // The "parseBackupJson fallback ..." tests below must exercise the Kotlin
+    // parser. The native library is on the test class path for every task (see
+    // the `rustJvmArgs` wiring in app/build.gradle.kts), so without forcing the
+    // Rust availability decision off, RustBridge would win and the tests would
+    // silently run the native parser instead.
+    HesabyarApp.setRustInitializedForTesting(false)
+  }
 
   private fun buildBackupJson(block: JSONObject.() -> Unit): String = JSONObject().apply(block).toString()
 

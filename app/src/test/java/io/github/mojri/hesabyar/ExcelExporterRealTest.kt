@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar
 
+import android.content.Context
 import io.github.mojri.hesabyar.data.ExcelExporter
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -15,21 +16,32 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.experimental.categories.Category
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
 /**
  * Exercises the real [ExcelExporter.export] against the loaded native core:
  * it must build every sheet, hand a [WorkbookData] to Rust, and return a
- * byte array plus correct summary counts. Also locks in the unavailable-Rust
- * fallback (throws rather than producing a corrupt workbook).
+ * byte array plus correct summary counts. The unavailable-Rust fallback
+ * (throws rather than producing a corrupt workbook) is covered by the
+ * instrumentation suite; with [HesabyarApp.setRustInitializedForTesting] it
+ * would be exercisable here too, but this class locks in the native path.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [34])
 @Category(RustTest::class)
 class ExcelExporterRealTest {
+  private lateinit var context: Context
+
   @Rule
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
   @Before
   fun setUp() {
+    context = RuntimeEnvironment.getApplication()
     HesabyarApp.setRustInitializedForTesting(true)
   }
 
@@ -75,7 +87,7 @@ class ExcelExporterRealTest {
     runTest {
       assertTrue(RustBridge.isAvailable)
       val (txs, loans, insts) = makeData()
-      val result = ExcelExporter().export(txs, loans, insts, emptyList())
+      val result = ExcelExporter(context).export(txs, loans, insts, emptyList())
 
       // Counts reflect exactly the input collections.
       assertEquals(3, result.transactionCount)
@@ -94,7 +106,7 @@ class ExcelExporterRealTest {
   fun exportFilenameFollowsTheDocumentedPattern() =
     runTest {
       val (txs, loans, insts) = makeData()
-      val result = ExcelExporter().export(txs, loans, insts, emptyList())
+      val result = ExcelExporter(context).export(txs, loans, insts, emptyList())
       assertTrue(
         "filename was '${result.filename}'",
         result.filename.matches(Regex("^hesabyar_report_\\d{8}_\\d{6}\\.xlsx$"))
@@ -104,7 +116,7 @@ class ExcelExporterRealTest {
   @Test
   fun exportHandlesEmptyInput() =
     runTest {
-      val result = ExcelExporter().export(emptyList(), emptyList(), emptyList(), emptyList())
+      val result = ExcelExporter(context).export(emptyList(), emptyList(), emptyList(), emptyList())
       assertEquals(0, result.transactionCount)
       assertEquals(0, result.loanCount)
       assertEquals(0, result.installmentCount)
@@ -120,7 +132,7 @@ class ExcelExporterRealTest {
       // non-empty workbook. The null/throw branch is exercised by the
       // instrumentation test that runs without the native library.
       val (txs, loans, insts) = makeData()
-      val result = ExcelExporter().export(txs, loans, insts, emptyList())
+      val result = ExcelExporter(context).export(txs, loans, insts, emptyList())
       assertTrue(result.bytes.isNotEmpty())
     }
 }

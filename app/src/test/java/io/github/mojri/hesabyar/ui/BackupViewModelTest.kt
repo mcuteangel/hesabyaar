@@ -5,22 +5,12 @@ import androidx.lifecycle.viewModelScope
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
-import io.github.mojri.hesabyar.data.BackupPayload
-import io.github.mojri.hesabyar.data.BankLoan
-import io.github.mojri.hesabyar.data.Category
-import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
-import io.github.mojri.hesabyar.data.Installment
-import io.github.mojri.hesabyar.data.Loan
-import io.github.mojri.hesabyar.data.PaymentHistory
-import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.resetMain
@@ -28,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -57,7 +48,12 @@ class BackupViewModelTest {
     context = RuntimeEnvironment.getApplication()
     fakeRepo = FakeRepository()
     useCase = ManageBackupUseCase(fakeRepo, testDispatcher)
-    viewModel = BackupViewModel(context, useCase)
+    viewModel =
+      BackupViewModel(
+        context,
+        useCase,
+        GetSettingsUseCase(context.getSharedPreferences("hesabyar_prefs", Context.MODE_PRIVATE))
+      )
     viewModel.importCoordinator.ioDispatcher = testDispatcher
     viewModel.importCoordinator.cryptoDispatcher = testDispatcher
     viewModel.exportCoordinator.ioDispatcher = testDispatcher
@@ -68,90 +64,6 @@ class BackupViewModelTest {
   fun tearDown() {
     Dispatchers.resetMain()
   }
-
-  @Test
-  fun importbackupfromfileSuccessSetsImportsuccess() =
-    runTest {
-      val json =
-        """
-        {
-            "version": 1,
-            "timestamp": 1710000000000,
-            "appVersion": "1.0",
-            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 1000, "description": "test", "date": 1710000000000}],
-            "loans": [],
-            "installments": [],
-            "categories": []
-        }
-        """.trimIndent()
-
-      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
-      testDispatcher.scheduler.advanceUntilIdle()
-
-      val state = viewModel.operationState.value
-      assertTrue("Expected ImportSuccess but got $state", state is BackupOperationState.ImportSuccess)
-    }
-
-  @Test
-  fun importbackupfromfileIoexceptionSetsError() =
-    runTest {
-      val inputStream =
-        object : InputStream() {
-          override fun read(): Int = throw IOException("disk read failed")
-
-          override fun read(
-            b: ByteArray,
-            off: Int,
-            len: Int
-          ): Int = throw IOException("disk read failed")
-        }
-
-      viewModel.importCoordinator.importBackupFromFile(inputStream)
-      testDispatcher.scheduler.advanceUntilIdle()
-
-      val state = viewModel.operationState.value
-      assertTrue("Expected Error but got $state", state is BackupOperationState.Error)
-      assertTrue((state as BackupOperationState.Error).message.contains("خواندن فایل پشتیبان"))
-    }
-
-  @Test
-  fun importbackupfromfileJsonexceptionSetsError() =
-    runTest {
-      val badJson = "this is not json"
-
-      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(badJson.toByteArray()))
-      testDispatcher.scheduler.advanceUntilIdle()
-
-      val state = viewModel.operationState.value
-      assertTrue("Expected Error but got $state", state is BackupOperationState.Error)
-      assertTrue((state as BackupOperationState.Error).message.contains("تجزیه فایل پشتیبان"))
-    }
-
-  @Test
-  fun importbackupfromfileIllegalstateexceptionSetsError() =
-    runTest {
-      fakeRepo.importShouldThrow = IllegalStateException("UNIQUE constraint failed")
-
-      val json =
-        """
-        {
-            "version": 1,
-            "timestamp": 1710000000000,
-            "appVersion": "1.0",
-            "transactions": [{"id": 0, "type": "EXPENSE", "categoryId": 1, "amount": 500, "description": "dup", "date": 1710000000000}],
-            "loans": [],
-            "installments": [],
-            "categories": []
-        }
-        """.trimIndent()
-
-      viewModel.importCoordinator.importBackupFromFile(ByteArrayInputStream(json.toByteArray()))
-      testDispatcher.scheduler.advanceUntilIdle()
-
-      val state = viewModel.operationState.value
-      assertTrue("Expected Error but got $state", state is BackupOperationState.Error)
-      assertTrue((state as BackupOperationState.Error).message.contains("وارد کردن پشتیبان"))
-    }
 
   @Test
   fun onExportPickerCancelledResetsStateToIdle() =
@@ -350,25 +262,12 @@ class BackupViewModelTest {
   @Test
   fun decryptAndStageImportCorrectPassphraseAfterWrongAttemptSucceeds() =
     runTest {
-      val plainJson =
-        """
-        {
-          "version": 1,
-          "timestamp": 1710000000000,
-          "appVersion": "1.0",
-          "transactions": [],
-          "loans": [],
-          "installments": [],
-          "categories": [],
-          "accounts": []
-        }
-        """.trimIndent()
-      val salt = "test-salt"
+      val (rawJson, salt) = encryptedBackupFixture()
 
-      viewModel.importCoordinator.pendingImportRawJson = plainJson
+      viewModel.importCoordinator.pendingImportRawJson = rawJson
       viewModel.importCoordinator.pendingImportSalt = salt
 
-      // First attempt with wrong passphrase
+      // First attempt with a wrong passphrase — fails AES-GCM authentication
       viewModel.importCoordinator.decryptAndStageImport("wrong-passphrase")
       testDispatcher.scheduler.advanceUntilIdle()
 
@@ -376,18 +275,28 @@ class BackupViewModelTest {
         "Expected Error after decryption failure, got ${viewModel.operationState.value}",
         viewModel.operationState.value is BackupOperationState.Error
       )
+      assertTrue(
+        "pendingImportRawJson must be preserved after the wrong passphrase",
+        viewModel.importCoordinator.pendingImportRawJson != null
+      )
 
-      // Second attempt with correct passphrase — should succeed using staged data
-      viewModel.importCoordinator.decryptAndStageImport("correct-passphrase")
+      // Second attempt with the correct passphrase — must decrypt from the
+      // preserved staged data and stage the backup for restore.
+      viewModel.importCoordinator.decryptAndStageImport("secret")
       testDispatcher.scheduler.advanceUntilIdle()
 
-      // Since there's no encryption metadata, decryptBackupWithPassphrase throws
-      // regardless of passphrase. The second attempt also reaches the catch block.
-      // The key assertion is that staged data was preserved after the first failure,
-      // allowing the second attempt to be made at all.
+      val staged = viewModel.pendingRestoreBackup.value
       assertTrue(
-        "pendingImportRawJson must still be preserved for retry",
-        viewModel.importCoordinator.pendingImportRawJson != null
+        "Expected staged backup after successful retry, got ${viewModel.pendingRestoreBackup.value}",
+        staged != null
+      )
+      assertTrue(
+        "Staged raw JSON must be cleared after successful retry",
+        viewModel.importCoordinator.pendingImportRawJson == null
+      )
+      assertTrue(
+        "Dialog must close after successful retry, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
       )
     }
 
@@ -426,7 +335,7 @@ class BackupViewModelTest {
     }
 
   @Test
-  fun exportWithPassphraseTogglesCryptoProgressAndClearsDialog() =
+  fun exportWithPassphraseKeepsDialogOpenDuringCryptoAndClosesAfterStaging() =
     runTest {
       val gate = CompletableDeferred<Unit>()
       fakeRepo.exportGate = gate
@@ -434,15 +343,16 @@ class BackupViewModelTest {
 
       viewModel.exportCoordinator.exportWithPassphrase("secret")
       // Staging suspends on the gate; while PBKDF2 derivation + encryption is
-      // in flight the dialog must already be closed and the crypto flag raised.
+      // in flight the dialog must stay visible (with its progress indicator)
+      // — matching the import flow — and the crypto flag must be raised.
       testDispatcher.scheduler.runCurrent()
       assertTrue(
         "isCryptoInProgress must be true during crypto work",
         viewModel.isCryptoInProgress.value
       )
       assertTrue(
-        "Dialog must close as soon as export starts",
-        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+        "Dialog must stay open while encryption is in progress, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.ExportPassphrase
       )
 
       gate.complete(Unit)
@@ -451,6 +361,10 @@ class BackupViewModelTest {
       assertTrue(
         "isCryptoInProgress must be false after crypto work finishes",
         !viewModel.isCryptoInProgress.value
+      )
+      assertTrue(
+        "Dialog must close after encrypted staging completes, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
       )
       assertTrue(
         "Expected Exporting after staging, got ${viewModel.operationState.value}",
@@ -738,6 +652,99 @@ class BackupViewModelTest {
       )
     }
 
+  @Test
+  fun cancelPassphraseDialogStopsInFlightDecryptAndDoesNotStageRestore() =
+    runTest {
+      val (rawJson, salt) = encryptedBackupFixture()
+      viewModel.importCoordinator.pendingImportRawJson = rawJson
+      viewModel.importCoordinator.pendingImportSalt = salt
+
+      // A crypto dispatcher with its OWN scheduler (never advanced alongside
+      // Main) keeps the PBKDF2/decrypt step suspended mid-flight, so the user
+      // can cancel while the coroutine is inside the try block.
+      val blockedCrypto = StandardTestDispatcher(TestCoroutineScheduler())
+      viewModel.importCoordinator.cryptoDispatcher = blockedCrypto
+
+      viewModel.importCoordinator.decryptAndStageImport("secret")
+      testDispatcher.scheduler.runCurrent()
+      assertTrue(
+        "Decrypt must be in flight before cancel, isCryptoInProgress=${viewModel.isCryptoInProgress.value}",
+        viewModel.isCryptoInProgress.value
+      )
+
+      // Cancel while decrypting — must stop the whole decrypt job, not just hide
+      // the dialog, so no restore is staged after the user believes they cancelled.
+      viewModel.importCoordinator.cancelPassphraseDialog()
+
+      blockedCrypto.scheduler.advanceUntilIdle()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertTrue(
+        "No restore may be staged after cancel, pending=${viewModel.pendingRestoreBackup.value}",
+        viewModel.pendingRestoreBackup.value == null
+      )
+      assertTrue(
+        "isCryptoInProgress must be reset after cancel",
+        !viewModel.isCryptoInProgress.value
+      )
+      assertTrue(
+        "Dialog must remain hidden after cancel, got ${viewModel.passphraseDialogState.value}",
+        viewModel.passphraseDialogState.value is PassphraseDialogState.Hidden
+      )
+    }
+
+  @Test
+  fun validateAndImportIsDroppedWhileRestoreAlreadyImporting() =
+    runTest {
+      viewModel.operationState.value = BackupOperationState.Importing
+      var readAttempted = false
+      val explodingStream =
+        object : InputStream() {
+          override fun read(): Int {
+            readAttempted = true
+            throw IOException("stream must not be read when a restore is already importing")
+          }
+        }
+
+      viewModel.importCoordinator.validateAndStageImport(explodingStream)
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertFalse(
+        "Duplicate submission must be dropped before reading the stream",
+        readAttempted
+      )
+      assertTrue(
+        "operationState must remain Importing, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.Importing
+      )
+    }
+
+  @Test
+  fun executeRestoreIgnoresDuplicateSubmission() =
+    runTest {
+      val (rawJson, salt) = encryptedBackupFixture()
+      viewModel.importCoordinator.pendingImportRawJson = rawJson
+      viewModel.importCoordinator.pendingImportSalt = salt
+      viewModel.importCoordinator.decryptAndStageImport("secret")
+      testDispatcher.scheduler.advanceUntilIdle()
+      assertTrue(
+        "Backup must be staged for restore, pending=${viewModel.pendingRestoreBackup.value}",
+        viewModel.pendingRestoreBackup.value != null
+      )
+
+      // Two rapid submissions (e.g. a double-tap on the restore-confirm button).
+      fakeRepo.executeRestoreCount = 0
+      viewModel.importCoordinator.executeRestore()
+      viewModel.importCoordinator.executeRestore()
+      testDispatcher.scheduler.advanceUntilIdle()
+
+      assertEquals("Only one restore may execute on duplicate tap", 1, fakeRepo.executeRestoreCount)
+      assertTrue(
+        "Restore must report success, got ${viewModel.operationState.value}",
+        viewModel.operationState.value is BackupOperationState.ImportSuccess
+      )
+    }
+
   /** Records whether close() ran, so tests can assert stream lifecycle on error paths. */
   private class CloseTrackingOutputStream : OutputStream() {
     private val delegate = ByteArrayOutputStream()
@@ -753,122 +760,5 @@ class BackupViewModelTest {
       isClosed = true
       delegate.close()
     }
-  }
-
-  private class FakeRepository : HesabyarRepositoryInterface {
-    var importShouldThrow: Exception? = null
-    var exportShouldThrow: Exception? = null
-
-    /** When set, the first repository flow collected by exportBackupJson suspends until released. */
-    var exportGate: CompletableDeferred<Unit>? = null
-    val accountsList = mutableListOf<AccountEntity>()
-
-    override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-    override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
-    override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
-    override val allCategories: Flow<List<Category>> =
-      flow {
-        exportGate?.await()
-        exportShouldThrow?.let { throw it }
-        emit(emptyList())
-      }
-    override val allBankLoans: Flow<List<BankLoan>> = flowOf(emptyList())
-
-    // Cold flow: must read the live list at collection time, not snapshot it at
-    // construction — tests populate accountsList after the repo is created.
-    override val allAccounts: Flow<List<AccountEntity>> = flow { emit(accountsList.toList()) }
-
-    override fun getTransactionsInRange(
-      start: Long,
-      end: Long
-    ): Flow<List<Transaction>> = flowOf(emptyList())
-
-    override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
-
-    override suspend fun getCategoryById(id: Long): Category? = null
-
-    override suspend fun getCategoryByKey(key: String): Category? = null
-
-    override suspend fun insertCategory(category: Category): Long = 0L
-
-    override suspend fun updateCategory(category: Category) {}
-
-    override suspend fun deleteCategory(category: Category) {}
-
-    override suspend fun insertTransaction(transaction: Transaction): Long = 0L
-
-    override suspend fun deleteTransaction(transaction: Transaction) {}
-
-    override suspend fun updateTransaction(transaction: Transaction) {}
-
-    override suspend fun insertLoan(loan: Loan): Long = 0L
-
-    override suspend fun updateLoan(loan: Loan) {}
-
-    override suspend fun deleteLoan(loan: Loan) {}
-
-    override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> = flowOf(emptyList())
-
-    override suspend fun addPaymentToLoan(
-      loanId: Long,
-      amount: Long,
-      notes: String,
-      customDate: Long?
-    ): Boolean = false
-
-    override suspend fun insertInstallment(installment: Installment): Long = 0L
-
-    override suspend fun updateInstallment(installment: Installment) {}
-
-    override suspend fun deleteInstallment(installment: Installment) {}
-
-    override suspend fun getBankLoanById(id: Long): BankLoan? = null
-
-    override suspend fun insertBankLoan(bankLoan: BankLoan): Long = 0L
-
-    override suspend fun updateBankLoan(bankLoan: BankLoan) {}
-
-    override suspend fun deleteBankLoan(bankLoan: BankLoan) {}
-
-    override suspend fun getInstallmentsByBankLoanId(bankLoanId: Long): List<Installment> = emptyList()
-
-    override suspend fun addBankLoanWithInstallments(
-      bankLoan: BankLoan,
-      installments: List<Installment>
-    ): Long = 0L
-
-    override suspend fun importBackup(
-      transactions: List<Transaction>,
-      loans: List<Loan>,
-      installments: List<Installment>,
-      paymentHistories: List<PaymentHistory>,
-      bankLoans: List<BankLoan>
-    ) {
-      importShouldThrow?.let { throw it }
-    }
-
-    override suspend fun replaceAllFromBackup(backup: BackupPayload) {
-      importShouldThrow?.let { throw it }
-    }
-
-    override suspend fun mergeFromBackup(backup: BackupPayload) {}
-
-    override suspend fun getAllPaymentHistories(): List<PaymentHistory> = emptyList()
-
-    override suspend fun getActiveAccounts(): List<AccountEntity> = emptyList()
-
-    override suspend fun getAllAccounts(): List<AccountEntity> = emptyList()
-
-    override suspend fun getAccountById(id: Long): AccountEntity? = null
-
-    override suspend fun insertAccount(account: AccountEntity): Long = 0L
-
-    override suspend fun updateAccount(account: AccountEntity) {}
-
-    override suspend fun deleteAccount(account: AccountEntity) {}
-
-    override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
-
-    override suspend fun getMaxDisplayOrder(): Int = -1
   }
 }

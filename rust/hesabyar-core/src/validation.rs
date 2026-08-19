@@ -2,7 +2,7 @@ use crate::models::*;
 
 // WARNING: Must match Kotlin AccountType enum exactly.
 // Add new entries here when AccountType gains new variants in the app.
-const VALID_ACCOUNT_TYPES: &[&str] = &["BANK", "CASH_WALLET", "SAVINGS_INVESTMENT"];
+const VALID_ACCOUNT_TYPES: &[&str] = &["BANK", "CASH_WALLET", "SAVINGS_INVESTMENT", "OTHER"];
 
 /// Result of batch validation — collects all errors.
 #[derive(Debug, Clone, uniffi::Record)]
@@ -21,31 +21,15 @@ impl Default for ValidationResult {
 // Single-entity validators (return first error)
 // ===========================================================================
 
-/// Validate a single transaction.
-///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
-pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
+/// Validate the shared transaction fields (amount, date, category_id) that
+/// apply to every transaction type. Transfer-specific invariants (destination
+/// present, destination != source) are checked by the shared
+/// [check_transfer_structure] helper, called from both [validate_transaction]
+/// and [validate_accounts_and_references], so they are not duplicated (or
+/// forgotten) when `validate_backup_payload` runs both paths.
+fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     if tx.amount <= 0 {
         return Err("Transaction amount must be positive".into());
-    }
-    // All six TransactionType variants are handled here; five are accepted
-    // unconditionally, while Transfer requires a valid destination account.
-    match tx.tx_type {
-        TransactionType::Expense
-        | TransactionType::Income
-        | TransactionType::LoanDebtor
-        | TransactionType::LoanCreditor
-        | TransactionType::Installment => {}
-        TransactionType::Transfer => {
-            if tx.destination_account_id.is_none() {
-                return Err("Transfer must have a destination_account_id".into());
-            }
-            if tx.destination_account_id == Some(tx.account_id) {
-                return Err(
-                    "Transfer source and destination accounts must differ".into(),
-                );
-            }
-        }
     }
     if tx.date <= 0 {
         return Err("Transaction date must be positive".into());
@@ -57,6 +41,51 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     // it can never reference a valid category.
     if tx.category_id < 0 {
         return Err("Transaction category_id must not be negative".into());
+    }
+    Ok(())
+}
+
+/// Violation of a Transfer's structural invariants, shared between
+/// [`validate_transaction`] (fail-fast FFI path) and
+/// [`validate_accounts_and_references`] (collect-all batch path) so the
+/// destination/source rules cannot drift when one is modified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TransferIssue {
+    MissingDestination,
+    SameSourceAndDestination,
+}
+
+/// Check Transfer-specific structural invariants (destination present,
+/// destination != source) shared by both validation paths.
+///
+/// Returns `Some(issue)` for the first violation found, or `None` for a valid
+/// transaction (including non-Transfer types, which are accepted here).
+fn check_transfer_structure(tx: &Transaction) -> Option<TransferIssue> {
+    if tx.tx_type != TransactionType::Transfer {
+        return None;
+    }
+    if tx.destination_account_id.is_none() {
+        return Some(TransferIssue::MissingDestination);
+    }
+    if tx.destination_account_id == Some(tx.account_id) {
+        return Some(TransferIssue::SameSourceAndDestination);
+    }
+    None
+}
+
+/// Validate a single transaction.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
+    validate_transaction_fields(tx)?;
+    // The five non-Transfer types are accepted unconditionally; Transfer
+    // requires a valid destination account.
+    if let Some(issue) = check_transfer_structure(tx) {
+        let msg = match issue {
+            TransferIssue::MissingDestination => "Transfer must have a destination_account_id",
+            TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+        };
+        return Err(msg.into());
     }
     Ok(())
 }
@@ -142,10 +171,16 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
 // ===========================================================================
 
 /// Validate a batch of transactions. Collects all errors.
+///
+/// Transfer-specific invariants (destination present, destination != source)
+/// are intentionally NOT checked here — `validate_accounts_and_references`
+/// (called first by `validate_backup_payload`) covers them via the shared
+/// [check_transfer_structure] helper. Checking them again would produce
+/// duplicate errors for the same violation.
 pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationResult {
     let mut errors = Vec::new();
     for (i, tx) in transactions.iter().enumerate() {
-        if let Err(e) = validate_transaction(tx) {
+        if let Err(e) = validate_transaction_fields(tx) {
             errors.push(format!("Transaction[{}]: {}", i, e));
         }
     }
@@ -329,24 +364,41 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
         }
     } else if !payload.transactions.is_empty() {
         // Legacy backup (no accounts list): every transaction must reference
-        // the legacy default account ID (1). This is the single account that
+        // the legacy default account ID. This is the single account that
         // existed before multi-account support. Rejecting arbitrary IDs here
         // prevents orphaned balances from tampered old backups.
         for (i, tx) in payload.transactions.iter().enumerate() {
-            if tx.account_id != 1 {
+            if tx.account_id != DEFAULT_ACCOUNT_ID {
                 errors.push(format!(
-                    "Transaction[{}] references non-legacy account {} (accounts list is empty; expected 1)",
-                    i, tx.account_id
+                    "Transaction[{}] references non-legacy account {} (accounts list is empty; expected {})",
+                    i, tx.account_id, DEFAULT_ACCOUNT_ID
                 ));
             }
             if let Some(dest_id) = tx.destination_account_id {
-                if dest_id != 1 {
+                if dest_id != DEFAULT_ACCOUNT_ID {
                     errors.push(format!(
-                        "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected 1)",
-                        i, dest_id
+                        "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected {})",
+                        i, dest_id, DEFAULT_ACCOUNT_ID
                     ));
                 }
             }
+        }
+    }
+
+    // --- Transfer structure validation ---
+    // Uses the shared check_transfer_structure helper so these invariants
+    // cannot drift from validate_transaction (the fail-fast FFI path). Each
+    // caller formats its own indexed message.
+    for (i, tx) in payload.transactions.iter().enumerate() {
+        if let Some(issue) = check_transfer_structure(tx) {
+            errors.push(format!(
+                "Transaction[{}] {}",
+                i,
+                match issue {
+                    TransferIssue::MissingDestination => "is a Transfer but has no destination_account_id",
+                    TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+                }
+            ));
         }
     }
 
@@ -442,6 +494,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: true,
             notes: String::new(),
+        bank_loan_id: None,
         }
     }
 
@@ -1184,6 +1237,277 @@ mod tests {
             .errors
             .iter()
             .any(|e| e.contains("invalid type")));
+    }
+
+    #[test]
+    fn test_backup_accepts_other_account_type() {
+        // Kotlin AccountType has an OTHER variant; backups carrying it must
+        // validate rather than being rejected as an unknown type.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "سایر".to_string(),
+                account_type: "OTHER".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(result.is_valid, "OTHER account type should be accepted, got: {:?}", result.errors);
+    }
+
+    #[test]
+    fn test_backup_accepts_account_only_backup() {
+        // A backup holding accounts but no transactions/loans/etc. is NOT "empty":
+        // the FFI empty-guard must let it through so the accounts reach
+        // validate_accounts_and_references (Kotlin's fallback has no empty-guard,
+        // so this also keeps the two validators in parity).
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "حساب اصلی".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0xFF4CAF50,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 1710000000000,
+                updated_at: 1710000000000,
+            }],
+        };
+        crate::validate_backup(&payload)
+            .unwrap_or_else(|e| panic!("Account-only backup should be accepted, got: {}", e));
+    }
+
+    #[test]
+    fn test_backup_rejects_transfer_without_destination_via_fail_fast_ffi() {
+        // The fail-fast FFI path (validate_backup) only runs
+        // validate_accounts_and_references; a Transfer without a destination
+        // must be rejected there too, consistently with validate_backup_payload.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: DEFAULT_ACCOUNT_ID,
+                destination_account_id: None,
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![Category {
+                id: 1,
+                name: "Food".into(),
+                key: "food".into(),
+                icon: "".into(),
+                color: 0,
+                category_type: "EXPENSE".into(),
+                is_default: false,
+            }],
+            accounts: vec![],
+        };
+        let err = crate::validate_backup(&payload).unwrap_err().to_string();
+        assert!(err.contains("destination_account_id"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_backup_rejects_transfer_with_same_source_and_destination_via_fail_fast_ffi() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: DEFAULT_ACCOUNT_ID,
+                destination_account_id: Some(DEFAULT_ACCOUNT_ID),
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![Category {
+                id: 1,
+                name: "Food".into(),
+                key: "food".into(),
+                icon: "".into(),
+                color: 0,
+                category_type: "EXPENSE".into(),
+                is_default: false,
+            }],
+            accounts: vec![],
+        };
+        let err = crate::validate_backup(&payload).unwrap_err().to_string();
+        assert!(err.contains("must differ"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_backup_transfer_missing_destination_not_duplicated() {
+        // validate_backup_payload calls BOTH validate_accounts_and_references
+        // (which checks Transfer structure) AND validate_transaction_batch
+        // (which previously also checked Transfer invariants). After the fix,
+        // validate_transaction_batch skips Transfer checks, so a malformed
+        // Transfer yields exactly ONE error — not two.
+        let tx = Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 50_000,
+            description: "transfer".to_string(),
+            person_name: None,
+            date: 1710000000000,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
+        };
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "0.2.0".to_string(),
+            transactions: vec![tx],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let transfer_errors: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|e| e.contains("destination_account_id"))
+            .collect();
+        assert_eq!(
+            transfer_errors.len(),
+            1,
+            "expected exactly one destination_account_id error, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_backup_transfer_same_source_dest_not_duplicated() {
+        // Same as above but for source == destination. Also must produce
+        // exactly ONE error (no duplicates from validate_transaction_batch).
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "0.2.0".to_string(),
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 50_000,
+                description: "transfer".to_string(),
+                person_name: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(1),
+            }],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let transfer_errors: Vec<&String> = result
+            .errors
+            .iter()
+            .filter(|e| e.contains("must differ"))
+            .collect();
+        assert_eq!(
+            transfer_errors.len(),
+            1,
+            "expected exactly one must-differ error, got: {:?}",
+            result.errors
+        );
     }
 
     // =====================================================================

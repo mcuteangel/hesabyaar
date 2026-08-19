@@ -117,7 +117,7 @@ class RepositoryMergeAccountsTest {
         savings.size
       )
       val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(2, txs.size)
+      assertEquals("both backup transactions must be restored", 2, txs.size)
       assertEquals(
         "both backup account ids must map to the same local id",
         txs[0].accountId,
@@ -144,7 +144,7 @@ class RepositoryMergeAccountsTest {
       val localAccounts = database.accountDao().getAllAccountsBlocking().filter { it.name == "Local Account" }
       assertEquals("backup account matching a local name must not create a second row", 1, localAccounts.size)
       val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(1, txs.size)
+      assertEquals("backup transaction must be restored", 1, txs.size)
       assertEquals("transaction must be remapped to the existing local account", 5L, txs.first().accountId)
     }
 
@@ -170,7 +170,7 @@ class RepositoryMergeAccountsTest {
       val merged = database.accountDao().getAllAccountsBlocking()
       assertEquals("default + two distinct backup accounts", 3, merged.size)
       val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(2, txs.size)
+      assertEquals("both distinct-name backup transactions must be restored", 2, txs.size)
       assertNotEquals(
         "distinct backup names must stay distinct (no cross-merging)",
         txs[0].accountId,

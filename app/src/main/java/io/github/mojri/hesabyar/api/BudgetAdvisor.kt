@@ -13,12 +13,13 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.ceil
+import java.math.BigInteger
 import kotlin.math.max
 
 object BudgetAdvisor {
   private const val TAG = "BudgetAdvisor"
   private const val IDEAL_SAVINGS_DENOMINATOR = 5
+  private const val DAYS_PER_MONTH = 30L
 
   /**
    * Budget advice entry point used by the app. Delegates to
@@ -289,7 +290,22 @@ object BudgetAdvisor {
     val totalDebt = activeLoans.sumOf { it.remainingAmount } + activeBankLoans.sumOf { it.totalRepayableAmount }
     val activeDebtCount = activeLoans.size + activeBankLoans.size
 
-    val hasNoData = transactions.isEmpty() && installments.isEmpty() && loans.isEmpty() && bankLoans.isEmpty()
+    // Parity with the Rust guard (get_offline_forecast): only unsettled CREDITOR
+    // loans contribute to the monthly obligation sum (remainingAmount / 12).
+    // Unsettled DEBTOR loans and CREDITOR loans with zero monthly obligation
+    // must not suppress the "no data" message.
+    val unsettledCreditorMonthlyObligation =
+      loans
+        .filter { !it.isSettled && it.type == LoanType.CREDITOR }
+        .fold(0L) { total, loan ->
+          val monthly = loan.remainingAmount / 12
+          if (monthly > 0L && total > Long.MAX_VALUE - monthly) Long.MAX_VALUE else total + monthly
+        }
+    val hasNoData =
+      transactions.isEmpty() &&
+        upcomingInstallments.isEmpty() &&
+        unsettledCreditorMonthlyObligation == 0L &&
+        activeBankLoans.isEmpty()
     if (hasNoData) {
       return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
     }
@@ -537,10 +553,28 @@ object BudgetAdvisor {
       }
     if (recent.isEmpty()) return 0L
     val oldest = recent.minOf { it.date }
-    val days = max(1.0, ceil((nowMs - oldest).toDouble() / (24.0 * 60 * 60 * 1000)))
-    val months = max(1.0, days / 30.0)
-    val sum = recent.sumOf { it.amount }
-    return (sum.toDouble() / months).toLong()
+    val msPerDay = 24L * 60 * 60 * 1000
+    // Ceiling division into whole days, minimum 1 — matches Rust's integer ceiling
+    // path and keeps all arithmetic in Long (no f64 precision loss above 2^53).
+    val days = max(1L, (nowMs - oldest + msPerDay - 1) / msPerDay)
+    val normalizationDays = days.coerceAtLeast(DAYS_PER_MONTH)
+    // Accumulate in BigInteger to avoid Long wrap-around in sumOf. Saturate
+    // the sum at Long.MAX_VALUE to match Rust's saturating_add. Because the
+    // sum is capped, the baseline never exceeds Long.MAX_VALUE, so .toLong()
+    // is safe.
+    val sumBig =
+      recent.fold(BigInteger.ZERO) { acc, tx ->
+        val next = acc.add(BigInteger.valueOf(tx.amount))
+        when {
+          next > BigInteger.valueOf(Long.MAX_VALUE) -> BigInteger.valueOf(Long.MAX_VALUE)
+          next < BigInteger.valueOf(Long.MIN_VALUE) -> BigInteger.valueOf(Long.MIN_VALUE)
+          else -> next
+        }
+      }
+    return sumBig
+      .multiply(BigInteger.valueOf(DAYS_PER_MONTH))
+      .divide(BigInteger.valueOf(normalizationDays))
+      .toLong()
   }
 
   // Adds [days] Jalali days to the date represented by [fromMs] and returns the

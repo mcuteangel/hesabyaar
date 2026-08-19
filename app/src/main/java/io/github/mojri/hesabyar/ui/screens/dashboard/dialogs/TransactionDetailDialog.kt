@@ -153,7 +153,14 @@ internal fun TransactionDetailDialog(
             text = CurrencyFormatter.format(transaction.amount),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
-            color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            color =
+              if (isIncome) {
+                MaterialTheme.colorScheme.primary
+              } else if (isTransfer) {
+                MaterialTheme.colorScheme.tertiary
+              } else {
+                MaterialTheme.colorScheme.error
+              }
           )
         }
 

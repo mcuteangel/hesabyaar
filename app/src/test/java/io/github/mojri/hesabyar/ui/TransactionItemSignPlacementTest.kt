@@ -62,6 +62,7 @@ class TransactionItemSignPlacementTest {
           isIncome = isIncome,
           categoryColor = Color.Gray,
           categoryInitial = "ن",
+          transactionId = 42L,
         )
       }
     }
@@ -143,5 +144,32 @@ class TransactionItemSignPlacementTest {
       composeRule.onAllNodesWithText("۱۰۰٬۰۰۰", substring = true).fetchSemanticsNodes().size
     )
     composeRule.onNodeWithText("-").assertIsDisplayed()
+  }
+
+  @Test
+  fun transferRendersPositiveAmountNotAsExpense() {
+    composeRule.setContent {
+      CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        TransactionItem(
+          title = "انتقال",
+          amount = 1_000_000L,
+          isIncome = false,
+          isTransfer = true,
+          categoryColor = Color.Gray,
+          categoryInitial = "ن",
+          transactionId = 42L,
+        )
+      }
+    }
+
+    // A transfer is neither income nor expense: it must render a positive (+)
+    // sign, not the red, negative minus-expense treatment. (Distinct from the
+    // bidi sign-placement tests above.)
+    composeRule.onNodeWithText("+", useUnmergedTree = true).assertIsDisplayed()
+    assertEquals(
+      "transfer must not render a minus-expense sign",
+      0,
+      composeRule.onAllNodesWithText("-", useUnmergedTree = true).fetchSemanticsNodes().size
+    )
   }
 }

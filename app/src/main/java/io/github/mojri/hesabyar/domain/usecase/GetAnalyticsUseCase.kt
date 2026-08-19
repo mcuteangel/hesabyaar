@@ -154,6 +154,11 @@ class GetAnalyticsUseCase {
     val monthlyIncomeTotal = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount } + transferIncome
     val monthlyExpenseTotal =
       monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount } + transferExpense
+    // Breakdown denominators must match the expense-only numerators of
+    // buildBreakdown (transfer rows are never included there), so compute the
+    // expense-only total separately — monthlyExpenseTotal additionally counts
+    // transferExpense for the monthly spending series.
+    val breakdownTotalExpense = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
     val unsettledLoans = loans.filter { !it.isSettled }
     val debtors = mapDebtSummaries(unsettledLoans, LoanType.DEBTOR)
@@ -164,8 +169,8 @@ class GetAnalyticsUseCase {
       FallbackAnalyticsInput(
         monthlySpending = buildMonthlyData(jalaliDate, monthLabel, monthlyIncomeTotal, monthlyExpenseTotal),
         monthlyIncome = buildMonthlyData(jalaliDate, monthLabel, monthlyIncomeTotal, 0L),
-        categoryBreakdown = buildCategoryBreakdown(monthlyTx, categories, monthlyExpenseTotal),
-        accountBreakdown = buildAccountBreakdown(monthlyTx, accounts, monthlyExpenseTotal),
+        categoryBreakdown = buildCategoryBreakdown(monthlyTx, categories, breakdownTotalExpense),
+        accountBreakdown = buildAccountBreakdown(monthlyTx, accounts, breakdownTotalExpense),
         unsettledLoans = unsettledLoans,
         debtors = debtors,
         creditors = creditors,

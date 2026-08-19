@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -722,28 +723,7 @@ fun ReportsScreen(
           }
 
           Row(verticalAlignment = Alignment.CenterVertically) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                val isTxIncome = transaction.type == TransactionType.INCOME
-                val (txSign, txAmount) =
-                  CurrencyFormatter.formatSignedParts(
-                    if (isTxIncome) transaction.amount else -transaction.amount
-                  )
-                val txColor = if (isTxIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                Text(
-                  text = txSign,
-                  style = MaterialTheme.typography.bodyMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = txColor
-                )
-                Text(
-                  text = txAmount,
-                  style = MaterialTheme.typography.bodyMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = txColor
-                )
-              }
-            }
+            ReportsTransactionAmount(transaction = transaction)
             IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
               Icon(
                 imageVector = Icons.Filled.Delete,
@@ -800,5 +780,61 @@ fun ReportsScreen(
       },
       onDismiss = { deletingTransaction = null }
     )
+  }
+}
+
+/**
+ * Renders the signed amount for a transaction row in the reports list.
+ *
+ * The sign and amount are kept in separate Texts under an LTR layout-direction
+ * provider so the bidi algorithm cannot reorder the sign across the digits in
+ * the app's RTL locale.  Income and Transfer render a positive sign with
+ * [MaterialTheme.colorScheme.primary] / [MaterialTheme.colorScheme.tertiary]
+ * respectively; Expense renders a negative sign with
+ * [MaterialTheme.colorScheme.error].
+ */
+@Composable
+internal fun ReportsTransactionAmount(transaction: Transaction) {
+  val isIncome = transaction.type == TransactionType.INCOME
+  val isTransfer = transaction.type == TransactionType.TRANSFER
+  val (txSign, txAmount) =
+    CurrencyFormatter.formatSignedParts(
+      if (isIncome || isTransfer) transaction.amount else -transaction.amount
+    )
+  val txColor =
+    if (isIncome) {
+      MaterialTheme.colorScheme.primary
+    } else if (isTransfer) {
+      MaterialTheme.colorScheme.tertiary
+    } else {
+      MaterialTheme.colorScheme.error
+    }
+  CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      modifier =
+        Modifier
+          .testTag(
+            "reports_tx_amount_" +
+              when (transaction.type) {
+                TransactionType.INCOME -> "income"
+                TransactionType.TRANSFER -> "transfer"
+                else -> "expense"
+              }
+          )
+    ) {
+      Text(
+        text = txSign,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        color = txColor
+      )
+      Text(
+        text = txAmount,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold,
+        color = txColor
+      )
+    }
   }
 }

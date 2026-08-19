@@ -69,8 +69,8 @@ pub fn generate_excel(workbook: &WorkbookData) -> Result<Vec<u8>, HesabyarError>
         // RTL layout for Persian
         sheet.set_right_to_left(true);
 
-        // Freeze the header row
-        sheet.set_freeze_panes(1, 0);
+        // Freeze the header row (best-effort; not fatal if unsupported)
+        let _ = sheet.set_freeze_panes(1, 0);
 
         // Write headers
         for (col_idx, header) in sheet_data.headers.iter().enumerate() {

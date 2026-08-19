@@ -33,12 +33,16 @@ fun TransactionItem(
   title: String,
   amount: Long,
   isIncome: Boolean,
-  categoryColor: Color = Color.Gray,
+  isTransfer: Boolean = false,
+  categoryColor: Color = Color.Unspecified,
   categoryInitial: String = "",
   date: String? = null,
   modifier: Modifier = Modifier,
-  onClick: (() -> Unit)? = null
+  onClick: (() -> Unit)? = null,
+  transactionId: Long? = null
 ) {
+  val resolvedCategoryColor =
+    categoryColor.takeUnless { it == Color.Unspecified } ?: MaterialTheme.colorScheme.onSurfaceVariant
   Row(
     modifier =
       modifier
@@ -56,7 +60,7 @@ fun TransactionItem(
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     TransactionItemCategoryIcon(
-      categoryColor = categoryColor,
+      categoryColor = resolvedCategoryColor,
       categoryInitial = categoryInitial
     )
 
@@ -67,7 +71,9 @@ fun TransactionItem(
 
     TransactionItemAmount(
       amount = amount,
-      isIncome = isIncome
+      isIncome = isIncome,
+      isTransfer = isTransfer,
+      transactionId = transactionId
     )
   }
 }
@@ -128,17 +134,29 @@ private fun RowScope.TransactionItemTitleBlock(
 @Composable
 private fun TransactionItemAmount(
   amount: Long,
-  isIncome: Boolean
+  isIncome: Boolean,
+  isTransfer: Boolean = false,
+  transactionId: Long? = null
 ) {
-  val amountColor = if (isIncome) FinancialColors.IncomeGreen else FinancialColors.ExpenseRed
+  val amountColor =
+    if (isIncome) {
+      FinancialColors.IncomeGreen
+    } else if (isTransfer) {
+      MaterialTheme.colorScheme.tertiary
+    } else {
+      FinancialColors.ExpenseRed
+    }
   CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
     Row(
       verticalAlignment = Alignment.CenterVertically,
-      modifier = Modifier.semantics(mergeDescendants = true) {}.testTag("transaction_item_amount")
+      modifier =
+        Modifier
+          .semantics(mergeDescendants = true) {
+          }.testTag("transaction_item_amount_${transactionId ?: "unknown"}")
     ) {
       val (sign, formattedAmount) =
         CurrencyFormatter.formatSignedParts(
-          if (isIncome) amount else -amount
+          if (isIncome || isTransfer) amount else -amount
         )
       Text(
         text = sign,

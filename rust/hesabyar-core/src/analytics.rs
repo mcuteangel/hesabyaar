@@ -223,10 +223,30 @@ pub fn compute_analytics(
     let bank_loans = build_bank_loan_summaries(bank_loans, installments);
     let bank_loans_total_debt: i64 = bank_loans.iter().map(|b| b.remaining_debt).sum();
 
-    // Compute per-account analytics. Use the non-archived transactions so
-    // transfers touching archived accounts never appear in an active
-    // account's breakdown either (consistent with compute_dashboard_data).
-    let account_analytics = compute_account_analytics(&non_archived_txs, accounts, categories);
+    // Compute per-account analytics. The all-accounts view reports every
+    // active account from the non-archived transactions (so transfers touching
+    // archived accounts never appear in an active account's breakdown either,
+    // consistent with compute_dashboard_data). A selected-account view reports
+    // only the selected account, from the account-filtered transactions —
+    // mirroring the Kotlin fallback, whose account breakdown never includes
+    // other accounts' segments. An account with no expense transactions
+    // contributes no segment (the fallback's buildAccountBreakdown returns an
+    // empty list when the filtered expense total is zero).
+    let account_analytics: Vec<AccountAnalytics> = match account_id {
+        Some(acc_id) => compute_account_analytics(
+            &filtered_txs,
+            &accounts
+                .iter()
+                .filter(|a| a.id == acc_id)
+                .cloned()
+                .collect::<Vec<_>>(),
+            categories,
+        )
+        .into_iter()
+        .filter(|a| a.category_breakdown.iter().map(|c| c.total).sum::<i64>() > 0)
+        .collect(),
+        None => compute_account_analytics(&non_archived_txs, accounts, categories),
+    };
 
     AnalyticsData {
         monthly_spending,
@@ -459,6 +479,7 @@ mod tests {
             is_paid: paid,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }
     }
 
@@ -764,6 +785,47 @@ mod tests {
         assert_eq!(acc.monthly_data[0].expense, 100_000);
     }
 
+    /// When a specific active account is selected, a transfer touching an
+    /// archived account is still excluded — the archived-account filter runs
+    /// *before* the account_id filter, consistent with compute_dashboard_data
+    /// and the Kotlin fallback. This complements
+    /// `test_transfer_to_archived_destination_excluded` (which uses
+    /// account_id=None) by confirming the same exclusion holds for a
+    /// single-account selection.
+    #[test]
+    fn test_selected_active_account_transfer_to_archived_destination_excluded() {
+        let now = now_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived"),
+        ];
+        // Transfer from active account 1 to archived account 2
+        let transfer = Transaction {
+            id: 5,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 400_000,
+            description: String::new(),
+            person_name: None,
+            date: now,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: Some(2),
+        };
+        // Plus a regular expense on account 1 that survives filtering
+        let txs = vec![transfer, tx(6, TransactionType::Expense, 100_000, now, 1)];
+
+        // account_id=Some(1), include_archived=false: the archived-destination
+        // filter runs first, removing the transfer before the account_id filter.
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+
+        // Account 1's view shows only the 100k expense — the 400k transfer-out
+        // was dropped because its destination (account 2) is archived.
+        assert_eq!(result.monthly_spending[0].income, 0);
+        assert_eq!(result.monthly_spending[0].expense, 100_000);
+    }
+
     #[test]
     fn test_include_archived_true_keeps_archived_transactions() {
         let now = now_ms();
@@ -877,5 +939,83 @@ mod tests {
         }];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(3), false);
         assert!(result.monthly_spending.is_empty());
+    }
+
+    // =====================================================================
+    // Account-breakdown filtering for selected-account views
+    // =====================================================================
+
+    /// A selected-account view must report only the selected account's
+    /// breakdown, never other active accounts' segments — the Kotlin fallback
+    /// filters its account breakdown by the selected accountId.
+    #[test]
+    fn test_account_analytics_limited_to_selected_account() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK"), account(2, "B", "BANK")];
+        let txs = vec![
+            tx_on(1, TransactionType::Expense, 100_000, now, 1, 1),
+            tx_on(2, TransactionType::Expense, 200_000, now, 1, 2),
+        ];
+
+        // All-accounts view reports both active accounts.
+        let all = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false);
+        assert_eq!(all.accounts.len(), 2);
+
+        // Selected-account view reports only the selected account.
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert_eq!(selected.accounts.len(), 1, "only the selected account may appear");
+        assert_eq!(selected.accounts[0].account_id, 1);
+        assert_eq!(selected.accounts[0].category_breakdown[0].total, 100_000);
+    }
+
+    /// A selected account with no expense transactions contributes no segment —
+    /// the Kotlin fallback's buildAccountBreakdown returns an empty list when
+    /// the filtered expense total is zero.
+    #[test]
+    fn test_selected_account_without_expenses_has_no_account_segments() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK"), account(2, "B", "BANK")];
+        let txs = vec![
+            tx_on(1, TransactionType::Income, 1_000_000, now, 1, 1),
+            tx_on(2, TransactionType::Expense, 200_000, now, 1, 2),
+        ];
+
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert!(selected.accounts.is_empty(), "no expenses → no account segments");
+    }
+
+    /// A selected account whose only expense transactions total zero must be
+    /// filtered out — the Kotlin fallback's buildAccountBreakdown returns an
+    /// empty list when the filtered expense total is zero. Previously, Rust
+    /// kept the account because `category_breakdown` was non-empty (it had a
+    /// single zero-total entry). The fix filters on the sum of category totals
+    /// instead.
+    #[test]
+    fn test_selected_account_with_only_zero_expenses_filtered_out() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK")];
+        // Single expense with amount = 0 — cat_totals = {1: 0}, non-empty but
+        // sum is zero. Rust must filter it out to match the Kotlin fallback.
+        let txs = vec![
+            tx_on(1, TransactionType::Expense, 0, now, 1, 1),
+        ];
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert!(
+            selected.accounts.is_empty(),
+            "zero-total expenses should filter out the account, got: {:?}",
+            selected.accounts
+        );
+    }
+
+    /// An account with expenses that sum to > 0 is kept (positive case).
+    #[test]
+    fn test_selected_account_with_positive_expenses_kept() {
+        let now = now_ms();
+        let accounts = vec![account(1, "A", "BANK")];
+        let txs = vec![
+            tx_on(1, TransactionType::Expense, 100_000, now, 1, 1),
+        ];
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        assert_eq!(selected.accounts.len(), 1, "positive expenses must keep the account");
     }
 }

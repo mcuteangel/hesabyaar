@@ -108,11 +108,17 @@ internal fun TransactionMiniItem(
       Row(verticalAlignment = Alignment.CenterVertically) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
           Row(verticalAlignment = Alignment.CenterVertically) {
+            val signedAmount = if (isIncome || isTransfer) transaction.amount else -transaction.amount
             val (sign, amount) =
-              CurrencyFormatter.formatSignedParts(
-                if (isIncome) transaction.amount else -transaction.amount
-              )
-            val amountColor = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+              CurrencyFormatter.formatSignedParts(signedAmount)
+            val amountColor =
+              if (isIncome) {
+                MaterialTheme.colorScheme.primary
+              } else if (isTransfer) {
+                MaterialTheme.colorScheme.tertiary
+              } else {
+                MaterialTheme.colorScheme.error
+              }
             Text(text = sign, style = MaterialTheme.typography.bodyMedium, color = amountColor)
             Text(text = amount, style = MaterialTheme.typography.bodyMedium, color = amountColor)
           }

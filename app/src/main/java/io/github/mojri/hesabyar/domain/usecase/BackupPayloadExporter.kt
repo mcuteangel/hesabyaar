@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.BuildConfig
 import io.github.mojri.hesabyar.auth.BackupCipher
 import io.github.mojri.hesabyar.data.AccountEntity
-import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -32,6 +31,17 @@ internal const val ITERATIONS_KEY = "iterations"
  * passphrase — reject anything below this floor instead of deriving a weak key.
  */
 internal const val MIN_ITERATIONS_FLOOR = 100_000
+
+/**
+ * Restore-side ceiling for the declared PBKDF2 work factor, mirroring [MIN_ITERATIONS_FLOOR].
+ * The export side always writes [BackupCipher.PBKDF2_ITERATIONS] (600k), so a
+ * tampered/attacker-crafted backup could declare an absurd count (e.g. Int.MAX_VALUE)
+ * to make PBKDF2 block the crypto thread for minutes/hours on decrypt (DoS/ANR).
+ * Reject anything above this ceiling so derivation fails fast instead of hanging.
+ * The value is well above the app's own 600k, leaving headroom for legitimate
+ * future increases of the app-side work factor.
+ */
+internal const val MAX_ITERATIONS_CEILING = 5_000_000
 
 /**
  * Serializes the repository contents into the backup JSON envelope, optionally
@@ -276,17 +286,4 @@ class BackupPayloadExporter(
     }
     return accountsArray
   }
-
-  fun buildBackupSummary(backup: BackupPayload): String =
-    "${backup.transactions.size} تراکنش، ${backup.loans.size} وام، ${backup.installments.size} قسط، ${backup.categories.size} دسته‌بندی، ${backup.bankLoans.size} وام بانکی، ${backup.accounts.size} حساب بازیابی شد."
-
-  fun buildExportSummary(
-    transCount: Int,
-    loanCount: Int,
-    instCount: Int,
-    catCount: Int,
-    bankLoanCount: Int = 0,
-    accountCount: Int = 0
-  ): String =
-    "$transCount تراکنش، $loanCount وام، $instCount قسط، $catCount دسته‌بندی، $bankLoanCount وام بانکی، $accountCount حساب"
 }

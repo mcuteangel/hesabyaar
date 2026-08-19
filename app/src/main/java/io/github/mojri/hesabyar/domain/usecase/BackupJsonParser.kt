@@ -63,7 +63,7 @@ class BackupJsonParser(
       }
     }
 
-  @Suppress("TooGenericExceptionCaught") // Safety net: opt* returns defaults but constructor params may NPE
+  @Suppress("TooGenericExceptionCaught") // Safety net: opt* accessors can still NPE on malformed JSON; return null
   private fun parseBackupJsonKotlin(jsonString: String): BackupPayload? {
     val root = parseRawJson(jsonString) ?: return null
     return try {

@@ -1,7 +1,10 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -55,6 +58,18 @@ class ManualTransactionDialogAccountEditTest {
       description = "Old",
       date = System.currentTimeMillis(),
       accountId = 10L,
+    )
+
+  private val transferOriginal =
+    Transaction(
+      id = 1L,
+      type = TransactionType.TRANSFER,
+      categoryId = 1L,
+      amount = 5_000L,
+      description = "انتقال",
+      date = System.currentTimeMillis(),
+      accountId = 10L,
+      destinationAccountId = 20L,
     )
 
   private fun launchEditDialog(
@@ -129,5 +144,35 @@ class ManualTransactionDialogAccountEditTest {
     val request = captured.value
     assertNotNull("Submit must not be blocked", request)
     assertEquals("Selecting another account must move the transaction on edit", 20L, request?.accountId)
+  }
+
+  // -- Edit-mode type selector must offer TRANSFER (FINDING D) -------------------
+
+  @Test
+  fun editModeSelectsTransferChipWhenEditingTransfer() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = transferOriginal,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+    // Editing an existing TRANSFER: the edit-mode chip list must include and
+    // select "انتقال". Pre-fix the edit list only had EXPENSE/INCOME, so the
+    // TRANSFER chip was absent and nothing was selected.
+    // The description field of transferOriginal also contains "انتقال", so
+    // onAllNodesWithText("انتقال") matches two nodes with no guaranteed order
+    // (the description text field exposes an OnClick too). Target the chip alone:
+    // it is the only node with both this text and Selectable semantics.
+    val transferChip = composeRule.onNode(hasText("انتقال").and(isSelectable()))
+    transferChip.assertIsDisplayed()
+    transferChip.assertIsSelected()
   }
 }

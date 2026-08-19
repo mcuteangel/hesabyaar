@@ -289,6 +289,7 @@ fn make_installment(id: i64, amount: i64, due_ms: i64, paid: bool) -> Installmen
         is_paid: paid,
         reminder_enabled: false,
         notes: String::new(),
+        bank_loan_id: None,
     }
 }
 

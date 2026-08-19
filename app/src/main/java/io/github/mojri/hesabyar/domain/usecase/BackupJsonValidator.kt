@@ -1,6 +1,10 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import android.content.Context
 import android.util.Log
+import androidx.annotation.StringRes
+import androidx.annotation.VisibleForTesting
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BackupValidationResult
@@ -24,8 +28,39 @@ private const val TAG = "BackupJsonValidator"
  * helpers so the class stays small.
  */
 class BackupJsonValidator(
-  private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+  private val application: Context? = null
 ) {
+  /**
+   * Resolves a user-facing validation message from `strings.xml`. The application
+   * [Context] is injected by the DI layer (via [ManageBackupUseCase]); plain-JVM
+   * unit tests construct the validator without one, in which case the message
+   * degrades to a stable resource-id sentinel that no test asserts — production
+   * always wires the Context, so users always see the localized string. A
+   * missing Context in any non-test path is a DI wiring bug: warn once so it
+   * surfaces in logcat instead of silently shipping sentinel text to users.
+   */
+  private fun message(
+    @StringRes key: Int,
+    vararg args: Any
+  ): String {
+    val context = application
+    if (context == null) {
+      if (!warnedMissingContext) {
+        warnedMissingContext = true
+        Log.w(
+          TAG,
+          "BackupJsonValidator constructed without an application Context (DI wiring bug); " +
+            "validation messages will surface as resource-id sentinels"
+        )
+      }
+      return "<string-res-$key>"
+    }
+    return context.getString(key, *args)
+  }
+
+  private var warnedMissingContext = false
+
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
     withContext(dispatcher) {
       if (RustBridge.isAvailable) {
@@ -49,12 +84,22 @@ class BackupJsonValidator(
       }
     }
 
-  private fun validateBackupKotlin(backup: BackupPayload): BackupValidationResult {
+  /**
+   * Kotlin-only validation path (Rust unavailable or mapping failed).
+   *
+   * `internal` (not private) so unit tests can exercise the fallback directly:
+   * the host Rust library always loads in the unit-test JVM, so
+   * [validateBackup]'s Rust branch is the only one reachable through the public
+   * entry point, and the kotlinFallback* tests would otherwise silently test
+   * the Rust core instead of this code.
+   */
+  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+  internal fun validateBackupKotlin(backup: BackupPayload): BackupValidationResult {
     val errors = mutableListOf<String>()
 
-    if (backup.version <= 0) errors.add("نسخه پشتیبان نامعتبر است")
-    if (backup.appVersion.isBlank()) errors.add("نسخه برنامه پشتیبان نامعتبر است")
-    if (backup.timestamp <= 0) errors.add("زمان تهیه پشتیبان نامعتبر است")
+    if (backup.version <= 0) errors.add(message(R.string.backup_validation_version_invalid))
+    if (backup.appVersion.isBlank()) errors.add(message(R.string.backup_validation_app_version_invalid))
+    if (backup.timestamp <= 0) errors.add(message(R.string.backup_validation_timestamp_invalid))
 
     validateBackupTransactions(backup.transactions, errors)
     validateBackupLoans(backup.loans, errors)
@@ -63,6 +108,7 @@ class BackupJsonValidator(
     validateBackupPaymentHistories(backup.paymentHistories, errors)
     validateBackupBankLoans(backup.bankLoans, errors)
     validateBackupAccounts(backup.accounts, errors)
+    BackupReferenceValidator { resId, args -> message(resId, *args) }.validate(backup, errors)
 
     return if (errors.isEmpty()) {
       BackupValidationResult.Valid
@@ -76,8 +122,12 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     transactions.forEachIndexed { i, t ->
-      if (t.amount <= 0) errors.add("مبلغ تراکنش #$i نامعتبر است")
-      if (t.date <= 0) errors.add("تاریخ تراکنش #$i نامعتبر است")
+      if (t.amount <= 0) errors.add(message(R.string.backup_validation_tx_amount_invalid, i))
+      if (t.date <= 0) errors.add(message(R.string.backup_validation_tx_date_invalid, i))
+      // Mirrors Rust validate_transaction: negative category_id can never
+      // reference a valid category; zero and positive are left to the
+      // cross-reference checks (legacy zero is tolerated).
+      if (t.categoryId < 0) errors.add(message(R.string.backup_validation_tx_category_invalid, i))
     }
   }
 
@@ -86,10 +136,10 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     loans.forEachIndexed { i, l ->
-      if (l.personName.isBlank()) errors.add("نام شخص وام #$i خالی است")
-      if (l.date <= 0) errors.add("تاریخ وام #$i نامعتبر است")
-      if (l.originalAmount <= 0) errors.add("مبلغ اولیه وام #$i نامعتبر است")
-      if (l.remainingAmount < 0) errors.add("مبلغ باقی‌مانده وام #$i نامعتبر است")
+      if (l.personName.isBlank()) errors.add(message(R.string.backup_validation_loan_person_blank, i))
+      if (l.date <= 0) errors.add(message(R.string.backup_validation_loan_date_invalid, i))
+      if (l.originalAmount <= 0) errors.add(message(R.string.backup_validation_loan_original_invalid, i))
+      if (l.remainingAmount < 0) errors.add(message(R.string.backup_validation_loan_remaining_invalid, i))
     }
   }
 
@@ -98,9 +148,9 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     installments.forEachIndexed { i, installment ->
-      if (installment.title.isBlank()) errors.add("عنوان قسط #$i خالی است")
-      if (installment.amount <= 0) errors.add("مبلغ قسط #$i نامعتبر است")
-      if (installment.dueDate <= 0) errors.add("تاریخ سررسید قسط #$i نامعتبر است")
+      if (installment.title.isBlank()) errors.add(message(R.string.backup_validation_installment_title_blank, i))
+      if (installment.amount <= 0) errors.add(message(R.string.backup_validation_installment_amount_invalid, i))
+      if (installment.dueDate <= 0) errors.add(message(R.string.backup_validation_installment_due_invalid, i))
     }
   }
 
@@ -109,7 +159,7 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     categories.forEachIndexed { i, category ->
-      if (category.name.isBlank()) errors.add("نام دسته‌بندی #$i خالی است")
+      if (category.name.isBlank()) errors.add(message(R.string.backup_validation_category_name_blank, i))
     }
   }
 
@@ -118,8 +168,12 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     payments.forEachIndexed { i, payment ->
-      if (payment.amount <= 0) errors.add("مبلغ پرداخت #$i نامعتبر است")
-      if (payment.date <= 0) errors.add("تاریخ پرداخت #$i نامعتبر است")
+      if (payment.amount <= 0) errors.add(message(R.string.backup_validation_payment_amount_invalid, i))
+      if (payment.date <= 0) errors.add(message(R.string.backup_validation_payment_date_invalid, i))
+      // Mirrors Rust validate_payment_history: loan_id must be positive. The
+      // zero tolerance in the loan cross-reference only applies to the lookup
+      // itself, not to the field rule.
+      if (payment.loanId <= 0) errors.add(message(R.string.backup_validation_payment_loan_id_invalid, i))
     }
   }
 
@@ -128,11 +182,40 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     bankLoans.forEachIndexed { i, bankLoan ->
-      if (bankLoan.bankName.isBlank()) errors.add("نام بانک وام #$i خالی است")
-      if (bankLoan.receivedAmount <= 0) errors.add("مبلغ دریافتی وام #$i نامعتبر است")
-      if (bankLoan.numberOfInstallments <= 0) errors.add("تعداد اقساط وام #$i نامعتبر است")
-      if (bankLoan.monthlyInstallmentAmount <= 0) errors.add("مبلغ قسط ماهانه وام #$i نامعتبر است")
-      if (bankLoan.startDate <= 0) errors.add("تاریخ شروع وام #$i نامعتبر است")
+      if (bankLoan.bankName.isBlank()) errors.add(message(R.string.backup_validation_bankloan_name_blank, i))
+      if (bankLoan.receivedAmount <= 0) errors.add(message(R.string.backup_validation_bankloan_received_invalid, i))
+      if (bankLoan.numberOfInstallments <= 0) {
+        errors.add(message(R.string.backup_validation_bankloan_installment_count_invalid, i))
+      }
+      if (bankLoan.monthlyInstallmentAmount <= 0) {
+        errors.add(message(R.string.backup_validation_bankloan_monthly_invalid, i))
+      }
+      if (bankLoan.startDate <= 0) errors.add(message(R.string.backup_validation_bankloan_start_invalid, i))
+      // The remaining checks mirror Rust validate_bank_loan (validation.rs:205-226):
+      // repayment/interest cross-field invariants. multiplyExact/subtractExact
+      // reject overflow instead of wrapping, matching checked_mul/checked_sub.
+      if (bankLoan.totalRepayableAmount <= 0) {
+        errors.add(message(R.string.backup_validation_bankloan_repayable_invalid, i))
+      }
+      val expectedRepayments =
+        try {
+          Math.multiplyExact(bankLoan.monthlyInstallmentAmount, bankLoan.numberOfInstallments.toLong())
+        } catch (_: ArithmeticException) {
+          null
+        }
+      if (expectedRepayments == null) {
+        errors.add(message(R.string.backup_validation_bankloan_repayable_overflow, i))
+      } else if (bankLoan.totalRepayableAmount != expectedRepayments) {
+        errors.add(message(R.string.backup_validation_bankloan_repayable_mismatch, i))
+      }
+      if (bankLoan.totalRepayableAmount < bankLoan.receivedAmount) {
+        errors.add(message(R.string.backup_validation_bankloan_repayable_below_received, i))
+      } else {
+        val expectedInterest = bankLoan.totalRepayableAmount - bankLoan.receivedAmount
+        if (bankLoan.totalInterest != expectedInterest) {
+          errors.add(message(R.string.backup_validation_bankloan_interest_mismatch, i))
+        }
+      }
     }
   }
 
@@ -141,7 +224,7 @@ class BackupJsonValidator(
     errors: MutableList<String>
   ) {
     accounts.forEachIndexed { i, account ->
-      if (account.name.isBlank()) errors.add("نام حساب #$i خالی است")
+      if (account.name.isBlank()) errors.add(message(R.string.backup_validation_account_name_blank, i))
       // createdAt == 0 is a legacy sentinel from the v6→v7 migration
       // (MIGRATION_6_7 used DEFAULT 0 for accounts that existed before
       // timestamps were tracked). Accept it as valid.

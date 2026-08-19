@@ -23,9 +23,11 @@ import org.junit.experimental.categories.Category
  * the native-backed results are shaped and bounded as the app expects.
  *
  * The *unavailable* fallback branches (safe sentinels returned when the native
- * library fails to load) cannot be exercised from this JVM suite because the
- * library always loads here; they are covered by an instrumentation test that
- * runs without the native library present.
+ * library fails to load) are not exercised here — the @Before forces the Rust
+ * availability decision on. They can now be exercised from this JVM suite via
+ * [HesabyarApp.setRustInitializedForTesting] (see [RustIsolationRule]), and are
+ * additionally covered by an instrumentation test that runs without the native
+ * library present.
  */
 @Category(RustTest::class)
 class RustBridgeTest {
@@ -160,7 +162,8 @@ class RustBridgeTest {
         dueDate = 1_700_000_000_000L,
         isPaid = false,
         reminderEnabled = true,
-        notes = ""
+        notes = "",
+        bankLoanId = null
       )
     assertTrue(RustBridge.validateTransactionSync(txn))
     assertTrue(RustBridge.validateLoanSync(loan))

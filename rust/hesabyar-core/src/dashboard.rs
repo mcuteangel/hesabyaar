@@ -76,6 +76,14 @@ pub fn compute_dashboard_data(
             .sum()
     };
 
+    // Lifetime balance across the filtered transactions plus opening balances.
+    // total_net_worth mirrors this value (see the DashboardData construction
+    // below), so both fields apply the same include_archived policy — matching
+    // the Kotlin fallback, where totalNetWorth = currentBalance. Computed
+    // before the calendar match so the calendar-error path uses the identical
+    // formula.
+    let current_balance = compute_all_time_balance(&filtered_txs, account_id) + initial_balance_sum;
+
     // --- Current Jalali month boundaries ---
     let (jy, jm) = match gregorian_to_jalali(now_ms) {
         Ok(jd) => (jd.year, jd.month),
@@ -83,7 +91,7 @@ pub fn compute_dashboard_data(
             // Fallback: return zeros for monthly aggregates, but preserve
             // account-linkage filtering and initial_balance for current_balance.
             return DashboardData {
-                current_balance: compute_all_time_balance(&filtered_txs, account_id) + initial_balance_sum,
+                current_balance,
                 monthly_expenses: 0,
                 monthly_income: 0,
                 debtors_total: compute_debtors_total(loans),
@@ -97,7 +105,7 @@ pub fn compute_dashboard_data(
                     .sum(),
                 bank_loans: crate::analytics::build_bank_loan_summaries(bank_loans, installments),
                 accounts: vec![],
-                total_net_worth: 0,
+                total_net_worth: current_balance,
             };
         }
     };
@@ -129,10 +137,8 @@ pub fn compute_dashboard_data(
         prev_month_start_ms,
         prev_month_end_ms,
     );
-    let total_net_worth: i64 = account_summaries.iter().map(|a| a.balance).sum();
 
     // --- Aggregate transactions ---
-    let current_balance = compute_all_time_balance(&filtered_txs, account_id) + initial_balance_sum;
     let mut monthly_income: i64 = 0;
     let mut monthly_expenses: i64 = 0;
 
@@ -220,7 +226,11 @@ pub fn compute_dashboard_data(
         bank_loans_total,
         bank_loans,
         accounts: account_summaries,
-        total_net_worth,
+        // total_net_worth mirrors current_balance so both apply the same
+        // include_archived policy (matches the Kotlin fallback). The account
+        // card list above always excludes archived accounts, but the net-worth
+        // figure follows the same aggregate rule as the balance header.
+        total_net_worth: current_balance,
     }
 }
 
@@ -471,6 +481,7 @@ mod tests {
             is_paid: paid,
             reminder_enabled: false,
             notes: String::new(),
+        bank_loan_id: None,
         }
     }
 
@@ -1216,6 +1227,84 @@ mod tests {
     }
 
     // =====================================================================
+    // Transfer edge cases: out-of-month transfers and archived counterparties
+    // =====================================================================
+
+    /// A transfer dated outside the current Jalali month must still affect the
+    /// all-time current_balance of a selected account, but must NOT appear in
+    /// monthly income/expense aggregates (which are scoped to the current month).
+    #[test]
+    fn test_transfer_outside_current_month_reflected_in_balance_not_monthly() {
+        let now_ms = now_jalali_month_ms();
+        // Compute a timestamp at the start of the previous Jalali month
+        let jd = gregorian_to_jalali(now_ms).unwrap();
+        let (prev_jy, prev_jm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+        let prev_month_ts = jalali_to_month_start_ms(prev_jy, prev_jm);
+
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            account(2, "کیف پول", "CASH_WALLET"),
+        ];
+        let txs = vec![Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 500_000,
+            description: String::new(),
+            person_name: None,
+            date: prev_month_ts, // outside current month
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: Some(2),
+        }];
+
+        // Selecting source account: the transfer debits balance (−500k)
+        // and is reflected in current_balance, but monthly aggregates
+        // exclude it because it is dated outside the current Jalali month.
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms);
+        assert_eq!(result.current_balance, -500_000);
+        assert_eq!(result.monthly_expenses, 0);
+        assert_eq!(result.monthly_income, 0);
+    }
+
+    /// When a selected active account participates in a transfer with an archived
+    /// counterparty and include_archived is false, the transfer must be excluded
+    /// from both the all-time balance and monthly aggregates — archived-account
+    /// transactions are filtered before the account_id selection.
+    #[test]
+    fn test_transfer_to_archived_counterparty_excluded_for_selected_active_account() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "CASH_WALLET", 500_000),
+        ];
+        let txs = vec![Transaction {
+            id: 1,
+            tx_type: TransactionType::Transfer,
+            category_id: 1,
+            amount: 300_000,
+            description: String::new(),
+            person_name: None,
+            date: now_ms,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: Some(2), // to archived
+        }];
+
+        // include_archived=false + selected active account: transfer to archived
+        // counterpart is excluded entirely.
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms);
+        assert_eq!(result.current_balance, 0);
+        assert_eq!(result.monthly_expenses, 0);
+        assert_eq!(result.monthly_income, 0);
+        assert_eq!(result.accounts.len(), 1);
+        assert_eq!(result.accounts[0].account_id, 1);
+        assert_eq!(result.accounts[0].balance, 0);
+    }
+
+    // =====================================================================
     // Calendar-error fallback: balance computation uses filtered_txs +
     // initial_balance_sum, not the raw transaction list.
     // =====================================================================
@@ -1355,12 +1444,6 @@ mod tests {
         month_start + (next_month_start - month_start) / 2
     }
 
-    /// Get the start of the current Jalali month as epoch-ms.
-    fn current_jalali_month_start_ms() -> i64 {
-        let now = now_jalali_month_ms();
-        let jd = gregorian_to_jalali(now).unwrap();
-        jalali_to_month_start_ms(jd.year, jd.month)
-    }
 
     // =====================================================================
     // monthly_delta tests — cross-path consistency
@@ -1597,5 +1680,30 @@ mod tests {
         // expected = 1_000_000
         let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms);
         assert_eq!(result.current_balance, 1_000_000);
+    }
+
+    /// Regression: total_net_worth must apply the same include_archived policy
+    /// as current_balance (matching the Kotlin fallback, where
+    /// totalNetWorth = currentBalance). Previously total_net_worth summed the
+    /// account cards, which always exclude archived accounts — so the two
+    /// figures disagreed whenever include_archived=true and an archived
+    /// account had a non-zero opening balance.
+    #[test]
+    fn test_total_net_worth_matches_current_balance_archive_policy() {
+        let now_ms = now_jalali_month_ms();
+        let accounts = vec![
+            account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "CASH_WALLET", 500_000),
+        ];
+
+        // include_archived=true: both figures include the archived opening balance.
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None, true, now_ms);
+        assert_eq!(result.current_balance, 500_000);
+        assert_eq!(result.total_net_worth, 500_000);
+
+        // include_archived=false: both figures exclude the archived opening balance.
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None, false, now_ms);
+        assert_eq!(result.current_balance, 0);
+        assert_eq!(result.total_net_worth, 0);
     }
 }

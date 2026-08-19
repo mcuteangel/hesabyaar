@@ -24,6 +24,13 @@ class HesabyarApp : Application() {
     @Volatile
     private var rustInitialized = false
 
+    /**
+     * Test-only availability override, see [setRustInitializedForTesting].
+     * `null` means "no override — derive availability from the real load state".
+     */
+    @Volatile
+    private var rustInitializedOverride: Boolean? = null
+
     init {
       // Wire the Jalali calendar helper to the Rust core. The provider lazily
       // initializes the native library on first calendar call, preserving the
@@ -32,10 +39,19 @@ class HesabyarApp : Application() {
     }
 
     @JvmStatic
-    fun isRustInitialized(): Boolean = rustInitialized
+    fun isRustInitialized(): Boolean = rustInitializedOverride ?: rustInitialized
 
     /**
      * Force Rust availability state for unit tests only.
+     *
+     * The value is an **override of the availability decision**, checked by
+     * [ensureRustInitialized] BEFORE any attempt to load the native library:
+     * `false` forces every `RustBridge` caller onto the Kotlin fallback even
+     * when `hesabyar_core` is loadable, and `true` forces the Rust path. This
+     * is what makes fallback tests deterministic — without it, `false` merely
+     * reset the memoization flag and the library was re-loaded on the next
+     * access whenever it sat on `java.library.path`. Passing `null` clears the
+     * override and restores load-based availability.
      *
      * Guarded two ways so production can never flip the real initialization
      * state: (1) `internal` visibility — only code in this module (i.e. tests)
@@ -48,13 +64,19 @@ class HesabyarApp : Application() {
      */
     @VisibleForTesting
     @JvmStatic
-    internal fun setRustInitializedForTesting(value: Boolean) {
+    internal fun setRustInitializedForTesting(value: Boolean?) {
       if (!BuildConfig.DEBUG) return
-      rustInitialized = value
+      rustInitializedOverride = value
     }
+
+    /** Returns the current test override, or null when none is set. */
+    @VisibleForTesting
+    @JvmStatic
+    internal fun getRustInitializedOverrideForTesting(): Boolean? = rustInitializedOverride
 
     @JvmStatic
     fun ensureRustInitialized(): Boolean {
+      rustInitializedOverride?.let { return it }
       if (rustInitialized) return true
       synchronized(initLock) {
         if (rustInitialized) return true

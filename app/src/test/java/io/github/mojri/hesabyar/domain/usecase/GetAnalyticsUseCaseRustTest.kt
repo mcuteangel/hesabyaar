@@ -5,11 +5,9 @@ import io.github.mojri.hesabyar.RustTest
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BankLoan
-import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
-import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustBridge
 import org.junit.Assert.assertEquals
@@ -58,31 +56,6 @@ class GetAnalyticsUseCaseRustTest {
       description = "l",
       isSettled = settled
     )
-
-  private fun tx(
-    type: TransactionType,
-    amount: Long,
-    accountId: Long
-  ) = Transaction(
-    type = type,
-    categoryId = 1L,
-    amount = amount,
-    description = "test",
-    date = System.currentTimeMillis(),
-    accountId = accountId,
-  )
-
-  private fun cat(
-    id: Long,
-    name: String
-  ) = io.github.mojri.hesabyar.data.Category(
-    id = id,
-    name = name,
-    key = "test",
-    icon = "",
-    color = 0xFF000000L,
-    type = CategoryType.EXPENSE
-  )
 
   @Test
   fun rustPathYieldsEmptyCollectionsAndZeroTotalsForEmptyInputs() {
@@ -205,7 +178,7 @@ class GetAnalyticsUseCaseRustTest {
   @Test
   fun rustPathAllAccountsExcludesArchivedAccountTransactions() {
     assertTrue(RustBridge.isAvailable)
-    val categories = listOf(cat(1, "خوراک"))
+    val categories = listOf(analyticsCat(1, "خوراک"))
     val accounts =
       listOf(
         AccountEntity(id = 1, name = "Active", type = AccountType.BANK),
@@ -213,10 +186,10 @@ class GetAnalyticsUseCaseRustTest {
       )
     val txs =
       listOf(
-        tx(TransactionType.INCOME, 3_000_000, accountId = 1),
-        tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
-        tx(TransactionType.INCOME, 500_000, accountId = 2),
-        tx(TransactionType.EXPENSE, 200_000, accountId = 2),
+        analyticsTx(TransactionType.INCOME, 3_000_000, accountId = 1),
+        analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+        analyticsTx(TransactionType.INCOME, 500_000, accountId = 2),
+        analyticsTx(TransactionType.EXPENSE, 200_000, accountId = 2),
       )
 
     val result =
@@ -244,7 +217,7 @@ class GetAnalyticsUseCaseRustTest {
   @Test
   fun rustPathAccountBreakdownCarriesAccountColor() {
     assertTrue(RustBridge.isAvailable)
-    val categories = listOf(cat(1, "خوراک"))
+    val categories = listOf(analyticsCat(1, "خوراک"))
     val accounts =
       listOf(
         AccountEntity(
@@ -256,7 +229,7 @@ class GetAnalyticsUseCaseRustTest {
       )
     val txs =
       listOf(
-        tx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+        analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
       )
 
     val result =
@@ -266,5 +239,66 @@ class GetAnalyticsUseCaseRustTest {
     // the AccountEntity so the donut chart segments render in the account color.
     assertEquals(1, result.accountBreakdown.size)
     assertEquals("segment color must come from the AccountEntity", 0xFF2196F3L, result.accountBreakdown[0].color)
+  }
+
+  @Test
+  fun rustPathAccountBreakdownContainsOnlySelectedAccountWhenAccountIdSet() {
+    assertTrue(RustBridge.isAvailable)
+    val categories = listOf(analyticsCat(1, "خوراک"))
+    val accounts =
+      listOf(
+        AccountEntity(id = 1, name = "A", type = AccountType.BANK),
+        AccountEntity(id = 2, name = "B", type = AccountType.BANK),
+      )
+    val txs =
+      listOf(
+        analyticsTx(TransactionType.EXPENSE, 1_000_000, accountId = 1),
+        analyticsTx(TransactionType.EXPENSE, 500_000, accountId = 2),
+      )
+
+    // Selecting account 1 must restrict the breakdown to account 1's segment —
+    // the Kotlin fallback produces exactly this for the same input.
+    val result =
+      useCase.computeAnalytics(
+        txs,
+        emptyList(),
+        emptyList(),
+        categories,
+        accounts = accounts,
+        accountId = 1
+      )
+    assertEquals("only the selected account may appear", 1, result.accountBreakdown.size)
+    assertEquals("segment carries the selected account id", 1L, result.accountBreakdown[0].categoryId)
+    assertEquals("segment total matches the selected account's expenses", 1_000_000L, result.accountBreakdown[0].total)
+    assertEquals("single segment owns 100%", 100f, result.accountBreakdown[0].percentage, 0.001f)
+  }
+
+  @Test
+  fun rustPathAccountBreakdownEmptyWhenSelectedAccountHasNoExpenses() {
+    assertTrue(RustBridge.isAvailable)
+    val categories = listOf(analyticsCat(1, "خوراک"))
+    val accounts =
+      listOf(
+        AccountEntity(id = 1, name = "A", type = AccountType.BANK),
+        AccountEntity(id = 2, name = "B", type = AccountType.BANK),
+      )
+    val txs =
+      listOf(
+        analyticsTx(TransactionType.INCOME, 1_000_000, accountId = 1),
+        analyticsTx(TransactionType.EXPENSE, 200_000, accountId = 2),
+      )
+
+    val result =
+      useCase.computeAnalytics(
+        txs,
+        emptyList(),
+        emptyList(),
+        categories,
+        accounts = accounts,
+        accountId = 1
+      )
+    // Selected account has no expenses → no segments (the Kotlin fallback's
+    // buildAccountBreakdown returns an empty list for the same input).
+    assertTrue("no expenses means no account-breakdown segments", result.accountBreakdown.isEmpty())
   }
 }

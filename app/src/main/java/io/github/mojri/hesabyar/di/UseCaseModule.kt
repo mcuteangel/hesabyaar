@@ -72,8 +72,10 @@ object UseCaseModule {
   fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase = GetAnalyticsUseCase()
 
   @Provides
-  fun provideManageBackupUseCase(repository: HesabyarRepositoryInterface): ManageBackupUseCase =
-    ManageBackupUseCase(repository)
+  fun provideManageBackupUseCase(
+    @ApplicationContext context: Context,
+    repository: HesabyarRepositoryInterface
+  ): ManageBackupUseCase = ManageBackupUseCase(repository, application = context)
 
   @Provides
   fun provideExportExcelUseCase(
@@ -89,5 +91,7 @@ object UseCaseModule {
 
   @Provides
   @Singleton
-  fun provideExcelExporter(): ExcelExporter = ExcelExporter()
+  fun provideExcelExporter(
+    @ApplicationContext context: Context
+  ): ExcelExporter = ExcelExporter(context)
 }

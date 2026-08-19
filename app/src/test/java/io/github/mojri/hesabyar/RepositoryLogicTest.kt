@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.data.BackupSettings
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -22,8 +23,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -549,139 +552,74 @@ class RepositoryLogicTest {
     }
 
   @Test
-  fun mergeFromBackupRemapsTransactionAccountIdsWhenBackupIdsDifferFromLocal() =
+  fun deleteAccountBlocksLastActiveAccountWhenArchivedAccountExists() =
     runTest {
       val repo = createRepository()
-      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
-      val backup =
-        backupPayload(
-          accounts =
-            listOf(
-              account(id = 5L, name = "Backup Account", color = 0xFFE91E63L),
-              account(id = 10L, name = "Backup Dest", color = 0xFF2196F3L)
-            ),
-          transactions =
-            listOf(
-              transaction(
-                id = 1L,
-                type = TransactionType.TRANSFER,
-                accountId = 5L,
-                destinationAccountId = 10L,
-                amount = 50_000L
-              )
-            )
+      // setUp seeds DEFAULT_ACCOUNT (id=1, active). Add one archived account so the
+      // total count is 2 but the ACTIVE count is still 1 — deleting the last active
+      // account (the seeded default) must be rejected.
+      repo.insertAccount(AccountEntity(id = 2, name = "قدیمی", type = AccountType.BANK, isArchived = true))
+      val defaultAccount = requireNotNull(database.accountDao().getById(DEFAULT_ACCOUNT_ID))
+
+      try {
+        repo.deleteAccount(defaultAccount)
+        fail("Expected IllegalStateException deleting last active account")
+      } catch (e: IllegalStateException) {
+        assertEquals(
+          "message should mention last active account",
+          "Account $DEFAULT_ACCOUNT_ID is the last remaining active account and cannot be deleted",
+          e.message
         )
-      repo.mergeFromBackup(backup)
-      val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(1, txs.size)
-      val mergedTx = txs.first()
-      assertNotEquals(5L, mergedTx.accountId)
-      assertNotEquals(10L, mergedTx.destinationAccountId)
-      requireNotNull(database.accountDao().getById(mergedTx.accountId))
-      requireNotNull(database.accountDao().getById(mergedTx.destinationAccountId!!))
-      assertEquals("Local Account", database.accountDao().getById(5L)?.name)
+      }
+      assertEquals("account count should be unchanged", 2, database.accountDao().getAllAccountsBlocking().size)
+      // The archived account must still be present.
+      assertEquals(2L, database.accountDao().getById(2L)?.id)
     }
 
   @Test
-  fun mergeFromBackupSkipsTransactionWhoseSourceAccountIsNotInBackupOrLocalDb() =
+  fun deleteAccountAllowsDeletingArchivedAccountWhenActiveAccountRemains() =
     runTest {
       val repo = createRepository()
-      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
-      val backup =
-        backupPayload(
-          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
-          transactions =
-            listOf(
-              transaction(id = 1L, type = TransactionType.INCOME, accountId = 99L, amount = 10_000L),
-              transaction(id = 2L, type = TransactionType.EXPENSE, accountId = 5L, amount = 5_000L)
-            )
+      // setUp seeds DEFAULT_ACCOUNT (id=1, active). Add another active + an archived
+      // one, so deleting the archived account leaves the active count unchanged.
+      val activeId = repo.insertAccount(AccountEntity(id = 2, name = "فروشگاه", type = AccountType.CASH_WALLET))
+      val archivedId =
+        repo.insertAccount(
+          AccountEntity(id = 3, name = "قدیمی", type = AccountType.BANK, isArchived = true)
         )
-      repo.mergeFromBackup(backup)
+      val archivedAccount = requireNotNull(database.accountDao().getById(archivedId))
 
-      val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(1, txs.size)
-      assertEquals(5_000L, txs.first().amount)
-      assertTrue("orphaned accountId=99 must not be written", txs.none { it.accountId == 99L })
+      // Deleting an archived account is always allowed — the active count is unchanged.
+      repo.deleteAccount(archivedAccount)
+
+      assertEquals(2, database.accountDao().getAllAccountsBlocking().size)
+      assertNull(database.accountDao().getById(archivedId))
+      assertNotNull(database.accountDao().getById(activeId))
     }
 
   @Test
-  fun mergeFromBackupSkipsTransferWhoseDestinationAccountIsNotInBackup() =
+  fun deleteAccountAllowsDeletingArchivedAccountEvenWithStaleEntity() =
     runTest {
       val repo = createRepository()
-      repo.insertAccount(account(id = 5L, name = "Local Account", color = 0xFF4CAF50L))
-      val backup =
-        backupPayload(
-          accounts = listOf(account(id = 5L, name = "Backup Account", color = 0xFFE91E63L)),
-          transactions =
-            listOf(
-              transaction(
-                id = 1L,
-                type = TransactionType.TRANSFER,
-                accountId = 5L,
-                destinationAccountId = 99L,
-                amount = 50_000L
-              )
-            )
-        )
-      repo.mergeFromBackup(backup)
+      // setUp seeds DEFAULT_ACCOUNT (id=1, active). Add one archived account so the
+      // active count is 1. Now pass a STALE entity: the DB row is archived but the
+      // in-memory copy still says isArchived=false. The old guard trusted the
+      // stale entity and would delete the only active account. The fix checks
+      // allAccounts, so deletion is allowed (it's archived in the DB).
+      repo.insertAccount(AccountEntity(id = 2, name = "قدیمی", type = AccountType.BANK, isArchived = true))
+      // Stale entity: isArchived=false but DB has isArchived=true
+      val staleEntity = AccountEntity(id = 2, name = "قدیمی", type = AccountType.BANK, isArchived = false)
 
-      val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertTrue("transfer with dangling destination must not be written", txs.isEmpty())
+      // Should NOT throw — the DB version is archived, so the last-active guard must not fire.
+      repo.deleteAccount(staleEntity)
+
+      val remaining = database.accountDao().getAllAccountsBlocking()
+      assertEquals("archived account should be deleted", 1, remaining.size)
+      assertEquals(
+        "default account must remain",
+        DEFAULT_ACCOUNT_ID,
+        database.accountDao().getById(DEFAULT_ACCOUNT_ID)?.id
+      )
+      assertNull("stale archived account should be gone", database.accountDao().getById(2L))
     }
-
-  @Test
-  fun mergeFromBackupKeepsLegacyDefaultAccountIdWhenAccountsSectionIsEmpty() =
-    runTest {
-      val repo = createRepository()
-      val backup =
-        backupPayload(
-          accounts = emptyList(),
-          transactions =
-            listOf(
-              transaction(id = 1L, type = TransactionType.EXPENSE, accountId = 1L, amount = 3_000L)
-            )
-        )
-      repo.mergeFromBackup(backup)
-
-      val txs = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(1, txs.size)
-      assertEquals(1L, txs.first().accountId)
-      requireNotNull(database.accountDao().getById(txs.first().accountId))
-    }
-
-  private fun account(
-    id: Long,
-    name: String,
-    type: AccountType = AccountType.BANK,
-    color: Long = 0L
-  ) = AccountEntity(id = id, name = name, type = type, color = color, icon = "", isArchived = false, displayOrder = 0)
-
-  private fun transaction(
-    id: Long,
-    type: TransactionType,
-    accountId: Long,
-    destinationAccountId: Long? = null,
-    amount: Long = 3000L
-  ) = Transaction(
-    id = id,
-    type = type,
-    categoryId = 0L,
-    amount = amount,
-    description = "tx",
-    personName = null,
-    date = System.currentTimeMillis(),
-    accountId = accountId,
-    destinationAccountId = destinationAccountId
-  )
-
-  private fun backupPayload(
-    accounts: List<AccountEntity>,
-    transactions: List<Transaction>
-  ) = BackupPayload(
-    version = 1,
-    timestamp = System.currentTimeMillis(),
-    appVersion = "1.0",
-    accounts = accounts,
-    transactions = transactions
-  )
 }
