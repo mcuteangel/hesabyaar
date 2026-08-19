@@ -299,4 +299,21 @@ class BudgetAdvisorFallbackTest {
     // clamped to Long.MAX_VALUE. It must never wrap to a negative value.
     assertEquals(Long.MAX_VALUE, result)
   }
+
+  @Test
+  fun localMonthlyIncomeBaselineSaturatesSumLikeRust() {
+    // Two incomes whose sum exceeds Long.MAX_VALUE. Rust saturates the sum
+    // via saturating_add, so the Kotlin fallback must do the same for parity.
+    val nowMs: Long = 1_700_000_000_000
+    val dayMs: Long = 24 * 60 * 60 * 1000L
+    val halfMax = Long.MAX_VALUE / 2
+    val txs =
+      listOf(
+        createTransaction(TransactionType.INCOME, halfMax + 500, date = nowMs - 60 * dayMs),
+        createTransaction(TransactionType.INCOME, halfMax + 500, date = nowMs - 30 * dayMs),
+      )
+    val result = BudgetAdvisor.localMonthlyIncomeBaseline(txs, nowMs)
+    val expected = Long.MAX_VALUE / 2
+    assertEquals("Kotlin must saturate sum like Rust's saturating_add", expected, result)
+  }
 }

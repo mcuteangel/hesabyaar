@@ -558,21 +558,23 @@ object BudgetAdvisor {
     // path and keeps all arithmetic in Long (no f64 precision loss above 2^53).
     val days = max(1L, (nowMs - oldest + msPerDay - 1) / msPerDay)
     val normalizationDays = days.coerceAtLeast(DAYS_PER_MONTH)
-    // Accumulate in BigInteger to avoid Long wrap-around in sumOf. Rust uses
-    // saturating addition to prevent this. BigInteger precision is at least as
-    // precise as Rust's i128 intermediate. Clamp the result to Long.MAX_VALUE
-    // so .toLong() never silently wraps to a negative value.
+    // Accumulate in BigInteger to avoid Long wrap-around in sumOf. Saturate
+    // the sum at Long.MAX_VALUE to match Rust's saturating_add. Because the
+    // sum is capped, the baseline never exceeds Long.MAX_VALUE, so .toLong()
+    // is safe.
     val sumBig =
-      recent.fold(BigInteger.ZERO) { acc, tx -> acc.add(BigInteger.valueOf(tx.amount)) }
-    val baseline =
-      sumBig
-        .multiply(BigInteger.valueOf(DAYS_PER_MONTH))
-        .divide(BigInteger.valueOf(normalizationDays))
-    return if (baseline > BigInteger.valueOf(Long.MAX_VALUE)) {
-      Long.MAX_VALUE
-    } else {
-      baseline.toLong()
-    }
+      recent.fold(BigInteger.ZERO) { acc, tx ->
+        val next = acc.add(BigInteger.valueOf(tx.amount))
+        if (next > BigInteger.valueOf(Long.MAX_VALUE)) {
+          BigInteger.valueOf(Long.MAX_VALUE)
+        } else {
+          next
+        }
+      }
+    return sumBig
+      .multiply(BigInteger.valueOf(DAYS_PER_MONTH))
+      .divide(BigInteger.valueOf(normalizationDays))
+      .toLong()
   }
 
   // Adds [days] Jalali days to the date represented by [fromMs] and returns the
