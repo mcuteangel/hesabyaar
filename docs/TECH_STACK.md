@@ -42,7 +42,7 @@ Calendar:
 
 Native (Core):
 - Rust (Cargo) — new business logic computation (Kotlin retains only ADR-001 exception fallbacks)
-- UniFFI — Kotlin ↔ Rust FFI bindings (generated, not hand-maintained)
+- UniFFI — Kotlin ↔ Rust FFI bindings: `hesabyar_core.kt` is UniFFI-generated; a small hand-maintained compat wrapper (`HesabyarCore.template.kt`) is appended during `:app:generateAndFixBindings` — see AGENTS.md "Rust Changes Require Binding Regeneration" for the regeneration workflow
 - cargo-ndk — cross-compilation to Android ABIs
 
 Minimum SDK:
