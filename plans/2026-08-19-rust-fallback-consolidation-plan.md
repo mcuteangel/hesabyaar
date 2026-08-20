@@ -91,14 +91,15 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Files:** `app/src/main/java/io/github/mojri/hesabyar/rust/RustBridge.kt`
 
-**Goal:** `rustCallSync` currently rethrows `RuntimeException` but catches generic `Exception` and returns fallback. This means Rust/UniFFI-originated `RuntimeException`s (e.g. `HesabyarException`, checksum errors) bypass the fallback mechanism entirely. Change so that `RuntimeException` thrown specifically from the Rust/UniFFI call path is also caught and returns the fallback (logged via `AppLogger.e`, same as the generic `Exception` branch), while still rethrowing `CancellationException`, `InterruptedException`, and `VirtualMachineError` untouched.
+**Goal:** `rustCallSync` previously had a single `catch (e: Exception)` that swallowed ALL exceptions — including `CancellationException`, `InterruptedException`, `VirtualMachineError`, and `RuntimeException` — silently returning the fallback in every case. The fix (already merged in `d4fab11`, PR #139) adds explicit rethrow of `CancellationException`, `InterruptedException`, and `VirtualMachineError` before the generic `Exception` catch, and **keeps `RuntimeException` propagating** (throwing it) rather than swallowing it. This is correct because UniFFI-originated errors such as `HesabyarException` extend `kotlin.Exception` (NOT `kotlin.RuntimeException` — confirmed at `hesabyar_core.kt:3018`: `sealed class HesabyarException: kotlin.Exception()`), so they are still caught by the generic `Exception` branch and return the fallback (logged via `AppLogger.e`). Meanwhile, genuine Kotlin programmer-error `RuntimeException`s (e.g. `NullPointerException`, `IllegalStateException`, `IndexOutOfBoundsException` from bugs in calling code) propagate instead of being silently masked as Rust unavailability. Broadening the `RuntimeException` catch to swallow-and-fallback (as an earlier draft of this plan described) would have been a bug — it would silently mask real Kotlin code defects.
 
 **Non-goals:** Do not change any call sites (`BudgetAdvisor`, `GetAnalyticsUseCase`, etc.) — this phase only changes the wrapper's internal exception handling.
 
 **Acceptance criteria:**
-- Exact current code of `rustCallSync` (lines ~47-69), then exact new code.
-- Test that simulates a `RuntimeException` from the wrapped `block()` and asserts the fallback value is returned (not thrown).
+- Exact current code of `rustCallSync` (lines 47-69) — confirmed identical to the `d4fab11` merge; no further code changes are needed.
+- Test that simulates a `RuntimeException` from the wrapped `block()` and asserts it propagates (is NOT swallowed to fallback).
 - Test confirming `CancellationException`/`InterruptedException`/`VirtualMachineError` still propagate.
+- Test confirming a UniFFI `HesabyarException` (which extends `kotlin.Exception`) IS caught by the generic `Exception` branch and returns the fallback (logged via `AppLogger.e`).
 - Full `RustBridgeTest.kt` suite passes — raw output by test function name.
 
 **Rollback:** `git revert`.
@@ -128,15 +129,39 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Risk:** Low — tooling only, does not touch app code.
 
-**Goal:** Add a CI check that warns (or fails, your choice) when a commit touches Rust business-logic files (`budget.rs`, `analytics.rs`, `dashboard.rs`, `validation.rs`, `calendar.rs`, `currency.rs`, `parser/*.rs`) without also touching the corresponding Kotlin fallback file(s), for the features that are staying in Option C's permanent fallback list. This reduces the sync burden without removing the safety net.
+**Goal:** Add a CI check that warns (or fails, your choice) when a commit touches a Rust business-logic file without also touching the corresponding Kotlin counterpart. The guard is driven by an explicit **feature → Rust file → Kotlin file mapping** with three lifecycle states, so it never fires for Rust-only changes after a Kotlin fallback is removed:
+
+- **PERMANENT** — features that keep Kotlin fallbacks forever (the 5 ADR-001 exceptions). The guard fires when a Rust file is touched without its paired Kotlin file:
+
+| Feature | Rust file(s) | Kotlin counterpart |
+|---|---|---|
+| Jalali Calendar | `calendar.rs` | `JalaliCalendarHelper.kt` + `RustBridge.kt` calendar section |
+| Currency Formatting | `currency.rs` | `CurrencyFormatter.kt` + `RustBridge.kt` formatCurrency section |
+| Offline Parser (NLP) | `parser.rs` / `parser/*.rs` | Offline NLP parser (Kotlin) |
+| Backup JSON Parse/Validate | `backup.rs` | `BackupJsonParser.kt` |
+| AI Advice Validation | `ai_advice.rs` (or equivalent) | AI advice validation code |
+
+- **TEMPORARY** — features whose Kotlin fallbacks are scheduled for removal in Phases 6-12. The guard fires when a Rust file is touched without its paired Kotlin file, **but only until the feature's removal phase lands**. After removal, the Rust file is no longer mapped and the guard no longer fires:
+
+| Feature | Rust file(s) | Kotlin counterpart | Removal phase |
+|---|---|---|---|
+| Time to Goal | `budget.rs` | `BudgetAdvisor.kt` (`predictTimeToGoal`) | P6 |
+| Debt-to-Income Ratio | `budget.rs` | `BudgetAdvisor.kt` (`calculateDebtToIncomeRatio`) | P7 |
+| Financial Health Score | `budget.rs` | `BudgetAdvisor.kt` (`calculateFinancialHealthScore`) | P8 |
+| Offline Budget Advice | `budget.rs` | `BudgetAdvisor.kt` (`getOfflineBudgetAdvice`) | P9 |
+| Offline Budget Forecast | `budget.rs` | `BudgetAdvisor.kt` (`getOfflineForecast`) | P10 |
+| Analytics | `analytics.rs` | `GetAnalyticsUseCase.kt` (`computeFallbackAnalytics`) | P11 |
+| Dashboard Data | `dashboard.rs` | `GetDashboardDataUseCase.kt` (`computeFallbackDashboardData`) | P12 |
+
+- **REMOVED** — features whose Kotlin fallbacks have already been deleted by Phases 6-12. No guard enforcement; the Rust file is Rust-only and touching it alone is expected.
 
 **Note:** This phase can be skipped or deferred — it's not required for the rest of the plan to proceed. Do it whenever convenient.
 
 **Acceptance criteria:**
-- CI workflow diff.
-- A test PR (can be closed after) demonstrating the guard fires correctly on a mismatched change and stays silent on a matched one.
+- CI workflow diff implementing the guard, driven by the mapping tables above (e.g. a config file or script mapping Rust paths to Kotlin paths and lifecycle states).
+- A test PR (can be closed after) demonstrating the guard fires correctly on a mismatched change (Rust touched, Kotlin not) for a PERMANENT feature, stays silent on a matched one, and does NOT fire for a REMOVED feature whose Rust file was touched alone.
 
-**Rollback:** Remove the CI step.
+**Rollback:** Remove the CI step and its mapping config.
 
 ---
 
@@ -163,7 +188,7 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Files:**
 - `app/src/main/java/io/github/mojri/hesabyar/api/BudgetAdvisor.kt` — remove `localPredictTimeToGoal`, remove the `isAvailable` branch around `predictTimeToGoal`, call Rust directly and let failure propagate as a controlled error.
-- Caller(s) in the ViewModel/UI layer that display "time to goal" — add handling for the error case (simple: show "نامشخح" / unavailable state, no crash).
+- Caller(s) in the ViewModel/UI layer that display "time to goal" — add handling for the error case (simple: show "نامشخص" / unavailable state, no crash).
 
 **Non-goals:** Do not touch DTI, Health Score, or any other feature in this phase.
 

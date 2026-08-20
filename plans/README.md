@@ -24,7 +24,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 
 ## Dependency notes
 
-No cross-dependencies among these plans; any can be executed independently.
+Plans are independent by default; any can be executed independently. The exception is when a plan explicitly declares internal prerequisites — entry 009 (Rust/Kotlin fallback consolidation) requires Phases 1-3 to be merged before any removal phase (P6-P12) can begin.
 
 ## Findings considered and rejected
 
