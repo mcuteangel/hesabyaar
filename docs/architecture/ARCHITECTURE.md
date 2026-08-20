@@ -269,7 +269,7 @@ AiAssistantViewModel.parseSmartSentence()
  ↓
 GeminiParser.parseSentence()
  ├── Online: AiProvider.generateContent() → API → JSON parse
- └── Offline: RustBridge.parseSentenceOfflineSync() → Rust NLP core
+ └── Offline: RustBridge.parseSentenceOfflineSync() → Rust NLP core (Kotlin parser retained as permanent fallback per ADR-001 exception list)
  ↓
 ParsedResult (type, amount, category, description, ...)
  ↓
