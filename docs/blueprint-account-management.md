@@ -121,7 +121,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Handle user events | Presentation → ViewModel | Event sealed class |
 | Validate form data (data-shape) | Domain | AccountValidator (adapter that surfaces Rust validation results to the UI) |
 | Enforce business rules / validation | FFI | Rust core (validation.rs) — results surfaced by Kotlin Validator |
-| Execute CRUD operations | Domain | UseCase classes (thin wrappers around Rust + Repository) |
+| Execute CRUD operations | Domain | UseCase classes (depend on Domain-defined ports; Data implements persistence ports, FFI provides Rust computation) |
 | Coordinate side effects | ViewModel | ViewModel |
 | Persist data | Data | Repository → DAO → Room |
 | Compute balances | FFI | Rust core (ffi/) — sole implementation location |
@@ -133,9 +133,9 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 
 - **Presentation** depends on: State, Domain (UseCase interfaces only)
 - **State** depends on: Domain (models, validators)
-- **Domain** depends on: nothing above (pure logic)
-- **Data** depends on: Domain (entities, repository interfaces)
-- **FFI** depends on: Data (mappers)
+- **Domain** depends on: nothing above (pure logic); defines ports (interfaces) for persistence and Rust computation that outer layers implement
+- **Data** depends on: Domain (implements Domain-defined persistence ports, defines entity DTOs)
+- **FFI** depends on: Domain (computation ports) and Data (type mappers)
 
 **Rule:** Domain layer has ZERO Android/framework dependencies. It is pure Kotlin.
 
@@ -758,16 +758,16 @@ After any account CRUD operation:
 |---|---|---|
 | BR-01 | Account name is required | Validator |
 | BR-02 | Account names should be unique | Validator (warning, not blocking) |
-| BR-03 | Default type is BANK | ViewModel default |
+| BR-03 | Default type is BANK | (legacy/UI-state, not a business rule) |
 | BR-04 | Default color is GREEN_500 | Design system constant |
-| BR-05 | New account gets next displayOrder | ViewModel |
-| BR-06 | Balance starts at initialBalance | Entity default |
-| BR-07 | Delete blocked if transactions exist | UseCase check |
-| BR-08 | Archive is soft-disable, not delete | UseCase |
-| BR-09 | Archived accounts excluded from dashboard | Dashboard UseCase |
-| BR-10 | Unarchive restores to active state | UseCase |
+| BR-05 | New account gets next displayOrder | (legacy/UI-state, not a business rule) |
+| BR-06 | Balance starts at initialBalance | (legacy/persistence, not a business rule) |
+| BR-07 | Delete blocked if transactions exist | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
+| BR-08 | Archive is soft-disable, not delete | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
+| BR-09 | Archived accounts excluded from dashboard | Rust core (ffi/) — `include_archived` gate excludes archived accounts from dashboard computation |
+| BR-10 | Unarchive restores to active state | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
 | BR-11 | All monetary values in Rial | Entity constraint |
-| BR-12 | timestamps auto-set on create/update | ViewModel |
+| BR-12 | timestamps auto-set on create/update | (legacy/persistence, not a business rule) |
 
 ### 9.4 Validation Rules
 

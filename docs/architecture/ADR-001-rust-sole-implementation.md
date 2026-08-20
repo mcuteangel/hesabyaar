@@ -93,7 +93,7 @@ The consolidated plan lives at `plans/2026-08-19-rust-fallback-consolidation-pla
 
 ## Implementation Workflow
 
-```
+```text
 New feature request
         ↓
 Is it a NEW business rule, calculation, validation, or data transformation?

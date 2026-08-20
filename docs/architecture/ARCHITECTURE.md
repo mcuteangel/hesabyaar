@@ -264,7 +264,7 @@ UI Recomposition
 ```
 
 AI Flow:
-```
+```text
 User Text Input
  ↓
 AiAssistantViewModel.parseSmartSentence()

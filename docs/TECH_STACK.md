@@ -2,6 +2,7 @@
 
 Language:
 - Kotlin
+- Rust (business logic, calculations, validation)
 
 UI:
 - Jetpack Compose
@@ -35,13 +36,13 @@ Testing:
 
 Architecture:
 - MVVM + Use Cases
-- Rust Core (`hesabyar-core`) — sole location for business logic, calculations, and validation, exposed to Kotlin via UniFFI
+- Rust Core (`hesabyar-core`) — sole location for NEW business logic, calculations, and validation, exposed to Kotlin via UniFFI (permanent Kotlin fallbacks per ADR-001)
 
 Calendar:
 - Jalali Calendar Support
 
 Native (Core):
-- Rust (Cargo) — new business logic computation (Kotlin retains only ADR-001 exception fallbacks)
+- Rust (Cargo) — sole location for NEW business logic, calculations, and validation; Kotlin retains only ADR-001-approved permanent fallbacks (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation)
 - UniFFI — Kotlin ↔ Rust FFI bindings: `hesabyar_core.kt` is UniFFI-generated; a small hand-maintained compat wrapper (`HesabyarCore.template.kt`) is appended during `:app:generateAndFixBindings` — see AGENTS.md "Rust Changes Require Binding Regeneration" for the regeneration workflow
 - cargo-ndk — cross-compilation to Android ABIs
 
