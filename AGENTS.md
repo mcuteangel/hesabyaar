@@ -230,6 +230,7 @@ The backup envelope carries two version fields. They are independent from the ap
 - `docs/TECH_STACK.md` — the official dependency list
 - `docs/ROADMAP.md` — the feature status
 - `docs/architecture/ARCHITECTURE.md` — the full architecture guide
+- `docs/architecture/ADR-001-rust-sole-implementation.md` — Rust-first business logic policy decision record
 
 ## Mandatory Post-Modification Verification Workflow
 

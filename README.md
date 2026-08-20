@@ -315,6 +315,7 @@ cargo bench
 ## 📝 مستندات
 
 - [معماری پروژه](docs/architecture/ARCHITECTURE.md) - جزئیات معماری و پیاده‌سازی
+- [سیاست منطق تجاری (Rust-first)](docs/architecture/ADR-001-rust-sole-implementation.md) - تصمیم معماری: منطق تجاری فقط در Rust
 - [راهنمای ساخت و انتشار](docs/BUILD_RELEASE.md) - راهنمای توسعه‌دهندگان
 - [CHANGELOG](CHANGELOG.md) - تاریخچه تغییرات
 - [AGENTS](AGENTS.md) - راهنمای استفاده از عامل‌های هوش مصنوعی
