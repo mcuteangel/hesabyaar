@@ -98,7 +98,7 @@ The system rejects any change that breaks these constraints:
 - Do not use destructive Room migrations. A schema change must preserve existing data.
 - Do not hardcode API keys. Use `.env` or Keystore for all secrets.
 - Do not remove the Jalali calendar or offline support.
-- Do not implement new business logic in Kotlin. New features, calculations, validations, and data transformations MUST go in the Rust core (`rust/hesabyar-core`). Kotlin fallbacks are permitted only for the pre-approved exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation). See `## Business Logic Policy` above.
+- Do not implement new business logic in Kotlin. New features, calculations, validations, and data transformations MUST go in the Rust core (`rust/hesabyar-core`). Kotlin fallbacks are permitted only for the pre-approved exceptions. See `## Business Logic Policy` below.
 - Do not use `GlobalScope`. Use structured coroutine scopes.
 
 ## Architecture
@@ -114,7 +114,7 @@ reminder/     → WorkManager workers, notification helpers
 rust/hesabyar-core/ → Rust core crate (all business logic, calculations, advisory)
 ```
 
-The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core (business logic)` alongside `ViewModel/UseCase → Repository → Room/Network (persistence)`.
+The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core (business logic)` alongside `ViewModel/UseCase → Repository → Room/Network (persistence)`. Some existing ViewModels (e.g., AccountViewModel, AnalyticsViewModel) call the Repository directly; new code should prefer the Use Case layer.
 
 
 ## Key Patterns

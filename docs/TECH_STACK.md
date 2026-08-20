@@ -41,7 +41,7 @@ Calendar:
 - Jalali Calendar Support
 
 Native (Core):
-- Rust (Cargo) — all business logic computation
+- Rust (Cargo) — new business logic computation (Kotlin retains only ADR-001 exception fallbacks)
 - UniFFI — Kotlin ↔ Rust FFI bindings (generated, not hand-maintained)
 - cargo-ndk — cross-compilation to Android ABIs
 

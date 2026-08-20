@@ -115,7 +115,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Render UI | Presentation | Screen composable |
 | Manage UI state | State | UiState sealed class |
 | Handle user events | Presentation → ViewModel | Event sealed class |
-| Validate form data (data-shape) | Domain | AccountValidator |
+| Validate form data (data-shape) | Domain | AccountValidator (adapter that surfaces Rust validation results to the UI) |
 | Enforce business rules / validation | FFI | Rust core (validation.rs) — results surfaced by Kotlin Validator |
 | Execute CRUD operations | Domain | UseCase classes (thin wrappers around Rust + Repository) |
 | Coordinate side effects | ViewModel | ViewModel |
@@ -135,7 +135,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 
 **Rule:** Domain layer has ZERO Android/framework dependencies. It is pure Kotlin.
 
-> **Business Logic Policy:** Rust Core (`rust/hesabyar-core`) is the sole location for all new business logic, calculations, validations, and data transformations. The Kotlin Domain and Data layers orchestrate Rust calls and handle persistence/UI state — they must NOT contain new business rule implementations. Kotlin-side validators are limited to surfacing Rust's validation results to the UI. Exceptions: Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, and AI advice validation (per ADR-001). See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
+> **Business Logic Policy:** Rust Core (`rust/hesabyar-core`) is the canonical implementation for new business logic, calculations, validations, and business-logic data transformations. The Kotlin Domain and Data layers orchestrate Rust calls and handle persistence/UI state — they must NOT contain new business rule implementations. Kotlin-side validators are limited to surfacing Rust's validation results to the UI. Persistence and DTO mapping remain in Kotlin; business-logic data transformations (e.g., balance computation, rule enforcement) must go to Rust. Exceptions: Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, and AI advice validation (per ADR-001). See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ---
 

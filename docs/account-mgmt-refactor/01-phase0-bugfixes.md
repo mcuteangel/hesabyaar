@@ -113,7 +113,7 @@ grep -n "AccountType.icon\|\.icon()" app/src/main/java/io/github/mojri/hesabyar/
 1. مقدار دقیق هر سه رو تأیید کنید (باید یکسان باشن)
 2. `ManageBackupUseCase.kt:30` رو حذف کنید و import از `FinancialColors.DEFAULT_ACCOUNT_COLOR` اضافه کنید
 3. مقدار Rust نباید تغییر کنه (فقط Kotlin-side duplicate حذف بشه)
-> **یادآوری معماری:** Rust منبع تک‌عیّت منطق تجاری است. این برطیف صرفاً حذف یک duplicate طرف Kotlin است — Rust ارجاع اصلی محسوب می‌شود. هیچ‌گاه منطق یا محاسبه‌ جدیدی به سمت Kotlin اضافه نکنید.
+> **یادآوری معماری:** Rust منبع تک‌حقیقت منطق تجاری است. این برطرف‌سازی صرفاً حذف یک duplicate طرف Kotlin است — Rust ارجاع اصلی محسوب می‌شود. هیچ‌گاه منطق یا محاسبه‌ جدیدی به سمت Kotlin اضافه نکنید.
 
 **چک بعد از اجرا:**
 ```bash

@@ -185,7 +185,12 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Files:** Same pattern as Phase 6, targeting `localCalculateDebtToIncomeRatio` and its call site.
 
-**Acceptance criteria:** Same structure as Phase 6.
+**Acceptance criteria:**
+- Exact current vs new code for `BudgetAdvisor.kt` `localCalculateDebtToIncomeRatio` changes.
+- Exact current vs new code for the UI-layer error handling.
+- `BudgetAdvisorTest.kt` (native path) passes.
+- `BudgetAdvisorFallbackTest.kt` — the DTI-ratio-specific test(s) removed or updated to assert the new error-propagation behavior (not deleted wholesale — that's Phase 13's job for whole files; individual test methods for this feature can be handled here).
+- Manual verification note: what does the UI show when Rust is forced unavailable (`setRustInitializedForTesting(false)`) for this feature now?
 
 **Rollback:** `git revert`.
 

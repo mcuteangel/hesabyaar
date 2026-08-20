@@ -56,7 +56,7 @@ Rust Core (`rust/hesabyar-core`) is the single source of truth for **business lo
 
 ## Business Logic Policy
 
-Rust Core (`rust/hesabyar-core`) is the sole location for business logic. Any new feature, business rule, calculation, validation, or data transformation MUST be implemented in Rust first.
+Rust Core (`rust/hesabyar-core`) is the canonical implementation for business logic, calculations, validation, and data transformation. Any new feature, business rule, calculation, validation, or data transformation MUST be implemented in Rust first.
 
 Kotlin-side implementations of business logic are permitted ONLY for the pre-approved exception list:
 
@@ -182,11 +182,23 @@ Feature-Based Architecture
 
 Current repository uses:
 
-- **Rust** — sole location for business logic, calculations, and validation (`rust/hesabyar-core`)
+- **Rust** — canonical implementation for business logic, calculations, and validation (`rust/hesabyar-core`)
 - Kotlin — UI (Jetpack Compose, Material 3), persistence orchestration (Room), and FFI bridge via UniFFI
 - Navigation Compose
 - Firebase AI (optional, for online natural language parsing)
 - Hilt (Dependency Injection)
+
+Kotlin package layout:
+
+- `ui/` — Screens, ViewModels, Theme
+- `api/` — AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
+- `data/` — Room entities, DAOs, Repository, ExcelExporter, BackupModels
+- `domain/` — UseCases (thin wrappers), DTO mappers
+- `rust/` — UniFFI bridge (RustBridge.kt, RustMappers.kt), generated bindings
+- `auth/` — AuthManager, BiometricHelper, Pin/LockScreen
+- `core/` — AppLogger
+- `di/` — Hilt modules (AiModule, DatabaseModule, RepositoryModule, UseCaseModule)
+- `reminder/` — WorkManager workers, notification helpers
 
 The project should remain modular and scalable.
 
@@ -254,7 +266,7 @@ UseCase (business logic orchestration)
  ↓
 RustBridge → Rust Core (all calculations, validation, advisory)
  ↓
-Repository ← → Room Database (AppDatabase) ← → Rust Core (FFI read)
+Repository ← → Room Database (AppDatabase)
  ↓
 Flow<List<T>> emissions
  ↓

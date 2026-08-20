@@ -88,7 +88,7 @@
 - [x] AI Provider Abstraction
 - [x] Use Cases Layer
 - [x] Dependency Injection (Hilt)
-- [x] Rust Core (business logic, calculations, validation — sole implementation location)
+- [x] Rust Core (business logic, calculations, validation — sole implementation location for new logic; see ADR-001 for Kotlin exception fallbacks)
 - [x] Full Test Coverage
 
 ---

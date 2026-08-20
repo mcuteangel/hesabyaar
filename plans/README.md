@@ -19,7 +19,7 @@ Planned at commit `44dd519`, 2026-07-23.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
-| 2026-08-19 | Rust/Kotlin fallback consolidation (14-phase hybrid migration) | P1 | XL | P1-P3 before any removal phase | TODO |
+| 009  | Rust/Kotlin fallback consolidation (14-phase hybrid migration) | P1 | XL | P1-P3 before any removal phase | TODO |
 
 ## Dependency notes
 
