@@ -16,11 +16,10 @@ Planned at commit `44dd519`, 2026-07-23.
 | 006  | Fix stale docs and roadmap markers | P3 | S | — | DONE |
 | 007  | Move ManualTransactionSubmitter behind a use case | P2 | M | — | DONE |
 | 008  | Consolidate AI cache into repository/use case | P2 | M | — | DONE |
+| 009  | Rust/Kotlin fallback consolidation (14-phase hybrid migration) | P1 | XL | — | IN PROGRESS (Phases 1-3 merged — Phase 1: commit 0c473e0 (no PR); Phase 2: PR #139 / d4fab11; Phase 3: PR #165 / 0419e81; Phases 4-14 pending) |
+| 010  | Migrate account CRUD business rules (BR-07, BR-08, BR-10) to Rust core | — | — | — | TODO (discovered during the Rust-fallback-consolidation documentation pass in docs/blueprint-account-management.md §9.3: account CRUD rules BR-07 (Delete blocked if transactions exist), BR-08 (Archive is soft-disable), and BR-10 (Unarchive restores to active state) currently run entirely through UseCase → Repository → Room with no Rust involvement — unlike other business rules which are Rust-enforced. These are real business rules, not UI-state or persistence-only concerns, so per ADR-001 they should eventually move to rust/hesabyar-core. Not yet scoped or scheduled — revisit after the 14-phase plan completes, or sooner if convenient. Related to the account-mgmt-refactor work tracked separately.) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
-
-| 009  | Rust/Kotlin fallback consolidation (14-phase hybrid migration) | P1 | XL | P1-P3 before any removal phase | IN PROGRESS (Phases 1-3 merged — Phase 1: commit 0c473e0 (no PR); Phase 2: PR #139 / d4fab11; Phase 3: PR #165 / 0419e81; Phases 4-14 pending) |
-| 010  | Migrate account CRUD business rules (BR-07, BR-08, BR-10) to Rust core | — | — | — | TODO (discovered during the Rust-fallback-consolidation documentation pass in docs/blueprint-account-management.md §9.3: account CRUD rules BR-07 (Delete blocked if transactions exist), BR-08 (Archive is soft-disable), and BR-10 (Unarchive restores to active state) currently run entirely through UseCase → Repository → Room with no Rust involvement — unlike other business rules which are Rust-enforced. These are real business rules, not UI-state or persistence-only concerns, so per ADR-001 they should eventually move to rust/hesabyar-core. Not yet scoped or scheduled — revisit after the 14-phase plan completes, or sooner if convenient. Related to the account-mgmt-refactor work tracked separately.) |
 
 ## Dependency notes
 
