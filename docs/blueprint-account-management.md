@@ -769,6 +769,8 @@ After any account CRUD operation:
 | BR-11 | All monetary values in Rial | Entity constraint |
 | BR-12 | timestamps auto-set on create/update | (legacy/persistence, not a business rule) |
 
+> **Note:** BR-07, BR-08, and BR-10 are marked as legacy because account CRUD runs through UseCase → Repository → Room with no Rust involvement. These are real business rules (not UI-state or persistence defaults) tracked for future Rust migration — see `plans/README.md` entry 010.
+
 ### 9.4 Validation Rules
 
 | Field | Rule | Error Message (Persian) |
