@@ -246,21 +246,19 @@ app/src/main/java/io/github/mojri/hesabyar/
 # Data Flow
 
 ```text
-UI (Compose Screens)
- ↓
+Repository ←→ Room Database (AppDatabase)
+  ↓ (loads records, emits Flow<List<T>>)
 ViewModel (AndroidViewModel)
- ↓
+  ↓ (passes data snapshots to)
 UseCase (business logic orchestration)
- ↓
+  ↓
 RustBridge → Rust Core (all calculations, validation, advisory)
- ↓
-Repository ← → Room Database (AppDatabase)
- ↓
-Flow<List<T>> emissions
- ↓
+  ↑ (returns results to; Rust Core does NOT read Room directly)
+ViewModel
+  ↓
 StateFlow / collectAsState()
- ↓
-UI Recomposition
+  ↓
+UI (Compose Screens)
 ```
 
 AI Flow:

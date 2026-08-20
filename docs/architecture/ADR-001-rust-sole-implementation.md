@@ -61,7 +61,7 @@ These removals follow a dependency-safe ordering: safety fixes (Phases 1–3) fi
 The following safety fixes have already been merged before this ADR was committed:
 
 - **Phase 1:** Fixed `ensureRustInitialized()` RuntimeException gap in `HesabyarApp.kt` — added missing `catch (RuntimeException)` branch so UniFFI contract/checksum mismatches no longer propagate uncaught.
-- **Phase 2:** Fixed `rustCallSync` exception-handling consistency in `RustBridge.kt` — Rust/UniFFI-originated `RuntimeException`s are now caught and return fallback (logged), while `CancellationException`, `InterruptedException`, and `VirtualMachineError` propagate untouched.
+- **Phase 2:** Fixed `rustCallSync` exception-handling consistency in `RustBridge.kt` — `CancellationException`, `InterruptedException`, `VirtualMachineError`, and `RuntimeException` all propagate untouched; only the generic `Exception` branch (which correctly handles UniFFI's `HesabyarException`, since it extends `kotlin.Exception` not `RuntimeException`) returns the fallback (logged).
 - **Phase 3:** Fixed `sumOf` overflow in `localCalculateFinancialHealthScore` in `BudgetAdvisor.kt` — replaced `sumOf { it.amount }` with `fold(BigInteger.ZERO)` + saturation pattern matching Rust's `saturating_add`, preventing silent `Long` overflow/wrap on large transaction sums.
 
 The consolidated plan lives at `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
