@@ -56,19 +56,7 @@ Rust Core (`rust/hesabyar-core`) is the single source of truth for **business lo
 
 ## Business Logic Policy
 
-Rust Core (`rust/hesabyar-core`) is the canonical implementation for business logic, calculations, validation, and data transformation. Any new feature, business rule, calculation, validation, or data transformation MUST be implemented in Rust first.
-
-Kotlin-side implementations of business logic are permitted ONLY for the pre-approved exception list:
-
-- Jalali calendar conversions
-- Currency formatting
-- Offline NLP parser
-- Backup JSON parse/validate
-- AI advice validation
-
-These are safety nets — not places for new logic. Any PR that adds business logic directly in Kotlin (outside the exception list) should be flagged in review and redirected to Rust.
-
-See `docs/architecture/ADR-001-rust-sole-implementation.md` and `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
+Rust Core (`rust/hesabyar-core`) is the canonical implementation for new business logic. Kotlin fallbacks exist only for the pre-approved exception list. See `docs/architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `## Permanent Kotlin Fallbacks`) for the full policy, exception list, and rationale.
 
 ---
 

@@ -13,6 +13,7 @@ Target architecture: Option C (Hybrid), per ADR-001
 - **Evidence-first rule applies to every phase**, per existing project standard: exact current code, raw test-runner output by test function name, exact file/line references. No "done"/"tests pass" claims without this.
 - **One phase = one PR = one CodeRabbit/cubic pass = one merge.** Do not start phase N+1 until phase N is merged.
 - Phases are ordered so that **safety fixes come first**, **documentation-only decisions come early**, and **fallback removals are ordered from lowest-risk/least-critical feature to highest-risk/most-critical feature** (Dashboard last, since it's the most complex and most user-facing).
+- **File paths and line-number references (marked with ~) are approximate anchors** captured at plan-authoring time, not guaranteed-current locations. Each phase's own acceptance criteria require pasting the exact current code before any change — that is the actual source of truth, not the line numbers in this plan.
 
 ## 1. Phase Dependency Graph
 
@@ -45,9 +46,9 @@ P14 (CI/Release verification + docs finalization) ─→ last, after all desired
 
 | # | Phase | Risk | Status | PR | Merged |
 |---|-------|------|--------|----|----|
-| 1 | Fix `ensureRustInitialized` RuntimeException gap | Low | ☐ | | |
-| 2 | Fix `rustCallSync` exception-handling consistency | Low | ☐ | | |
-| 3 | Fix `sumOf` overflow in `localCalculateFinancialHealthScore` | Low | ☐ | | |
+| 1 | Fix `ensureRustInitialized` RuntimeException gap | Low | ☑ | (no PR found) | `0c473e0` |
+| 2 | Fix `rustCallSync` exception-handling consistency | Low | ☑ | #139 | `d4fab11` |
+| 3 | Fix `sumOf` overflow in `localCalculateFinancialHealthScore` | Low | ☑ | #165 | `0419e81` |
 | 4 | (Optional) CI guard for Rust↔Kotlin fallback drift | Low | ☐ | | |
 | 5 | Commit ADR-001 decision doc | None | ☐ | | |
 | 6 | Remove fallback: Time to Goal | Low | ☐ | | |
