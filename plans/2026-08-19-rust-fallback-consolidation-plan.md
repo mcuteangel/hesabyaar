@@ -303,7 +303,13 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Acceptance criteria:**
 - Clean checkout build log.
-- `unzip -l` output confirming `.so` presence in a release AAB.
+- `unzip -l` output confirming the four expected native libraries are present in a release AAB, scoped to exact ABI paths:
+  - `lib/arm64-v8a/libhesabyar_core.so`
+  - `lib/armeabi-v7a/libhesabyar_core.so`
+  - `lib/x86/libhesabyar_core.so`
+  - `lib/x86_64/libhesabyar_core.so`
+- Source-tree `grep` confirming no remaining Kotlin fallback symbols removed in Phases 6–12:
+  - `localPredictTimeToGoal`, `localCalculateDebtToIncomeRatio`, `localCalculateFinancialHealthScore`, `buildLocalOfflineAdvice`, `buildLocalOfflineForecast`, `computeFallbackAnalytics`, `computeFallbackDashboardData`
 - Updated docs committed.
 
 **Rollback:** N/A (verification/docs only).
