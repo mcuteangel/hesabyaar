@@ -150,6 +150,16 @@ fn clamp_days(val: Option<i32>, name: &str) -> (Option<i32>, Option<String>) {
     clamp_optional_i32(val, -365, 365, name)
 }
 
+/// Normalize an optional text field: trim it and map empty text to `None`.
+fn normalize_optional(s: String) -> Option<String> {
+    let trimmed = s.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
 // ===========================================================================
 // Public API: Transaction JSON validation
 // ===========================================================================
@@ -232,14 +242,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     }
 
     // --- Person name ---
-    let person_name = raw.person_name.and_then(|s| {
-        let trimmed = s.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    });
+    let person_name = raw.person_name.and_then(normalize_optional);
 
     // --- Description ---
     let description = raw.description.unwrap_or_default().trim().to_string();
@@ -252,14 +255,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     }
 
     // --- Title ---
-    let title = raw.title.and_then(|s| {
-        let trimmed = s.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    });
+    let title = raw.title.and_then(normalize_optional);
 
     // --- dateOffsetDays ---
     let (date_offset_days, offset_note) = clamp_days(raw.date_offset_days, "dateOffsetDays");
@@ -290,14 +286,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     }
 
     // --- Notes ---
-    let result_notes = raw.notes.and_then(|s| {
-        let trimmed = s.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    });
+    let result_notes = raw.notes.and_then(normalize_optional);
 
     let amount_toman =
         amount_i64

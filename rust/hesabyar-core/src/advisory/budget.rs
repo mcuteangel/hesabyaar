@@ -5,16 +5,14 @@ use crate::models::{
 
 /// Get offline budget advice based on local rules.
 pub fn get_offline_budget_advice(transactions: &[Transaction], categories: &[Category]) -> String {
-    let total_income: i64 = transactions
-        .iter()
-        .filter(|t| t.tx_type == TransactionType::Income)
-        .map(|t| t.amount)
-        .sum();
-    let total_expense: i64 = transactions
-        .iter()
-        .filter(|t| t.tx_type == TransactionType::Expense)
-        .map(|t| t.amount)
-        .sum();
+    let (total_income, total_expense) =
+        transactions
+            .iter()
+            .fold((0i64, 0i64), |(income, expense), t| match t.tx_type {
+                TransactionType::Income => (income + t.amount, expense),
+                TransactionType::Expense => (income, expense + t.amount),
+                _ => (income, expense),
+            });
 
     let category_totals: std::collections::HashMap<i64, i64> = transactions
         .iter()
@@ -105,16 +103,17 @@ pub fn get_offline_forecast(
         .fold(0, |total, amount| total.saturating_add(amount));
     let total_obligations = upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
 
-    // Active (unsettled) bank-loan debt, summed as total_repayable_amount.
-    // Mirrors Kotlin buildLocalOfflineForecast: bank loans guard the "no data"
-    // message and are rendered as an active-debt line.
-    let active_bank_loans: Vec<&BankLoan> = bank_loans.iter().filter(|b| !b.is_settled).collect();
-    let bank_loan_debt: i64 = active_bank_loans
+    // Active (unsettled) bank-loan count and debt, summed as
+    // total_repayable_amount. Mirrors Kotlin buildLocalOfflineForecast: bank
+    // loans guard the "no data" message and are rendered as an active-debt line.
+    let (active_bank_loan_count, bank_loan_debt) = bank_loans
         .iter()
-        .map(|b| b.total_repayable_amount)
-        .fold(0, |total, debt| total.saturating_add(debt));
+        .filter(|b| !b.is_settled)
+        .fold((0usize, 0i64), |(count, debt), b| {
+            (count + 1, debt.saturating_add(b.total_repayable_amount))
+        });
 
-    if transactions.is_empty() && total_obligations == 0 && active_bank_loans.is_empty() {
+    if transactions.is_empty() && total_obligations == 0 && active_bank_loan_count == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
@@ -169,10 +168,10 @@ pub fn get_offline_forecast(
     sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_income, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_expense, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_currency(total_obligations, CurrencyUnit::Toman)));
-    if !active_bank_loans.is_empty() {
+    if active_bank_loan_count > 0 {
         sb.push_str(&format!(
             "- **\u{0628}\u{062F}\u{0647}\u{06CC}\u{0647}\u{0627}\u{06CC} \u{0641}\u{0639}\u{0627}\u{0644}:** {} \u{0645}\u{0648}\u{0631}\u{062F} \u{0628}\u{0647} \u{0645}\u{0628}\u{0644}\u{063A} {}\n",
-            active_bank_loans.len(),
+            active_bank_loan_count,
             format_currency(bank_loan_debt, CurrencyUnit::Toman)
         ));
     }
