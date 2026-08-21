@@ -46,7 +46,7 @@ P14 (CI/Release verification + docs finalization) ─→ last, after all desired
 
 | # | Phase | Risk | Status | PR | Merged |
 |---|-------|------|--------|----|----|
-| 1 | Fix `ensureRustInitialized` RuntimeException gap | Low | ☑ | (no PR found) | `0c473e0` |
+| 1 | Fix `ensureRustInitialized` RuntimeException gap | Low | ☑ | (no PR found) | `0c473e0` → `9111e43` (commit `0c473e0` had regressed it; `9111e43` corrects) |
 | 2 | Fix `rustCallSync` exception-handling consistency | Low | ☑ | #139 | `d4fab11` |
 | 3 | Fix `sumOf` overflow in `localCalculateFinancialHealthScore` | Low | ☑ | #165 | `0419e81` |
 | 4 | (Optional) CI guard for Rust↔Kotlin fallback drift | Low | ☐ | | |
@@ -72,7 +72,7 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Files:** `app/src/main/java/io/github/mojri/hesabyar/HesabyarApp.kt`
 
-**Goal:** `ensureRustInitialized()` currently catches `UnsatisfiedLinkError`, `InternalException`, `SecurityException` but not `RuntimeException`. A UniFFI contract/checksum mismatch thrown from `HesabyarCore.initialize()` currently propagates uncaught. Add a `catch (e: RuntimeException)` branch, logging and returning `false`, matching the existing branches' behavior.
+**Goal (completed by `9111e43`):** `ensureRustInitialized()` now catches `UnsatisfiedLinkError`, `InternalException`, `SecurityException`, and `RuntimeException`. A UniFFI contract/checksum mismatch thrown from `HesabyarCore.initialize()` is caught and returns `false` (Kotlin fallback) instead of propagating uncaught. Note: commit `0c473e0` had inadvertently replaced `catch (RuntimeException)` with `catch (SecurityException)`, re-introducing the gap; `9111e43` restored the branch and places `RuntimeException` LAST because `SecurityException` is a subclass of `RuntimeException` (a `catch (RuntimeException)` before `catch (SecurityException)` would be an unreachable catch and fail to compile).
 
 **Non-goals:** Do not touch `rustCallSync` (that's Phase 2). Do not touch any routing/fallback-selection logic.
 

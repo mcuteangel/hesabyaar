@@ -60,7 +60,7 @@ These removals follow a dependency-safe ordering: safety fixes (Phases 1–3) fi
 
 The following safety fixes have already been merged before this ADR was committed:
 
-- **Phase 1:** Fixed `ensureRustInitialized()` RuntimeException gap in `HesabyarApp.kt` — added missing `catch (RuntimeException)` branch so UniFFI contract/checksum mismatches no longer propagate uncaught.
+- **Phase 1:** Fixed `ensureRustInitialized()` RuntimeException gap in `HesabyarApp.kt` — restored a `catch (RuntimeException)` branch (alongside `UnsatisfiedLinkError`, `InternalException`, and `SecurityException`) so UniFFI contract/checksum mismatches no longer propagate uncaught. The branch had been dropped in commit `0c473e0` (which replaced it with `catch (SecurityException)`); commit `9111e43` restores it. `RuntimeException` is placed LAST because `SecurityException` is a subclass of `RuntimeException` (a `catch (RuntimeException)` ordered before `catch (SecurityException)` would be an unreachable catch and fail to compile).
 - **Phase 2:** Fixed `rustCallSync` exception-handling consistency in `RustBridge.kt` — `CancellationException`, `InterruptedException`, `VirtualMachineError`, and `RuntimeException` all propagate untouched; only the generic `Exception` branch (which correctly handles UniFFI's `HesabyarException`, since it extends `kotlin.Exception` not `RuntimeException`) returns the fallback (logged).
 - **Phase 3:** Fixed `sumOf` overflow in `localCalculateFinancialHealthScore` in `BudgetAdvisor.kt` — replaced `sumOf { it.amount }` with `fold(BigInteger.ZERO)` + saturation pattern matching Rust's `saturating_add`, preventing silent `Long` overflow/wrap on large transaction sums.
 
