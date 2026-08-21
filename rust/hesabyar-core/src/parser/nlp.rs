@@ -877,25 +877,34 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
 /// appears later as unrelated description text. Example:
 /// "ساعت 6 بلیط مترو خریدم، شب هم پیتزا گرفتم" must stay 6 o'clock.
 /// Three tokens after the digits cover the spaced spelling "بعد از ظهر".
+///
+/// Markers match whole words only. A word that merely contains a marker as
+/// a substring does not shift the hour. Example: "دیشب" ("دی" + "شب") is a
+/// day-relative word, so "دیشب ساعت 9 رفتم" stays 9 o'clock.
 fn is_pm_marker_near_time(sentence: &str, saat_start: usize, digits_end: usize) -> bool {
     const PM_MARKER_WORDS_BEFORE: usize = 2;
     const PM_MARKER_WORDS_AFTER: usize = 3;
-    let before = sentence[..saat_start]
+    const PM_MARKER_WORDS: [&str; 3] = ["شب", "عصر", "بعدازظهر"];
+    const TOKEN_PUNCTUATION: &[char] = &['،', '؛', '؟', '!', '.', ',', ':', ';'];
+    let mut near_words = sentence[..saat_start]
         .split_whitespace()
         .rev()
         .take(PM_MARKER_WORDS_BEFORE)
-        .collect::<Vec<_>>()
-        .join(" ");
-    let after = sentence[digits_end..]
+        .chain(
+            sentence[digits_end..]
+                .split_whitespace()
+                .take(PM_MARKER_WORDS_AFTER),
+        )
+        .map(|token| token.trim_matches(TOKEN_PUNCTUATION));
+    if near_words.any(|word| PM_MARKER_WORDS.contains(&word)) {
+        return true;
+    }
+    sentence[digits_end..]
         .split_whitespace()
         .take(PM_MARKER_WORDS_AFTER)
         .collect::<Vec<_>>()
-        .join(" ");
-    let zone = format!("{before} {after}");
-    zone.contains("شب")
-        || zone.contains("عصر")
-        || zone.contains("بعدازظهر")
-        || zone.contains("بعد از ظهر")
+        .join(" ")
+        .contains("بعد از ظهر")
 }
 
 /// Extract person name from Persian sentence.
@@ -2205,6 +2214,29 @@ mod tests {
     fn test_time_first_hour_with_pm_marker_shifts() {
         let (hour, minute) = extract_time("ساعت 1 بعدازظهر رسید");
         assert_eq!(hour, Some(13));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_dishab_substring_does_not_force_pm() {
+        // "دیشب" contains the substring "شب", but it is a day-relative word,
+        // not a time-of-day marker. The hour must stay unshifted.
+        let (hour, minute) = extract_time("دیشب ساعت 9 رفتم");
+        assert_eq!(hour, Some(9));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_night_marker_directly_after_digits() {
+        let (hour, minute) = extract_time("ساعت ۹ شب رفتم");
+        assert_eq!(hour, Some(21));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_asr_marker_directly_after_digits() {
+        let (hour, minute) = extract_time("ساعت ۳ عصر");
+        assert_eq!(hour, Some(15));
         assert_eq!(minute, None);
     }
 
