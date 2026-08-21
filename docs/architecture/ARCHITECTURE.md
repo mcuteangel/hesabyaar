@@ -307,12 +307,12 @@ Structure:
 AiProvider.kt              # Multi-provider AI client
 AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
 BudgetAdvisor.kt           # AI + offline budget advice
+BudgetAdviceGenerator.kt   # Budget advice generation (extracted from GeminiParser)
+AdviceValidationPolicy.kt  # AI advice discard policy (fallback decision)
 GeminiParser.kt            # Sentence parsing (online + offline)
-MoneyDetector.kt           # Money presence detection gate
-PersianAmountParser.kt     # Token-based amount extraction
 ```
 
-> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages.
+> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages. Money detection and Persian amount extraction run in the Rust core (`rust/hesabyar-core/src/parser/`), not in Kotlin.
 
 ---
 
