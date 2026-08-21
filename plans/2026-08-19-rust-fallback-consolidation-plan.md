@@ -138,9 +138,9 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 |---|---|---|
 | Jalali Calendar | `calendar.rs` | `JalaliCalendarHelper.kt` + `RustBridge.kt` calendar section |
 | Currency Formatting | `currency.rs` | `CurrencyFormatter.kt` + `RustBridge.kt` formatCurrency section |
-| Offline Parser (NLP) | `parser.rs` / `parser/*.rs` | `api/GeminiParser.kt` — symbols `parseSentenceOffline` and `kotlinFallbackParse` |
-| Backup JSON Parse/Validate | `backup.rs` | `domain/usecase/BackupJsonParser.kt` + `domain/usecase/BackupJsonValidator.kt` (`data/BackupModels.kt` maps models only) |
-| AI Advice Validation | `ai_advice.rs` (or equivalent) | `RustBridge.kt` — the `validateAiAdvice` call site; discard policy in `api/AdviceValidationPolicy.kt` (a policy object, not a separate validator class) |
+| Offline Parser (NLP) | `parser/mod.rs` + `parser/*.rs` (`nlp.rs`, `amount.rs`, `money_detector.rs`, `text_preprocessor.rs`) | `api/GeminiParser.kt` — symbols `parseSentenceOffline` and `kotlinFallbackParse` |
+| Backup JSON Parse/Validate | `lib.rs` (`parse_backup_json`) / `validation.rs` (`validate_backup_payload`; FFI wrapper in `ffi/mod.rs`) | `domain/usecase/BackupJsonParser.kt` + `domain/usecase/BackupJsonValidator.kt` (`data/BackupModels.kt` maps models only) |
+| AI Advice Validation | `ai_validation.rs` (`validate_ai_advice`) | `RustBridge.kt` — the `validateAiAdvice` call site; discard policy in `api/AdviceValidationPolicy.kt` (a policy object, not a separate validator class) |
 
 - **TEMPORARY** — features whose Kotlin fallbacks are scheduled for removal in Phases 6-12. The guard fires when a Rust file is touched without its paired Kotlin file, **but only until the feature's removal phase lands**. After removal, the Rust file is no longer mapped and the guard no longer fires:
 
@@ -336,7 +336,7 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
   - `lib/x86_64/libhesabyar_core.so`
 - Scoped `grep` over Kotlin source only — `app/src/main` and `app/src/test` — confirming no remaining Kotlin fallback symbols removed in Phases 6–12. Do NOT grep the whole repository: these symbol names also appear in this plan file's own prose (Phases 6–12), `docs/architecture/ADR-001-rust-sole-implementation.md`, and other documentation, so an unscoped search produces false positives forever. Restrict the search paths to `app/src/main app/src/test`; this already excludes `docs/`, `plans/`, this plan file, and all `app/build/` generated output:
   - `localPredictTimeToGoal`, `localCalculateDebtToIncomeRatio`, `localCalculateFinancialHealthScore`, `buildLocalOfflineAdvice`, `buildLocalOfflineForecast`, `computeFallbackAnalytics`, `computeFallbackDashboardData`
-  - Example: `rg -n "localPredictTimeToGoal|localCalculateDebtToIncomeRatio|localCalculateFinancialHealthScore|buildLocalOfflineAdvice|buildLocalOfflineForecast|computeFallbackAnalytics|computeFallbackDashboardData" app/src/main app/src/test`
+  - Example: `rg -n --glob '*.kt' --glob '!**/build/**' "localPredictTimeToGoal|localCalculateDebtToIncomeRatio|localCalculateFinancialHealthScore|buildLocalOfflineAdvice|buildLocalOfflineForecast|computeFallbackAnalytics|computeFallbackDashboardData" app/src/main app/src/test`
 - Updated docs committed.
 
 **Rollback:** N/A (verification/docs only).

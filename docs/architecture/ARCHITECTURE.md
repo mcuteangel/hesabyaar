@@ -197,48 +197,33 @@ The project should remain modular and scalable.
 ```text
 app/src/main/java/io/github/mojri/hesabyar/
 
-├── api/
-│   ├── AiProvider.kt              # Multi-provider AI client
-│   ├── AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
-│   ├── BudgetAdvisor.kt           # AI + offline budget advice
-│   ├── GeminiParser.kt            # Sentence parsing (online + offline)
-│   ├── MoneyDetector.kt           # Money presence detection gate
-│   └── PersianAmountParser.kt     # Token-based amount extraction
-│
-├── data/
-│   ├── AppDatabase.kt             # Room database (v3)
-│   ├── BackupModels.kt            # Backup payload + validation
-│   ├── Daos.kt                    # Room DAOs (5 interfaces)
-│   ├── Entities.kt                # Room entities (5 tables)
-│   ├── ExcelExporter.kt           # .xlsx export (custom XML writer)
-│   ├── HesabyarRepository.kt      # Repository implementation
-│   └── HesabyarRepositoryInterface.kt
-│
-├── reminder/
-│   ├── BootReceiver.kt            # Re-schedule alarms on boot
-│   ├── InstallmentReminderWorker.kt
-│   ├── LoanReminderWorker.kt
-│   ├── MarkPaidReceiver.kt        # Notification action: mark paid
-│   ├── NotificationHelper.kt      # Notification channel + builders
-│   ├── ReminderScheduler.kt       # WorkManager scheduling
-│   └── ReminderSettingsManager.kt # SharedPreferences config
-│
+├── api/               # AI providers: AiProvider, AiProviderConfig,
+│                      # BudgetAdvisor, BudgetAdviceGenerator,
+│                      # GeminiParser, AdviceValidationPolicy
+├── auth/              # AuthManager, BiometricHelper, PinScreen,
+│                      # LockScreen, PinStorage, BackupCipher
+├── core/              # AppLogger
+├── data/              # Room database: AppDatabase, Entities, Daos,
+│                      # TypeConverters, Repository (+Interface),
+│                      # ExcelExporter, BackupModels, DatabaseKeyManager
+├── di/                # Hilt modules: AiModule, DatabaseModule,
+│                      # RepositoryModule, UseCaseModule
+├── domain/
+│   ├── exception/     # Domain exceptions
+│   ├── usecase/       # Use cases (transaction, budget, backup, export)
+│   └── utils/         # TransactionAmountResolver
+├── reminder/          # WorkManager workers, notification helpers,
+│                      # BootReceiver, MarkPaidReceiver, ReminderScheduler
+├── rust/              # RustBridge.kt, RustMappers.kt, generated UniFFI
+│                      # bindings (hesabyar_core.kt)
 └── ui/
-    ├── AiAssistantViewModel.kt    # AI config + parser + advisor + cache
-    ├── AnalyticsViewModel.kt      # Analytics data computation
-    ├── AppLogger.kt               # In-memory log ring buffer
-    ├── BackupViewModel.kt         # Backup/restore operations
-    ├── CategoryViewModel.kt       # Category CRUD
-    ├── DashboardViewModel.kt      # Dashboard data aggregation
-    ├── ExportViewModel.kt         # Excel export orchestration
-    ├── InstallmentViewModel.kt    # Installment CRUD
-    ├── JalaliCalendarHelper.kt    # Gregorian ↔ Jalali conversion
-    ├── LoanViewModel.kt           # Loan CRUD + payments
-    ├── SettingsViewModel.kt       # App settings
-    ├── TransactionViewModel.kt    # Transaction CRUD
-    ├── UiState.kt                 # UI state sealed interfaces
-    ├── screens/                   # Compose screens
-    └── theme/                     # Material 3 theme
+    ├── components/    # Shared reusable Compose elements
+    ├── designsystem/  # Design tokens (spacing, shape, elevation, color)
+    ├── screens/       # Compose screens (dashboard/, account/)
+    ├── theme/         # Material 3 theme (Color, Theme, Type)
+    ├── utils/         # Formatters, category icons
+    └── ViewModels, JalaliCalendarHelper, CurrencyFormatter, UiState,
+        and backup coordinators sit at the package root
 ```
 
 ---
