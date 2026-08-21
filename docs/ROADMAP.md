@@ -88,7 +88,7 @@
 - [x] AI Provider Abstraction
 - [x] Use Cases Layer
 - [x] Dependency Injection (Hilt)
-- [x] Rust Core (sole location for NEW business logic, calculations, and validation; permanent and temporary Kotlin fallbacks documented in ADR-001; non-exception fallbacks scheduled for removal per the consolidation plan)
+- [x] Rust Core (sole location for NEW feature business logic, calculations, validation, and rule-driven data transformations; structural/type mapping such as DTO conversion and entity mapping stays Kotlin-permitted; permanent and temporary Kotlin fallbacks documented in ADR-001; non-exception fallbacks scheduled for removal per the consolidation plan)
 - [x] Full Test Coverage
 
 ---

@@ -56,7 +56,7 @@ Rust Core (`rust/hesabyar-core`) is the single source of truth for **business lo
 
 ## Business Logic Policy
 
-Rust Core (`rust/hesabyar-core`) is the canonical implementation for new business logic. Kotlin fallbacks exist only for the pre-approved exception list. See `docs/architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `## Permanent Kotlin Fallbacks`) for the full policy, exception list, and rationale.
+Rust Core (`rust/hesabyar-core`) is the canonical implementation for new business logic. Kotlin fallbacks exist only for the pre-approved exception list. See `ADR-001-rust-sole-implementation.md` (`## Decision` and `## Permanent Kotlin Fallbacks`) for the full policy, exception list, and rationale.
 
 ---
 

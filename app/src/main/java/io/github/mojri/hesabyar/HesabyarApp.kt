@@ -22,11 +22,11 @@ class HesabyarApp : Application() {
     private val initLock = Any()
 
     /**
-     * Performs the real native-library load and Rust core initialization.
-     * Exposed as an overridable action so tests can substitute a throwing
-     * lambda (for example, to simulate a UniFFI checksum/contract mismatch
-     * that raises RuntimeException) without a real native library. The default
-     * runs the production path unchanged.
+     * Loads the native library and initializes the Rust core.
+     * Tests can set this property to a lambda that throws, for example to
+     * simulate a UniFFI checksum or contract mismatch that raises
+     * RuntimeException with no native library present. The default value is
+     * [runRustNativeInit], the production implementation.
      */
     @VisibleForTesting
     internal var rustNativeInitAction: () -> Unit = ::runRustNativeInit
@@ -36,7 +36,7 @@ class HesabyarApp : Application() {
 
     /**
      * Test-only availability override, see [setRustInitializedForTesting].
-     * `null` means "no override — derive availability from the real load state".
+     * `null` means no override; availability then comes from the init flag.
      */
     @Volatile
     private var rustInitializedOverride: Boolean? = null
@@ -84,14 +84,14 @@ class HesabyarApp : Application() {
     @JvmStatic
     internal fun getRustInitializedOverrideForTesting(): Boolean? = rustInitializedOverride
 
-    /** Returns the raw memoized init flag, without the test override. */
+    /** Returns the raw init flag, without the test override. */
     @VisibleForTesting
     @JvmStatic
     internal fun getRustInitializedRawForTesting(): Boolean = rustInitialized
 
     /**
-     * Test-only reset for the memoized init flag.
-     * Guarded by BuildConfig.DEBUG so production can never flip it.
+     * Test-only write access to the init flag.
+     * Guarded by BuildConfig.DEBUG so production builds ignore the call.
      */
     @VisibleForTesting
     @JvmStatic
@@ -111,9 +111,9 @@ class HesabyarApp : Application() {
       rustInitializedOverride
         ?: if (rustInitialized) true else initializeRustCore()
 
-    // Safety-net catch: UniFFI throws RuntimeException on a contract/checksum
-    // mismatch while lazily initializing the native library; we degrade to the
-    // Kotlin fallback instead of crashing the app.
+    // UniFFI throws a RuntimeException when the generated bindings detect a
+    // contract or checksum mismatch during initialization. This catch returns
+    // false, so callers use the Kotlin fallback instead of a crash.
     @Suppress("TooGenericExceptionCaught")
     private fun initializeRustCore(): Boolean =
       synchronized(initLock) {

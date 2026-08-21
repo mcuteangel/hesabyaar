@@ -98,7 +98,7 @@ The system rejects any change that breaks these constraints:
 - Do not use destructive Room migrations. A schema change must preserve existing data.
 - Do not hardcode API keys. Use `.env` or Keystore for all secrets.
 - Do not remove the Jalali calendar or offline support.
-- Do not implement new business logic in Kotlin. New features, calculations, validations, and data transformations MUST go in the Rust core (`rust/hesabyar-core`). Kotlin fallbacks are permitted only for the pre-approved exceptions. See `## Business Logic Policy` below.
+- Do not implement new feature business logic in Kotlin. New feature rules, calculations, validations, and rule-driven data transformations MUST go in the Rust core (`rust/hesabyar-core`). UI rendering, persistence, and adapter/mapping code (DTO conversion, entity mapping) stay normal Kotlin territory and need no exception-list justification. Kotlin fallbacks for business logic are permitted only for the pre-approved exceptions. See `## Business Logic Policy` below.
 - Do not use `GlobalScope`. Use structured coroutine scopes.
 
 ## Architecture

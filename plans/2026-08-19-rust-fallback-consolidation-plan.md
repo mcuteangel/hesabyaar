@@ -91,14 +91,15 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 
 **Files:** `app/src/main/java/io/github/mojri/hesabyar/rust/RustBridge.kt`
 
-**Goal:** `rustCallSync` previously had a single `catch (e: Exception)` that swallowed ALL exceptions — including `CancellationException`, `InterruptedException`, `VirtualMachineError`, and `RuntimeException` — silently returning the fallback in every case. The fix (already merged in `d4fab11`, PR #139) adds explicit rethrow of `CancellationException`, `InterruptedException`, and `VirtualMachineError` before the generic `Exception` catch, and **keeps `RuntimeException` propagating** (throwing it) rather than swallowing it. This is correct because UniFFI-originated errors such as `HesabyarException` extend `kotlin.Exception` (NOT `kotlin.RuntimeException` — confirmed at `hesabyar_core.kt:3018`: `sealed class HesabyarException: kotlin.Exception()`), so they are still caught by the generic `Exception` branch and return the fallback (logged via `AppLogger.e`). Meanwhile, genuine Kotlin programmer-error `RuntimeException`s (e.g. `NullPointerException`, `IllegalStateException`, `IndexOutOfBoundsException` from bugs in calling code) propagate instead of being silently masked as Rust unavailability. Broadening the `RuntimeException` catch to swallow-and-fallback (as an earlier draft of this plan described) would have been a bug — it would silently mask real Kotlin code defects.
+**Goal:** `rustCallSync` previously had a single `catch (e: Exception)` that swallowed ALL `Exception` subclasses — including `CancellationException`, `InterruptedException`, and `RuntimeException` — silently returning the fallback in every case. (`VirtualMachineError` was never in that catch: it extends `java.lang.Error`, not `Exception`, so the original `catch (e: Exception)` never caught it either — before or after this phase's changes. It has always propagated, and that is correct, intentional behavior; the explicit `catch (e: VirtualMachineError)` rethrow in the current code is defensive documentation of that fact, not a behavior change.) The fix (already merged in `d4fab11`, PR #139) adds explicit rethrow of `CancellationException`, `InterruptedException`, and `VirtualMachineError` before the generic `Exception` catch, and **keeps `RuntimeException` propagating** (throwing it) rather than swallowing it. This is correct because UniFFI-originated errors such as `HesabyarException` extend `kotlin.Exception` (NOT `kotlin.RuntimeException` — confirmed at `hesabyar_core.kt:3018`: `sealed class HesabyarException: kotlin.Exception()`), so they are still caught by the generic `Exception` branch and return the fallback (logged via `AppLogger.e`). Meanwhile, genuine Kotlin programmer-error `RuntimeException`s (e.g. `NullPointerException`, `IllegalStateException`, `IndexOutOfBoundsException` from bugs in calling code) propagate instead of being silently masked as Rust unavailability. Broadening the `RuntimeException` catch to swallow-and-fallback (as an earlier draft of this plan described) would have been a bug — it would silently mask real Kotlin code defects.
 
 **Non-goals:** Do not change any call sites (`BudgetAdvisor`, `GetAnalyticsUseCase`, etc.) — this phase only changes the wrapper's internal exception handling.
 
 **Acceptance criteria:**
 - Exact current code of `rustCallSync` (lines 47-69) — confirmed identical to the `d4fab11` merge; no further code changes are needed.
 - Test that simulates a `RuntimeException` from the wrapped `block()` and asserts it propagates (is NOT swallowed to fallback).
-- Test confirming `CancellationException`/`InterruptedException`/`VirtualMachineError` still propagate.
+- Test confirming `CancellationException`/`InterruptedException` still propagate.
+- Note on `VirtualMachineError`: it extends `java.lang.Error`, not `Exception`, so no `catch (e: Exception)` branch can intercept it — it propagated before Phase 2 and propagates after. This is intentional documented behavior; no further change to `rustCallSync` is required for it.
 - Test confirming a UniFFI `HesabyarException` (which extends `kotlin.Exception`) IS caught by the generic `Exception` branch and returns the fallback (logged via `AppLogger.e`).
 - Full `RustBridgeTest.kt` suite passes — raw output by test function name.
 
@@ -137,9 +138,9 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
 |---|---|---|
 | Jalali Calendar | `calendar.rs` | `JalaliCalendarHelper.kt` + `RustBridge.kt` calendar section |
 | Currency Formatting | `currency.rs` | `CurrencyFormatter.kt` + `RustBridge.kt` formatCurrency section |
-| Offline Parser (NLP) | `parser.rs` / `parser/*.rs` | Offline NLP parser (Kotlin) |
-| Backup JSON Parse/Validate | `backup.rs` | `BackupJsonParser.kt` |
-| AI Advice Validation | `ai_advice.rs` (or equivalent) | AI advice validation code |
+| Offline Parser (NLP) | `parser.rs` / `parser/*.rs` | `api/GeminiParser.kt` — symbols `parseSentenceOffline` and `kotlinFallbackParse` |
+| Backup JSON Parse/Validate | `backup.rs` | `domain/usecase/BackupJsonParser.kt` + `domain/usecase/BackupJsonValidator.kt` (`data/BackupModels.kt` maps models only) |
+| AI Advice Validation | `ai_advice.rs` (or equivalent) | `RustBridge.kt` — the `validateAiAdvice` call site; discard policy in `api/AdviceValidationPolicy.kt` (a policy object, not a separate validator class) |
 
 - **TEMPORARY** — features whose Kotlin fallbacks are scheduled for removal in Phases 6-12. The guard fires when a Rust file is touched without its paired Kotlin file, **but only until the feature's removal phase lands**. After removal, the Rust file is no longer mapped and the guard no longer fires:
 
@@ -333,8 +334,9 @@ Jalali Calendar, Currency Formatting, Offline Parser (NLP), Backup JSON Parse/Va
   - `lib/armeabi-v7a/libhesabyar_core.so`
   - `lib/x86/libhesabyar_core.so`
   - `lib/x86_64/libhesabyar_core.so`
-- Source-tree `grep` confirming no remaining Kotlin fallback symbols removed in Phases 6–12:
+- Scoped `grep` over Kotlin source only — `app/src/main` and `app/src/test` — confirming no remaining Kotlin fallback symbols removed in Phases 6–12. Do NOT grep the whole repository: these symbol names also appear in this plan file's own prose (Phases 6–12), `docs/architecture/ADR-001-rust-sole-implementation.md`, and other documentation, so an unscoped search produces false positives forever. Restrict the search paths to `app/src/main app/src/test`; this already excludes `docs/`, `plans/`, this plan file, and all `app/build/` generated output:
   - `localPredictTimeToGoal`, `localCalculateDebtToIncomeRatio`, `localCalculateFinancialHealthScore`, `buildLocalOfflineAdvice`, `buildLocalOfflineForecast`, `computeFallbackAnalytics`, `computeFallbackDashboardData`
+  - Example: `rg -n "localPredictTimeToGoal|localCalculateDebtToIncomeRatio|localCalculateFinancialHealthScore|buildLocalOfflineAdvice|buildLocalOfflineForecast|computeFallbackAnalytics|computeFallbackDashboardData" app/src/main app/src/test`
 - Updated docs committed.
 
 **Rollback:** N/A (verification/docs only).
