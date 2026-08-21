@@ -1,40 +1,47 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-# Backup location for the Rust worktree materialization (Findings 4/5/6).
-# Declared at script scope so the EXIT trap can always clean it up, even on a
-# crash. The value is empty until the Rust block starts.
+# Backup state for the Rust worktree materialization. Declared at script scope
+# so the EXIT trap can always clean it up, even on a crash. Paths live only in
+# these Bash arrays. A Git path may contain spaces, tabs, quotes, brackets, or
+# newlines, so no newline-delimited path file is ever written or parsed here.
 rust_backup_dir=""
+RUST_DIRTY_FILES=()     # tracked rust/ inputs whose worktree differed from the index
+RUST_UNTRACKED_FILES=() # non-ignored untracked files under rust/
 
-# Restore every .rs file the Rust block touched back to its original worktree
-# state. Idempotent: safe to call more than once; a no-op when nothing was
-# backed up. Nothing here ever loses user changes — it only copies backups
-# back or moves untracked files back where they were.
+# Restore every rust/ input the Rust block touched back to its original
+# worktree state. Idempotent: a second call is a no-op. Nothing here loses
+# user data. It copies backups back, moves untracked files back, or deletes
+# the index copy of a file that was absent before the hook ran.
 restore_rust_worktree() {
   local b="$rust_backup_dir"
   [[ -n "$b" && -d "$b" ]] || return 0
-  local root
+  local root f
   root=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-  if [[ -n "$root" && -f "$b/dirty_manifest.txt" ]]; then
-    while IFS= read -r f; do
-      [[ -n "$f" ]] || continue
-      [[ -f "$b/tracked/$f" ]] && cp "$b/tracked/$f" "$root/$f"
-    done < "$b/dirty_manifest.txt"
-  fi
-  if [[ -n "$root" && -f "$b/untracked_manifest.txt" ]]; then
-    while IFS= read -r f; do
-      [[ -n "$f" ]] || continue
-      if [[ -f "$b/untracked/$f" ]]; then
+  if [[ -n "$root" ]]; then
+    for f in "${RUST_DIRTY_FILES[@]}"; do
+      if [[ -f "$b/tracked/$f" ]]; then
         mkdir -p "$(dirname "$root/$f")"
-        mv "$b/untracked/$f" "$root/$f"
+        cp "$b/tracked/$f" "$root/$f"
+      else
+        # No backup exists, so this file was absent before the hook ran.
+        # Delete the index copy the hook materialized for validation.
+        rm -f "$root/$f"
       fi
-    done < "$b/untracked_manifest.txt"
+    done
+    for f in "${RUST_UNTRACKED_FILES[@]}"; do
+      [[ -f "$b/untracked/$f" ]] || continue
+      mkdir -p "$(dirname "$root/$f")"
+      mv "$b/untracked/$f" "$root/$f"
+    done
   fi
   rm -rf "$b"
+  RUST_DIRTY_FILES=()
+  RUST_UNTRACKED_FILES=()
+  rust_backup_dir=""
 }
 
-# Always restore the worktree on exit, even on a crash mid-Rust-block.
 trap restore_rust_worktree EXIT
 
 echo "==========================================="
@@ -112,7 +119,7 @@ try_commit() {
   fi
 
   # The Rust workspace must be present. A missing rust/ directory is a hard
-  # failure with a clear hint — never a silent skip (Finding 2).
+  # failure with a clear hint — never a silent skip.
   if [[ ! -d rust ]]; then
     echo "❌ Rust workspace directory 'rust/' not found."
     echo "   The hook requires a full repository checkout that includes the rust/ workspace."
@@ -121,24 +128,27 @@ try_commit() {
   fi
 
   # ---------------------------------------------------------------------------
-  # Staged/index vs worktree correctness (Findings 4, 5, 6)
+  # Index/worktree correctness for the Rust gates.
   #
   # cargo fmt and cargo clippy operate on the WORKTREE. The commit records the
-  # INDEX. If a staged Rust file also has unstaged edits, a plain `git add`
-  # after formatting would sweep those edits into the commit (Finding 4). And
-  # Clippy must validate the exact content being committed, not unrelated
-  # worktree edits (Findings 5, 6).
+  # INDEX. Two rules follow:
+  #   1. The tooling must see the exact commit candidate. Every tracked input
+  #      under rust/ whose worktree bytes differ from the index is temporarily
+  #      replaced by its index version.
+  #   2. The worktree must survive. The original bytes are backed up first and
+  #      put back afterwards. This includes files the user deleted without
+  #      staging the deletion; their absence is restored too.
   #
-  # Strategy: back up every .rs file we might touch, then materialize the INDEX
-  # into the worktree so the rust/ subtree the tooling sees equals the commit
-  # candidate. After the gates, restore the worktree to its original state. The
-  # index is updated surgically with only the formatting delta.
-  #
-  # Restore is idempotent and runs on every exit (see trap above). Nothing is
-  # ever reset or stashed in a way that can silently lose user changes.
+  # Rust validation inputs are all tracked files under rust/:
+  #   - *.rs sources and build.rs
+  #   - Cargo.toml manifests (workspace root and members)
+  #   - Cargo.lock
+  #   - .cargo/config.toml and rust-toolchain.toml
+  # Nothing outside rust/ affects cargo here, so nothing outside rust/ is
+  # materialized or moved.
   # ---------------------------------------------------------------------------
 
-  # Clean up any backup left by a previous (failed) attempt in this process.
+  # Clean up any backup left by a previous attempt in this process.
   restore_rust_worktree
 
   rust_backup_dir=$(mktemp -d "${TMPDIR:-/tmp}/hesabyar-rust.XXXXXX") || {
@@ -146,21 +156,23 @@ try_commit() {
     return 1
   }
   mkdir -p "$rust_backup_dir/tracked" "$rust_backup_dir/untracked"
-  : > "$rust_backup_dir/dirty_manifest.txt"
-  : > "$rust_backup_dir/untracked_manifest.txt"
 
-  # Inventory: staged, dirty (worktree != index), and untracked Rust sources.
-  local -a staged_rs=() dirty_rs=() untracked_rs=()
+  # Inventory the Rust validation inputs. staged_rs feeds cargo fmt only.
+  # dirty_inputs covers every tracked rust/ file whose worktree bytes differ
+  # from the index — not just *.rs — so partially staged Cargo.toml,
+  # Cargo.lock, build.rs, or toolchain config cannot leak unstaged state into
+  # clippy. untracked_rs removes non-ignored untracked files under rust/.
+  local -a staged_rs=() dirty_inputs=() untracked_rs=()
   local f
   while IFS= read -r -d '' f; do
     [[ "$f" == rust/* ]] && staged_rs+=("$f")
   done < <(git diff --cached -z --name-only -- '*.rs')
   while IFS= read -r -d '' f; do
-    [[ "$f" == rust/* ]] && dirty_rs+=("$f")
-  done < <(git diff-files -z --name-only -- '*.rs')
+    dirty_inputs+=("$f")
+  done < <(git diff-files -z --name-only -- rust/)
   while IFS= read -r -d '' f; do
-    [[ "$f" == rust/* ]] && untracked_rs+=("$f")
-  done < <(git ls-files -z --others --exclude-standard -- '*.rs')
+    untracked_rs+=("$f")
+  done < <(git ls-files -z --others --exclude-standard -- rust/)
 
   # Snapshot the pre-fmt index blob OID of each staged Rust file.
   declare -A staged_oid
@@ -168,23 +180,27 @@ try_commit() {
     staged_oid["$f"]=$(git ls-files -s -- "$f" | awk '{print $2}')
   done
 
-  # Back up the worktree content of every dirty tracked Rust file, then
-  # overwrite it with the index version so the worktree matches the candidate.
-  for f in "${dirty_rs[@]}"; do
-    echo "$f" >> "$rust_backup_dir/dirty_manifest.txt"
-    mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
-    cp "$f" "$rust_backup_dir/tracked/$f"
+  # Back up the original worktree bytes of every dirty input. A missing file
+  # records an absent state: the user deleted it without staging. We must not
+  # copy a nonexistent file; restore deletes our materialized copy instead.
+  for f in "${dirty_inputs[@]}"; do
+    if [[ -f "$f" ]]; then
+      mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
+      cp "$f" "$rust_backup_dir/tracked/$f"
+    fi
+    RUST_DIRTY_FILES+=("$f")
   done
-  if [[ ${#dirty_rs[@]} -gt 0 ]]; then
-    git checkout-index -f -- "${dirty_rs[@]}"
+  if [[ ${#dirty_inputs[@]} -gt 0 ]]; then
+    git checkout-index -f -- "${dirty_inputs[@]}"
   fi
 
-  # Move untracked Rust files out of the worktree so cargo ignores them and
-  # they cannot alter the validated content. Restored at the end.
+  # Move untracked files out of the rust/ subtree. They are not part of the
+  # commit candidate, and a stray manifest or source could alter validation.
+  # They are moved back when the checks finish.
   for f in "${untracked_rs[@]}"; do
-    echo "$f" >> "$rust_backup_dir/untracked_manifest.txt"
     mkdir -p "$(dirname "$rust_backup_dir/untracked/$f")"
     mv "$f" "$rust_backup_dir/untracked/$f"
+    RUST_UNTRACKED_FILES+=("$f")
   done
 
   # Run cargo fmt. Only format staged sources so an unrelated Kotlin commit
@@ -192,8 +208,15 @@ try_commit() {
   # via rust/rust-toolchain.toml because the subshell starts inside rust/.
   echo ""
   echo "[4/5] Running cargo fmt (auto-fix)..."
-  if [[ ${#staged_rs[@]} -gt 0 ]]; then
-    local -a fmt_paths=("${staged_rs[@]/#rust\//}")
+  local -a fmt_paths=()
+  for f in "${staged_rs[@]}"; do
+    # A staged deletion has no worktree file. Exclude it from the rustfmt
+    # path list; the deletion stays in the index untouched.
+    [[ -f "$f" ]] && fmt_paths+=("${f#rust/}")
+  done
+  if [[ ${#fmt_paths[@]} -eq 0 ]]; then
+    echo "  No staged Rust sources to format — skipping cargo fmt"
+  else
     if ! (cd rust && cargo fmt -- "${fmt_paths[@]}"); then
       echo "❌ cargo fmt failed."
       echo "   Run (cd rust && cargo fmt) manually to see details."
@@ -218,8 +241,6 @@ try_commit() {
       echo "  Re-staging ${#to_restage[@]} Rust file(s) with auto-fixes..."
       git add "${to_restage[@]}"
     fi
-  else
-    echo "  No staged Rust sources — skipping cargo fmt"
   fi
 
   # Run clippy against the worktree, which now equals the (formatted) commit
