@@ -197,9 +197,9 @@ The project should remain modular and scalable.
 ```text
 app/src/main/java/io/github/mojri/hesabyar/
 
-├── api/               # AI providers: AiProvider, AiProviderConfig,
-│                      # BudgetAdvisor, BudgetAdviceGenerator,
-│                      # GeminiParser, AdviceValidationPolicy
+├── api/               # AI providers: AdviceValidationPolicy, AiProvider,
+│                      # AiProviderConfig, BudgetAdviceGenerator,
+│                      # BudgetAdvisor, GeminiParser
 ├── auth/              # AuthManager, BiometricHelper, PinScreen,
 │                      # LockScreen, PinStorage, BackupCipher
 ├── core/              # AppLogger
@@ -304,11 +304,11 @@ api/
 Structure:
 
 ```text
+AdviceValidationPolicy.kt  # AI advice discard policy (fallback decision)
 AiProvider.kt              # Multi-provider AI client
 AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
-BudgetAdvisor.kt           # AI + offline budget advice
 BudgetAdviceGenerator.kt   # Budget advice generation (extracted from GeminiParser)
-AdviceValidationPolicy.kt  # AI advice discard policy (fallback decision)
+BudgetAdvisor.kt           # AI + offline budget advice
 GeminiParser.kt            # Sentence parsing (online + offline)
 ```
 
