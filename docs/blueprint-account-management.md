@@ -145,7 +145,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 >
 > **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation).
 >
-> The full policy, exception list, and rationale are in `architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `## Permanent Kotlin Fallbacks`). See also `../plans/2026-08-19-rust-fallback-consolidation-plan.md`.
+> The full policy, exception list, and rationale are in `architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`). See also `../plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ---
 
@@ -764,7 +764,7 @@ After any account CRUD operation:
 | BR-06 | Balance starts at initialBalance | (legacy/persistence, not a business rule) |
 | BR-07 | Delete blocked if transactions exist | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
 | BR-08 | Archive is soft-disable, not delete | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
-| BR-09 | Archived accounts excluded from dashboard | Rust core (ffi/) — the dashboard computation excludes archived accounts based on the `include_archived` parameter. The Kotlin FFI adapter (`RustBridge`) only forwards the `include_archived` boolean and applies no business logic |
+| BR-09 | Archived accounts excluded from dashboard | Rust core (`dashboard.rs`; `analytics.rs` mirrors the same gate) — the computation excludes archived accounts based on the `include_archived` parameter. The FFI wrapper (`ffi/mod.rs`) and the Kotlin FFI adapter (`RustBridge`) only forward the `include_archived` boolean and apply no business logic |
 | BR-10 | Unarchive restores to active state | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
 | BR-11 | All monetary values in Rial | Entity constraint |
 | BR-12 | timestamps auto-set on create/update | (legacy/persistence, not a business rule) |

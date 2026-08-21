@@ -126,7 +126,7 @@ The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core
 
 ## Business Logic Policy
 
-Rust Core (`rust/hesabyar-core`) is the sole location for new business logic. Kotlin fallbacks are permitted ONLY for the pre-approved exception list. See `docs/architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `## Permanent Kotlin Fallbacks`) for the full policy, exception list, and the phased removal plan for non-exception fallbacks.
+Rust Core (`rust/hesabyar-core`) is the sole location for new business logic. Kotlin fallbacks are permitted ONLY for the pre-approved exception list. See `docs/architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`) for the full policy, exception list, and the phased removal plan for non-exception fallbacks.
 
 ## Testing
 
