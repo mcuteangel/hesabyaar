@@ -87,7 +87,8 @@ The policy lives in `[workspace.lints.clippy]` in `rust/Cargo.toml`. Each crate 
 - `unwrap_used`, `expect_used`, and `panic` warn in production code.
 - Test code and benchmarks may use `unwrap`, `expect`, and `panic!`. The allow rules sit in `lib.rs` and `benches/parser_bench.rs`.
 
-CI runs `cargo clippy -- -D warnings`. A new warning fails the build.
+CI runs `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+Run `make -C rust lint` for the same check locally. A new warning fails the build.
 Fix a finding by refactoring. Add a local `#[allow]` only with a comment that explains why.
 
 ### Toolchain
