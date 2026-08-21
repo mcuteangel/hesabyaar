@@ -21,12 +21,22 @@ class HesabyarApp : Application() {
 
     private val initLock = Any()
 
+    /**
+     * Loads the native library and initializes the Rust core.
+     * Tests can set this property to a lambda that throws, for example to
+     * simulate a UniFFI checksum or contract mismatch that raises
+     * RuntimeException with no native library present. The default value is
+     * [runRustNativeInit], the production implementation.
+     */
+    @VisibleForTesting
+    internal var rustNativeInitAction: () -> Unit = ::runRustNativeInit
+
     @Volatile
     private var rustInitialized = false
 
     /**
      * Test-only availability override, see [setRustInitializedForTesting].
-     * `null` means "no override — derive availability from the real load state".
+     * `null` means no override; availability then comes from the init flag.
      */
     @Volatile
     private var rustInitializedOverride: Boolean? = null
@@ -74,31 +84,62 @@ class HesabyarApp : Application() {
     @JvmStatic
     internal fun getRustInitializedOverrideForTesting(): Boolean? = rustInitializedOverride
 
+    /** Returns the raw init flag, without the test override. */
+    @VisibleForTesting
     @JvmStatic
-    fun ensureRustInitialized(): Boolean {
-      rustInitializedOverride?.let { return it }
-      if (rustInitialized) return true
+    internal fun getRustInitializedRawForTesting(): Boolean = rustInitialized
+
+    /**
+     * Test-only write access to the init flag.
+     * Guarded by BuildConfig.DEBUG so production builds ignore the call.
+     */
+    @VisibleForTesting
+    @JvmStatic
+    internal fun setRustInitializedRawForTesting(value: Boolean) {
+      if (!BuildConfig.DEBUG) return
+      rustInitialized = value
+    }
+
+    private fun runRustNativeInit() {
+      System.loadLibrary("hesabyar_core")
+      io.github.mojri.hesabyar.rust.HesabyarCore
+        .initialize()
+    }
+
+    @JvmStatic
+    fun ensureRustInitialized(): Boolean =
+      rustInitializedOverride
+        ?: if (rustInitialized) true else initializeRustCore()
+
+    // UniFFI throws a RuntimeException when the generated bindings detect a
+    // contract or checksum mismatch during initialization. This catch returns
+    // false, so callers use the Kotlin fallback instead of a crash.
+    @Suppress("TooGenericExceptionCaught")
+    private fun initializeRustCore(): Boolean =
       synchronized(initLock) {
-        if (rustInitialized) return true
-        return try {
-          System.loadLibrary("hesabyar_core")
-          io.github.mojri.hesabyar.rust.HesabyarCore
-            .initialize()
-          rustInitialized = true
-          Log.i(TAG, "Rust shared core initialized successfully (lazy)")
+        if (rustInitialized) {
           true
-        } catch (e: UnsatisfiedLinkError) {
-          Log.e(TAG, "Failed to load hesabyar_core native library", e)
-          false
-        } catch (e: InternalException) {
-          Log.e(TAG, "Failed to initialize Rust core", e)
-          false
-        } catch (e: SecurityException) {
-          Log.e(TAG, "Unexpected failure initializing Rust core", e)
-          false
+        } else {
+          try {
+            rustNativeInitAction()
+            rustInitialized = true
+            Log.i(TAG, "Rust shared core initialized successfully (lazy)")
+            true
+          } catch (e: UnsatisfiedLinkError) {
+            Log.e(TAG, "Failed to load hesabyar_core native library", e)
+            false
+          } catch (e: InternalException) {
+            Log.e(TAG, "Failed to initialize Rust core", e)
+            false
+          } catch (e: SecurityException) {
+            Log.e(TAG, "Security manager denied Rust core initialization", e)
+            false
+          } catch (e: RuntimeException) {
+            Log.e(TAG, "Unexpected runtime failure initializing Rust core", e)
+            false
+          }
         }
       }
-    }
   }
 
   override fun onCreate() {

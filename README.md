@@ -315,6 +315,7 @@ cargo bench
 ## 📝 مستندات
 
 - [معماری پروژه](docs/architecture/ARCHITECTURE.md) - جزئیات معماری و پیاده‌سازی
+- [سیاست منطق تجاری (Rust-first)](docs/architecture/ADR-001-rust-sole-implementation.md) - تصمیم معماری: منطق تجاری فقط در Rust
 - [راهنمای ساخت و انتشار](docs/BUILD_RELEASE.md) - راهنمای توسعه‌دهندگان
 - [CHANGELOG](CHANGELOG.md) - تاریخچه تغییرات
 - [AGENTS](AGENTS.md) - راهنمای استفاده از عامل‌های هوش مصنوعی
@@ -336,6 +337,10 @@ cargo bench
 - کد خود را تست کنید
 - از استانداردهای کدگذاری پروژه پیروی کنید
 - مستندات را به‌روز نگه دارید
+
+### 📐 راهنمای معماری
+
+برای جزئیات کامل دربارهٔ سیاست Rust-first و لیست استثناهای Kotlin، به [`سیاست منطق تجاری (Rust-first)`](docs/architecture/ADR-001-rust-sole-implementation.md) مراجعه کنید.
 
 ---
 

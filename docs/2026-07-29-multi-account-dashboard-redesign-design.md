@@ -6,6 +6,8 @@ Fix data integrity issues with archived accounts leaking into dashboard totals, 
 
 ## Phase 0 — Data Integrity Fix
 
+> **Note:** This fallback parity fix is a **temporary patch** to Kotlin-side fallback code that is scheduled for removal in the Dashboard fallback-removal phase (Phase 12 of `plans/2026-08-19-rust-fallback-consolidation-plan.md`). It is NOT a permanent implementation strategy — new dashboard logic must go in Rust.
+
 ### Problem
 
 `GetDashboardDataUseCase` uses `repository.allAccounts` (calls `getAllAccounts()`, includes archived). When Rust FFI returns null, the Kotlin fallback's `computeAccountSummaries` doesn't filter archived accounts — archived accounts' transactions leak into dashboard totals.
@@ -13,9 +15,8 @@ Fix data integrity issues with archived accounts leaking into dashboard totals, 
 ### Fix
 
 1. **Rust path:** Already filters archived accounts (`!a.is_archived` in `compute_account_summaries`). No change needed.
-2. **Kotlin fallback:** Add `account.isArchived` check in `computeAccountSummaries` to skip archived accounts.
+2. **Kotlin fallback (temporary):** Add `account.isArchived` check in `computeAccountSummaries` to skip archived accounts. This fix will be deleted when the Dashboard fallback is removed.
 3. **Data source:** Keep `allAccounts` in `GetDashboardDataUseCase` (Account Management screen needs it), but add explicit filtering at the dashboard computation call site.
-4. **Regression test:** Create account → add transaction → archive account → assert `computeDashboardData(accountId = null)` excludes it.
 
 ### Files to modify
 

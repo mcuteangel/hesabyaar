@@ -91,19 +91,24 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 ├─────────────────────────────────────────────────────┤
 │                    VIEWMODEL                         │
 │  AccountViewModel · StateFlow · Side effects         │
-│  Responsibility: Business logic coordination          │
+│  Responsibility: Orchestration (calls to Rust core)    │
 ├─────────────────────────────────────────────────────┤
 │                  DOMAIN LAYER                        │
-│  UseCases · Validators · Domain Models · Rules        │
-│  Responsibility: Business rules, validation, mapping  │
+│  UseCases (thin wrappers) · Validators · Domain Models │
+│  Responsibility: Data-shape validation, DTO mapping   │
 ├─────────────────────────────────────────────────────┤
 │                  DATA LAYER                          │
 │  Repository · DAO · Room Entities · Mappers           │
 │  Responsibility: Persistence, data transformation     │
 ├─────────────────────────────────────────────────────┤
-│                   FFI LAYER                          │
-│  RustBridge · RustMappers · UniFFI bindings           │
-│  Responsibility: Rust computation (read-only)         │
+│         FFI BOUNDARY / ADAPTER LAYER                  │
+│  RustBridge · RustMappers · UniFFI bindings            │
+│  Responsibility: Call marshaling, type mapping          │
+│                  (thin adapter, no business logic)      │
+├─────────────────────────────────────────────────────┤
+│          RUST CORE (rust/hesabyar-core)                │
+│  Business logic, calculations, rules, and validation   │
+│  (sole implementation location — never in Kotlin)      │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -114,11 +119,13 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Render UI | Presentation | Screen composable |
 | Manage UI state | State | UiState sealed class |
 | Handle user events | Presentation → ViewModel | Event sealed class |
-| Validate form data | Domain | AccountValidator |
-| Execute CRUD operations | Domain | UseCase classes |
+| Validate form data (data-shape) | Presentation → ViewModel | `AccountViewModel` (inline data-shape checks; no dedicated validator class exists today) |
+| Enforce business rules / validation | FFI | Rust core (`validation.rs`) — results surfaced by outer-layer Kotlin adapters (for example `BackupJsonValidator`, which calls `RustBridge.validateBackupPayloadSync`) |
+| Execute CRUD operations | Domain | UseCase classes (depend on Domain-defined ports; Data implements persistence ports, FFI provides Rust computation) |
 | Coordinate side effects | ViewModel | ViewModel |
 | Persist data | Data | Repository → DAO → Room |
-| Compute balances | FFI | RustBridge (read-only) |
+| Compute balances | FFI | Rust core (ffi/) — sole implementation location |
+| All new calculations / business logic | FFI | Rust core — NEVER implement new business logic in Kotlin |
 | Show feedback (Snackbar) | Presentation | Screen via SideEffect |
 | Manage dialog lifecycle | State | DialogState in UiState |
 
@@ -126,11 +133,19 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 
 - **Presentation** depends on: State, Domain (UseCase interfaces only)
 - **State** depends on: Domain (models, validators)
-- **Domain** depends on: nothing above (pure logic)
-- **Data** depends on: Domain (entities, repository interfaces)
-- **FFI** depends on: Data (mappers)
+- **Domain** depends on: nothing above (pure logic); defines ports (interfaces) for persistence and Rust computation that outer layers implement
+- **Data** depends on: Domain (implements Domain-defined persistence ports, defines entity DTOs)
+- **FFI** depends on: Domain (computation ports) and Data (type mappers)
 
 **Rule:** Domain layer has ZERO Android/framework dependencies. It is pure Kotlin.
+
+> **Business Logic Policy:** Rust Core (`rust/hesabyar-core`) is the sole location for business logic, calculations, rules, and validation.
+>
+> **Permitted in Kotlin:** Persistence operations, DTO/entity mapping, and structural type mapping needed to call Rust or to persist/display Rust's results. Kotlin-side validators may surface Rust's validation results to the UI.
+>
+> **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation).
+>
+> The full policy, exception list, and rationale are in `architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`). See also `../plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ---
 
@@ -737,20 +752,24 @@ After any account CRUD operation:
 
 ### 9.3 Business Rules
 
+> **Note:** These business rules should be enforced in Rust (via `validation.rs` or equivalent core logic), with Kotlin-side `Validator`/`ViewModel`/`UseCase` code limited to surfacing Rust's validation results or handling persistence/UI state. New rules MUST NOT be implemented in Kotlin. See `architecture/ADR-001-rust-sole-implementation.md`.
+
 | Rule | Description | Enforcement |
 |---|---|---|
 | BR-01 | Account name is required | Validator |
 | BR-02 | Account names should be unique | Validator (warning, not blocking) |
-| BR-03 | Default type is BANK | ViewModel default |
+| BR-03 | Default type is BANK | (legacy/UI-state, not a business rule) |
 | BR-04 | Default color is GREEN_500 | Design system constant |
-| BR-05 | New account gets next displayOrder | ViewModel |
-| BR-06 | Balance starts at initialBalance | Entity default |
-| BR-07 | Delete blocked if transactions exist | UseCase check |
-| BR-08 | Archive is soft-disable, not delete | UseCase |
-| BR-09 | Archived accounts excluded from dashboard | Dashboard UseCase |
-| BR-10 | Unarchive restores to active state | UseCase |
+| BR-05 | New account gets next displayOrder | (legacy/UI-state, not a business rule) |
+| BR-06 | Balance starts at initialBalance | (legacy/persistence, not a business rule) |
+| BR-07 | Delete blocked if transactions exist | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
+| BR-08 | Archive is soft-disable, not delete | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
+| BR-09 | Archived accounts excluded from dashboard | Rust core (`dashboard.rs`; `analytics.rs` mirrors the same gate) — the computation excludes archived accounts based on the `include_archived` parameter. The FFI wrapper (`ffi/mod.rs`) and the Kotlin FFI adapter (`RustBridge`) only forward the `include_archived` boolean and apply no business logic |
+| BR-10 | Unarchive restores to active state | (legacy — account CRUD is Kotlin-only, not routed through Rust core) |
 | BR-11 | All monetary values in Rial | Entity constraint |
-| BR-12 | timestamps auto-set on create/update | ViewModel |
+| BR-12 | timestamps auto-set on create/update | (legacy/persistence, not a business rule) |
+
+> **Note:** BR-07, BR-08, and BR-10 are marked as legacy because account CRUD runs through UseCase → Repository → Room with no Rust involvement. These are real business rules (not UI-state or persistence defaults) tracked for future Rust migration — see `../plans/README.md` entry 010.
 
 ### 9.4 Validation Rules
 

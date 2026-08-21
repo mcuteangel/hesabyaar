@@ -63,9 +63,9 @@ Uses the configured AI provider for:
 Falls back to local rule-based parsing (now powered by Rust core via UniFFI):
 
 - **Rust NLP Module** — 200+ keyword Persian text analysis (replaces `PersianAmountParser`, `MoneyDetector`, `PersianTextPreprocessor`)
-- `GeminiParser.parseSentenceOffline()` — Delegates to Rust for category inference + type detection
-- `BudgetAdvisor.getOfflineAdvice()` — Rule-based financial advice (Rust-backed)
-- `BudgetAdvisor.getOfflineForecast()` — Rule-based forecast (Rust-backed)
+- `GeminiParser.parseSentenceOffline()` — Delegates to Rust for category inference + type detection. The Kotlin `parseSentenceOffline` path is a **permanent** offline NLP parser fallback (per the exception list in ADR-001).
+- `BudgetAdvisor.getOfflineAdvice()` — Rule-based financial advice (Rust-backed via UniFFI). The Kotlin-side `getOfflineAdvice` fallback is **temporary** and scheduled for removal (Phase 9 in `plans/2026-08-19-rust-fallback-consolidation-plan.md`), after which a Rust failure will surface a controlled error to the UI.
+- `BudgetAdvisor.getOfflineForecast()` — Rule-based forecast (Rust-backed via UniFFI). The Kotlin-side `getOfflineForecast` fallback is **temporary** and scheduled for removal (Phase 10 in `plans/2026-08-19-rust-fallback-consolidation-plan.md`).
 
 ---
 
@@ -97,6 +97,8 @@ User Text → GeminiParser.parseSentenceOffline()
 
 The offline parsing pipeline was migrated from Kotlin to Rust for performance and accuracy.
 The Rust core handles: text preprocessing, amount parsing, category inference, and type detection.
+
+> **Note:** The Kotlin-side `GeminiParser.parseSentenceOffline()` retains a parser implementation as a **permanent** fallback (offline NLP parser is in the ADR-001 exception list). It is NOT scheduled for removal. Other offline capabilities (budget advice, forecast, analytics, dashboard) have **temporary** Kotlin fallbacks scheduled for removal per `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
 ### Pipeline (Rust)
 

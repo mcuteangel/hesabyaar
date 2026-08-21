@@ -98,6 +98,7 @@ The system rejects any change that breaks these constraints:
 - Do not use destructive Room migrations. A schema change must preserve existing data.
 - Do not hardcode API keys. Use `.env` or Keystore for all secrets.
 - Do not remove the Jalali calendar or offline support.
+- Do not implement new feature business logic in Kotlin. New feature rules, calculations, validations, and rule-driven data transformations MUST go in the Rust core (`rust/hesabyar-core`). UI rendering, persistence, and adapter/mapping code (DTO conversion, entity mapping) stay normal Kotlin territory and need no exception-list justification. Kotlin fallbacks for business logic are permitted only for the pre-approved exceptions. See `## Business Logic Policy` below.
 - Do not use `GlobalScope`. Use structured coroutine scopes.
 
 ## Architecture
@@ -105,21 +106,27 @@ The system rejects any change that breaks these constraints:
 This is a single-module Android app. The package root is `io.github.mojri.hesabyar`.
 
 ```
-ui/          → Screens (Compose), ViewModels, Theme
-api/         → AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
-data/        → Room entities, DAOs, Repository, ExcelExporter, BackupModels
-reminder/    → WorkManager workers, notification helpers
+ui/           → Screens (Compose), ViewModels, Theme
+api/          → AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
+data/         → Room entities, DAOs, Repository, ExcelExporter, BackupModels
+rust/         → UniFFI bridge (RustBridge.kt), generated bindings (hesabyar_core.kt)
+reminder/     → WorkManager workers, notification helpers
+rust/hesabyar-core/ → Rust core crate (all business logic, calculations, advisory)
 ```
 
-The data flow is: `Screen → ViewModel → Repository → Room/Network`.
+The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core (business logic)` alongside `ViewModel/UseCase → Repository → Room/Network (persistence)`. Some existing ViewModels (e.g., AccountViewModel, AnalyticsViewModel) call the Repository directly; new code should prefer the Use Case layer.
 
 
 ## Key Patterns
 
-- Use MVVM and Use Cases. The use cases are not a separate layer yet. The logic lives in the ViewModels and the Repository.
+- Use MVVM and Use Cases. Business logic lives in the Rust core (`rust/hesabyar-core`); Kotlin ViewModels, UseCases, and the Repository orchestrate calls to Rust via `RustBridge` and handle Android-specific concerns (persistence, UI state, DI). They are NOT where new business logic should be added.
 - Use the Jalali calendar through `JalaliCalendarHelper.kt`. All dates use it. Do not use `java.time.LocalDate` directly.
 - Use the AI abstraction. `AiProvider` is the interface with `AiProviderConfig`. Business logic must not link to a specific provider.
 - Use the Persian-first UX. Use full RTL, the Vazirmatn font, and Persian terms in the UI strings.
+
+## Business Logic Policy
+
+Rust Core (`rust/hesabyar-core`) is the sole location for new business logic. Kotlin fallbacks are permitted ONLY for the pre-approved exception list. See `docs/architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`) for the full policy, exception list, and the phased removal plan for non-exception fallbacks.
 
 ## Testing
 
@@ -134,6 +141,7 @@ The data flow is: `Screen → ViewModel → Repository → Room/Network`.
 3. Does this affect financial calculation accuracy?
 4. Does this require a Room migration?
 5. Are local backups still compatible?
+6. Does this introduce new business logic in Kotlin that should be in the Rust core instead? (See `## Business Logic Policy`.)
 
 ## Mandatory Development Guidelines
 
@@ -214,6 +222,7 @@ The backup envelope carries two version fields. They are independent from the ap
 - `docs/TECH_STACK.md` — the official dependency list
 - `docs/ROADMAP.md` — the feature status
 - `docs/architecture/ARCHITECTURE.md` — the full architecture guide
+- `docs/architecture/ADR-001-rust-sole-implementation.md` — Rust-first business logic policy decision record
 
 ## Mandatory Post-Modification Verification Workflow
 

@@ -113,6 +113,7 @@ grep -n "AccountType.icon\|\.icon()" app/src/main/java/io/github/mojri/hesabyar/
 1. مقدار دقیق هر سه رو تأیید کنید (باید یکسان باشن)
 2. `ManageBackupUseCase.kt:30` رو حذف کنید و import از `FinancialColors.DEFAULT_ACCOUNT_COLOR` اضافه کنید
 3. مقدار Rust نباید تغییر کنه (فقط Kotlin-side duplicate حذف بشه)
+> **یادآوری معماری:** Rust منبع تک‌حقیقت منطق تجاری است. این برطرف‌سازی صرفاً حذف یک duplicate طرف Kotlin است — Rust ارجاع اصلی محسوب می‌شود. هیچ‌گاه منطق یا محاسبه‌ جدیدی به سمت Kotlin اضافه نکنید.
 
 **چک بعد از اجرا:**
 ```bash
@@ -127,7 +128,7 @@ grep -rn "DEFAULT_ACCOUNT_COLOR" app/src/main/java/ | grep -v "build/"
 ## نکات خاص این فاز
 
 - از چک‌لیست مرکزی: **تصمیم #4** (یکسان‌سازی رنگ) باید قبل از شروع باگ #4 تأیید بشه
-- از چک‌لیست مرکزی: **R1** (تطابق Rust/Kotlin) — باگ #4 فقط Kotlin-side duplicate رو حذف می‌کنه، مقدار Rust تغییر نمی‌کنه پس R1 نقض نمی‌شه
+- از چک‌لیست مرکزی: **R1** (تطابق Rust/Kotlin) — باگ #4 فقط Kotlin-side duplicate رو حذف می‌کنه، مقدار Rust تغییر نمی‌کنه پس R1 نقض نمی‌شه. یادآوری: این صرفاً یک اصلاح fallback موجود است — راهنمایی برای اضافه کردن منطق جدید در Kotlin نیست.
 - هر باگ باید **commit جداگانه** داشته باشه تا rollback آسان باشه
 - بعد از هر باگ، `./gradlew test --no-daemon` اجرا بشه
 

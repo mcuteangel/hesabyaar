@@ -50,9 +50,13 @@ AI never modifies financial data without confirmation.
 
 ## Source of Truth
 
-Room Database is the single source of truth.
+Room Database is the single source of truth for **stored data**.
 
-All reports and calculations must derive from stored records.
+Rust Core (`rust/hesabyar-core`) is the single source of truth for **business logic**, calculations, and validation. All reports and calculations must derive from stored records and compute through the Rust core.
+
+## Business Logic Policy
+
+Rust Core (`rust/hesabyar-core`) is the canonical implementation for new business logic. Kotlin fallbacks exist only for the pre-approved exception list. See `ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`) for the full policy, exception list, and rationale.
 
 ---
 
@@ -166,12 +170,23 @@ Feature-Based Architecture
 
 Current repository uses:
 
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Room Database
+- **Rust** — canonical implementation for business logic, calculations, and validation (`rust/hesabyar-core`)
+- Kotlin — UI (Jetpack Compose, Material 3), persistence orchestration (Room), and FFI bridge via UniFFI
 - Navigation Compose
-- Firebase AI
+- Firebase AI (optional, for online natural language parsing)
+- Hilt (Dependency Injection)
+
+Kotlin package layout:
+
+- `ui/` — Screens, ViewModels, Theme
+- `api/` — AI providers (GeminiParser, BudgetAdvisor, AiProvider interface)
+- `data/` — Room entities, DAOs, Repository, ExcelExporter, BackupModels
+- `domain/` — UseCases (thin wrappers), DTO mappers
+- `rust/` — UniFFI bridge (RustBridge.kt, RustMappers.kt), generated bindings
+- `auth/` — AuthManager, BiometricHelper, Pin/LockScreen
+- `core/` — AppLogger
+- `di/` — Hilt modules (AiModule, DatabaseModule, RepositoryModule, UseCaseModule)
+- `reminder/` — WorkManager workers, notification helpers
 
 The project should remain modular and scalable.
 
@@ -182,48 +197,33 @@ The project should remain modular and scalable.
 ```text
 app/src/main/java/io/github/mojri/hesabyar/
 
-├── api/
-│   ├── AiProvider.kt              # Multi-provider AI client
-│   ├── AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
-│   ├── BudgetAdvisor.kt           # AI + offline budget advice
-│   ├── GeminiParser.kt            # Sentence parsing (online + offline)
-│   ├── MoneyDetector.kt           # Money presence detection gate
-│   └── PersianAmountParser.kt     # Token-based amount extraction
-│
-├── data/
-│   ├── AppDatabase.kt             # Room database (v3)
-│   ├── BackupModels.kt            # Backup payload + validation
-│   ├── Daos.kt                    # Room DAOs (5 interfaces)
-│   ├── Entities.kt                # Room entities (5 tables)
-│   ├── ExcelExporter.kt           # .xlsx export (custom XML writer)
-│   ├── HesabyarRepository.kt      # Repository implementation
-│   └── HesabyarRepositoryInterface.kt
-│
-├── reminder/
-│   ├── BootReceiver.kt            # Re-schedule alarms on boot
-│   ├── InstallmentReminderWorker.kt
-│   ├── LoanReminderWorker.kt
-│   ├── MarkPaidReceiver.kt        # Notification action: mark paid
-│   ├── NotificationHelper.kt      # Notification channel + builders
-│   ├── ReminderScheduler.kt       # WorkManager scheduling
-│   └── ReminderSettingsManager.kt # SharedPreferences config
-│
+├── api/               # AI providers: AdviceValidationPolicy, AiProvider,
+│                      # AiProviderConfig, BudgetAdviceGenerator,
+│                      # BudgetAdvisor, GeminiParser
+├── auth/              # AuthManager, BiometricHelper, PinScreen,
+│                      # LockScreen, PinStorage, BackupCipher
+├── core/              # AppLogger
+├── data/              # Room database: AppDatabase, Entities, Daos,
+│                      # TypeConverters, Repository (+Interface),
+│                      # ExcelExporter, BackupModels, DatabaseKeyManager
+├── di/                # Hilt modules: AiModule, DatabaseModule,
+│                      # RepositoryModule, UseCaseModule
+├── domain/
+│   ├── exception/     # Domain exceptions
+│   ├── usecase/       # Use cases (transaction, budget, backup, export)
+│   └── utils/         # TransactionAmountResolver
+├── reminder/          # WorkManager workers, notification helpers,
+│                      # BootReceiver, MarkPaidReceiver, ReminderScheduler
+├── rust/              # RustBridge.kt, RustMappers.kt, generated UniFFI
+│                      # bindings (hesabyar_core.kt)
 └── ui/
-    ├── AiAssistantViewModel.kt    # AI config + parser + advisor + cache
-    ├── AnalyticsViewModel.kt      # Analytics data computation
-    ├── AppLogger.kt               # In-memory log ring buffer
-    ├── BackupViewModel.kt         # Backup/restore operations
-    ├── CategoryViewModel.kt       # Category CRUD
-    ├── DashboardViewModel.kt      # Dashboard data aggregation
-    ├── ExportViewModel.kt         # Excel export orchestration
-    ├── InstallmentViewModel.kt    # Installment CRUD
-    ├── JalaliCalendarHelper.kt    # Gregorian ↔ Jalali conversion
-    ├── LoanViewModel.kt           # Loan CRUD + payments
-    ├── SettingsViewModel.kt       # App settings
-    ├── TransactionViewModel.kt    # Transaction CRUD
-    ├── UiState.kt                 # UI state sealed interfaces
-    ├── screens/                   # Compose screens
-    └── theme/                     # Material 3 theme
+    ├── components/    # Shared reusable Compose elements
+    ├── designsystem/  # Design tokens (spacing, shape, elevation, color)
+    ├── screens/       # Compose screens (dashboard/, account/)
+    ├── theme/         # Material 3 theme (Color, Theme, Type)
+    ├── utils/         # Formatters, category icons
+    └── ViewModels, JalaliCalendarHelper, CurrencyFormatter, UiState,
+        and backup coordinators sit at the package root
 ```
 
 ---
@@ -231,19 +231,19 @@ app/src/main/java/io/github/mojri/hesabyar/
 # Data Flow
 
 ```text
-UI (Compose Screens)
- ↓
+Repository ←→ Room Database (AppDatabase)
+  ↓ (loads records, emits Flow<List<T>>)
 ViewModel (AndroidViewModel)
- ↓
-Repository (HesabyarRepository)
- ↓
-Room Database (AppDatabase)
- ↓
-Flow<List<T>> emissions
- ↓
+  ↓ (passes data snapshots to)
+UseCase (business logic orchestration)
+  ↓
+RustBridge → Rust Core (all calculations, validation, advisory)
+  ↑ (returns results to; Rust Core does NOT read Room directly)
+ViewModel
+  ↓
 StateFlow / collectAsState()
- ↓
-UI Recomposition
+  ↓
+UI (Compose Screens)
 ```
 
 AI Flow:
@@ -254,7 +254,7 @@ AiAssistantViewModel.parseSmartSentence()
  ↓
 GeminiParser.parseSentence()
  ├── Online: AiProvider.generateContent() → API → JSON parse
- └── Offline: MoneyDetector → PersianAmountParser → keyword inference
+ └── Offline: RustBridge.parseSentenceOfflineSync() → Rust NLP core (Kotlin parser retained as permanent fallback per ADR-001 exception list)
  ↓
 ParsedResult (type, amount, category, description, ...)
  ↓
@@ -304,15 +304,15 @@ api/
 Structure:
 
 ```text
+AdviceValidationPolicy.kt  # AI advice discard policy (fallback decision)
 AiProvider.kt              # Multi-provider AI client
 AiProviderConfig.kt        # Config management + EncryptedSharedPrefs
+BudgetAdviceGenerator.kt   # Budget advice generation (extracted from GeminiParser)
 BudgetAdvisor.kt           # AI + offline budget advice
 GeminiParser.kt            # Sentence parsing (online + offline)
-MoneyDetector.kt           # Money presence detection gate
-PersianAmountParser.kt     # Token-based amount extraction
 ```
 
-> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages.
+> **Note:** paths above refer to `app/src/main/java/io/github/mojri/hesabyar/...` packages. Money detection and Persian amount extraction run in the Rust core (`rust/hesabyar-core/src/parser/`), not in Kotlin.
 
 ---
 
