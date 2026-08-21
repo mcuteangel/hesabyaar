@@ -84,6 +84,22 @@ class HesabyarApp : Application() {
     @JvmStatic
     internal fun getRustInitializedOverrideForTesting(): Boolean? = rustInitializedOverride
 
+    /** Returns the raw memoized init flag, without the test override. */
+    @VisibleForTesting
+    @JvmStatic
+    internal fun getRustInitializedRawForTesting(): Boolean = rustInitialized
+
+    /**
+     * Test-only reset for the memoized init flag.
+     * Guarded by BuildConfig.DEBUG so production can never flip it.
+     */
+    @VisibleForTesting
+    @JvmStatic
+    internal fun setRustInitializedRawForTesting(value: Boolean) {
+      if (!BuildConfig.DEBUG) return
+      rustInitialized = value
+    }
+
     private fun runRustNativeInit() {
       System.loadLibrary("hesabyar_core")
       io.github.mojri.hesabyar.rust.HesabyarCore
@@ -99,33 +115,31 @@ class HesabyarApp : Application() {
     // mismatch while lazily initializing the native library; we degrade to the
     // Kotlin fallback instead of crashing the app.
     @Suppress("TooGenericExceptionCaught")
-    private fun initializeRustCore(): Boolean {
-      var initialized = false
+    private fun initializeRustCore(): Boolean =
       synchronized(initLock) {
-        if (!rustInitialized) {
-          initialized =
-            try {
-              rustNativeInitAction()
-              rustInitialized = true
-              Log.i(TAG, "Rust shared core initialized successfully (lazy)")
-              true
-            } catch (e: UnsatisfiedLinkError) {
-              Log.e(TAG, "Failed to load hesabyar_core native library", e)
-              false
-            } catch (e: InternalException) {
-              Log.e(TAG, "Failed to initialize Rust core", e)
-              false
-            } catch (e: SecurityException) {
-              Log.e(TAG, "Security manager denied Rust core initialization", e)
-              false
-            } catch (e: RuntimeException) {
-              Log.e(TAG, "Unexpected runtime failure initializing Rust core", e)
-              false
-            }
+        if (rustInitialized) {
+          true
+        } else {
+          try {
+            rustNativeInitAction()
+            rustInitialized = true
+            Log.i(TAG, "Rust shared core initialized successfully (lazy)")
+            true
+          } catch (e: UnsatisfiedLinkError) {
+            Log.e(TAG, "Failed to load hesabyar_core native library", e)
+            false
+          } catch (e: InternalException) {
+            Log.e(TAG, "Failed to initialize Rust core", e)
+            false
+          } catch (e: SecurityException) {
+            Log.e(TAG, "Security manager denied Rust core initialization", e)
+            false
+          } catch (e: RuntimeException) {
+            Log.e(TAG, "Unexpected runtime failure initializing Rust core", e)
+            false
+          }
         }
       }
-      return initialized
-    }
   }
 
   override fun onCreate() {

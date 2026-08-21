@@ -10,22 +10,26 @@ import org.junit.Test
  * Tests for [HesabyarApp.ensureRustInitialized] exception handling.
  *
  * The function memoizes a successful real init in the private `rustInitialized`
- * flag, so each test resets that flag (and the test-only override) before
+ * flag, so each test resets that flag and the test-only override before
  * running to stay deterministic regardless of other tests in the same JVM.
  */
 class HesabyarAppInitTest {
   private var previousAction: (() -> Unit)? = null
+  private var previousRustInitialized = false
 
   @Before
   fun setUp() {
     previousAction = HesabyarApp.rustNativeInitAction
+    previousRustInitialized = HesabyarApp.getRustInitializedRawForTesting()
     HesabyarApp.setRustInitializedForTesting(null)
+    HesabyarApp.setRustInitializedRawForTesting(false)
   }
 
   @After
   fun tearDown() {
     previousAction?.let { HesabyarApp.rustNativeInitAction = it }
     HesabyarApp.setRustInitializedForTesting(null)
+    HesabyarApp.setRustInitializedRawForTesting(previousRustInitialized)
   }
 
   @Test
