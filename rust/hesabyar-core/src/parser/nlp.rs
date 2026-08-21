@@ -873,10 +873,13 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
 /// Detect a PM marker near the `ساعت <hour>` phrase.
 ///
 /// The marker must sit within two words before `ساعت` or three words after
-/// the hour digits. A whole-sentence search misfires when the same word
-/// appears later as unrelated description text. Example:
+/// the complete time expression. A whole-sentence search misfires when the
+/// same word appears later as unrelated description text. Example:
 /// "ساعت 6 بلیط مترو خریدم، شب هم پیتزا گرفتم" must stay 6 o'clock.
-/// Three tokens after the digits cover the spaced spelling "بعد از ظهر".
+/// Three tokens after the time cover the spaced spelling "بعد از ظهر".
+///
+/// A leading minute phrase ("و <digits> [دقیقه]" or "و نیم") is skipped
+/// first. A marker that follows the minutes then stays inside the window.
 ///
 /// Markers match whole words only. A word that merely contains a marker as
 /// a substring does not shift the hour. Example: "دیشب" ("دی" + "شب") is a
@@ -885,26 +888,54 @@ fn is_pm_marker_near_time(sentence: &str, saat_start: usize, digits_end: usize) 
     const PM_MARKER_WORDS_BEFORE: usize = 2;
     const PM_MARKER_WORDS_AFTER: usize = 3;
     const PM_MARKER_WORDS: [&str; 3] = ["شب", "عصر", "بعدازظهر"];
-    const TOKEN_PUNCTUATION: &[char] = &['،', '؛', '؟', '!', '.', ',', ':', ';'];
-    let mut near_words = sentence[..saat_start]
+    const SPACED_PM_MARKER: [&str; 3] = ["بعد", "از", "ظهر"];
+    const MINUTE_CONJUNCTION: &str = "و";
+    const MINUTE_HALF_WORD: &str = "نیم";
+    const MINUTE_UNIT_WORD: &str = "دقیقه";
+    const TOKEN_PUNCTUATION: &[char] = &[
+        '،', '؛', '؟', '!', '.', ',', ':', ';', '«', '»', '“', '”', '"', '\'', '(', ')', '[', ']',
+        '{', '}',
+    ];
+    fn trim_token(token: &str) -> &str {
+        token.trim_matches(TOKEN_PUNCTUATION)
+    }
+    let before_words = sentence[..saat_start]
         .split_whitespace()
         .rev()
         .take(PM_MARKER_WORDS_BEFORE)
-        .chain(
-            sentence[digits_end..]
-                .split_whitespace()
-                .take(PM_MARKER_WORDS_AFTER),
-        )
-        .map(|token| token.trim_matches(TOKEN_PUNCTUATION));
-    if near_words.any(|word| PM_MARKER_WORDS.contains(&word)) {
+        .map(trim_token);
+    let mut after_tokens: Vec<&str> = sentence[digits_end..]
+        .split_whitespace()
+        .take(PM_MARKER_WORDS_AFTER * 2)
+        .collect();
+    if after_tokens.first().copied().map(trim_token) == Some(MINUTE_CONJUNCTION) {
+        after_tokens.remove(0);
+        let minute_value = after_tokens.first().copied().map(trim_token);
+        let is_minute_value = minute_value.is_some_and(|word| {
+            word == MINUTE_HALF_WORD
+                || word
+                    .chars()
+                    .all(|c| c.is_ascii_digit() || ('\u{06F0}'..='\u{06F9}').contains(&c))
+        });
+        if is_minute_value {
+            after_tokens.remove(0);
+            if after_tokens.first().copied().map(trim_token) == Some(MINUTE_UNIT_WORD) {
+                after_tokens.remove(0);
+            }
+        }
+    }
+    let after_words: Vec<&str> = after_tokens
+        .into_iter()
+        .take(PM_MARKER_WORDS_AFTER)
+        .map(trim_token)
+        .collect();
+    if before_words
+        .chain(after_words.iter().copied())
+        .any(|word| PM_MARKER_WORDS.contains(&word))
+    {
         return true;
     }
-    sentence[digits_end..]
-        .split_whitespace()
-        .take(PM_MARKER_WORDS_AFTER)
-        .collect::<Vec<_>>()
-        .join(" ")
-        .contains("بعد از ظهر")
+    after_words == SPACED_PM_MARKER
 }
 
 /// Extract person name from Persian sentence.
@@ -2237,6 +2268,44 @@ mod tests {
     fn test_time_asr_marker_directly_after_digits() {
         let (hour, minute) = extract_time("ساعت ۳ عصر");
         assert_eq!(hour, Some(15));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_pm_marker_after_minute_phrase() {
+        // The marker follows the full "hour + minutes" expression.
+        let (hour, minute) = extract_time("ساعت 9 و نیم شب رسید");
+        assert_eq!(hour, Some(21));
+        assert_eq!(minute, Some(30));
+    }
+
+    #[test]
+    fn test_time_spaced_pm_marker_after_minute_phrase() {
+        let (hour, minute) = extract_time("ساعت 5 و نیم بعد از ظهر رسید");
+        assert_eq!(hour, Some(17));
+        assert_eq!(minute, Some(30));
+    }
+
+    #[test]
+    fn test_time_pm_marker_after_numeric_minutes() {
+        let (hour, minute) = extract_time("ساعت 2 و 45 دقیقه عصر رسید");
+        assert_eq!(hour, Some(14));
+        assert_eq!(minute, Some(45));
+    }
+
+    #[test]
+    fn test_time_quoted_pm_marker_still_applies() {
+        let (hour, minute) = extract_time("ساعت 9 «شب» رسید");
+        assert_eq!(hour, Some(21));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_spaced_marker_requires_exact_words() {
+        // The spaced marker matches the exact three words only. A longer
+        // word that starts with one of them must not trigger the shift.
+        let (hour, minute) = extract_time("ساعت 4 بعد از روزنامه خواندن");
+        assert_eq!(hour, Some(4));
         assert_eq!(minute, None);
     }
 
