@@ -294,13 +294,13 @@ pub fn calculate_financial_health_score(
         .iter()
         .filter(|t| t.tx_type == TransactionType::Income)
         .map(|t| t.amount)
-        .sum();
+        .fold(0, |total, amount| total.saturating_add(amount));
     let total_expense: i64 = transactions
         .iter()
         .filter(|t| t.tx_type == TransactionType::Expense)
         .map(|t| t.amount)
-        .sum();
-    let balance = total_income - total_expense;
+        .fold(0, |total, amount| total.saturating_add(amount));
+    let balance = total_income.saturating_sub(total_expense);
 
     let mut score: i32 = 50;
 
