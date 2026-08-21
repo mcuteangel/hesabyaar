@@ -239,10 +239,7 @@ mod tests {
                 name: "Test".to_string(),
                 headers: vec!["Item".to_string(), "Total".to_string()],
                 rows: vec![vec![make_cell("Food"), make_cell("5000")]],
-                summary_row: Some(vec![
-                    make_bold_cell("Total:"),
-                    make_bold_cell("5000"),
-                ]),
+                summary_row: Some(vec![make_bold_cell("Total:"), make_bold_cell("5000")]),
             }],
         };
         let bytes = generate_excel(&wb).unwrap();

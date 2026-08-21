@@ -1,3 +1,8 @@
+// Unit tests assert with unwrap/expect/panic. These are loud by design in
+// test code, so the restriction lints stay off for the test harness only.
+// Production code keeps them on (see Cargo.toml `[workspace.lints]`).
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
+
 pub mod advisory;
 pub mod ai_validation;
 pub mod analytics;
@@ -95,7 +100,8 @@ pub fn infer_expense_category(sentence: &str) -> CategoryGuess {
 /// Returns 0 on error (no panic).
 #[uniffi::export]
 pub fn gregorian_to_jalali(timestamp_ms: i64) -> i64 {
-    crate::ffi::catch_unwind_safe(|| calendar::gregorian_to_jalali_packed(timestamp_ms)).unwrap_or(0)
+    crate::ffi::catch_unwind_safe(|| calendar::gregorian_to_jalali_packed(timestamp_ms))
+        .unwrap_or(0)
 }
 
 /// Convert Jalali date to Gregorian timestamp (ms).
@@ -149,7 +155,8 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
         }
 
         // Validate transactions
-        let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
+        let category_ids: std::collections::HashSet<_> =
+            payload.categories.iter().map(|c| c.id).collect();
         for tx in &payload.transactions {
             if tx.amount <= 0 {
                 return Err(HesabyarError::BackupValidation {
@@ -168,7 +175,10 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             }
             if !payload.categories.is_empty() && !category_ids.contains(&tx.category_id) {
                 return Err(HesabyarError::BackupValidation {
-                    detail: format!("Transaction {} references non-existent category {}", tx.id, tx.category_id),
+                    detail: format!(
+                        "Transaction {} references non-existent category {}",
+                        tx.id, tx.category_id
+                    ),
                 });
             }
         }

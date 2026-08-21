@@ -1,21 +1,18 @@
-use crate::models::{BankLoan, Category, CurrencyUnit, Installment, Loan, Transaction, TransactionType};
 use crate::currency::format_currency;
+use crate::models::{
+    BankLoan, Category, CurrencyUnit, Installment, Loan, Transaction, TransactionType,
+};
 
 /// Get offline budget advice based on local rules.
-pub fn get_offline_budget_advice(
-    transactions: &[Transaction],
-    categories: &[Category],
-) -> String {
-    let total_income: i64 = transactions
-        .iter()
-        .filter(|t| t.tx_type == TransactionType::Income)
-        .map(|t| t.amount)
-        .sum();
-    let total_expense: i64 = transactions
-        .iter()
-        .filter(|t| t.tx_type == TransactionType::Expense)
-        .map(|t| t.amount)
-        .sum();
+pub fn get_offline_budget_advice(transactions: &[Transaction], categories: &[Category]) -> String {
+    let (total_income, total_expense) =
+        transactions
+            .iter()
+            .fold((0i64, 0i64), |(income, expense), t| match t.tx_type {
+                TransactionType::Income => (income + t.amount, expense),
+                TransactionType::Expense => (income, expense + t.amount),
+                _ => (income, expense),
+            });
 
     let category_totals: std::collections::HashMap<i64, i64> = transactions
         .iter()
@@ -104,22 +101,19 @@ pub fn get_offline_forecast(
         .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
         .map(|l| l.remaining_amount / 12)
         .fold(0, |total, amount| total.saturating_add(amount));
-    let total_obligations =
-        upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
+    let total_obligations = upcoming_sum.saturating_add(unsettled_creditor_loan_monthly);
 
-    // Active (unsettled) bank-loan debt, summed as total_repayable_amount.
-    // Mirrors Kotlin buildLocalOfflineForecast: bank loans guard the "no data"
-    // message and are rendered as an active-debt line.
-    let active_bank_loans: Vec<&BankLoan> = bank_loans
+    // Active (unsettled) bank-loan count and debt, summed as
+    // total_repayable_amount. Mirrors Kotlin buildLocalOfflineForecast: bank
+    // loans guard the "no data" message and are rendered as an active-debt line.
+    let (active_bank_loan_count, bank_loan_debt) = bank_loans
         .iter()
         .filter(|b| !b.is_settled)
-        .collect();
-    let bank_loan_debt: i64 = active_bank_loans
-        .iter()
-        .map(|b| b.total_repayable_amount)
-        .fold(0, |total, debt| total.saturating_add(debt));
+        .fold((0usize, 0i64), |(count, debt), b| {
+            (count + 1, debt.saturating_add(b.total_repayable_amount))
+        });
 
-    if transactions.is_empty() && total_obligations == 0 && active_bank_loans.is_empty() {
+    if transactions.is_empty() && total_obligations == 0 && active_bank_loan_count == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
@@ -165,17 +159,19 @@ pub fn get_offline_forecast(
     };
     // Use saturating_sub to prevent overflow/wrap under extreme values.
     // All inputs are non-negative i64; underflow would silently wrap in release mode.
-    let est_balance = avg_income.saturating_sub(avg_expense).saturating_sub(total_obligations);
+    let est_balance = avg_income
+        .saturating_sub(avg_expense)
+        .saturating_sub(total_obligations);
 
     let mut sb = String::new();
     sb.push_str("### \u{1F52E} \u{067E}\u{06CC}\u{0634}\u{0628}\u{06CC}\u{0646}\u{06CC} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F} \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{0645}\u{0627}\u{0647} \u{0622}\u{06CC}\u{0646}\u{062F}\u{0647}\n\n");
     sb.push_str(&format!("- \u{1F4B5} **\u{062F}\u{0631}\u{0622}\u{0645}\u{062F} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_income, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4B8} **\u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{062A}\u{062E}\u{0645}\u{06CC}\u{0646}\u{06CC}:** {}\n", format_currency(avg_expense, CurrencyUnit::Toman)));
     sb.push_str(&format!("- \u{1F4C5} **\u{062A}\u{0639}\u{0647}\u{062F} \u{0627}\u{0642}\u{0633}\u{0627}\u{0637}:** {}\n", format_currency(total_obligations, CurrencyUnit::Toman)));
-    if !active_bank_loans.is_empty() {
+    if active_bank_loan_count > 0 {
         sb.push_str(&format!(
             "- **\u{0628}\u{062F}\u{0647}\u{06CC}\u{0647}\u{0627}\u{06CC} \u{0641}\u{0639}\u{0627}\u{0644}:** {} \u{0645}\u{0648}\u{0631}\u{062F} \u{0628}\u{0647} \u{0645}\u{0628}\u{0644}\u{063A} {}\n",
-            active_bank_loans.len(),
+            active_bank_loan_count,
             format_currency(bank_loan_debt, CurrencyUnit::Toman)
         ));
     }
@@ -214,7 +210,10 @@ fn monthly_income_baseline(transactions: &[Transaction], now_ms: i64) -> i64 {
     let oldest = recent.iter().map(|t| t.date).min().unwrap_or(now_ms);
     let days = (now_ms.saturating_sub(oldest) + ms_per_day - 1) / ms_per_day;
     // Fractional-month baseline: avg = sum * 30 / days (i128 to avoid 2^53 loss).
-    let sum: i64 = recent.iter().map(|t| t.amount).fold(0, |acc, a| acc.saturating_add(a));
+    let sum: i64 = recent
+        .iter()
+        .map(|t| t.amount)
+        .fold(0, |acc, a| acc.saturating_add(a));
     ((sum as i128 * 30) / (days.max(30) as i128)) as i64
 }
 
@@ -266,9 +265,9 @@ pub fn predict_time_to_goal(current_savings: i64, monthly_savings: i64, goal_amo
         // into a negative value).
         let q = remaining / monthly_savings;
         let months = if remaining % monthly_savings == 0 {
-          q
+            q
         } else {
-          q.saturating_add(1)
+            q.saturating_add(1)
         };
         (months.clamp(0, i32::MAX as i64)) as i32
     }
@@ -291,9 +290,17 @@ pub fn calculate_financial_health_score(
         return 0;
     }
 
-    let total_income: i64 = transactions.iter().filter(|t| t.tx_type == TransactionType::Income).map(|t| t.amount).sum();
-    let total_expense: i64 = transactions.iter().filter(|t| t.tx_type == TransactionType::Expense).map(|t| t.amount).sum();
-    let balance = total_income - total_expense;
+    let total_income: i64 = transactions
+        .iter()
+        .filter(|t| t.tx_type == TransactionType::Income)
+        .map(|t| t.amount)
+        .fold(0, |total, amount| total.saturating_add(amount));
+    let total_expense: i64 = transactions
+        .iter()
+        .filter(|t| t.tx_type == TransactionType::Expense)
+        .map(|t| t.amount)
+        .fold(0, |total, amount| total.saturating_add(amount));
+    let balance = total_income.saturating_sub(total_expense);
 
     let mut score: i32 = 50;
 
@@ -318,7 +325,8 @@ pub fn calculate_financial_health_score(
     // all-time accumulated income does not understate the ratio relative to
     // the monthly debt/installment obligations.
     let monthly_income = monthly_income_baseline(transactions, now_ms);
-    let debt_ratio = calculate_debt_to_income_ratio(loans, installments, bank_loans, monthly_income);
+    let debt_ratio =
+        calculate_debt_to_income_ratio(loans, installments, bank_loans, monthly_income);
     score += if debt_ratio <= 0.1 {
         15
     } else if debt_ratio <= 0.2 {
@@ -365,7 +373,10 @@ mod tests {
         // instead of wrapping into a negative month count (parity with the
         // Kotlin fallback's coerceAtMost(Int.MAX_VALUE)).
         assert_eq!(predict_time_to_goal(0, 1, i64::MAX), i32::MAX);
-        assert_eq!(predict_time_to_goal(0, 1, 3_000_000_000_000_000_000), i32::MAX);
+        assert_eq!(
+            predict_time_to_goal(0, 1, 3_000_000_000_000_000_000),
+            i32::MAX
+        );
         // Large but finite goals also clamp rather than overflow.
         assert_eq!(predict_time_to_goal(0, 1, i64::MAX - 5), i32::MAX);
     }
@@ -377,7 +388,10 @@ mod tests {
         // i64::MAX before the division, dropping the carry and undercounting the
         // duration by one. The quotient/remainder form must stay exact.
         // ceil((i64::MAX - 100) / 5_000_000_000) == 1844674408.
-        assert_eq!(predict_time_to_goal(0, 5_000_000_000, i64::MAX - 100), 1844674408);
+        assert_eq!(
+            predict_time_to_goal(0, 5_000_000_000, i64::MAX - 100),
+            1844674408
+        );
     }
 
     #[test]
@@ -433,9 +447,7 @@ mod tests {
         let now: i64 = 1_700_000_000_000;
         let day: i64 = 24 * 60 * 60 * 1000;
         let amount: i64 = 9_007_199_254_740_999;
-        let txs = vec![
-            sample_tx(1, TransactionType::Income, amount, now - 5 * day),
-        ];
+        let txs = vec![sample_tx(1, TransactionType::Income, amount, now - 5 * day)];
         let monthly = monthly_income_baseline(&txs, now);
         // 5 days → months = 1 → avg = sum / 1 = amount (exact, no f64 rounding).
         assert_eq!(
@@ -454,9 +466,12 @@ mod tests {
         // correct value: 1_000_000 * 30 / 45 = 666,666.
         let now: i64 = 1_700_000_000_000;
         let day: i64 = 24 * 60 * 60 * 1000;
-        let txs = vec![
-            sample_tx(1, TransactionType::Income, 1_000_000, now - 45 * day),
-        ];
+        let txs = vec![sample_tx(
+            1,
+            TransactionType::Income,
+            1_000_000,
+            now - 45 * day,
+        )];
         let monthly = monthly_income_baseline(&txs, now);
         assert_eq!(
             monthly, 666_666,
@@ -513,7 +528,8 @@ mod tests {
             sample_tx(2, TransactionType::Expense, 1_000_000, 0),
         ];
         // category_id defaults to 1 in sample_tx
-        let cats = vec![Category {
+        let cats =
+            vec![Category {
             id: 1,
             name: "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}".into(), // "Groceries"
             key: "groceries".into(),
@@ -523,7 +539,9 @@ mod tests {
             is_default: false,
         }];
         let result = get_offline_budget_advice(&txs, &cats);
-        assert!(result.contains("\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}"));
+        assert!(result.contains(
+            "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}"
+        ));
     }
 
     #[test]
@@ -533,7 +551,9 @@ mod tests {
         let txs = vec![sample_tx(1, TransactionType::Expense, 10_000_000, 0)];
         let cats = vec![Category {
             id: 1,
-            name: "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}".into(),
+            name:
+                "\u{0645}\u{062A}\u{0631}\u{0648}\u{06CC}\u{0628}\u{0632}\u{0627}\u{0631}\u{06CC}"
+                    .into(),
             key: "groceries".into(),
             icon: "".into(),
             color: 0,
@@ -557,8 +577,18 @@ mod tests {
     fn test_forecast_negative_balance_warns() {
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 1_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 5_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                1_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                5_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let result = get_offline_forecast(&txs, &[], &[], &[]);
         // est_balance negative → warning
@@ -569,8 +599,18 @@ mod tests {
     fn test_forecast_positive_balance_shows_surplus() {
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                10_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                2_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let result = get_offline_forecast(&txs, &[], &[], &[]);
         // est_balance positive → surplus
@@ -587,9 +627,12 @@ mod tests {
         // Rial → 66,666 Toman.
         let now = now_ms();
         let day = 24 * 60 * 60 * 1000_i64;
-        let txs = vec![
-            sample_tx(1, TransactionType::Income, 1_000_000, now - 45 * day),
-        ];
+        let txs = vec![sample_tx(
+            1,
+            TransactionType::Income,
+            1_000_000,
+            now - 45 * day,
+        )];
         let result = get_offline_forecast(&txs, &[], &[], &[]);
         // avg_income = 666,666 Rial → 66,666 Toman in the "درآمد تخمینی" line.
         assert!(
@@ -607,8 +650,18 @@ mod tests {
     fn test_forecast_with_installments_subtracts_upcoming() {
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                10_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                2_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let installments = vec![Installment {
             id: 1,
@@ -618,7 +671,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
@@ -630,8 +683,18 @@ mod tests {
         // 10,000,000 Rial income/installment must render as "1,000,000 تومان".
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 3_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                10_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                3_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let installments = vec![Installment {
             id: 1,
@@ -641,7 +704,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
@@ -659,7 +722,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }];
         let result = get_offline_forecast(&[], &[], &installments, &[]);
         // Has unpaid installments → not empty, shows forecast
@@ -670,8 +733,18 @@ mod tests {
     fn test_forecast_excludes_overdue_installments() {
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                10_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                2_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let installments = vec![Installment {
             id: 1,
@@ -681,19 +754,30 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Overdue (past-due) unpaid installment is outside the window → must NOT contribute.
-        assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
+        assert!(!result
+            .contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
     }
 
     #[test]
     fn test_forecast_excludes_installments_beyond_30_days() {
         let now = now_ms();
         let txs = vec![
-            sample_tx(1, TransactionType::Income, 10_000_000, now - 5 * 24 * 60 * 60 * 1000),
-            sample_tx(2, TransactionType::Expense, 2_000_000, now - 5 * 24 * 60 * 60 * 1000),
+            sample_tx(
+                1,
+                TransactionType::Income,
+                10_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
+            sample_tx(
+                2,
+                TransactionType::Expense,
+                2_000_000,
+                now - 5 * 24 * 60 * 60 * 1000,
+            ),
         ];
         let installments = vec![Installment {
             id: 1,
@@ -703,11 +787,12 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Due 60 days out is outside the 30-day window → must NOT contribute to obligations.
-        assert!(!result.contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
+        assert!(!result
+            .contains("\u{06F5}\u{066C}\u{06F0}\u{06F0}\u{06F0}\u{066C}\u{06F0}\u{06F0}\u{06F0}"));
     }
 
     #[test]
@@ -802,9 +887,12 @@ mod tests {
         // would underflow (panic in debug, wrap in release). saturating_sub clamps
         // to i64::MIN, and saturating_abs() on i64::MIN yields i64::MAX without panic.
         let now = now_ms();
-        let txs = vec![
-            sample_tx(1, TransactionType::Expense, i64::MAX, now - 5 * 24 * 60 * 60 * 1000),
-        ];
+        let txs = vec![sample_tx(
+            1,
+            TransactionType::Expense,
+            i64::MAX,
+            now - 5 * 24 * 60 * 60 * 1000,
+        )];
         let loans = vec![Loan {
             id: 1,
             person_name: "".into(),
@@ -824,8 +912,10 @@ mod tests {
             "expected deficit branch, got: {result}");
         // est_balance saturates to i64::MIN; saturating_abs() yields i64::MAX,
         // which format_currency renders as 922,337,203,685,477,580 تومان.
-        assert!(result.contains("922,337,203,685,477,580"),
-            "expected saturated deficit value, got: {result}");
+        assert!(
+            result.contains("922,337,203,685,477,580"),
+            "expected saturated deficit value, got: {result}"
+        );
     }
 
     #[test]
@@ -837,9 +927,7 @@ mod tests {
         let now = now_ms();
         let day = 24 * 60 * 60 * 1000_i64;
         let amount: i64 = 9_007_199_254_740_999;
-        let txs = vec![
-            sample_tx(1, TransactionType::Income, amount, now - 5 * day),
-        ];
+        let txs = vec![sample_tx(1, TransactionType::Income, amount, now - 5 * day)];
         let result = get_offline_forecast(&txs, &[], &[], &[]);
         // Exact: 9_007_199_254_740_999 / 10 = 900,719,925,474,099 (floor).
         assert!(
@@ -869,7 +957,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         };
 
         // --- Case A: recent income exists → low debt ratio → bonus ---
@@ -880,20 +968,20 @@ mod tests {
         let score_recent = calculate_financial_health_score(
             &txs_recent,
             &[],
-            &[installment.clone()],
+            std::slice::from_ref(&installment),
             &[],
             &[],
         );
 
         // --- Case B: only ancient income → monthly_income = 0 → debt ratio = 1.0 → penalty ---
-        let txs_ancient = vec![sample_tx(1, TransactionType::Income, 100_000_000, now - 330 * day)];
-        let score_ancient = calculate_financial_health_score(
-            &txs_ancient,
-            &[],
-            &[installment],
-            &[],
-            &[],
-        );
+        let txs_ancient = vec![sample_tx(
+            1,
+            TransactionType::Income,
+            100_000_000,
+            now - 330 * day,
+        )];
+        let score_ancient =
+            calculate_financial_health_score(&txs_ancient, &[], &[installment], &[], &[]);
 
         // With recent income the debt ratio is low (+15 bonus); with no recent
         // income the ratio maxes out at 1.0 (−10 penalty).  The 25-point

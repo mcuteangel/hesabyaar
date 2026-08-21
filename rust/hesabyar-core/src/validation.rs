@@ -13,7 +13,10 @@ pub struct ValidationResult {
 
 impl Default for ValidationResult {
     fn default() -> Self {
-        Self { is_valid: true, errors: vec![] }
+        Self {
+            is_valid: true,
+            errors: vec![],
+        }
     }
 }
 
@@ -83,7 +86,9 @@ pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     if let Some(issue) = check_transfer_structure(tx) {
         let msg = match issue {
             TransferIssue::MissingDestination => "Transfer must have a destination_account_id",
-            TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+            TransferIssue::SameSourceAndDestination => {
+                "Transfer source and destination accounts must differ"
+            }
         };
         return Err(msg.into());
     }
@@ -154,12 +159,12 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
         return Err("ParsedResult category must not be empty".into());
     }
     if let Some(hour) = result.hour {
-        if hour < 0 || hour > 23 {
+        if !(0..=23).contains(&hour) {
             return Err(format!("ParsedResult hour must be 0-23, got {}", hour));
         }
     }
     if let Some(minute) = result.minute {
-        if minute < 0 || minute > 59 {
+        if !(0..=59).contains(&minute) {
             return Err(format!("ParsedResult minute must be 0-59, got {}", minute));
         }
     }
@@ -258,7 +263,9 @@ pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
         return Err("BankLoan total_repayable_amount must not be less than received_amount".into());
     }
     if bl.total_interest != expected_interest {
-        return Err("BankLoan total_interest must equal total_repayable_amount - received_amount".into());
+        return Err(
+            "BankLoan total_interest must equal total_repayable_amount - received_amount".into(),
+        );
     }
     Ok(())
 }
@@ -323,8 +330,7 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     let mut errors = Vec::new();
 
     // --- Account structural validation ---
-    let mut seen_ids: std::collections::HashSet<i64> =
-        std::collections::HashSet::new();
+    let mut seen_ids: std::collections::HashSet<i64> = std::collections::HashSet::new();
     for (i, acc) in payload.accounts.iter().enumerate() {
         if acc.name.trim().is_empty() {
             errors.push(format!("Account[{}] has empty name", i));
@@ -395,8 +401,10 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
                 "Transaction[{}] {}",
                 i,
                 match issue {
-                    TransferIssue::MissingDestination => "is a Transfer but has no destination_account_id",
-                    TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+                    TransferIssue::MissingDestination =>
+                        "is a Transfer but has no destination_account_id",
+                    TransferIssue::SameSourceAndDestination =>
+                        "Transfer source and destination accounts must differ",
                 }
             ));
         }
@@ -420,7 +428,8 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     // Only check positive IDs — zero is a legacy default tolerated by
     // validate_transaction, so treating it as missing would break old backups.
     if !payload.categories.is_empty() {
-        let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
+        let category_ids: std::collections::HashSet<_> =
+            payload.categories.iter().map(|c| c.id).collect();
         for (i, tx) in payload.transactions.iter().enumerate() {
             if tx.category_id > 0 && !category_ids.contains(&tx.category_id) {
                 errors.push(format!(
@@ -494,7 +503,7 @@ mod tests {
             is_paid: false,
             reminder_enabled: true,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }
     }
 
@@ -825,10 +834,10 @@ mod tests {
     #[test]
     fn test_batch_collects_all_errors() {
         let txs = vec![
-            make_tx(0, "bad1", 1),    // zero amount
-            make_tx(50000, "", 1),    // empty desc (tolerated)
-            make_tx(-1, "bad3", 1),   // negative amount
-            make_tx(50000, "ok", 1),  // valid
+            make_tx(0, "bad1", 1),   // zero amount
+            make_tx(50000, "", 1),   // empty desc (tolerated)
+            make_tx(-1, "bad3", 1),  // negative amount
+            make_tx(50000, "ok", 1), // valid
         ];
         let result = validate_transaction_batch(&txs);
         assert!(!result.is_valid);
@@ -897,7 +906,7 @@ mod tests {
             payment_histories: vec![make_payment_history(0, 1)],
             categories: vec![],
             accounts: vec![],
-    };
+        };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         // At least one error from each entity type
@@ -917,17 +926,14 @@ mod tests {
             version: 1,
             timestamp: 1710000000000,
             app_version: "1.0".to_string(),
-            transactions: vec![
-                make_tx(50000, "good", 1),
-                make_tx(0, "bad", 1),
-            ],
+            transactions: vec![make_tx(50000, "good", 1), make_tx(0, "bad", 1)],
             loans: vec![],
             installments: vec![],
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![],
-    };
+        };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
         assert_eq!(result.errors.len(), 1);
@@ -958,7 +964,11 @@ mod tests {
             accounts: vec![],
         };
         let result = validate_backup_payload(&payload);
-        assert!(result.is_valid, "Legacy category_id=0 should be tolerated, got: {:?}", result.errors);
+        assert!(
+            result.is_valid,
+            "Legacy category_id=0 should be tolerated, got: {:?}",
+            result.errors
+        );
     }
 
     fn make_bank_loan(monthly: i64, count: i32, received: i64) -> BankLoan {
@@ -1082,7 +1092,10 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-existent loan")));
     }
 
     #[test]
@@ -1103,7 +1116,10 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("non-existent loan")));
     }
 
     // =====================================================================
@@ -1141,10 +1157,7 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("empty name")));
+        assert!(result.errors.iter().any(|e| e.contains("empty name")));
     }
 
     #[test]
@@ -1233,10 +1246,7 @@ mod tests {
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("invalid type")));
+        assert!(result.errors.iter().any(|e| e.contains("invalid type")));
     }
 
     #[test]
@@ -1271,7 +1281,11 @@ mod tests {
             }],
         };
         let result = validate_backup_payload(&payload);
-        assert!(result.is_valid, "OTHER account type should be accepted, got: {:?}", result.errors);
+        assert!(
+            result.is_valid,
+            "OTHER account type should be accepted, got: {:?}",
+            result.errors
+        );
     }
 
     #[test]
@@ -1748,7 +1762,11 @@ mod tests {
             accounts: vec![], // old backup format
         };
         let result = validate_backup_payload(&payload);
-        assert!(result.is_valid, "Expected valid legacy payload, got errors: {:?}", result.errors);
+        assert!(
+            result.is_valid,
+            "Expected valid legacy payload, got errors: {:?}",
+            result.errors
+        );
     }
 
     #[test]

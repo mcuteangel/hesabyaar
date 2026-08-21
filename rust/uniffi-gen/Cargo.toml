@@ -7,3 +7,7 @@ edition = "2021"
 uniffi_bindgen = "0.28"
 camino = "1"
 anyhow = "1"
+
+[lints]
+workspace = true
+

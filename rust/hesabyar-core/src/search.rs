@@ -102,7 +102,11 @@ fn text_similarity(query: &str, target: &str) -> f32 {
 
     let matched_words = query_words
         .iter()
-        .filter(|qw| target_words.iter().any(|tw| tw.contains(*qw) || qw.contains(*tw)))
+        .filter(|qw| {
+            target_words
+                .iter()
+                .any(|tw| tw.contains(*qw) || qw.contains(*tw))
+        })
         .count();
 
     let word_score = matched_words as f32 / query_words.len() as f32;
@@ -133,10 +137,7 @@ fn text_similarity(query: &str, target: &str) -> f32 {
 /// All filters are optional — omit a filter by setting its value to 0/false.
 ///
 /// This function never panics. It returns an empty result on error.
-pub fn search_transactions(
-    transactions: &[Transaction],
-    query: &SearchQuery,
-) -> SearchResponse {
+pub fn search_transactions(transactions: &[Transaction], query: &SearchQuery) -> SearchResponse {
     let mut results: Vec<SearchResult> = transactions
         .iter()
         .filter_map(|tx| {
@@ -347,7 +348,11 @@ mod tests {
         let score = text_similarity("a b c d", "a x b y c");
         // word_score = 3/4 = 0.75, consecutive_bonus = (3/4)*0.1 = 0.075
         // total = 0.75*0.7 + 0.075 = 0.6
-        assert!(score > 0.5, "Should benefit from max_consecutive=3, got {}", score);
+        assert!(
+            score > 0.5,
+            "Should benefit from max_consecutive=3, got {}",
+            score
+        );
     }
 
     #[test]
@@ -534,7 +539,10 @@ mod tests {
         let result = search_transactions(&transactions, &q);
 
         assert_eq!(result.total_count, 1);
-        assert_eq!(result.results[0].transaction.person_name, Some("علی".to_string()));
+        assert_eq!(
+            result.results[0].transaction.person_name,
+            Some("علی".to_string())
+        );
     }
 
     #[test]
@@ -552,9 +560,7 @@ mod tests {
 
     #[test]
     fn test_no_matches() {
-        let transactions = vec![
-            tx(1, "خرید نان", 50_000, 0, 1, None),
-        ];
+        let transactions = vec![tx(1, "خرید نان", 50_000, 0, 1, None)];
 
         let q = query("مسکن");
         let result = search_transactions(&transactions, &q);

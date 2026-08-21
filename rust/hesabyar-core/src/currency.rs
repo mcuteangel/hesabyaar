@@ -13,7 +13,7 @@ pub fn format_number(value: i64) -> String {
     let mut result = String::new();
     let len = s.len();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
+        if i > 0 && (len - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(c);
@@ -253,6 +253,9 @@ mod tests {
     fn test_invariant_large_amount() {
         // 1 billion Toman == 10 billion Rial
         assert_eq!(to_rial(1_000_000_000, CurrencyUnit::Toman), 10_000_000_000);
-        assert_eq!(from_rial(10_000_000_000, CurrencyUnit::Toman), 1_000_000_000);
+        assert_eq!(
+            from_rial(10_000_000_000, CurrencyUnit::Toman),
+            1_000_000_000
+        );
     }
 }

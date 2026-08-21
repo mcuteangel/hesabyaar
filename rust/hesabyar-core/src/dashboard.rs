@@ -1,5 +1,5 @@
-﻿use crate::models::*;
-use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
+use crate::calendar::{get_jalali_days_in_month, gregorian_to_jalali};
+use crate::models::*;
 
 /// Compute dashboard data from transactions, loans, and installments.
 ///
@@ -15,6 +15,9 @@ use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
 /// monthly expenses) — not just from per-account summaries. This ensures
 /// current-state views (dashboard, BalanceCard) never leak archived data.
 /// Historical/report views should pass `true` to retain all transactions.
+// The parameter list mirrors the `#[uniffi::export]` wrapper in ffi/mod.rs.
+// Changing it would change the FFI surface, so the lint stays off here.
+#[allow(clippy::too_many_arguments)]
 pub fn compute_dashboard_data(
     transactions: &[Transaction],
     loans: &[Loan],
@@ -195,10 +198,10 @@ pub fn compute_dashboard_data(
     }
 
     let debt_to_income = crate::advisory::calculate_debt_to_income_ratio(
-        loans, 
-        &current_month_installments, 
+        loans,
+        &current_month_installments,
         bank_loans,
-        monthly_income
+        monthly_income,
     );
 
     // --- Installment summary ---
@@ -405,7 +408,13 @@ fn jalali_to_month_start_ms(jy: i32, jm: i32) -> i64 {
 mod tests {
     use super::*;
 
-    fn tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id: i64) -> Transaction {
+    fn tx(
+        id: i64,
+        tx_type: TransactionType,
+        amount: i64,
+        date_ms: i64,
+        cat_id: i64,
+    ) -> Transaction {
         Transaction {
             id,
             tx_type,
@@ -481,7 +490,7 @@ mod tests {
             is_paid: paid,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }
     }
 
@@ -593,7 +602,7 @@ mod tests {
             loan(4, "DEBTOR", 500_000, 100_000, true), // settled — excluded
         ];
         let result = compute_dashboard_data(&[], &loans, &[], &[], &[], None, true, 0);
-        assert_eq!(result.debtors_total, 2_500_000);  // 500k + 2M
+        assert_eq!(result.debtors_total, 2_500_000); // 500k + 2M
         assert_eq!(result.creditors_total, 1_000_000);
     }
 
@@ -618,7 +627,8 @@ mod tests {
         let txs = vec![tx(1, TransactionType::Income, 1_000_000, now_ms, 1)];
         let loans = vec![loan(1, "CREDITOR", 1_200_000, 600_000, false)];
         let installments = vec![installment(1, 100_000, now_ms, false)];
-        let result = compute_dashboard_data(&txs, &loans, &installments, &[], &[], None, true, now_ms);
+        let result =
+            compute_dashboard_data(&txs, &loans, &installments, &[], &[], None, true, now_ms);
         // monthly_debt_payments = 100k (installment) + 600k/12 ≈ 50k = 150k
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
@@ -849,22 +859,43 @@ mod tests {
         ];
         let txs = vec![
             Transaction {
-                id: 1, tx_type: TransactionType::Income, category_id: 1,
-                amount: 1_000_000, description: String::new(), person_name: None,
-                date: now_ms, due_date: None, installment_id: None,
-                account_id: 1, destination_account_id: None,
+                id: 1,
+                tx_type: TransactionType::Income,
+                category_id: 1,
+                amount: 1_000_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
             },
             Transaction {
-                id: 2, tx_type: TransactionType::Expense, category_id: 2,
-                amount: 300_000, description: String::new(), person_name: None,
-                date: now_ms, due_date: None, installment_id: None,
-                account_id: 1, destination_account_id: None,
+                id: 2,
+                tx_type: TransactionType::Expense,
+                category_id: 2,
+                amount: 300_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
             },
             Transaction {
-                id: 3, tx_type: TransactionType::Transfer, category_id: 1,
-                amount: 500_000, description: String::new(), person_name: None,
-                date: now_ms, due_date: None, installment_id: None,
-                account_id: 1, destination_account_id: Some(2), // to archived
+                id: 3,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 500_000,
+                description: String::new(),
+                person_name: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2), // to archived
             },
         ];
 
@@ -877,7 +908,10 @@ mod tests {
         assert_eq!(result.accounts[0].account_id, 1);
         assert_eq!(result.accounts[0].balance, 700_000);
         // total_net_worth must equal sum of account balances
-        assert_eq!(result.total_net_worth, result.accounts.iter().map(|a| a.balance).sum::<i64>());
+        assert_eq!(
+            result.total_net_worth,
+            result.accounts.iter().map(|a| a.balance).sum::<i64>()
+        );
     }
 
     // =====================================================================
@@ -1121,7 +1155,10 @@ mod tests {
     fn test_selected_active_account_include_archived_false_includes_initial_balance() {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
-            Account { initial_balance: 200_000, ..account(1, "Active", "BANK") },
+            Account {
+                initial_balance: 200_000,
+                ..account(1, "Active", "BANK")
+            },
             archived_account(2, "Archived", "CASH_WALLET", 500_000),
         ];
 
@@ -1238,7 +1275,11 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         // Compute a timestamp at the start of the previous Jalali month
         let jd = gregorian_to_jalali(now_ms).unwrap();
-        let (prev_jy, prev_jm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+        let (prev_jy, prev_jm) = if jd.month == 1 {
+            (jd.year - 1, 12)
+        } else {
+            (jd.year, jd.month - 1)
+        };
         let prev_month_ts = jalali_to_month_start_ms(prev_jy, prev_jm);
 
         let accounts = vec![
@@ -1444,7 +1485,6 @@ mod tests {
         month_start + (next_month_start - month_start) / 2
     }
 
-
     // =====================================================================
     // monthly_delta tests — cross-path consistency
     // =====================================================================
@@ -1455,7 +1495,11 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let prev_ms = {
             let jd = gregorian_to_jalali(now_ms).unwrap();
-            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            let (pjy, pjm) = if jd.month == 1 {
+                (jd.year - 1, 12)
+            } else {
+                (jd.year, jd.month - 1)
+            };
             jalali_month_mid_ms(pjy, pjm)
         };
 
@@ -1501,7 +1545,11 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let prev_ms = {
             let jd = gregorian_to_jalali(now_ms).unwrap();
-            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            let (pjy, pjm) = if jd.month == 1 {
+                (jd.year - 1, 12)
+            } else {
+                (jd.year, jd.month - 1)
+            };
             jalali_month_mid_ms(pjy, pjm)
         };
 
@@ -1525,7 +1573,11 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let prev_ms = {
             let jd = gregorian_to_jalali(now_ms).unwrap();
-            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            let (pjy, pjm) = if jd.month == 1 {
+                (jd.year - 1, 12)
+            } else {
+                (jd.year, jd.month - 1)
+            };
             jalali_month_mid_ms(pjy, pjm)
         };
 
@@ -1551,7 +1603,11 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let prev_ms = {
             let jd = gregorian_to_jalali(now_ms).unwrap();
-            let (pjy, pjm) = if jd.month == 1 { (jd.year - 1, 12) } else { (jd.year, jd.month - 1) };
+            let (pjy, pjm) = if jd.month == 1 {
+                (jd.year - 1, 12)
+            } else {
+                (jd.year, jd.month - 1)
+            };
             jalali_month_mid_ms(pjy, pjm)
         };
 

@@ -1,12 +1,6 @@
-﻿use crate::models::*;
-use crate::calendar::{gregorian_to_jalali, get_jalali_days_in_month};
+use crate::calendar::{get_jalali_days_in_month, gregorian_to_jalali};
+use crate::models::*;
 use std::collections::{HashMap, HashSet};
-
-/// Compute analytics data from transactions, loans, installments, and categories.
-///
-/// - Monthly aggregates use the **Jalali calendar** (not Gregorian).
-/// - Category breakdown includes percentage-based burn rates.
-/// - Debt/credit summaries include progress toward settlement.
 
 /// Build per-bank-loan summary rows, computing the remaining outstanding debt.
 ///
@@ -26,11 +20,23 @@ pub(crate) fn build_bank_loan_summaries(
             total_interest: b.total_interest,
             number_of_installments: b.number_of_installments,
             is_settled: b.is_settled,
-            remaining_debt: if b.is_settled { 0 } else { b.total_repayable_amount },
+            remaining_debt: if b.is_settled {
+                0
+            } else {
+                b.total_repayable_amount
+            },
         })
         .collect()
 }
 
+/// Compute analytics data from transactions, loans, installments, and categories.
+///
+/// - Monthly aggregates use the **Jalali calendar** (not Gregorian).
+/// - Category breakdown includes percentage-based burn rates.
+/// - Debt/credit summaries include progress toward settlement.
+// The parameter list mirrors the `#[uniffi::export]` wrapper in ffi/mod.rs.
+// Changing it would change the FFI surface, so the lint stays off here.
+#[allow(clippy::too_many_arguments)]
 pub fn compute_analytics(
     transactions: &[Transaction],
     loans: &[Loan],
@@ -158,7 +164,10 @@ pub fn compute_analytics(
         .sum();
 
     let mut cat_totals: HashMap<i64, i64> = HashMap::new();
-    for tx in filtered_txs.iter().filter(|t| t.tx_type == TransactionType::Expense) {
+    for tx in filtered_txs
+        .iter()
+        .filter(|t| t.tx_type == TransactionType::Expense)
+    {
         *cat_totals.entry(tx.category_id).or_insert(0) += tx.amount;
     }
 
@@ -180,7 +189,7 @@ pub fn compute_analytics(
         })
         .collect();
     // Sort by total descending for consistent UI ordering
-    category_breakdown.sort_by(|a, b| b.total.cmp(&a.total));
+    category_breakdown.sort_by_key(|c| std::cmp::Reverse(c.total));
 
     // --- Debt/credit summaries ---
     let debtors: Vec<DebtSummary> = loans
@@ -349,9 +358,10 @@ fn compute_account_analytics(
                 .sum();
 
             let mut cat_totals: HashMap<i64, i64> = HashMap::new();
-            for tx in account_txs.iter().filter(|t| {
-                t.tx_type == TransactionType::Expense && t.account_id == account.id
-            }) {
+            for tx in account_txs
+                .iter()
+                .filter(|t| t.tx_type == TransactionType::Expense && t.account_id == account.id)
+            {
                 *cat_totals.entry(tx.category_id).or_insert(0) += tx.amount;
             }
 
@@ -372,7 +382,7 @@ fn compute_account_analytics(
                     }
                 })
                 .collect();
-            category_breakdown.sort_by(|a, b| b.total.cmp(&a.total));
+            category_breakdown.sort_by_key(|c| std::cmp::Reverse(c.total));
 
             AccountAnalytics {
                 account_id: account.id,
@@ -388,7 +398,13 @@ fn compute_account_analytics(
 mod tests {
     use super::*;
 
-    fn tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id: i64) -> Transaction {
+    fn tx(
+        id: i64,
+        tx_type: TransactionType,
+        amount: i64,
+        date_ms: i64,
+        cat_id: i64,
+    ) -> Transaction {
         Transaction {
             id,
             tx_type,
@@ -479,7 +495,7 @@ mod tests {
             is_paid: paid,
             reminder_enabled: false,
             notes: String::new(),
-        bank_loan_id: None,
+            bank_loan_id: None,
         }
     }
 
@@ -561,7 +577,11 @@ mod tests {
         let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
         let label = &result.monthly_spending[0].label;
         // Label should be like "1404/4 (31 days)"
-        assert!(label.contains("days)"), "Label should include days: {}", label);
+        assert!(
+            label.contains("days)"),
+            "Label should include days: {}",
+            label
+        );
     }
 
     // =====================================================================
@@ -582,8 +602,16 @@ mod tests {
         assert_eq!(result.category_breakdown.len(), 2);
 
         // Food: 300k + 100k = 400k, Transport: 200k
-        let food = result.category_breakdown.iter().find(|c| c.category_id == 1).unwrap();
-        let transport = result.category_breakdown.iter().find(|c| c.category_id == 2).unwrap();
+        let food = result
+            .category_breakdown
+            .iter()
+            .find(|c| c.category_id == 1)
+            .unwrap();
+        let transport = result
+            .category_breakdown
+            .iter()
+            .find(|c| c.category_id == 2)
+            .unwrap();
         assert_eq!(food.total, 400_000);
         assert_eq!(transport.total, 200_000);
     }
@@ -599,7 +627,11 @@ mod tests {
         ];
         let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
         let total_pct: f32 = result.category_breakdown.iter().map(|c| c.percentage).sum();
-        assert!((total_pct - 100.0).abs() < 0.01, "Percentages should sum to ~100, got {}", total_pct);
+        assert!(
+            (total_pct - 100.0).abs() < 0.01,
+            "Percentages should sum to ~100, got {}",
+            total_pct
+        );
     }
 
     #[test]
@@ -713,11 +745,17 @@ mod tests {
         let now = now_ms();
         let mut txs = Vec::new();
         for i in 0..10_000 {
-            let tx_type = if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense };
+            let tx_type = if i % 3 == 0 {
+                TransactionType::Income
+            } else {
+                TransactionType::Expense
+            };
             let cat_id = (i % 5) as i64 + 1;
             txs.push(tx(i as i64, tx_type, (i as i64) * 100, now, cat_id));
         }
-        let cats: Vec<Category> = (1..=5).map(|id| category(id, &format!("Cat{}", id))).collect();
+        let cats: Vec<Category> = (1..=5)
+            .map(|id| category(id, &format!("Cat{}", id)))
+            .collect();
         let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
         assert_eq!(result.category_breakdown.len(), 5);
         // Percentages should still sum to ~100
@@ -963,7 +1001,11 @@ mod tests {
 
         // Selected-account view reports only the selected account.
         let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
-        assert_eq!(selected.accounts.len(), 1, "only the selected account may appear");
+        assert_eq!(
+            selected.accounts.len(),
+            1,
+            "only the selected account may appear"
+        );
         assert_eq!(selected.accounts[0].account_id, 1);
         assert_eq!(selected.accounts[0].category_breakdown[0].total, 100_000);
     }
@@ -981,7 +1023,10 @@ mod tests {
         ];
 
         let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
-        assert!(selected.accounts.is_empty(), "no expenses → no account segments");
+        assert!(
+            selected.accounts.is_empty(),
+            "no expenses → no account segments"
+        );
     }
 
     /// A selected account whose only expense transactions total zero must be
@@ -996,9 +1041,7 @@ mod tests {
         let accounts = vec![account(1, "A", "BANK")];
         // Single expense with amount = 0 — cat_totals = {1: 0}, non-empty but
         // sum is zero. Rust must filter it out to match the Kotlin fallback.
-        let txs = vec![
-            tx_on(1, TransactionType::Expense, 0, now, 1, 1),
-        ];
+        let txs = vec![tx_on(1, TransactionType::Expense, 0, now, 1, 1)];
         let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
         assert!(
             selected.accounts.is_empty(),
@@ -1012,10 +1055,12 @@ mod tests {
     fn test_selected_account_with_positive_expenses_kept() {
         let now = now_ms();
         let accounts = vec![account(1, "A", "BANK")];
-        let txs = vec![
-            tx_on(1, TransactionType::Expense, 100_000, now, 1, 1),
-        ];
+        let txs = vec![tx_on(1, TransactionType::Expense, 100_000, now, 1, 1)];
         let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
-        assert_eq!(selected.accounts.len(), 1, "positive expenses must keep the account");
+        assert_eq!(
+            selected.accounts.len(),
+            1,
+            "positive expenses must keep the account"
+        );
     }
 }

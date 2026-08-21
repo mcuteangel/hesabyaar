@@ -1,18 +1,18 @@
-/// FFI safety utilities for UniFFI bindings.
-///
-/// This module ensures that:
-/// 1. Rust panics never cross the FFI boundary (converted to HesabyarError)
-/// 2. A panic hook is installed to log panics before they are caught
-/// 3. All public FFI functions are wrapped for safety
-/// 4. Slice-referencing functions (`&[T]`) are wrapped with `Vec<T>` for UniFFI proc macro compatibility
+//! FFI safety utilities for UniFFI bindings.
+//!
+//! This module ensures that:
+//! 1. Rust panics never cross the FFI boundary (converted to HesabyarError)
+//! 2. A panic hook is installed to log panics before they are caught
+//! 3. All public FFI functions are wrapped for safety
+//! 4. Slice-referencing functions (`&[T]`) are wrapped with `Vec<T>` for UniFFI proc macro compatibility
 
 use std::sync::Once;
 
+use crate::ai_validation::{AdviceValidation, AiParsedTransaction};
 use crate::excel::WorkbookData;
 use crate::models::*;
 use crate::search::{SearchQuery, SearchResponse};
 use crate::validation::ValidationResult;
-use crate::ai_validation::{AiParsedTransaction, AdviceValidation};
 
 static INIT: Once = Once::new();
 
@@ -67,10 +67,8 @@ pub fn get_offline_budget_advice(
     transactions: Vec<Transaction>,
     categories: Vec<Category>,
 ) -> String {
-    catch_unwind_safe(|| {
-        crate::advisory::get_offline_budget_advice(&transactions, &categories)
-    })
-    .unwrap_or_default()
+    catch_unwind_safe(|| crate::advisory::get_offline_budget_advice(&transactions, &categories))
+        .unwrap_or_default()
 }
 
 /// Get offline budget forecast.
@@ -96,7 +94,12 @@ pub fn calculate_debt_to_income_ratio(
     monthly_income: i64,
 ) -> f64 {
     catch_unwind_safe(|| {
-        crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, &bank_loans, monthly_income)
+        crate::advisory::calculate_debt_to_income_ratio(
+            &loans,
+            &installments,
+            &bank_loans,
+            monthly_income,
+        )
     })
     .unwrap_or(0.0)
 }
@@ -135,6 +138,10 @@ pub fn calculate_financial_health_score(
 ///
 /// Returns `None` when the Rust computation panics, so the Kotlin layer can
 /// fall back to its local DB computation instead of receiving a blank default.
+// The parameter list is the UniFFI FFI surface. Kotlin callers pass these
+// arguments positionally through generated bindings, so it cannot change
+// without a breaking release.
+#[allow(clippy::too_many_arguments)]
 #[uniffi::export]
 pub fn compute_analytics(
     transactions: Vec<Transaction>,
@@ -147,7 +154,16 @@ pub fn compute_analytics(
     include_archived: bool,
 ) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
-        crate::analytics::compute_analytics(&transactions, &loans, &installments, &categories, &bank_loans, &accounts, account_id, include_archived)
+        crate::analytics::compute_analytics(
+            &transactions,
+            &loans,
+            &installments,
+            &categories,
+            &bank_loans,
+            &accounts,
+            account_id,
+            include_archived,
+        )
     })
     .ok()
 }
@@ -156,6 +172,10 @@ pub fn compute_analytics(
 ///
 /// Returns `None` when the Rust computation panics, so the Kotlin layer can
 /// fall back to its local DB computation instead of receiving a blank default.
+// The parameter list is the UniFFI FFI surface. Kotlin callers pass these
+// arguments positionally through generated bindings, so it cannot change
+// without a breaking release.
+#[allow(clippy::too_many_arguments)]
 #[uniffi::export]
 pub fn compute_dashboard_data(
     transactions: Vec<Transaction>,
@@ -191,10 +211,7 @@ pub fn compute_dashboard_data(
 /// Returns matching transactions sorted by relevance.
 /// All filters are optional — omit a filter by setting its value to 0/false.
 #[uniffi::export]
-pub fn search_transactions(
-    transactions: Vec<Transaction>,
-    query: SearchQuery,
-) -> SearchResponse {
+pub fn search_transactions(transactions: Vec<Transaction>, query: SearchQuery) -> SearchResponse {
     catch_unwind_safe(|| crate::search::search_transactions(&transactions, &query))
         .unwrap_or_default()
 }
@@ -275,8 +292,7 @@ pub fn validate_parsed_result(result: ParsedResult) -> Result<(), HesabyarError>
 /// Returns a `ValidationResult` with `is_valid` flag and list of error messages.
 #[uniffi::export]
 pub fn validate_backup_payload(payload: BackupPayload) -> ValidationResult {
-    catch_unwind_safe(|| crate::validation::validate_backup_payload(&payload))
-        .unwrap_or_default()
+    catch_unwind_safe(|| crate::validation::validate_backup_payload(&payload)).unwrap_or_default()
 }
 
 // ===========================================================================
@@ -310,6 +326,5 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
 /// Persian content. Returns sanitized text with warnings.
 #[uniffi::export]
 pub fn validate_ai_advice(text: &str) -> AdviceValidation {
-    catch_unwind_safe(|| crate::ai_validation::validate_ai_advice(text))
-        .unwrap_or_default()
+    catch_unwind_safe(|| crate::ai_validation::validate_ai_advice(text)).unwrap_or_default()
 }

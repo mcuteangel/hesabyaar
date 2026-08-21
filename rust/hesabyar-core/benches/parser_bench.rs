@@ -1,18 +1,22 @@
+// Benchmarks run fixed, known-good fixtures. A failed call must stop the
+// benchmark loudly, so unwrap is the right tool here.
+#![allow(clippy::unwrap_used)]
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use hesabyar_core::parser::amount::parse_amount;
-use hesabyar_core::parser::money_detector::contains_money;
-use hesabyar_core::calendar::{gregorian_to_jalali, jalali_to_gregorian};
 use hesabyar_core::advisory::{calculate_financial_health_score, get_offline_budget_advice};
-use hesabyar_core::search::{search_transactions, SearchQuery};
-use hesabyar_core::crypto::compute_checksum;
-use hesabyar_core::validation::{validate_transaction, validate_backup_payload};
 use hesabyar_core::ai_validation::{parse_ai_transaction_json, validate_ai_advice};
 use hesabyar_core::analytics::compute_analytics;
-use hesabyar_core::dashboard::compute_dashboard_data;
+use hesabyar_core::calendar::{gregorian_to_jalali, jalali_to_gregorian};
+use hesabyar_core::crypto::compute_checksum;
 use hesabyar_core::currency::{format_currency, format_number, from_rial, to_rial};
+use hesabyar_core::dashboard::compute_dashboard_data;
 use hesabyar_core::excel::{generate_excel, Cell, SheetData, WorkbookData};
-use hesabyar_core::models::*;
 use hesabyar_core::models::CurrencyUnit;
+use hesabyar_core::models::*;
+use hesabyar_core::parser::amount::parse_amount;
+use hesabyar_core::parser::money_detector::contains_money;
+use hesabyar_core::search::{search_transactions, SearchQuery};
+use hesabyar_core::validation::{validate_backup_payload, validate_transaction};
 
 fn bench_parse_amount(c: &mut Criterion) {
     c.bench_function("parse_500k_toman", |b| {
@@ -39,12 +43,16 @@ fn bench_budget_advice(c: &mut Criterion) {
     let transactions: Vec<Transaction> = (0..100)
         .map(|i| Transaction {
             id: i,
-            tx_type: if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense },
-            category_id: (i % 8) as i64,
-            amount: (i as i64 + 1) * 10000,
+            tx_type: if i % 3 == 0 {
+                TransactionType::Income
+            } else {
+                TransactionType::Expense
+            },
+            category_id: (i % 8),
+            amount: (i + 1) * 10000,
             description: format!("Transaction {}", i),
             person_name: None,
-            date: 1711000000000 - (i as i64 * 86400000),
+            date: 1711000000000 - (i * 86400000),
             due_date: None,
             installment_id: None,
             account_id: 1,
@@ -58,7 +66,7 @@ fn bench_budget_advice(c: &mut Criterion) {
             name: format!("Category {}", i),
             key: format!("cat{}", i),
             icon: "Paid".to_string(),
-            color: 0xFF000000 + i as i64,
+            color: 0xFF000000 + i,
             category_type: "EXPENSE".to_string(),
             is_default: true,
         })
@@ -77,12 +85,23 @@ fn bench_search(c: &mut Criterion) {
     let transactions: Vec<Transaction> = (0..1000)
         .map(|i| Transaction {
             id: i,
-            tx_type: if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense },
-            category_id: (i % 8) as i64,
-            amount: (i as i64 + 1) * 10000,
-            description: format!("\u{062E}\u{0631}\u{06CC}\u{062F} \u{0628}\u{0631}\u{0642} {}", i),
-            person_name: if i % 5 == 0 { Some(format!("Person {}", i)) } else { None },
-            date: 1711000000000 - (i as i64 * 86400000),
+            tx_type: if i % 3 == 0 {
+                TransactionType::Income
+            } else {
+                TransactionType::Expense
+            },
+            category_id: (i % 8),
+            amount: (i + 1) * 10000,
+            description: format!(
+                "\u{062E}\u{0631}\u{06CC}\u{062F} \u{0628}\u{0631}\u{0642} {}",
+                i
+            ),
+            person_name: if i % 5 == 0 {
+                Some(format!("Person {}", i))
+            } else {
+                None
+            },
+            date: 1711000000000 - (i * 86400000),
             due_date: None,
             installment_id: None,
             account_id: 1,
@@ -168,7 +187,7 @@ fn bench_validation(c: &mut Criterion) {
             id: i,
             tx_type: TransactionType::Expense,
             category_id: 1,
-            amount: 50000 + i as i64,
+            amount: 50000 + i,
             description: format!("transaction {}", i),
             person_name: None,
             date: 1710000000000,
@@ -239,7 +258,13 @@ fn bench_ai_validation(c: &mut Criterion) {
 // benchmarks (mirrors the structure of the in-module #[cfg(test)] fixtures).
 // =====================================================================
 
-fn make_tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id: i64) -> Transaction {
+fn make_tx(
+    id: i64,
+    tx_type: TransactionType,
+    amount: i64,
+    date_ms: i64,
+    cat_id: i64,
+) -> Transaction {
     Transaction {
         id,
         tx_type,
@@ -261,7 +286,7 @@ fn make_category(id: i64) -> Category {
         name: format!("Category {}", id),
         key: format!("cat{}", id),
         icon: "Paid".to_string(),
-        color: 0xFF000000 + id as i64,
+        color: 0xFF000000 + id,
         category_type: "EXPENSE".to_string(),
         is_default: true,
     }
@@ -336,7 +361,19 @@ fn bench_dashboard(c: &mut Criterion) {
     let now_ms = 1_711_000_000_000;
 
     let small_tx: Vec<Transaction> = (0..100)
-        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .map(|i| {
+            make_tx(
+                i,
+                if i % 3 == 0 {
+                    TransactionType::Income
+                } else {
+                    TransactionType::Expense
+                },
+                (i + 1) * 10_000,
+                now_ms,
+                i % 8,
+            )
+        })
         .collect();
     let small_loans = vec![
         make_loan(1, "DEBTOR", 1_000_000, 500_000, false),
@@ -346,10 +383,30 @@ fn bench_dashboard(c: &mut Criterion) {
     let small_bank_loans = vec![make_bank_loan(1, 1_000_000, false)];
 
     let large_tx: Vec<Transaction> = (0..10_000)
-        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .map(|i| {
+            make_tx(
+                i,
+                if i % 3 == 0 {
+                    TransactionType::Income
+                } else {
+                    TransactionType::Expense
+                },
+                (i + 1) * 10_000,
+                now_ms,
+                i % 8,
+            )
+        })
         .collect();
     let large_loans: Vec<Loan> = (0..500)
-        .map(|i| make_loan(i, if i % 2 == 0 { "DEBTOR" } else { "CREDITOR" }, 1_000_000, 500_000, i % 5 == 0))
+        .map(|i| {
+            make_loan(
+                i,
+                if i % 2 == 0 { "DEBTOR" } else { "CREDITOR" },
+                1_000_000,
+                500_000,
+                i % 5 == 0,
+            )
+        })
         .collect();
     let large_installments: Vec<Installment> = (0..500)
         .map(|i| make_installment(i, 100_000, now_ms, i % 3 == 0))
@@ -403,14 +460,46 @@ fn bench_analytics(c: &mut Criterion) {
     let no_accounts: Vec<Account> = vec![];
 
     let small_tx: Vec<Transaction> = (0..100)
-        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .map(|i| {
+            make_tx(
+                i,
+                if i % 3 == 0 {
+                    TransactionType::Income
+                } else {
+                    TransactionType::Expense
+                },
+                (i + 1) * 10_000,
+                now_ms,
+                i % 8,
+            )
+        })
         .collect();
 
     let large_tx: Vec<Transaction> = (0..10_000)
-        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .map(|i| {
+            make_tx(
+                i,
+                if i % 3 == 0 {
+                    TransactionType::Income
+                } else {
+                    TransactionType::Expense
+                },
+                (i + 1) * 10_000,
+                now_ms,
+                i % 8,
+            )
+        })
         .collect();
     let large_loans: Vec<Loan> = (0..500)
-        .map(|i| make_loan(i, if i % 2 == 0 { "DEBTOR" } else { "CREDITOR" }, 1_000_000, 500_000, i % 5 == 0))
+        .map(|i| {
+            make_loan(
+                i,
+                if i % 2 == 0 { "DEBTOR" } else { "CREDITOR" },
+                1_000_000,
+                500_000,
+                i % 5 == 0,
+            )
+        })
         .collect();
     let large_installments: Vec<Installment> = (0..500)
         .map(|i| make_installment(i, 100_000, now_ms, i % 3 == 0))
@@ -447,7 +536,19 @@ fn bench_analytics(c: &mut Criterion) {
     });
 
     let bank_loan_tx: Vec<Transaction> = (0..100)
-        .map(|i| make_tx(i, if i % 3 == 0 { TransactionType::Income } else { TransactionType::Expense }, (i + 1) as i64 * 10_000, now_ms, (i % 8) as i64))
+        .map(|i| {
+            make_tx(
+                i,
+                if i % 3 == 0 {
+                    TransactionType::Income
+                } else {
+                    TransactionType::Expense
+                },
+                (i + 1) * 10_000,
+                now_ms,
+                i % 8,
+            )
+        })
         .collect();
     let bench_bank_loans: Vec<BankLoan> = (0..50)
         .map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0))
@@ -500,8 +601,12 @@ fn bench_currency(c: &mut Criterion) {
 // =====================================================================
 
 fn bench_excel(c: &mut Criterion) {
-    let small = WorkbookData { sheets: vec![make_sheet("Transactions", 100)] };
-    let large = WorkbookData { sheets: vec![make_sheet("Sheet1", 5_000), make_sheet("Sheet2", 5_000)] };
+    let small = WorkbookData {
+        sheets: vec![make_sheet("Transactions", 100)],
+    };
+    let large = WorkbookData {
+        sheets: vec![make_sheet("Sheet1", 5_000), make_sheet("Sheet2", 5_000)],
+    };
 
     c.bench_function("generate_excel_100_rows", |b| {
         b.iter(|| generate_excel(black_box(&small)).unwrap())
