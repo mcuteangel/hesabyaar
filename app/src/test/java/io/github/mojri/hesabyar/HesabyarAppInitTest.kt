@@ -1,0 +1,56 @@
+package io.github.mojri.hesabyar
+
+import org.junit.After
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * Tests for [HesabyarApp.ensureRustInitialized] exception handling.
+ *
+ * The function memoizes a successful real init in the private `rustInitialized`
+ * flag, so each test resets that flag (and the test-only override) before
+ * running to stay deterministic regardless of other tests in the same JVM.
+ */
+class HesabyarAppInitTest {
+  private var previousAction: (() -> Unit)? = null
+
+  @Before
+  fun setUp() {
+    previousAction = HesabyarApp.rustNativeInitAction
+    HesabyarApp.setRustInitializedForTesting(null)
+  }
+
+  @After
+  fun tearDown() {
+    previousAction?.let { HesabyarApp.rustNativeInitAction = it }
+    HesabyarApp.setRustInitializedForTesting(null)
+  }
+
+  @Test
+  fun ensureRustInitializedReturnsFalseWhenRuntimeExceptionThrownDuringInit() {
+    // Simulate a UniFFI contract/checksum mismatch: HesabyarCore.initialize()
+    // raises a RuntimeException (a plain RuntimeException in the generated
+    // bindings) while lazily initializing UniffiLib.INSTANCE. IllegalStateException
+    // is a RuntimeException subclass, so it exercises the same catch branch.
+    HesabyarApp.rustNativeInitAction = {
+      throw IllegalStateException("simulated UniFFI checksum/contract mismatch")
+    }
+
+    val result = HesabyarApp.ensureRustInitialized()
+
+    assertFalse(
+      "RuntimeException during init must be caught and return false (fallback), not propagate",
+      result,
+    )
+  }
+
+  @Test
+  fun ensureRustInitializedOverrideShortCircuitsWithoutInit() {
+    HesabyarApp.setRustInitializedForTesting(true)
+    assertTrue(HesabyarApp.ensureRustInitialized())
+    HesabyarApp.setRustInitializedForTesting(false)
+    assertFalse(HesabyarApp.ensureRustInitialized())
+  }
+}
