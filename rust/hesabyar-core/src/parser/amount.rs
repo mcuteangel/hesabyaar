@@ -36,13 +36,25 @@ impl UnitType {
 }
 
 const UNIT_WORDS: &[(&str, UnitType)] = &[
-    ("\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646} \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}", UnitType::Million), // میلیون تومان
-    ("\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0627}\u{0631}\u{062F}", UnitType::Billion), // میلیارد
-    ("\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646}", UnitType::Million), // میلیون
-    ("\u{0645}\u{0644}\u{06CC}\u{0648}\u{0646}", UnitType::Million), // ملیون
+    (
+        "\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646} \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}",
+        UnitType::Million,
+    ), // میلیون تومان
+    (
+        "\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0627}\u{0631}\u{062F}",
+        UnitType::Billion,
+    ), // میلیارد
+    (
+        "\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646}",
+        UnitType::Million,
+    ), // میلیون
+    (
+        "\u{0645}\u{0644}\u{06CC}\u{0648}\u{0646}",
+        UnitType::Million,
+    ), // ملیون
     ("\u{0647}\u{0632}\u{0627}\u{0631}", UnitType::Thousand), // هزار
     ("\u{062A}\u{0648}\u{0645}\u{0627}\u{0646}", UnitType::Tuman), // تومان
-    ("\u{062A}\u{0648}\u{0645}\u{0646}", UnitType::Tuman), // تومن
+    ("\u{062A}\u{0648}\u{0645}\u{0646}", UnitType::Tuman),    // تومن
 ];
 
 fn tokenize(text: &str) -> Vec<Token> {
@@ -118,7 +130,10 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
     }
 
     if current_num > 0.0 {
-        let multiplier = last_unit.and_then(|u| u.lower()).map(|u| u.multiplier()).unwrap_or(1);
+        let multiplier = last_unit
+            .and_then(|u| u.lower())
+            .map(|u| u.multiplier())
+            .unwrap_or(1);
         total += current_num * multiplier as f64;
     }
 
@@ -130,7 +145,13 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
 fn interpret_shorthand(tokens: &[Token]) -> i64 {
     let numbers: Vec<f64> = tokens
         .iter()
-        .filter_map(|t| if let Token::Number(n) = t { Some(*n) } else { None })
+        .filter_map(|t| {
+            if let Token::Number(n) = t {
+                Some(*n)
+            } else {
+                None
+            }
+        })
         .collect();
 
     if numbers.is_empty() {
@@ -163,7 +184,13 @@ fn interpret_bare_last(tokens: &[Token]) -> i64 {
     tokens
         .iter()
         .rev()
-        .find_map(|t| if let Token::Number(n) = t { Some(*n as i64) } else { None })
+        .find_map(|t| {
+            if let Token::Number(n) = t {
+                Some(*n as i64)
+            } else {
+                None
+            }
+        })
         .unwrap_or(0)
 }
 

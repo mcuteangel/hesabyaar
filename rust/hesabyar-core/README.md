@@ -64,6 +64,37 @@ cargo run --package uniffi-gen -- \
 
 On Windows use `target/release/hesabyar_core.dll`, macOS use `target/release/libhesabyar_core.dylib`.
 
+## Linting and Formatting
+
+The workspace uses `cargo clippy` for static analysis. It is the Rust equivalent of detekt for Kotlin.
+The `Makefile` in `rust/` defines the developer commands:
+
+```bash
+make -C rust lint        # clippy with CI flags; fails on any warning
+make -C rust lint-fix    # clippy --fix for safe, automatic fixes
+make -C rust fmt         # format all sources
+make -C rust fmt-check   # verify formatting only
+make -C rust check       # fast type check
+make -C rust test        # unit tests
+```
+
+### Lint Policy
+
+The policy lives in `[workspace.lints.clippy]` in `rust/Cargo.toml`. Each crate opts in through `[lints] workspace = true`.
+
+- `clippy::correctness` is denied. These lints mark likely bugs.
+- `clippy::all`, `suspicious`, `complexity`, `perf`, and `style` warn.
+- `unwrap_used`, `expect_used`, and `panic` warn in production code.
+- Test code and benchmarks may use `unwrap`, `expect`, and `panic!`. The allow rules sit in `lib.rs` and `benches/parser_bench.rs`.
+
+CI runs `cargo clippy -- -D warnings`. A new warning fails the build.
+Fix a finding by refactoring. Add a local `#[allow]` only with a comment that explains why.
+
+### Toolchain
+
+`rust/rust-toolchain.toml` pins the channel to `stable`. It also lists `clippy` and `rustfmt` as components.
+rustup installs them on the first cargo command.
+
 ## Project Structure
 
 ```

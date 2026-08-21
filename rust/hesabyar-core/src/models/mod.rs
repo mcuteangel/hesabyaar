@@ -46,6 +46,10 @@ impl TransactionType {
         }
     }
 
+    // Deliberately not `std::str::FromStr`: this parser is lenient (unknown
+    // values map to `Expense`, no `Result`), and the method name is part of
+    // the generated UniFFI bindings.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "INCOME" => Self::Income,
@@ -71,13 +75,28 @@ pub struct Transaction {
     #[serde(skip_serializing_if = "Option::is_none", alias = "personName")]
     pub person_name: Option<String>,
     pub date: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "dueDate")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "dueDate"
+    )]
     pub due_date: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "installmentId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "installmentId"
+    )]
     pub installment_id: Option<i64>,
     #[serde(default = "default_account_id", alias = "accountId")]
     pub account_id: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_zero_as_none", alias = "destinationAccountId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "destinationAccountId"
+    )]
     pub destination_account_id: Option<i64>,
 }
 
@@ -102,7 +121,11 @@ pub struct Account {
     pub bank_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "cardNumber")]
     pub card_number: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "accountNumber")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "accountNumber"
+    )]
     pub account_number: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "iban")]
     pub iban: Option<String>,
@@ -551,10 +574,7 @@ mod tests {
         assert_eq!(restored.transactions.len(), 1);
         assert_eq!(restored.transactions[0].tx_type, TransactionType::Transfer);
         assert_eq!(restored.transactions[0].account_id, 1);
-        assert_eq!(
-            restored.transactions[0].destination_account_id,
-            Some(2)
-        );
+        assert_eq!(restored.transactions[0].destination_account_id, Some(2));
         // Verify the serialized form uses "TRANSFER"
         assert!(json.contains("\"TRANSFER\""));
     }
@@ -601,7 +621,10 @@ mod tests {
             "appVersion": "0.0.1"
         }"#;
         let payload: BackupPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(crate::validate_backup(&payload).unwrap_err().to_string(), "Backup validation: Invalid backup version");
+        assert_eq!(
+            crate::validate_backup(&payload).unwrap_err().to_string(),
+            "Backup validation: Invalid backup version"
+        );
     }
 
     #[test]
@@ -694,7 +717,10 @@ mod tests {
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.payment_histories.len(), 2);
         assert_eq!(restored.payment_histories[0].amount, 50000);
-        assert_eq!(restored.payment_histories[1].notes, Some("Second".to_string()));
+        assert_eq!(
+            restored.payment_histories[1].notes,
+            Some("Second".to_string())
+        );
         assert_eq!(restored.payment_histories[1].loan_id, 10);
     }
 

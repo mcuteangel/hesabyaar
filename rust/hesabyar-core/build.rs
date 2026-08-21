@@ -1,18 +1,20 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 
 const GENERATED_VERSION_REL: &str = "src/generated/core_version.rs";
 
 fn main() {
     let generated = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(GENERATED_VERSION_REL);
-    let version = read_generated_version(&generated)
-        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+    let version =
+        read_generated_version(&generated).unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
     println!("cargo:rustc-env=CORE_VERSION={version}");
     println!("cargo:rerun-if-changed={}", generated.display());
     // Base version lives in Cargo.toml; re-run when it changes so manual bumps
     // propagate into CORE_VERSION.
     println!(
         "cargo:rerun-if-changed={}",
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml").display()
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("Cargo.toml")
+            .display()
     );
 }
 

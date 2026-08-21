@@ -1,7 +1,7 @@
-﻿use crate::models::{ParsedResult, TransactionType};
 use crate::calendar::{gregorian_to_jalali, jalali_to_gregorian};
-use crate::parser::text_preprocessor::preprocess_persian_text;
+use crate::models::{ParsedResult, TransactionType};
 use crate::parser::amount::parse_amount;
+use crate::parser::text_preprocessor::preprocess_persian_text;
 
 const TYPE_EXPENSE: &str = "EXPENSE";
 const TYPE_INCOME: &str = "INCOME";
@@ -46,120 +46,430 @@ struct TypeClassification {
 /// Full Persian expense category inference with 200+ keywords.
 /// Ported from GeminiParser.inferExpenseCategory()
 pub fn infer_expense_category_full(sentence: &str) -> (String, String) {
-    if contains_any(sentence, &[
-        "مرغ", "گوشت", "غذا", "میوه", "رستوران", "نان", "شیر", "پنیر",
-        "شام", "ناهار", "صبحانه", "چای", "قهوه", "اسنک", "بستنی", "سالاد",
-        "ماهی", "میگو", "سبزی", "مربا", "روغن", "برنج", "ماکارونی", "رب",
-        "ادویه", "نوشابه", "آب معدنی", "آب", "دوغ", "دلستر", "چیپس",
-        "شکلات", "کیک", "بیسکوییت", "موز", "سیب", "پرتقال", "هندوانه",
-        "خربزه", "انگور", "توت", "تمشک", "کدو", "خیار", "گوجه", "کلم",
-        "اسفناج", "لوبیا", "نخود", "عدس", "لپه", "سوپ", "آش", "حلیم",
-        "کباب", "استیک", "سوسیس", "کالباس", "همبرگر", "پیتزا", "ساندویچ",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "مرغ",
+            "گوشت",
+            "غذا",
+            "میوه",
+            "رستوران",
+            "نان",
+            "شیر",
+            "پنیر",
+            "شام",
+            "ناهار",
+            "صبحانه",
+            "چای",
+            "قهوه",
+            "اسنک",
+            "بستنی",
+            "سالاد",
+            "ماهی",
+            "میگو",
+            "سبزی",
+            "مربا",
+            "روغن",
+            "برنج",
+            "ماکارونی",
+            "رب",
+            "ادویه",
+            "نوشابه",
+            "آب معدنی",
+            "آب",
+            "دوغ",
+            "دلستر",
+            "چیپس",
+            "شکلات",
+            "کیک",
+            "بیسکوییت",
+            "موز",
+            "سیب",
+            "پرتقال",
+            "هندوانه",
+            "خربزه",
+            "انگور",
+            "توت",
+            "تمشک",
+            "کدو",
+            "خیار",
+            "گوجه",
+            "کلم",
+            "اسفناج",
+            "لوبیا",
+            "نخود",
+            "عدس",
+            "لپه",
+            "سوپ",
+            "آش",
+            "حلیم",
+            "کباب",
+            "استیک",
+            "سوسیس",
+            "کالباس",
+            "همبرگر",
+            "پیتزا",
+            "ساندویچ",
+        ],
+    ) {
         return ("Food".to_string(), "خرید مواد غذایی".to_string());
     }
 
-    if contains_any(sentence, &[
-        "بنزین", "اسنپ", "کرایه", "تاکسی", "مترو", "اتوبوس", "بلیط",
-        "پارکینگ", "عوارض", "لنت", "لاستیک", "تعویض روغن", "مکانیک",
-        "تعمیرگاه",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "بنزین",
+            "اسنپ",
+            "کرایه",
+            "تاکسی",
+            "مترو",
+            "اتوبوس",
+            "بلیط",
+            "پارکینگ",
+            "عوارض",
+            "لنت",
+            "لاستیک",
+            "تعویض روغن",
+            "مکانیک",
+            "تعمیرگاه",
+        ],
+    ) {
         return ("Transportation".to_string(), "هزینه حمل و نقل".to_string());
     }
 
-    if contains_any(sentence, &[
-        "لباس", "کفش", "پوشاک", "کیف", "کلاه", "عینک", "ساعت مچی",
-        "جواهرات", "زیورآلات", "کت", "شلوار", "پیراهن", "مانتو", "چادر",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "لباس",
+            "کفش",
+            "پوشاک",
+            "کیف",
+            "کلاه",
+            "عینک",
+            "ساعت مچی",
+            "جواهرات",
+            "زیورآلات",
+            "کت",
+            "شلوار",
+            "پیراهن",
+            "مانتو",
+            "چادر",
+        ],
+    ) {
         return ("Shopping".to_string(), "خرید پوشاک و اکسسوری".to_string());
     }
 
-    if contains_any(sentence, &[
-        "قبض", "برق", "آب", "گاز", "تلفن", "اینترنت", "شارژ", "فیبر",
-        "موبایل", "tv", "tv اشتراک",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "قبض",
+            "برق",
+            "آب",
+            "گاز",
+            "تلفن",
+            "اینترنت",
+            "شارژ",
+            "فیبر",
+            "موبایل",
+            "tv",
+            "tv اشتراک",
+        ],
+    ) {
         return ("Bills".to_string(), "پرداخت قبوض و شارژ".to_string());
     }
 
-    if contains_any(sentence, &[
-        "اصلاح", "سالن", "آرایشگاه", "کوتاهی", "رنگ مو", "واکس", "پدیکور",
-        "مانیکور", "ماساژ", "اسپا", "فیشال", "لیزر", "کرم", "شامپو", "عطر",
-        "ادکلن", "لوازم آرایش", "آرایش", "پیرایش", "ابرو", "ریمل", "رژ لب",
-        "پودر", "کانسیلر", "بنز", "سیگار", "قلیان", "قهوه خانه", "چایخانه",
-        "هتل", "اقامت", "بلیط هواپیما", "بلیط قطار", "سفر", "گردشگری",
-        "تفریح", "سینما", "تئاتر", "کنسرت", "بازی", "ورزش", "باشگاه",
-        "fitness", "Gym", "دارو", "داروخانه", "ویتامین", "درمان",
-        "دندانپزشکی", "چشم پزشکی", "آزمایش", "رادیولوژی", "سونوگرافی",
-        "MRI", "CT", "تست",
-    ]) {
-        return ("Personal Care".to_string(), "هزینه شخصی، آرایشی و بهداشتی".to_string());
+    if contains_any(
+        sentence,
+        &[
+            "اصلاح",
+            "سالن",
+            "آرایشگاه",
+            "کوتاهی",
+            "رنگ مو",
+            "واکس",
+            "پدیکور",
+            "مانیکور",
+            "ماساژ",
+            "اسپا",
+            "فیشال",
+            "لیزر",
+            "کرم",
+            "شامپو",
+            "عطر",
+            "ادکلن",
+            "لوازم آرایش",
+            "آرایش",
+            "پیرایش",
+            "ابرو",
+            "ریمل",
+            "رژ لب",
+            "پودر",
+            "کانسیلر",
+            "بنز",
+            "سیگار",
+            "قلیان",
+            "قهوه خانه",
+            "چایخانه",
+            "هتل",
+            "اقامت",
+            "بلیط هواپیما",
+            "بلیط قطار",
+            "سفر",
+            "گردشگری",
+            "تفریح",
+            "سینما",
+            "تئاتر",
+            "کنسرت",
+            "بازی",
+            "ورزش",
+            "باشگاه",
+            "fitness",
+            "Gym",
+            "دارو",
+            "داروخانه",
+            "ویتامین",
+            "درمان",
+            "دندانپزشکی",
+            "چشم پزشکی",
+            "آزمایش",
+            "رادیولوژی",
+            "سونوگرافی",
+            "MRI",
+            "CT",
+            "تست",
+        ],
+    ) {
+        return (
+            "Personal Care".to_string(),
+            "هزینه شخصی، آرایشی و بهداشتی".to_string(),
+        );
     }
 
-    if contains_any(sentence, &[
-        "کتاب", "مجله", "روزنامه", "دوره آموزشی", "کلاس", "آموزش", "مدرسه",
-        "دانشگاه", "شهریه", "سرویس مدرسه", "لوازم تحریر", "مداد", "خودکار",
-        "دفتر", "کاغذ", "Printer", "پرینتر", "کارتریج", "نرم افزار",
-        "اپلیکیشن", "اشتراک", "سرویس", "service", "membership",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "کتاب",
+            "مجله",
+            "روزنامه",
+            "دوره آموزشی",
+            "کلاس",
+            "آموزش",
+            "مدرسه",
+            "دانشگاه",
+            "شهریه",
+            "سرویس مدرسه",
+            "لوازم تحریر",
+            "مداد",
+            "خودکار",
+            "دفتر",
+            "کاغذ",
+            "Printer",
+            "پرینتر",
+            "کارتریج",
+            "نرم افزار",
+            "اپلیکیشن",
+            "اشتراک",
+            "سرویس",
+            "service",
+            "membership",
+        ],
+    ) {
         return ("Education".to_string(), "هزینه آموزش و تحصیل".to_string());
     }
 
-    if contains_any(sentence, &[
-        "اجاره", "رهن", "آپارتمان", "خانه", "ملک", "زمین", "ویلا", "باغ",
-        "کلبه", "اقامتگاه", "هتل", "مهمانخانه", "پارکینگ", "انبار",
-        "دفتر کار", "مغازه", "فروشگاه", "بازرگانی", "شرکت", "کارخانه",
-        "کارگاه", "بیمه", "مالیات", "عوارض شهرداری", "شارژ آپارتمان",
-        "تعمیرات ساختمان", "نقاشی ساختمان", "لوله کشی", "برقکاری", "بنایی",
-        "سنگ", "سیمان", "آجر", "چوب", "MDF", "لمینت", "سرامیک", "کاشی",
-        "شیرآلات", "شوفاژ", "کولر", "بخاری", "شومینه", "پکیج", "رادیاتور",
-        "لوله",
-    ]) {
-        return ("Rent & Utilities".to_string(), "هزینه اجاره، رهن و نگهداری ملک".to_string());
+    if contains_any(
+        sentence,
+        &[
+            "اجاره",
+            "رهن",
+            "آپارتمان",
+            "خانه",
+            "ملک",
+            "زمین",
+            "ویلا",
+            "باغ",
+            "کلبه",
+            "اقامتگاه",
+            "هتل",
+            "مهمانخانه",
+            "پارکینگ",
+            "انبار",
+            "دفتر کار",
+            "مغازه",
+            "فروشگاه",
+            "بازرگانی",
+            "شرکت",
+            "کارخانه",
+            "کارگاه",
+            "بیمه",
+            "مالیات",
+            "عوارض شهرداری",
+            "شارژ آپارتمان",
+            "تعمیرات ساختمان",
+            "نقاشی ساختمان",
+            "لوله کشی",
+            "برقکاری",
+            "بنایی",
+            "سنگ",
+            "سیمان",
+            "آجر",
+            "چوب",
+            "MDF",
+            "لمینت",
+            "سرامیک",
+            "کاشی",
+            "شیرآلات",
+            "شوفاژ",
+            "کولر",
+            "بخاری",
+            "شومینه",
+            "پکیج",
+            "رادیاتور",
+            "لوله",
+        ],
+    ) {
+        return (
+            "Rent & Utilities".to_string(),
+            "هزینه اجاره، رهن و نگهداری ملک".to_string(),
+        );
     }
 
-    if contains_any(sentence, &[
-        "قرض", "وام", "بدهی", "قسط", "چک", "سفته", "ضمانت", "سود وام",
-        "جریمه", "کارمزد", "سود بانکی", "بهره", "سود مرکب", "وام مسکن",
-        "وام خودرو", "وام ازدواج", "وام تحصیلی", "وام ضربت", "وام فوری",
-        "وام بازنشستگی", "وام کارمندی", "وام دولتی", "وام خصوصی",
-        "وام بانکی", "وام بدون بهره", "وام با بهره", "وام با سود",
-        "وام بدون سود", "وام با کارمزد", "وام بدون کارمزد", "وام با ضمانت",
-        "وام بدون ضمانت", "وام با چک", "وام با سفته", "وام با ضامن",
-        "وام بدون ضامن",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "قرض",
+            "وام",
+            "بدهی",
+            "قسط",
+            "چک",
+            "سفته",
+            "ضمانت",
+            "سود وام",
+            "جریمه",
+            "کارمزد",
+            "سود بانکی",
+            "بهره",
+            "سود مرکب",
+            "وام مسکن",
+            "وام خودرو",
+            "وام ازدواج",
+            "وام تحصیلی",
+            "وام ضربت",
+            "وام فوری",
+            "وام بازنشستگی",
+            "وام کارمندی",
+            "وام دولتی",
+            "وام خصوصی",
+            "وام بانکی",
+            "وام بدون بهره",
+            "وام با بهره",
+            "وام با سود",
+            "وام بدون سود",
+            "وام با کارمزد",
+            "وام بدون کارمزد",
+            "وام با ضمانت",
+            "وام بدون ضمانت",
+            "وام با چک",
+            "وام با سفته",
+            "وام با ضامن",
+            "وام بدون ضامن",
+        ],
+    ) {
         return ("Loans & Debt".to_string(), "بدهی و وام".to_string());
     }
 
-    if contains_any(sentence, &[
-        "درآمد", "حقوق", "واریز", "اضافه کار", "پاداش", "بونوس", "سود",
-        "دریافتی", "واریزی", "حقوقی", "کارانه", "فروش", "درآمدزایی",
-        "حق بیمه", "عیدی", "سنوات", "پرداختی", "حقوق ماه", "حقوق اداره",
-        "حقوق شرکت", "حقوقم", "حقوقم رو", "دریافت کردم", "واریز شد",
-        "رسید", "واریز کرد", "فروش رفت", "درآمد داشتم", "پول درآوردم",
-        "سود کردم", "بازدهی", "return", "profit",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "درآمد",
+            "حقوق",
+            "واریز",
+            "اضافه کار",
+            "پاداش",
+            "بونوس",
+            "سود",
+            "دریافتی",
+            "واریزی",
+            "حقوقی",
+            "کارانه",
+            "فروش",
+            "درآمدزایی",
+            "حق بیمه",
+            "عیدی",
+            "سنوات",
+            "پرداختی",
+            "حقوق ماه",
+            "حقوق اداره",
+            "حقوق شرکت",
+            "حقوقم",
+            "حقوقم رو",
+            "دریافت کردم",
+            "واریز شد",
+            "رسید",
+            "واریز کرد",
+            "فروش رفت",
+            "درآمد داشتم",
+            "پول درآوردم",
+            "سود کردم",
+            "بازدهی",
+            "return",
+            "profit",
+        ],
+    ) {
         return ("Income".to_string(), "درآمد".to_string());
     }
 
-    if contains_any(sentence, &[
-        "هدیه", "جشن", "تولد", "عروسی", "نامزدی", "سالگرد", "مراسم",
-        "مهمانی", "party", "celebration", "event", "wedding",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "هدیه",
+            "جشن",
+            "تولد",
+            "عروسی",
+            "نامزدی",
+            "سالگرد",
+            "مراسم",
+            "مهمانی",
+            "party",
+            "celebration",
+            "event",
+            "wedding",
+        ],
+    ) {
         return ("Events & Gifts".to_string(), "جشن و هدیه".to_string());
     }
 
-    if contains_any(sentence, &[
-        "خیریه", "صدقه", "کمک", "donate", "charity", "philanthropy",
-    ]) {
+    if contains_any(
+        sentence,
+        &["خیریه", "صدقه", "کمک", "donate", "charity", "philanthropy"],
+    ) {
         return ("Charity".to_string(), "خیریه و کمک مالی".to_string());
     }
 
-    if contains_any(sentence, &[
-        "سرمایه گذاری", "سرمایه‌گذاری", "خرید سهام", "صندوق سرمایه",
-        "طلا", "سکه", "دلار", "ارز", "نفت", "گاز", "مسکن", "زمین", "باغ",
-        "بیمه عمر", "بیمه تصادف", "بیمه آتش سوزی", "بیمه زلزله",
-        "بیمه سرقت", "بیمه مسئولیت",
-    ]) {
+    if contains_any(
+        sentence,
+        &[
+            "سرمایه گذاری",
+            "سرمایه‌گذاری",
+            "خرید سهام",
+            "صندوق سرمایه",
+            "طلا",
+            "سکه",
+            "دلار",
+            "ارز",
+            "نفت",
+            "گاز",
+            "مسکن",
+            "زمین",
+            "باغ",
+            "بیمه عمر",
+            "بیمه تصادف",
+            "بیمه آتش سوزی",
+            "بیمه زلزله",
+            "بیمه سرقت",
+            "بیمه مسئولیت",
+        ],
+    ) {
         return ("Investment".to_string(), "سرمایه\u{200C}گذاری".to_string());
     }
 
@@ -185,6 +495,10 @@ fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
     }
     let chars: Vec<char> = s.chars().collect();
     let w: Vec<char> = word.chars().collect();
+    // `word` is non-empty (guarded above), so `w` always has a last char.
+    let Some(last_char) = w.last().copied() else {
+        return s.to_string();
+    };
     let mut out = String::with_capacity(s.len());
     let mut i = 0;
     while i < chars.len() {
@@ -192,12 +506,16 @@ fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
             let prev_ok = i == 0 || {
                 let prev = chars[i - 1];
                 // Digit-to-letter transition counts as a boundary
-                !is_word_char(prev) || (is_digit(prev) && is_letter(w[0])) || (is_letter(prev) && is_digit(w[0]))
+                !is_word_char(prev)
+                    || (is_digit(prev) && is_letter(w[0]))
+                    || (is_letter(prev) && is_digit(w[0]))
             };
             let next_ok = i + w.len() == chars.len() || {
                 let next = chars[i + w.len()];
                 // Letter-to-digit transition counts as a boundary
-                !is_word_char(next) || (is_digit(next) && is_letter(*w.last().unwrap())) || (is_letter(next) && is_digit(*w.last().unwrap()))
+                !is_word_char(next)
+                    || (is_digit(next) && is_letter(last_char))
+                    || (is_letter(next) && is_digit(last_char))
             };
             if prev_ok && next_ok {
                 out.push_str(rep);
@@ -228,24 +546,30 @@ fn is_letter(c: char) -> bool {
 
 /// Convert Persian/Arabic digits (۰-۹) to ASCII digits (0-9)
 fn to_ascii_digits(s: &str) -> String {
-    s.chars().map(|c| {
-        let code = c as u32;
-        if code >= 0x06F0 && code <= 0x06F9 {
-            (b'0' + (code - 0x06F0) as u8) as char
-        } else {
-            c
-        }
-    }).collect()
+    s.chars()
+        .map(|c| {
+            let code = c as u32;
+            if (0x06F0..=0x06F9).contains(&code) {
+                (b'0' + (code - 0x06F0) as u8) as char
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 /// Normalize category: Personal Care, Education, Rent & Utilities, Loans & Debt,
 /// Events & Gifts, Charity, Investment are all mapped to "Other" in Kotlin.
 fn normalize_category(category: &str) -> String {
     match category {
-        CATEGORY_FOOD | CATEGORY_TRANSPORTATION | CATEGORY_SHOPPING | CATEGORY_BILLS
-        | CATEGORY_INSTALLMENTS | CATEGORY_LOANS | CATEGORY_INCOME | CATEGORY_OTHER => {
-            category.to_string()
-        }
+        CATEGORY_FOOD
+        | CATEGORY_TRANSPORTATION
+        | CATEGORY_SHOPPING
+        | CATEGORY_BILLS
+        | CATEGORY_INSTALLMENTS
+        | CATEGORY_LOANS
+        | CATEGORY_INCOME
+        | CATEGORY_OTHER => category.to_string(),
         _ => CATEGORY_OTHER.to_string(),
     }
 }
@@ -254,15 +578,49 @@ fn normalize_category(category: &str) -> String {
 /// Ported from GeminiParser.extractSubject()
 fn extract_subject(sentence: &str) -> String {
     let filler_words = [
-        "امروز", "دیروز", "پریروز", "فردا", "پسفردا", "پس فردا",
-        "دیشب", "شب", "صبح", "عصر", "ظهر", "شب قبل",
-        "ساعت", "نیم", "دقیقه", "روز",
-        "خریدم", "خرید", "گرفتم", "گرفت", "دادم", "داد",
-        "پرداخت", "پرداخت کردم", "هزینه", "خرج",
-        "واریز", "واریز کردم", "فروش", "فروختم", "فروش رفت",
-        "بابت", "برای", "از", "به",
-        "تومان", "تومن", "هزار", "میلیون", "ملیون", "میلیارد",
-        "قرض", "وام",
+        "امروز",
+        "دیروز",
+        "پریروز",
+        "فردا",
+        "پسفردا",
+        "پس فردا",
+        "دیشب",
+        "شب",
+        "صبح",
+        "عصر",
+        "ظهر",
+        "شب قبل",
+        "ساعت",
+        "نیم",
+        "دقیقه",
+        "روز",
+        "خریدم",
+        "خرید",
+        "گرفتم",
+        "گرفت",
+        "دادم",
+        "داد",
+        "پرداخت",
+        "پرداخت کردم",
+        "هزینه",
+        "خرج",
+        "واریز",
+        "واریز کردم",
+        "فروش",
+        "فروختم",
+        "فروش رفت",
+        "بابت",
+        "برای",
+        "از",
+        "به",
+        "تومان",
+        "تومن",
+        "هزار",
+        "میلیون",
+        "ملیون",
+        "میلیارد",
+        "قرض",
+        "وام",
     ];
 
     let mut cleaned = sentence.to_string();
@@ -274,17 +632,30 @@ fn extract_subject(sentence: &str) -> String {
 
 /// Classify the type of a Persian sentence.
 /// Ported from GeminiParser.classifyType()
-fn classify_type(sentence: &str, is_income: bool, person_name: Option<&str>, now_ms: i64) -> TypeClassification {
-    if let Some(c) = classify_installment(sentence, now_ms) { return c; }
-    if let Some(c) = classify_loan(sentence, person_name) { return c; }
-    if is_income { return classify_income(sentence); }
+fn classify_type(
+    sentence: &str,
+    is_income: bool,
+    person_name: Option<&str>,
+    now_ms: i64,
+) -> TypeClassification {
+    if let Some(c) = classify_installment(sentence, now_ms) {
+        return c;
+    }
+    if let Some(c) = classify_loan(sentence, person_name) {
+        return c;
+    }
+    if is_income {
+        return classify_income(sentence);
+    }
     classify_expense(sentence)
 }
 
 /// Classify installment from sentence.
 /// Ported from GeminiParser.classifyInstallment()
 fn classify_installment(sentence: &str, now_ms: i64) -> Option<TypeClassification> {
-    if !sentence.contains("قسط") { return None; }
+    if !sentence.contains("قسط") {
+        return None;
+    }
 
     let installment_title = if sentence.contains("ماشین") {
         Some("قسط ماشین".to_string())
@@ -314,10 +685,7 @@ fn classify_installment(sentence: &str, now_ms: i64) -> Option<TypeClassificatio
         let days_from_now = if let Some(offset) = extract_date_offset(sentence) {
             offset
         } else {
-            extract_jalali_days_from_now_inner(
-                sentence,
-                now_ms + TEHRAN_OFFSET_MS,
-            )
+            extract_jalali_days_from_now_inner(sentence, now_ms + TEHRAN_OFFSET_MS)
         };
         Some(TypeClassification {
             tx_type: TYPE_INSTALLMENT.to_string(),
@@ -364,7 +732,8 @@ fn classify_loan(sentence: &str, person_name: Option<&str>) -> Option<TypeClassi
 /// Ported from GeminiParser.classifyIncome()
 fn classify_income(sentence: &str) -> TypeClassification {
     let subject = extract_subject(sentence);
-    let description = if contains_any(sentence, &["اضافه کار", "اضافه\u{200C}کار"]) {
+    let description = if contains_any(sentence, &["اضافه کار", "اضافه\u{200C}کار"])
+    {
         "دریافت اضافه کار".to_string()
     } else if sentence.contains("پاداش") {
         "دریافت پاداش".to_string()
@@ -439,12 +808,22 @@ fn classify_expense(sentence: &str) -> TypeClassification {
 /// Extract date offset from Persian sentence.
 /// Ported from GeminiParser.extractDateOffset()
 pub fn extract_date_offset(sentence: &str) -> Option<i32> {
-    if sentence.contains("پریروز") { return Some(-2); }
-    if sentence.contains("دیروز") { return Some(-1); }
+    if sentence.contains("پریروز") {
+        return Some(-2);
+    }
+    if sentence.contains("دیروز") {
+        return Some(-1);
+    }
     // Check compact "پسفردا" before "فردا" to avoid false partial match
-    if sentence.contains("پسفردا") || sentence.contains("پس فردا") { return Some(2); }
-    if sentence.contains("فردا") { return Some(1); }
-    if sentence.contains("امروز") { return Some(0); }
+    if sentence.contains("پسفردا") || sentence.contains("پس فردا") {
+        return Some(2);
+    }
+    if sentence.contains("فردا") {
+        return Some(1);
+    }
+    if sentence.contains("امروز") {
+        return Some(0);
+    }
     None
 }
 
@@ -454,11 +833,16 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
     let hour_pattern = "ساعت";
     if let Some(pos) = sentence.find(hour_pattern) {
         let rest = sentence[pos + hour_pattern.len()..].trim_start();
-        let raw_digits: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9).collect();
+        let raw_digits: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9)
+            .collect();
         let digits = to_ascii_digits(&raw_digits);
         if let Ok(mut hour) = digits.parse::<i32>() {
-            let is_pm = sentence.contains("شب") || sentence.contains("عصر")
-                || sentence.contains("بعدازظهر") || sentence.contains("بعد از ظهر");
+            let is_pm = sentence.contains("شب")
+                || sentence.contains("عصر")
+                || sentence.contains("بعدازظهر")
+                || sentence.contains("بعد از ظهر");
             if is_pm && (1..=11).contains(&hour) {
                 hour += 12;
             }
@@ -468,8 +852,11 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
                 let min_pattern = "و";
                 if let Some(min_pos) = sentence.find(min_pattern) {
                     let min_rest = sentence[min_pos + min_pattern.len()..].trim_start();
-                    let raw_min: String = min_rest.chars()
-                        .take_while(|c| c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9)
+                    let raw_min: String = min_rest
+                        .chars()
+                        .take_while(|c| {
+                            c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9
+                        })
                         .collect();
                     let min_clean = to_ascii_digits(&raw_min);
                     min_clean.parse::<i32>().ok()
@@ -548,9 +935,18 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
     if let Ok(today) = gregorian_to_jalali(now_ms) {
         let current_year = today.year;
         for (month_name, month_num) in &jalali_months {
-            if !sentence.contains(month_name) { continue; }
+            if !sentence.contains(month_name) {
+                continue;
+            }
             let before_month = sentence.split(month_name).next().unwrap_or("");
-            let day_str: String = before_month.chars().rev().take(3).collect::<Vec<_>>().into_iter().rev().collect();
+            let day_str: String = before_month
+                .chars()
+                .rev()
+                .take(3)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
             let day_str = to_ascii_digits(&day_str);
             if let Ok(day) = day_str.trim().parse::<i32>() {
                 if (1..=31).contains(&day) {
@@ -581,10 +977,24 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
 /// Ported from GeminiParser.extractDescription()
 pub fn extract_description(sentence: &str) -> String {
     let filler_words = [
-        "امروز", "دیروز", "پریروز", "فردا", "پسفردا", "پس فردا",
-        "ساعت", "نیم", "دقیقه",
-        "هزار", "تومان", "تومن", "میلیون", "ملیون", "میلیارد",
-        "طلب دارم", "طلبکار", "بدهکار",
+        "امروز",
+        "دیروز",
+        "پریروز",
+        "فردا",
+        "پسفردا",
+        "پس فردا",
+        "ساعت",
+        "نیم",
+        "دقیقه",
+        "هزار",
+        "تومان",
+        "تومن",
+        "میلیون",
+        "ملیون",
+        "میلیارد",
+        "طلب دارم",
+        "طلبکار",
+        "بدهکار",
     ];
 
     let mut cleaned = sentence.to_string();
@@ -592,7 +1002,11 @@ pub fn extract_description(sentence: &str) -> String {
         cleaned = replace_word_bounded(&cleaned, word, "");
     }
     cleaned = cleaned.split_whitespace().collect::<Vec<&str>>().join(" ");
-    if cleaned.trim().is_empty() { sentence.to_string() } else { cleaned }
+    if cleaned.trim().is_empty() {
+        sentence.to_string()
+    } else {
+        cleaned
+    }
 }
 
 /// Full offline sentence parser.
@@ -607,38 +1021,141 @@ pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedRes
     let person_name = extract_person_name(&sentence);
 
     let income_keywords = [
-        "حقوق", "درآمد", "واریز", "اضافه کار", "اضافه\u{200C}کار", "دستمزد",
-        "پاداش", "بونوس", "bonus", "سود", "دریافتی", "واریزی", "حقوقی",
-        "کارانه", "فروش", "درآمدزایی", "حق بیمه", "عیدی", "سنوات",
-        "پرداختی", "حقوق ماه", "حقوق اداره", "حقوق شرکت", "حقوقم",
-        "حقوقم رو", "دریافت کردم", "واریز شد", "رسید", "واریز کرد",
+        "حقوق",
+        "درآمد",
+        "واریز",
+        "اضافه کار",
+        "اضافه\u{200C}کار",
+        "دستمزد",
+        "پاداش",
+        "بونوس",
+        "bonus",
+        "سود",
+        "دریافتی",
+        "واریزی",
+        "حقوقی",
+        "کارانه",
+        "فروش",
+        "درآمدزایی",
+        "حق بیمه",
+        "عیدی",
+        "سنوات",
+        "پرداختی",
+        "حقوق ماه",
+        "حقوق اداره",
+        "حقوق شرکت",
+        "حقوقم",
+        "حقوقم رو",
+        "دریافت کردم",
+        "واریز شد",
+        "رسید",
+        "واریز کرد",
     ];
 
     let expense_keywords = [
-        "خریدم", "پرداخت", "هزینه", "قبض", "اجاره", "خرید", "پول دادم",
-        "خرج", "پرداخت کردم", "دادم", "رفت", "گذاشتم",
+        "خریدم",
+        "پرداخت",
+        "هزینه",
+        "قبض",
+        "اجاره",
+        "خرید",
+        "پول دادم",
+        "خرج",
+        "پرداخت کردم",
+        "دادم",
+        "رفت",
+        "گذاشتم",
         // Personal Care
-        "اصلاح", "سالن", "آرایشگاه", "کوتاهی مو", "رنگ مو", "واکس",
-        "پدیکور", "مانیکور", "ماساژ", "اسپا", "فیشال", "لیزر", "کرم",
-        "شامپو", "عطر", "ادکلن", "لوازم آرایش", "آرایش", "پیرایش", "ابرو",
-        "ریمل", "رژ لب",
+        "اصلاح",
+        "سالن",
+        "آرایشگاه",
+        "کوتاهی مو",
+        "رنگ مو",
+        "واکس",
+        "پدیکور",
+        "مانیکور",
+        "ماساژ",
+        "اسپا",
+        "فیشال",
+        "لیزر",
+        "کرم",
+        "شامپو",
+        "عطر",
+        "ادکلن",
+        "لوازم آرایش",
+        "آرایش",
+        "پیرایش",
+        "ابرو",
+        "ریمل",
+        "رژ لب",
         // Education
-        "کتاب", "مجله", "روزنامه", "دوره آموزشی", "کلاس", "آموزش", "مدرسه",
-        "دانشگاه", "شهریه",
+        "کتاب",
+        "مجله",
+        "روزنامه",
+        "دوره آموزشی",
+        "کلاس",
+        "آموزش",
+        "مدرسه",
+        "دانشگاه",
+        "شهریه",
         // Rent & Utilities
-        "اجاره", "رهن", "آپارتمان", "خانه", "ملک", "زمین", "ویلا", "باغ",
-        "کلبه", "اقامتگاه", "مهمانخانه", "پارکینگ", "انبار", "دفتر کار",
-        "مغازه", "فروشگاه", "بازرگانی", "شرکت", "کارخانه", "کارگاه",
+        "اجاره",
+        "رهن",
+        "آپارتمان",
+        "خانه",
+        "ملک",
+        "زمین",
+        "ویلا",
+        "باغ",
+        "کلبه",
+        "اقامتگاه",
+        "مهمانخانه",
+        "پارکینگ",
+        "انبار",
+        "دفتر کار",
+        "مغازه",
+        "فروشگاه",
+        "بازرگانی",
+        "شرکت",
+        "کارخانه",
+        "کارگاه",
         // Bills
-        "قبض", "برق", "گاز", "تلفن", "اینترنت", "شارژ", "موبایل",
+        "قبض",
+        "برق",
+        "گاز",
+        "تلفن",
+        "اینترنت",
+        "شارژ",
+        "موبایل",
         // Loans
-        "قرض", "وام", "بدهی", "قسط", "چک", "سفته", "ضمانت", "بهره",
+        "قرض",
+        "وام",
+        "بدهی",
+        "قسط",
+        "چک",
+        "سفته",
+        "ضمانت",
+        "بهره",
         // Events
-        "هدیه", "جشن", "تولد", "عروسی", "نامزدی", "سالگرد", "مراسم", "مهمانی",
+        "هدیه",
+        "جشن",
+        "تولد",
+        "عروسی",
+        "نامزدی",
+        "سالگرد",
+        "مراسم",
+        "مهمانی",
         // Charity
-        "خیریه", "صدقه", "کمک",
+        "خیریه",
+        "صدقه",
+        "کمک",
         // Investment
-        "سرمایه گذاری", "خرید سهام", "طلا", "سکه", "دلار", "ارز",
+        "سرمایه گذاری",
+        "خرید سهام",
+        "طلا",
+        "سکه",
+        "دلار",
+        "ارز",
     ];
 
     let is_income = income_keywords.iter().any(|&kw| sentence.contains(kw));
@@ -647,11 +1164,21 @@ pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedRes
     let classification = classify_type(&sentence, is_income, person_name.as_deref(), now_ms);
 
     let mut factors = 0i32;
-    if amount_toman > 0 { factors += 1; }
-    if is_income || is_expense { factors += 1; }
-    if person_name.is_some() { factors += 1; }
-    if hour.is_some() { factors += 1; }
-    if classification.days_from_now.is_some() { factors += 1; }
+    if amount_toman > 0 {
+        factors += 1;
+    }
+    if is_income || is_expense {
+        factors += 1;
+    }
+    if person_name.is_some() {
+        factors += 1;
+    }
+    if hour.is_some() {
+        factors += 1;
+    }
+    if classification.days_from_now.is_some() {
+        factors += 1;
+    }
 
     let confidence = match factors {
         4.. => 0.95,
@@ -703,14 +1230,67 @@ mod tests {
     #[test]
     fn test_food_keywords() {
         let keywords = [
-            "مرغ", "گوشت", "غذا", "میوه", "رستوران", "نان", "شیر", "پنیر",
-            "شام", "ناهار", "صبحانه", "چای", "قهوه", "اسنک", "بستنی", "سالاد",
-            "ماهی", "میگو", "سبزی", "مربا", "روغن", "برنج", "ماکارونی", "رب",
-            "ادویه", "نوشابه", "آب معدنی", "آب", "دوغ", "دلستر", "چیپس",
-            "شکلات", "کیک", "بیسکوییت", "موز", "سیب", "پرتقال", "هندوانه",
-            "خربزه", "انگور", "توت", "تمشک", "کدو", "خیار", "گوجه", "کلم",
-            "اسفناج", "لوبیا", "نخود", "عدس", "لپه", "سوپ", "آش", "حلیم",
-            "کباب", "استیک", "سوسیس", "کالباس", "همبرگر", "پیتزا", "ساندویچ",
+            "مرغ",
+            "گوشت",
+            "غذا",
+            "میوه",
+            "رستوران",
+            "نان",
+            "شیر",
+            "پنیر",
+            "شام",
+            "ناهار",
+            "صبحانه",
+            "چای",
+            "قهوه",
+            "اسنک",
+            "بستنی",
+            "سالاد",
+            "ماهی",
+            "میگو",
+            "سبزی",
+            "مربا",
+            "روغن",
+            "برنج",
+            "ماکارونی",
+            "رب",
+            "ادویه",
+            "نوشابه",
+            "آب معدنی",
+            "آب",
+            "دوغ",
+            "دلستر",
+            "چیپس",
+            "شکلات",
+            "کیک",
+            "بیسکوییت",
+            "موز",
+            "سیب",
+            "پرتقال",
+            "هندوانه",
+            "خربزه",
+            "انگور",
+            "توت",
+            "تمشک",
+            "کدو",
+            "خیار",
+            "گوجه",
+            "کلم",
+            "اسفناج",
+            "لوبیا",
+            "نخود",
+            "عدس",
+            "لپه",
+            "سوپ",
+            "آش",
+            "حلیم",
+            "کباب",
+            "استیک",
+            "سوسیس",
+            "کالباس",
+            "همبرگر",
+            "پیتزا",
+            "ساندویچ",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} خریدم", kw));
@@ -727,13 +1307,25 @@ mod tests {
     #[test]
     fn test_transportation_keywords() {
         let keywords = [
-            "بنزین", "اسنپ", "کرایه", "تاکسی", "مترو", "اتوبوس",
-            "پارکینگ", "عوارض", "لنت", "مکانیک",
+            "بنزین",
+            "اسنپ",
+            "کرایه",
+            "تاکسی",
+            "مترو",
+            "اتوبوس",
+            "پارکینگ",
+            "عوارض",
+            "لنت",
+            "مکانیک",
             "تعمیرگاه",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} گرفتم", kw));
-            assert_eq!(cat, "Transportation", "Keyword '{}' should map to Transportation", kw);
+            assert_eq!(
+                cat, "Transportation",
+                "Keyword '{}' should map to Transportation",
+                kw
+            );
         }
     }
 
@@ -746,8 +1338,20 @@ mod tests {
     #[test]
     fn test_shopping_keywords() {
         let keywords = [
-            "لباس", "کفش", "پوشاک", "کیف", "کلاه", "عینک", "ساعت مچی",
-            "جواهرات", "زیورآلات", "کت", "شلوار", "پیراهن", "مانتو", "چادر",
+            "لباس",
+            "کفش",
+            "پوشاک",
+            "کیف",
+            "کلاه",
+            "عینک",
+            "ساعت مچی",
+            "جواهرات",
+            "زیورآلات",
+            "کت",
+            "شلوار",
+            "پیراهن",
+            "مانتو",
+            "چادر",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} خریدم", kw));
@@ -764,8 +1368,15 @@ mod tests {
     #[test]
     fn test_bills_keywords() {
         let keywords = [
-            "قبض", "برق", "گاز", "تلفن", "اینترنت", "شارژ", "فیبر",
-            "موبایل", "tv",
+            "قبض",
+            "برق",
+            "گاز",
+            "تلفن",
+            "اینترنت",
+            "شارژ",
+            "فیبر",
+            "موبایل",
+            "tv",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} پرداخت کردم", kw));
@@ -782,19 +1393,63 @@ mod tests {
     #[test]
     fn test_personal_care_keywords() {
         let keywords = [
-            "اصلاح", "سالن", "آرایشگاه", "کوتاهی", "رنگ مو", "واکس",
-            "پدیکور", "مانیکور", "ماساژ", "اسپا", "فیشال", "لیزر", "کرم",
-            "عطر", "ادکلن", "لوازم آرایش", "آرایش", "پیرایش",
-            "ابرو", "ریمل", "رژ لب", "پودر", "کانسیلر", "سیگار", "قلیان",
+            "اصلاح",
+            "سالن",
+            "آرایشگاه",
+            "کوتاهی",
+            "رنگ مو",
+            "واکس",
+            "پدیکور",
+            "مانیکور",
+            "ماساژ",
+            "اسپا",
+            "فیشال",
+            "لیزر",
+            "کرم",
+            "عطر",
+            "ادکلن",
+            "لوازم آرایش",
+            "آرایش",
+            "پیرایش",
+            "ابرو",
+            "ریمل",
+            "رژ لب",
+            "پودر",
+            "کانسیلر",
+            "سیگار",
+            "قلیان",
             "اقامت",
-            "سفر", "گردشگری", "تفریح", "سینما", "تئاتر",
-            "کنسرت", "بازی", "ورزش", "باشگاه", "fitness", "Gym", "دارو",
-            "داروخانه", "ویتامین", "درمان", "دندانپزشکی", "چشم پزشکی",
-            "آزمایش", "رادیولوژی", "سونوگرافی", "MRI", "CT", "تست",
+            "سفر",
+            "گردشگری",
+            "تفریح",
+            "سینما",
+            "تئاتر",
+            "کنسرت",
+            "بازی",
+            "ورزش",
+            "باشگاه",
+            "fitness",
+            "Gym",
+            "دارو",
+            "داروخانه",
+            "ویتامین",
+            "درمان",
+            "دندانپزشکی",
+            "چشم پزشکی",
+            "آزمایش",
+            "رادیولوژی",
+            "سونوگرافی",
+            "MRI",
+            "CT",
+            "تست",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} رفتم", kw));
-            assert_eq!(cat, "Personal Care", "Keyword '{}' should map to Personal Care", kw);
+            assert_eq!(
+                cat, "Personal Care",
+                "Keyword '{}' should map to Personal Care",
+                kw
+            );
         }
     }
 
@@ -807,11 +1462,25 @@ mod tests {
     #[test]
     fn test_education_keywords() {
         let keywords = [
-            "مجله", "روزنامه",
-            "مدرسه", "دانشگاه", "شهریه", "سرویس مدرسه", "لوازم تحریر",
-            "خودکار", "دفتر", "کاغذ", "Printer", "پرینتر",
-            "کارتریج", "نرم افزار", "اپلیکیشن", "اشتراک", "سرویس",
-            "service", "membership",
+            "مجله",
+            "روزنامه",
+            "مدرسه",
+            "دانشگاه",
+            "شهریه",
+            "سرویس مدرسه",
+            "لوازم تحریر",
+            "خودکار",
+            "دفتر",
+            "کاغذ",
+            "Printer",
+            "پرینتر",
+            "کارتریج",
+            "نرم افزار",
+            "اپلیکیشن",
+            "اشتراک",
+            "سرویس",
+            "service",
+            "membership",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} رفتم", kw));
@@ -829,18 +1498,46 @@ mod tests {
     fn test_rent_utilities_keywords() {
         // Keywords exclusive to Rent & Utilities (no overlap with earlier categories Food/Transport/Shopping/Bills/PersonalCare/Education)
         let keywords = [
-            "اجاره", "رهن", "آپارتمان", "ملک", "ویلا",
-            "مهمانخانه", "انبار",
-            "مغازه", "فروشگاه", "بازرگانی",
-            "کارخانه", "کارگاه", "مالیات",
-            "تعمیرات ساختمان", "نقاشی ساختمان",
-            "لوله کشی", "بنایی", "سنگ", "سیمان", "آجر", "چوب",
-            "MDF", "لمینت", "سرامیک", "کاشی", "شوفاژ", "کولر",
-            "بخاری", "شومینه", "پکیج", "رادیاتور", "لوله",
+            "اجاره",
+            "رهن",
+            "آپارتمان",
+            "ملک",
+            "ویلا",
+            "مهمانخانه",
+            "انبار",
+            "مغازه",
+            "فروشگاه",
+            "بازرگانی",
+            "کارخانه",
+            "کارگاه",
+            "مالیات",
+            "تعمیرات ساختمان",
+            "نقاشی ساختمان",
+            "لوله کشی",
+            "بنایی",
+            "سنگ",
+            "سیمان",
+            "آجر",
+            "چوب",
+            "MDF",
+            "لمینت",
+            "سرامیک",
+            "کاشی",
+            "شوفاژ",
+            "کولر",
+            "بخاری",
+            "شومینه",
+            "پکیج",
+            "رادیاتور",
+            "لوله",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} پرداخت کردم", kw));
-            assert_eq!(cat, "Rent & Utilities", "Keyword '{}' should map to Rent & Utilities", kw);
+            assert_eq!(
+                cat, "Rent & Utilities",
+                "Keyword '{}' should map to Rent & Utilities",
+                kw
+            );
         }
     }
 
@@ -853,28 +1550,62 @@ mod tests {
     #[test]
     fn test_loans_debt_keywords() {
         let keywords = [
-            "قرض", "وام", "بدهی", "قسط", "چک", "سفته", "ضمانت", "سود وام",
-            "جریمه", "کارمزد", "سود بانکی", "بهره", "سود مرکب",
+            "قرض",
+            "وام",
+            "بدهی",
+            "قسط",
+            "چک",
+            "سفته",
+            "ضمانت",
+            "سود وام",
+            "جریمه",
+            "کارمزد",
+            "سود بانکی",
+            "بهره",
+            "سود مرکب",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} دارم", kw));
-            assert_eq!(cat, "Loans & Debt", "Keyword '{}' should map to Loans & Debt", kw);
+            assert_eq!(
+                cat, "Loans & Debt",
+                "Keyword '{}' should map to Loans & Debt",
+                kw
+            );
         }
     }
 
     #[test]
     fn test_loans_debt_compound_keywords() {
         let compounds = [
-            "وام خودرو", "وام ازدواج", "وام تحصیلی",
-            "وام فوری", "وام بازنشستگی", "وام کارمندی",
-            "وام دولتی", "وام خصوصی", "وام بانکی", "وام بدون بهره",
-            "وام با بهره", "وام با سود", "وام بدون سود", "وام با کارمزد",
-            "وام بدون کارمزد", "وام با ضمانت", "وام بدون ضمانت",
-            "وام با چک", "وام با سفته", "وام با ضامن", "وام بدون ضامن",
+            "وام خودرو",
+            "وام ازدواج",
+            "وام تحصیلی",
+            "وام فوری",
+            "وام بازنشستگی",
+            "وام کارمندی",
+            "وام دولتی",
+            "وام خصوصی",
+            "وام بانکی",
+            "وام بدون بهره",
+            "وام با بهره",
+            "وام با سود",
+            "وام بدون سود",
+            "وام با کارمزد",
+            "وام بدون کارمزد",
+            "وام با ضمانت",
+            "وام بدون ضمانت",
+            "وام با چک",
+            "وام با سفته",
+            "وام با ضامن",
+            "وام بدون ضامن",
         ];
         for kw in &compounds {
             let (cat, _) = infer_expense_category_full(&format!("{} گرفتم", kw));
-            assert_eq!(cat, "Loans & Debt", "Compound '{}' should map to Loans & Debt", kw);
+            assert_eq!(
+                cat, "Loans & Debt",
+                "Compound '{}' should map to Loans & Debt",
+                kw
+            );
         }
     }
 
@@ -887,12 +1618,37 @@ mod tests {
     #[test]
     fn test_income_keywords() {
         let keywords = [
-            "درآمد", "حقوق", "واریز", "اضافه کار", "پاداش", "بونوس", "سود",
-            "دریافتی", "واریزی", "حقوقی", "کارانه", "فروش", "درآمدزایی",
-            "عیدی", "سنوات", "پرداختی", "حقوق ماه", "حقوق اداره",
-            "حقوقم", "حقوقم رو", "دریافت کردم", "واریز شد",
-            "رسید", "واریز کرد", "فروش رفت", "درآمد داشتم", "پول درآوردم",
-            "سود کردم", "بازدهی", "return", "profit",
+            "درآمد",
+            "حقوق",
+            "واریز",
+            "اضافه کار",
+            "پاداش",
+            "بونوس",
+            "سود",
+            "دریافتی",
+            "واریزی",
+            "حقوقی",
+            "کارانه",
+            "فروش",
+            "درآمدزایی",
+            "عیدی",
+            "سنوات",
+            "پرداختی",
+            "حقوق ماه",
+            "حقوق اداره",
+            "حقوقم",
+            "حقوقم رو",
+            "دریافت کردم",
+            "واریز شد",
+            "رسید",
+            "واریز کرد",
+            "فروش رفت",
+            "درآمد داشتم",
+            "پول درآوردم",
+            "سود کردم",
+            "بازدهی",
+            "return",
+            "profit",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} {}", kw, "دارم"));
@@ -909,12 +1665,26 @@ mod tests {
     #[test]
     fn test_events_gifts_keywords() {
         let keywords = [
-            "هدیه", "جشن", "تولد", "عروسی", "نامزدی", "سالگرد", "مراسم",
-            "مهمانی", "party", "celebration", "event", "wedding",
+            "هدیه",
+            "جشن",
+            "تولد",
+            "عروسی",
+            "نامزدی",
+            "سالگرد",
+            "مراسم",
+            "مهمانی",
+            "party",
+            "celebration",
+            "event",
+            "wedding",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} دارم", kw));
-            assert_eq!(cat, "Events & Gifts", "Keyword '{}' should map to Events & Gifts", kw);
+            assert_eq!(
+                cat, "Events & Gifts",
+                "Keyword '{}' should map to Events & Gifts",
+                kw
+            );
         }
     }
 
@@ -942,12 +1712,22 @@ mod tests {
     #[test]
     fn test_investment_keywords() {
         let keywords = [
-            "سرمایه گذاری", "خرید سهام", "صندوق سرمایه", "طلا", "سکه",
-            "دلار", "ارز", "نفت",
+            "سرمایه گذاری",
+            "خرید سهام",
+            "صندوق سرمایه",
+            "طلا",
+            "سکه",
+            "دلار",
+            "ارز",
+            "نفت",
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} خریدم", kw));
-            assert_eq!(cat, "Investment", "Keyword '{}' should map to Investment", kw);
+            assert_eq!(
+                cat, "Investment",
+                "Keyword '{}' should map to Investment",
+                kw
+            );
         }
     }
 
@@ -957,13 +1737,21 @@ mod tests {
         // In Kotlin this also maps to Rent & Utilities first due to when{} ordering.
         // Test compound forms that contain بیمه plus additional words.
         let keywords = [
-            "بیمه عمر", "بیمه تصادف", "بیمه آتش سوزی", "بیمه زلزله",
-            "بیمه سرقت", "بیمه مسئولیت",
+            "بیمه عمر",
+            "بیمه تصادف",
+            "بیمه آتش سوزی",
+            "بیمه زلزله",
+            "بیمه سرقت",
+            "بیمه مسئولیت",
         ];
         for kw in &keywords {
             // These actually map to Rent & Utilities due to "بیمه" being in that category
             let (cat, _) = infer_expense_category_full(&format!("{} خریدم", kw));
-            assert_eq!(cat, "Rent & Utilities", "Insurance '{}' maps to Rent & Utilities (bimه matches first)", kw);
+            assert_eq!(
+                cat, "Rent & Utilities",
+                "Insurance '{}' maps to Rent & Utilities (bimه matches first)",
+                kw
+            );
         }
     }
 
@@ -1044,10 +1832,7 @@ mod tests {
         // year as test_now_ms() (Tir 10, 1405), so no year-rollover occurs.
         let result = classify_installment("قسط وام ۱۵ مرداد", test_now_ms()).unwrap();
         assert_eq!(result.tx_type, "INSTALLMENT");
-        assert_eq!(
-            result.installment_title,
-            Some("قسط وام".to_string())
-        );
+        assert_eq!(result.installment_title, Some("قسط وام".to_string()));
         assert_eq!(result.days_from_now, Some(36));
     }
 
@@ -1515,7 +2300,8 @@ mod tests {
 
     #[test]
     fn test_parse_installment_paid() {
-        let result = parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
+        let result =
+            parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Expense);
         assert_eq!(result.category, "Installments");
     }
@@ -1526,8 +2312,11 @@ mod tests {
         // None. parse_sentence_offline_full must normalize that to Some(0) to
         // match the Kotlin fallback (GeminiParser fallback uses optInt("dateOffsetDays", 0)).
         let result = parse_sentence_offline_full("۵۰۰۰ تومان نان خریدم", test_now_ms());
-        assert_eq!(result.date_offset_days, Some(0),
-            "date_offset_days must be Some(0), not None, when no date keyword is present");
+        assert_eq!(
+            result.date_offset_days,
+            Some(0),
+            "date_offset_days must be Some(0), not None, when no date keyword is present"
+        );
     }
 
     #[test]
@@ -1539,7 +2328,8 @@ mod tests {
     #[test]
     fn test_parse_confidence_high() {
         // Multiple factors: amount + income keyword + time
-        let result = parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
+        let result =
+            parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
         assert!(result.confidence >= 0.90);
     }
 
