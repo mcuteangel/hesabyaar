@@ -839,10 +839,10 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
             .collect();
         let digits = to_ascii_digits(&raw_digits);
         if let Ok(mut hour) = digits.parse::<i32>() {
-            let is_pm = sentence.contains("شب")
-                || sentence.contains("عصر")
-                || sentence.contains("بعدازظهر")
-                || sentence.contains("بعد از ظهر");
+            let tail_start = pos + hour_pattern.len();
+            let trimmed_prefix = sentence[tail_start..].len() - rest.len();
+            let digits_end = tail_start + trimmed_prefix + raw_digits.len();
+            let is_pm = is_pm_marker_near_time(sentence, pos, digits_end);
             if is_pm && (1..=11).contains(&hour) {
                 hour += 12;
             }
@@ -868,6 +868,34 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
         }
     }
     (None, None)
+}
+
+/// Detect a PM marker near the `ساعت <hour>` phrase.
+///
+/// The marker must sit within two words before `ساعت` or three words after
+/// the hour digits. A whole-sentence search misfires when the same word
+/// appears later as unrelated description text. Example:
+/// "ساعت 6 بلیط مترو خریدم، شب هم پیتزا گرفتم" must stay 6 o'clock.
+/// Three tokens after the digits cover the spaced spelling "بعد از ظهر".
+fn is_pm_marker_near_time(sentence: &str, saat_start: usize, digits_end: usize) -> bool {
+    const PM_MARKER_WORDS_BEFORE: usize = 2;
+    const PM_MARKER_WORDS_AFTER: usize = 3;
+    let before = sentence[..saat_start]
+        .split_whitespace()
+        .rev()
+        .take(PM_MARKER_WORDS_BEFORE)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let after = sentence[digits_end..]
+        .split_whitespace()
+        .take(PM_MARKER_WORDS_AFTER)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let zone = format!("{before} {after}");
+    zone.contains("شب")
+        || zone.contains("عصر")
+        || zone.contains("بعدازظهر")
+        || zone.contains("بعد از ظهر")
 }
 
 /// Extract person name from Persian sentence.
@@ -2129,6 +2157,54 @@ mod tests {
     fn test_time_persian_digits() {
         let (hour, minute) = extract_time("ساعت ۱۴ جلسه");
         assert_eq!(hour, Some(14));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_pm_marker_before_hour_token() {
+        // The marker precedes the ساعت token: "امروز شب ساعت 9".
+        let (hour, minute) = extract_time("امروز شب ساعت 9 رفتم");
+        assert_eq!(hour, Some(21));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_pm_word_in_time_context_still_applies() {
+        // "فردا شب" directly qualifies the time expression.
+        let (hour, minute) = extract_time("ساعت 5 فردا شب می رویم");
+        assert_eq!(hour, Some(17));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_night_word_far_away_does_not_shift() {
+        // "شب" belongs to a later, unrelated description. It must not
+        // turn 6 o'clock into 18 o'clock.
+        let (hour, minute) = extract_time("ساعت 6 بلیط مترو خریدم، شب هم پیتزا گرفتم");
+        assert_eq!(hour, Some(6));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_asr_word_far_away_does_not_shift() {
+        // "عصر" sits beyond the three-word window after the digits.
+        let (hour, minute) = extract_time("ساعت 10 قهوه نوشیدم و عصر برگشتم");
+        assert_eq!(hour, Some(10));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_noon_with_pm_marker_not_shifted() {
+        // 12 is outside the 1..=11 shift window, so it stays 12.
+        let (hour, minute) = extract_time("ساعت 12 شب رسید");
+        assert_eq!(hour, Some(12));
+        assert_eq!(minute, None);
+    }
+
+    #[test]
+    fn test_time_first_hour_with_pm_marker_shifts() {
+        let (hour, minute) = extract_time("ساعت 1 بعدازظهر رسید");
+        assert_eq!(hour, Some(13));
         assert_eq!(minute, None);
     }
 
