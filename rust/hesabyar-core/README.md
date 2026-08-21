@@ -100,14 +100,23 @@ rustup installs them on the first cargo command.
 
 The pre-commit hook runs the Kotlin checks first. Then it runs the Rust checks:
 
-1. `cargo fmt` — formats the sources
+1. `cargo fmt` — formats the staged Rust sources
 2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 
-The hook re-stages the staged Rust files that `cargo fmt` changed. It stages no other files.
-A missing `cargo` command fails the commit. Install Rust with rustup and keep `cargo` on PATH.
-A Clippy warning fails the commit. Fix the code. Do not add an allow attribute without a reason comment.
-The hook does not run the Rust tests. CI runs the full test suite (`cargo test --workspace`).
-The Gradle task `copyGitHooks` installs the hook from `scripts/pre-commit`.
+The Rust gate validates the commit candidate, not the whole worktree. It backs up every
+Rust file it touches. Then it writes the staged (index) content into the worktree so
+`cargo fmt` and `cargo clippy` see exactly what will be committed. After the gates, the
+hook restores every file to its original worktree state. This keeps unrelated unstaged
+edits out of the commit and stops Clippy from passing on worktree edits that the commit
+does not contain. The hook re-stages only the formatting delta for staged Rust files.
+It never stages untracked files and never stages unrelated unstaged edits.
+
+A missing `cargo` command fails the commit. Install Rust with rustup and keep `cargo` on
+PATH. A missing `rust/` workspace directory also fails the commit with a clear hint.
+A Clippy warning fails the commit. Fix the code. Do not add an allow attribute without a
+reason comment. The hook does not run the Rust tests. CI runs the full test suite
+(`cargo test --workspace`). The Gradle task `copyGitHooks` installs the hook from
+`scripts/pre-commit`.
 
 ## Project Structure
 

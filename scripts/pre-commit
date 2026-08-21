@@ -2,6 +2,41 @@
 
 set -e
 
+# Backup location for the Rust worktree materialization (Findings 4/5/6).
+# Declared at script scope so the EXIT trap can always clean it up, even on a
+# crash. The value is empty until the Rust block starts.
+rust_backup_dir=""
+
+# Restore every .rs file the Rust block touched back to its original worktree
+# state. Idempotent: safe to call more than once; a no-op when nothing was
+# backed up. Nothing here ever loses user changes — it only copies backups
+# back or moves untracked files back where they were.
+restore_rust_worktree() {
+  local b="$rust_backup_dir"
+  [[ -n "$b" && -d "$b" ]] || return 0
+  local root
+  root=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  if [[ -n "$root" && -f "$b/dirty_manifest.txt" ]]; then
+    while IFS= read -r f; do
+      [[ -n "$f" ]] || continue
+      [[ -f "$b/tracked/$f" ]] && cp "$b/tracked/$f" "$root/$f"
+    done < "$b/dirty_manifest.txt"
+  fi
+  if [[ -n "$root" && -f "$b/untracked_manifest.txt" ]]; then
+    while IFS= read -r f; do
+      [[ -n "$f" ]] || continue
+      if [[ -f "$b/untracked/$f" ]]; then
+        mkdir -p "$(dirname "$root/$f")"
+        mv "$b/untracked/$f" "$root/$f"
+      fi
+    done < "$b/untracked_manifest.txt"
+  fi
+  rm -rf "$b"
+}
+
+# Always restore the worktree on exit, even on a crash mid-Rust-block.
+trap restore_rust_worktree EXIT
+
 echo "==========================================="
 echo "  Hesabyar — Pre-Commit Hook"
 echo "==========================================="
@@ -76,53 +111,130 @@ try_commit() {
     return 1
   fi
 
-  # Snapshot the staged Rust sources before cargo fmt runs. Compare after the
-  # run. Re-stage only files that cargo fmt changed. Never stage other files.
-  declare -A pre_rust_hash
-  local rs_file
-  if [[ ${#staged_files[@]} -gt 0 ]]; then
-    for rs_file in "${staged_files[@]}"; do
-      if [[ $rs_file == *.rs && -f $rs_file ]]; then
-        pre_rust_hash["$rs_file"]=$(git hash-object "$rs_file" 2>/dev/null || echo "")
-      fi
-    done
-  fi
-
-  # Run cargo fmt inside rust/ so rust-toolchain.toml selects the toolchain
-  echo ""
-  echo "[4/5] Running cargo fmt (auto-fix)..."
-  if ! (cd rust && cargo fmt); then
-    echo "❌ cargo fmt failed."
-    echo "   Run (cd rust && cargo fmt) manually to see details."
+  # The Rust workspace must be present. A missing rust/ directory is a hard
+  # failure with a clear hint — never a silent skip (Finding 2).
+  if [[ ! -d rust ]]; then
+    echo "❌ Rust workspace directory 'rust/' not found."
+    echo "   The hook requires a full repository checkout that includes the rust/ workspace."
+    echo "   Restore rust/ (or clone the full repository) and retry the commit."
     return 1
   fi
-  echo "  ✓ cargo fmt passed"
 
-  if [[ ${#pre_rust_hash[@]} -gt 0 ]]; then
-    local rust_modified=()
-    local post_rust_hash
-    for rs_file in "${!pre_rust_hash[@]}"; do
-      post_rust_hash=$(git hash-object "$rs_file" 2>/dev/null || echo "")
-      if [[ -n "${pre_rust_hash[$rs_file]}" && "${pre_rust_hash[$rs_file]}" != "$post_rust_hash" ]]; then
-        rust_modified+=("$rs_file")
-      fi
-    done
-    if [[ ${#rust_modified[@]} -gt 0 ]]; then
-      echo "  Re-staging ${#rust_modified[@]} Rust file(s) with auto-fixes..."
-      git add "${rust_modified[@]}"
-    fi
+  # ---------------------------------------------------------------------------
+  # Staged/index vs worktree correctness (Findings 4, 5, 6)
+  #
+  # cargo fmt and cargo clippy operate on the WORKTREE. The commit records the
+  # INDEX. If a staged Rust file also has unstaged edits, a plain `git add`
+  # after formatting would sweep those edits into the commit (Finding 4). And
+  # Clippy must validate the exact content being committed, not unrelated
+  # worktree edits (Findings 5, 6).
+  #
+  # Strategy: back up every .rs file we might touch, then materialize the INDEX
+  # into the worktree so the rust/ subtree the tooling sees equals the commit
+  # candidate. After the gates, restore the worktree to its original state. The
+  # index is updated surgically with only the formatting delta.
+  #
+  # Restore is idempotent and runs on every exit (see trap above). Nothing is
+  # ever reset or stashed in a way that can silently lose user changes.
+  # ---------------------------------------------------------------------------
+
+  # Clean up any backup left by a previous (failed) attempt in this process.
+  restore_rust_worktree
+
+  rust_backup_dir=$(mktemp -d "${TMPDIR:-/tmp}/hesabyar-rust.XXXXXX") || {
+    echo "❌ Could not create a temporary backup directory for the Rust checks."
+    return 1
+  }
+  mkdir -p "$rust_backup_dir/tracked" "$rust_backup_dir/untracked"
+  : > "$rust_backup_dir/dirty_manifest.txt"
+  : > "$rust_backup_dir/untracked_manifest.txt"
+
+  # Inventory: staged, dirty (worktree != index), and untracked Rust sources.
+  local -a staged_rs=() dirty_rs=() untracked_rs=()
+  local f
+  while IFS= read -r -d '' f; do
+    [[ "$f" == rust/* ]] && staged_rs+=("$f")
+  done < <(git diff --cached -z --name-only -- '*.rs')
+  while IFS= read -r -d '' f; do
+    [[ "$f" == rust/* ]] && dirty_rs+=("$f")
+  done < <(git diff-files -z --name-only -- '*.rs')
+  while IFS= read -r -d '' f; do
+    [[ "$f" == rust/* ]] && untracked_rs+=("$f")
+  done < <(git ls-files -z --others --exclude-standard -- '*.rs')
+
+  # Snapshot the pre-fmt index blob OID of each staged Rust file.
+  declare -A staged_oid
+  for f in "${staged_rs[@]}"; do
+    staged_oid["$f"]=$(git ls-files -s -- "$f" | awk '{print $2}')
+  done
+
+  # Back up the worktree content of every dirty tracked Rust file, then
+  # overwrite it with the index version so the worktree matches the candidate.
+  for f in "${dirty_rs[@]}"; do
+    echo "$f" >> "$rust_backup_dir/dirty_manifest.txt"
+    mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
+    cp "$f" "$rust_backup_dir/tracked/$f"
+  done
+  if [[ ${#dirty_rs[@]} -gt 0 ]]; then
+    git checkout-index -f -- "${dirty_rs[@]}"
   fi
 
-  # Run clippy with the exact CI policy. Do not weaken the flags
+  # Move untracked Rust files out of the worktree so cargo ignores them and
+  # they cannot alter the validated content. Restored at the end.
+  for f in "${untracked_rs[@]}"; do
+    echo "$f" >> "$rust_backup_dir/untracked_manifest.txt"
+    mkdir -p "$(dirname "$rust_backup_dir/untracked/$f")"
+    mv "$f" "$rust_backup_dir/untracked/$f"
+  done
+
+  # Run cargo fmt. Only format staged sources so an unrelated Kotlin commit
+  # does not rewrite the whole Rust worktree. cargo fmt selects the toolchain
+  # via rust/rust-toolchain.toml because the subshell starts inside rust/.
+  echo ""
+  echo "[4/5] Running cargo fmt (auto-fix)..."
+  if [[ ${#staged_rs[@]} -gt 0 ]]; then
+    local -a fmt_paths=("${staged_rs[@]/#rust\//}")
+    if ! (cd rust && cargo fmt -- "${fmt_paths[@]}"); then
+      echo "❌ cargo fmt failed."
+      echo "   Run (cd rust && cargo fmt) manually to see details."
+      restore_rust_worktree
+      return 1
+    fi
+    echo "  ✓ cargo fmt passed"
+
+    # Re-stage only the formatting delta for staged Rust files. Because the
+    # worktree was materialized from the index, `git add` here cannot pull in
+    # unrelated unstaged edits — those are backed up and restored later.
+    local -a to_restage=()
+    local post_oid
+    for f in "${staged_rs[@]}"; do
+      [[ -f "$f" ]] || continue
+      post_oid=$(git hash-object --path="$f" -- "$f" 2>/dev/null || echo "")
+      if [[ -n "${staged_oid[$f]}" && "${staged_oid[$f]}" != "$post_oid" ]]; then
+        to_restage+=("$f")
+      fi
+    done
+    if [[ ${#to_restage[@]} -gt 0 ]]; then
+      echo "  Re-staging ${#to_restage[@]} Rust file(s) with auto-fixes..."
+      git add "${to_restage[@]}"
+    fi
+  else
+    echo "  No staged Rust sources — skipping cargo fmt"
+  fi
+
+  # Run clippy against the worktree, which now equals the (formatted) commit
+  # candidate. Unrelated unstaged edits are excluded by materialization.
   echo ""
   echo "[5/5] Running cargo clippy (static analysis)..."
   if ! (cd rust && cargo clippy --workspace --all-targets --all-features -- -D warnings); then
     echo "❌ cargo clippy failed — Rust code quality issues detected."
     echo "   Fix the issues or run: (cd rust && cargo clippy --workspace --all-targets --all-features)"
+    restore_rust_worktree
     return 1
   fi
   echo "  ✓ cargo clippy passed"
 
+  restore_rust_worktree
   return 0
 }
 
