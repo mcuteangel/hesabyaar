@@ -96,6 +96,19 @@ Fix a finding by refactoring. Add a local `#[allow]` only with a comment that ex
 `rust/rust-toolchain.toml` pins the channel to `stable`. It also lists `clippy` and `rustfmt` as components.
 rustup installs them on the first cargo command.
 
+### Pre-Commit Hook
+
+The pre-commit hook runs the Kotlin checks first. Then it runs the Rust checks:
+
+1. `cargo fmt` — formats the sources
+2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+
+The hook re-stages the staged Rust files that `cargo fmt` changed. It stages no other files.
+A missing `cargo` command fails the commit. Install Rust with rustup and keep `cargo` on PATH.
+A Clippy warning fails the commit. Fix the code. Do not add an allow attribute without a reason comment.
+The hook does not run the Rust tests. CI runs the full test suite (`cargo test --workspace`).
+The Gradle task `copyGitHooks` installs the hook from `scripts/pre-commit`.
+
 ## Project Structure
 
 ```

@@ -6,7 +6,7 @@ echo "==========================================="
 echo "  Hesabyar — Pre-Commit Hook"
 echo "==========================================="
 
-# Function to run ktlint checks and format
+# Run all quality gates: Kotlin format + lint + detekt, then Rust fmt + clippy
 try_commit() {
   # Record originally staged files using null-delimited output for safe filename handling
   local staged_files
@@ -14,7 +14,7 @@ try_commit() {
 
   # Run ktlintFormat first to auto-fix formatting
   echo ""
-  echo "[1/3] Running ktlintFormat (auto-fix)..."
+  echo "[1/5] Running ktlintFormat (auto-fix)..."
   if ! ./gradlew ktlintFormat --quiet; then
     echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
     echo "   Run ./gradlew ktlintFormat manually to see details."
@@ -51,7 +51,7 @@ try_commit() {
 
   # Run ktlintCheck to verify no style violations remain
   echo ""
-  echo "[2/3] Running ktlintCheck..."
+  echo "[2/5] Running ktlintCheck..."
   if ! ./gradlew ktlintCheck --quiet; then
     echo "❌ ktlintCheck failed — Kotlin style violations detected."
     echo "   Fix the issues manually or re-stage the files and try again."
@@ -61,13 +61,67 @@ try_commit() {
 
   # Run detekt to match CI strictness (whole-project, non-autocorrectable rules)
   echo ""
-  echo "[3/3] Running detekt (static analysis)..."
+  echo "[3/5] Running detekt (static analysis)..."
   if ! ./gradlew detekt; then
     echo "❌ detekt failed — code quality issues detected."
     echo "   Fix the issues or run ./gradlew detekt to see details."
     return 1
   fi
   echo "  ✓ detekt passed"
+
+  # Cargo must be on PATH. A missing Rust toolchain is a hard failure, never a skip.
+  if ! command -v cargo >/dev/null 2>&1; then
+    echo "❌ cargo not found — cannot run Rust checks."
+    echo "   Install the Rust toolchain (https://rustup.rs), reopen the shell, and retry."
+    return 1
+  fi
+
+  # Snapshot the staged Rust sources before cargo fmt runs. Compare after the
+  # run. Re-stage only files that cargo fmt changed. Never stage other files.
+  declare -A pre_rust_hash
+  local rs_file
+  if [[ ${#staged_files[@]} -gt 0 ]]; then
+    for rs_file in "${staged_files[@]}"; do
+      if [[ $rs_file == *.rs && -f $rs_file ]]; then
+        pre_rust_hash["$rs_file"]=$(git hash-object "$rs_file" 2>/dev/null || echo "")
+      fi
+    done
+  fi
+
+  # Run cargo fmt inside rust/ so rust-toolchain.toml selects the toolchain
+  echo ""
+  echo "[4/5] Running cargo fmt (auto-fix)..."
+  if ! (cd rust && cargo fmt); then
+    echo "❌ cargo fmt failed."
+    echo "   Run (cd rust && cargo fmt) manually to see details."
+    return 1
+  fi
+  echo "  ✓ cargo fmt passed"
+
+  if [[ ${#pre_rust_hash[@]} -gt 0 ]]; then
+    local rust_modified=()
+    local post_rust_hash
+    for rs_file in "${!pre_rust_hash[@]}"; do
+      post_rust_hash=$(git hash-object "$rs_file" 2>/dev/null || echo "")
+      if [[ -n "${pre_rust_hash[$rs_file]}" && "${pre_rust_hash[$rs_file]}" != "$post_rust_hash" ]]; then
+        rust_modified+=("$rs_file")
+      fi
+    done
+    if [[ ${#rust_modified[@]} -gt 0 ]]; then
+      echo "  Re-staging ${#rust_modified[@]} Rust file(s) with auto-fixes..."
+      git add "${rust_modified[@]}"
+    fi
+  fi
+
+  # Run clippy with the exact CI policy. Do not weaken the flags
+  echo ""
+  echo "[5/5] Running cargo clippy (static analysis)..."
+  if ! (cd rust && cargo clippy --workspace --all-targets --all-features -- -D warnings); then
+    echo "❌ cargo clippy failed — Rust code quality issues detected."
+    echo "   Fix the issues or run: (cd rust && cargo clippy --workspace --all-targets --all-features)"
+    return 1
+  fi
+  echo "  ✓ cargo clippy passed"
 
   return 0
 }
