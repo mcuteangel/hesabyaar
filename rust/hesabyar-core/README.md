@@ -96,6 +96,41 @@ Fix a finding by refactoring. Add a local `#[allow]` only with a comment that ex
 `rust/rust-toolchain.toml` pins the channel to `stable`. It also lists `clippy` and `rustfmt` as components.
 rustup installs them on the first cargo command.
 
+### Pre-Commit Hook
+
+The pre-commit hook runs the Kotlin checks first. Then it runs the Rust checks:
+
+1. `cargo fmt` — formats the staged Rust sources
+2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+
+The Rust gate validates the commit candidate, not the whole worktree.
+
+Every tracked file under `rust/` is a Rust validation input. This covers `*.rs` sources,
+`build.rs`, all `Cargo.toml` manifests, `Cargo.lock`, `.cargo/config.toml`, and
+`rust-toolchain.toml`. Nothing outside `rust/` affects cargo here. Before the gates run,
+the hook backs up every such input whose worktree content differs from the index. It then
+writes the index version into the worktree. So `cargo fmt` and `cargo clippy` see exactly
+what will be committed, including when a manifest or the lockfile is only partially staged.
+Non-ignored untracked files under `rust/` are moved out during the checks.
+
+After the gates, the hook restores every file to its original worktree state. A file that
+was deleted in the worktree without staging stays deleted. An untracked file comes back.
+Paths are carried in Bash arrays. A path may contain spaces, tabs, quotes, or newlines.
+The hook re-stages only the formatting delta for staged Rust sources. Staged deletions are
+excluded from the format path list; they stay deleted in the commit. The hook never stages
+untracked files and never stages unrelated unstaged edits.
+
+A missing `cargo` command fails the commit. Install Rust with rustup and keep `cargo` on
+PATH. A missing `rust/` workspace directory also fails the commit with a clear hint.
+A Clippy warning fails the commit. Fix the code. Do not add an allow attribute without a
+reason comment. The hook does not run the Rust tests. CI runs the full test suite
+(`cargo test --workspace`). The Gradle task `copyGitHooks` installs the hook from
+`scripts/pre-commit`.
+
+Run `scripts/test-pre-commit.sh` to test the hook. The script builds a scratch clone and
+runs the real hook across a regression matrix. It checks the exit code, the index state,
+and the worktree state of each case.
+
 ## Project Structure
 
 ```
