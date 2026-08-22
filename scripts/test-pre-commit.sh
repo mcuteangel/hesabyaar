@@ -34,8 +34,10 @@
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   V unstaged +x mode change survives       W +x restored after clippy failure
 #   X unstaged 740/750/710 modes survive     Y exact modes restored after failure
+#   Z broken stat aborts before materialization
 #   E0 static check: no destructive git commands in the hook source
 #   E1 static check: full-mode capture/restore wired into the hook source
+#   E2 static check: mode capture precedes index materialization
 #
 # Usage:
 #   scripts/test-pre-commit.sh
@@ -111,6 +113,13 @@ mkdir -p "$CARGO_SHIM_DIR"
 printf '#!/usr/bin/env bash\necho "cargo $*" >> "%s"\nexit 0\n' "$CARGO_PROBE_LOG" \
   > "$CARGO_SHIM_DIR/cargo"
 chmod +x "$CARGO_SHIM_DIR/cargo"
+
+# Broken-stat shim for case Z. Prepended to PATH for that one case it makes
+# every `stat` invocation fail, so the hook's mode capture cannot succeed.
+STAT_SHIM_DIR="$WORK/stat-shim"
+mkdir -p "$STAT_SHIM_DIR"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$STAT_SHIM_DIR/stat"
+chmod +x "$STAT_SHIM_DIR/stat"
 
 reset_clone() {
   git_clone reset -q --hard "$BASE" || die "reset failed"
@@ -835,12 +844,43 @@ case_y() {
   done
 }
 
+case_z() {
+  echo "=== Z: unusable stat aborts the hook before materialization ==="
+  reset_clone
+  mk_rs_candidate "$P_A"
+  git_clone add "$RS"
+  stage_carrier z
+  mk_rs_alt_worktree "$P_ALT"
+  local mode_before mode_after
+  mode_before=$(read_mode "$CLONE/$RS")
+  rm -f "$CARGO_PROBE_LOG"
+  local saved_path=$PATH
+  export PATH="$STAT_SHIM_DIR:$PATH"
+  run_hook
+  export PATH=$saved_path
+  expect_rc nonzero "hook aborts when no stat can capture a mode"
+  assert_log_contains "Cannot capture file mode"
+  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates despite mode-capture failure" \
+    || pass "hook stopped before cargo fmt materialized the tree"
+  if [[ -f "$CARGO_PROBE_LOG" ]]; then
+    fail "cargo ran despite the mode-capture failure: $(cat "$CARGO_PROBE_LOG")"
+  else
+    pass "cargo never executed (probe log untouched)"
+  fi
+  expect_staged_exactly "$CARRIER" "$RS"
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$WTX"
+  mode_after=$(read_mode "$CLONE/$RS")
+  [[ "$mode_after" == "$mode_before" ]] && pass "worktree mode untouched by the aborted run" \
+    || fail "worktree mode changed: wanted $mode_before, got $mode_after"
+}
+
 case_e1_static_mode_restore_wiring() {
   echo "=== E1: hook source wires full-mode capture and restore ==="
   reset_clone
   local src="$SRC/scripts/pre-commit"
   if grep -qF 'declare -A RUST_DIRTY_MODES' "$src" \
-     && grep -qF 'RUST_DIRTY_MODES["$f"]=$(capture_file_mode "$f")' "$src" \
+     && grep -qF 'if ! mode=$(capture_file_mode "$f"); then' "$src" \
      && grep -qF "stat -c '%a'" "$src" \
      && grep -qF "stat -f '%Lp'" "$src" \
      && grep -qF 'chmod "$m" "$root/$f"' "$src"; then
@@ -850,9 +890,23 @@ case_e1_static_mode_restore_wiring() {
   fi
 }
 
+case_e2_static_capture_before_materialization() {
+  echo "=== E2: mode capture is checked before index materialization ==="
+  reset_clone
+  local src="$SRC/scripts/pre-commit" cap_ln mat_ln
+  cap_ln=$(grep -nF 'capture_file_mode "$f"' "$src" | head -1 | cut -d: -f1)
+  mat_ln=$(grep -nF 'git checkout-index -f' "$src" | head -1 | cut -d: -f1)
+  if [[ -n "$cap_ln" && -n "$mat_ln" && "$cap_ln" -lt "$mat_ln" ]] \
+     && grep -qF 'Cannot capture file mode' "$src"; then
+    pass "capture (line $cap_ln) precedes checkout-index (line $mat_ln) and failure aborts"
+  else
+    fail "capture/materialization order wrong (cap=$cap_ln mat=$mat_ln) or abort message missing"
+  fi
+}
+
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w x y e1_static_mode_restore_wiring)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
 
 for c in "${CASES[@]}"; do
   "case_$c"

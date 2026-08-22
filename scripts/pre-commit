@@ -12,13 +12,15 @@ RUST_UNTRACKED_FILES=() # non-ignored untracked files under rust/
 declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal before backup
 
 # Print a file's permission bits as octal digits without leading zeros.
-# GNU stat accepts -c. BSD and macOS stat accept -f '%Lp'. An empty result
-# means this host has no usable stat, so the mode cannot be recorded.
+# GNU stat accepts -c. BSD and macOS stat accept -f '%Lp'. The value is
+# accepted only when it is pure octal. Returns non-zero when no stat
+# variant can read a valid mode. The caller must then abort: a mode that
+# was not recorded cannot be restored after materialization.
 capture_file_mode() {
   local m
-  m=$(stat -c '%a' -- "$1" 2>/dev/null) && [[ -n "$m" ]] && { printf '%s' "$m"; return 0; }
-  m=$(stat -f '%Lp' -- "$1" 2>/dev/null) && [[ -n "$m" ]] && { printf '%s' "$m"; return 0; }
-  return 0
+  m=$(stat -c '%a' -- "$1" 2>/dev/null) && [[ "$m" =~ ^[0-7]{1,4}$ ]] && { printf '%s' "$m"; return 0; }
+  m=$(stat -f '%Lp' -- "$1" 2>/dev/null) && [[ "$m" =~ ^[0-7]{1,4}$ ]] && { printf '%s' "$m"; return 0; }
+  return 1
 }
 
 # Restore every rust/ input the Rust block touched back to its original
@@ -214,11 +216,29 @@ try_commit() {
   # only one execute class per file, but Unix worktrees can carry richer
   # modes such as 0740, and checkout-index -f is about to overwrite them
   # with the index mode.
+  #
+  # A mode that cannot be captured is a hard failure here, BEFORE any
+  # materialization. The hook has only written inside the backup directory
+  # at this point, so discarding it leaves the worktree untouched. The EXIT
+  # trap then sees an empty backup dir and does nothing.
   for f in "${dirty_inputs[@]}"; do
     if [[ -f "$f" ]]; then
       mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
       cp "$f" "$rust_backup_dir/tracked/$f"
-      RUST_DIRTY_MODES["$f"]=$(capture_file_mode "$f")
+      local mode
+      if ! mode=$(capture_file_mode "$f"); then
+        echo "❌ Cannot capture file mode for '$f'."
+        echo "   Neither 'stat -c %a' nor 'stat -f %Lp' returned a valid octal mode."
+        echo "   The hook will not replace worktree files whose mode it cannot"
+        echo "   record and put back. Install a working 'stat' and retry."
+        rm -rf "$rust_backup_dir"
+        RUST_DIRTY_FILES=()
+        RUST_UNTRACKED_FILES=()
+        RUST_DIRTY_MODES=()
+        rust_backup_dir=""
+        return 1
+      fi
+      RUST_DIRTY_MODES["$f"]="$mode"
     fi
     RUST_DIRTY_FILES+=("$f")
   done
