@@ -32,9 +32,10 @@
 #   I staged Rust deletion               S tab in filename
 #   J unstaged Rust deletion             T newline in filename (best effort)
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
-#   V unstaged mode change survives       W mode restored after clippy failure
+#   V unstaged +x mode change survives       W +x restored after clippy failure
+#   X unstaged 740/750/710 modes survive     Y exact modes restored after failure
 #   E0 static check: no destructive git commands in the hook source
-#   E1 static check: mode capture/restore wired into the hook source
+#   E1 static check: full-mode capture/restore wired into the hook source
 #
 # Usage:
 #   scripts/test-pre-commit.sh
@@ -705,6 +706,30 @@ host_represents_chmod() {
   return 0
 }
 
+# Print a path's permission bits as octal digits, or an empty string when no
+# stat variant can read them. GNU stat accepts -c; BSD and macOS accept -f.
+read_mode() {
+  local m
+  if m=$(stat -c '%a' -- "$1" 2>/dev/null) && [[ -n "$m" ]]; then
+    printf '%s' "$m"
+  elif m=$(stat -f '%Lp' -- "$1" 2>/dev/null) && [[ -n "$m" ]]; then
+    printf '%s' "$m"
+  fi
+}
+
+# Can this host represent a nonstandard permission mode such as 0740 on a
+# file that bash can read back? NTFS under Git Bash cannot: chmod there is a
+# silent no-op and stat reads back the old mode. Cases X and Y report SKIP
+# instead of faking the scenario.
+host_represents_full_modes() {
+  local pf="$WORK/mode-capability-full.rs" m
+  : > "$pf"
+  chmod 740 "$pf" 2>/dev/null || { rm -f "$pf"; return 1; }
+  m=$(read_mode "$pf")
+  rm -f "$pf"
+  [[ "$m" == "740" ]]
+}
+
 case_v() {
   echo "=== V: unstaged worktree mode change survives materialization ==="
   host_represents_chmod || { skip "V: host cannot represent chmod on .rs files"; return 0; }
@@ -749,23 +774,85 @@ case_w() {
   expect_staged_exactly "$CARRIER" "$RS"
 }
 
+# Shared body for cases X and Y: stage one candidate, leave a DIFFERENT
+# unstaged worktree version behind, and stamp a nonstandard permission mode
+# on it. This is stricter than V/W: restore must reproduce every bit, not
+# just an execute class, and the committed bytes must be the staged
+# candidate rather than the unstaged worktree version.
+run_full_mode_scenario() { # <probe-text> <clippy-must-fail:0|1> <mode>
+  local probe="$1" want_fail="$2" want_mode="$3" got_mode idx_mode head_oid exp_oid
+  reset_clone
+  mk_rs_candidate "$probe"
+  git_clone add "$RS"
+  stage_carrier x
+  mk_rs_alt_worktree "$P_ALT"
+  chmod "$want_mode" "$CLONE/$RS"
+  run_hook
+  if [[ $want_fail == 1 ]]; then
+    expect_rc nonzero "clippy failure aborts the commit (mode $want_mode)"
+    assert_log_contains "cargo clippy failed"
+    expect_staged_exactly "$CARRIER" "$RS"
+  else
+    expect_rc 0 "hook passes with unstaged edit and mode $want_mode present"
+    expect_commit_exactly "$CARRIER" "$RS"
+    assert_nothing_staged
+    head_oid=$(git_clone rev-parse "HEAD:$RS")
+    exp_oid=$(git_clone hash-object --path="$RS" "$EXP")
+    [[ "$head_oid" == "$exp_oid" ]] \
+      && pass "commit recorded the staged candidate, not the worktree copy" \
+      || fail "commit recorded wrong Rust content"
+  fi
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$WTX"
+  got_mode=$(read_mode "$CLONE/$RS")
+  [[ "$got_mode" == "$want_mode" ]] \
+    && pass "exact worktree mode $want_mode restored (got $got_mode)" \
+    || fail "worktree mode wrong: wanted $want_mode, got $got_mode"
+  idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
+  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
+    || fail "index mode changed: $idx_mode"
+}
+
+case_x() {
+  echo "=== X: unstaged nonstandard modes survive materialization ==="
+  host_represents_full_modes || { skip "X: host cannot represent nonstandard modes"; return 0; }
+  git_clone config core.fileMode true
+  local m
+  for m in 740 750 710; do
+    echo "  --- mode $m ---"
+    run_full_mode_scenario "$P_A" 0 "$m"
+  done
+}
+
+case_y() {
+  echo "=== Y: exact nonstandard modes restored even when clippy fails ==="
+  host_represents_full_modes || { skip "Y: host cannot represent nonstandard modes"; return 0; }
+  git_clone config core.fileMode true
+  local m
+  for m in 740 750 710; do
+    echo "  --- mode $m ---"
+    run_full_mode_scenario "$P_BAD_N" 1 "$m"
+  done
+}
+
 case_e1_static_mode_restore_wiring() {
-  echo "=== E1: hook source wires mode capture and restore ==="
+  echo "=== E1: hook source wires full-mode capture and restore ==="
   reset_clone
   local src="$SRC/scripts/pre-commit"
   if grep -qF 'declare -A RUST_DIRTY_MODES' "$src" \
-     && grep -qF 'RUST_DIRTY_MODES["$f"]=' "$src" \
-     && grep -qF 'chmod +x "$root/$f"' "$src" \
-     && grep -qF 'chmod -x "$root/$f"' "$src"; then
-    pass "mode capture/restore calls present in hook source"
+     && grep -qF 'RUST_DIRTY_MODES["$f"]=$(capture_file_mode "$f")' "$src" \
+     && grep -qF "stat -c '%a'" "$src" \
+     && grep -qF "stat -f '%Lp'" "$src" \
+     && grep -qF 'chmod "$m" "$root/$f"' "$src"; then
+    pass "full-mode capture/restore calls present in hook source"
   else
-    fail "mode capture/restore wiring missing from hook source"
+    fail "full-mode capture/restore wiring missing from hook source"
   fi
 }
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w e1_static_mode_restore_wiring)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w x y e1_static_mode_restore_wiring)
 
 for c in "${CASES[@]}"; do
   "case_$c"

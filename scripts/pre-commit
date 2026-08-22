@@ -9,7 +9,17 @@ set -euo pipefail
 rust_backup_dir=""
 RUST_DIRTY_FILES=()     # tracked rust/ inputs whose worktree differed from the index
 RUST_UNTRACKED_FILES=() # non-ignored untracked files under rust/
-declare -A RUST_DIRTY_MODES=() # executable bit of each dirty input before backup (1|0)
+declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal before backup
+
+# Print a file's permission bits as octal digits without leading zeros.
+# GNU stat accepts -c. BSD and macOS stat accept -f '%Lp'. An empty result
+# means this host has no usable stat, so the mode cannot be recorded.
+capture_file_mode() {
+  local m
+  m=$(stat -c '%a' -- "$1" 2>/dev/null) && [[ -n "$m" ]] && { printf '%s' "$m"; return 0; }
+  m=$(stat -f '%Lp' -- "$1" 2>/dev/null) && [[ -n "$m" ]] && { printf '%s' "$m"; return 0; }
+  return 0
+}
 
 # Restore every rust/ input the Rust block touched back to its original
 # worktree state. Idempotent: a second call is a no-op. Nothing here loses
@@ -27,11 +37,11 @@ restore_rust_worktree() {
         mkdir -p "$(dirname "$root/$f")"
         cp "$b/tracked/$f" "$root/$f"
         # Reapply the worktree mode saved before materialization. checkout-index
-        # wrote the index mode, so the copy alone cannot restore it.
-        if [[ "${RUST_DIRTY_MODES[$f]:-0}" == 1 ]]; then
-          chmod +x "$root/$f" 2>/dev/null || true
-        else
-          chmod -x "$root/$f" 2>/dev/null || true
+        # wrote the index mode and cp keeps the destination mode, so the copy
+        # alone cannot restore them. An unknown mode leaves the copy untouched.
+        local m="${RUST_DIRTY_MODES[$f]:-}"
+        if [[ "$m" =~ ^[0-7]{1,4}$ ]]; then
+          chmod "$m" "$root/$f" 2>/dev/null || true
         fi
       else
         # No backup exists, so this file was absent before the hook ran.
@@ -157,12 +167,12 @@ try_commit() {
   # Nothing outside rust/ affects cargo here, so nothing outside rust/ is
   # materialized or moved.
   #
-  # The hook saves each dirty file's mode together with its content.
+  # The hook saves each dirty file's full permission mode with its content.
   # checkout-index -f writes the index mode to the worktree. On hosts with
-  # core.fileMode=true, an unstaged chmod makes the file a dirty input. A
-  # content-only restore would then drop that mode change. The restore step
-  # reapplies the saved executable bit. On core.fileMode=false hosts, chmod
-  # never marks a file dirty, so the mode save is a no-op there.
+  # core.fileMode=true, any unstaged chmod makes the file a dirty input, and
+  # a content-only restore would drop that mode. The restore step reapplies
+  # the saved octal mode exactly, not just an execute bit. On hosts where
+  # chmod cannot represent modes, the reapply is a harmless no-op.
   # ---------------------------------------------------------------------------
 
   # Clean up any backup left by a previous attempt in this process.
@@ -200,14 +210,15 @@ try_commit() {
   # Back up the original worktree bytes of every dirty input. A missing file
   # records an absent state: the user deleted it without staging. We must not
   # copy a nonexistent file; restore deletes our materialized copy instead.
-  # For each present file, also record its executable bit. That bit is the
-  # only mode Git tracks for a regular file, and checkout-index -f is about
-  # to overwrite it with the index mode.
+  # For each present file, also record its full permission mode. Git tracks
+  # only one execute class per file, but Unix worktrees can carry richer
+  # modes such as 0740, and checkout-index -f is about to overwrite them
+  # with the index mode.
   for f in "${dirty_inputs[@]}"; do
     if [[ -f "$f" ]]; then
       mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
       cp "$f" "$rust_backup_dir/tracked/$f"
-      if [[ -x "$f" ]]; then RUST_DIRTY_MODES["$f"]=1; else RUST_DIRTY_MODES["$f"]=0; fi
+      RUST_DIRTY_MODES["$f"]=$(capture_file_mode "$f")
     fi
     RUST_DIRTY_FILES+=("$f")
   done
