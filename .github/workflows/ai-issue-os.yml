@@ -248,16 +248,20 @@ jobs:
               continue
             fi
 
-            # Search git log for explicit references to this issue number
-            # Matches: #40, fixes #40, close #40, resolves #40, issue #40, closes #40
-            MATCHES=$(git log --all --oneline -E --grep="#${NUM}([^0-9]|$)" -n 5 2>/dev/null || true)
+            # Search git log for GitHub-style closing references only.
+            # A closing verb must start the reference chain. Optional
+            # "issue"/"issues" word and comma-separated refs may follow.
+            # Example match: "fixes #40", "resolve issues #36, #21".
+            # Example skip: "see #40", "related to #40".
+            CLOSING_PATTERN="(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?(#[0-9]+[[:space:]]*,[[:space:]]*)*#${NUM}([^0-9]|$)"
+            MATCHES=$(git log --all --oneline -E -i --grep="${CLOSING_PATTERN}" -n 5 2>/dev/null || true)
 
             if [ -z "$MATCHES" ]; then
-              echo "⏭️ #${NUM}: no commit references"
+              echo "⏭️ #${NUM}: no closing reference"
               continue
             fi
 
-            echo "🔍 #${NUM} (${TITLE:0:50}): found references"
+            echo "🔍 #${NUM} (${TITLE:0:50}): found closing reference"
             echo "$MATCHES" | head -3
 
             # Take the most recent matching commit
@@ -267,21 +271,6 @@ jobs:
 
             # Get files changed in that commit
             COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r "$COMMIT_SHA" 2>/dev/null || true)
-
-            # Check commit message for fix/resolve/close keywords
-            MSG_LOWER=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
-            HAS_FIX_KEYWORD=false
-            for word in fix fixes fixed resolve resolves resolved close closes closed patched corrected solved reworked updated improved; do
-              if echo "$MSG_LOWER" | grep -qw "$word"; then
-                HAS_FIX_KEYWORD=true
-                break
-              fi
-            done
-
-            if [ "$HAS_FIX_KEYWORD" != "true" ]; then
-              echo "⏭️ #${NUM}: reference found but no fix keyword, skipping"
-              continue
-            fi
 
             # Build the comment using heredoc (reliable multiline)
             COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT_SHA}"
