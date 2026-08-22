@@ -34,7 +34,7 @@
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   V unstaged +x mode change survives       W +x restored after clippy failure
 #   X unstaged 740/750/710 modes survive     Y exact modes restored after failure
-#   Z broken stat aborts before materialization
+#   Z broken stat aborts before materialization (checkout-index probe proves it)
 #   E0 static check: no destructive git commands in the hook source
 #   E1 static check: full-mode capture/restore wired into the hook source
 #   E2 static check: mode capture precedes index materialization
@@ -120,6 +120,19 @@ STAT_SHIM_DIR="$WORK/stat-shim"
 mkdir -p "$STAT_SHIM_DIR"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$STAT_SHIM_DIR/stat"
 chmod +x "$STAT_SHIM_DIR/stat"
+
+# git wrapper for case Z. It logs every invocation and then runs the real
+# git binary. The mode-capture failure must abort BEFORE any worktree
+# materialization, so this log must never contain checkout-index. The
+# wrapper also proves it was engaged: run_hook's own `git commit` must
+# appear in it.
+GIT_SHIM_DIR="$WORK/git-shim"
+GIT_PROBE_LOG="$WORK/git-invocations.log"
+REAL_GIT=$(command -v git) || die "git not on PATH"
+mkdir -p "$GIT_SHIM_DIR"
+printf '#!/usr/bin/env bash\necho "git $*" >> "%s"\nexec "%s" "$@"\n' \
+  "$GIT_PROBE_LOG" "$REAL_GIT" > "$GIT_SHIM_DIR/git"
+chmod +x "$GIT_SHIM_DIR/git"
 
 reset_clone() {
   git_clone reset -q --hard "$BASE" || die "reset failed"
@@ -853,9 +866,9 @@ case_z() {
   mk_rs_alt_worktree "$P_ALT"
   local mode_before mode_after
   mode_before=$(read_mode "$CLONE/$RS")
-  rm -f "$CARGO_PROBE_LOG"
+  rm -f "$CARGO_PROBE_LOG" "$GIT_PROBE_LOG"
   local saved_path=$PATH
-  export PATH="$STAT_SHIM_DIR:$PATH"
+  export PATH="$STAT_SHIM_DIR:$GIT_SHIM_DIR:$PATH"
   run_hook
   export PATH=$saved_path
   expect_rc nonzero "hook aborts when no stat can capture a mode"
@@ -866,6 +879,19 @@ case_z() {
     fail "cargo ran despite the mode-capture failure: $(cat "$CARGO_PROBE_LOG")"
   else
     pass "cargo never executed (probe log untouched)"
+  fi
+  # The git wrapper must be engaged (its own `git commit` is logged) and it
+  # must never have logged checkout-index. Final-state checks alone cannot
+  # tell a clean abort from a transient materialization plus restore.
+  if grep -q "^git commit" "$GIT_PROBE_LOG" 2>/dev/null; then
+    pass "git wrapper probe engaged during the aborted run"
+  else
+    fail "git wrapper probe never logged an invocation (instrumentation broken)"
+  fi
+  if grep -q "checkout-index" "$GIT_PROBE_LOG" 2>/dev/null; then
+    fail "checkout-index ran despite the mode-capture failure: $(grep checkout-index "$GIT_PROBE_LOG" | head -1)"
+  else
+    pass "git checkout-index never invoked before the abort"
   fi
   expect_staged_exactly "$CARRIER" "$RS"
   assert_idx_file "$RS" "$EXP"
