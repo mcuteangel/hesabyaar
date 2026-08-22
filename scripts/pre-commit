@@ -9,11 +9,13 @@ set -euo pipefail
 rust_backup_dir=""
 RUST_DIRTY_FILES=()     # tracked rust/ inputs whose worktree differed from the index
 RUST_UNTRACKED_FILES=() # non-ignored untracked files under rust/
+declare -A RUST_DIRTY_MODES=() # executable bit of each dirty input before backup (1|0)
 
 # Restore every rust/ input the Rust block touched back to its original
 # worktree state. Idempotent: a second call is a no-op. Nothing here loses
-# user data. It copies backups back, moves untracked files back, or deletes
-# the index copy of a file that was absent before the hook ran.
+# user data. It copies backups back. It reapplies each saved worktree mode.
+# It moves untracked files back. It deletes the index copy of a file that
+# was absent before the hook ran.
 restore_rust_worktree() {
   local b="$rust_backup_dir"
   [[ -n "$b" && -d "$b" ]] || return 0
@@ -24,6 +26,13 @@ restore_rust_worktree() {
       if [[ -f "$b/tracked/$f" ]]; then
         mkdir -p "$(dirname "$root/$f")"
         cp "$b/tracked/$f" "$root/$f"
+        # Reapply the worktree mode saved before materialization. checkout-index
+        # wrote the index mode, so the copy alone cannot restore it.
+        if [[ "${RUST_DIRTY_MODES[$f]:-0}" == 1 ]]; then
+          chmod +x "$root/$f" 2>/dev/null || true
+        else
+          chmod -x "$root/$f" 2>/dev/null || true
+        fi
       else
         # No backup exists, so this file was absent before the hook ran.
         # Delete the index copy the hook materialized for validation.
@@ -39,6 +48,7 @@ restore_rust_worktree() {
   rm -rf "$b"
   RUST_DIRTY_FILES=()
   RUST_UNTRACKED_FILES=()
+  RUST_DIRTY_MODES=()
   rust_backup_dir=""
 }
 
@@ -147,10 +157,12 @@ try_commit() {
   # Nothing outside rust/ affects cargo here, so nothing outside rust/ is
   # materialized or moved.
   #
-  # File modes need no backup here. This project runs on Windows + Git Bash.
-  # core.fileMode is false, so Git ignores worktree mode changes. A chmod on a
-  # tracked rust/ file creates no git diff-files entry. The hook never sees the
-  # file, so it cannot lose the mode. Content backup alone is complete.
+  # The hook saves each dirty file's mode together with its content.
+  # checkout-index -f writes the index mode to the worktree. On hosts with
+  # core.fileMode=true, an unstaged chmod makes the file a dirty input. A
+  # content-only restore would then drop that mode change. The restore step
+  # reapplies the saved executable bit. On core.fileMode=false hosts, chmod
+  # never marks a file dirty, so the mode save is a no-op there.
   # ---------------------------------------------------------------------------
 
   # Clean up any backup left by a previous attempt in this process.
@@ -188,10 +200,14 @@ try_commit() {
   # Back up the original worktree bytes of every dirty input. A missing file
   # records an absent state: the user deleted it without staging. We must not
   # copy a nonexistent file; restore deletes our materialized copy instead.
+  # For each present file, also record its executable bit. That bit is the
+  # only mode Git tracks for a regular file, and checkout-index -f is about
+  # to overwrite it with the index mode.
   for f in "${dirty_inputs[@]}"; do
     if [[ -f "$f" ]]; then
       mkdir -p "$(dirname "$rust_backup_dir/tracked/$f")"
       cp "$f" "$rust_backup_dir/tracked/$f"
+      if [[ -x "$f" ]]; then RUST_DIRTY_MODES["$f"]=1; else RUST_DIRTY_MODES["$f"]=0; fi
     fi
     RUST_DIRTY_FILES+=("$f")
   done

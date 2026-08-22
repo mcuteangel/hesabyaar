@@ -32,7 +32,9 @@
 #   I staged Rust deletion               S tab in filename
 #   J unstaged Rust deletion             T newline in filename (best effort)
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
+#   V unstaged mode change survives       W mode restored after clippy failure
 #   E0 static check: no destructive git commands in the hook source
+#   E1 static check: mode capture/restore wired into the hook source
 #
 # Usage:
 #   scripts/test-pre-commit.sh
@@ -688,9 +690,82 @@ case_u() {
   expect_staged_exactly "$CARRIER" "$RS"
 }
 
+# Can this host represent a chmod on a .rs file that bash and Git can see?
+# NTFS under Git Bash cannot: chmod there is a silent no-op, so cases V and W
+# report SKIP instead of faking the scenario.
+host_represents_chmod() {
+  local pf="$WORK/mode-capability.rs"
+  : > "$pf"
+  chmod +x "$pf"
+  if [[ ! -x "$pf" ]]; then
+    rm -f "$pf"
+    return 1
+  fi
+  rm -f "$pf"
+  return 0
+}
+
+case_v() {
+  echo "=== V: unstaged worktree mode change survives materialization ==="
+  host_represents_chmod || { skip "V: host cannot represent chmod on .rs files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  mk_rs_candidate "$P_A"
+  git_clone add "$RS"
+  stage_carrier v
+  chmod +x "$CLONE/$RS"
+  cp "$EXP" "$WTX"
+  run_hook
+  expect_rc 0 "hook passes with an unstaged mode change present"
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$WTX"
+  [[ -x "$CLONE/$RS" ]] && pass "original worktree mode (+x) restored" \
+    || fail "worktree executable bit lost by materialization"
+  local idx_mode
+  idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
+  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
+    || fail "index mode changed: $idx_mode"
+  expect_commit_exactly "$CARRIER" "$RS"
+  assert_nothing_staged
+}
+
+case_w() {
+  echo "=== W: worktree mode restored even when clippy fails ==="
+  host_represents_chmod || { skip "W: host cannot represent chmod on .rs files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  mk_rs_candidate "$P_BAD_N"
+  git_clone add "$RS"
+  stage_carrier w
+  chmod +x "$CLONE/$RS"
+  cp "$EXP" "$WTX"
+  run_hook
+  expect_rc nonzero "clippy failure aborts the commit"
+  assert_log_contains "cargo clippy failed"
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$WTX"
+  [[ -x "$CLONE/$RS" ]] && pass "mode restored through the failure path" \
+    || fail "mode lost on the clippy failure path"
+  expect_staged_exactly "$CARRIER" "$RS"
+}
+
+case_e1_static_mode_restore_wiring() {
+  echo "=== E1: hook source wires mode capture and restore ==="
+  reset_clone
+  local src="$SRC/scripts/pre-commit"
+  if grep -qF 'declare -A RUST_DIRTY_MODES' "$src" \
+     && grep -qF 'RUST_DIRTY_MODES["$f"]=' "$src" \
+     && grep -qF 'chmod +x "$root/$f"' "$src" \
+     && grep -qF 'chmod -x "$root/$f"' "$src"; then
+    pass "mode capture/restore calls present in hook source"
+  else
+    fail "mode capture/restore wiring missing from hook source"
+  fi
+}
+
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w e1_static_mode_restore_wiring)
 
 for c in "${CASES[@]}"; do
   "case_$c"
