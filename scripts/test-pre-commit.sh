@@ -4,8 +4,9 @@
 #
 # The script clones this repository into a scratch directory. It installs the
 # real hook through core.hooksPath and drives real `git commit` runs. Only the
-# Kotlin gates are stubbed: a fake `gradlew` exits 0 at once. cargo fmt and
-# cargo clippy run for real against the cloned rust/ workspace.
+# Kotlin gates are stubbed: a fake `gradlew` exits 0 at once, except in case U,
+# where a failing stub proves a Kotlin failure blocks every Rust gate. cargo fmt
+# and cargo clippy run for real against the cloned rust/ workspace.
 #
 # Assertion model:
 #   - Failure cases assert the residual index (the commit was aborted).
@@ -30,6 +31,7 @@
 #   H untracked Rust file                R unusual filename (spaces/brackets)
 #   I staged Rust deletion               S tab in filename
 #   J unstaged Rust deletion             T newline in filename (best effort)
+#   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   E0 static check: no destructive git commands in the hook source
 #
 # Usage:
@@ -96,6 +98,16 @@ cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
 chmod +x "$HOOKS/pre-commit"
 git_clone config core.hooksPath "$HOOKS"
 export CARGO_TARGET_DIR="$WORK/target"
+
+# Cargo probe for case U. A logging cargo shim goes first on PATH for that one
+# case. A Kotlin gate failure must abort the hook before any cargo call, so the
+# probe log must never appear.
+CARGO_SHIM_DIR="$WORK/cargo-shim"
+CARGO_PROBE_LOG="$WORK/cargo-invoked.log"
+mkdir -p "$CARGO_SHIM_DIR"
+printf '#!/usr/bin/env bash\necho "cargo $*" >> "%s"\nexit 0\n' "$CARGO_PROBE_LOG" \
+  > "$CARGO_SHIM_DIR/cargo"
+chmod +x "$CARGO_SHIM_DIR/cargo"
 
 reset_clone() {
   git_clone reset -q --hard "$BASE" || die "reset failed"
@@ -649,9 +661,36 @@ case_t() {
   run_odd_name_case "newline-name" "$(printf 'nl\nname.rs')"
 }
 
+case_u() {
+  echo "=== U: failing Kotlin gate blocks every Rust gate ==="
+  reset_clone
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$CLONE/gradlew"
+  chmod +x "$CLONE/gradlew"
+  rm -f "$CARGO_PROBE_LOG"
+  mk_rs_candidate "$P_A"
+  git_clone add "$RS"
+  stage_carrier u
+  local saved_path=$PATH
+  export PATH="$CARGO_SHIM_DIR:$PATH"
+  run_hook
+  export PATH=$saved_path
+  expect_rc nonzero "commit aborted by the Kotlin gate failure"
+  assert_log_contains "ktlintFormat failed"
+  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates after a Kotlin failure" \
+    || pass "hook stopped before the Rust gates"
+  if [[ -f "$CARGO_PROBE_LOG" ]]; then
+    fail "cargo ran despite the Kotlin gate failure: $(cat "$CARGO_PROBE_LOG")"
+  else
+    pass "cargo never executed (probe log untouched)"
+  fi
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$EXP"
+  expect_staged_exactly "$CARRIER" "$RS"
+}
+
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u)
 
 for c in "${CASES[@]}"; do
   "case_$c"

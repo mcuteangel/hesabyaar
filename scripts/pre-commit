@@ -146,6 +146,11 @@ try_commit() {
   #   - .cargo/config.toml and rust-toolchain.toml
   # Nothing outside rust/ affects cargo here, so nothing outside rust/ is
   # materialized or moved.
+  #
+  # File modes need no backup here. This project runs on Windows + Git Bash.
+  # core.fileMode is false, so Git ignores worktree mode changes. A chmod on a
+  # tracked rust/ file creates no git diff-files entry. The hook never sees the
+  # file, so it cannot lose the mode. Content backup alone is complete.
   # ---------------------------------------------------------------------------
 
   # Clean up any backup left by a previous attempt in this process.
