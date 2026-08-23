@@ -239,6 +239,57 @@ jobs:
 
           CLOSED=0
 
+          # --- Pass 1: scan history once ---
+          # Build a map of issue number to closing commits, newest first.
+          # Keep at most 5 commits per issue. This mirrors the previous
+          # per-issue "git log -n 5" limit.
+          #
+          # LOOSE_CHAIN runs inside git as a cheap superset filter. It has
+          # no word boundary checks. Each candidate message then gets one
+          # exact check per referenced issue number. PER_NUM_TEMPLATE adds
+          # both boundaries. It rejects embedded verbs like "unfixed" or
+          # "hotfixes". It rejects letters right after a number, like
+          # "#40abc". It keeps partial numbers apart, like "#40" and
+          # "#400".
+          LOOSE_CHAIN='(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?#[0-9]+([[:space:]]*,[[:space:]]*#[0-9]+)*'
+          PER_NUM_TEMPLATE='(^|[^[:alnum:]_])(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?(#[0-9]+[[:space:]]*,[[:space:]]*)*#${NUM}([^[:alnum:]_]|$)'
+          MAX_MATCHES_PER_ISSUE=5
+
+          declare -A MATCH_LINES_BY_ISSUE
+          declare -A MATCH_COUNT_BY_ISSUE
+
+          # Record format: SHA <US> full message <RS>. Read on <RS> so a
+          # multi-line body stays in one record. The trailing "||" keeps
+          # the last record when it has no terminator.
+          while IFS= read -r -d $'\x1e' RECORD || [ -n "$RECORD" ]; do
+            [ -z "$RECORD" ] && continue
+            SHA="${RECORD%%$'\x1f'*}"
+            MESSAGE="${RECORD#*$'\x1f'}"
+
+            # Flatten newlines so "[[:space:]]" can span lines. This
+            # matches how git --grep scans the whole message buffer.
+            FLAT_MSG=$(printf '%s' "$MESSAGE" | tr '\n' ' ')
+
+            CANDIDATES=$(printf '%s\n' "$FLAT_MSG" | grep -oE '#[0-9]+' | tr -d '#' | sort -un)
+            [ -z "$CANDIDATES" ] && continue
+
+            SUBJECT=$(printf '%s' "$MESSAGE" | head -n 1)
+            LOG_LINE="${SHA} ${SUBJECT}"
+
+            # One exact boundary-aware check per referenced number.
+            for NUM in $CANDIDATES; do
+              COUNT="${MATCH_COUNT_BY_ISSUE[$NUM]:-0}"
+              if [ "$COUNT" -ge "$MAX_MATCHES_PER_ISSUE" ]; then
+                continue
+              fi
+              PER_NUM_PATTERN="${PER_NUM_TEMPLATE//\$\{NUM\}/${NUM}}"
+              if printf '%s\n' "$FLAT_MSG" | grep -qiE "${PER_NUM_PATTERN}"; then
+                MATCH_COUNT_BY_ISSUE[$NUM]=$((COUNT + 1))
+                MATCH_LINES_BY_ISSUE[$NUM]+="${LOG_LINE}"$'\n'
+              fi
+            done
+          done < <(git log --all -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
+
           while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
             TITLE=$(echo "$ROW" | jq -r '.title')
@@ -248,13 +299,8 @@ jobs:
               continue
             fi
 
-            # Search git log for GitHub-style closing references only.
-            # A closing verb must start the reference chain. Optional
-            # "issue"/"issues" word and comma-separated refs may follow.
-            # Example match: "fixes #40", "resolve issues #36, #21".
-            # Example skip: "see #40", "related to #40".
-            CLOSING_PATTERN="(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?(#[0-9]+[[:space:]]*,[[:space:]]*)*#${NUM}([^0-9]|$)"
-            MATCHES=$(git log --all --oneline -E -i --grep="${CLOSING_PATTERN}" -n 5 2>/dev/null || true)
+            # Look up the prebuilt map from the single history scan.
+            MATCHES="${MATCH_LINES_BY_ISSUE[$NUM]:-}"
 
             if [ -z "$MATCHES" ]; then
               echo "⏭️ #${NUM}: no closing reference"
