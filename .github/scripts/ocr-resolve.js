@@ -59,6 +59,13 @@ function rangesIntersect(a, b) {
   return a.path === b.path && Math.max(a.start, b.start) <= Math.min(a.end, b.end);
 }
 
+// A usable finding line: positive safe integer. Rejects floats, negatives,
+// zero, and values beyond Number.MAX_SAFE_INTEGER - a huge or negative bound
+// would otherwise fabricate a range that suppresses RESOLVE-CANDIDATEs.
+function isValidFindingLine(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
 // Classify PR review comments against the current OCR findings.
 //
 // currentFindings: [{ path, start_line, end_line }] from the latest OCR run.
@@ -72,14 +79,14 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
   const findings = Array.isArray(currentFindings) ? currentFindings : [];
   const ranges = [];
   for (const f of findings) {
-    // Findings must carry BOTH bounds as integers; a partial float (e.g.
-    // {start_line: 10, end_line: 10.5}) is dropped outright instead of being
-    // truncated to a phantom single-line range that could force a KEEP.
+    // Findings must carry BOTH bounds as valid lines; anything else (partial
+    // float, negative, huge) is dropped outright instead of being truncated
+    // into a phantom range that could force a KEEP.
     const range =
       f &&
       typeof f === "object" &&
-      Number.isInteger(f.start_line) &&
-      Number.isInteger(f.end_line)
+      isValidFindingLine(f.start_line) &&
+      isValidFindingLine(f.end_line)
         ? toRange(f.path, f.start_line, f.end_line)
         : null;
     if (range) ranges.push(range);
@@ -118,8 +125,9 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
 
 // Strict schema check for /tmp/ocr-result.json before it may count as an
 // authoritative finding set: { comments: [{ path, start_line, end_line }] }.
-// Both line fields must be integers - a partial float like {10, 10.5} must
-// poison the whole payload instead of degrading to a truncated range.
+// Both line fields must be positive safe integers - a partial float, a
+// negative, or an out-of-range value must poison the whole payload instead of
+// degrading to a truncated or inflated range.
 function isValidResultPayload(payload) {
   if (!payload || typeof payload !== "object" || !Array.isArray(payload.comments)) return false;
   return payload.comments.every(
@@ -128,8 +136,8 @@ function isValidResultPayload(payload) {
       typeof f === "object" &&
       typeof f.path === "string" &&
       f.path.length > 0 &&
-      Number.isInteger(f.start_line) &&
-      Number.isInteger(f.end_line)
+      isValidFindingLine(f.start_line) &&
+      isValidFindingLine(f.end_line)
   );
 }
 

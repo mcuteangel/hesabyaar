@@ -240,6 +240,23 @@ test("partial float finding is dropped -> no phantom KEEP range", () => {
   assert.equal(d[0].candidate, true);
 });
 
+test("negative or huge line bounds are dropped -> no inflated KEEP range", () => {
+  const d = run(
+    [
+      ocrComment(911, "src/A.kt", 10, 10),
+      ocrComment(912, "src/B.kt", 30, 30),
+    ],
+    {
+      findings: [
+        { path: "src/A.kt", start_line: -1000000, end_line: 50 },
+        { path: "src/B.kt", start_line: 1e21, end_line: 1e21 },
+      ],
+    }
+  );
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN", "UNCERTAIN"]);
+  for (const x of d) assert.equal(x.candidate, true);
+});
+
 test("isValidResultPayload rejects malformed payloads", () => {
   assert.equal(isValidResultPayload(null), false);
   assert.equal(isValidResultPayload("nope"), false);
@@ -250,4 +267,11 @@ test("isValidResultPayload rejects malformed payloads", () => {
   assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: "10" }] }), false);
   // Missing either integer bound is now invalid too (strict both-bounds rule).
   assert.equal(isValidResultPayload({ comments: [{ path: "a", end_line: 5 }] }), false);
+  // Bounds must be positive safe integers.
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: 0, end_line: 5 }] }), false);
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: -3, end_line: 5 }] }), false);
+  assert.equal(
+    isValidResultPayload({ comments: [{ path: "a", start_line: 1e21, end_line: 1e21 }] }),
+    false
+  );
 });
