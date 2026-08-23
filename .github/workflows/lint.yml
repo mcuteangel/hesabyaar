@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - 'scripts/test-issue-autoclose.sh'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'scripts/test-issue-autoclose.sh'
 
 jobs:
   actionlint:
@@ -24,3 +26,6 @@ jobs:
          with:
           # این فلگ خطاهای مربوط به shellcheck را مخفی می‌کند مگر اینکه در سطح error باشند
           actionlint_flags: -shellcheck=
+
+       - name: Run issue auto-close regression tests
+         run: bash scripts/test-issue-autoclose.sh
