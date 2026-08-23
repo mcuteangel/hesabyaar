@@ -77,6 +77,12 @@ jobs:
         )
       )
     steps:
+      # Trusted base code only: pull_request_target checks out the PR base
+      # branch by default. Needed so the resolver step can require() its
+      # module from the repository.
+      - name: Checkout base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Get PR context
         id: pr-context
         if: github.event_name == 'issue_comment'
@@ -104,5 +110,54 @@ jobs:
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           llm_model: ${{ vars.OCR_LLM_MODEL }}
           llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          # The resolver step assumes a FULL finding set per run; keep
+          # incremental mode off or the resolver assumption breaks.
+          incremental: 'false'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      - name: Audit stale OpenCodeReview threads
+        # Read-only audit. Absence from one stochastic LLM run is not proof of
+        # staleness, so nothing is auto-resolved; absence-only threads are
+        # logged as RESOLVE-CANDIDATE for human review.
+        if: env.OCR_EXIT_CODE == '0'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs');
+            const { classifyThreads } = require('./.github/scripts/ocr-resolve.js');
+
+            // Latest findings from the same runner filesystem; unreadable
+            // output makes every decision UNCERTAIN (fail-safe).
+            let currentFindings = [];
+            let resultAvailable = false;
+            try {
+              const result = JSON.parse(fs.readFileSync('/tmp/ocr-result.json', 'utf8'));
+              currentFindings = Array.isArray(result.comments) ? result.comments : [];
+              resultAvailable = true;
+            } catch (e) {
+              core.warning(`OCR result unreadable (${e.message}); every thread will be treated as uncertain.`);
+            }
+
+            const comments = await github.paginate(github.rest.pulls.listReviewComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100
+            });
+
+            const decisions = classifyThreads({ reviewComments: comments, currentFindings, resultAvailable });
+
+            for (const d of decisions) {
+              if (d.decision === 'KEEP') {
+                core.info(`WOULD KEEP: ${d.id} (${d.reason})`);
+              } else if (d.decision === 'UNCERTAIN' && d.candidate) {
+                core.info(`RESOLVE-CANDIDATE (not auto-resolved): ${d.id} (${d.reason})`);
+              } else if (d.decision === 'UNCERTAIN') {
+                core.info(`SKIPPED — UNCERTAIN: ${d.id} (${d.reason})`);
+              } else {
+                core.info(`SKIPPED — NOT OCR: ${d.threadKey}`);
+              }
+            }
+            const candidates = decisions.filter((d) => d.candidate).length;
+            core.notice(`OpenCodeReview stale-thread audit: ${candidates} RESOLVE-CANDIDATE(s); no thread was resolved.`);

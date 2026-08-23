@@ -1,0 +1,181 @@
+// Tests for the stale-OCR-thread resolver decision core. Plain node:test, no
+// frameworks. Run: node --test .github/scripts/
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+
+const require_ = createRequire(import.meta.url);
+const {
+  extractOcrId,
+  isOcrInlineComment,
+  toLineRange,
+  rangesIntersect,
+  classifyThreads,
+} = require_("./ocr-resolve.js");
+
+const OCR_BODY = (id) => `<!-- ${id} -->\n\nsome finding text`;
+const VALID_ID = "ocr-1234567890-1-0123456789abcdef";
+
+const ocrComment = (id, path, line, startLine, side) => ({
+  id,
+  body: OCR_BODY(VALID_ID),
+  path,
+  line,
+  start_line: startLine,
+  side: side || "RIGHT",
+});
+
+test("extractOcrId accepts the upstream marker format", () => {
+  assert.equal(extractOcrId(`<!-- ${VALID_ID} -->`), VALID_ID);
+});
+
+test("extractOcrId rejects non-OCR or malformed markers", () => {
+  assert.equal(extractOcrId("CodeRabbit review"), null);
+  assert.equal(extractOcrId("<!-- cubic:something -->"), null);
+  assert.equal(extractOcrId("<!-- ocr-short -->"), null);
+  assert.equal(extractOcrId(undefined), null);
+});
+
+test("isOcrInlineComment distinguishes OCR from other bots and humans", () => {
+  assert.ok(isOcrInlineComment({ body: `x\n<!-- ${VALID_ID} -->\ny` }));
+  assert.ok(!isOcrInlineComment({ body: "**CodeRabbit** has posted comments" }));
+  assert.ok(!isOcrInlineComment({ body: "Cubic P1 comment" }));
+  assert.ok(!isOcrInlineComment({ body: "CodeAnt suggestion" }));
+  assert.ok(!isOcrInlineComment({ body: "LGTM, nice catch" }));
+  assert.ok(!isOcrInlineComment({}));
+});
+
+test("toLineRange handles single-line and multi-line RIGHT-side comments", () => {
+  assert.deepEqual(toLineRange(ocrComment(1, "a.kt", 10, undefined)), { path: "a.kt", start: 10, end: 10 });
+  assert.deepEqual(toLineRange(ocrComment(2, "a.kt", 20, 15)), { path: "a.kt", start: 15, end: 20 });
+});
+
+test("toLineRange returns null for missing lines and LEFT-side comments", () => {
+  assert.equal(toLineRange({ body: "", path: "a.kt" }), null);
+  assert.equal(toLineRange(ocrComment(3, "a.kt", 10, undefined, "LEFT")), null);
+  assert.equal(toLineRange({ body: "" }), null);
+});
+
+test("rangesIntersect requires same path and overlapping range", () => {
+  assert.ok(rangesIntersect({ path: "a", start: 1, end: 5 }, { path: "a", start: 5, end: 9 }));
+  assert.ok(!rangesIntersect({ path: "a", start: 1, end: 4 }, { path: "a", start: 5, end: 9 }));
+  assert.ok(!rangesIntersect({ path: "a", start: 1, end: 5 }, { path: "b", start: 1, end: 5 }));
+});
+
+// ---- classifyThreads: the ten required scenarios ----
+
+const findings = [
+  { path: "src/A.kt", start_line: 10, end_line: 12 },
+  { path: "src/B.kt", start_line: 30, end_line: 30 },
+];
+
+function run(comments, opts) {
+  return classifyThreads({
+    reviewComments: comments,
+    currentFindings: (opts && "findings" in opts ? opts.findings : findings),
+    resultAvailable: opts && "resultAvailable" in opts ? opts.resultAvailable : true,
+  });
+}
+
+test("1. finding still exists -> KEEP", () => {
+  const d = run([ocrComment(101, "src/A.kt", 12, 10)]);
+  assert.deepEqual(d.map((x) => x.decision), ["KEEP"]);
+});
+
+test("2. finding absent from latest run -> UNCERTAIN candidate, never RESOLVE", () => {
+  const d = run([ocrComment(102, "src/OLD.kt", 7, 7)]);
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, true);
+});
+
+test("3. CodeRabbit comment -> NOT_OCR", () => {
+  const d = run([{ id: 201, body: "<!-- coderabbitai[bot] review -->\nfinding at src/A.kt:10" }]);
+  assert.deepEqual(d.map((x) => x.decision), ["NOT_OCR"]);
+});
+
+test("4. Cubic comment -> NOT_OCR", () => {
+  const d = run([{ id: 202, body: "P1: problem\n<!-- cubic:v=9e1ec23b -->" }]);
+  assert.deepEqual(d.map((x) => x.decision), ["NOT_OCR"]);
+});
+
+test("5. CodeAnt comment -> NOT_OCR", () => {
+  const d = run([{ id: 203, body: "**Suggestion:** pin this action [codeant]" }]);
+  assert.deepEqual(d.map((x) => x.decision), ["NOT_OCR"]);
+});
+
+test("6. human review comment -> NOT_OCR", () => {
+  const d = run([{ id: 204, body: "Please rename this variable." }]);
+  assert.deepEqual(d.map((x) => x.decision), ["NOT_OCR"]);
+});
+
+test("7. uncertain ownership (OCR marker but no usable location) -> UNCERTAIN", () => {
+  const d = run([{ id: 205, body: `<!-- ${VALID_ID} -->`, path: "src/A.kt" }]);
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+});
+
+test("8. same file/line but different finding -> not incorrectly resolved", () => {
+  // A different finding now lives exactly where the old one was: overlap keeps
+  // the thread unresolved; we never judge whether it is "the same" finding.
+  const d = run([ocrComment(206, "src/B.kt", 30, 30)]);
+  assert.deepEqual(d.map((x) => x.decision), ["KEEP"]);
+});
+
+test("9. two OCR findings, one absent from latest run -> zero resolves, one candidate", () => {
+  const d = run([
+    ocrComment(301, "src/A.kt", 11, 10), // still reported
+    ocrComment(302, "src/GONE.kt", 3, 3), // absent this run
+  ]);
+  assert.equal(d.filter((x) => x.decision === "RESOLVE").length, 0);
+  const keep = d.find((x) => x.decision === "KEEP");
+  const candidate = d.find((x) => x.candidate === true);
+  assert.ok(keep);
+  assert.equal(candidate.id, VALID_ID);
+});
+
+test("regression: completely clean latest run can never resolve an OCR thread", () => {
+  // A flaky empty "Looks good" run must not wipe open threads.
+  const d = run(
+    [ocrComment(601, "src/A.kt", 10, 10), ocrComment(602, "src/GONE.kt", 3, 3)],
+    { findings: [] }
+  );
+  assert.ok(d.length >= 2);
+  assert.equal(d.some((x) => x.decision === "RESOLVE"), false);
+  for (const x of d) {
+    if (x.candidate) {
+      assert.equal(x.decision, "UNCERTAIN");
+      assert.match(x.reason, /not proof of staleness/);
+    } else {
+      assert.notEqual(x.decision, "RESOLVE");
+    }
+  }
+});
+
+test("no decision path ever emits RESOLVE", () => {
+  const samples = [
+    ...run([ocrComment(701, "src/A.kt", 11, 10)]),
+    ...run([ocrComment(702, "src/GONE.kt", 3, 3)], { findings: [] }),
+    ...run([{ id: 703, body: `<!-- ${VALID_ID} -->`, path: "x" }]),
+    ...run([ocrComment(704, "src/A.kt", 5, 5)], { resultAvailable: false }),
+  ];
+  assert.equal(samples.some((x) => x.decision === "RESOLVE"), false);
+});
+
+test("10. no previous OCR threads -> no-op", () => {
+  const d = run([]);
+  assert.equal(d.length, 0);
+});
+
+test("fail-safe: result unavailable -> nothing resolved even for OCR threads", () => {
+  const d = run([ocrComment(401, "src/GONE.kt", 3, 3)], { resultAvailable: false });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+});
+
+test("clean run with zero findings marks OCR threads as candidates only, others NOT_OCR", () => {
+  const d = run(
+    [ocrComment(501, "src/GONE.kt", 3, 3), { id: 502, body: "human note" }],
+    { findings: [] }
+  );
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN", "NOT_OCR"]);
+  assert.equal(d[0].candidate, true);
+  assert.equal(d[1].candidate, undefined);
+});
