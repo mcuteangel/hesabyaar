@@ -61,6 +61,10 @@ test("toLineRange returns null for missing lines, LEFT side, and missing side", 
   assert.equal(toLineRange(ocrComment(3, "a.kt", 10, undefined, "LEFT")), null);
   // A missing side must fail safe to UNCERTAIN, not default to RIGHT.
   assert.equal(toLineRange({ body: "", path: "a.kt", line: 10 }), null);
+  // Side match is exact ("RIGHT"), not case-insensitive.
+  assert.equal(toLineRange(ocrComment(3, "a.kt", 10, undefined, "right")), null);
+  // RIGHT side but no usable line field at all -> null.
+  assert.equal(toLineRange({ body: "", path: "a.kt", side: "RIGHT" }), null);
 });
 
 test("rangesIntersect requires same path and overlapping range", () => {
@@ -79,10 +83,33 @@ const findings = [
 function run(comments, opts) {
   return classifyThreads({
     reviewComments: comments,
-    currentFindings: (opts && "findings" in opts ? opts.findings : findings),
+    // Clone the shared fixture so a future in-place normalization inside
+    // classifyThreads cannot leak state between tests.
+    currentFindings: opts && "findings" in opts ? opts.findings : findings.map((f) => ({ ...f })),
     resultAvailable: opts && "resultAvailable" in opts ? opts.resultAvailable : true,
   });
 }
+
+test("non-array inputs fail safe to empty decisions", () => {
+  assert.deepEqual(classifyThreads({ reviewComments: null, currentFindings: null }), []);
+  assert.deepEqual(
+    classifyThreads({ reviewComments: undefined, currentFindings: "bad", resultAvailable: true }),
+    []
+  );
+});
+
+test("null findings with an OCR comment -> UNCERTAIN candidate, never RESOLVE", () => {
+  const d = run([ocrComment(921, "src/A.kt", 12, 10)], { findings: null });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, true);
+});
+
+test("junk finding entries are ignored; valid ones still produce KEEP", () => {
+  const d = run([ocrComment(922, "src/A.kt", 12, 10)], {
+    findings: [null, "bad", {}, { path: "src/A.kt", start_line: 10, end_line: 12 }],
+  });
+  assert.deepEqual(d.map((x) => x.decision), ["KEEP"]);
+});
 
 test("1. finding still exists -> KEEP", () => {
   const d = run([ocrComment(101, "src/A.kt", 12, 10)]);
