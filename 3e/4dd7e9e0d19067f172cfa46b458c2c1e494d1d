@@ -1,0 +1,32 @@
+.github/workflows/ocr-review.yml
+  s_a4ed719b06a784::t_128b59042cf580 135,137-140,145-150
+  s_a4ed719b06a784::t_6e88e6a4da1ac0 113-125
+.github/scripts/ocr-resolve.js
+  s_a4ed719b06a784::t_cd093c7d69cec7 65-67,75-76,84,87-88,93,110-125
+  s_a4ed719b06a784::t_aa220e4978498e 21-23,35-49,51-52,54-55
+.github/scripts/ocr-resolve.test.mjs
+  s_a4ed719b06a784::t_c3840b3600e2d6 167-168,173-176
+  s_a4ed719b06a784::t_e24f13b418b0f8 2,14
+  s_a4ed719b06a784::t_b7e3bf96ff670c 196-233
+  s_a4ed719b06a784::t_eac5d398b676c6 139-140
+  s_a4ed719b06a784::t_2dcb4de16a270f 59,62-63
+  s_a4ed719b06a784::t_234e5982a7618f 33-37
+.github/workflows/ocr-resolver-tests.yml
+  s_a4ed719b06a784::t_710c0ed03e60ff 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3e4dd7e9e0d19067f172cfa46b458c2c1e494d1d",
+  "prompts": {},
+  "sessions": {
+    "s_a4ed719b06a784": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd2b34b22ffeUFfF9Xshe2QZeE",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
