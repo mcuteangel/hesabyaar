@@ -28,12 +28,14 @@ if [ -z "$LOOSE_CHAIN" ] || [ -z "$PER_NUM_TEMPLATE" ]; then
 fi
 
 # Decide whether a commit message closes a given issue number.
-# This mirrors the per-number check of the auto_close_resolved job:
-# flatten newlines, build the boundary-aware pattern for the target
-# number, and run the same grep.
+# This mirrors both filters of the auto_close_resolved job in order:
+# first the LOOSE_CHAIN history filter (git log --grep runs it against
+# each raw message line, case-insensitive), then the per-number check
+# on the newline-flattened message.
 issue_closed_by() {
   local msg="$1" num="$2"
   local flat pattern
+  printf '%s\n' "$msg" | grep -qiE "${LOOSE_CHAIN}" || return 1
   flat=$(printf '%s' "$msg" | tr '\n' ' ')
   printf '%s' "$flat" | grep -qE '#[0-9]+' || return 1
   pattern="${PER_NUM_TEMPLATE//\$\{NUM\}/${num}}"

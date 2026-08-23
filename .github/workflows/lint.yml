@@ -24,3 +24,6 @@ jobs:
          with:
           # این فلگ خطاهای مربوط به shellcheck را مخفی می‌کند مگر اینکه در سطح error باشند
           actionlint_flags: -shellcheck=
+
+       - name: Run issue auto-close regression tests
+         run: bash scripts/test-issue-autoclose.sh
