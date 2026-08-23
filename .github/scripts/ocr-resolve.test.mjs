@@ -220,7 +220,24 @@ const goodFinding = { path: "src/A.kt", start_line: 10, end_line: 12 };
 
 test("isValidResultPayload accepts the expected schema", () => {
   assert.equal(isValidResultPayload({ comments: [goodFinding] }), true);
-  assert.equal(isValidResultPayload({ comments: [{ path: "a", end_line: 5 }] }), true);
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: 5, end_line: 5 }] }), true);
+});
+
+test("partial float {start_line:10, end_line:10.5} poisons the payload", () => {
+  assert.equal(
+    isValidResultPayload({ comments: [{ path: "src/A.kt", start_line: 10, end_line: 10.5 }] }),
+    false
+  );
+});
+
+test("partial float finding is dropped -> no phantom KEEP range", () => {
+  // The malformed finding points at line 10; it must not create a truncated
+  // {10,10} range that flips the overlapping comment to KEEP.
+  const d = run([ocrComment(903, "src/A.kt", 10, 10)], {
+    findings: [{ path: "src/A.kt", start_line: 10, end_line: 10.5 }],
+  });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, true);
 });
 
 test("isValidResultPayload rejects malformed payloads", () => {
@@ -231,4 +248,6 @@ test("isValidResultPayload rejects malformed payloads", () => {
   assert.equal(isValidResultPayload({ comments: [goodFinding, {}] }), false); // one bad entry
   assert.equal(isValidResultPayload({ comments: [{ path: "", start_line: 1 }] }), false);
   assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: "10" }] }), false);
+  // Missing either integer bound is now invalid too (strict both-bounds rule).
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", end_line: 5 }] }), false);
 });

@@ -72,7 +72,16 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
   const findings = Array.isArray(currentFindings) ? currentFindings : [];
   const ranges = [];
   for (const f of findings) {
-    const range = f && typeof f === "object" ? toRange(f.path, f.start_line, f.end_line) : null;
+    // Findings must carry BOTH bounds as integers; a partial float (e.g.
+    // {start_line: 10, end_line: 10.5}) is dropped outright instead of being
+    // truncated to a phantom single-line range that could force a KEEP.
+    const range =
+      f &&
+      typeof f === "object" &&
+      Number.isInteger(f.start_line) &&
+      Number.isInteger(f.end_line)
+        ? toRange(f.path, f.start_line, f.end_line)
+        : null;
     if (range) ranges.push(range);
   }
 
@@ -108,8 +117,9 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
 }
 
 // Strict schema check for /tmp/ocr-result.json before it may count as an
-// authoritative finding set: { comments: [{ path, start_line|end_line }] }.
-// One malformed entry poisons the whole payload - fail-safe bias.
+// authoritative finding set: { comments: [{ path, start_line, end_line }] }.
+// Both line fields must be integers - a partial float like {10, 10.5} must
+// poison the whole payload instead of degrading to a truncated range.
 function isValidResultPayload(payload) {
   if (!payload || typeof payload !== "object" || !Array.isArray(payload.comments)) return false;
   return payload.comments.every(
@@ -118,7 +128,8 @@ function isValidResultPayload(payload) {
       typeof f === "object" &&
       typeof f.path === "string" &&
       f.path.length > 0 &&
-      (Number.isInteger(f.start_line) || Number.isInteger(f.end_line))
+      Number.isInteger(f.start_line) &&
+      Number.isInteger(f.end_line)
   );
 }
 

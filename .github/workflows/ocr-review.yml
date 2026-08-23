@@ -114,14 +114,25 @@ jobs:
       # which materializes the PR merge ref and replaces trusted code in the
       # workspace. Restore the base tree before any repository file is loaded
       # by require(), so the audit step never executes PR-head-controlled
-      # JavaScript. Invariant: OCR_EXIT_CODE == '0' implies the action's
-      # "Resolve PR refs" step ran, which always exports BASE_REF via
-      # $GITHUB_ENV (action.yml), so ref is never empty under this gate.
+      # JavaScript. The guard makes the BASE_REF invariant explicit: an empty
+      # value must abort instead of falling through to the checkout default,
+      # which would materialize PR-head code again.
+      - name: Require resolved base ref
+        if: env.OCR_EXIT_CODE == '0'
+        run: |
+          if [ -z "$BASE_REF" ]; then
+            echo "::error::BASE_REF was not exported by the OpenCodeReview action; refusing to load audit code."
+            exit 1
+          fi
+
       - name: Restore trusted base checkout
         if: env.OCR_EXIT_CODE == '0'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.BASE_REF }}
+          # Explicit: wipe any files left in the workspace by the action's
+          # internal merge-ref checkout before loading audit code.
+          clean: true
 
       - name: Audit stale OpenCodeReview threads
         # Read-only audit. Absence from one stochastic LLM run is not proof of
