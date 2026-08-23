@@ -1,0 +1,19 @@
+.github/workflows/ocr-review.yml
+  s_a4ed719b06a784::t_5563c1199952a0 152-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d008b17dbd0f57fa21d0a3b4623f4554dcc09dfc",
+  "prompts": {},
+  "sessions": {
+    "s_a4ed719b06a784": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd2b34b22ffeUFfF9Xshe2QZeE",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
