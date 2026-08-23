@@ -77,12 +77,6 @@ jobs:
         )
       )
     steps:
-      # Trusted base code only: pull_request_target checks out the PR base
-      # branch by default. Needed so the resolver step can require() its
-      # module from the repository.
-      - name: Checkout base
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Get PR context
         id: pr-context
         if: github.event_name == 'issue_comment'
@@ -116,6 +110,19 @@ jobs:
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
 
+      # SECURITY: the OpenCodeReview action runs its own un-pinned checkout,
+      # which materializes the PR merge ref and replaces trusted code in the
+      # workspace. Restore the base tree before any repository file is loaded
+      # by require(), so the audit step never executes PR-head-controlled
+      # JavaScript. Invariant: OCR_EXIT_CODE == '0' implies the action's
+      # "Resolve PR refs" step ran, which always exports BASE_REF via
+      # $GITHUB_ENV (action.yml), so ref is never empty under this gate.
+      - name: Restore trusted base checkout
+        if: env.OCR_EXIT_CODE == '0'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BASE_REF }}
+
       - name: Audit stale OpenCodeReview threads
         # Read-only audit. Absence from one stochastic LLM run is not proof of
         # staleness, so nothing is auto-resolved; absence-only threads are
@@ -125,16 +132,22 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const { classifyThreads } = require('./.github/scripts/ocr-resolve.js');
+            const { classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js');
 
-            // Latest findings from the same runner filesystem; unreadable
-            // output makes every decision UNCERTAIN (fail-safe).
+            // Latest findings from the same runner filesystem. Only a payload
+            // matching the expected schema counts as available; anything else
+            // (unreadable, wrong shape, malformed entry) makes every decision
+            // UNCERTAIN (fail-safe).
             let currentFindings = [];
             let resultAvailable = false;
             try {
               const result = JSON.parse(fs.readFileSync('/tmp/ocr-result.json', 'utf8'));
-              currentFindings = Array.isArray(result.comments) ? result.comments : [];
-              resultAvailable = true;
+              if (isValidResultPayload(result)) {
+                currentFindings = result.comments;
+                resultAvailable = true;
+              } else {
+                core.warning('OCR result does not match the expected schema; treating it as unavailable.');
+              }
             } catch (e) {
               core.warning(`OCR result unreadable (${e.message}); every thread will be treated as uncertain.`);
             }

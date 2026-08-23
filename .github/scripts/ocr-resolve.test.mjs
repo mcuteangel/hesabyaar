@@ -1,5 +1,5 @@
 // Tests for the stale-OCR-thread resolver decision core. Plain node:test, no
-// frameworks. Run: node --test .github/scripts/
+// frameworks. Run: node --test .github/scripts/ocr-resolve.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -11,6 +11,7 @@ const {
   toLineRange,
   rangesIntersect,
   classifyThreads,
+  isValidResultPayload,
 } = require_("./ocr-resolve.js");
 
 const OCR_BODY = (id) => `<!-- ${id} -->\n\nsome finding text`;
@@ -27,6 +28,11 @@ const ocrComment = (id, path, line, startLine, side) => ({
 
 test("extractOcrId accepts the upstream marker format", () => {
   assert.equal(extractOcrId(`<!-- ${VALID_ID} -->`), VALID_ID);
+});
+
+test("extractOcrId is case-insensitive on the hex suffix", () => {
+  const upper = "ocr-1234567890-1-0123456789ABCDEF";
+  assert.equal(extractOcrId(`<!-- ${upper} -->`), upper);
 });
 
 test("extractOcrId rejects non-OCR or malformed markers", () => {
@@ -50,10 +56,11 @@ test("toLineRange handles single-line and multi-line RIGHT-side comments", () =>
   assert.deepEqual(toLineRange(ocrComment(2, "a.kt", 20, 15)), { path: "a.kt", start: 15, end: 20 });
 });
 
-test("toLineRange returns null for missing lines and LEFT-side comments", () => {
+test("toLineRange returns null for missing lines, LEFT side, and missing side", () => {
   assert.equal(toLineRange({ body: "", path: "a.kt" }), null);
   assert.equal(toLineRange(ocrComment(3, "a.kt", 10, undefined, "LEFT")), null);
-  assert.equal(toLineRange({ body: "" }), null);
+  // A missing side must fail safe to UNCERTAIN, not default to RIGHT.
+  assert.equal(toLineRange({ body: "", path: "a.kt", line: 10 }), null);
 });
 
 test("rangesIntersect requires same path and overlapping range", () => {
@@ -129,7 +136,8 @@ test("9. two OCR findings, one absent from latest run -> zero resolves, one cand
   const keep = d.find((x) => x.decision === "KEEP");
   const candidate = d.find((x) => x.candidate === true);
   assert.ok(keep);
-  assert.equal(candidate.id, VALID_ID);
+  // Assert the RIGHT thread is the candidate (301 stays KEEP).
+  assert.equal(candidate.threadKey, "302");
 });
 
 test("regression: completely clean latest run can never resolve an OCR thread", () => {
@@ -156,8 +164,16 @@ test("no decision path ever emits RESOLVE", () => {
     ...run([ocrComment(702, "src/GONE.kt", 3, 3)], { findings: [] }),
     ...run([{ id: 703, body: `<!-- ${VALID_ID} -->`, path: "x" }]),
     ...run([ocrComment(704, "src/A.kt", 5, 5)], { resultAvailable: false }),
+    // Omitted flag must also fail safe, not default to available.
+    ...classifyThreads({ reviewComments: [ocrComment(705, "src/GONE.kt", 3, 3)], currentFindings: [] }),
   ];
   assert.equal(samples.some((x) => x.decision === "RESOLVE"), false);
+});
+
+test("fail-safe: omitted resultAvailable defaults to uncertain", () => {
+  const d = classifyThreads({ reviewComments: [ocrComment(801, "src/GONE.kt", 3, 3)], currentFindings: [] });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, false);
 });
 
 test("10. no previous OCR threads -> no-op", () => {
@@ -177,5 +193,42 @@ test("clean run with zero findings marks OCR threads as candidates only, others 
   );
   assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN", "NOT_OCR"]);
   assert.equal(d[0].candidate, true);
-  assert.equal(d[1].candidate, undefined);
+  assert.equal(d[1].candidate, false);
+});
+
+// ---- malformed findings must not create phantom KEEP ranges ----
+
+test("float line value in a finding is rejected -> thread stays candidate", () => {
+  const d = run([ocrComment(901, "src/A.kt", 10, 10)], {
+    findings: [{ path: "src/A.kt", start_line: 10.5, end_line: 12 }],
+  });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, true);
+});
+
+test("empty path in a finding is rejected -> thread stays candidate", () => {
+  const d = run([ocrComment(902, "src/GONE.kt", 3, 3)], {
+    findings: [{ path: "", start_line: 3, end_line: 3 }],
+  });
+  assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"]);
+  assert.equal(d[0].candidate, true);
+});
+
+// ---- isValidResultPayload (glue-side schema gate) ----
+
+const goodFinding = { path: "src/A.kt", start_line: 10, end_line: 12 };
+
+test("isValidResultPayload accepts the expected schema", () => {
+  assert.equal(isValidResultPayload({ comments: [goodFinding] }), true);
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", end_line: 5 }] }), true);
+});
+
+test("isValidResultPayload rejects malformed payloads", () => {
+  assert.equal(isValidResultPayload(null), false);
+  assert.equal(isValidResultPayload("nope"), false);
+  assert.equal(isValidResultPayload({}), false); // no comments array
+  assert.equal(isValidResultPayload({ comments: "all good!" }), false);
+  assert.equal(isValidResultPayload({ comments: [goodFinding, {}] }), false); // one bad entry
+  assert.equal(isValidResultPayload({ comments: [{ path: "", start_line: 1 }] }), false);
+  assert.equal(isValidResultPayload({ comments: [{ path: "a", start_line: "10" }] }), false);
 });

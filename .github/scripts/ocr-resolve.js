@@ -18,8 +18,9 @@
 "use strict";
 
 // Anchored to the HTML comment wrapper so user content cannot fake it
-// accidentally; 8 random bytes = exactly 16 hex chars.
-const OCR_ID_RE = /<!--\s*(ocr-\d+-\d+-[a-f0-9]{16})\s*-->/;
+// accidentally; 8 random bytes = exactly 16 hex chars. Case-insensitive so a
+// future producer emitting uppercase hex cannot flip ownership to NOT_OCR.
+const OCR_ID_RE = /<!--\s*(ocr-\d+-\d+-[a-f0-9]{16})\s*-->/i;
 
 function extractOcrId(body) {
   if (typeof body !== "string") return null;
@@ -31,19 +32,27 @@ function isOcrInlineComment(comment) {
   return extractOcrId(comment && comment.body) !== null;
 }
 
+// Single source of truth for location normalization. Accepts raw path and
+// line fields; returns integer-only { path, start, end }, or null when the
+// location is unusable (empty/non-string path, no finite integer line). Both
+// comment ranges and current-finding ranges route through this helper, so
+// their validation rules cannot drift.
+function toRange(path, startLine, endLine) {
+  if (typeof path !== "string" || path.length === 0) return null;
+  const s = Number.isInteger(startLine) ? startLine : null;
+  const e = Number.isInteger(endLine) ? endLine : null;
+  if (s === null && e === null) return null;
+  const start = s !== null ? s : e;
+  const end = e !== null ? e : s;
+  return { path, start: Math.min(start, end), end: Math.max(start, end) };
+}
+
 // Normalize a REST review comment into { path, start, end } using RIGHT-side
-// lines only. Returns null when line info is missing or on the LEFT side -
-// such threads are never resolved (uncertain).
+// lines only. Returns null when side is missing or LEFT, or line info is
+// unusable - such threads are never candidates (uncertain).
 function toLineRange(comment) {
-  if (!comment || typeof comment.path !== "string" || comment.path.length === 0) return null;
-  if (comment.side && comment.side !== "RIGHT") return null;
-  const start = Number.isFinite(comment.start_line) ? comment.start_line : null;
-  const end = Number.isFinite(comment.line) ? comment.line : null;
-  if (start === null && end === null) return null;
-  const s = start !== null ? start : end;
-  const e = end !== null ? end : start;
-  if (!Number.isInteger(s) || !Number.isInteger(e)) return null;
-  return { path: comment.path, start: Math.min(s, e), end: Math.max(s, e) };
+  if (!comment || comment.side !== "RIGHT") return null;
+  return toRange(comment.path, comment.start_line, comment.line);
 }
 
 function rangesIntersect(a, b) {
@@ -53,8 +62,9 @@ function rangesIntersect(a, b) {
 // Classify PR review comments against the current OCR findings.
 //
 // currentFindings: [{ path, start_line, end_line }] from the latest OCR run.
-// resultAvailable: false when the latest result could not be read/validated -
-// then every decision is UNCERTAIN (fail-safe), regardless of content.
+// resultAvailable: must be exactly true to compare locations; anything else
+// (unreadable result, wrong schema, omitted flag) makes every decision
+// UNCERTAIN (fail-safe), regardless of content.
 // Returns [{ id, threadKey, decision, candidate, reason }] where decision is
 // one of "KEEP" | "NOT_OCR" | "UNCERTAIN". There is deliberately NO RESOLVE:
 // absence-only evidence (candidate: true) never auto-resolves a thread.
@@ -62,13 +72,8 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
   const findings = Array.isArray(currentFindings) ? currentFindings : [];
   const ranges = [];
   for (const f of findings) {
-    if (!f || typeof f.path !== "string") continue;
-    const s = Number.isFinite(f.start_line) ? f.start_line : null;
-    const e = Number.isFinite(f.end_line) ? f.end_line : null;
-    if (s === null && e === null) continue;
-    const start = s !== null ? s : e;
-    const end = e !== null ? e : s;
-    ranges.push({ path: f.path, start: Math.min(start, end), end: Math.max(start, end) });
+    const range = f && typeof f === "object" ? toRange(f.path, f.start_line, f.end_line) : null;
+    if (range) ranges.push(range);
   }
 
   const decisions = [];
@@ -76,16 +81,16 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
     const id = extractOcrId(c && c.body);
     const key = c && c.id !== undefined ? String(c.id) : "?";
     if (!id) {
-      decisions.push({ id: null, threadKey: key, decision: "NOT_OCR", reason: "no OpenCodeReview per-comment marker" });
+      decisions.push({ id: null, threadKey: key, decision: "NOT_OCR", candidate: false, reason: "no OpenCodeReview per-comment marker" });
       continue;
     }
-    if (resultAvailable === false) {
-      decisions.push({ id, threadKey: key, decision: "UNCERTAIN", reason: "latest OCR result unavailable; resolving nothing" });
+    if (resultAvailable !== true) {
+      decisions.push({ id, threadKey: key, decision: "UNCERTAIN", candidate: false, reason: "latest OCR result unavailable or invalid; resolving nothing" });
       continue;
     }
     const range = toLineRange(c);
     if (!range) {
-      decisions.push({ id, threadKey: key, decision: "UNCERTAIN", reason: "OCR comment without usable RIGHT-side line range" });
+      decisions.push({ id, threadKey: key, decision: "UNCERTAIN", candidate: false, reason: "OCR comment without usable RIGHT-side line range" });
       continue;
     }
     const stillReported = ranges.some((r) => rangesIntersect(r, range));
@@ -102,4 +107,19 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
   return decisions;
 }
 
-module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toLineRange, rangesIntersect, classifyThreads };
+// Strict schema check for /tmp/ocr-result.json before it may count as an
+// authoritative finding set: { comments: [{ path, start_line|end_line }] }.
+// One malformed entry poisons the whole payload - fail-safe bias.
+function isValidResultPayload(payload) {
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.comments)) return false;
+  return payload.comments.every(
+    (f) =>
+      f &&
+      typeof f === "object" &&
+      typeof f.path === "string" &&
+      f.path.length > 0 &&
+      (Number.isInteger(f.start_line) || Number.isInteger(f.end_line))
+  );
+}
+
+module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload };
