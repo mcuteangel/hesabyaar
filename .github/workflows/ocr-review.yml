@@ -149,7 +149,21 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const { classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js');
+            // The audit only ever loads repository code from the restored
+            // trusted base tree - never from the PR head. A base branch that
+            // predates this script (old release branches, or a workflow/
+            // helper version skew after a partial merge) therefore has no
+            // resolver to load. Skipping with a warning keeps the job green;
+            // falling back to the PR-head copy would execute untrusted JS,
+            // which is exactly what the trusted checkout exists to prevent.
+            let classifyThreads;
+            let isValidResultPayload;
+            try {
+              ({ classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js'));
+            } catch (e) {
+              core.warning(`Trusted audit script unavailable at base SHA (${e.message}); skipping stale-thread audit.`);
+              return;
+            }
 
             // Latest findings from the same runner filesystem. Only a payload
             // matching the expected schema counts as available; anything else
