@@ -7,9 +7,16 @@
 #   Variable  OCR_LLM_MODEL          model name
 #   Variable  OCR_LLM_USE_ANTHROPIC  'true' for Anthropic models, 'false' otherwise
 #
-# The Action is pinned to the v1.9.9 release commit. On pull_request_target,
-# the Action derives base_ref/head_sha from the event payload itself, so no
-# extra API call is needed for that path (action.yml "Resolve PR refs" step).
+# The Action is pinned to the v1.9.9 release commit, and the OCR npm package
+# is pinned to the same release via ocr_version (the Action default is
+# 'latest'). On pull_request_target, the Action derives base_ref/head_sha from
+# the event payload itself, so no extra API call is needed for that path
+# (action.yml "Resolve PR refs" step).
+#
+# NOTE: the issue_comment authorization predicate below appears twice by
+# design - in the concurrency expression and in the job if. GitHub Actions has
+# no shared-expression mechanism between the two, and a simpler group would let
+# any unrelated comment cancel an in-progress review. Keep both blocks identical.
 
 name: OpenCodeReview PR Review
 
@@ -73,7 +80,8 @@ jobs:
       - name: Get PR context
         id: pr-context
         if: github.event_name == 'issue_comment'
-        uses: actions/github-script@v7
+        # v7.1.0 (immutable pin)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           script: |
             const prNumber = context.issue.number;
@@ -90,6 +98,8 @@ jobs:
         # to this commit).
         uses: alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961
         with:
+          # Pin the CLI to the same reviewed release; the Action default is 'latest'.
+          ocr_version: '1.9.9'
           llm_url: ${{ vars.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           llm_model: ${{ vars.OCR_LLM_MODEL }}
