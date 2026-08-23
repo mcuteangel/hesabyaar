@@ -1,0 +1,30 @@
+.github/scripts/ocr-resolve.js
+  s_a4ed719b06a784::t_e7dd1b9f911b6a 10-17
+  s_a4ed719b06a784::t_4dfb779954e0e3 57-60
+  s_a4ed719b06a784::t_e11afb142cbb9c 95-99
+.github/scripts/ocr-resolve.test.mjs
+  s_a4ed719b06a784::t_225bf54ad5eea1 85,87-88
+  s_a4ed719b06a784::t_a61319958da7eb 123,126,128-160
+  s_a4ed719b06a784::t_931262ed027b66 173,178-180
+  s_a4ed719b06a784::t_0fe626463857d5 1-84,86,89-122,124-125,127,161-172,174-177,181
+.github/workflows/ocr-review.yml
+  s_a4ed719b06a784::t_6d953b91b75c77 119-122,131,139,152,154-155,162-163
+  s_a4ed719b06a784::t_f800015efb3304 80-85
+  s_a4ed719b06a784::t_34967a07c6c14f 113-115,118,123-130,132-138,140-151,153,156-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "efe55b81f4c28f16c749dced80e110b232742f78",
+  "prompts": {},
+  "sessions": {
+    "s_a4ed719b06a784": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd2b34b22ffeUFfF9Xshe2QZeE",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}
