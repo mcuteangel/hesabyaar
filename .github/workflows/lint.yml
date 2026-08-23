@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - 'scripts/test-issue-autoclose.sh'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'scripts/test-issue-autoclose.sh'
 
 jobs:
   actionlint:
