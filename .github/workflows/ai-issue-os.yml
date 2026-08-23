@@ -258,10 +258,16 @@ jobs:
           declare -A MATCH_LINES_BY_ISSUE
           declare -A MATCH_COUNT_BY_ISSUE
 
+          # One newline character, used to trim git's record separator.
+          NL=$'\n'
+
           # Record format: SHA <US> full message <RS>. Read on <RS> so a
           # multi-line body stays in one record. The trailing "||" keeps
           # the last record when it has no terminator.
           while IFS= read -r -d $'\x1e' RECORD || [ -n "$RECORD" ]; do
+            # Git writes one newline after each record. Drop it so the
+            # SHA never carries a leading newline.
+            RECORD="${RECORD#"$NL"}"
             [ -z "$RECORD" ] && continue
             SHA="${RECORD%%$'\x1f'*}"
             MESSAGE="${RECORD#*$'\x1f'}"
