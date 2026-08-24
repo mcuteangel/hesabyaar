@@ -1,0 +1,22 @@
+scripts/github-actions-pin-manager.mjs
+  s_248e2668f94487::t_a99817cc20a1d5 295-299,301-303,314
+scripts/test-github-actions-pin-manager.mjs
+  s_248e2668f94487::t_c6e8a6622aab23 397-419
+  s_248e2668f94487::t_318b30cd465b58 294-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0f191a010837c6d22a8340fb7803748e8def065f",
+  "prompts": {},
+  "sessions": {
+    "s_248e2668f94487": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdb8f5baffe0xnz5joQWPTqnh",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
