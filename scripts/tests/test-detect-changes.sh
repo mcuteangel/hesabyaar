@@ -24,7 +24,12 @@ new_repo() {
   git config user.email test@example.com
   git config user.name test
   printf '[workspace.package]\nversion = "0.7.2"\n' > rust/Cargo.toml
-  printf '[package]\nname = "core"\nversion = "0.9.9"\ndependencies = []\n' > rust/hesabyar-core/Cargo.toml
+  printf '[package]\nname = "core"\nversion.workspace = true\nedition.workspace = true\ndependencies = []\n' > rust/hesabyar-core/Cargo.toml
+  # Optional seed: $1 = "nested" adds a one-level-deep member crate.
+  if [ "${1:-}" = "nested" ]; then
+    mkdir -p rust/tools/nested-crate
+    printf '[package]\nname = "nested-crate"\nversion = "0.1.0"\ndependencies = []\n' > rust/tools/nested-crate/Cargo.toml
+  fi
   echo base > app/MainActivity.kt
   git add -A
   git commit -qm base
@@ -37,14 +42,16 @@ check() {
   name=$1
   want=$2
   got=0
-  "$DETECT" main HEAD > "$TMP/out.txt" 2>/dev/null || got=$?
-  first=$(head -n 1 "$TMP/out.txt")
+  "$DETECT" main HEAD > "$TMP/out.txt" 2> "$TMP/err.txt" || got=$?
   if [ "$got" = "$want" ]; then
     pass=$((pass + 1))
-    printf 'PASS %-42s %s\n' "$name" "$first"
+    printf 'PASS %-42s %s\n' "$name" "$(head -n 1 "$TMP/out.txt")"
   else
     fail=$((fail + 1))
-    printf 'FAIL %-42s want=%s got=%s [%s]\n' "$name" "$want" "$got" "$first"
+    printf 'FAIL %-42s want=%s got=%s\n' "$name" "$want" "$got"
+    echo '--- stdout ---'; cat "$TMP/out.txt"
+    echo '--- stderr ---'; cat "$TMP/err.txt"
+    echo '---------------'
   fi
 }
 
@@ -76,11 +83,25 @@ commit_all
 check "member manifest version bump" 0
 
 # 4. Table-form [dependencies.*] version bump is NOT a package bump -> skip
+#    (member keeps version.workspace = true; only a dep table is added)
 new_repo
 branch t4
-printf '[package]\nname = "core"\nversion = "0.9.9"\n\n[dependencies.serde]\nversion = "2"\n' > rust/hesabyar-core/Cargo.toml
+cat >> rust/hesabyar-core/Cargo.toml <<'EOF'
+
+[dependencies.serde]
+version = "2"
+EOF
 commit_all
 check "table-form dependency version bump" 1
+
+# 4b. Inherited-version member: dep-only edit -> skip (no local version key;
+#     bumps to the inherited value are caught via rust/Cargo.toml instead)
+new_repo
+branch t4b
+sed 's/^dependencies = \[\]/log = "0.4"\ndependencies = []/' rust/hesabyar-core/Cargo.toml > rust/hesabyar-core/Cargo.toml.new
+mv rust/hesabyar-core/Cargo.toml.new rust/hesabyar-core/Cargo.toml
+commit_all
+check "inherited-version member dep-only" 1
 
 # 5. Gradle catalog change only -> skip
 new_repo
@@ -110,6 +131,22 @@ branch t8
 echo 'docs' > README.md
 commit_all
 check "unrelated non-app file" 1
+
+# 9. Non-version edit to the workspace manifest only (e.g. a dependency in
+#    [workspace.dependencies]) -> skip; this is the weekly Dependabot case
+new_repo
+branch t9
+echo '[dependencies]' >> rust/Cargo.toml
+echo 'anyhow = "1"' >> rust/Cargo.toml
+commit_all
+check "workspace manifest non-version edit" 1
+
+# 10. Nested member manifest (one extra level): dep-only edit -> skip
+new_repo nested
+branch t10
+echo 'log = "0.4"' >> rust/tools/nested-crate/Cargo.toml
+commit_all
+check "nested member dep-only bump" 1
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

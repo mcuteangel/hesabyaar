@@ -55,13 +55,18 @@ while IFS= read -r file; do
     gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock)
       continue
       ;;
-    # Matches the workspace manifest and every member manifest
-    # (e.g. rust/hesabyar-core/Cargo.toml, rust/uniffi-gen/Cargo.toml).
-    rust/Cargo.toml|rust/*/Cargo.toml|rust/Cargo.lock)
+    # Workspace root, direct members, and one extra nesting level.
+    # Matches every tracked Rust manifest so dependency edits never fall
+    # through to the *.toml include pattern below.
+    rust/Cargo.toml|rust/*/Cargo.toml|rust/*/*/Cargo.toml|rust/Cargo.lock)
       # A manual version bump in a Rust manifest is an application change,
       # not a dependency edit: force a release so the artifact carries the
       # new core version. Pure dependency edits (including table-form
       # [dependencies.*] version bumps) stay skipped.
+      # Members declaring `version.workspace = true` inherit their version
+      # from [workspace.package] in the root manifest, so they have no local
+      # version key — this check correctly finds nothing to compare there,
+      # and bumps to the inherited value are caught via rust/Cargo.toml.
       old_ver=$(rust_manifest_version "$BASE_REF" "$file" || true)
       new_ver=$(rust_manifest_version "$HEAD_REF" "$file" || true)
       if [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
