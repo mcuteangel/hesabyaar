@@ -1,0 +1,21 @@
+docs/ci/github-actions-pinning.md
+  s_248e2668f94487::t_fe322d4e466850 119-122
+.github/workflows/github-actions-pin-manager.yml
+  s_248e2668f94487::t_ae484648d04726 17-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9fcc91828782b215ffe5e5b5e82b58f6780e2b8a",
+  "prompts": {},
+  "sessions": {
+    "s_248e2668f94487": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdb8f5baffe0xnz5joQWPTqnh",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
