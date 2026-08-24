@@ -47,7 +47,7 @@ function makeFetch(routes) {
     for (const r of routes) {
       const m = url.match(r.url);
       if (m && (r.method || 'GET') === (options.method || 'GET')) {
-        return typeof r.reply === 'function' ? r.reply(m, ++r.hits || (r.hits = 1), options) : r.reply;
+        return typeof r.reply === 'function' ? r.reply(m, options) : r.reply;
       }
     }
     return json({ message: 'not found' }, 404);
@@ -567,6 +567,24 @@ test('security mode proposes update only when the range covers the pinned versio
   assert.ok(upd.advisories[0].range.includes('< 1.4.2'));
 });
 
+test('global advisory source contributes when the repo endpoint fails', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  // Repo advisories are unreachable; only the global database knows.
+  const routes = advisoriesRoutes().map((r) => {
+    if (r.url.source.includes('security-advisories')) {
+      return { method: r.method, url: r.url, reply: json({ message: 'Not Found' }, 404) };
+    }
+    return r.url.source.includes('/advisories') && !r.url.source.includes('repos')
+      ? { method: r.method, url: r.url, reply: json([ADV_MATCH]) }
+      : r;
+  });
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v1.4.2');
+});
+
 test('advisory outside the pinned version range is NEEDS_HUMAN not SECURITY', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
   await setupRepo(dir, `- uses: evil/action@${SHA_A} # v2.5.0\n`);
@@ -889,7 +907,7 @@ function lifecycleRoutes({ existingPr = [], branchExists = false } = {}) {
       {
         method: 'PATCH',
         url: /\/repos\/o\/r\/pulls\/\d+$/,
-        reply: (m, hits, opts) => {
+        reply: (m, opts) => {
           state.pullPatch = JSON.parse(opts.body);
           return json({});
         },

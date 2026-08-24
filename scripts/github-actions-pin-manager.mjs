@@ -144,7 +144,10 @@ export function parseTarget(value) {
     subpath.startsWith('.github/workflows/') && /\.ya?ml$/.test(subpath)
       ? 'REUSABLE_WORKFLOW'
       : 'ACTION';
-  const ownership = parts[0] === 'actions' ? 'GITHUB_OWNED' : 'THIRD_PARTY';
+  // GitHub-owned orgs beyond `actions` are classified as first-party too.
+  // This is reporting metadata only; planning treats both groups alike.
+  const GITHUB_OWNED_ORGS = new Set(['actions', 'github', 'octokit']);
+  const ownership = GITHUB_OWNED_ORGS.has(parts[0]) ? 'GITHUB_OWNED' : 'THIRD_PARTY';
   return { kind, ownership, owner: parts[0], repo: parts[1], subpath, ref, slug };
 }
 
@@ -232,11 +235,14 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
     fetchImpl,
     call,
     getReleases: () => call(`${repoPath()}/releases?per_page=100`),
+    // ponytail: tags fallback reads only the first 100 entries; repos with
+    // more tags may miss the stable target. Add Link-header pagination if a
+    // real repository ever hits that ceiling.
     getTags: () => call(`${repoPath()}/tags?per_page=100`),
     getTagRef: (tag) => call(`${repoPath()}/git/ref/tags/${encodeURIComponent(tag)}`),
     getTagObject: (sha) => call(`${repoPath()}/git/tags/${sha}`),
     getCommit: (sha) => call(`${repoPath()}/commits/${sha}`),
-    getGlobalAdvisories: () => call(`/advisories?affects=${repo}&ecosystem=actions`),
+    getGlobalAdvisories: () => call(`/advisories?affects=${encodeURIComponent(repo)}&ecosystem=actions`),
     getRepoAdvisories: () => call(`${repoPath()}/security-advisories?per_page=100`),
     getOpenPullRequest: (head) =>
       call(`${repoPath()}/pulls?head=${encodeURIComponent(`${repo.split('/')[0]}:${head}`)}&state=open&per_page=1`),
@@ -346,7 +352,10 @@ export function scanFiles(paths) {
   const files = [];
   for (const path of paths) {
     const text = readFileSync(path, 'utf8');
-    const lines = text.split('\n');
+    // Preserve the file's own line endings so regenerated files stay
+    // homogeneous instead of mixing LF and CRLF lines.
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
+    const lines = text.split(eol);
     const occurrences = [];
     lines.forEach((line, index) => {
       const parsed = parseUsesLine(line);
@@ -373,7 +382,7 @@ export function scanFiles(paths) {
         commentMissing: shape === 'SHA' && !commentVersion,
       });
     });
-    files.push({ path, text, lines, occurrences });
+    files.push({ path, text, eol, lines, occurrences });
   }
   return files;
 }
@@ -425,7 +434,7 @@ export async function planUpdates(files, api, mode) {
     for (const occ of file.occurrences) {
       if (occ.skip) continue;
       if (occ.target.kind === 'MALFORMED') {
-        plans.needsHuman.push(fileRow(file, occ, 'malformed uses reference'));
+        plans.needsHuman.push(row(file, occ, 'malformed uses reference'));
         continue;
       }
       let facts;
@@ -443,7 +452,7 @@ export async function planUpdates(files, api, mode) {
         continue;
       }
       if (stable.source === 'unknown') {
-        plans.needsHuman.push(fileRow(file, occ, 'no releases or tags found'));
+        plans.needsHuman.push(row(file, occ, 'no releases or tags found'));
         continue;
       }
 
@@ -451,7 +460,7 @@ export async function planUpdates(files, api, mode) {
       // reported only. A floating stable tag (checkout@v4) is converted to
       // an immutable pin of the newest release in the SAME major.
       if (occ.shape === 'BRANCH' || occ.shape === 'OTHER') {
-        plans.needsHuman.push(fileRow(file, occ, `floating ref @${occ.target.ref}; human must pick a version`));
+        plans.needsHuman.push(row(file, occ, `floating ref @${occ.target.ref}; human must pick a version`));
         continue;
       }
 
@@ -469,7 +478,7 @@ export async function planUpdates(files, api, mode) {
         }
       }
       if (!currentVersion || !parseVersion(currentVersion)) {
-        plans.needsHuman.push(fileRow(file, occ, 'SHA pin without a usable version comment; human must confirm the current version'));
+        plans.needsHuman.push(row(file, occ, 'SHA pin without a usable version comment; human must confirm the current version'));
         continue;
       }
 
@@ -588,18 +597,18 @@ async function planSecurityFor(plans, file, occ, facts, currentVersion) {
   }
   if (advisories.list.length === 0) return; // NO UPDATE
   if (occ.shape !== 'SHA') {
-    plans.needsHuman.push(fileRow(file, occ, 'security advisory exists but the pin is not an immutable SHA'));
+    plans.needsHuman.push(row(file, occ, 'security advisory exists but the pin is not an immutable SHA'));
     return;
   }
   // Range matching needs the exact pinned version. A partial baseline such as
   // `# v5` cannot prove affectedness, so it stays with a human.
   if (!parseVersion(occ.commentVersion || '')) {
-    plans.needsHuman.push(fileRow(file, occ, 'security advisory exists; pinned version is not exactly known, so affectedness cannot be established automatically'));
+    plans.needsHuman.push(row(file, occ, 'security advisory exists; pinned version is not exactly known, so affectedness cannot be established automatically'));
     return;
   }
   const cls = securityClassification(advisories.list, currentVersion);
   if (cls.level !== 'SECURITY') {
-    plans.needsHuman.push(fileRow(file, occ, 'GitHub Security Advisory exists for this repository, but affectedness of the pinned version could not be established automatically; human review required'));
+    plans.needsHuman.push(row(file, occ, 'GitHub Security Advisory exists for this repository, but affectedness of the pinned version could not be established automatically; human review required'));
     return;
   }
   const stable = await facts.stablePromise;
@@ -612,7 +621,7 @@ async function planSecurityFor(plans, file, occ, facts, currentVersion) {
   );
   const target = exactPatch || pickTarget(stable.versions, { minVersion: requiredPatch });
   if (!target || compareVersions(target.version, currentVersion) <= 0) {
-    plans.needsHuman.push(fileRow(file, occ, 'security advisory affects this pin, but no verified newer stable release was found'));
+    plans.needsHuman.push(row(file, occ, 'security advisory affects this pin, but no verified newer stable release was found'));
     return;
   }
   await pushCandidate(plans.updates, file, occ, facts, target, 'SECURITY UPDATE', {
@@ -645,11 +654,11 @@ async function checkPinDrift(plans, file, occ, facts, recordedVersion) {
     }
   }
   if (lastError || !sha) {
-    plans.needsHuman.push(fileRow(file, occ, `recorded version tag ${recordedVersion} does not resolve (${lastError ? lastError.message : 'unknown error'}); human review required`));
+    plans.needsHuman.push(row(file, occ, `recorded version tag ${recordedVersion} does not resolve (${lastError ? lastError.message : 'unknown error'}); human review required`));
     return true;
   }
   if (sha !== occ.target.ref.toLowerCase()) {
-    plans.needsHuman.push(fileRow(file, occ, `pinned SHA does not match recorded version ${recordedVersion} (drift or stale comment); human review required`));
+    plans.needsHuman.push(row(file, occ, `pinned SHA does not match recorded version ${recordedVersion} (drift or stale comment); human review required`));
     return true;
   }
   return false;
@@ -718,8 +727,11 @@ async function pushCandidate(list, file, occ, facts, targetVersion, reason, extr
   });
 }
 
-function fileRow(file, occ, note) {
-  return row(file, occ, note);
+// Rewrite only the leading version token inside an existing comment, so a
+// human annotation such as `# v1.2.3 (pinned for X)` survives the update.
+function updatedComment(existing, targetTag) {
+  if (!existing || !/v?\d+\.\d+/.test(existing)) return `# ${targetTag}`;
+  return existing.replace(/v?\d+\.\d+(\.\d+)?/, targetTag);
 }
 
 function row(file, occ, note, status = 'NEEDS_HUMAN') {
@@ -769,13 +781,13 @@ export function applyUpdates(files, updates) {
       const occ = file.occurrences.find((o) => o.line === upd.line);
       if (!occ || !occ.parsed) throw new Error(`lost occurrence ${path}:${upd.line}`);
       const newValue = occ.parsed.value.replace(/@[^@]*$/, `@${upd.targetSha}`);
-      const newComment = `# ${upd.targetTag}`;
+      const newComment = updatedComment(occ.parsed.comment, upd.targetTag);
       newLines[upd.line] = renderUsesLine(occ.parsed, newValue, newComment);
       touched = true;
     }
     // A file whose candidates were all aborted contributes no entry.
     if (!touched) continue;
-    changed[path] = newLines.join('\n');
+    changed[path] = newLines.join(file.eol || '\n');
   }
   return changed;
 }
@@ -788,7 +800,7 @@ export function validateChanges(files, changed, updates) {
   for (const [path, newText] of Object.entries(changed)) {
     const file = files.find((f) => f.path === path);
     const oldLines = file.lines;
-    const newLines = newText.split('\n');
+    const newLines = newText.split(file.eol || '\n');
     if (oldLines.length !== newLines.length) {
       problems.push(`${path}: line count changed`);
       continue;
@@ -871,7 +883,9 @@ export async function ensurePullRequest({ api, mode, changed, plan }) {
 }
 
 function esc(s) {
-  return String(s === undefined || s === null ? '' : s).replace(/\|/g, '\\|');
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/\r?\n|\r/g, ' ')
+    .replace(/\|/g, '\\|');
 }
 
 export function buildPullRequestBody(mode, plan) {

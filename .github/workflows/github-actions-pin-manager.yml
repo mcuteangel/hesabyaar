@@ -62,6 +62,10 @@ jobs:
       contents: write
       # pull-requests: write creates or updates the single security PR.
       pull-requests: write
+      # NOTE: this block limits only the built-in GITHUB_TOKEN. The
+      # WORKFLOW_PAT secret keeps its own grant. Configure it as a
+      # fine-grained PAT with Contents and Pull requests on this
+      # repository only, so its blast radius matches this block.
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
