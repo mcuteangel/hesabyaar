@@ -488,6 +488,8 @@ function advisoriesRoutes() {
     { method: 'GET', url: /\/repos\/evil\/action\/security-advisories\?/, reply: json([ADV_MATCH]) },
     { method: 'GET', url: /\/advisories\?affects=/, reply: json([]) },
     { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json([{ tag_name: 'v1.4.2', draft: false, prerelease: false }, { tag_name: 'v1.5.0', draft: false, prerelease: false }]) },
+    // The drift gate runs for every mode; the recorded pin must verify.
+    tagRefRoute('evil/action', 'v1.2.0', SHA_A),
     tagRefRoute('evil/action', 'v1.4.2', SHA_B),
   ];
 }
@@ -534,6 +536,8 @@ test('advisory outside the pinned version range is NEEDS_HUMAN not SECURITY', as
       ? { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json([{ tag_name: 'v2.6.0', draft: false, prerelease: false }]) }
       : r,
   );
+  // The recorded pin of THIS occurrence must verify for the drift gate.
+  routes.push(tagRefRoute('evil/action', 'v2.5.0', SHA_A));
   const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
   const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
   assert.equal(plan.updates.length, 0);
@@ -549,6 +553,72 @@ test('partial version baseline cannot prove affectedness and stays NEEDS_HUMAN',
   assert.equal(plan.updates.length, 0);
   assert.equal(plan.needsHuman.length, 1);
   assert.ok(plan.needsHuman[0].note.includes('exactly known'));
+});
+
+test('security mode refuses drifted sha pin', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  // Prepend an overriding ref route: the recorded tag v1.2.0 resolves to
+  // SHA_B, NOT the pinned SHA_A.
+  const routes = [tagRefRoute('evil/action', 'v1.2.0', SHA_B), ...advisoriesRoutes()];
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 1);
+  assert.ok(plan.needsHuman[0].note.includes('drift'));
+});
+
+const ADV_STRONGER = {
+  ghsa_id: 'GHSA-dddd-eeee-ffff',
+  cve_id: 'CVE-2026-0002',
+  summary: 'second flaw fixed only in a newer release',
+  html_url: 'https://github.com/evil/action/security/advisories/GHSA-dddd-eeee-ffff',
+  vulnerabilities: [
+    {
+      vulnerable_version_range: '>= 1.0.0, < 1.5.1',
+      first_patched_version: '1.5.1',
+    },
+  ],
+};
+
+function multiAdvisoryRoutes(releases) {
+  return [
+    { method: 'GET', url: /\/repos\/evil\/action\/security-advisories\?/, reply: json([ADV_MATCH, ADV_STRONGER]) },
+    { method: 'GET', url: /\/advisories\?affects=/, reply: json([]) },
+    { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json(releases) },
+    tagRefRoute('evil/action', 'v1.2.0', SHA_A),
+  ];
+}
+
+test('security target satisfies the newest required patched version across advisories', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  const routes = multiAdvisoryRoutes([
+    { tag_name: 'v1.5.1', draft: false, prerelease: false },
+    { tag_name: 'v1.4.2', draft: false, prerelease: false },
+  ]);
+  routes.push(tagRefRoute('evil/action', 'v1.5.1', SHA_B));
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 1);
+  // Must not stop at the weaker v1.4.2 fix.
+  assert.equal(plan.updates[0].targetTag, 'v1.5.1');
+});
+
+test('security target picks newest release above the strongest patched baseline when the exact patch is absent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  // v1.5.1 was never released; the older patch v1.4.2 exists but does not
+  // satisfy the stronger advisory.
+  const routes = multiAdvisoryRoutes([
+    { tag_name: 'v2.0.0', draft: false, prerelease: false },
+    { tag_name: 'v1.4.2', draft: false, prerelease: false },
+  ]);
+  routes.push(tagRefRoute('evil/action', 'v2.0.0', SHA_C));
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v2.0.0');
 });
 
 // ---------------------------------------------------------------------------
@@ -735,4 +805,71 @@ test('pr body lists verification steps and disables auto merge', () => {
   assert.ok(body.includes('twice'));
   assert.ok(body.includes('Auto-merge is disabled'));
   assert.ok(body.includes(`\`${SHA_B}\``));
+});
+
+function applyHarnessRoutes({ defaultBranch = 'main' } = {}) {
+  return [
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v1.0.0', draft: false, prerelease: false }, { tag_name: 'v1.1.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v1.0.0', SHA_A),
+    tagRefRoute('some/action', 'v1.1.0', SHA_B),
+    { method: 'GET', url: /\/repos\/o\/r$/, reply: json({ default_branch: defaultBranch }) },
+    { method: 'GET', url: new RegExp(`/repos/o/r/git/ref/heads/${defaultBranch}$`), reply: json({ object: { sha: SHA_A } }) },
+    { method: 'GET', url: /\/repos\/o\/r\/git\/commits\/[0-9a-f]{40}$/, reply: json({ tree: { sha: 'tree0'.padEnd(40, '0') } }) },
+    { method: 'POST', url: /\/repos\/o\/r\/git\/blobs$/, reply: json({ sha: SHA_B }) },
+    { method: 'POST', url: /\/repos\/o\/r\/git\/trees$/, reply: json({ sha: SHA_C }) },
+    { method: 'POST', url: /\/repos\/o\/r\/git\/commits$/, reply: json({ sha: SHA_A }) },
+    { method: 'GET', url: /\/repos\/o\/r\/git\/ref\/heads\/ci\/pin-updates$/, reply: json({ message: 'nf' }, 404) },
+    { method: 'POST', url: /\/repos\/o\/r\/git\/refs$/, reply: json({}) },
+    { method: 'GET', url: /\/repos\/o\/r\/pulls\?head=/, reply: json([]) },
+    { method: 'POST', url: /\/repos\/o\/r\/pulls$/, reply: json({ number: 9, html_url: 'u9' }) },
+  ];
+}
+
+test('workflow tree entry uses repository-relative path', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v1.0.0\n`);
+  const routed = makeFetch(applyHarnessRoutes()).impl;
+  let treePath = null;
+  const impl = async (url, options = {}) => {
+    if (/\/git\/trees$/.test(url) && options.body) {
+      treePath = JSON.parse(options.body).tree[0].path;
+    }
+    return routed(url, options);
+  };
+  const result = await runApply({
+    repoRoot: dir,
+    repo: 'o/r',
+    token: 't',
+    mode: 'weekly',
+    fetchImpl: impl,
+    log: () => {},
+  });
+  assert.equal(result.applied, true);
+  // The scanned file lives at an absolute temp path; the Git tree entry must
+  // carry the repository-relative POSIX path instead.
+  assert.equal(treePath, '.github/workflows/w.yml');
+});
+
+test('pr base uses repository default branch', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v1.0.0\n`);
+  const routed = makeFetch(applyHarnessRoutes({ defaultBranch: 'trunk' })).impl;
+  let pullBody = null;
+  const impl = async (url, options = {}) => {
+    if (/\/repos\/o\/r\/pulls$/.test(url) && options.body) {
+      pullBody = JSON.parse(options.body);
+    }
+    return routed(url, options);
+  };
+  const result = await runApply({
+    repoRoot: dir,
+    repo: 'o/r',
+    token: 't',
+    mode: 'weekly',
+    fetchImpl: impl,
+    log: () => {},
+  });
+  assert.equal(result.applied, true);
+  assert.equal(pullBody.base, 'trunk');
+  assert.equal(pullBody.head, 'ci/pin-updates');
 });

@@ -240,7 +240,8 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
     getBranch: (branch) => call(`${repoPath()}/git/ref/heads/${branch}`).catch(() => null),
     getDefaultBranchSha: async function () {
       const info = await call(repoPath());
-      return this.getBranch(info.default_branch);
+      const refData = await this.getBranch(info.default_branch);
+      return { ...refData, defaultBranch: info.default_branch };
     },
     createBlob: (content) =>
       call(`${repoPath()}/git/blobs`, { method: 'POST', body: JSON.stringify({ content, encoding: 'utf-8' }) }),
@@ -451,18 +452,19 @@ export async function planUpdates(files, api, mode) {
         continue;
       }
 
+      // A full version comment lets us prove the pinned SHA still belongs to
+      // its recorded release. A mismatch is drift; the pin must not be
+      // rebased onto a newer release by EITHER mode until a human resolves
+      // the drift. This gate runs before both planning branches.
+      if (occ.shape === 'SHA' && parseVersion(occ.commentVersion || '')) {
+        const drifted = await checkPinDrift(plans, file, occ, facts, occ.commentVersion);
+        if (drifted) continue;
+      }
+
       // Advisory-driven security planning.
       if (mode === 'security') {
         await planSecurityFor(plans, file, occ, facts, currentVersion);
         continue;
-      }
-
-      // A full version comment lets us prove the pinned SHA still belongs to
-      // its recorded release. A mismatch is drift; the pin must not be
-      // rebased onto a newer release until a human resolves the drift.
-      if (occ.shape === 'SHA' && parseVersion(occ.commentVersion || '')) {
-        const drifted = await checkPinDrift(plans, file, occ, facts, occ.commentVersion);
-        if (drifted) continue;
       }
 
       const latest = stable.versions[0];
@@ -567,13 +569,14 @@ async function planSecurityFor(plans, file, occ, facts, currentVersion) {
     return;
   }
   const stable = await facts.stablePromise;
-  // Prefer the exact first patched version; fall back to the newest stable
-  // release at or above it.
+  // The target must satisfy EVERY confirmed advisory. Baseline on the
+  // strongest required patched version, never on an arbitrary member of the
+  // patched set and never below it.
+  const requiredPatch = cls.patched.reduce((a, b) => (compareVersions(a, b) >= 0 ? a : b));
   const exactPatch = stable.versions.find(
-    (vItem) => cls.patched.some((p) => compareVersions(vItem.version, p) === 0),
+    (vItem) => compareVersions(vItem.version, requiredPatch) === 0,
   );
-  const target = exactPatch || pickTarget(stable.versions, { minVersion: cls.patched[0] }) ||
-    pickTarget(stable.versions, { minVersion: currentVersion });
+  const target = exactPatch || pickTarget(stable.versions, { minVersion: requiredPatch });
   if (!target || compareVersions(target.version, currentVersion) <= 0) {
     plans.needsHuman.push(fileRow(file, occ, 'security advisory affects this pin, but no verified newer stable release was found'));
     return;
@@ -803,7 +806,7 @@ export async function ensurePullRequest({ api, mode, changed, plan }) {
   const pr = await api.createPullRequest({
     title,
     head: branch,
-    base: 'main',
+    base: head.defaultBranch,
     body,
   });
   return { created: true, number: pr.number, url: pr.html_url };
@@ -897,7 +900,13 @@ export async function runApply({ repoRoot, repo, token, mode, fetchImpl, log = c
     for (const p of problems) log(`  - ${p}`);
     return { applied: false, plan, problems };
   }
-  const pr = await ensurePullRequest({ api, mode, changed, plan });
+  // Git tree entry paths must be repository-relative. The changed map is
+  // keyed by absolute filesystem paths until this boundary; validation has
+  // already matched those keys against the scanned files.
+  const prChanges = Object.fromEntries(
+    Object.entries(changed).map(([p, content]) => [relativePath(repoRoot, p), content]),
+  );
+  const pr = await ensurePullRequest({ api, mode, changed: prChanges, plan });
   log(`pin-manager[${mode}]: ${pr.created ? 'created' : 'updated'} PR #${pr.number}: ${pr.url}`);
   return { applied: true, plan, pr, changed };
 }
