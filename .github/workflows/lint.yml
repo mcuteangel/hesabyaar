@@ -4,17 +4,25 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - 'scripts/github-actions-pin-manager.mjs'
+      - 'scripts/test-github-actions-pin-manager.mjs'
       - 'scripts/test-issue-autoclose.sh'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'scripts/github-actions-pin-manager.mjs'
+      - 'scripts/test-github-actions-pin-manager.mjs'
       - 'scripts/test-issue-autoclose.sh'
 
 jobs:
   actionlint:
     name: Run actionlint
     runs-on: ubuntu-latest
+    permissions:
+      # Read repository content. Report lint results through the Checks API.
+      contents: read
+      checks: write
     steps:
        - name: Checkout
          uses: actions/checkout@v4
@@ -29,3 +37,13 @@ jobs:
 
        - name: Run issue auto-close regression tests
          run: bash scripts/test-issue-autoclose.sh
+
+       - name: Run Actions pin manager tests
+         run: node --test scripts/test-github-actions-pin-manager.mjs
+
+       - name: Run Actions pin audit
+         # Informational. The audit never fails CI on its findings; it
+         # prints the compliance state of every uses: reference. A crash in
+         # the tool must not block unrelated workflow changes either.
+         continue-on-error: true
+         run: node scripts/github-actions-pin-manager.mjs
