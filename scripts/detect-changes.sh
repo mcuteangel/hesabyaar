@@ -1,5 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+# POSIX sh compatible (also invoked as `bash scripts/detect-changes.sh` in CI).
+set -eu
+(set -o pipefail) 2>/dev/null && set -o pipefail || true
 
 # detect-changes.sh - Determines whether application code changed.
 # Exit code 0 = release needed, exit code 1 = skip release.
@@ -26,6 +28,20 @@ if [ -z "$changed_files" ]; then
   exit 1
 fi
 
+CHANGED_LIST=$(mktemp)
+trap 'rm -f "$CHANGED_LIST"' EXIT
+printf '%s\n' "$changed_files" > "$CHANGED_LIST"
+
+# Print the package version declared under [package] or [workspace.package]
+# in a Cargo manifest. Dependency tables such as [dependencies.foo] also use
+# `version =` keys, so the section must be tracked explicitly.
+rust_manifest_version() {
+  git show "$1:$2" 2>/dev/null | awk -F'"' '
+    /^[ \t]*\[/ { in_pkg = ($0 ~ /^\[(package|workspace\.package)\][ \t]*$/) }
+    in_pkg && $1 ~ /^version[ \t]*=[ \t]*$/ { print $2; exit }
+  '
+}
+
 # Check if any application files changed
 has_app_changes=false
 while IFS= read -r file; do
@@ -42,6 +58,16 @@ while IFS= read -r file; do
     # Matches the workspace manifest and every member manifest
     # (e.g. rust/hesabyar-core/Cargo.toml, rust/uniffi-gen/Cargo.toml).
     rust/Cargo.toml|rust/*/Cargo.toml|rust/Cargo.lock)
+      # A manual version bump in a Rust manifest is an application change,
+      # not a dependency edit: force a release so the artifact carries the
+      # new core version. Pure dependency edits (including table-form
+      # [dependencies.*] version bumps) stay skipped.
+      old_ver=$(rust_manifest_version "$BASE_REF" "$file" || true)
+      new_ver=$(rust_manifest_version "$HEAD_REF" "$file" || true)
+      if [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
+        echo "RELEASE_NEEDED: Version bump detected in $file (${old_ver:-none} -> ${new_ver})"
+        exit 0
+      fi
       continue
       ;;
   esac
@@ -61,21 +87,7 @@ while IFS= read -r file; do
       break
       ;;
   esac
-done <<< "$changed_files"
-
-# A manual version bump in a Rust workspace manifest must still trigger a
-# release even though manifest edits are otherwise treated as dependency-only.
-while IFS= read -r file; do
-  [ -z "$file" ] && continue
-  case "$file" in
-    rust/Cargo.toml|rust/*/Cargo.toml)
-      if git diff "$BASE_REF"..."$HEAD_REF" -- "$file" 2>/dev/null | grep -qE '^[+-]version\s*='; then
-        echo "RELEASE_NEEDED: Version bump detected in $file"
-        exit 0
-      fi
-      ;;
-  esac
-done <<< "$changed_files"
+done < "$CHANGED_LIST"
 
 if [ "$has_app_changes" = false ]; then
   echo "SKIP: No application code changes detected"
