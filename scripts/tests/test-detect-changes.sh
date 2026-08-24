@@ -149,6 +149,15 @@ echo 'logos = "0.14"' >> rust/Cargo.toml
 commit_all
 check "mixed app code + manifest" 0 "Application code changes"
 
+# 7b. Pure application-code change (no manifest touched) -> release via the
+#     app-code branch. Locks in the primary gating path independently of
+#     manifest edits.
+new_repo
+branch t7b
+echo 'class Tweaked' > app/MainActivity.kt
+commit_all
+check "app code only" 0 "Application code changes"
+
 # 8. Unrelated file only (no include match) -> skip
 new_repo
 branch t8

@@ -29,7 +29,7 @@ if [ -z "$changed_files" ]; then
   exit 1
 fi
 
-CHANGED_LIST=$(mktemp)
+CHANGED_LIST=$(mktemp "${TMPDIR:-/tmp}/detect-changes.XXXXXX")
 trap 'rm -f "$CHANGED_LIST"' EXIT
 printf '%s\n' "$changed_files" > "$CHANGED_LIST"
 
@@ -79,8 +79,8 @@ while IFS= read -r file; do
       # from [workspace.package] in the root manifest, so they have no local
       # version key — this check correctly finds nothing to compare there,
       # and bumps to the inherited value are caught via rust/Cargo.toml.
-      old_ver=$(rust_manifest_version "$BASE_REF" "$file" || true)
-      new_ver=$(rust_manifest_version "$HEAD_REF" "$file" || true)
+      old_ver=$(rust_manifest_version "$BASE_REF" "$file")
+      new_ver=$(rust_manifest_version "$HEAD_REF" "$file")
       if [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
         echo "RELEASE_NEEDED: Version bump detected in $file (${old_ver:-none} -> ${new_ver})"
         exit 0
