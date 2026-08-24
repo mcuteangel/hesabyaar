@@ -25,6 +25,7 @@ import {
   validateChanges,
   buildPullRequestBody,
   ensurePullRequest,
+  runApply,
   createApi,
   versionAffected,
   securityClassification,
@@ -566,6 +567,29 @@ test('recorded version tag that no longer resolves is flagged not rebased', asyn
   assert.ok(plan.needsHuman[0].note.includes('does not resolve'));
 });
 
+
+test('no candidates means zero mutating API calls', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v1.0.0\n`);
+  const { impl, calls } = makeFetch([
+    // Unknown release source: nothing can be proposed.
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json({ message: 'nf' }, 404) },
+    { method: 'GET', url: /\/repos\/some\/action\/tags\?/, reply: json([]) },
+    { method: 'GET', url: /\/advisories\?affects=/, reply: json([]) },
+    { method: 'GET', url: /\/repos\/some\/action\/security-advisories\?/, reply: json([]) },
+  ]);
+  const result = await runApply({
+    repoRoot: dir,
+    repo: 'o/r',
+    token: 't',
+    mode: 'weekly',
+    fetchImpl: impl,
+    log: () => {},
+  });
+  assert.equal(result.applied, false);
+  const mutations = calls.filter((cItem) => cItem.method !== 'GET');
+  assert.deepEqual(mutations, []);
+});
 
 // ---------------------------------------------------------------------------
 // PR lifecycle
