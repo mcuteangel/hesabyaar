@@ -36,10 +36,12 @@ while IFS= read -r file; do
   # update would flood the releases page. App code touching these same
   # files alongside other sources still triggers a release below.
   case "$file" in
-    gradle/libs.versions.toml|gradle.lockfile|versions.lock)
+    gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock)
       continue
       ;;
-    rust/Cargo.toml|rust/Cargo.lock)
+    # Matches the workspace manifest and every member manifest
+    # (e.g. rust/hesabyar-core/Cargo.toml, rust/uniffi-gen/Cargo.toml).
+    rust/Cargo.toml|rust/*/Cargo.toml|rust/Cargo.lock)
       continue
       ;;
   esac
@@ -57,6 +59,20 @@ while IFS= read -r file; do
     gradle/*)
       has_app_changes=true
       break
+      ;;
+  esac
+done <<< "$changed_files"
+
+# A manual version bump in a Rust workspace manifest must still trigger a
+# release even though manifest edits are otherwise treated as dependency-only.
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
+  case "$file" in
+    rust/Cargo.toml|rust/*/Cargo.toml)
+      if git diff "$BASE_REF"..."$HEAD_REF" -- "$file" 2>/dev/null | grep -qE '^[+-]version\s*='; then
+        echo "RELEASE_NEEDED: Version bump detected in $file"
+        exit 0
+      fi
       ;;
   esac
 done <<< "$changed_files"
