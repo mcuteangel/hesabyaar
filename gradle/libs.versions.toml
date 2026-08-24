@@ -41,7 +41,7 @@ hilt = "2.60"
 hiltNavigationCompose = "1.2.0"
 sqlcipher = "4.6.1"
   biometric = "1.4.0-alpha07"
-  detekt = "2.0.0-alpha.5"
+  detekt = "2.0.0-alpha.6"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
