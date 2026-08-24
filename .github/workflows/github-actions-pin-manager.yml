@@ -17,9 +17,12 @@ name: GitHub Actions Pin Manager
 
 on:
   schedule:
-    # Daily security scan, 05:17 UTC.
+    # Daily security scan, 05:17 UTC. This cron string must stay identical
+    # to the literal in the security-scan job `if:` guard, or that job
+    # silently never runs on schedule.
     - cron: "17 5 * * *"
-    # Weekly general update check, Monday 06:23 UTC.
+    # Weekly general update check, Monday 06:23 UTC. Same coupling rule with
+    # the weekly-update job guard.
     - cron: "23 6 * * 1"
   workflow_dispatch:
     inputs:
@@ -40,6 +43,7 @@ jobs:
     name: Daily security scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Keep this cron literal identical to the first entry in on.schedule.
     if: >-
       (github.event_name == 'schedule' && github.event.schedule == '17 5 * * *') ||
       (github.event_name == 'workflow_dispatch' && inputs.mode == 'security')
@@ -67,6 +71,7 @@ jobs:
     name: Weekly stable update
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Keep this cron literal identical to the second entry in on.schedule.
     if: >-
       (github.event_name == 'schedule' && github.event.schedule == '23 6 * * 1') ||
       (github.event_name == 'workflow_dispatch' && inputs.mode == 'weekly')

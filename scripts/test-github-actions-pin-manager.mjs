@@ -442,7 +442,7 @@ test('sha pin missing version comment goes to needsHuman', async () => {
   assert.ok(plan.needsHuman[0].note.includes('version comment'));
 });
 
-test('partial major comment is a usable baseline but channel comment is not', async () => {
+test('partial or channel sha comments go to needsHuman', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
   await setupRepo(
     dir,
@@ -459,11 +459,28 @@ test('partial major comment is a usable baseline but channel comment is not', as
   ]);
   const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
   const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
-  assert.equal(plan.updates.length, 1);
-  assert.equal(plan.updates[0].action, 'Swatinem/rust-cache');
-  assert.equal(plan.updates[0].targetTag, 'v2.8.0');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 2);
+  for (const rItem of plan.needsHuman) {
+    assert.ok(rItem.note.includes('usable version comment'));
+  }
+});
+
+test('partial version comment cannot drive an automatic update', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v5\n`);
+  const { impl, calls } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v5.9.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v5.9.0', SHA_B),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 0);
   assert.equal(plan.needsHuman.length, 1);
-  assert.ok(plan.needsHuman[0].action.startsWith('dtolnay/'));
+  assert.ok(plan.needsHuman[0].note.includes('usable version comment'));
+  // No drift resolution may even start from an unprovable baseline.
+  const tagCalls = calls.filter((c) => c.url.includes('/git/ref/tags/'));
+  assert.equal(tagCalls.length, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -552,7 +569,8 @@ test('partial version baseline cannot prove affectedness and stays NEEDS_HUMAN',
   const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
   assert.equal(plan.updates.length, 0);
   assert.equal(plan.needsHuman.length, 1);
-  assert.ok(plan.needsHuman[0].note.includes('exactly known'));
+  // The planner gate refuses a partial SHA baseline before any mode logic.
+  assert.ok(plan.needsHuman[0].note.includes('usable version comment'));
 });
 
 test('security mode refuses drifted sha pin', async () => {

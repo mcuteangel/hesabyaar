@@ -25,9 +25,10 @@ runs an update system; see below.
 The `# vX.Y.Z` comment records which release the SHA belongs to. Humans need
 it for review. Tools need it to compute update candidates. The updater always
 writes the SHA and the comment together. It never updates one without the
-other. A full triple (`vX.Y.Z`) is required for compliance; a partial
-comment such as `# v5` counts as non-compliant but serves as a baseline for
-the updater.
+other. A full triple (`vX.Y.Z`) is required for compliance. A partial
+comment such as `# v5` counts as non-compliant. The updater never rebases a
+SHA pin onto a partial comment. It routes that reference to human review,
+because the comment alone cannot prove which release the commit is from.
 
 ## Reference classes and policy
 

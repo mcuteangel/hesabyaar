@@ -442,10 +442,14 @@ export async function planUpdates(files, api, mode) {
       let currentVersion = null;
       if (fromRef) {
         currentVersion = normalizeVersion(occ.target.ref.replace(/^v/, ''));
-      } else if (occ.commentVersion) {
-        // A partial comment such as `# v5` is a usable major-level baseline.
-        // The replacement always writes a full vX.Y.Z tag.
-        currentVersion = normalizeVersion(occ.commentVersion);
+      } else if (occ.shape === 'SHA') {
+        // A SHA pin baselines only on a FULL vX.Y.Z release tag. A partial
+        // comment such as `# v5` cannot prove which release the commit is
+        // from, so it never drives an automatic rebase. The missing or
+        // partial value falls through to the human-review guard below.
+        if (parseVersion(occ.commentVersion || '')) {
+          currentVersion = normalizeVersion(occ.commentVersion);
+        }
       }
       if (!currentVersion || !parseVersion(currentVersion)) {
         plans.needsHuman.push(fileRow(file, occ, 'SHA pin without a usable version comment; human must confirm the current version'));

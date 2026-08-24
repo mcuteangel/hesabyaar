@@ -38,6 +38,8 @@ jobs:
          run: node --test scripts/test-github-actions-pin-manager.mjs
 
        - name: Run Actions pin audit
-         # Informational. The audit never fails CI; it prints the current
-         # compliance state of every uses: reference.
+         # Informational. The audit never fails CI on its findings; it
+         # prints the compliance state of every uses: reference. A crash in
+         # the tool must not block unrelated workflow changes either.
+         continue-on-error: true
          run: node scripts/github-actions-pin-manager.mjs
