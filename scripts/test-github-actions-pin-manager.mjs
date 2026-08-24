@@ -517,7 +517,13 @@ test('versionAffected matches ranges strictly and rejects unknown clauses', () =
   assert.equal(versionAffected('1.4.2', ADV_MATCH.vulnerabilities[0]), false);
   assert.equal(versionAffected('2.0.0', ADV_MATCH.vulnerabilities[0]), false);
   assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '~> junk', first_patched_version: '2' }), false);
+  // Missing or unparsable patched version: never affected, whatever the range.
   assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '< 9.9.9' }), false);
+  // Single-sided ranges are real advisory formats and are fully supported
+  // when they name a parseable patch.
+  assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '< 1.4.2', first_patched_version: '1.4.2' }), true);
+  assert.equal(versionAffected('1.4.2', { vulnerable_version_range: '< 1.4.2', first_patched_version: '1.4.2' }), false);
+  assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '= 1.2.3', first_patched_version: '1.4.2' }), true);
 });
 
 test('securityClassification requires a parseable patched version', () => {
@@ -530,6 +536,24 @@ test('securityClassification requires a parseable patched version', () => {
   );
   assert.equal(noPatch.level, 'NEEDS_HUMAN');
   assert.equal(securityClassification([], '1.0.0').level, 'NO_UPDATE');
+});
+
+test('securityClassification splits confirmed and unproven advisories', () => {
+  const unrelated = {
+    ghsa_id: 'GHSA-zzzz-0000-1111',
+    vulnerabilities: [{ vulnerable_version_range: '>= 9.0.0, < 9.1.0', first_patched_version: '9.1.0' }],
+  };
+  const mixed = securityClassification([ADV_MATCH, unrelated], '1.2.0');
+  assert.equal(mixed.level, 'SECURITY');
+  assert.equal(mixed.confirmed.length, 1);
+  assert.deepEqual(mixed.confirmed[0].patched, ['1.4.2']);
+  assert.equal(mixed.unproven.length, 1);
+  assert.equal(mixed.unproven[0].ghsa_id, 'GHSA-zzzz-0000-1111');
+  // Every advisory unproven still means human review, never silence.
+  const noneConfirmed = securityClassification([unrelated], '1.2.0');
+  assert.equal(noneConfirmed.level, 'NEEDS_HUMAN');
+  assert.equal(noneConfirmed.confirmed.length, 0);
+  assert.equal(noneConfirmed.unproven.length, 1);
 });
 
 test('security mode proposes update only when the range covers the pinned version', async () => {
@@ -806,7 +830,7 @@ function lifecycleRoutes({ existingPr = [], branchExists = false } = {}) {
         url: /\/repos\/o\/r\/pulls$/,
         reply: (m) => {
           state.createdPull = true;
-          return json({ number: 42, html_url: `https://example.test/pull/${m ? '' : ''}42` });
+          return json({ number: 42, html_url: 'https://example.test/pull/42' });
         },
       },
     ],
