@@ -18,7 +18,9 @@ new_repo() {
   rm -rf "$REPO"
   mkdir -p "$REPO/rust/hesabyar-core" "$REPO/rust/uniffi-gen" "$REPO/gradle" "$REPO/app"
   cd "$REPO"
-  git init -q -b main .
+  # Portable init: -b needs Git >= 2.28; set HEAD explicitly instead.
+  git init -q .
+  git symbolic-ref HEAD refs/heads/main
   git config user.email test@example.com
   git config user.name test
   printf '[workspace.package]\nversion = "0.7.2"\n' > rust/Cargo.toml
