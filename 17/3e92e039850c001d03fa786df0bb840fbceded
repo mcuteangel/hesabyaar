@@ -1,0 +1,30 @@
+scripts/github-actions-pin-manager.mjs
+  s_248e2668f94487::t_8dfcd4b3834424 445-452
+scripts/test-github-actions-pin-manager.mjs
+  s_248e2668f94487::t_32d48f4d65843e 445,462-478,480-483
+  s_248e2668f94487::t_99d6a6447da274 572-573
+docs/ci/github-actions-pinning.md
+  s_248e2668f94487::t_de496a404e333d 28-31
+.github/workflows/lint.yml
+  s_248e2668f94487::t_9643e0b774074f 41-44
+.github/workflows/github-actions-pin-manager.yml
+  s_248e2668f94487::t_3b924fb3697608 74
+  s_248e2668f94487::t_c79fab2c05c95f 20-22,24-25
+  s_248e2668f94487::t_bce3ebffe45a42 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "173e92e039850c001d03fa786df0bb840fbceded",
+  "prompts": {},
+  "sessions": {
+    "s_248e2668f94487": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdb8f5baffe0xnz5joQWPTqnh",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
