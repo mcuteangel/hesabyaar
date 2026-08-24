@@ -21,15 +21,25 @@ new_repo() {
   # Portable init: -b needs Git >= 2.28; set HEAD explicitly instead.
   git init -q .
   git symbolic-ref HEAD refs/heads/main
+  # Isolate from the developer's global config (gpg signing, hooks).
   git config user.email test@example.com
   git config user.name test
+  git config commit.gpgsign false
+  git config core.hooksPath /dev/null
   printf '[workspace.package]\nversion = "0.7.2"\n' > rust/Cargo.toml
   printf '[package]\nname = "core"\nversion.workspace = true\nedition.workspace = true\ndependencies = []\n' > rust/hesabyar-core/Cargo.toml
-  # Optional seed: $1 = "nested" adds a one-level-deep member crate.
-  if [ "${1:-}" = "nested" ]; then
-    mkdir -p rust/tools/nested-crate
-    printf '[package]\nname = "nested-crate"\nversion = "0.1.0"\ndependencies = []\n' > rust/tools/nested-crate/Cargo.toml
-  fi
+  # Optional seeds so extra manifests exist in the BASE commit (otherwise
+  # adding them later counts as a version-bearing new-file diff).
+  case "${1:-}" in
+    nested)
+      mkdir -p rust/tools/nested-crate
+      printf '[package]\nname = "nested"\nversion = "0.1.0"\ndependencies = []\n' > rust/tools/nested-crate/Cargo.toml
+      ;;
+    deep)
+      mkdir -p rust/a/b/c
+      printf '[package]\nname = "deep"\nversion = "0.1.0"\ndependencies = []\n' > rust/a/b/c/Cargo.toml
+      ;;
+  esac
   echo base > app/MainActivity.kt
   git add -A
   git commit -qm base
@@ -37,50 +47,60 @@ new_repo() {
 
 branch() { git checkout -q -b "$1" main; }
 
-# check <description> <expected-exit-code>  (0 = release, 1 = skip)
-check() {
-  name=$1
-  want=$2
-  got=0
-  "$DETECT" main HEAD > "$TMP/out.txt" 2> "$TMP/err.txt" || got=$?
-  if [ "$got" = "$want" ]; then
-    pass=$((pass + 1))
-    printf 'PASS %-42s %s\n' "$name" "$(head -n 1 "$TMP/out.txt")"
-  else
-    fail=$((fail + 1))
-    printf 'FAIL %-42s want=%s got=%s\n' "$name" "$want" "$got"
-    echo '--- stdout ---'; cat "$TMP/out.txt"
-    echo '--- stderr ---'; cat "$TMP/err.txt"
-    echo '---------------'
-  fi
-}
-
 commit_all() {
   git add -A
   git commit -qm "scenario"
 }
 
-# 1. Dependency-only bump in a member manifest -> skip
+# check <description> <expected-exit-code> [expected-output-substring]
+# The optional substring guards against passing through the wrong code path
+# (e.g. a generic release instead of the version-bump branch).
+check() {
+  name=$1
+  want=$2
+  want_msg=${3:-}
+  got=0
+  "$DETECT" main HEAD > "$TMP/out.txt" 2> "$TMP/err.txt" || got=$?
+  if [ "$got" != "$want" ]; then
+    fail=$((fail + 1))
+    printf 'FAIL %-42s want=%s got=%s\n' "$name" "$want" "$got"
+    echo '--- stdout ---'; cat "$TMP/out.txt"
+    echo '--- stderr ---'; cat "$TMP/err.txt"
+    echo '---------------'
+    return
+  fi
+  if [ -n "$want_msg" ] && ! grep -q "$want_msg" "$TMP/out.txt"; then
+    fail=$((fail + 1))
+    printf 'FAIL %-42s exit=%s but output lacks: %s\n' "$name" "$got" "$want_msg"
+    echo '--- stdout ---'; cat "$TMP/out.txt"
+    echo '---------------'
+    return
+  fi
+  pass=$((pass + 1))
+  printf 'PASS %-42s %s\n' "$name" "$(head -n 1 "$TMP/out.txt")"
+}
+
+# 1. Dependency-only bump in an inherited-version member manifest -> skip
 new_repo
 branch t1
 echo 'anyhow = "1"' >> rust/hesabyar-core/Cargo.toml
 commit_all
-check "member manifest dep-only bump" 1
+check "member manifest dep-only bump" 1 "SKIP"
 
-# 2. Manual version bump in workspace manifest -> release
+# 2. Manual version bump in workspace manifest -> release via bump branch
 new_repo
 branch t2
 sed 's/version = "0.7.2"/version = "0.8.0"/' rust/Cargo.toml > rust/Cargo.toml.new
 mv rust/Cargo.toml.new rust/Cargo.toml
 commit_all
-check "workspace manifest version bump" 0
+check "workspace manifest version bump" 0 "Version bump detected"
 
-# 3. Manual version bump in a member manifest -> release
+# 3. Manual version bump in a member manifest -> release via bump branch
 new_repo
 branch t3
 printf '[package]\nname = "core"\nversion = "1.0.0"\ndependencies = []\n' > rust/hesabyar-core/Cargo.toml
 commit_all
-check "member manifest version bump" 0
+check "member manifest version bump" 0 "Version bump detected"
 
 # 4. Table-form [dependencies.*] version bump is NOT a package bump -> skip
 #    (member keeps version.workspace = true; only a dep table is added)
@@ -92,61 +112,91 @@ cat >> rust/hesabyar-core/Cargo.toml <<'EOF'
 version = "2"
 EOF
 commit_all
-check "table-form dependency version bump" 1
-
-# 4b. Inherited-version member: dep-only edit -> skip (no local version key;
-#     bumps to the inherited value are caught via rust/Cargo.toml instead)
-new_repo
-branch t4b
-sed 's/^dependencies = \[\]/log = "0.4"\ndependencies = []/' rust/hesabyar-core/Cargo.toml > rust/hesabyar-core/Cargo.toml.new
-mv rust/hesabyar-core/Cargo.toml.new rust/hesabyar-core/Cargo.toml
-commit_all
-check "inherited-version member dep-only" 1
+check "table-form dependency version bump" 1 "SKIP"
 
 # 5. Gradle catalog change only -> skip
 new_repo
 branch t5
 printf '[versions]\njna = "5.14.0"\n' > gradle/libs.versions.toml
 commit_all
-check "libs.versions.toml only" 1
+check "libs.versions.toml only" 1 "SKIP"
+
+# 5b. Other skip-listed Gradle lockfiles -> skip
+new_repo
+branch t5b
+echo lock > gradle.lockfile
+echo lock > versions.lock
+mkdir -p gradle
+touch gradle/libs.versions.toml.lock
+commit_all
+check "gradle lockfile variants" 1 "SKIP"
 
 # 6. Cargo.lock only -> skip
 new_repo
 branch t6
 echo 'lockfile' > rust/Cargo.lock
 commit_all
-check "Cargo.lock only" 1
+check "Cargo.lock only" 1 "SKIP"
 
-# 7. App code mixed with manifest edit -> release
+# 7. App code mixed with manifest edit -> release via app-code branch
 new_repo
 branch t7
 echo 'class NewScreen' > app/NewScreen.kt
 echo 'logos = "0.14"' >> rust/Cargo.toml
 commit_all
-check "mixed app code + manifest" 0
+check "mixed app code + manifest" 0 "Application code changes"
 
 # 8. Unrelated file only (no include match) -> skip
 new_repo
 branch t8
 echo 'docs' > README.md
 commit_all
-check "unrelated non-app file" 1
+check "unrelated non-app file" 1 "SKIP"
 
-# 9. Non-version edit to the workspace manifest only (e.g. a dependency in
-#    [workspace.dependencies]) -> skip; this is the weekly Dependabot case
+# 9. Non-version edit to the workspace manifest only (the weekly Dependabot
+#    case: a table-form entry under [workspace.dependencies]) -> skip
 new_repo
 branch t9
-echo '[dependencies]' >> rust/Cargo.toml
-echo 'anyhow = "1"' >> rust/Cargo.toml
+printf '\n[workspace.dependencies.anyhow]\nversion = "1"\n' >> rust/Cargo.toml
 commit_all
-check "workspace manifest non-version edit" 1
+check "workspace manifest dep-table edit" 1 "SKIP"
 
-# 10. Nested member manifest (one extra level): dep-only edit -> skip
+# 10. Nested member manifest: dep-only edit -> skip, then its own
+#     version bump -> release via the bump branch
 new_repo nested
 branch t10
 echo 'log = "0.4"' >> rust/tools/nested-crate/Cargo.toml
 commit_all
-check "nested member dep-only bump" 1
+check "nested member dep-only bump" 1 "SKIP"
+git checkout -q -b t10b
+cat > rust/tools/nested-crate/Cargo.toml <<'EOF'
+[package]
+name = "nested"
+version = "0.2.0"
+dependencies = []
+log = "0.4"
+EOF
+commit_all
+check "nested member version bump" 0 "Version bump detected in rust/tools/nested-crate/Cargo.toml"
+
+# 11. Deeply nested member manifest: dep-only edit -> skip.
+#     In shell case globs `*` also matches `/`, so any depth under rust/
+#     is covered by rust/*/Cargo.toml; this test locks that assumption in.
+new_repo deep
+branch t11
+echo 'log = "0.4"' >> rust/a/b/c/Cargo.toml
+commit_all
+check "deep-nested member dep-only" 1 "SKIP"
+
+# 12. Rust source edit without a version bump -> skip BY DESIGN:
+#     releases are version-driven (unchanged versionCode cannot publish),
+#     so core changes ship by bumping [workspace.package].version.
+new_repo
+branch t12
+mkdir -p rust/hesabyar-core/src
+echo 'fn fixed() {}' > rust/hesabyar-core/src/lib.rs
+commit_all
+check "rust source edit without bump" 1 "SKIP"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

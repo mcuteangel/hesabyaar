@@ -1,6 +1,7 @@
 #!/bin/sh
 # POSIX sh compatible (also invoked as `bash scripts/detect-changes.sh` in CI).
 set -eu
+# dash/BSD sh lack `set -o pipefail`; enable it only where supported.
 (set -o pipefail) 2>/dev/null && set -o pipefail || true
 
 # detect-changes.sh - Determines whether application code changed.
@@ -35,11 +36,15 @@ printf '%s\n' "$changed_files" > "$CHANGED_LIST"
 # Print the package version declared under [package] or [workspace.package]
 # in a Cargo manifest. Dependency tables such as [dependencies.foo] also use
 # `version =` keys, so the section must be tracked explicitly.
+# Uses POSIX [[:space:]] classes (a literal \t inside a bracket expression is
+# not portable across awk implementations).
 rust_manifest_version() {
   git show "$1:$2" 2>/dev/null | awk -F'"' '
-    /^[ \t]*\[/ { in_pkg = ($0 ~ /^\[(package|workspace\.package)\][ \t]*$/) }
-    in_pkg && $1 ~ /^version[ \t]*=[ \t]*$/ { print $2; exit }
-  '
+    /^[[:space:]]*\[/ {
+      in_pkg = ($0 ~ /^[[:space:]]*\[[[:space:]]*(package|workspace\.package)[[:space:]]*\][[:space:]]*$/)
+    }
+    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
+  ' || true
 }
 
 # Check if any application files changed
@@ -51,6 +56,11 @@ while IFS= read -r file; do
   # Dependabot bumps land here weekly (grouped); releasing per dependency
   # update would flood the releases page. App code touching these same
   # files alongside other sources still triggers a release below.
+  #
+  # NOTE: this also means Rust source edits (*.rs) and manifest deletions do
+  # NOT gate a release by themselves. Releases are intentionally version-
+  # driven: bumping [workspace.package].version is what ships a core change,
+  # because an artifact with an unchanged versionCode cannot be published.
   case "$file" in
     gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock)
       continue
