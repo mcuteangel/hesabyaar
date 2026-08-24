@@ -39,9 +39,19 @@ printf '%s\n' "$changed_files" > "$CHANGED_LIST"
 # Uses POSIX [[:space:]] classes (a literal \t inside a bracket expression is
 # not portable across awk implementations).
 rust_manifest_version() {
+  # NOTE: no "--" here. After "--", git treats arguments as pathspecs rather
+  # than object specs, so 'git show -- rev:path' returns empty with exit 0
+  # and every version lookup would silently miss. The combined "$1:$2" form
+  # can never start with a hyphen anyway (it always begins with the ref).
   git show "$1:$2" 2>/dev/null | awk -F'"' '
     /^[[:space:]]*\[/ {
-      in_pkg = ($0 ~ /^[[:space:]]*\[[[:space:]]*(package|workspace\.package)[[:space:]]*\][[:space:]]*$/)
+      # Only exact [package]/[workspace.package] select the target section;
+      # the flag resets only on a DIFFERENT top-level table (no "."), so
+      # sub-tables like [package.metadata] do not clear it prematurely.
+      sec = $0
+      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
+      if (sec == "package" || sec == "workspace.package") in_pkg = 1
+      else if (index(sec, ".") == 0) in_pkg = 0
     }
     in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
   ' || true
@@ -62,7 +72,7 @@ while IFS= read -r file; do
   # driven: bumping [workspace.package].version is what ships a core change,
   # because an artifact with an unchanged versionCode cannot be published.
   case "$file" in
-    gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock)
+    gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock|*/gradle.lockfile|*/versions.lock)
       continue
       ;;
     # Workspace root and every member manifest at ANY nesting depth:

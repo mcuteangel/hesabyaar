@@ -16,7 +16,7 @@ fail=0
 new_repo() {
   REPO="$TMP/repo"
   rm -rf "$REPO"
-  mkdir -p "$REPO/rust/hesabyar-core" "$REPO/rust/uniffi-gen" "$REPO/gradle" "$REPO/app"
+  mkdir -p "$REPO/rust/hesabyar-core" "$REPO/gradle" "$REPO/app"
   cd "$REPO"
   # Portable init: -b needs Git >= 2.28; set HEAD explicitly instead.
   git init -q .
@@ -125,16 +125,15 @@ printf '[versions]\njna = "5.14.0"\n' > gradle/libs.versions.toml
 commit_all
 check "libs.versions.toml only" 1 "SKIP"
 
-# 5b. Other skip-listed Gradle lockfiles -> skip
-#     NOTE: detect-changes.sh skips `gradle.lockfile` and `versions.lock` as
-#     repo-ROOT paths (no gradle/ prefix), so they are written at the root
-#     here to match that skip list exactly.
+# 5b. Other skip-listed Gradle lockfiles -> skip.
+#     Fixtures live under gradle/ so they would otherwise hit the gradle/*
+#     include pattern and trigger a release — this makes the test actually
+#     exercise the explicit skip entries (a root-level file would skip via
+#     the no-match fallback even without them).
 new_repo
 branch t5b
-echo lock > gradle.lockfile
-echo lock > versions.lock
-mkdir -p gradle
-touch gradle/libs.versions.toml.lock
+echo lock > gradle/gradle.lockfile
+echo lock > gradle/versions.lock
 commit_all
 check "gradle lockfile variants" 1 "SKIP"
 
