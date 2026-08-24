@@ -1,0 +1,19 @@
+.github/workflows/ocr-resolver-tests.yml
+  s_a4ed719b06a784::t_d58b123f5dba5d 18-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "491a2d0052c4deee47a699cc7dcf8f8ae58e4e60",
+  "prompts": {},
+  "sessions": {
+    "s_a4ed719b06a784": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd2b34b22ffeUFfF9Xshe2QZeE",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
