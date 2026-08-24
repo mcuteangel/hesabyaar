@@ -19,7 +19,7 @@
 // It talks only to the GitHub REST API and edits workflow text lines.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 const SHA40_RE = /^[0-9a-f]{40}$/i;
 const STABLE_TAG_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
@@ -232,8 +232,7 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
     getTagRef: (tag) => call(`${repoPath()}/git/ref/tags/${encodeURIComponent(tag)}`),
     getTagObject: (sha) => call(`${repoPath()}/git/tags/${sha}`),
     getCommit: (sha) => call(`${repoPath()}/commits/${sha}`),
-    getGlobalAdvisories: () =>
-      call(`https://api.github.com/advisories?affects=${repo}`.replace(baseUrl, '')),
+    getGlobalAdvisories: () => call(`/advisories?affects=${repo}`),
     getRepoAdvisories: () => call(`${repoPath()}/security-advisories?per_page=100`),
     getOpenPullRequest: (head) =>
       call(`${repoPath()}/pulls?head=${encodeURIComponent(`${repo.split('/')[0]}:${head}`)}&state=open&per_page=1`),
@@ -367,10 +366,6 @@ export function scanFiles(paths) {
 // Update planning
 // ---------------------------------------------------------------------------
 
-function occurrenceKey(f) {
-  return `${f.target.slug}@${f.target.ref}`;
-}
-
 async function repoFacts(api, slug, cache) {
   if (!cache.has(slug)) {
     const [owner, repo] = slug.split('/');
@@ -384,11 +379,6 @@ async function repoFacts(api, slug, cache) {
     });
   }
   return cache.get(slug);
-}
-
-function cacheToken(api) {
-  // Reuse whatever token context the caller gave; createApi only embeds it.
-  return api.token;
 }
 
 // Pick the newest stable release that satisfies the constraint.
@@ -454,8 +444,16 @@ export async function planUpdates(files, api, mode) {
 
       // Advisory-driven security planning.
       if (mode === 'security') {
-        await planSecurityFor(plans, file, occ, facts, currentVersion, cacheToken(api));
+        await planSecurityFor(plans, file, occ, facts, currentVersion);
         continue;
+      }
+
+      // A full version comment lets us prove the pinned SHA still belongs to
+      // its recorded release. A mismatch is drift; the pin must not be
+      // rebased onto a newer release until a human resolves the drift.
+      if (occ.shape === 'SHA' && parseVersion(occ.commentVersion || '')) {
+        const drifted = await checkPinDrift(plans, file, occ, facts, occ.commentVersion);
+        if (drifted) continue;
       }
 
       const latest = stable.versions[0];
@@ -475,33 +473,141 @@ export async function planUpdates(files, api, mode) {
   return dedupePlans(plans);
 }
 
-async function planSecurityFor(plans, file, occ, facts, currentVersion, token) {
+// Evaluate one vulnerable_version_range clause such as `>= 1.0.0` against a
+// version. Unknown operators never match; an unparsable clause means the
+// affectedness cannot be proven, so callers must not claim SECURITY.
+function clauseHolds(version, op, target) {
+  if (!parseVersion(target)) return false;
+  const c = compareVersions(version, normalizeVersion(target));
+  switch (op) {
+    case '=': return c === 0;
+    case '<': return c < 0;
+    case '<=': return c <= 0;
+    case '>': return c > 0;
+    case '>=': return c >= 0;
+    default: return false;
+  }
+}
+
+// True only when `version` satisfies every clause of the vulnerability range
+// and a parseable first patched version exists.
+export function versionAffected(version, vuln) {
+  const range = String((vuln && vuln.vulnerable_version_range) || '');
+  const clauses = range
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((c) => {
+      const m = c.match(/^(<=|>=|=|<|>)\s*(.+)$/);
+      return m ? { op: m[1], target: m[2].trim() } : null;
+    });
+  if (clauses.length === 0 || clauses.some((x) => !x)) return false;
+  if (!clauses.every((cl) => clauseHolds(version, cl.op, cl.target))) return false;
+  return Boolean(parseVersion(String(vuln.first_patched_version || '')));
+}
+
+export function securityClassification(advisories, currentVersion) {
+  const confirmed = [];
+  const unproven = [];
+  for (const adv of advisories || []) {
+    const vulns = (adv.vulnerabilities || []).filter((v) => versionAffected(currentVersion, v));
+    if (vulns.length === 0) {
+      unproven.push(adv);
+      continue;
+    }
+    const patches = vulns.map((v) => String(v.first_patched_version));
+    // Every matched range must name a parseable patch version. Otherwise the
+    // fix target is unknown and the classification must stay NEEDS_HUMAN.
+    const allPatched = patches.every((p) => parseVersion(p));
+    if (allPatched) {
+      confirmed.push({ advisory: adv, patched: patches });
+    } else {
+      unproven.push(adv);
+    }
+  }
+  if (confirmed.length > 0) {
+    const patched = [...new Set(confirmed.flatMap((cItem) => cItem.patched))];
+    return { level: 'SECURITY', confirmed, unproven, patched };
+  }
+  if ((advisories || []).length > 0) {
+    return { level: 'NEEDS_HUMAN', confirmed: [], unproven };
+  }
+  return { level: 'NO_UPDATE', confirmed: [], unproven: [] };
+}
+
+async function planSecurityFor(plans, file, occ, facts, currentVersion) {
   const advisories = await loadAdvisories(facts.api, facts.owner, facts.repo);
   if (!advisories.ok) {
     plans.errors.push(row(file, occ, 'advisory lookup failed; classification UNKNOWN'));
     return;
   }
-  if (advisories.list.length === 0) return;
+  if (advisories.list.length === 0) return; // NO UPDATE
   if (occ.shape !== 'SHA') {
     plans.needsHuman.push(fileRow(file, occ, 'security advisory exists but the pin is not an immutable SHA'));
     return;
   }
-  const commit = await facts.api.getCommit(occ.target.ref);
-  const pinnedAt = commit && commit.commit && commit.commit.committer && commit.commit.committer.date;
-  const relevant = advisories.list.filter((adv) => {
-    const t = adv.published_at || adv.github_reviewed_at;
-    return t && (!pinnedAt || new Date(t) > new Date(pinnedAt));
-  });
-  if (relevant.length === 0) return;
+  // Range matching needs the exact pinned version. A partial baseline such as
+  // `# v5` cannot prove affectedness, so it stays with a human.
+  if (!parseVersion(occ.commentVersion || '')) {
+    plans.needsHuman.push(fileRow(file, occ, 'security advisory exists; pinned version is not exactly known, so affectedness cannot be established automatically'));
+    return;
+  }
+  const cls = securityClassification(advisories.list, currentVersion);
+  if (cls.level !== 'SECURITY') {
+    plans.needsHuman.push(fileRow(file, occ, 'GitHub Security Advisory exists for this repository, but affectedness of the pinned version could not be established automatically; human review required'));
+    return;
+  }
   const stable = await facts.stablePromise;
-  const target = pickTarget(stable.versions, { minVersion: currentVersion });
+  // Prefer the exact first patched version; fall back to the newest stable
+  // release at or above it.
+  const exactPatch = stable.versions.find(
+    (vItem) => cls.patched.some((p) => compareVersions(vItem.version, p) === 0),
+  );
+  const target = exactPatch || pickTarget(stable.versions, { minVersion: cls.patched[0] }) ||
+    pickTarget(stable.versions, { minVersion: currentVersion });
   if (!target || compareVersions(target.version, currentVersion) <= 0) {
-    plans.needsHuman.push(fileRow(file, occ, 'security advisory exists but no newer stable release was found'));
+    plans.needsHuman.push(fileRow(file, occ, 'security advisory affects this pin, but no verified newer stable release was found'));
     return;
   }
   await pushCandidate(plans.updates, file, occ, facts, target, 'SECURITY UPDATE', {
-    advisories: relevant.map((a) => ({ ghsa: a.ghsa_id, cve: a.cve_id, summary: a.summary, url: a.html_url })),
+    advisories: cls.confirmed.map(({ advisory, patched }) => ({
+      ghsa: advisory.ghsa_id,
+      cve: advisory.cve_id,
+      summary: advisory.summary,
+      url: advisory.html_url,
+      range: (advisory.vulnerabilities || []).map((v) => v.vulnerable_version_range).join('; '),
+      patched: patched.join(', '),
+    })),
   });
+}
+
+// Returns true when the occurrence was reported as drifted and must be left
+// untouched. A full version comment names a release; that release tag must
+// still resolve to the pinned SHA. Tag names are tried with and without the
+// leading `v` because both conventions exist upstream.
+async function checkPinDrift(plans, file, occ, facts, recordedVersion) {
+  const candidates = [`v${recordedVersion.replace(/^v/, '')}`, recordedVersion.replace(/^v/, '')];
+  let sha = null;
+  let lastError = null;
+  for (const tag of candidates) {
+    if (tag === candidates[1] && candidates[0] === candidates[1]) continue;
+    try {
+      sha = await resolveTagToCommitSha(facts.api, tag);
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (lastError || !sha) {
+    plans.needsHuman.push(fileRow(file, occ, `recorded version tag ${recordedVersion} does not resolve (${lastError ? lastError.message : 'unknown error'}); human review required`));
+    return true;
+  }
+  if (sha !== occ.target.ref.toLowerCase()) {
+    plans.needsHuman.push(fileRow(file, occ, `pinned SHA does not match recorded version ${recordedVersion} (drift or stale comment); human review required`));
+    return true;
+  }
+  return false;
 }
 
 async function loadAdvisories(api, owner, repo) {
@@ -722,7 +828,7 @@ export function buildPullRequestBody(mode, plan) {
         `| ${esc(u.action)} | ${esc(u.file)}:${u.line + 1} | ${esc(u.currentValue)} | ${esc(u.targetTag)} | \`${esc(u.currentRef)}\` | \`${esc(u.targetSha)}\` | ${esc(u.reason)} |`,
       );
       for (const adv of u.advisories || []) {
-        lines.push(`| Advisory | ${esc(adv.ghsa)}${adv.cve ? ` / ${esc(adv.cve)}` : ''} | ${esc(adv.summary)} | ${esc(adv.url)} | | | |`);
+        lines.push(`| Advisory | ${esc(adv.ghsa)}${adv.cve ? ` / ${esc(adv.cve)}` : ''} | ${esc(adv.summary)} | ${esc(adv.url)} | affected: ${esc(adv.range)}; patched: ${esc(adv.patched)} | | |`);
       }
     }
   } else {
@@ -840,7 +946,8 @@ export function auditFiles(repoRoot) {
 }
 
 function relativePath(repoRoot, fullPath) {
-  return fullPath.startsWith(repoRoot) ? fullPath.slice(repoRoot.length + 1) : fullPath;
+  const rel = relative(repoRoot, fullPath);
+  return rel.split('\\').join('/');
 }
 
 function printAudit(findings) {
@@ -906,8 +1013,6 @@ function printHelp() {
   console.log('  --apply --mode=M    Propose PR updates. M is weekly or security.');
   console.log('Requires GITHUB_TOKEN and GITHUB_REPOSITORY for --apply.');
 }
-
-export const __testOnly = { PIN_MANAGER_BRANCHES, PR_TITLES };
 
 /* eslint-disable no-undef */
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());

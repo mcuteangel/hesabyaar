@@ -47,10 +47,19 @@ scheduled jobs from `scripts/github-actions-pin-manager.mjs`.
 ### Daily security scan
 
 Runs at 05:17 UTC every day. It queries GitHub Security Advisories for each
-pinned action repository. An advisory published after the pinned commit date
-marks the candidate as SECURITY. Security candidates go to their own PR
-branch `ci/pin-security`. Major version jumps are allowed there, because a
-fix may require one.
+pinned action repository. An advisory counts as SECURITY only when the
+tool can prove affectedness:
+
+1. The advisory lists a `vulnerable_version_range`.
+2. The exact pinned version satisfies every range clause.
+3. The advisory names a parseable `first_patched_version`.
+
+The target is the first patched release, or the newest stable release at or
+above it. If an advisory exists but any of the three proofs fails, the
+candidate is classified NEEDS_HUMAN. The tool never claims a security
+update it cannot prove. Security candidates go to their own PR branch
+`ci/pin-security`. Major version jumps are allowed there, because a fix may
+require one.
 
 ### Weekly stable update
 

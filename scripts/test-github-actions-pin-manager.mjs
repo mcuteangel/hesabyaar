@@ -26,6 +26,8 @@ import {
   buildPullRequestBody,
   ensurePullRequest,
   createApi,
+  versionAffected,
+  securityClassification,
 } from './github-actions-pin-manager.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -300,6 +302,9 @@ test('weekly plan reports major bump instead of applying it', async () => {
       url: /\/repos\/actions\/checkout\/releases\?/,
       reply: json([{ tag_name: 'v7.0.0', draft: false, prerelease: false }]),
     },
+    // The recorded version of the pin must resolve cleanly for the drift
+    // gate to pass before the major-bump report path is exercised.
+    tagRefRoute('actions/checkout', 'v5.0.0', SHA_A),
     tagRefRoute('actions/checkout', 'v7.0.0', SHA_C),
   ]);
   const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
@@ -369,6 +374,8 @@ test('tag movement between resolutions aborts candidate', async () => {
       url: /\/repos\/evil\/action\/releases\?/,
       reply: json([{ tag_name: 'v1.1.0', draft: false, prerelease: false }]),
     },
+    // Recorded version resolves to the pinned commit; only the TARGET tag moves.
+    tagRefRoute('evil/action', 'v1.0.0', SHA_A),
     {
       method: 'GET',
       url: /\/repos\/evil\/action\/git\/ref\/tags\/v1\.1\.0$/,
@@ -432,6 +439,133 @@ test('partial major comment is a usable baseline but channel comment is not', as
   assert.equal(plan.needsHuman.length, 1);
   assert.ok(plan.needsHuman[0].action.startsWith('dtolnay/'));
 });
+
+// ---------------------------------------------------------------------------
+// Security advisory classification (range-based affectedness)
+// ---------------------------------------------------------------------------
+
+const ADV_MATCH = {
+  ghsa_id: 'GHSA-aaaa-bbbb-cccc',
+  cve_id: 'CVE-2026-0001',
+  summary: 'action allows template injection',
+  html_url: 'https://github.com/evil/action/security/advisories/GHSA-aaaa-bbbb-cccc',
+  vulnerabilities: [
+    {
+      vulnerable_version_range: '>= 1.0.0, < 1.4.2',
+      first_patched_version: '1.4.2',
+    },
+  ],
+};
+
+function advisoriesRoutes() {
+  return [
+    { method: 'GET', url: /\/repos\/evil\/action\/security-advisories\?/, reply: json([ADV_MATCH]) },
+    { method: 'GET', url: /\/advisories\?affects=/, reply: json([]) },
+    { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json([{ tag_name: 'v1.4.2', draft: false, prerelease: false }, { tag_name: 'v1.5.0', draft: false, prerelease: false }]) },
+    tagRefRoute('evil/action', 'v1.4.2', SHA_B),
+  ];
+}
+
+test('versionAffected matches ranges strictly and rejects unknown clauses', () => {
+  assert.equal(versionAffected('1.0.0', ADV_MATCH.vulnerabilities[0]), true);
+  assert.equal(versionAffected('1.4.1', ADV_MATCH.vulnerabilities[0]), true);
+  assert.equal(versionAffected('1.4.2', ADV_MATCH.vulnerabilities[0]), false);
+  assert.equal(versionAffected('2.0.0', ADV_MATCH.vulnerabilities[0]), false);
+  assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '~> junk', first_patched_version: '2' }), false);
+  assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '< 9.9.9' }), false);
+});
+
+test('securityClassification requires a parseable patched version', () => {
+  const ok = securityClassification([ADV_MATCH], '1.2.0');
+  assert.equal(ok.level, 'SECURITY');
+  assert.deepEqual(ok.patched, ['1.4.2']);
+  const noPatch = securityClassification(
+    [{ vulnerabilities: [{ vulnerable_version_range: '< 9.9.9', first_patched_version: null }] }],
+    '1.2.0',
+  );
+  assert.equal(noPatch.level, 'NEEDS_HUMAN');
+  assert.equal(securityClassification([], '1.0.0').level, 'NO_UPDATE');
+});
+
+test('security mode proposes update only when the range covers the pinned version', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  const api = createApi({ fetchImpl: makeFetch(advisoriesRoutes()).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 1);
+  const upd = plan.updates[0];
+  assert.equal(upd.reason, 'SECURITY UPDATE');
+  assert.equal(upd.targetTag, 'v1.4.2');
+  assert.equal(upd.advisories.length, 1);
+  assert.ok(upd.advisories[0].range.includes('< 1.4.2'));
+});
+
+test('advisory outside the pinned version range is NEEDS_HUMAN not SECURITY', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v2.5.0\n`);
+  const routes = advisoriesRoutes().map((r) =>
+    r.url.source.includes('releases')
+      ? { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json([{ tag_name: 'v2.6.0', draft: false, prerelease: false }]) }
+      : r,
+  );
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 1);
+  assert.ok(plan.needsHuman[0].note.includes('affectedness'));
+});
+
+test('partial version baseline cannot prove affectedness and stays NEEDS_HUMAN', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1\n`);
+  const api = createApi({ fetchImpl: makeFetch(advisoriesRoutes()).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 1);
+  assert.ok(plan.needsHuman[0].note.includes('exactly known'));
+});
+
+// ---------------------------------------------------------------------------
+// Pin drift detection
+// ---------------------------------------------------------------------------
+
+test('sha that no longer matches its recorded version tag is flagged as drift', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: actions/github-script@${SHA_A} # v7.0.1\n`);
+  const api = createApi({
+    fetchImpl: makeFetch([
+      { method: 'GET', url: /\/repos\/actions\/github-script\/releases\?/, reply: json([{ tag_name: 'v7.0.1', draft: false, prerelease: false }, { tag_name: 'v7.1.0', draft: false, prerelease: false }]) },
+      // The recorded tag resolves to a DIFFERENT commit than the pin.
+      tagRefRoute('actions/github-script', 'v7.0.1', SHA_B),
+      tagRefRoute('actions/github-script', 'v7.1.0', SHA_C),
+    ]).impl,
+    token: 't',
+    repo: 'o/r',
+  });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 1);
+  assert.ok(plan.needsHuman[0].note.includes('drift'));
+});
+
+test('recorded version tag that no longer resolves is flagged not rebased', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: actions/github-script@${SHA_A} # v7.0.1\n`);
+  const api = createApi({
+    fetchImpl: makeFetch([
+      { method: 'GET', url: /\/repos\/actions\/github-script\/releases\?/, reply: json([{ tag_name: 'v7.1.0', draft: false, prerelease: false }]) },
+      { method: 'GET', url: /\/repos\/actions\/github-script\/git\/ref\/tags\/v7\.0\.1$/, reply: json({ message: 'nf' }, 404) },
+      tagRefRoute('actions/github-script', 'v7.1.0', SHA_B),
+    ]).impl,
+    token: 't',
+    repo: 'o/r',
+  });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.needsHuman.length, 1);
+  assert.ok(plan.needsHuman[0].note.includes('does not resolve'));
+});
+
 
 // ---------------------------------------------------------------------------
 // PR lifecycle
