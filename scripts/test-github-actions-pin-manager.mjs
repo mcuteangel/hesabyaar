@@ -309,6 +309,21 @@ test('weekly mode pins an up-to-date stable tag immutably', async () => {
   assert.ok(plan.updates[0].reason.includes('immutable'));
 });
 
+test('weekly plan pins floating tag equal to newest same major release', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, '- uses: some/action@v4\n');
+  const { impl } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v4.0.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v4.0.0', SHA_A),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v4.0.0');
+  assert.equal(plan.updates[0].targetSha, SHA_A);
+  assert.equal(plan.reportOnly.length, 0);
+});
+
 test('prerelease and drafts are rejected as targets', async () => {
   const stable = listStableVersions;
   const api = {

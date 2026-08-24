@@ -506,9 +506,10 @@ export async function planUpdates(files, api, mode) {
         await pushCandidate(plans.updates, file, occ, facts, sameMajor, `stable update v${currentVersion} -> ${sameMajor.tag}`);
       } else if (majorJump) {
         plans.reportOnly.push(row(file, occ, `major update available: v${currentVersion} -> ${latest.tag} (not applied; needs human decision)`));
-      } else if (!hasNewer && occ.shape === 'STABLE_TAG') {
-        // The reference already names the newest release, but a mutable tag
-        // is never compliant. Pin that exact release immutably.
+      } else if (!hasNewer && occ.shape !== 'SHA') {
+        // The reference already names the newest release, but a mutable ref
+        // (stable or floating tag) is never compliant. Pin that exact
+        // release immutably.
         const self = stable.versions.find((vItem) => compareVersions(vItem.version, currentVersion) === 0);
         if (self) {
           await pushCandidate(plans.updates, file, occ, facts, self, `pin mutable tag to immutable ${self.tag}`);
@@ -1074,7 +1075,6 @@ function parseArgs(argv) {
   for (const arg of argv) {
     if (arg === '--apply') args.apply = true;
     else if (arg === '--json') args.json = true;
-    else if (arg === '--check' || arg === '--audit') args.check = true;
     else if (arg.startsWith('--mode=')) args.mode = arg.slice('--mode='.length);
     else if (arg === '--help' || arg === '-h') args.help = true;
   }
