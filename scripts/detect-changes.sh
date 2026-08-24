@@ -31,6 +31,19 @@ has_app_changes=false
 while IFS= read -r file; do
   [ -z "$file" ] && continue
 
+  # Dependency manifests/lockfiles never trigger a release on their own.
+  # Dependabot bumps land here weekly (grouped); releasing per dependency
+  # update would flood the releases page. App code touching these same
+  # files alongside other sources still triggers a release below.
+  case "$file" in
+    gradle/libs.versions.toml|gradle.lockfile|versions.lock)
+      continue
+      ;;
+    rust/Cargo.toml|rust/Cargo.lock)
+      continue
+      ;;
+  esac
+
   # Check if this file matches any include pattern
   case "$file" in
     app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml)
