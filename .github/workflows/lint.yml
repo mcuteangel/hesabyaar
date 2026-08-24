@@ -19,6 +19,10 @@ jobs:
   actionlint:
     name: Run actionlint
     runs-on: ubuntu-latest
+    permissions:
+      # Read repository content. Report lint results through the Checks API.
+      contents: read
+      checks: write
     steps:
        - name: Checkout
          uses: actions/checkout@v4

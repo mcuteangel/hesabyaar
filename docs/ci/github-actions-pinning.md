@@ -7,13 +7,16 @@ A tag is mutable. Its owner can move it to another commit at any time. A
 An attacker who takes over the upstream repository, or a mistaken force-push,
 can turn a routine CI run into code execution with the repository token.
 
-This repository pins every third-party action to a 40-character commit SHA:
+This repository requires every third-party action to be pinned to a
+40-character commit SHA:
 
 ```yaml
 uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 ```
 
-The SHA never changes. The upstream repository cannot change what runs.
+The SHA never changes. The upstream repository cannot change what runs. Some
+existing references do not meet this policy yet. The audit reports them, and
+the updater proposes fixes through pull requests.
 
 SHA pinning protects against mutable tags and branches. It does not
 automatically guarantee that a pinned commit stays safe forever. A pinned

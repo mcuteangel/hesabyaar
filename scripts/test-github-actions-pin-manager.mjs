@@ -55,38 +55,11 @@ function makeFetch(routes) {
   return { impl, calls };
 }
 
-const releasesRoute = (repo, versions) => ({
-  method: 'GET',
-  url: new RegExp(`/repos/${repo}/releases`),
-  reply: json(
-    versions.map((v) => ({
-      tag_name: `v${v}`,
-      draft: false,
-      prerelease: /-/.test(v),
-    })),
-  ),
-});
-
 const tagRefRoute = (repo, tag, sha) => ({
   method: 'GET',
   url: new RegExp(`/repos/${repo}/git/ref/tags/${tag}$`),
   reply: json({ object: { type: 'commit', sha } }),
 });
-
-function repoRoutes(repo, versions) {
-  const rel = releasesRoute(repo, versions);
-  // Route matching must be specific enough that two repos never collide.
-  return [
-    {
-      method: 'GET',
-      url: new RegExp(`/repos/${repo}/releases\\?`),
-      reply: rel.reply,
-    },
-    tagRefRoute(repo, 'v1.0.0', SHA_A),
-    tagRefRoute(repo, 'v1.1.0', SHA_B),
-    tagRefRoute(repo, 'v2.0.0', SHA_C),
-  ];
-}
 
 // ---------------------------------------------------------------------------
 // Detection: line parsing and classification
@@ -663,6 +636,69 @@ test('security target picks newest release above the strongest patched baseline 
   assert.equal(plan.updates[0].targetTag, 'v2.0.0');
 });
 
+test('repo published advisories with patched_versions classify like global ones', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  // The repository advisory endpoint reports the fix as patched_versions.
+  const routes = [
+    {
+      method: 'GET',
+      url: /\/repos\/evil\/action\/security-advisories\?/,
+      reply: json([
+        {
+          ghsa_id: 'GHSA-repo-2222-3333',
+          vulnerabilities: [{ vulnerable_version_range: '>= 1.0.0, < 1.4.2', patched_versions: '1.4.2' }],
+        },
+      ]),
+    },
+    { method: 'GET', url: /\/advisories\?affects=/, reply: json([]) },
+    { method: 'GET', url: /\/repos\/evil\/action\/releases\?/, reply: json([{ tag_name: 'v1.4.2', draft: false, prerelease: false }]) },
+    tagRefRoute('evil/action', 'v1.2.0', SHA_A),
+    tagRefRoute('evil/action', 'v1.4.2', SHA_B),
+  ];
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v1.4.2');
+});
+
+test('one failing advisory source does not discard the other', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: evil/action@${SHA_A} # v1.2.0\n`);
+  // Repository source fails; the global source still names the advisory.
+  const routes = advisoriesRoutes().map((r) =>
+    r.url.source.includes('security-advisories')
+      ? { method: 'GET', url: r.url, reply: json({ message: 'boom' }, 500) }
+      : r.url.source.includes('affects=')
+        ? { method: 'GET', url: r.url, reply: json([ADV_MATCH]) }
+        : r,
+  );
+  const api = createApi({ fetchImpl: makeFetch(routes).impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.errors.length, 0);
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v1.4.2');
+});
+
+test('duplicate occurrences share one advisory lookup', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(
+    dir,
+    [
+      `- uses: evil/action@${SHA_A} # v1.2.0`,
+      `- uses: evil/action@${SHA_A} # v1.2.0`,
+    ].join('\n') + '\n',
+  );
+  const { impl, calls } = makeFetch(advisoriesRoutes());
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'security');
+  assert.equal(plan.updates.length, 2);
+  const repoAdvisories = calls.filter((c) => c.url.includes('/security-advisories'));
+  const globalAdvisories = calls.filter((c) => c.url.includes('/advisories?affects='));
+  assert.equal(repoAdvisories.length, 1);
+  assert.equal(globalAdvisories.length, 1);
+});
+
 // ---------------------------------------------------------------------------
 // Pin drift detection
 // ---------------------------------------------------------------------------
@@ -907,6 +943,23 @@ test('pr body lists verification steps and disables auto merge', () => {
   assert.ok(body.includes('twice'));
   assert.ok(body.includes('Auto-merge is disabled'));
   assert.ok(body.includes(`\`${SHA_B}\``));
+});
+
+test('pr body reports aborted candidates separately from verified updates', () => {
+  const plan = samplePlan();
+  plan.updates.push({
+    file: 'wf.yml',
+    line: 3,
+    action: 'evil/action',
+    aborted: true,
+    reason: 'stable update v1.0.0 -> v1.1.0 ABORTED: tag v1.1.0 moved during resolution',
+  });
+  const body = buildPullRequestBody('weekly', plan);
+  assert.ok(body.includes('### Candidates aborted during verification'));
+  assert.ok(body.includes('moved during resolution'));
+  // The aborted row must stay out of the verified-updates table.
+  const verifiedSection = body.split('### Candidates aborted')[0];
+  assert.ok(!verifiedSection.includes('evil/action'));
 });
 
 function applyHarnessRoutes({ defaultBranch = 'main' } = {}) {

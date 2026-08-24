@@ -20,6 +20,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const SHA40_RE = /^[0-9a-f]{40}$/i;
 const STABLE_TAG_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
@@ -232,7 +233,7 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
     getTagRef: (tag) => call(`${repoPath()}/git/ref/tags/${encodeURIComponent(tag)}`),
     getTagObject: (sha) => call(`${repoPath()}/git/tags/${sha}`),
     getCommit: (sha) => call(`${repoPath()}/commits/${sha}`),
-    getGlobalAdvisories: () => call(`/advisories?affects=${repo}`),
+    getGlobalAdvisories: () => call(`/advisories?affects=${repo}&ecosystem=actions`),
     getRepoAdvisories: () => call(`${repoPath()}/security-advisories?per_page=100`),
     getOpenPullRequest: (head) =>
       call(`${repoPath()}/pulls?head=${encodeURIComponent(`${repo.split('/')[0]}:${head}`)}&state=open&per_page=1`),
@@ -386,9 +387,20 @@ async function repoFacts(api, slug, cache) {
       owner,
       repo,
       stablePromise: listStableVersions(subApi),
+      advisoriesPromise: null,
     });
   }
   return cache.get(slug);
+}
+
+// Advisory lookup, shared by every occurrence of one repository. The result
+// is memoized on the per-run facts entry, mirroring stablePromise. A failed
+// lookup is cached too; the run already reports it as UNKNOWN per occurrence.
+function factsAdvisories(facts) {
+  if (!facts.advisoriesPromise) {
+    facts.advisoriesPromise = loadAdvisories(facts.api, facts.owner, facts.repo);
+  }
+  return facts.advisoriesPromise;
 }
 
 // Pick the newest stable release that satisfies the constraint.
@@ -551,7 +563,7 @@ export function securityClassification(advisories, currentVersion) {
 }
 
 async function planSecurityFor(plans, file, occ, facts, currentVersion) {
-  const advisories = await loadAdvisories(facts.api, facts.owner, facts.repo);
+  const advisories = await factsAdvisories(facts);
   if (!advisories.ok) {
     plans.errors.push(row(file, occ, 'advisory lookup failed; classification UNKNOWN'));
     return;
@@ -625,24 +637,37 @@ async function checkPinDrift(plans, file, occ, facts, recordedVersion) {
   return false;
 }
 
+// The repository advisory endpoint names the fix `patched_versions`, while
+// the global endpoint names it `first_patched_version`. Normalize both so
+// classification sees one field.
+function normalizeAdvisory(adv) {
+  return {
+    ...adv,
+    vulnerabilities: (adv.vulnerabilities || []).map((v) => ({
+      ...v,
+      first_patched_version: v.first_patched_version ?? v.patched_versions ?? null,
+    })),
+  };
+}
+
 async function loadAdvisories(api, owner, repo) {
-  try {
-    const repoList = (await api.getRepoAdvisories()) || [];
-    let globalList = [];
+  const merged = new Map();
+  let failures = 0;
+  // Each source is attempted on its own. One failing source must not
+  // discard a successful one.
+  for (const fetchSource of [api.getRepoAdvisories, api.getGlobalAdvisories]) {
     try {
-      globalList = (await api.getGlobalAdvisories()) || [];
+      for (const adv of (await fetchSource.call(api)) || []) {
+        if (adv && adv.ghsa_id) merged.set(adv.ghsa_id, normalizeAdvisory(adv));
+      }
     } catch {
-      // The global endpoint can be unavailable for some repos. Repo-published
-      // advisories remain authoritative enough on their own.
+      failures += 1;
     }
-    const merged = new Map();
-    for (const adv of [...repoList, ...globalList]) {
-      if (adv && adv.ghsa_id) merged.set(adv.ghsa_id, adv);
-    }
-    return { ok: true, list: [...merged.values()] };
-  } catch (err) {
-    return { ok: false, error: err };
   }
+  if (failures === 2) {
+    return { ok: false, error: new Error('all advisory sources failed') };
+  }
+  return { ok: true, list: [...merged.values()] };
 }
 
 async function pushCandidate(list, file, occ, facts, targetVersion, reason, extra = {}) {
@@ -845,10 +870,12 @@ export function buildPullRequestBody(mode, plan) {
   lines.push('- tag resolved identically twice (movement check)');
   lines.push('- immutable pin kept, version comment synchronized');
   lines.push('');
-  if (plan.updates.length > 0) {
+  const abortedUpdates = plan.updates.filter((uItem) => uItem.aborted);
+  const appliedUpdates = plan.updates.filter((uItem) => !uItem.aborted);
+  if (appliedUpdates.length > 0) {
     lines.push('| Action | File:line | Current | Target | Current ref | Target SHA | Reason |');
     lines.push('|---|---|---|---|---|---|---|');
-    for (const u of plan.updates) {
+    for (const u of appliedUpdates) {
       lines.push(
         `| ${esc(u.action)} | ${esc(u.file)}:${u.line + 1} | ${esc(u.currentValue)} | ${esc(u.targetTag)} | \`${esc(u.currentRef)}\` | \`${esc(u.targetSha)}\` | ${esc(u.reason)} |`,
       );
@@ -858,6 +885,16 @@ export function buildPullRequestBody(mode, plan) {
     }
   } else {
     lines.push('_No direct code updates in this batch; see the tables below._');
+  }
+  if (abortedUpdates.length > 0) {
+    lines.push('');
+    lines.push('### Candidates aborted during verification');
+    lines.push('');
+    lines.push('| Action | File:line | Reason |');
+    lines.push('|---|---|---|');
+    for (const u of abortedUpdates) {
+      lines.push(`| ${esc(u.action)} | ${esc(u.file)}:${u.line + 1} | ${esc(u.reason)} |`);
+    }
   }
   if (plan.reportOnly.length > 0) {
     lines.push('');
@@ -1050,7 +1087,9 @@ function printHelp() {
 }
 
 /* eslint-disable no-undef */
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
+const isMain = Boolean(
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href,
+);
 if (isMain) {
   main(process.argv.slice(2)).then(
     (code) => process.exit(code),
