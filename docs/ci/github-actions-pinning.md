@@ -116,9 +116,10 @@ silently weaken every future review. Every PR therefore needs an explicit
 human approval.
 
 GitHub suppresses workflow runs that the built-in GITHUB_TOKEN triggers.
-The maintenance pull requests may therefore not start other CI
-automatically. A repository administrator can configure a dedicated PAT or
-GitHub App token to change this.
+The updater therefore uses the `WORKFLOW_PAT` secret, the same token as
+the release workflow. Events from that token start normal CI on the
+maintenance pull requests. If `WORKFLOW_PAT` is not configured, the
+updater falls back to GITHUB_TOKEN, and CI on its PRs is suppressed.
 
 ## Suspicious or moving tag
 
