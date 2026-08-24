@@ -91,6 +91,7 @@ jobs:
               pull_number: prNumber
             });
             core.setOutput('base_ref', pullRequest.base.ref);
+            core.setOutput('base_sha', pullRequest.base.sha);
             core.setOutput('head_sha', pullRequest.head.sha);
 
       - name: Run OpenCodeReview
@@ -104,5 +105,112 @@ jobs:
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           llm_model: ${{ vars.OCR_LLM_MODEL }}
           llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          # The resolver step assumes a FULL finding set per run; keep
+          # incremental mode off or the resolver assumption breaks.
+          incremental: 'false'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      # SECURITY: the OpenCodeReview action runs its own un-pinned checkout,
+      # which materializes the PR merge ref and replaces trusted code in the
+      # workspace. Restore the base tree before any repository file is loaded
+      # by require(), so the audit step never executes PR-head-controlled
+      # JavaScript. The ref is the IMMUTABLE base SHA captured by the event
+      # payload (pull_request_target) or the API snapshot (issue_comment), not
+      # a branch name - so a base branch advancing mid-run cannot swap in a
+      # different tree than the one reviewed. The guard makes that invariant
+      # explicit: anything other than a 40-hex SHA aborts instead of falling
+      # through to the checkout default, which would materialize PR-head code.
+      - name: Require resolved base SHA
+        if: env.OCR_EXIT_CODE == '0'
+        env:
+          BASE_SHA: ${{ steps.pr-context.outputs.base_sha || github.event.pull_request.base.sha }}
+        run: |
+          if ! printf '%s' "$BASE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Trusted base SHA unavailable; refusing to load audit code."
+            exit 1
+          fi
+
+      - name: Restore trusted base checkout
+        if: env.OCR_EXIT_CODE == '0'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pr-context.outputs.base_sha || github.event.pull_request.base.sha }}
+          # Only this exact commit is needed; a shallow fetch keeps the
+          # restore fast and the workspace minimal.
+          fetch-depth: 1
+          # The OpenCodeReview action's own checkouts persist the runner
+          # GitHub token into the local git credential state. This trusted
+          # restore must not re-persist credentials, so no token survives
+          # into the environment where audit code is loaded and run.
+          persist-credentials: false
+          # Explicit: wipe any files left in the workspace by the action's
+          # internal merge-ref checkout before loading audit code.
+          clean: true
+
+      - name: Audit stale OpenCodeReview threads
+        # Read-only audit. Absence from one stochastic LLM run is not proof of
+        # staleness, so nothing is auto-resolved; absence-only threads are
+        # logged as RESOLVE-CANDIDATE for human review.
+        if: env.OCR_EXIT_CODE == '0'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs');
+            // The audit only ever loads repository code from the restored
+            // trusted base tree - never from the PR head. A base branch that
+            // predates this script (old release branches, or a workflow/
+            // helper version skew after a partial merge) therefore has no
+            // resolver to load. Existence is checked BEFORE require(): a
+            // missing file skips the audit with a warning and keeps the job
+            // green; a resolver that EXISTS but fails to load (syntax error,
+            // init throw) propagates and fails loudly instead of being
+            // silently swallowed as "unavailable". Falling back to the
+            // PR-head copy is never an option - executing untrusted JS is
+            // exactly what the trusted checkout exists to prevent.
+            if (!fs.existsSync('./.github/scripts/ocr-resolve.js')) {
+              core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
+              return;
+            }
+            const { classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js');
+
+            // Latest findings from the same runner filesystem. Only a payload
+            // matching the expected schema counts as available; anything else
+            // (unreadable, wrong shape, malformed entry) makes every decision
+            // UNCERTAIN (fail-safe).
+            let currentFindings = [];
+            let resultAvailable = false;
+            try {
+              const result = JSON.parse(fs.readFileSync('/tmp/ocr-result.json', 'utf8'));
+              if (isValidResultPayload(result)) {
+                currentFindings = result.comments;
+                resultAvailable = true;
+              } else {
+                core.warning('OCR result does not match the expected schema; treating it as unavailable.');
+              }
+            } catch (e) {
+              core.warning(`OCR result unreadable (${e.message}); every thread will be treated as uncertain.`);
+            }
+
+            const comments = await github.paginate(github.rest.pulls.listReviewComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100
+            });
+
+            const decisions = classifyThreads({ reviewComments: comments, currentFindings, resultAvailable });
+
+            for (const d of decisions) {
+              if (d.decision === 'KEEP') {
+                core.info(`WOULD KEEP: ${d.id} (${d.reason})`);
+              } else if (d.decision === 'UNCERTAIN' && d.candidate) {
+                core.info(`RESOLVE-CANDIDATE (not auto-resolved): ${d.id} (${d.reason})`);
+              } else if (d.decision === 'UNCERTAIN') {
+                core.info(`SKIPPED — UNCERTAIN: ${d.id} (${d.reason})`);
+              } else {
+                core.info(`SKIPPED — NOT OCR: ${d.threadKey}`);
+              }
+            }
+            const candidates = decisions.filter((d) => d.candidate).length;
+            core.notice(`OpenCodeReview stale-thread audit: ${candidates} RESOLVE-CANDIDATE(s); no thread was resolved.`);

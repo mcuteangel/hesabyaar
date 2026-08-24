@@ -1,0 +1,30 @@
+# Unit tests for the OCR stale-thread audit decision core. Pure node:test;
+# no framework, no setup-node needed (ubuntu-latest ships a current Node).
+name: OCR Resolver Tests
+
+on:
+  push:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/ocr-resolver-tests.yml"
+  pull_request:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/ocr-resolver-tests.yml"
+
+permissions:
+  contents: read
+
+# Push and pull_request fire for the same commit; cancel superseded runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Run: node --test .github/scripts/ocr-resolve.test.mjs
+      - run: node --test .github/scripts/ocr-resolve.test.mjs
