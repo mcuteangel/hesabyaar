@@ -69,7 +69,7 @@ check() {
     echo '---------------'
     return
   fi
-  if [ -n "$want_msg" ] && ! grep -q "$want_msg" "$TMP/out.txt"; then
+  if [ -n "$want_msg" ] && ! grep -qF -- "$want_msg" "$TMP/out.txt"; then
     fail=$((fail + 1))
     printf 'FAIL %-42s exit=%s but output lacks: %s\n' "$name" "$got" "$want_msg"
     echo '--- stdout ---'; cat "$TMP/out.txt"
@@ -95,12 +95,16 @@ mv rust/Cargo.toml.new rust/Cargo.toml
 commit_all
 check "workspace manifest version bump" 0 "Version bump detected"
 
-# 3. Manual version bump in a member manifest -> release via bump branch
+# 3. Switching an inherited-version member (version.workspace = true) to a
+#    local version is NOT a bump: the base manifest has no quoted version
+#    key, so there is no old value to change. Releases for inherited members
+#    are driven by the root [workspace.package] version (test 2); local-
+#    version member bumps are covered by tests 10b/11b.
 new_repo
 branch t3
 printf '[package]\nname = "core"\nversion = "1.0.0"\ndependencies = []\n' > rust/hesabyar-core/Cargo.toml
 commit_all
-check "member manifest version bump" 0 "Version bump detected"
+check "inherited member switched to local version" 1 "SKIP"
 
 # 4. Table-form [dependencies.*] version bump is NOT a package bump -> skip
 #    (member keeps version.workspace = true; only a dep table is added)
@@ -219,6 +223,22 @@ mkdir -p rust/hesabyar-core/src
 echo 'fn fixed() {}' > rust/hesabyar-core/src/lib.rs
 commit_all
 check "rust source edit without bump" 1 "SKIP"
+
+# 13. Newly added versioned manifest -> skip BY DESIGN: a new file carrying
+#     its own version key is not a bump. Like any other core change it ships
+#     when [workspace.package].version moves.
+new_repo
+branch t13
+mkdir -p rust/new-crate
+printf '[package]\nname = "new-crate"\nversion = "0.1.0"\ndependencies = []\n' > rust/new-crate/Cargo.toml
+commit_all
+check "added manifest with version key" 1 "SKIP"
+
+# 14. Branch identical to main (empty diff) -> skip via the empty-diff
+#     safeguard, the default barrier against spurious releases.
+new_repo
+branch t14
+check "identical to main (empty diff)" 1 "SKIP"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

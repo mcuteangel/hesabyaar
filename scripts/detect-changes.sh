@@ -81,8 +81,12 @@ while IFS= read -r file; do
       # and bumps to the inherited value are caught via rust/Cargo.toml.
       old_ver=$(rust_manifest_version "$BASE_REF" "$file")
       new_ver=$(rust_manifest_version "$HEAD_REF" "$file")
-      if [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
-        echo "RELEASE_NEEDED: Version bump detected in $file (${old_ver:-none} -> ${new_ver})"
+      # Only a genuine version CHANGE is a release trigger: both refs must
+      # carry a [package]/[workspace.package] version and differ. A newly
+      # added manifest (old_ver empty) is not a bump by itself — like any
+      # other core change it ships when [workspace.package].version moves.
+      if [ -n "$old_ver" ] && [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
+        echo "RELEASE_NEEDED: Version bump detected in $file ($old_ver -> $new_ver)"
         exit 0
       fi
       continue
