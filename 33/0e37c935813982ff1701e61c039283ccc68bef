@@ -1,0 +1,33 @@
+docs/ci/github-actions-pinning.md
+  s_248e2668f94487::t_b2e7cedc33b89c 50-62
+scripts/test-github-actions-pin-manager.mjs
+  s_248e2668f94487::t_99a599f7c5316b 305-307
+  s_248e2668f94487::t_bbe073ae8c53e1 444-568
+  s_248e2668f94487::t_da28de5c0e1040 29-30
+  s_248e2668f94487::t_0e757ef2f73a9a 377-378
+scripts/github-actions-pin-manager.mjs
+  s_248e2668f94487::t_4882caa25bddf5 22
+  s_248e2668f94487::t_f6126763f8275c 476-479,482-538,544,549-559,561-567,569,573-580,584,604-606,608-610
+  s_248e2668f94487::t_1734965a2df9cb 949-950
+  s_248e2668f94487::t_cbab923f29d495 831
+  s_248e2668f94487::t_80c18872f31850 447,451-456
+  s_248e2668f94487::t_4ab430158eefcb 235
+  s_248e2668f94487::t_ec864fee3f7544 585-603,607
+  s_248e2668f94487::t_71bca859800967 480-481
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "330e37c935813982ff1701e61c039283ccc68bef",
+  "prompts": {},
+  "sessions": {
+    "s_248e2668f94487": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdb8f5baffe0xnz5joQWPTqnh",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
