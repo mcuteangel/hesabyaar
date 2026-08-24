@@ -291,7 +291,9 @@ test('weekly plan converts floating tag to same major immutable pin', async () =
   assert.equal(plan.updates.length, 1);
   assert.equal(plan.updates[0].targetTag, 'v4.2.2');
   assert.equal(plan.updates[0].targetSha, SHA_B);
-  assert.equal(plan.reportOnly.filter((rItem) => rItem.note.includes('major')).length >= 0, true);
+  // The same-major conversion wins over the major-jump report: the exclusive
+  // update/reportOnly branch must not emit a major-bump row here.
+  assert.equal(plan.reportOnly.length, 0);
 });
 
 test('weekly plan reports major bump instead of applying it', async () => {
@@ -390,6 +392,29 @@ test('tag movement between resolutions aborts candidate', async () => {
   assert.equal(plan.updates[0].aborted, true);
   assert.ok(plan.updates[0].reason.includes('moved during resolution'));
   assert.equal(plan.updates[0].targetSha, undefined);
+});
+
+test('duplicate occurrences reuse verified tag resolutions within one run', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(
+    dir,
+    [
+      `- uses: some/action@${SHA_A} # v1.0.0`,
+      `- uses: some/action@${SHA_A} # v1.0.0`,
+    ].join('\n') + '\n',
+  );
+  const { impl, calls } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v1.0.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v1.0.0', SHA_A),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 0);
+  // Two occurrences of the same pin double-resolve the recorded tag once
+  // (2 requests for the movement check); the verified cache then serves the
+  // second occurrence with zero additional requests.
+  const tagRefs = calls.filter((c) => c.url.includes('/git/ref/tags/v1.0.0'));
+  assert.equal(tagRefs.length, 2);
 });
 
 test('branch reference goes to needsHuman not auto updated', async () => {

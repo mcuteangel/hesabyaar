@@ -292,7 +292,15 @@ export async function listStableVersions(api) {
 
 // Resolve a tag to a commit SHA. Resolves twice. A mismatch means the tag
 // moved during the process, so the caller must abort the candidate.
+//
+// Verified results are memoized on the API client. The client lives for one
+// planning run and is scoped to one repository, so duplicate occurrences of
+// the same repository and tag cost one double-resolution in total. Failures
+// are never cached, so a transient error retries on the next occurrence.
 export async function resolveTagToCommitSha(api, tag) {
+  if (!api.verifiedShaCache) api.verifiedShaCache = new Map();
+  const cached = api.verifiedShaCache.get(String(tag));
+  if (cached) return cached;
   const first = await resolveOnce(api, tag);
   const second = await resolveOnce(api, tag);
   if (first !== second) {
@@ -303,6 +311,7 @@ export async function resolveTagToCommitSha(api, tag) {
       code: 'INVALID_SHA',
     });
   }
+  api.verifiedShaCache.set(String(tag), first);
   return first;
 }
 
