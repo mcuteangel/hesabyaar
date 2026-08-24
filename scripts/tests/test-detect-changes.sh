@@ -122,6 +122,9 @@ commit_all
 check "libs.versions.toml only" 1 "SKIP"
 
 # 5b. Other skip-listed Gradle lockfiles -> skip
+#     NOTE: detect-changes.sh skips `gradle.lockfile` and `versions.lock` as
+#     repo-ROOT paths (no gradle/ prefix), so they are written at the root
+#     here to match that skip list exactly.
 new_repo
 branch t5b
 echo lock > gradle.lockfile
@@ -187,6 +190,16 @@ branch t11
 echo 'log = "0.4"' >> rust/a/b/c/Cargo.toml
 commit_all
 check "deep-nested member dep-only" 1 "SKIP"
+git checkout -q -b t11b
+cat > rust/a/b/c/Cargo.toml <<'EOF'
+[package]
+name = "deep"
+version = "0.2.0"
+dependencies = []
+log = "0.4"
+EOF
+commit_all
+check "deep-nested member version bump" 0 "Version bump detected in rust/a/b/c/Cargo.toml"
 
 # 12. Rust source edit without a version bump -> skip BY DESIGN:
 #     releases are version-driven (unchanged versionCode cannot publish),

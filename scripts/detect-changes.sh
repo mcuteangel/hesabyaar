@@ -65,10 +65,12 @@ while IFS= read -r file; do
     gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock)
       continue
       ;;
-    # Workspace root, direct members, and one extra nesting level.
-    # Matches every tracked Rust manifest so dependency edits never fall
-    # through to the *.toml include pattern below.
-    rust/Cargo.toml|rust/*/Cargo.toml|rust/*/*/Cargo.toml|rust/Cargo.lock)
+    # Workspace root and every member manifest at ANY nesting depth:
+    # POSIX case globs are not pathname-restricted, so `*` also matches `/`
+    # and rust/*/Cargo.toml covers rust/a/b/c/Cargo.toml too (locked in by
+    # test 11). Matches every tracked Rust manifest so dependency edits
+    # never fall through to the *.toml include pattern below.
+    rust/Cargo.toml|rust/*/Cargo.toml|rust/Cargo.lock)
       # A manual version bump in a Rust manifest is an application change,
       # not a dependency edit: force a release so the artifact carries the
       # new core version. Pure dependency edits (including table-form
