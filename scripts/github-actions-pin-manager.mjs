@@ -606,7 +606,6 @@ async function checkPinDrift(plans, file, occ, facts, recordedVersion) {
   let sha = null;
   let lastError = null;
   for (const tag of candidates) {
-    if (tag === candidates[1] && candidates[0] === candidates[1]) continue;
     try {
       sha = await resolveTagToCommitSha(facts.api, tag);
       lastError = null;
@@ -719,13 +718,20 @@ export function applyUpdates(files, updates) {
     const file = files.find((f) => f.path === path);
     if (!file) throw new Error(`unknown file in plan: ${path}`);
     const newLines = [...file.lines];
+    let touched = false;
     for (const upd of fileUpdates) {
+      // An aborted candidate has no verified target. It stays in the plan
+      // for reporting, but must never shape the file contents.
+      if (upd.aborted) continue;
       const occ = file.occurrences.find((o) => o.line === upd.line);
       if (!occ || !occ.parsed) throw new Error(`lost occurrence ${path}:${upd.line}`);
       const newValue = occ.parsed.value.replace(/@[^@]*$/, `@${upd.targetSha}`);
       const newComment = `# ${upd.targetTag}`;
       newLines[upd.line] = renderUsesLine(occ.parsed, newValue, newComment);
+      touched = true;
     }
+    // A file whose candidates were all aborted contributes no entry.
+    if (!touched) continue;
     changed[path] = newLines.join('\n');
   }
   return changed;
@@ -783,6 +789,9 @@ export async function ensurePullRequest({ api, mode, changed, plan }) {
   const body = buildPullRequestBody(mode, plan);
 
   const head = await api.getDefaultBranchSha();
+  if (!head || !head.object || !SHA40_RE.test(head.object.sha || '')) {
+    throw new Error('cannot resolve default branch SHA; refusing to open a PR');
+  }
   const baseSha = head.object.sha;
   const baseTree = (await api.call(`/repos/${api.repo}/git/commits/${baseSha}`)).tree.sha;
 
@@ -898,6 +907,10 @@ export async function runApply({ repoRoot, repo, token, mode, fetchImpl, log = c
     return { applied: false, plan };
   }
   const changed = applyUpdates(files, plan.updates);
+  if (Object.keys(changed).length === 0) {
+    log(`pin-manager[${mode}]: every candidate was aborted during verification; no PR touched`);
+    return { applied: false, plan };
+  }
   const problems = validateChanges(files, changed, plan.updates);
   if (problems.length > 0) {
     log(`pin-manager[${mode}]: validation failed; refusing to open a PR`);

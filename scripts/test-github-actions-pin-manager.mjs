@@ -57,7 +57,7 @@ function makeFetch(routes) {
 
 const releasesRoute = (repo, versions) => ({
   method: 'GET',
-  url: new RegExp(`/repos/${repo}/releases`.replace('/', '/')),
+  url: new RegExp(`/repos/${repo}/releases`),
   reply: json(
     versions.map((v) => ({
       tag_name: `v${v}`,
@@ -700,6 +700,66 @@ test('no candidates means zero mutating API calls', async () => {
     log: () => {},
   });
   assert.equal(result.applied, false);
+  const mutations = calls.filter((cItem) => cItem.method !== 'GET');
+  assert.deepEqual(mutations, []);
+});
+
+test('applyUpdates skips aborted candidates and applies verified ones', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  const path = join(dir, 'w.yml');
+  writeFileSync(path, `- uses: good/action@${SHA_A} # v1.0.0\n- uses: flaky/action@${SHA_B} # v2.0.0\n`);
+  const files = scanFiles([path]);
+  const updates = [
+    { file: path, line: 0, targetTag: 'v1.1.0', targetVersion: '1.1.0', targetSha: SHA_C },
+    { file: path, line: 1, aborted: true },
+  ];
+  const changed = applyUpdates(files, updates);
+  const newLines = changed[path].split('\n');
+  assert.equal(newLines[0], `- uses: good/action@${SHA_C} # v1.1.0`);
+  // The aborted line must stay byte-identical; it has no verified target.
+  assert.equal(newLines[1], `- uses: flaky/action@${SHA_B} # v2.0.0`);
+  const problems = validateChanges(files, changed, updates);
+  assert.deepEqual(problems, []);
+});
+
+test('runApply refuses the batch when every candidate was aborted', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v1.0.0\n`);
+  let n = 0;
+  const { impl, calls } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v1.0.0', draft: false, prerelease: false }, { tag_name: 'v1.1.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v1.0.0', SHA_A),
+    { method: 'GET', url: /\/repos\/some\/action\/git\/ref\/tags\/v1\.1\.0$/, reply: () => json({ object: { type: 'commit', sha: ++n % 2 === 1 ? SHA_B : SHA_C } }) },
+  ]);
+  const result = await runApply({
+    repoRoot: dir,
+    repo: 'o/r',
+    token: 't',
+    mode: 'weekly',
+    fetchImpl: impl,
+    log: () => {},
+  });
+  assert.equal(result.applied, false);
+  assert.equal(result.plan.updates[0].aborted, true);
+  const mutations = calls.filter((cItem) => cItem.method !== 'GET');
+  assert.deepEqual(mutations, []);
+});
+
+test('default branch resolution failure refuses the PR with a clear error', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, `- uses: some/action@${SHA_A} # v1.0.0\n`);
+  const { impl, calls } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v1.0.0', draft: false, prerelease: false }, { tag_name: 'v1.1.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v1.0.0', SHA_A),
+    tagRefRoute('some/action', 'v1.1.0', SHA_B),
+    { method: 'GET', url: /\/repos\/o\/r$/, reply: json({ default_branch: 'main' }) },
+    { method: 'GET', url: /\/repos\/o\/r\/git\/ref\/heads\/main$/, reply: json({ message: 'boom' }, 500) },
+  ]);
+  await assert.rejects(
+    runApply({ repoRoot: dir, repo: 'o/r', token: 't', mode: 'weekly', fetchImpl: impl, log: () => {} }),
+    /cannot resolve default branch SHA/,
+  );
+  // The refusal happens before any write attempt.
   const mutations = calls.filter((cItem) => cItem.method !== 'GET');
   assert.deepEqual(mutations, []);
 });
