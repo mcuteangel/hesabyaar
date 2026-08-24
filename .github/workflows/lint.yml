@@ -4,11 +4,15 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - 'scripts/github-actions-pin-manager.mjs'
+      - 'scripts/test-github-actions-pin-manager.mjs'
       - 'scripts/test-issue-autoclose.sh'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
+      - 'scripts/github-actions-pin-manager.mjs'
+      - 'scripts/test-github-actions-pin-manager.mjs'
       - 'scripts/test-issue-autoclose.sh'
 
 jobs:
@@ -29,3 +33,11 @@ jobs:
 
        - name: Run issue auto-close regression tests
          run: bash scripts/test-issue-autoclose.sh
+
+       - name: Run Actions pin manager tests
+         run: node --test scripts/test-github-actions-pin-manager.mjs
+
+       - name: Run Actions pin audit
+         # Informational. The audit never fails CI; it prints the current
+         # compliance state of every uses: reference.
+         run: node scripts/github-actions-pin-manager.mjs
