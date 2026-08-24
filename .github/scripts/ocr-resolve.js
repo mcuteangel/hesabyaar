@@ -32,15 +32,34 @@ function isOcrInlineComment(comment) {
   return extractOcrId(comment && comment.body) !== null;
 }
 
+// A usable finding line: positive safe integer. Rejects floats, negatives,
+// zero, and values beyond Number.MAX_SAFE_INTEGER - a huge or negative bound
+// would otherwise fabricate a range that suppresses RESOLVE-CANDIDATEs.
+function isValidFindingLine(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+// A line field counts as ABSENT only when undefined or null (GitHub omits
+// start_line on single-line comments). Any PRESENT value must be a valid
+// finding line; an invalid present value poisons the whole location instead
+// of silently collapsing into the other bound.
+function presentLine(value) {
+  if (value === undefined || value === null) return null;
+  return isValidFindingLine(value) ? value : false;
+}
+
 // Single source of truth for location normalization. Accepts raw path and
 // line fields; returns integer-only { path, start, end }, or null when the
-// location is unusable (empty/non-string path, no finite integer line). Both
-// comment ranges and current-finding ranges route through this helper, so
-// their validation rules cannot drift.
+// location is unusable: empty/non-string path, no line field at all, or ANY
+// present field that is not a positive safe integer (float, zero, negative,
+// unsafe). One-sided locations stay supported: a missing field falls back to
+// the remaining valid one. Both comment ranges and current-finding ranges
+// route through this helper, so their validation rules cannot drift.
 function toRange(path, startLine, endLine) {
   if (typeof path !== "string" || path.length === 0) return null;
-  const s = Number.isInteger(startLine) ? startLine : null;
-  const e = Number.isInteger(endLine) ? endLine : null;
+  const s = presentLine(startLine);
+  const e = presentLine(endLine);
+  if (s === false || e === false) return null;
   if (s === null && e === null) return null;
   const start = s !== null ? s : e;
   const end = e !== null ? e : s;
@@ -57,13 +76,6 @@ function toLineRange(comment) {
 
 function rangesIntersect(a, b) {
   return a.path === b.path && Math.max(a.start, b.start) <= Math.min(a.end, b.end);
-}
-
-// A usable finding line: positive safe integer. Rejects floats, negatives,
-// zero, and values beyond Number.MAX_SAFE_INTEGER - a huge or negative bound
-// would otherwise fabricate a range that suppresses RESOLVE-CANDIDATEs.
-function isValidFindingLine(value) {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 
 // Classify PR review comments against the current OCR findings.

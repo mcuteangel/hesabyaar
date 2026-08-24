@@ -136,6 +136,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.pr-context.outputs.base_sha || github.event.pull_request.base.sha }}
+          # Only this exact commit is needed; a shallow fetch keeps the
+          # restore fast and the workspace minimal.
+          fetch-depth: 1
+          # The OpenCodeReview action's own checkouts persist the runner
+          # GitHub token into the local git credential state. This trusted
+          # restore must not re-persist credentials, so no token survives
+          # into the environment where audit code is loaded and run.
+          persist-credentials: false
           # Explicit: wipe any files left in the workspace by the action's
           # internal merge-ref checkout before loading audit code.
           clean: true
@@ -153,17 +161,18 @@ jobs:
             // trusted base tree - never from the PR head. A base branch that
             // predates this script (old release branches, or a workflow/
             // helper version skew after a partial merge) therefore has no
-            // resolver to load. Skipping with a warning keeps the job green;
-            // falling back to the PR-head copy would execute untrusted JS,
-            // which is exactly what the trusted checkout exists to prevent.
-            let classifyThreads;
-            let isValidResultPayload;
-            try {
-              ({ classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js'));
-            } catch (e) {
-              core.warning(`Trusted audit script unavailable at base SHA (${e.message}); skipping stale-thread audit.`);
+            // resolver to load. Existence is checked BEFORE require(): a
+            // missing file skips the audit with a warning and keeps the job
+            // green; a resolver that EXISTS but fails to load (syntax error,
+            // init throw) propagates and fails loudly instead of being
+            // silently swallowed as "unavailable". Falling back to the
+            // PR-head copy is never an option - executing untrusted JS is
+            // exactly what the trusted checkout exists to prevent.
+            if (!fs.existsSync('./.github/scripts/ocr-resolve.js')) {
+              core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
               return;
             }
+            const { classifyThreads, isValidResultPayload } = require('./.github/scripts/ocr-resolve.js');
 
             // Latest findings from the same runner filesystem. Only a payload
             // matching the expected schema counts as available; anything else

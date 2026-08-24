@@ -67,6 +67,46 @@ test("toLineRange returns null for missing lines, LEFT side, and missing side", 
   assert.equal(toLineRange({ body: "", path: "a.kt", side: "RIGHT" }), null);
 });
 
+test("malformed comment line bounds fail closed -> UNCERTAIN, candidate false", () => {
+  // Each malformed comment sits on top of a live finding at src/A.kt 10-12.
+  // If any invalid bound leaked through as a usable range it would produce
+  // KEEP; the fail-closed outcome is UNCERTAIN with candidate:false.
+  const finding = [{ path: "src/A.kt", start_line: 10, end_line: 12 }];
+  const cases = [
+    ["zero bound", ocrComment(931, "src/A.kt", 10, 0)],
+    ["negative bound", ocrComment(932, "src/A.kt", 10, -1)],
+    ["float end collapses start", { id: 933, body: OCR_BODY(VALID_ID), path: "src/A.kt", side: "RIGHT", start_line: 10, line: 10.5 }],
+    ["float start collapses end", { id: 934, body: OCR_BODY(VALID_ID), path: "src/A.kt", side: "RIGHT", start_line: 10.5, line: 10 }],
+    ["unsafe integer bound", ocrComment(935, "src/A.kt", 10, 1e21)],
+  ];
+  for (const [label, comment] of cases) {
+    const d = classifyThreads({
+      reviewComments: [comment],
+      currentFindings: finding.map((f) => ({ ...f })),
+      resultAvailable: true,
+    });
+    assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN"], label);
+    assert.equal(d[0].candidate, false, label);
+  }
+  // Unit-level proof for the same five inputs.
+  const mk = (start_line, line) => ({ body: OCR_BODY(VALID_ID), path: "src/A.kt", side: "RIGHT", start_line, line });
+  assert.equal(toLineRange(mk(0, 10)), null);
+  assert.equal(toLineRange(mk(-1, 10)), null);
+  assert.equal(toLineRange(mk(10, 10.5)), null);
+  assert.equal(toLineRange(mk(10.5, 10)), null);
+  assert.equal(toLineRange(mk(1e21, 10)), null);
+  // Control: the same location with valid bounds still overlaps -> KEEP.
+  const ok = run([ocrComment(936, "src/A.kt", 12, 10)], { findings: finding });
+  assert.deepEqual(ok.map((x) => x.decision), ["KEEP"]);
+  // One-sided legit locations stay supported (GitHub omits start_line on
+  // single-line comments).
+  assert.deepEqual(toLineRange({ path: "p.kt", side: "RIGHT", start_line: undefined, line: 7 }), {
+    path: "p.kt",
+    start: 7,
+    end: 7,
+  });
+});
+
 test("rangesIntersect requires same path and overlapping range", () => {
   assert.ok(rangesIntersect({ path: "a", start: 1, end: 5 }, { path: "a", start: 5, end: 9 }));
   assert.ok(!rangesIntersect({ path: "a", start: 1, end: 4 }, { path: "a", start: 5, end: 9 }));
