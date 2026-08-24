@@ -12,6 +12,11 @@
 # CI workflows still run on the maintenance pull requests as usual.
 #
 # Auto-merge is disabled by policy. A human reviews and merges every PR.
+#
+# Token note: GitHub suppresses workflow runs that the built-in GITHUB_TOKEN
+# triggers. The maintenance pull requests may therefore not start other CI
+# automatically. To change this, configure a dedicated PAT or GitHub App
+# token and pass it here as GITHUB_TOKEN.
 
 name: GitHub Actions Pin Manager
 

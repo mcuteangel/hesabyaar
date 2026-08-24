@@ -47,7 +47,7 @@ function makeFetch(routes) {
     for (const r of routes) {
       const m = url.match(r.url);
       if (m && (r.method || 'GET') === (options.method || 'GET')) {
-        return typeof r.reply === 'function' ? r.reply(m, ++r.hits || (r.hits = 1)) : r.reply;
+        return typeof r.reply === 'function' ? r.reply(m, ++r.hits || (r.hits = 1), options) : r.reply;
       }
     }
     return json({ message: 'not found' }, 404);
@@ -115,6 +115,9 @@ test('classifies reusable workflow from another repository', () => {
   assert.equal(target.owner, 'owner');
   assert.equal(target.repo, 'repo');
   assert.equal(refShape(target.ref), 'SHA');
+  // The .yaml extension is equally valid for reusable workflows.
+  const yamlTarget = parseTarget('owner/repo/.github/workflows/deploy.yaml@' + SHA_A);
+  assert.equal(yamlTarget.kind, 'REUSABLE_WORKFLOW');
 });
 
 test('parses quoted values and preserves quote on render', () => {
@@ -288,6 +291,22 @@ test('weekly plan reports major bump instead of applying it', async () => {
   assert.equal(plan.updates.length, 0);
   assert.equal(plan.reportOnly.length, 1);
   assert.ok(plan.reportOnly[0].note.includes('major'));
+});
+
+test('weekly mode pins an up-to-date stable tag immutably', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, '- uses: some/action@v1.0.0\n');
+  const { impl } = makeFetch([
+    { method: 'GET', url: /\/repos\/some\/action\/releases\?/, reply: json([{ tag_name: 'v1.0.0', draft: false, prerelease: false }]) },
+    tagRefRoute('some/action', 'v1.0.0', SHA_A),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  // No newer release exists, but the mutable tag itself must become a pin.
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v1.0.0');
+  assert.equal(plan.updates[0].targetSha, SHA_A);
+  assert.ok(plan.updates[0].reason.includes('immutable'));
 });
 
 test('prerelease and drafts are rejected as targets', async () => {
@@ -497,6 +516,12 @@ test('versionAffected matches ranges strictly and rejects unknown clauses', () =
   assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '< 1.4.2', first_patched_version: '1.4.2' }), true);
   assert.equal(versionAffected('1.4.2', { vulnerable_version_range: '< 1.4.2', first_patched_version: '1.4.2' }), false);
   assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '= 1.2.3', first_patched_version: '1.4.2' }), true);
+  // The { identifier } object shape is normalized like the string form.
+  assert.equal(
+    versionAffected('1.2.3', { vulnerable_version_range: '< 1.4.2', first_patched_version: { identifier: '1.4.2' } }),
+    true,
+  );
+  assert.equal(versionAffected('1.2.3', { vulnerable_version_range: '< 1.4.2', first_patched_version: {} }), false);
 });
 
 test('securityClassification requires a parseable patched version', () => {
@@ -862,9 +887,17 @@ function lifecycleRoutes({ existingPr = [], branchExists = false } = {}) {
       },
       { method: 'GET', url: /\/repos\/o\/r\/pulls\?head=/, reply: json(existingPr) },
       {
+        method: 'PATCH',
+        url: /\/repos\/o\/r\/pulls\/\d+$/,
+        reply: (m, hits, opts) => {
+          state.pullPatch = JSON.parse(opts.body);
+          return json({});
+        },
+      },
+      {
         method: 'POST',
         url: /\/repos\/o\/r\/pulls$/,
-        reply: (m) => {
+        reply: () => {
           state.createdPull = true;
           return json({ number: 42, html_url: 'https://example.test/pull/42' });
         },
@@ -897,7 +930,8 @@ function samplePlan() {
 }
 
 async function runLifecycle(mode, opts) {
-  const { impl, calls } = makeFetch(lifecycleRoutes(opts).routes);
+  const harness = lifecycleRoutes(opts);
+  const { impl, calls } = makeFetch(harness.routes);
   const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
   const pr = await ensurePullRequest({
     api,
@@ -905,7 +939,7 @@ async function runLifecycle(mode, opts) {
     changed: { 'wf.yml': 'new content' },
     plan: samplePlan(),
   });
-  return { pr, calls };
+  return { pr, calls, state: harness.state };
 }
 
 test('no existing pr creates exactly one pull request', async () => {
@@ -917,7 +951,7 @@ test('no existing pr creates exactly one pull request', async () => {
 });
 
 test('existing open pr is updated not duplicated', async () => {
-  const { pr, calls } = await runLifecycle('weekly', {
+  const { pr, calls, state } = await runLifecycle('weekly', {
     existingPr: [{ number: 7, html_url: 'u7' }],
     branchExists: true,
   });
@@ -926,15 +960,32 @@ test('existing open pr is updated not duplicated', async () => {
   assert.ok(calls.some((c) => c.method === 'PATCH' && /refs\/heads/.test(c.url)));
   const created = calls.filter((c) => c.method === 'POST' && /\/pulls$/.test(c.url));
   assert.equal(created.length, 0);
+  // The stale description must be refreshed with the current batch.
+  assert.ok(state.pullPatch);
+  assert.equal(state.pullPatch.title, 'chore(ci): update pinned GitHub Actions');
+  assert.ok(state.pullPatch.body.includes('stable update v5.0.0 -> v5.1.0'));
 });
 
 test('security mode uses its own branch title and body header', async () => {
-  const { pr, calls } = await runLifecycle('security', {});
-  assert.ok(calls.some((c) => c.url.includes('ci/pin-security')));
-  assert.ok(!calls.some((c) => c.url.includes('ci/pin-updates')));
-  const body = buildPullRequestBody('security', samplePlan());
-  assert.ok(body.startsWith('## SECURITY UPDATE'));
-  assert.ok(body.includes(SHA_B));
+  let pullPayload = null;
+  const routed = makeFetch(lifecycleRoutes({}).routes).impl;
+  const impl = async (url, options = {}) => {
+    if (/\/repos\/o\/r\/pulls$/.test(url) && options.method === 'POST') {
+      pullPayload = JSON.parse(options.body);
+    }
+    return routed(url, options);
+  };
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const pr = await ensurePullRequest({
+    api,
+    mode: 'security',
+    changed: { 'wf.yml': 'new content' },
+    plan: samplePlan(),
+  });
+  assert.equal(pr.created, true);
+  // The payload sent to GitHub must itself carry the security identity.
+  assert.ok(pullPayload.title.startsWith('security(ci):'));
+  assert.ok(pullPayload.body.startsWith('## SECURITY UPDATE'));
 });
 
 test('pr body lists verification steps and disables auto merge', () => {

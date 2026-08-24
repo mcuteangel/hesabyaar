@@ -141,7 +141,7 @@ export function parseTarget(value) {
   }
   const subpath = parts.slice(2).join('/');
   const kind =
-    subpath.startsWith('.github/workflows/') && subpath.endsWith('.yml')
+    subpath.startsWith('.github/workflows/') && /\.ya?ml$/.test(subpath)
       ? 'REUSABLE_WORKFLOW'
       : 'ACTION';
   const ownership = parts[0] === 'actions' ? 'GITHUB_OWNED' : 'THIRD_PARTY';
@@ -213,6 +213,9 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
       ...(options.headers || {}),
     };
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (options.body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
     const res = await fetchImpl(`${baseUrl}${path}`, { ...options, headers });
     if (!res.ok) {
       const err = new Error(`GitHub API ${res.status} on ${path}`);
@@ -237,6 +240,8 @@ export function createApi({ fetchImpl = globalThis.fetch, token, repo }) {
     getRepoAdvisories: () => call(`${repoPath()}/security-advisories?per_page=100`),
     getOpenPullRequest: (head) =>
       call(`${repoPath()}/pulls?head=${encodeURIComponent(`${repo.split('/')[0]}:${head}`)}&state=open&per_page=1`),
+    updatePullRequest: (number, patch) =>
+      call(`${repoPath()}/pulls/${number}`, { method: 'PATCH', body: JSON.stringify(patch) }),
     createPullRequest: (body) => call(`${repoPath()}/pulls`, { method: 'POST', body: JSON.stringify(body) }),
     getBranch: (branch) => call(`${repoPath()}/git/ref/heads/${branch}`).catch(() => null),
     getDefaultBranchSha: async function () {
@@ -484,16 +489,21 @@ export async function planUpdates(files, api, mode) {
       }
 
       const latest = stable.versions[0];
-      if (!latest || compareVersions(latest.version, currentVersion) <= 0) continue;
-
+      const hasNewer = Boolean(latest && compareVersions(latest.version, currentVersion) > 0);
       const sameMajor = pickTarget(stable.versions, { maxMajor: majorOf(currentVersion) });
-      const majorJump = compareVersions(latest.version, currentVersion) > 0 &&
-        majorOf(latest.version) !== majorOf(currentVersion);
+      const majorJump = hasNewer && majorOf(latest.version) !== majorOf(currentVersion);
 
-      if (sameMajor && compareVersions(sameMajor.version, currentVersion) > 0) {
+      if (hasNewer && sameMajor && compareVersions(sameMajor.version, currentVersion) > 0) {
         await pushCandidate(plans.updates, file, occ, facts, sameMajor, `stable update v${currentVersion} -> ${sameMajor.tag}`);
       } else if (majorJump) {
         plans.reportOnly.push(row(file, occ, `major update available: v${currentVersion} -> ${latest.tag} (not applied; needs human decision)`));
+      } else if (!hasNewer && occ.shape === 'STABLE_TAG') {
+        // The reference already names the newest release, but a mutable tag
+        // is never compliant. Pin that exact release immutably.
+        const self = stable.versions.find((vItem) => compareVersions(vItem.version, currentVersion) === 0);
+        if (self) {
+          await pushCandidate(plans.updates, file, occ, facts, self, `pin mutable tag to immutable ${self.tag}`);
+        }
       }
     }
   }
@@ -516,6 +526,14 @@ function clauseHolds(version, op, target) {
   }
 }
 
+// GitHub normally returns first_patched_version as a string, but some
+// responses use an { identifier } object. Accept both shapes.
+function patchedVersionOf(vuln) {
+  const raw = vuln ? vuln.first_patched_version : null;
+  if (raw == null) return '';
+  return typeof raw === 'string' ? raw : String(raw.identifier || '');
+}
+
 // True only when `version` satisfies every clause of the vulnerability range
 // and a parseable first patched version exists.
 export function versionAffected(version, vuln) {
@@ -530,7 +548,7 @@ export function versionAffected(version, vuln) {
     });
   if (clauses.length === 0 || clauses.some((x) => !x)) return false;
   if (!clauses.every((cl) => clauseHolds(version, cl.op, cl.target))) return false;
-  return Boolean(parseVersion(String(vuln.first_patched_version || '')));
+  return Boolean(parseVersion(patchedVersionOf(vuln)));
 }
 
 export function securityClassification(advisories, currentVersion) {
@@ -542,7 +560,7 @@ export function securityClassification(advisories, currentVersion) {
       unproven.push(adv);
       continue;
     }
-    const patches = vulns.map((v) => String(v.first_patched_version));
+    const patches = vulns.map((v) => patchedVersionOf(v));
     // Every matched range must name a parseable patch version. Otherwise the
     // fix target is unknown and the classification must stay NEEDS_HUMAN.
     const allPatched = patches.every((p) => parseVersion(p));
@@ -839,6 +857,8 @@ export async function ensurePullRequest({ api, mode, changed, plan }) {
 
   const open = await api.getOpenPullRequest(branch);
   if (open && open.length > 0) {
+    // The refreshed branch must not leave a stale description behind.
+    await api.updatePullRequest(open[0].number, { title, body });
     return { created: false, number: open[0].number, url: open[0].html_url };
   }
   const pr = await api.createPullRequest({

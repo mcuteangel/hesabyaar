@@ -113,7 +113,12 @@ Human review required:
 
 The updater edits the files that define CI itself. A bad update could
 silently weaken every future review. Every PR therefore needs an explicit
-human approval. The PRs run normal CI first.
+human approval.
+
+GitHub suppresses workflow runs that the built-in GITHUB_TOKEN triggers.
+The maintenance pull requests may therefore not start other CI
+automatically. A repository administrator can configure a dedicated PAT or
+GitHub App token to change this.
 
 ## Suspicious or moving tag
 
