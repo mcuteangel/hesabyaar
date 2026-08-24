@@ -78,6 +78,23 @@ function rangesIntersect(a, b) {
   return a.path === b.path && Math.max(a.start, b.start) <= Math.min(a.end, b.end);
 }
 
+// Normalize one OCR finding into a usable range. OCR findings carry a
+// stricter contract than GitHub review comments: the path must be a
+// non-empty string and BOTH line bounds are required positive safe
+// integers; anything else yields null instead of degrading to a partial or
+// inflated range. Single source of truth shared by classifyThreads and
+// isValidResultPayload so their rules cannot drift.
+function toFindingRange(f) {
+  return f &&
+    typeof f === "object" &&
+    typeof f.path === "string" &&
+    f.path.length > 0 &&
+    isValidFindingLine(f.start_line) &&
+    isValidFindingLine(f.end_line)
+    ? toRange(f.path, f.start_line, f.end_line)
+    : null;
+}
+
 // Classify PR review comments against the current OCR findings.
 //
 // currentFindings: [{ path, start_line, end_line }] from the latest OCR run.
@@ -94,13 +111,7 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
     // Findings must carry BOTH bounds as valid lines; anything else (partial
     // float, negative, huge) is dropped outright instead of being truncated
     // into a phantom range that could force a KEEP.
-    const range =
-      f &&
-      typeof f === "object" &&
-      isValidFindingLine(f.start_line) &&
-      isValidFindingLine(f.end_line)
-        ? toRange(f.path, f.start_line, f.end_line)
-        : null;
+    const range = toFindingRange(f);
     if (range) ranges.push(range);
   }
 
@@ -137,20 +148,12 @@ function classifyThreads({ reviewComments, currentFindings, resultAvailable }) {
 
 // Strict schema check for /tmp/ocr-result.json before it may count as an
 // authoritative finding set: { comments: [{ path, start_line, end_line }] }.
-// Both line fields must be positive safe integers - a partial float, a
-// negative, or an out-of-range value must poison the whole payload instead of
+// Every entry must normalize through toFindingRange - a partial float, a
+// negative, or an out-of-range value poisons the whole payload instead of
 // degrading to a truncated or inflated range.
 function isValidResultPayload(payload) {
   if (!payload || typeof payload !== "object" || !Array.isArray(payload.comments)) return false;
-  return payload.comments.every(
-    (f) =>
-      f &&
-      typeof f === "object" &&
-      typeof f.path === "string" &&
-      f.path.length > 0 &&
-      isValidFindingLine(f.start_line) &&
-      isValidFindingLine(f.end_line)
-  );
+  return payload.comments.every((f) => toFindingRange(f) !== null);
 }
 
 module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload };
