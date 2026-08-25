@@ -10,11 +10,16 @@
 // Staleness rule (fail-safe): upstream exposes NO stable cross-run finding
 // identity (per-comment IDs are random per run), so "absent from the latest
 // LLM output" can never be distinguished from an LLM miss. Absence therefore
-// yields UNCERTAIN with candidate: true - a RESOLVE-CANDIDATE for human/dry-run
-// review - and NEVER auto-resolves. A current finding at the same location is
-// KEEP, so two different findings sharing one location cannot cause a wrong
-// decision either. Auto-resolution stays deferred until upstream provides a
-// stable cross-run identity.
+// yields UNCERTAIN with candidate: true - a RESOLVE-CANDIDATE - and NEVER
+// auto-resolves by itself.
+//
+// Issue #206 phase 3 adds ONE evidence path on top: when a candidate's code
+// location provably changed after the finding's original_commit_id (file
+// deleted/renamed, or a diff hunk editing lines inside the original range),
+// the workflow may resolve the thread and cite the resolving commit. The
+// pure helpers below (toOriginalRange, parseChangedNewLines,
+// diffTouchesLocation) keep that decision testable; absence alone still
+// never resolves.
 "use strict";
 
 // Anchored to the HTML comment wrapper so user content cannot fake it
@@ -156,4 +161,86 @@ function isValidResultPayload(payload) {
   return payload.comments.every((f) => toFindingRange(f) !== null);
 }
 
-module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload };
+// ---- Phase 3: evidence-based staleness detection (pure, no I/O) ----
+
+// Normalize a REST review comment into the location where the finding was
+// ORIGINALLY posted, anchored to its own original_commit_id. GitHub anchors
+// original_line/original_start_line to that commit's RIGHT side, so the same
+// validation contract as toLineRange applies, plus: a full 40-hex
+// original_commit_id is mandatory (it is the diff base we will compare
+// against). Returns null for anything unusable - callers must treat null as
+// "cannot prove staleness" and skip resolution. Deliberately does NOT fall
+// back to current-position line fields: those are anchored to a different
+// commit than the diff being compared, which would fabricate evidence.
+function toOriginalRange(comment) {
+  if (!comment || comment.side !== "RIGHT") return null;
+  const sha = comment.original_commit_id;
+  if (typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) return null;
+  const s = presentLine(comment.original_start_line);
+  const e = presentLine(comment.original_line);
+  if (s === false || e === false) return null;
+  if (s === null && e === null) return null;
+  const range = toRange(comment.path, s, e);
+  if (!range) return null;
+  return { sha, ...range };
+}
+
+// Extract the set of NEW-side line numbers actually modified by one unified
+// diff patch. Only '+' lines count as edits: context lines are unchanged and
+// '-' lines live on the old side. Handles multiple hunks per patch and the
+// '\\ No newline at end of file' marker. Non-string input (truncated diff,
+// binary file) yields [] - callers must interpret that as "no proof".
+function parseChangedNewLines(patch) {
+  const changed = [];
+  if (typeof patch !== "string") return changed;
+  let newLine = null;
+  for (const raw of patch.split("\n")) {
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(raw);
+    if (hunk) {
+      newLine = parseInt(hunk[1], 10);
+      continue;
+    }
+    if (newLine === null) continue;
+    if (raw.startsWith("+")) {
+      changed.push(newLine);
+      newLine += 1;
+    } else if (raw.startsWith("-")) {
+      // Old-side only: does not move the new-side cursor.
+    } else if (raw.startsWith("\\")) {
+      // Marker line, not content.
+    } else {
+      newLine += 1; // context line moves both cursors
+    }
+  }
+  return changed;
+}
+
+// Decide whether a REST compareCommits `files` array PROVES that the reviewed
+// location changed between the finding's anchor commit and the comparison
+// head. Returns { changed, reason }. Fail-safe: every ambiguous case (file
+// absent from the diff = untouched, truncated/missing patch, malformed input)
+// yields changed=false so a thread is never resolved without hard evidence.
+function diffTouchesLocation(files, loc) {
+  if (!Array.isArray(files) || !loc || typeof loc.path !== "string") {
+    return { changed: false, reason: "no usable diff data; refusing to infer" };
+  }
+  const file = files.find((f) => f && (f.filename === loc.path || f.previous_filename === loc.path));
+  if (!file) {
+    return { changed: false, reason: `${loc.path} untouched in ${loc.sha.slice(0, 12)}...HEAD diff` };
+  }
+  if (file.status === "removed") {
+    return { changed: true, reason: `${loc.path} was deleted after ${loc.sha.slice(0, 12)}` };
+  }
+  if (file.status === "renamed") {
+    return { changed: true, reason: `${loc.path} was renamed to ${file.filename} after ${loc.sha.slice(0, 12)}` };
+  }
+  if (typeof file.patch !== "string") {
+    return { changed: false, reason: `${loc.path} modified but its patch is unavailable/truncated; refusing to infer` };
+  }
+  const hit = parseChangedNewLines(file.patch).some((n) => n >= loc.start && n <= loc.end);
+  return hit
+    ? { changed: true, reason: `lines ${loc.start}-${loc.end} of ${loc.path} edited after ${loc.sha.slice(0, 12)}` }
+    : { changed: false, reason: `edits in ${loc.path} do not overlap lines ${loc.start}-${loc.end}` };
+}
+
+module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseChangedNewLines, diffTouchesLocation };

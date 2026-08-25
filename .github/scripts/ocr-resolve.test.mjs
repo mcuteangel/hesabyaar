@@ -12,6 +12,9 @@ const {
   rangesIntersect,
   classifyThreads,
   isValidResultPayload,
+  toOriginalRange,
+  parseChangedNewLines,
+  diffTouchesLocation,
 } = require_("./ocr-resolve.js");
 
 const OCR_BODY = (id) => `<!-- ${id} -->\n\nsome finding text`;
@@ -322,6 +325,149 @@ test("negative or huge line bounds are dropped -> no inflated KEEP range", () =>
   );
   assert.deepEqual(d.map((x) => x.decision), ["UNCERTAIN", "UNCERTAIN"]);
   for (const x of d) assert.equal(x.candidate, true);
+});
+
+// ---- phase 3: evidence-based staleness detection ----
+
+// ---- toOriginalRange ----
+
+test("toOriginalRange anchors to original_commit_id with original lines", () => {
+  assert.deepEqual(
+    toOriginalRange({
+      side: "RIGHT",
+      path: "src/A.kt",
+      line: 99,
+      start_line: 99,
+      original_line: 12,
+      original_start_line: 10,
+      original_commit_id: "a".repeat(40),
+    }),
+    { sha: "a".repeat(40), path: "src/A.kt", start: 10, end: 12 }
+  );
+});
+
+test("toOriginalRange supports single-line comments without original_start_line", () => {
+  assert.deepEqual(
+    toOriginalRange({
+      side: "RIGHT",
+      path: "src/A.kt",
+      original_line: 7,
+      original_commit_id: "b".repeat(40),
+    }),
+    { sha: "b".repeat(40), path: "src/A.kt", start: 7, end: 7 }
+  );
+});
+
+test("toOriginalRange never falls back to current-position lines", () => {
+  // Current lines exist but originals are absent: anchoring to the wrong
+  // commit would fabricate evidence, so this must be null.
+  assert.equal(
+    toOriginalRange({ side: "RIGHT", path: "p", line: 5, start_line: 5, original_commit_id: "c".repeat(40) }),
+    null
+  );
+});
+
+test("toOriginalRange rejects bad side, bad SHA, and malformed bounds", () => {
+  assert.equal(toOriginalRange(null), null);
+  assert.equal(toOriginalRange({ side: "LEFT", path: "p", original_line: 1, original_commit_id: "d".repeat(40) }), null);
+  assert.equal(toOriginalRange({ side: "right", path: "p", original_line: 1, original_commit_id: "d".repeat(40) }), null);
+  assert.equal(toOriginalRange({ side: "RIGHT", path: "p", original_line: 1, original_commit_id: "short" }), null);
+  assert.equal(toOriginalRange({ side: "RIGHT", path: "p", original_line: 1, original_commit_id: undefined }), null);
+  assert.equal(
+    toOriginalRange({ side: "RIGHT", path: "p", original_line: 0, original_commit_id: "e".repeat(40) }),
+    null
+  );
+  assert.equal(
+    toOriginalRange({ side: "RIGHT", path: "p", original_line: 1.5, original_commit_id: "e".repeat(40) }),
+    null
+  );
+  assert.equal(
+    toOriginalRange({ side: "RIGHT", path: "", original_line: 1, original_commit_id: "e".repeat(40) }),
+    null
+  );
+});
+
+// ---- parseChangedNewLines ----
+
+const PATCH = [
+  "@@ -10,7 +10,9 @@ fn old() {",
+  " context",
+  "+added at 11",
+  " still context",
+  "-removed only from old side",
+  "+added at 13",
+  "@@ -40,3 +42,3 @@ next hunk",
+  "-old 42",
+  "+new 42",
+  "\\ No newline at end of file",
+].join("\n");
+
+test("parseChangedNewLines collects only '+' lines across multiple hunks", () => {
+  assert.deepEqual(parseChangedNewLines(PATCH), [11, 13, 42]);
+});
+
+test("parseChangedNewLines ignores deletions and counts context movement", () => {
+  // Two deletions do not move the new-side cursor; the context line does,
+  // so '+kept' lands on new-side line 2.
+  const p = ["@@ -1,4 +1,2 @@", "-gone", "-also gone", " ctx", "+kept"].join("\n");
+  assert.deepEqual(parseChangedNewLines(p), [2]);
+});
+
+test("parseChangedNewLines fail-safe on non-string input and patchless bodies", () => {
+  assert.deepEqual(parseChangedNewLines(undefined), []);
+  assert.deepEqual(parseChangedNewLines(null), []);
+  assert.deepEqual(parseChangedNewLines("no hunks here"), []);
+});
+
+// ---- diffTouchesLocation ----
+
+const LOC = (over) => ({ sha: "f".repeat(40), path: "src/A.kt", start: 10, end: 12, ...over });
+
+test("diffTouchesLocation: deleted file is hard evidence", () => {
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], LOC());
+  assert.equal(v.changed, true);
+  assert.match(v.reason, /deleted/);
+});
+
+test("diffTouchesLocation: renamed file is hard evidence", () => {
+  const v = diffTouchesLocation(
+    [{ filename: "src/B.kt", previous_filename: "src/A.kt", status: "renamed" }],
+    LOC()
+  );
+  assert.equal(v.changed, true);
+  assert.match(v.reason, /renamed/);
+});
+
+test("diffTouchesLocation: edited hunk inside the range is evidence", () => {
+  const patch = "@@ -8,7 +8,7 @@\n ctx\n ctx\n+edit at 10\n ctx\n ctx\n ctx\n ctx";
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
+  assert.equal(v.changed, true);
+  assert.match(v.reason, /lines 10-12/);
+});
+
+test("diffTouchesLocation: edits outside the range do NOT prove staleness", () => {
+  const patch = "@@ -30,3 +30,4 @@\n ctx\n+far away edit\n ctx";
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
+  assert.equal(v.changed, false);
+  assert.match(v.reason, /do not overlap/);
+});
+
+test("diffTouchesLocation: truncated patch refuses to infer (fail-safe)", () => {
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch: null }], LOC());
+  assert.equal(v.changed, false);
+  assert.match(v.reason, /refusing to infer/);
+});
+
+test("diffTouchesLocation: file untouched in diff is not stale", () => {
+  const v = diffTouchesLocation([{ filename: "src/Other.kt", status: "modified", patch: "@@ -1,1 +1,1 @@\n-x\n+y" }], LOC());
+  assert.equal(v.changed, false);
+  assert.match(v.reason, /untouched/);
+});
+
+test("diffTouchesLocation: no files array or bad location fails safe", () => {
+  assert.equal(diffTouchesLocation(undefined, LOC()).changed, false);
+  assert.equal(diffTouchesLocation([], LOC()).changed, false);
+  assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], null).changed, false);
 });
 
 test("isValidResultPayload rejects malformed payloads", () => {
