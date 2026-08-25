@@ -59,7 +59,9 @@ permissions:
 jobs:
   code-review:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60 (was 30): reasoning mode extends per-request latency; a handful of
+    # slow LLM requests must not kill the run before comments are posted.
+    timeout-minutes: 60
     if: |
       github.event_name == 'pull_request_target'
       || (
@@ -94,6 +96,49 @@ jobs:
             core.setOutput('base_sha', pullRequest.base.sha);
             core.setOutput('head_sha', pullRequest.head.sha);
 
+      # SECURITY: the rule file is prompt INPUT for the reviewer, and the
+      # OpenCodeReview action performs its own un-pinned checkout of the PR
+      # merge ref before it runs. A relative rule path would therefore be read
+      # from the PR-controlled workspace, letting a fork rewrite its own review
+      # rules (suppress findings, inject instructions). Fetch the rules from
+      # the IMMUTABLE base SHA instead - the same trust anchor the audit step
+      # below relies on. Fail-open: if the base tree predates the file, the
+      # review proceeds with built-in defaults rather than failing.
+      - name: Fetch trusted review rules
+        id: trusted-rules
+        env:
+          BASE_SHA: ${{ steps.pr-context.outputs.base_sha || github.event.pull_request.base.sha }}
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const sha = process.env.BASE_SHA;
+            if (!/^[0-9a-f]{40}$/.test(sha)) {
+              core.setFailed('Trusted base SHA unavailable; refusing to load rules.');
+              return;
+            }
+            try {
+              const { data } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: '.github/ocr-rules.json',
+                ref: sha
+              });
+              // Guard against directory/symlink payloads; only a regular file
+              // with inline content is acceptable.
+              if (data.type !== 'file' || typeof data.content !== 'string') {
+                throw new Error(`unexpected getContent payload type: ${data.type}`);
+              }
+              require('fs').writeFileSync('/tmp/ocr-rules-trusted.json', Buffer.from(data.content, 'base64'));
+              core.setOutput('rule_path', '/tmp/ocr-rules-trusted.json');
+            } catch (e) {
+              if (e.status === 404) {
+                core.warning('Rules file not present at base SHA; proceeding without custom rules.');
+                core.setOutput('rule_path', '');
+                return;
+              }
+              throw e;
+            }
+
       - name: Run OpenCodeReview
         # v1.9.9 release commit (immutable pin; tag object c95d3907 dereferences
         # to this commit).
@@ -119,7 +164,10 @@ jobs:
           # findings require stated confidence. The catch-all entry also carries
           # project memory (issue #206 phase 4): intentional version bumps,
           # lockfile updates, Persian-first strings.
-          rule: .github/ocr-rules.json
+          # Resolved from the trusted base SHA by the step above - never from
+          # the action's PR-controlled checkout. Empty path => no --rule flag
+          # (the action skips unset values), i.e. built-in defaults apply.
+          rule: ${{ steps.trusted-rules.outputs.rule_path }}
           # Noise reduction (issue #206 phase 1): weak findings move to the PR
           # summary instead of inline comments. Fail-open upstream - nothing is
           # dropped. Severity 'low' routes only low-severity findings;
