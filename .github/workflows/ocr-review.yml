@@ -111,41 +111,76 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
-            const sha = process.env.BASE_SHA;
-            if (!/^[0-9a-f]{40}$/.test(sha)) {
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const RULES_PATH = '.github/ocr-rules.json';
+
+            // Persist the validated rules JSON to a private per-run file and
+            // export its path. Returns true on success, false when `ref`
+            // simply has no such file (404); any other error propagates.
+            async function loadRulesFrom(ref, refLabel) {
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  owner: owner,
+                  repo: repo,
+                  path: RULES_PATH,
+                  ref: ref
+                });
+                // Guard against directory/symlink payloads; only a regular
+                // file with inline content is acceptable.
+                if (data.type !== 'file' || typeof data.content !== 'string') {
+                  throw new Error(`unexpected getContent payload type: ${data.type}`);
+                }
+                // Validate before persisting: malformed rules JSON would
+                // otherwise surface as an opaque error deep inside the action.
+                const decoded = Buffer.from(data.content, 'base64').toString('utf8');
+                JSON.parse(decoded);
+                // Per-run private directory (mkdtemp) + owner-only file mode:
+                // never follow a pre-existing symlink at a predictable /tmp path.
+                const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
+                const ruleFile = require('path').join(dir, 'rules.json');
+                require('fs').writeFileSync(ruleFile, decoded, { mode: 0o600 });
+                core.setOutput('rule_path', ruleFile);
+                core.notice(`Review rules loaded from ${refLabel} (${ref.slice(0, 12)}).`);
+                return true;
+              } catch (e) {
+                if (e.status === 404) return false;
+                throw e;
+              }
+            }
+
+            // Primary source: the IMMUTABLE base SHA - a PR must never review
+            // itself with rules it ships in the same diff.
+            const baseSha = process.env.BASE_SHA;
+            if (!/^[0-9a-f]{40}$/.test(baseSha)) {
               core.setFailed('Trusted base SHA unavailable; refusing to load rules.');
               return;
             }
-            try {
-              const { data } = await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: '.github/ocr-rules.json',
-                ref: sha
-              });
-              // Guard against directory/symlink payloads; only a regular file
-              // with inline content is acceptable.
-              if (data.type !== 'file' || typeof data.content !== 'string') {
-                throw new Error(`unexpected getContent payload type: ${data.type}`);
-              }
-              // Validate before persisting: malformed rules JSON at base would
-              // otherwise surface as an opaque error deep inside the action.
-              const decoded = Buffer.from(data.content, 'base64').toString('utf8');
-              JSON.parse(decoded);
-              // Per-run private directory (mkdtemp) + owner-only file mode:
-              // never follow a pre-existing symlink at a predictable /tmp path.
-              const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
-              const ruleFile = require('path').join(dir, 'rules.json');
-              require('fs').writeFileSync(ruleFile, decoded, { mode: 0o600 });
-              core.setOutput('rule_path', ruleFile);
-            } catch (e) {
-              if (e.status === 404) {
-                core.warning('Rules file not present at base SHA; proceeding without custom rules.');
-                core.setOutput('rule_path', '');
-                return;
-              }
-              throw e;
+            if (await loadRulesFrom(baseSha, 'base SHA')) return;
+
+            // Fallback: branches that predate the rules file (long-lived PRs,
+            // Dependabot bumps opened before it landed) would otherwise run
+            // rule-less forever. Fall back to the default branch's CURRENT
+            // HEAD, resolved to an immutable SHA before use. Same trust
+            // anchor (owner-controlled repo content), just a moving one; it
+            // can only differ from a future base by commits already merged.
+            core.warning(`Rules file not present at base SHA (${baseSha.slice(0, 12)}); falling back to default branch HEAD.`);
+            const { data: repoInfo } = await github.rest.repos.get({ owner: owner, repo: repo });
+            const { data: headRef } = await github.rest.repos.getBranch({
+              owner: owner,
+              repo: repo,
+              branch: repoInfo.default_branch
+            });
+            const headSha = headRef.commit.sha;
+            if (!/^[0-9a-f]{40}$/.test(headSha)) {
+              core.setFailed(`Could not resolve default branch '${repoInfo.default_branch}' to a SHA; refusing to load rules.`);
+              return;
             }
+            if (await loadRulesFrom(headSha, `default branch '${repoInfo.default_branch}' HEAD`)) return;
+
+            // Neither tree carries the file (e.g. fresh fork without it).
+            core.warning('Rules file not found on base or default branch; proceeding without custom rules.');
+            core.setOutput('rule_path', '');
 
       - name: Run OpenCodeReview
         # v1.9.9 release commit (immutable pin; tag object c95d3907 dereferences
@@ -172,8 +207,9 @@ jobs:
           # findings require stated confidence. The catch-all entry also carries
           # project memory (issue #206 phase 4): intentional version bumps,
           # lockfile updates, Persian-first strings.
-          # Resolved from the trusted base SHA by the step above - never from
-          # the action's PR-controlled checkout. Empty path => no --rule flag:
+          # Resolved from the trusted base SHA by the step above (default
+          # branch HEAD as fallback for branches predating the rules file) -
+          # never from the action's PR-controlled checkout. Empty path => no --rule flag:
           # the pinned action.yml guards with [ -n "$OCR_RULE" ] (lines
           # 276+282 of its run step), which skips set-but-empty values too,
           # so built-in defaults apply.
