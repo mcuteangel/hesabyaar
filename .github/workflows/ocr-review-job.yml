@@ -470,6 +470,9 @@ jobs:
             // headSha is constant for the whole loop; candidates sharing an
             // anchor commit reuse one comparison.
             const compareCache = new Map();
+            // Same head per run: candidates reviewing the same path reuse one
+            // listCommits result instead of issuing a request per candidate.
+            const commitListCache = new Map();
 
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
@@ -530,13 +533,19 @@ jobs:
               // back to the PR head SHA already held in `headSha`.
               let resolvingCommit = headSha;
               try {
-                const { data: fileCommits } = await github.rest.repos.listCommits({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  sha: headSha,
-                  path: loc.path,
-                  per_page: 30,
-                });
+                const listKey = `${headSha}::${loc.path}`;
+                let fileCommits = commitListCache.get(listKey);
+                if (!fileCommits) {
+                  const { data } = await github.rest.repos.listCommits({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    sha: headSha,
+                    path: loc.path,
+                    per_page: 30,
+                  });
+                  fileCommits = data;
+                  commitListCache.set(listKey, fileCommits);
+                }
                 const picked = pickResolvingCommit(fileCommits.map((c) => c.sha), loc.sha);
                 if (picked) resolvingCommit = picked;
               } catch (e) {
