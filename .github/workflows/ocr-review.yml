@@ -166,7 +166,8 @@ jobs:
           # lockfile updates, Persian-first strings.
           # Resolved from the trusted base SHA by the step above - never from
           # the action's PR-controlled checkout. Empty path => no --rule flag
-          # (the action skips unset values), i.e. built-in defaults apply.
+          # (upstream guards with [ -n "$OCR_RULE" ], which skips set-but-empty
+          # values too), i.e. built-in defaults apply.
           rule: ${{ steps.trusted-rules.outputs.rule_path }}
           # Noise reduction (issue #206 phase 1): weak findings move to the PR
           # summary instead of inline comments. Fail-open upstream - nothing is
