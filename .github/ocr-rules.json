@@ -1,0 +1,29 @@
+{
+  "rules": [
+    {
+      "path": "**/*.rs",
+      "rule": "Report ONLY genuine bugs, security vulnerabilities, regressions, and correctness issues in this Rust code (part of hesabyaar-core, financial calculations). Priorities: panics reachable from user input (unwrap/expect/slice indexing/arithmetic overflow), incorrect money arithmetic (rounding, Toman/Rial conversion errors, integer overflow on amounts), unsafe blocks, race conditions. Do NOT report: style, naming, formatting, missing docs, idiomatic-rewrite suggestions, or speculative performance claims without measurement. Report a finding only when you can explain the concrete failure scenario; state your confidence.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.kt",
+      "rule": "Report ONLY genuine bugs, security vulnerabilities, regressions, and correctness issues in this Kotlin Android code (hesabyaar, Persian-first personal finance app). Priorities: NPE/crash paths reachable from user input, coroutine misuse (leaked jobs, wrong dispatcher, race on shared state), resource leaks (cursor/stream/database), incorrect financial calculations or Jalali calendar date math, broken intent/pendingIntent handling. Do NOT report: style, naming, formatting, compose-idiom preferences, missing KDoc, or minor architecture opinions. Report a finding only when you can explain the concrete failure scenario; state your confidence.",
+      "merge_system_rule": true
+    },
+    {
+      "path": ".github/workflows/**",
+      "rule": "This is a GitHub Actions workflow file. Report ONLY real problems: injection of untrusted input into script contexts, privilege escalation, credential exposure, jobs that can be hijacked by a fork PR, logic errors that break the pipeline, or actions whose pin no longer matches their tag claim. Do NOT report: style preferences, YAML formatting, alternative-action suggestions, or theoretical hardening ideas with no exploit path. Report a finding only when you can describe the concrete attack or failure; state your confidence.",
+      "merge_system_rule": true
+    },
+    {
+      "path": ".github/scripts/**",
+      "rule": "Repository automation scripts (JS/sh) executed inside CI. Report ONLY genuine bugs and security issues: prototype pollution / command injection from event-payload data, fail-open behavior where fail-closed is documented, schema-validation gaps that let malformed data drive decisions, logic inversion. Do NOT report: style, variable naming, missing JSDoc, or preference for other libraries. Report a finding only with a concrete failure scenario; state your confidence.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**",
+      "rule": "Project context for this repository (hesabyaar): (1) Version bumps in Cargo.toml / gradle files are INTENTIONAL release triggers driven by a version-driven release pipeline - never report them as suspicious. (2) Lockfile updates under gradle/ and Cargo.lock are automated Dependabot outputs - intentional. (3) User-facing strings are expected in Persian (Farsi); do not report mixed Persian/English UI strings as an inconsistency. General policy: report ONLY bugs, security issues, and regressions with HIGH confidence and a concrete failure scenario. Skip style, documentation nits, naming, and anything ktlint/detekt/clippy would flag. Pure refactoring preference is not a bug; report a maintainability concern only when it materially raises the risk of future defects (such findings are delivered in the PR summary rather than inline). If you are below ~80% confident a finding is a real issue, omit it.",
+      "merge_system_rule": true
+    }
+  ]
+}
