@@ -131,25 +131,40 @@ jobs:
               }
               // Validate before persisting: malformed rules JSON would
               // otherwise surface as an opaque error deep inside the action.
-              const parsed = JSON.parse(rulesRaw);
+              let parsed;
+              try {
+                parsed = JSON.parse(rulesRaw);
+              } catch (e) {
+                throw new Error(`Invalid rules JSON from ${refLabel} (${ref.slice(0, 12)}): ${e.message}`);
+              }
               // Project memory is optional: a branch that predates ocr-memory.md
               // simply reviews without it (fail-open; the rules still apply).
+              // A non-file payload (e.g. a directory/symlink at that path) is
+              // treated identically to a missing file - the step must not abort
+              // on an incidental memory-file problem.
               let memory = '';
               try {
                 memory = await getTrustedFile(ref, MEMORY_PATH);
               } catch (e) {
-                if (e.status !== 404) throw e;
-                core.warning(`Project memory file not present at ${refLabel} (${ref.slice(0, 12)}); reviewing without it.`);
+                if (e.status === 404 || /unexpected getContent payload type/.test(e.message)) {
+                  core.warning(`Project memory file not present at ${refLabel} (${ref.slice(0, 12)}); reviewing without it.`);
+                } else {
+                  throw e;
+                }
               }
               const injected = (Array.isArray(parsed.rules) ? parsed.rules : []).map((r) => ({
                 ...r,
                 rule: memory ? `${r.rule}\n\n${memory}` : r.rule,
               }));
-              // Per-run private directory (mkdtemp) + owner-only file mode:
-              // never follow a pre-existing symlink at a predictable /tmp path.
+              // Preserve the full rules document (not just the rules array) so
+              // any other top-level keys are retained; only the rules entries
+              // get the project memory appended. Per-run private directory
+              // (mkdtemp) + owner-only file mode: never follow a pre-existing
+              // symlink at a predictable /tmp path.
+              parsed.rules = injected;
               const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
               const ruleFile = require('path').join(dir, 'rules.json');
-              require('fs').writeFileSync(ruleFile, JSON.stringify({ rules: injected }, null, 2), { mode: 0o600 });
+              require('fs').writeFileSync(ruleFile, JSON.stringify(parsed, null, 2), { mode: 0o600 });
               core.setOutput('rule_path', ruleFile);
               core.notice(`Review rules${memory ? ' + project memory' : ''} loaded from ${refLabel} (${ref.slice(0, 12)}).`);
               return true;
@@ -236,14 +251,21 @@ jobs:
           route_categories: 'style,documentation,maintainability'
           # Explicit review output language (action default is already English).
           language: 'English'
-          # Non-destructive inline dedupe (issue #206 phase 4): incremental
-          # mode makes the posting step skip inline comments whose (path, line
-          # range) overlaps an existing bot review comment, so repeated runs on
-          # unchanged code never re-post the same finding. NOTE: this flag is
-          # passed ONLY to the post-comment helper, NOT to `ocr review` - the
-          # action still writes the FULL finding set to /tmp/ocr-result.json on
-          # every run, so the resolver below keeps reading a complete set and
-          # its full-set assumption is preserved.
+          # Non-destructive inline dedupe (issue #206 phase 4). Verified
+          # against the pinned action (alibaba/open-code-review@4b6874bd…,
+          # action.yml): the "Run OpenCodeReview" step builds
+          #   ARGS=(--from … --to … --audience agent --format json)
+          # and appends --rule only when OCR_RULE is non-empty - it NEVER adds
+          # --incremental to `ocr review`. The `incremental` input is forwarded
+          # ONLY to the "Post review comments" step
+          # (incremental: ${{ inputs.incremental == 'true' }}) which calls
+          # runPostReviewComments; that helper skips inline comments whose
+          # (path, line range) overlaps an existing bot review comment.
+          # Consequently `ocr review > /tmp/ocr-result.json` always contains
+          # the FULL finding set, so the resolver below keeps reading a complete
+          # set and its full-set assumption is preserved. Repeated runs on
+          # unchanged code therefore never re-post the same finding and nothing
+          # is dropped.
           incremental: 'true'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
