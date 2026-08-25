@@ -1,0 +1,20 @@
+.github/workflows/release.yml
+  s_e57a03969b1103::t_0d400ac4bfd4f2 132-142
+  s_e57a03969b1103::t_363d1b51b2f8c5 60-63,65-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b4c0e0aaabeda2e3489d98cdb921a4ff58171b67",
+  "prompts": {},
+  "sessions": {
+    "s_e57a03969b1103": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc8a2a5d9ffeojSDrjwLOXyEAe",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
