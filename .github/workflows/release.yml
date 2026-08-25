@@ -487,8 +487,12 @@ jobs:
           if [ "$remote_branch_exists" -gt 0 ]; then
             # Automation-owned branch. An attached open PR gets refreshed with
             # the freshly computed release state; a stale branch with no PR is
-            # replaced the same way. --force-with-lease rejects the push if
-            # the remote moved since the clone.
+            # replaced the same way.
+            # Refresh the remote-tracking ref before pushing: the lease must
+            # be based on the branch's CURRENT remote tip. Relying on the
+            # initial checkout's refs is fragile, and without the ref at all
+            # --force-with-lease refuses every push.
+            git fetch origin "$BRANCH"
             git push --force-with-lease origin "$BRANCH"
           else
             git push origin "$BRANCH"
