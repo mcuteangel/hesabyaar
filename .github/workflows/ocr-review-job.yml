@@ -152,6 +152,9 @@ jobs:
                   throw e;
                 }
               }
+              if (!Array.isArray(parsed.rules)) {
+                core.warning(`Rules file from ${refLabel} (${ref.slice(0, 12)}) has no 'rules' array; reviewing with empty rules.`);
+              }
               const injected = (Array.isArray(parsed.rules) ? parsed.rules : []).map((r) => ({
                 ...r,
                 rule: memory ? `${r.rule}\n\n${memory}` : r.rule,
@@ -262,10 +265,13 @@ jobs:
           # runPostReviewComments; that helper skips inline comments whose
           # (path, line range) overlaps an existing bot review comment.
           # Consequently `ocr review > /tmp/ocr-result.json` always contains
-          # the FULL finding set, so the resolver below keeps reading a complete
-          # set and its full-set assumption is preserved. Repeated runs on
-          # unchanged code therefore never re-post the same finding and nothing
-          # is dropped.
+          # the FULL finding set. This is COUPLED to the resolver's full-set
+          # contract (see 'Audit stale OpenCodeReview threads' below, which
+          # reads /tmp/ocr-result.json to distinguish KEEP from RESOLVE). If a
+          # future repin ever forwards `incremental` to `ocr review`, the
+          # resolver would mis-resolve threads - re-verify action.yml then.
+          # Repeated runs on unchanged code never re-post the same finding and
+          # nothing is dropped.
           incremental: 'true'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
