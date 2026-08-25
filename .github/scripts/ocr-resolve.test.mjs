@@ -427,24 +427,24 @@ test("diffTouchesLocation: deleted file is hard evidence", () => {
   assert.match(v.reason, /deleted/);
 });
 
-test("diffTouchesLocation: renamed AWAY from the path is hard evidence", () => {
+test("diffTouchesLocation: rename with content edit inside the range IS evidence", () => {
+  const v = diffTouchesLocation(
+    [{ filename: "src/B.kt", previous_filename: "src/A.kt", status: "renamed", patch: "@@ -10,3 +10,3 @@\n-was 10\n+now 10\n ctx(11)\n ctx(12)" }],
+    LOC()
+  );
+  assert.equal(v.changed, true);
+  assert.match(v.reason, /edited\/deleted/);
+});
+
+test("diffTouchesLocation: pure path-only rename is NOT evidence", () => {
+  // Identical content at a new path - the finding still applies there; only
+  // a proven content edit inside the range may resolve (OCR round 2 on PR
+  // #211).
   const v = diffTouchesLocation(
     [{ filename: "src/B.kt", previous_filename: "src/A.kt", status: "renamed" }],
     LOC()
   );
-  assert.equal(v.changed, true);
-  assert.match(v.reason, /renamed/);
-});
-
-test("diffTouchesLocation: renamed INTO the reviewed path is NOT evidence", () => {
-  // Pure rename into loc.path leaves content identical; resolving would be a
-  // false positive (OCR bug-high finding on PR #211).
-  const v = diffTouchesLocation(
-    [{ filename: "src/A.kt", previous_filename: "src/OLD.kt", status: "renamed" }],
-    LOC()
-  );
   assert.equal(v.changed, false);
-  assert.match(v.reason, /gained its name by rename/);
 });
 
 test("diffTouchesLocation: deletion of a reviewed line is evidence (old-side coords)", () => {

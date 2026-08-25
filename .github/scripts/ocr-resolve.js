@@ -241,16 +241,12 @@ function diffTouchesLocation(files, loc) {
   }
   if (file.status === "removed") {
     return { changed: true, reason: `${loc.path} was deleted after ${loc.sha.slice(0, 12)}` };
-  }
-  if (file.status === "renamed") {
-    // Only a rename AWAY from the reviewed path proves the thread's anchor is
-    // gone. If loc.path is the NEW name the content may be identical after a
-    // pure rename - resolving that would be a false positive.
-    if (file.previous_filename === loc.path) {
-      return { changed: true, reason: `${loc.path} was renamed to ${file.filename} after ${loc.sha.slice(0, 12)}` };
-    }
-    return { changed: false, reason: `${loc.path} gained its name by rename; content change not proven` };
-  }
+}
+  // Renames are NOT evidence by themselves: a pure path-only rename leaves
+  // the reviewed code byte-for-byte identical at its new location, so the
+  // finding still applies and "the code changed" would be false. Fall through
+  // to the patch check - only a content edit inside the original range
+  // counts; a patchless pure rename lands on the fail-safe branch below.
   if (typeof file.patch !== "string") {
     return { changed: false, reason: `${loc.path} modified but its patch is unavailable/truncated; refusing to infer` };
   }
