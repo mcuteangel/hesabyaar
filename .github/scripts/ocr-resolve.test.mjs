@@ -13,7 +13,7 @@ const {
   classifyThreads,
   isValidResultPayload,
   toOriginalRange,
-  parseChangedNewLines,
+  parseHunkChanges,
   diffTouchesLocation,
 } = require_("./ocr-resolve.js");
 
@@ -387,36 +387,41 @@ test("toOriginalRange rejects bad side, bad SHA, and malformed bounds", () => {
   );
 });
 
-// ---- parseChangedNewLines ----
+// ---- parseHunkChanges (old/base-side coordinates, anchor-commit aligned) ----
 
 const PATCH = [
   "@@ -10,7 +10,9 @@ fn old() {",
-  " context",
-  "+added at 11",
-  " still context",
-  "-removed only from old side",
-  "+added at 13",
+  " context",          // old 10
+  "+added run A",       // insertion between old 10 and 11
+  " still context",     // old 11
+  "-removed only",      // editedOld: 12
+  "+added after del",    // new content between 12 and 13
   "@@ -40,3 +42,3 @@ next hunk",
-  "-old 42",
-  "+new 42",
+  "-old 40",            // editedOld: 40
+  " ctx 41",
   "\\ No newline at end of file",
 ].join("\n");
 
-test("parseChangedNewLines collects only '+' lines across multiple hunks", () => {
-  assert.deepEqual(parseChangedNewLines(PATCH), [11, 13, 42]);
+test("parseHunkChanges tracks old-side deletions and insertion positions across hunks", () => {
+  const { editedOld, insertedAt } = parseHunkChanges(PATCH);
+  assert.deepEqual(editedOld, [12, 40]);
+  // Each entry means "inserted immediately before old-side line p": run A
+  // lands before old 11 (between 10/11), run B flushes at the hunk header.
+  assert.deepEqual(insertedAt, [11, 13]);
 });
 
-test("parseChangedNewLines ignores deletions and counts context movement", () => {
-  // Two deletions do not move the new-side cursor; the context line does,
-  // so '+kept' lands on new-side line 2.
-  const p = ["@@ -1,4 +1,2 @@", "-gone", "-also gone", " ctx", "+kept"].join("\n");
-  assert.deepEqual(parseChangedNewLines(p), [2]);
+test("parseHunkChanges records deletion positions on the OLD side", () => {
+  const p = ["@@ -5,4 +5,2 @@", "-gone-a", "-gone-b", " ctx(7)", "+new"].join("\n");
+  const { editedOld, insertedAt } = parseHunkChanges(p);
+  assert.deepEqual(editedOld, [5, 6]);
+  // The '+' follows context at old 7, so the insertion sits between 7 and 8.
+  assert.deepEqual(insertedAt, [8]);
 });
 
-test("parseChangedNewLines fail-safe on non-string input and patchless bodies", () => {
-  assert.deepEqual(parseChangedNewLines(undefined), []);
-  assert.deepEqual(parseChangedNewLines(null), []);
-  assert.deepEqual(parseChangedNewLines("no hunks here"), []);
+test("parseHunkChanges fail-safe on non-string input and patchless bodies", () => {
+  assert.deepEqual(parseHunkChanges(undefined), { editedOld: [], insertedAt: [] });
+  assert.deepEqual(parseHunkChanges(null), { editedOld: [], insertedAt: [] });
+  assert.deepEqual(parseHunkChanges("no hunks here"), { editedOld: [], insertedAt: [] });
 });
 
 // ---- diffTouchesLocation ----
@@ -429,7 +434,7 @@ test("diffTouchesLocation: deleted file is hard evidence", () => {
   assert.match(v.reason, /deleted/);
 });
 
-test("diffTouchesLocation: renamed file is hard evidence", () => {
+test("diffTouchesLocation: renamed AWAY from the path is hard evidence", () => {
   const v = diffTouchesLocation(
     [{ filename: "src/B.kt", previous_filename: "src/A.kt", status: "renamed" }],
     LOC()
@@ -438,18 +443,52 @@ test("diffTouchesLocation: renamed file is hard evidence", () => {
   assert.match(v.reason, /renamed/);
 });
 
-test("diffTouchesLocation: edited hunk inside the range is evidence", () => {
-  const patch = "@@ -8,7 +8,7 @@\n ctx\n ctx\n+edit at 10\n ctx\n ctx\n ctx\n ctx";
+test("diffTouchesLocation: renamed INTO the reviewed path is NOT evidence", () => {
+  // Pure rename into loc.path leaves content identical; resolving would be a
+  // false positive (OCR bug-high finding on PR #211).
+  const v = diffTouchesLocation(
+    [{ filename: "src/A.kt", previous_filename: "src/OLD.kt", status: "renamed" }],
+    LOC()
+  );
+  assert.equal(v.changed, false);
+  assert.match(v.reason, /gained its name by rename/);
+});
+
+test("diffTouchesLocation: deletion of a reviewed line is evidence (old-side coords)", () => {
+  // Pure deletions have no '+' lines at all - the old bug missed them.
+  const patch = "@@ -9,5 +9,2 @@\n ctx(9)\n-was 10\n-was 11\n ctx(12)";
   const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
   assert.equal(v.changed, true);
-  assert.match(v.reason, /lines 10-12/);
+  assert.match(v.reason, /edited\/deleted/);
+});
+
+test("diffTouchesLocation: insertion strictly inside the range is evidence", () => {
+  // Insertion lands between old lines 10 and 11 (cursor 11 after context).
+  const patch = "@@ -10,3 +10,4 @@\n ctx(10)\n+inserted\n ctx(11)\n ctx(12)";
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
+  assert.equal(v.changed, true);
+  assert.match(v.reason, /inserted inside/);
+});
+
+test("diffTouchesLocation: insertion just BEFORE the range is not evidence", () => {
+  // Coordinate shifts above the range must not fabricate staleness.
+  const patch = "@@ -8,3 +8,4 @@\n ctx(8)\n+shifts everything below\n ctx(9)\n ctx(10)";
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
+  assert.equal(v.changed, false);
+});
+
+test("diffTouchesLocation: edited hunk line inside the range is evidence", () => {
+  // '-' rewrite of reviewed lines (old side) proves the content changed.
+  const patch = "@@ -10,3 +10,3 @@\n-was 10\n+now 10\n ctx(11)\n ctx(12)";
+  const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
+  assert.equal(v.changed, true);
 });
 
 test("diffTouchesLocation: edits outside the range do NOT prove staleness", () => {
-  const patch = "@@ -30,3 +30,4 @@\n ctx\n+far away edit\n ctx";
+  const patch = "@@ -30,3 +30,4 @@\n ctx\n-far away edit\n+far away replacement\n ctx";
   const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
   assert.equal(v.changed, false);
-  assert.match(v.reason, /do not overlap/);
+  assert.match(v.reason, /do not touch/);
 });
 
 test("diffTouchesLocation: truncated patch refuses to infer (fail-safe)", () => {
@@ -468,6 +507,9 @@ test("diffTouchesLocation: no files array or bad location fails safe", () => {
   assert.equal(diffTouchesLocation(undefined, LOC()).changed, false);
   assert.equal(diffTouchesLocation([], LOC()).changed, false);
   assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], null).changed, false);
+  // Malformed location missing sha/start/end must not throw in .slice().
+  assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], { path: "src/A.kt" }).changed, false);
+  assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], { sha: "f".repeat(40), start: 1, end: 2 }).changed, false);
 });
 
 test("isValidResultPayload rejects malformed payloads", () => {

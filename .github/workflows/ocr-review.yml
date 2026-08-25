@@ -334,6 +334,8 @@ jobs:
             // Map each unresolved thread's root-comment databaseId to its
             // GraphQL node id once - mutations need PRRT_ ids, REST ids are
             // useless there (learned the hard way in PR #209's review rounds).
+            // Fail-open: a transient GraphQL error here must not fail the job;
+            // with an empty index every candidate is logged 'left open'.
             const THREADS_QUERY = `
               query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
                 repository(owner: $owner, name: $repo) {
@@ -350,16 +352,22 @@ jobs:
                 }
               }`;
             const threadByCommentId = new Map();
-            const threadsData = await github.graphql.paginate(THREADS_QUERY, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              number: context.issue.number,
-            });
-            for (const t of threadsData.repository.pullRequest.reviewThreads.nodes) {
-              if (t.isResolved) continue;
-              for (const c of t.comments.nodes) {
-                threadByCommentId.set(String(c.databaseId), t.id);
+            let threadsIndexed = true;
+            try {
+              const threadsData = await github.graphql.paginate(THREADS_QUERY, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: context.issue.number,
+              });
+              for (const t of threadsData.repository.pullRequest.reviewThreads.nodes) {
+                if (t.isResolved) continue;
+                for (const c of t.comments.nodes) {
+                  threadByCommentId.set(String(c.databaseId), t.id);
+                }
               }
+            } catch (e) {
+              threadsIndexed = false;
+              core.warning(`Thread index unavailable (${e.message}); no thread will be resolved this run.`);
             }
 
             // Current head of the PR: the diff base for every candidate.
@@ -380,6 +388,9 @@ jobs:
             // API error logs a skip and moves on instead of aborting.
             const MAX_AUTO_RESOLVES = 15;
             let resolvedCount = 0;
+            // headSha is constant for the whole loop; candidates sharing an
+            // anchor commit reuse one comparison.
+            const compareCache = new Map();
 
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
@@ -399,18 +410,27 @@ jobs:
                 core.info(`RESOLVE-CANDIDATE (no anchorable original location; left open): ${d.id}`);
                 continue;
               }
-              if (!headSha || resolvedCount >= MAX_AUTO_RESOLVES) {
-                core.info(headSha ? `RESOLVE-CANDIDATE (per-run ceiling ${MAX_AUTO_RESOLVES} reached): ${d.id}` : `RESOLVE-CANDIDATE (head unavailable): ${d.id}`);
+              if (!headSha || !threadsIndexed || resolvedCount >= MAX_AUTO_RESOLVES) {
+                core.info(`RESOLVE-CANDIDATE (${!headSha ? "head unavailable" : !threadsIndexed ? "thread index unavailable" : `per-run ceiling ${MAX_AUTO_RESOLVES} reached`}): ${d.id} — left open`);
                 continue;
               }
               let verdict;
               try {
-                const { data: cmp } = await github.rest.repos.compareCommits({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  basehead: `${loc.sha}...${headSha}`,
-                });
-                verdict = diffTouchesLocation(cmp.files, loc);
+                // TWO-dot range: the diff base must be the finding's own
+                // anchor commit. THREE-dot would anchor to the merge base,
+                // silently dropping changes between anchor and merge base.
+                const basehead = `${loc.sha}..${headSha}`;
+                let files = compareCache.get(basehead);
+                if (!files) {
+                  const { data: cmp } = await github.rest.repos.compareCommits({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    basehead,
+                  });
+                  files = cmp.files;
+                  compareCache.set(basehead, files);
+                }
+                verdict = diffTouchesLocation(files, loc);
               } catch (e) {
                 core.warning(`Candidate ${d.id}: compare ${loc.sha.slice(0, 12)}...${headSha.slice(0, 12)} failed (${e.message}); left open.`);
                 continue;
@@ -460,6 +480,11 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
+            // MARKER mirrors SUMMARY_MARKER in the pinned upstream helper
+            // (alibaba/open-code-review@4b6874b,
+            // scripts/github-actions/post-review-comments.js). The action is
+            // immutable-pinned, so this contract cannot drift underneath us;
+            // bump both together if the pin ever moves.
             const MARKER = '<!-- ocr-summary -->';
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,

@@ -185,34 +185,53 @@ function toOriginalRange(comment) {
   return { sha, ...range };
 }
 
-// Extract the set of NEW-side line numbers actually modified by one unified
-// diff patch. Only '+' lines count as edits: context lines are unchanged and
-// '-' lines live on the old side. Handles multiple hunks per patch and the
-// '\\ No newline at end of file' marker. Non-string input (truncated diff,
-// binary file) yields [] - callers must interpret that as "no proof".
-function parseChangedNewLines(patch) {
-  const changed = [];
-  if (typeof patch !== "string") return changed;
-  let newLine = null;
+// Extract OLD-side line activity from one unified diff patch, anchored to
+// the diff's BASE commit - the same coordinate system as a finding's
+// original_commit_id (this is deliberate: comparing base-side positions
+// against an original range stays correct even when earlier hunks shift line
+// numbers; new-side coordinates would drift). Returns:
+//   editedOld  - old-side line numbers deleted or rewritten ('-' lines)
+//   insertedAt - old-side position p of each insertion block ('+' run),
+//                meaning "new content appeared between old lines p and p+1"
+// Context lines advance the cursor; '\\ No newline' markers are ignored.
+// Non-string input (truncated diff, binary file) yields empty arrays -
+// callers must interpret that as "no proof".
+function parseHunkChanges(patch) {
+  const editedOld = [];
+  const insertedAt = [];
+  if (typeof patch !== "string") return { editedOld, insertedAt };
+  let oldLine = null;
+  let pendingInsertAt = null;
+  const flushInsert = () => {
+    if (pendingInsertAt !== null) {
+      insertedAt.push(pendingInsertAt);
+      pendingInsertAt = null;
+    }
+  };
   for (const raw of patch.split("\n")) {
-    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(raw);
+    const hunk = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/.exec(raw);
     if (hunk) {
-      newLine = parseInt(hunk[1], 10);
+      flushInsert();
+      oldLine = parseInt(/^@@ -(\d+)/.exec(raw)[1], 10);
       continue;
     }
-    if (newLine === null) continue;
+    if (oldLine === null) continue;
     if (raw.startsWith("+")) {
-      changed.push(newLine);
-      newLine += 1;
+      // A '+' run sits between old-side lines oldLine and oldLine + 1.
+      if (pendingInsertAt === null) pendingInsertAt = oldLine;
     } else if (raw.startsWith("-")) {
-      // Old-side only: does not move the new-side cursor.
+      flushInsert();
+      editedOld.push(oldLine);
+      oldLine += 1;
     } else if (raw.startsWith("\\")) {
       // Marker line, not content.
     } else {
-      newLine += 1; // context line moves both cursors
+      flushInsert();
+      oldLine += 1; // context line moves both cursors
     }
   }
-  return changed;
+  flushInsert();
+  return { editedOld, insertedAt };
 }
 
 // Decide whether a REST compareCommits `files` array PROVES that the reviewed
@@ -221,26 +240,49 @@ function parseChangedNewLines(patch) {
 // absent from the diff = untouched, truncated/missing patch, malformed input)
 // yields changed=false so a thread is never resolved without hard evidence.
 function diffTouchesLocation(files, loc) {
-  if (!Array.isArray(files) || !loc || typeof loc.path !== "string") {
-    return { changed: false, reason: "no usable diff data; refusing to infer" };
+  if (
+    !Array.isArray(files) ||
+    !loc ||
+    typeof loc.path !== "string" ||
+    typeof loc.sha !== "string" ||
+    !isValidFindingLine(loc.start) ||
+    !isValidFindingLine(loc.end)
+  ) {
+    return { changed: false, reason: "no usable diff data or malformed location; refusing to infer" };
   }
   const file = files.find((f) => f && (f.filename === loc.path || f.previous_filename === loc.path));
   if (!file) {
-    return { changed: false, reason: `${loc.path} untouched in ${loc.sha.slice(0, 12)}...HEAD diff` };
+    return { changed: false, reason: `${loc.path} untouched in ${loc.sha.slice(0, 12)}..HEAD diff` };
   }
   if (file.status === "removed") {
     return { changed: true, reason: `${loc.path} was deleted after ${loc.sha.slice(0, 12)}` };
   }
   if (file.status === "renamed") {
-    return { changed: true, reason: `${loc.path} was renamed to ${file.filename} after ${loc.sha.slice(0, 12)}` };
+    // Only a rename AWAY from the reviewed path proves the thread's anchor is
+    // gone. If loc.path is the NEW name the content may be identical after a
+    // pure rename - resolving that would be a false positive.
+    if (file.previous_filename === loc.path) {
+      return { changed: true, reason: `${loc.path} was renamed to ${file.filename} after ${loc.sha.slice(0, 12)}` };
+    }
+    return { changed: false, reason: `${loc.path} gained its name by rename; content change not proven` };
   }
   if (typeof file.patch !== "string") {
     return { changed: false, reason: `${loc.path} modified but its patch is unavailable/truncated; refusing to infer` };
   }
-  const hit = parseChangedNewLines(file.patch).some((n) => n >= loc.start && n <= loc.end);
-  return hit
-    ? { changed: true, reason: `lines ${loc.start}-${loc.end} of ${loc.path} edited after ${loc.sha.slice(0, 12)}` }
-    : { changed: false, reason: `edits in ${loc.path} do not overlap lines ${loc.start}-${loc.end}` };
+  const { editedOld, insertedAt } = parseHunkChanges(file.patch);
+  const editHit = editedOld.some((n) => n >= loc.start && n <= loc.end);
+  if (editHit) {
+    return { changed: true, reason: `lines ${loc.start}-${loc.end} of ${loc.path} edited/deleted after ${loc.sha.slice(0, 12)}` };
+  }
+  // An insertion between old-side lines p-1 and p reflows the reviewed lines
+  // themselves only when it lands strictly inside the range: start < p <= end
+  // (p == start inserts just before the first reviewed line; p == end+1 just
+  // after the last). One before start shifts coordinates but leaves the
+  // reviewed content intact.
+  const insertHit = insertedAt.some((p) => p > loc.start && p <= loc.end);
+  return insertHit
+    ? { changed: true, reason: `content inserted inside lines ${loc.start}-${loc.end} of ${loc.path} after ${loc.sha.slice(0, 12)}` }
+    : { changed: false, reason: `edits in ${loc.path} do not touch lines ${loc.start}-${loc.end} at the anchor commit` };
 }
 
-module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseChangedNewLines, diffTouchesLocation };
+module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation };
