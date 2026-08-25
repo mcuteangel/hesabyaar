@@ -36,6 +36,14 @@ on:
 jobs:
   code-review:
     runs-on: ubuntu-latest
+    # Least-privilege: reusable workflows do NOT inherit the caller's
+    # permissions block (ocr-review.yml's permissions do not propagate). Declare
+    # exactly what this job needs; both the primary and fallback invocations run
+    # under this same block.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     # 60 (was 30): reasoning mode extends per-request latency; a handful of
     # slow LLM requests must not kill the run before comments are posted.
     timeout-minutes: 60
@@ -211,6 +219,20 @@ jobs:
           incremental: 'false'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      # CONTRACT VERIFIED (issue #206 PR #213): the pinned action
+      # (alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961, its
+      # run step, lines ~285/287) exports OCR_EXIT_CODE to GITHUB_ENV on every
+      # path - 0 on success, non-zero on failure (and then force-exits the step
+      # non-zero, which stops this job). The guarded steps below rely on that
+      # var. If a future action version ever stops exporting it, fail the job
+      # loudly HERE instead of silently skipping the trusted-checkout restore
+      # below - which would let the audit load PR-head JavaScript.
+      - name: Assert OpenCodeReview result contract
+        if: env.OCR_EXIT_CODE == ''
+        run: |
+          echo "::error::OpenCodeReview did not export OCR_EXIT_CODE; refusing to run the trusted-checkout restore and audit against an untrusted workspace."
+          exit 1
 
       # SECURITY: the OpenCodeReview action runs its own un-pinned checkout,
       # which materializes the PR merge ref and replaces trusted code in the
