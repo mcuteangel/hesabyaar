@@ -154,7 +154,7 @@ jobs:
                   throw e;
                 }
               }
-              if (!Array.isArray(parsed.rules)) {
+              if (parsed === null || typeof parsed !== 'object' || !Array.isArray(parsed.rules)) {
                 // Fail closed: a present-but-structurally-invalid trusted rules
                 // file is NOT the same as "no rules file" (404). Silently
                 // proceeding with zero custom rules would drop the entire
