@@ -105,6 +105,12 @@ jobs:
       VERSION: ${{ needs.classify.outputs.version }}
       PR_NUMBER: ${{ needs.classify.outputs.pr_number }}
       HEAD_SHA: ${{ github.sha }}
+      # The finalize job intentionally does NOT check out the repo (it is a
+      # pure API job). `gh pr view` / `gh release view` therefore cannot infer
+      # the repository from git context and fail with
+      # "fatal: not a git repository". Pin the repo explicitly so those
+      # calls resolve without a checkout.
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Check existing GitHub Release
         id: state
