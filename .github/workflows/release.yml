@@ -479,7 +479,12 @@ jobs:
             echo "Reusing existing PR #${existing_pr} for $BRANCH."
             pr_number="$existing_pr"
           else
-            cat > pr-body.md <<BODY_EOF
+            # PR body assembly. The SUMMARY comes from commit subjects on
+            # main and is never shell-expanded: it goes through printf,
+            # outside any unquoted heredoc. Only the validated version and
+            # bump type are expanded.
+            {
+              cat <<BODY_EOF
           <!-- Automated release PR created by the Release workflow. -->
 
           ## Release v${NEW_VERSION}
@@ -491,11 +496,15 @@ jobs:
 
           ### Changes included
 
-          ${SUMMARY}
+          BODY_EOF
+              printf '%s\n' "$SUMMARY"
+              cat <<'FOOTER_EOF'
 
           ---
-          _This PR was created automatically by the Release workflow. Merging it publishes the release: the tag and GitHub Release are finalized after this PR reaches \`main\`._
-          BODY_EOF
+
+          _This PR was created automatically by the Release workflow. Merging it publishes the release: the tag and GitHub Release are finalized after this PR reaches `main`._
+          FOOTER_EOF
+            } > pr-body.md
             pr_number=$(gh pr create \
               --base main \
               --head "$BRANCH" \
@@ -508,9 +517,11 @@ jobs:
           # Stamp the producing run into the PR body. Finalize reads this
           # marker so it downloads exactly these artifacts. Replace any old
           # marker so a reused PR always points at the latest run.
+          # A failed API call must abort loudly; only grep finding no
+          # non-marker lines is benign.
           marker="<!-- hesabyar-release-run:${RUN_ID} -->"
-          gh pr view "$pr_number" --json body --jq '.body' \
-            | grep -v 'hesabyar-release-run:' > pr-body-clean.md || true
+          body=$(gh pr view "$pr_number" --json body --jq '.body')
+          { printf '%s\n' "$body" | grep -v 'hesabyar-release-run:' || true; } > pr-body-clean.md
           printf '%s\n%s\n' "$(cat pr-body-clean.md)" "$marker" > pr-body-stamped.md
           gh pr edit "$pr_number" --body-file pr-body-stamped.md
 
