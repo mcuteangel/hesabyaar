@@ -370,7 +370,7 @@ jobs:
               core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
               return;
             }
-            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation } = require('./.github/scripts/ocr-resolve.js');
+            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit } = require('./.github/scripts/ocr-resolve.js');
 
             // Latest findings from the same runner filesystem. Only a payload
             // matching the expected schema counts as available; anything else
@@ -523,8 +523,29 @@ jobs:
                 core.warning(`Candidate ${d.id}: no unresolved review thread maps to this comment; left open.`);
                 continue;
               }
+              // Attribute the fix to the ACTUAL commit, not just the PR head:
+              // list commits touching the reviewed path (newest-first from
+              // head) and pick the newest one after the finding's anchor
+              // commit. Fail-safe: any error or an empty attribution falls
+              // back to the PR head SHA already held in `headSha`.
+              let resolvingCommit = headSha;
               try {
-                const replyBody = `Resolved in ${headSha.slice(0, 12)}: ${verdict.reason}. The reviewed code changed after this finding was posted, so it no longer applies.`;
+                const { data: fileCommits } = await github.rest.repos.listCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  sha: headSha,
+                  path: loc.path,
+                  per_page: 30,
+                });
+                const picked = pickResolvingCommit(fileCommits.map((c) => c.sha), loc.sha);
+                if (picked) resolvingCommit = picked;
+              } catch (e) {
+                core.warning(`Candidate ${d.id}: could not attribute resolving commit (${e.message}); citing head.`);
+              }
+              try {
+                const shortSha = resolvingCommit.slice(0, 12);
+                const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${resolvingCommit}`;
+                const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${verdict.reason}. The reviewed code at ${loc.path}:${loc.start}-${loc.end} changed after this finding was posted (anchor ${loc.sha.slice(0, 12)}), so it no longer applies.`;
                 await github.graphql(
                   `mutation($t: ID!, $body: String!) {
                     addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
