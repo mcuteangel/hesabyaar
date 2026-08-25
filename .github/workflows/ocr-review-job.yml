@@ -99,39 +99,60 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const RULES_PATH = '.github/ocr-rules.json';
+            const MEMORY_PATH = '.github/ocr-memory.md';
 
-            // Persist the validated rules JSON to a private per-run file and
-            // export its path. Returns true on success, false when `ref`
-            // simply has no such file (404); any other error propagates.
-            async function loadRulesFrom(ref, refLabel) {
+            // Read one trusted file from an immutable ref. Throws on any
+            // non-file payload; callers decide how to handle a 404.
+            async function getTrustedFile(ref, path) {
+              const { data } = await github.rest.repos.getContent({
+                owner: owner,
+                repo: repo,
+                path: path,
+                ref: ref
+              });
+              if (data.type !== 'file' || typeof data.content !== 'string') {
+                throw new Error(`unexpected getContent payload type: ${data.type} for ${path}`);
+              }
+              return Buffer.from(data.content, 'base64').toString('utf8');
+            }
+
+            // Load the structured rules JSON + the project-memory markdown from
+            // the SAME immutable ref, then inject the memory into EVERY rule
+            // entry so it applies to all matched file types (the action matches
+            // first-match-wins by path). Returns true on success, false when the
+            // rules file itself is absent (404); any other error propagates.
+            async function loadFrom(ref, refLabel) {
+              let rulesRaw;
               try {
-                const { data } = await github.rest.repos.getContent({
-                  owner: owner,
-                  repo: repo,
-                  path: RULES_PATH,
-                  ref: ref
-                });
-                // Guard against directory/symlink payloads; only a regular
-                // file with inline content is acceptable.
-                if (data.type !== 'file' || typeof data.content !== 'string') {
-                  throw new Error(`unexpected getContent payload type: ${data.type}`);
-                }
-                // Validate before persisting: malformed rules JSON would
-                // otherwise surface as an opaque error deep inside the action.
-                const decoded = Buffer.from(data.content, 'base64').toString('utf8');
-                JSON.parse(decoded);
-                // Per-run private directory (mkdtemp) + owner-only file mode:
-                // never follow a pre-existing symlink at a predictable /tmp path.
-                const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
-                const ruleFile = require('path').join(dir, 'rules.json');
-                require('fs').writeFileSync(ruleFile, decoded, { mode: 0o600 });
-                core.setOutput('rule_path', ruleFile);
-                core.notice(`Review rules loaded from ${refLabel} (${ref.slice(0, 12)}).`);
-                return true;
+                rulesRaw = await getTrustedFile(ref, RULES_PATH);
               } catch (e) {
                 if (e.status === 404) return false;
                 throw e;
               }
+              // Validate before persisting: malformed rules JSON would
+              // otherwise surface as an opaque error deep inside the action.
+              const parsed = JSON.parse(rulesRaw);
+              // Project memory is optional: a branch that predates ocr-memory.md
+              // simply reviews without it (fail-open; the rules still apply).
+              let memory = '';
+              try {
+                memory = await getTrustedFile(ref, MEMORY_PATH);
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                core.warning(`Project memory file not present at ${refLabel} (${ref.slice(0, 12)}); reviewing without it.`);
+              }
+              const injected = (Array.isArray(parsed.rules) ? parsed.rules : []).map((r) => ({
+                ...r,
+                rule: memory ? `${r.rule}\n\n${memory}` : r.rule,
+              }));
+              // Per-run private directory (mkdtemp) + owner-only file mode:
+              // never follow a pre-existing symlink at a predictable /tmp path.
+              const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
+              const ruleFile = require('path').join(dir, 'rules.json');
+              require('fs').writeFileSync(ruleFile, JSON.stringify({ rules: injected }, null, 2), { mode: 0o600 });
+              core.setOutput('rule_path', ruleFile);
+              core.notice(`Review rules${memory ? ' + project memory' : ''} loaded from ${refLabel} (${ref.slice(0, 12)}).`);
+              return true;
             }
 
             // Primary source: the IMMUTABLE base SHA - a PR must never review
@@ -141,7 +162,7 @@ jobs:
               core.setFailed('Trusted base SHA unavailable; refusing to load rules.');
               return;
             }
-            if (await loadRulesFrom(baseSha, 'base SHA')) return;
+            if (await loadFrom(baseSha, 'base SHA')) return;
 
             // Fallback: branches that predate the rules file (long-lived PRs,
             // Dependabot bumps opened before it landed) would otherwise run
@@ -161,7 +182,7 @@ jobs:
               core.setFailed(`Could not resolve default branch '${repoInfo.default_branch}' to a SHA; refusing to load rules.`);
               return;
             }
-            if (await loadRulesFrom(headSha, `default branch '${repoInfo.default_branch}' HEAD`)) return;
+            if (await loadFrom(headSha, `default branch '${repoInfo.default_branch}' HEAD`)) return;
 
             // Neither tree carries the file (e.g. fresh fork without it).
             core.warning('Rules file not found on base or default branch; proceeding without custom rules.');
@@ -187,11 +208,12 @@ jobs:
           # Reasoning extends per-request latency well beyond the CLI default;
           # give each LLM request an explicit ceiling in seconds.
           llm_timeout: '600'
-          # Custom review rules (JSON, see .github/ocr-rules.json): real bugs /
-          # security / regressions only; style stays with ktlint/detekt/clippy;
-          # findings require stated confidence. The catch-all entry also carries
-          # project memory (issue #206 phase 4): intentional version bumps,
-          # lockfile updates, Persian-first strings.
+          # Custom review rules (JSON, see .github/ocr-rules.json) + project
+          # memory (Markdown, see .github/ocr-memory.md) injected together by
+          # the trusted-rules step above: real bugs / security / regressions
+          # only; style stays with ktlint/detekt/clippy; findings require stated
+          # confidence. The trusted-rules step appends ocr-memory.md to every
+          # rule entry so it applies to all matched file types.
           # Resolved from the trusted base SHA by the step above (default
           # branch HEAD as fallback for branches predating the rules file) -
           # never from the action's PR-controlled checkout. Empty path => no --rule flag:
@@ -214,9 +236,15 @@ jobs:
           route_categories: 'style,documentation,maintainability'
           # Explicit review output language (action default is already English).
           language: 'English'
-          # The resolver step assumes a FULL finding set per run; keep
-          # incremental mode off or the resolver assumption breaks.
-          incremental: 'false'
+          # Non-destructive inline dedupe (issue #206 phase 4): incremental
+          # mode makes the posting step skip inline comments whose (path, line
+          # range) overlaps an existing bot review comment, so repeated runs on
+          # unchanged code never re-post the same finding. NOTE: this flag is
+          # passed ONLY to the post-comment helper, NOT to `ocr review` - the
+          # action still writes the FULL finding set to /tmp/ocr-result.json on
+          # every run, so the resolver below keeps reading a complete set and
+          # its full-set assumption is preserved.
+          incremental: 'true'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
 

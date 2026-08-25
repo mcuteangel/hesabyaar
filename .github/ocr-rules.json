@@ -22,7 +22,7 @@
     },
     {
       "path": "**",
-      "rule": "Project context for this repository (hesabyaar): (1) Version bumps in Cargo.toml / gradle files are INTENTIONAL release triggers driven by a version-driven release pipeline - never report them as suspicious. (2) Lockfile updates under gradle/ and Cargo.lock are automated Dependabot outputs - intentional. (3) User-facing strings are expected in Persian (Farsi); do not report mixed Persian/English UI strings as an inconsistency. General policy: report ONLY bugs, security issues, and regressions with HIGH confidence and a concrete failure scenario. Skip style, documentation nits, naming, and anything ktlint/detekt/clippy would flag. Pure refactoring preference is not a bug; report a maintainability concern only when it materially raises the risk of future defects (such findings are delivered in the PR summary rather than inline). If you are below ~80% confident a finding is a real issue, omit it.",
+      "rule": "General policy for this repository (hesabyaar): report ONLY bugs, security issues, and regressions with HIGH confidence and a concrete failure scenario. Skip style, documentation nits, naming, and anything ktlint/detekt/clippy would flag. Pure refactoring preference is not a bug; report a maintainability concern only when it materially raises the risk of future defects (such findings are delivered in the PR summary rather than inline). Project-specific context (intentional version bumps, Dependabot lockfiles, Persian-first strings, confidence threshold) is injected from .github/ocr-memory.md on every run. If you are below ~80% confident a finding is a real issue, omit it.",
       "merge_system_rule": true
     }
   ]
