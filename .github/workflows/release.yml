@@ -2,14 +2,16 @@ name: Release
 
 # PR-only release flow.
 #
-# A push to main that changes application code is classified as PREPARE:
-# it computes the next version, runs tests, builds APK/AAB artifacts,
+# A push to main that changes application code runs the PREPARE job: it
+# computes the next version, runs tests, builds APK/AAB artifacts,
 # pushes a release/vX.Y.Z branch and opens an auto-merge Pull Request
 # back to main. This workflow NEVER pushes to main directly.
 #
-# When the release PR merges, the landing push on main is classified as
-# FINALIZE: the tag and GitHub Release are published from the CI
-# artifacts produced by the prepare run.
+# When the release PR merges, the landing push on main runs the FINALIZE
+# job: the tag and GitHub Release are published from the CI artifacts
+# produced by the prepare run. The prepare run ID travels to finalize
+# inside the release PR body, so finalize downloads exactly the
+# artifacts built for this release.
 #
 # Required repository setting: "Allow auto-merge" must be enabled
 # (Settings > General > Pull Requests). Without it the prepare run ends
@@ -29,18 +31,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  classify:
+    # Decide what this push to main means. No checkout needed; this job
+    # talks to the GitHub API only.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.classify.outputs.mode }}
+      version: ${{ steps.classify.outputs.version }}
+      pr_number: ${{ steps.classify.outputs.pr_number }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-          token: ${{ secrets.WORKFLOW_PAT }}
-
       - name: Classify push
         id: classify
         env:
@@ -54,18 +54,17 @@ jobs:
           version=""
           pr_number=""
 
-          # A release PR can land on main through merge commit, squash or
-          # rebase. In every strategy the pushed SHA equals the PR's
-          # mergeCommit OID, so PR metadata is the primary signal.
-          match=$(gh pr list --base main --state merged --limit 10 \
-            --json number,headRefName,mergeCommit \
-            --jq '.[] | select(.mergeCommit.oid == "'"$HEAD_SHA"'") | select(.headRefName | test("^release/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | [(.number | tostring), .headRefName] | @tsv' \
+          # Exact lookup: the pull request(s) associated with this landing
+          # commit. Works for merge commits, squash and rebase strategies,
+          # and cannot miss due to a page-size limit.
+          prs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            --jq '.[] | select(.head.ref | test("^release/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | [(.number | tostring), .head.ref] | @tsv' \
             2>/dev/null || true)
 
-          if [ -n "$match" ]; then
+          if [ -n "$prs" ]; then
             mode="finalize"
-            pr_number=$(printf '%s' "$match" | cut -f1)
-            branch=$(printf '%s' "$match" | cut -f2)
+            pr_number=$(printf '%s' "$prs" | head -n1 | cut -f1)
+            branch=$(printf '%s' "$prs" | head -n1 | cut -f2)
             version="${branch#release/v}"
           elif [ "$HEAD_AUTHOR" = "github-actions[bot]" ] && \
                printf '%s' "$HEAD_MESSAGE" | head -n1 | grep -qE '^chore: release v[0-9]+\.[0-9]+\.[0-9]+'; then
@@ -75,6 +74,11 @@ jobs:
             version=$(printf '%s' "$HEAD_MESSAGE" | head -n1 | sed -E 's/^chore: release v([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
           elif printf '%s' "$HEAD_MESSAGE" | grep -q '\[skip release\]'; then
             mode="manual-skip"
+            {
+              echo "### ⏭️ Release skipped"
+              echo ""
+              echo "Head commit message contains [skip release]."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
           {
@@ -84,16 +88,21 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Push classified as: $mode${version:+ (v$version)}"
 
-      # ------------------------------------------------------------------
-      # FINALIZE PATH: a release PR just landed on main.
-      # ------------------------------------------------------------------
-
+  finalize:
+    # Publish tag + GitHub Release after the release PR reached main.
+    needs: classify
+    if: needs.classify.outputs.mode == 'finalize'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ needs.classify.outputs.version }}
+      PR_NUMBER: ${{ needs.classify.outputs.pr_number }}
+      HEAD_SHA: ${{ github.sha }}
+    steps:
       - name: Check existing GitHub Release
-        if: steps.classify.outputs.mode == 'finalize'
-        id: finalize_state
+        id: state
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.classify.outputs.version }}
         run: |
           set -euo pipefail
           if gh release view "v$VERSION" >/dev/null 2>&1; then
@@ -105,18 +114,28 @@ jobs:
           fi
 
       - name: Download prepared artifacts
-        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
+        if: steps.state.outputs.already_done == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.classify.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p release-artifacts notes
+
+          # Prefer the artifacts produced by the exact prepare run recorded
+          # in the release PR body. Fall back to a name-only lookup only
+          # when the marker is missing (legacy releases).
+          run_id=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null \
+            | grep -o 'hesabyar-release-run:[0-9]*' | head -n1 | cut -d: -f2 || true)
+
           fetch_artifact () {
-            local name="$1" dest="$2"
-            local api_url id
-            api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}&per_page=100"
-            id=$(curl -sfL -H "Authorization: Bearer $GH_TOKEN" "$api_url" | \
+            local name="$1" dest="$2" list_url id
+            if [ -n "$run_id" ]; then
+              list_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?name=${name}&per_page=100"
+            else
+              echo "::warning::No prepare run marker on PR #${PR_NUMBER}; using latest artifact named ${name}."
+              list_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}&per_page=100"
+            fi
+            id=$(curl -sfL -H "Authorization: Bearer $GH_TOKEN" "$list_url" | \
               jq -r '[.artifacts[] | select(.expired == false)][0].id // empty')
             if [ -z "$id" ]; then
               echo "::error::CI artifact '${name}' not found (or expired). Cannot publish v${VERSION} without its build artifacts."
@@ -128,16 +147,15 @@ jobs:
             unzip -q artifact.zip -d "$dest"
             rm -f artifact.zip
           }
+
           fetch_artifact "release-v${VERSION}" release-artifacts
           fetch_artifact "release-notes-v${VERSION}" notes
           ls -la release-artifacts notes
 
       - name: Publish tag and GitHub Release
-        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
+        if: steps.state.outputs.already_done == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.classify.outputs.version }}
-          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           # --target pins the tag exactly to the commit merged into main;
@@ -152,10 +170,7 @@ jobs:
           echo "Published v${VERSION} at commit ${HEAD_SHA}."
 
       - name: Summary - finalized
-        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
-        env:
-          VERSION: ${{ steps.classify.outputs.version }}
-          PR_NUMBER: ${{ steps.classify.outputs.pr_number }}
+        if: steps.state.outputs.already_done == 'false'
         run: |
           {
             echo "### 🚀 Release v${VERSION} published"
@@ -168,29 +183,30 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary - already published
-        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'true'
-        env:
-          VERSION: ${{ steps.classify.outputs.version }}
+        if: steps.state.outputs.already_done == 'true'
         run: |
-          echo "### ⏭️ Finalize skipped" >> "$GITHUB_STEP_SUMMARY"
-          echo "Release v${VERSION} already exists." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### ⏭️ Finalize skipped"
+            echo ""
+            echo "Release v${VERSION} already exists."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # ------------------------------------------------------------------
-      # MANUAL-SKIP ESCAPE HATCH
-      # ------------------------------------------------------------------
-
-      - name: Summary - manual skip
-        if: steps.classify.outputs.mode == 'manual-skip'
-        run: |
-          echo "### ⏭️ Release skipped" >> "$GITHUB_STEP_SUMMARY"
-          echo "Head commit message contains [skip release]." >> "$GITHUB_STEP_SUMMARY"
-
-      # ------------------------------------------------------------------
-      # PREPARE PATH: normal application change landed on main.
-      # ------------------------------------------------------------------
+  prepare:
+    # Normal application change landed on main: build a candidate release
+    # and hand it over as an auto-merge PR.
+    needs: classify
+    if: needs.classify.outputs.mode == 'prepare'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Detect application changes
-        if: steps.classify.outputs.mode == 'prepare'
         id: detect
         env:
           BASE_REF: ${{ github.event.before }}
@@ -202,7 +218,7 @@ jobs:
           fi
 
       - name: Parse conventional commits
-        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
+        if: steps.detect.outputs.release_needed == 'true'
         id: parse
         env:
           BASE_REF: ${{ github.event.before }}
@@ -217,7 +233,7 @@ jobs:
           echo "Bump type: $bump_type"
 
       - name: Bump version
-        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
+        if: steps.detect.outputs.release_needed == 'true'
         id: bump
         env:
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
@@ -226,7 +242,7 @@ jobs:
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
-        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
+        if: steps.detect.outputs.release_needed == 'true'
         id: check_tag
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
@@ -430,6 +446,7 @@ jobs:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
           SUMMARY: ${{ steps.parse.outputs.summary }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -452,7 +469,7 @@ jobs:
             # Automation-owned branch. An attached open PR gets refreshed with
             # the freshly computed release state; a stale branch with no PR is
             # replaced the same way. --force-with-lease rejects the push if
-            # the remote moved since the fetch above.
+            # the remote moved since the clone.
             git push --force-with-lease origin "$BRANCH"
           else
             git push origin "$BRANCH"
@@ -488,6 +505,15 @@ jobs:
             echo "Created PR #${pr_number} for $BRANCH."
           fi
 
+          # Stamp the producing run into the PR body. Finalize reads this
+          # marker so it downloads exactly these artifacts. Replace any old
+          # marker so a reused PR always points at the latest run.
+          marker="<!-- hesabyar-release-run:${RUN_ID} -->"
+          gh pr view "$pr_number" --json body --jq '.body' \
+            | grep -v 'hesabyar-release-run:' > pr-body-clean.md || true
+          printf '%s\n%s\n' "$(cat pr-body-clean.md)" "$marker" > pr-body-stamped.md
+          gh pr edit "$pr_number" --body-file pr-body-stamped.md
+
           {
             echo "pr_number=${pr_number}"
             echo "branch=${BRANCH}"
@@ -499,6 +525,13 @@ jobs:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           PR_NUMBER: ${{ steps.publish.outputs.pr_number }}
         run: |
+          # Idempotent: do not touch a PR that already has auto-merge set.
+          already=$(gh pr view "$PR_NUMBER" --json autoMergeRequest \
+            --jq '.autoMergeRequest != null')
+          if [ "$already" = "true" ]; then
+            echo "Auto-merge already enabled on PR #${PR_NUMBER}."
+            exit 0
+          fi
           if ! gh pr merge "$PR_NUMBER" --auto --merge; then
             echo "::error::Failed to enable auto-merge on PR #${PR_NUMBER}."
             echo "Most likely cause: 'Allow auto-merge' is disabled in repository Settings > General > Pull Requests." >&2
@@ -541,7 +574,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary - no app changes
-        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'false'
+        if: steps.detect.outputs.release_needed == 'false'
         run: |
           {
             echo "### ⏭️ Release skipped"
