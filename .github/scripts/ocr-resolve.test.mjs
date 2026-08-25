@@ -402,26 +402,19 @@ const PATCH = [
   "\\ No newline at end of file",
 ].join("\n");
 
-test("parseHunkChanges tracks old-side deletions and insertion positions across hunks", () => {
-  const { editedOld, insertedAt } = parseHunkChanges(PATCH);
-  assert.deepEqual(editedOld, [12, 40]);
-  // Each entry means "inserted immediately before old-side line p": run A
-  // lands before old 11 (between 10/11), run B flushes at the hunk header.
-  assert.deepEqual(insertedAt, [11, 13]);
+test("parseHunkChanges tracks only OLD-side edited/deleted lines across hunks", () => {
+  assert.deepEqual(parseHunkChanges(PATCH), [12, 40]);
 });
 
-test("parseHunkChanges records deletion positions on the OLD side", () => {
+test("parseHunkChanges: consecutive deletions each record their old-side line", () => {
   const p = ["@@ -5,4 +5,2 @@", "-gone-a", "-gone-b", " ctx(7)", "+new"].join("\n");
-  const { editedOld, insertedAt } = parseHunkChanges(p);
-  assert.deepEqual(editedOld, [5, 6]);
-  // The '+' follows context at old 7, so the insertion sits between 7 and 8.
-  assert.deepEqual(insertedAt, [8]);
+  assert.deepEqual(parseHunkChanges(p), [5, 6]);
 });
 
 test("parseHunkChanges fail-safe on non-string input and patchless bodies", () => {
-  assert.deepEqual(parseHunkChanges(undefined), { editedOld: [], insertedAt: [] });
-  assert.deepEqual(parseHunkChanges(null), { editedOld: [], insertedAt: [] });
-  assert.deepEqual(parseHunkChanges("no hunks here"), { editedOld: [], insertedAt: [] });
+  assert.deepEqual(parseHunkChanges(undefined), []);
+  assert.deepEqual(parseHunkChanges(null), []);
+  assert.deepEqual(parseHunkChanges("no hunks here"), []);
 });
 
 // ---- diffTouchesLocation ----
@@ -462,12 +455,12 @@ test("diffTouchesLocation: deletion of a reviewed line is evidence (old-side coo
   assert.match(v.reason, /edited\/deleted/);
 });
 
-test("diffTouchesLocation: insertion strictly inside the range is evidence", () => {
-  // Insertion lands between old lines 10 and 11 (cursor 11 after context).
+test("diffTouchesLocation: pure insertion inside the range is NOT evidence", () => {
+  // Reviewed old-side lines remain byte-for-byte unchanged under a pure
+  // insertion, so the finding still applies - fail-safe keeps it open.
   const patch = "@@ -10,3 +10,4 @@\n ctx(10)\n+inserted\n ctx(11)\n ctx(12)";
   const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
-  assert.equal(v.changed, true);
-  assert.match(v.reason, /inserted inside/);
+  assert.equal(v.changed, false);
 });
 
 test("diffTouchesLocation: insertion just BEFORE the range is not evidence", () => {
@@ -488,7 +481,7 @@ test("diffTouchesLocation: edits outside the range do NOT prove staleness", () =
   const patch = "@@ -30,3 +30,4 @@\n ctx\n-far away edit\n+far away replacement\n ctx";
   const v = diffTouchesLocation([{ filename: "src/A.kt", status: "modified", patch }], LOC());
   assert.equal(v.changed, false);
-  assert.match(v.reason, /do not touch/);
+  assert.match(v.reason, /no reviewed line/);
 });
 
 test("diffTouchesLocation: truncated patch refuses to infer (fail-safe)", () => {

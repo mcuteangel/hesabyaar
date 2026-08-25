@@ -55,6 +55,10 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # minimizeComment (summary archive, phase 3) operates on PR conversation
+  # comments, which GitHub models as issue comments; without this scope every
+  # minimize call is rejected and archiving silently no-ops.
+  issues: write
 
 jobs:
   code-review:
@@ -353,17 +357,28 @@ jobs:
               }`;
             const threadByCommentId = new Map();
             let threadsIndexed = true;
+            // Manual pagination: @actions/github v6 does NOT bundle
+            // @octokit/plugin-paginate-graphql, so github.graphql.paginate is
+            // undefined here and would silently no-op the whole phase inside
+            // the try/catch below (OCR bug-medium finding on PR #211).
             try {
-              const threadsData = await github.graphql.paginate(THREADS_QUERY, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                number: context.issue.number,
-              });
-              for (const t of threadsData.repository.pullRequest.reviewThreads.nodes) {
-                if (t.isResolved) continue;
-                for (const c of t.comments.nodes) {
-                  threadByCommentId.set(String(c.databaseId), t.id);
+              let cursor = null;
+              for (;;) {
+                const data = await github.graphql(THREADS_QUERY, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  number: context.issue.number,
+                  cursor,
+                });
+                const conn = data.repository.pullRequest.reviewThreads;
+                for (const t of conn.nodes) {
+                  if (t.isResolved) continue;
+                  for (const c of t.comments.nodes) {
+                    threadByCommentId.set(String(c.databaseId), t.id);
+                  }
                 }
+                if (!conn.pageInfo.hasNextPage) break;
+                cursor = conn.pageInfo.endCursor;
               }
             } catch (e) {
               threadsIndexed = false;

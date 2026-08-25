@@ -185,53 +185,38 @@ function toOriginalRange(comment) {
   return { sha, ...range };
 }
 
-// Extract OLD-side line activity from one unified diff patch, anchored to
-// the diff's BASE commit - the same coordinate system as a finding's
-// original_commit_id (this is deliberate: comparing base-side positions
-// against an original range stays correct even when earlier hunks shift line
-// numbers; new-side coordinates would drift). Returns:
-//   editedOld  - old-side line numbers deleted or rewritten ('-' lines)
-//   insertedAt - old-side position p of each insertion block ('+' run),
-//                meaning "new content appeared between old lines p and p+1"
-// Context lines advance the cursor; '\\ No newline' markers are ignored.
-// Non-string input (truncated diff, binary file) yields empty arrays -
-// callers must interpret that as "no proof".
+// Extract OLD-side line numbers deleted or rewritten ('-' lines) by one
+// unified diff patch, anchored to the diff's BASE commit - the same
+// coordinate system as a finding's original_commit_id (this is deliberate:
+// comparing base-side positions against an original range stays correct even
+// when earlier hunks shift line numbers). Pure insertions are deliberately
+// NOT evidence: they leave the reviewed old-side lines byte-for-byte
+// unchanged, so the finding still applies (fail-safe, per review round on PR
+// #211). Handles multiple hunks and '\\ No newline' markers. Non-string input
+// (truncated diff, binary file) yields [] - callers must interpret that as
+// "no proof".
 function parseHunkChanges(patch) {
   const editedOld = [];
-  const insertedAt = [];
-  if (typeof patch !== "string") return { editedOld, insertedAt };
+  if (typeof patch !== "string") return editedOld;
   let oldLine = null;
-  let pendingInsertAt = null;
-  const flushInsert = () => {
-    if (pendingInsertAt !== null) {
-      insertedAt.push(pendingInsertAt);
-      pendingInsertAt = null;
-    }
-  };
   for (const raw of patch.split("\n")) {
-    const hunk = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/.exec(raw);
-    if (hunk) {
-      flushInsert();
-      oldLine = parseInt(/^@@ -(\d+)/.exec(raw)[1], 10);
+    const hunk = /^@@ -(\d+)/.exec(raw);
+    if (hunk && /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/.test(raw)) {
+      oldLine = parseInt(hunk[1], 10);
       continue;
     }
     if (oldLine === null) continue;
-    if (raw.startsWith("+")) {
-      // A '+' run sits between old-side lines oldLine and oldLine + 1.
-      if (pendingInsertAt === null) pendingInsertAt = oldLine;
-    } else if (raw.startsWith("-")) {
-      flushInsert();
+    if (raw.startsWith("-")) {
       editedOld.push(oldLine);
       oldLine += 1;
-    } else if (raw.startsWith("\\")) {
-      // Marker line, not content.
+    } else if (raw.startsWith("+") || raw.startsWith("\\")) {
+      // New-side content or marker: neither consumes an old line nor proves
+      // an original line changed.
     } else {
-      flushInsert();
       oldLine += 1; // context line moves both cursors
     }
   }
-  flushInsert();
-  return { editedOld, insertedAt };
+  return editedOld;
 }
 
 // Decide whether a REST compareCommits `files` array PROVES that the reviewed
@@ -269,20 +254,10 @@ function diffTouchesLocation(files, loc) {
   if (typeof file.patch !== "string") {
     return { changed: false, reason: `${loc.path} modified but its patch is unavailable/truncated; refusing to infer` };
   }
-  const { editedOld, insertedAt } = parseHunkChanges(file.patch);
-  const editHit = editedOld.some((n) => n >= loc.start && n <= loc.end);
-  if (editHit) {
-    return { changed: true, reason: `lines ${loc.start}-${loc.end} of ${loc.path} edited/deleted after ${loc.sha.slice(0, 12)}` };
-  }
-  // An insertion between old-side lines p-1 and p reflows the reviewed lines
-  // themselves only when it lands strictly inside the range: start < p <= end
-  // (p == start inserts just before the first reviewed line; p == end+1 just
-  // after the last). One before start shifts coordinates but leaves the
-  // reviewed content intact.
-  const insertHit = insertedAt.some((p) => p > loc.start && p <= loc.end);
-  return insertHit
-    ? { changed: true, reason: `content inserted inside lines ${loc.start}-${loc.end} of ${loc.path} after ${loc.sha.slice(0, 12)}` }
-    : { changed: false, reason: `edits in ${loc.path} do not touch lines ${loc.start}-${loc.end} at the anchor commit` };
+  const editHit = parseHunkChanges(file.patch).some((n) => n >= loc.start && n <= loc.end);
+  return editHit
+    ? { changed: true, reason: `lines ${loc.start}-${loc.end} of ${loc.path} edited/deleted after ${loc.sha.slice(0, 12)}` }
+    : { changed: false, reason: `no reviewed line of ${loc.path}:${loc.start}-${loc.end} was edited/deleted at the anchor commit` };
 }
 
 module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation };
