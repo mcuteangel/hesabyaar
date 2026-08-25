@@ -256,4 +256,24 @@ function diffTouchesLocation(files, loc) {
     : { changed: false, reason: `no reviewed line of ${loc.path}:${loc.start}-${loc.end} was edited/deleted at the anchor commit` };
 }
 
-module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation };
+// Given an ordered (newest-first) list of commit SHAs that touched `path`
+// between the PR head and a finding's anchor commit, return the NEWEST commit
+// that is strictly after the anchor - i.e. the commit most likely to have
+// resolved the finding. The anchor is an ancestor of head (it is the
+// finding's original_commit_id), so the list walks head -> ... -> anchor; the
+// first entry that is not the anchor is therefore the newest touching commit
+// after it. Returns null when the list is unusable or the anchor is already
+// the newest touching commit, so callers fall back to the PR head SHA. Pure:
+// no I/O, fully testable; it trusts the newest-first ordering the GitHub
+// listCommits API guarantees for a given path.
+function pickResolvingCommit(orderedShas, anchorSha) {
+  if (!Array.isArray(orderedShas) || typeof anchorSha !== "string") return null;
+  for (const sha of orderedShas) {
+    if (typeof sha !== "string") return null;
+    if (sha === anchorSha) return null; // reached the anchor; nothing newer touched it
+    return sha; // first commit after the anchor that touched the path
+  }
+  return null;
+}
+
+module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation, pickResolvingCommit };

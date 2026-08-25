@@ -15,6 +15,7 @@ const {
   toOriginalRange,
   parseHunkChanges,
   diffTouchesLocation,
+  pickResolvingCommit,
 } = require_("./ocr-resolve.js");
 
 const OCR_BODY = (id) => `<!-- ${id} -->\n\nsome finding text`;
@@ -503,6 +504,38 @@ test("diffTouchesLocation: no files array or bad location fails safe", () => {
   // Malformed location missing sha/start/end must not throw in .slice().
   assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], { path: "src/A.kt" }).changed, false);
   assert.equal(diffTouchesLocation([{ filename: "src/A.kt", status: "removed" }], { sha: "f".repeat(40), start: 1, end: 2 }).changed, false);
+});
+
+// ---- pickResolvingCommit (attribute the fix to a specific commit) ----
+
+const ANCHOR = "a".repeat(40);
+const HEAD = "b".repeat(40);
+const FIX = "c".repeat(40);
+
+// listCommits(path) is newest-first from head; when head itself touched the
+// file it is the resolving commit.
+test("pickResolvingCommit returns the head when head touched the path", () => {
+  assert.equal(pickResolvingCommit([HEAD, ANCHOR], ANCHOR), HEAD);
+});
+
+// When the head commit did NOT touch the path (so it is absent from the
+// path's commit list), the newest touching commit after the anchor is cited.
+test("pickResolvingCommit cites the fix when head did not touch the path", () => {
+  assert.equal(pickResolvingCommit([FIX, ANCHOR], ANCHOR), FIX);
+});
+
+// Anchor is already the newest touching commit -> nothing newer to attribute.
+test("pickResolvingCommit returns null when the anchor is the newest touch", () => {
+  assert.equal(pickResolvingCommit([ANCHOR], ANCHOR), null);
+});
+
+// Unusable input must fail safe to null so callers fall back to the head SHA.
+test("pickResolvingCommit fails safe on unusable input", () => {
+  assert.equal(pickResolvingCommit(undefined, ANCHOR), null);
+  assert.equal(pickResolvingCommit([], ANCHOR), null);
+  assert.equal(pickResolvingCommit("nope", ANCHOR), null);
+  assert.equal(pickResolvingCommit([123], ANCHOR), null);
+  assert.equal(pickResolvingCommit([FIX], undefined), null);
 });
 
 test("isValidResultPayload rejects malformed payloads", () => {
