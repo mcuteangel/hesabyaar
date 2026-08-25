@@ -129,16 +129,21 @@ jobs:
           mkdir -p release-artifacts notes
 
           # Prefer the artifacts produced by the exact prepare run recorded
-          # in the release PR body. A failed API read aborts loudly; a body
-          # without a marker (manual edit, legacy release) falls back to a
-          # name-only lookup with a visible warning.
-          if ! pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body'); then
-            echo "::error::Failed to read body of PR #${PR_NUMBER}; cannot resolve the prepare run for v${VERSION}."
-            exit 1
+          # in the release PR body. A failed API read on an existing PR
+          # aborts loudly; no PR at all or a missing marker falls back to a
+          # name-only lookup with visible warnings.
+          if [ -n "$PR_NUMBER" ]; then
+            if ! pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body'); then
+              echo "::error::Failed to read body of PR #${PR_NUMBER}; cannot resolve the prepare run for v${VERSION}."
+              exit 1
+            fi
+            run_id=$(printf '%s' "$pr_body" | grep -o 'hesabyar-release-run:[0-9]*' | head -n1 | cut -d: -f2 || true)
+          else
+            echo "::warning::Finalizing without a release PR; using latest artifact named 'release-v${VERSION}'."
+            run_id=""
           fi
-          run_id=$(printf '%s' "$pr_body" | grep -o 'hesabyar-release-run:[0-9]*' | head -n1 | cut -d: -f2 || true)
           if [ -z "$run_id" ]; then
-            echo "::warning::No prepare-run marker on PR #${PR_NUMBER}; using latest artifact named 'release-v${VERSION}'. Verify the published binaries belong to this release."
+            echo "::warning::No prepare-run marker for v${VERSION}; using latest matching artifact. Verify the published binaries belong to this release."
           fi
 
           fetch_artifact () {
