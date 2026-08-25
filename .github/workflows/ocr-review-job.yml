@@ -274,6 +274,11 @@ jobs:
           # resolver would mis-resolve threads - re-verify action.yml then.
           # Repeated runs on unchanged code never re-post the same finding and
           # nothing is dropped.
+          # SAFE ONLY with alibaba/open-code-review@4b6874bd…; if you repin,
+          # re-verify action.yml does NOT forward --incremental to `ocr review`
+          # (the resolver reads the full /tmp/ocr-result.json set; see 'Audit
+          # stale OpenCodeReview threads' below and the CONTRACT VERIFIED note
+          # above for the same verification pattern).
           incremental: 'true'
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
