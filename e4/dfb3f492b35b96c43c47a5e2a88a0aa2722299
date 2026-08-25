@@ -1,0 +1,23 @@
+rust/hesabyar-core/benches/parser_bench.rs
+  s_7712af7024eb9a::t_85ecb1aedd293b 5
+rust/uniffi-gen/src/main.rs
+  s_7712af7024eb9a::t_b1fbe6b24ffd6d 1-2,11-12,14,16-18,20-24,26
+app/buildSrc/template/HesabyarCore.template.kt
+  s_7712af7024eb9a::t_3dc369fe91c9e1 40-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e4dfb3f492b35b96c43c47a5e2a88a0aa2722299",
+  "prompts": {},
+  "sessions": {
+    "s_7712af7024eb9a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc7db0570ffeMK2yRnkSFO83fM",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
