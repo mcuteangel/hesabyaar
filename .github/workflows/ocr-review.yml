@@ -128,7 +128,11 @@ jobs:
               if (data.type !== 'file' || typeof data.content !== 'string') {
                 throw new Error(`unexpected getContent payload type: ${data.type}`);
               }
-              require('fs').writeFileSync('/tmp/ocr-rules-trusted.json', Buffer.from(data.content, 'base64'));
+              // Validate before persisting: malformed rules JSON at base would
+              // otherwise surface as an opaque error deep inside the action.
+              const decoded = Buffer.from(data.content, 'base64').toString('utf8');
+              JSON.parse(decoded);
+              require('fs').writeFileSync('/tmp/ocr-rules-trusted.json', decoded);
               core.setOutput('rule_path', '/tmp/ocr-rules-trusted.json');
             } catch (e) {
               if (e.status === 404) {
@@ -165,9 +169,10 @@ jobs:
           # project memory (issue #206 phase 4): intentional version bumps,
           # lockfile updates, Persian-first strings.
           # Resolved from the trusted base SHA by the step above - never from
-          # the action's PR-controlled checkout. Empty path => no --rule flag
-          # (upstream guards with [ -n "$OCR_RULE" ], which skips set-but-empty
-          # values too), i.e. built-in defaults apply.
+          # the action's PR-controlled checkout. Empty path => no --rule flag:
+          # the pinned action.yml guards with [ -n "$OCR_RULE" ] (lines
+          # 276+282 of its run step), which skips set-but-empty values too,
+          # so built-in defaults apply.
           rule: ${{ steps.trusted-rules.outputs.rule_path }}
           # Noise reduction (issue #206 phase 1): weak findings move to the PR
           # summary instead of inline comments. Fail-open upstream - nothing is
