@@ -132,8 +132,12 @@ jobs:
               // otherwise surface as an opaque error deep inside the action.
               const decoded = Buffer.from(data.content, 'base64').toString('utf8');
               JSON.parse(decoded);
-              require('fs').writeFileSync('/tmp/ocr-rules-trusted.json', decoded);
-              core.setOutput('rule_path', '/tmp/ocr-rules-trusted.json');
+              // Per-run private directory (mkdtemp) + owner-only file mode:
+              // never follow a pre-existing symlink at a predictable /tmp path.
+              const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ocr-rules-'));
+              const ruleFile = require('path').join(dir, 'rules.json');
+              require('fs').writeFileSync(ruleFile, decoded, { mode: 0o600 });
+              core.setOutput('rule_path', ruleFile);
             } catch (e) {
               if (e.status === 404) {
                 core.warning('Rules file not present at base SHA; proceeding without custom rules.');
