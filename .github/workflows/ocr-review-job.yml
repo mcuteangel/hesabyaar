@@ -155,9 +155,16 @@ jobs:
                 }
               }
               if (!Array.isArray(parsed.rules)) {
-                core.warning(`Rules file from ${refLabel} (${ref.slice(0, 12)}) has no 'rules' array; reviewing with empty rules.`);
+                // Fail closed: a present-but-structurally-invalid trusted rules
+                // file is NOT the same as "no rules file" (404). Silently
+                // proceeding with zero custom rules would drop the entire
+                // security-review coverage with no signal. The 404 path still
+                // falls through to built-in defaults below.
+                const msg = `Rules file from ${refLabel} (${ref.slice(0, 12)}) has no 'rules' array; refusing to review without valid rules.`;
+                core.setFailed(msg);
+                throw new Error(msg);
               }
-              const injected = (Array.isArray(parsed.rules) ? parsed.rules : []).map((r) => ({
+              const injected = parsed.rules.map((r) => ({
                 ...r,
                 rule: memory ? `${r.rule ?? ''}\n\n${memory}` : (r.rule ?? ''),
               }));
