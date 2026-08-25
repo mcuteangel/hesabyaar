@@ -517,9 +517,13 @@ jobs:
             }
             // listComments returns oldest-first; keep the newest visible.
             const newest = summaries.reduce((a, b) => (a.created_at > b.created_at ? a : b));
-            let archived = 0, failed = 0;
+            let archived = 0, failed = 0, alreadyArchived = 0;
             for (const c of summaries) {
               if (c.id === newest.id) continue;
+              // REST listComments does not reliably expose is_minimized, so
+              // already-minimized comments are detected via the mutation's
+              // idempotent rejection instead of being re-counted as failures
+              // every run (OCR summary finding on PR #211).
               try {
                 await github.graphql(
                   `mutation($id: ID!) {
@@ -531,9 +535,12 @@ jobs:
                 );
                 archived++;
               } catch (e) {
-                // Already-minimized or hidden comments can reject; not fatal.
+                if (/already minimized/i.test(String(e && e.message))) {
+                  alreadyArchived++;
+                  continue;
+                }
                 failed++;
                 core.warning(`Could not minimize summary ${c.id}: ${e.message}`);
               }
             }
-            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, minimized ${archived} superseded (${failed} failed).`);
+            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, minimized ${archived} superseded (${alreadyArchived} already archived, ${failed} failed).`);
