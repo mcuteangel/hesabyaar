@@ -13,13 +13,13 @@ uniffi = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-sha2 = "0.10"
-rust_xlsxwriter = "0.80"
+sha2 = "0.11"
+rust_xlsxwriter = "0.98"
 
 
 [dev-dependencies]
 proptest = "1"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "parser_bench"
