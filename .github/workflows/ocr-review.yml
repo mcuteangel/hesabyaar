@@ -219,6 +219,12 @@ jobs:
           # dropped. Severity 'low' routes only low-severity findings;
           # categories route style/documentation/maintainability chatter that
           # ktlint/detekt already cover authoritatively.
+          # Each run gets its OWN summary comment (matched by this run's
+          # ocr-summary-run tag); retries within a run reuse it. The default
+          # ('true') updates one persistent sticky comment in place, which
+          # buries new findings under an ever-growing first comment on
+          # long-lived PRs. Stale-run cleanup is the audit step's job.
+          sticky_summary: 'false'
           route_severity_below: 'low'
           route_categories: 'style,documentation,maintainability'
           # Explicit review output language (action default is already English).
