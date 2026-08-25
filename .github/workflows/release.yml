@@ -1,17 +1,37 @@
 name: Release
 
+# PR-only release flow.
+#
+# A push to main that changes application code is classified as PREPARE:
+# it computes the next version, runs tests, builds APK/AAB artifacts,
+# pushes a release/vX.Y.Z branch and opens an auto-merge Pull Request
+# back to main. This workflow NEVER pushes to main directly.
+#
+# When the release PR merges, the landing push on main is classified as
+# FINALIZE: the tag and GitHub Release are published from the CI
+# artifacts produced by the prepare run.
+#
+# Required repository setting: "Allow auto-merge" must be enabled
+# (Settings > General > Pull Requests). Without it the prepare run ends
+# with a clear error instead of bypassing protections.
+
 on:
   push:
     branches: [main]
 
 permissions:
   contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: "!contains(github.event.head_commit.message, '[skip release]')"
 
     steps:
       - name: Checkout
@@ -21,7 +41,156 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.WORKFLOW_PAT }}
 
+      - name: Classify push
+        id: classify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.sha }}
+          HEAD_AUTHOR: ${{ github.event.head_commit.author.username }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          mode="prepare"
+          version=""
+          pr_number=""
+
+          # A release PR can land on main through merge commit, squash or
+          # rebase. In every strategy the pushed SHA equals the PR's
+          # mergeCommit OID, so PR metadata is the primary signal.
+          match=$(gh pr list --base main --state merged --limit 10 \
+            --json number,headRefName,mergeCommit \
+            --jq '.[] | select(.mergeCommit.oid == "'"$HEAD_SHA"'") | select(.headRefName | test("^release/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | [(.number | tostring), .headRefName] | @tsv' \
+            2>/dev/null || true)
+
+          if [ -n "$match" ]; then
+            mode="finalize"
+            pr_number=$(printf '%s' "$match" | cut -f1)
+            branch=$(printf '%s' "$match" | cut -f2)
+            version="${branch#release/v}"
+          elif [ "$HEAD_AUTHOR" = "github-actions[bot]" ] && \
+               printf '%s' "$HEAD_MESSAGE" | head -n1 | grep -qE '^chore: release v[0-9]+\.[0-9]+\.[0-9]+'; then
+            # Fallback: a bot-authored release commit landed without PR
+            # metadata (for example a squash whose PR was deleted).
+            mode="finalize"
+            version=$(printf '%s' "$HEAD_MESSAGE" | head -n1 | sed -E 's/^chore: release v([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
+          elif printf '%s' "$HEAD_MESSAGE" | grep -q '\[skip release\]'; then
+            mode="manual-skip"
+          fi
+
+          {
+            echo "mode=$mode"
+            echo "version=$version"
+            echo "pr_number=$pr_number"
+          } >> "$GITHUB_OUTPUT"
+          echo "Push classified as: $mode${version:+ (v$version)}"
+
+      # ------------------------------------------------------------------
+      # FINALIZE PATH: a release PR just landed on main.
+      # ------------------------------------------------------------------
+
+      - name: Check existing GitHub Release
+        if: steps.classify.outputs.mode == 'finalize'
+        id: finalize_state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.classify.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "already_done=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Release v$VERSION already exists - nothing to do."
+          else
+            echo "already_done=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub Release v$VERSION missing - publishing now."
+          fi
+
+      - name: Download prepared artifacts
+        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.classify.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts notes
+          fetch_artifact () {
+            local name="$1" dest="$2"
+            local api_url id
+            api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}&per_page=100"
+            id=$(curl -sfL -H "Authorization: Bearer $GH_TOKEN" "$api_url" | \
+              jq -r '[.artifacts[] | select(.expired == false)][0].id // empty')
+            if [ -z "$id" ]; then
+              echo "::error::CI artifact '${name}' not found (or expired). Cannot publish v${VERSION} without its build artifacts."
+              exit 1
+            fi
+            curl -sfL -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" \
+              -o artifact.zip
+            unzip -q artifact.zip -d "$dest"
+            rm -f artifact.zip
+          }
+          fetch_artifact "release-v${VERSION}" release-artifacts
+          fetch_artifact "release-notes-v${VERSION}" notes
+          ls -la release-artifacts notes
+
+      - name: Publish tag and GitHub Release
+        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.classify.outputs.version }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # --target pins the tag exactly to the commit merged into main;
+          # gh creates the tag as part of the release publication.
+          gh release create "v${VERSION}" \
+            --target "$HEAD_SHA" \
+            --title "v${VERSION}" \
+            --notes-file notes/release-notes.md \
+            release-artifacts/*.apk \
+            release-artifacts/*.aab \
+            release-artifacts/*.sha256
+          echo "Published v${VERSION} at commit ${HEAD_SHA}."
+
+      - name: Summary - finalized
+        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'false'
+        env:
+          VERSION: ${{ steps.classify.outputs.version }}
+          PR_NUMBER: ${{ steps.classify.outputs.pr_number }}
+        run: |
+          {
+            echo "### 🚀 Release v${VERSION} published"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Version | ${VERSION} |"
+            echo "| Source PR | #${PR_NUMBER:-unknown} |"
+            echo "| Tag | v${VERSION} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary - already published
+        if: steps.classify.outputs.mode == 'finalize' && steps.finalize_state.outputs.already_done == 'true'
+        env:
+          VERSION: ${{ steps.classify.outputs.version }}
+        run: |
+          echo "### ⏭️ Finalize skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release v${VERSION} already exists." >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
+      # MANUAL-SKIP ESCAPE HATCH
+      # ------------------------------------------------------------------
+
+      - name: Summary - manual skip
+        if: steps.classify.outputs.mode == 'manual-skip'
+        run: |
+          echo "### ⏭️ Release skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "Head commit message contains [skip release]." >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
+      # PREPARE PATH: normal application change landed on main.
+      # ------------------------------------------------------------------
+
       - name: Detect application changes
+        if: steps.classify.outputs.mode == 'prepare'
         id: detect
         env:
           BASE_REF: ${{ github.event.before }}
@@ -33,7 +202,7 @@ jobs:
           fi
 
       - name: Parse conventional commits
-        if: steps.detect.outputs.release_needed == 'true'
+        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
         id: parse
         env:
           BASE_REF: ${{ github.event.before }}
@@ -48,22 +217,22 @@ jobs:
           echo "Bump type: $bump_type"
 
       - name: Bump version
-        if: steps.detect.outputs.release_needed == 'true'
+        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
         id: bump
         env:
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
         run: |
           new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE")
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${new_version}" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
-        if: steps.detect.outputs.release_needed == 'true'
+        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'true'
         id: check_tag
         env:
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: |
-          if git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; then
+          # Remote check is authoritative even when the local clone lacks refs.
+          if [ -n "$(git ls-remote origin "refs/tags/v${NEW_VERSION}")" ]; then
             echo "tag_exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
@@ -237,32 +406,7 @@ jobs:
         run: |
           python3 scripts/update-changelog.py "$NEW_VERSION" current-notes.md 5
 
-      - name: Commit version bump
-        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        env:
-          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION CHANGELOG.md
-          git commit -m "chore: release v${NEW_VERSION} [skip ci]"
-          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-          git push origin HEAD --follow-tags
-
-      - name: Create GitHub Release
-        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
-        run: |
-          gh release create "v${NEW_VERSION}" \
-            --title "v${NEW_VERSION}" \
-            --notes-file release-notes.md \
-            release-artifacts/*.apk \
-            release-artifacts/*.aab \
-            release-artifacts/*.sha256
-
-      - name: Upload release artifacts
+      - name: Upload build artifacts
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
         uses: actions/upload-artifact@v4
         with:
@@ -270,31 +414,137 @@ jobs:
           path: release-artifacts/
           retention-days: 30
 
-      - name: Cleanup keystore
-        if: always() && steps.detect.outputs.release_needed == 'true'
-        run: rm -f my-upload-key.jks
+      - name: Upload release notes artifact
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-v${{ steps.bump.outputs.new_version }}
+          path: release-notes.md
+          retention-days: 30
 
-      - name: Summary
-        if: steps.detect.outputs.release_needed == 'true'
+      - name: Publish release branch and pull request
+        id: publish
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
         env:
-          TAG_EXISTS: ${{ steps.check_tag.outputs.tag_exists }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          SUMMARY: ${{ steps.parse.outputs.summary }}
         run: |
-          if [ "$TAG_EXISTS" = "true" ]; then
-            echo "### ⏭️ Release skipped" >> $GITHUB_STEP_SUMMARY
-            echo "Tag v${NEW_VERSION} already exists." >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="release/v${NEW_VERSION}"
+
+          # Commit the release state on the dedicated branch. The branch tip
+          # is the exact main commit that triggered this run.
+          git checkout -B "$BRANCH"
+          git add VERSION CHANGELOG.md
+          git commit -m "chore: release v${NEW_VERSION} [skip release]"
+
+          existing_pr=$(gh pr list --head "$BRANCH" --base main --state open \
+            --json number --jq '.[0].number // empty')
+
+          remote_branch_exists=$(git ls-remote --heads origin "$BRANCH" | wc -l)
+
+          if [ "$remote_branch_exists" -gt 0 ]; then
+            # Automation-owned branch. An attached open PR gets refreshed with
+            # the freshly computed release state; a stale branch with no PR is
+            # replaced the same way. --force-with-lease rejects the push if
+            # the remote moved since the fetch above.
+            git push --force-with-lease origin "$BRANCH"
           else
-            echo "### ✅ Release v${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Version | ${NEW_VERSION} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Bump type | ${BUMP_TYPE} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Tag | v${NEW_VERSION} |" >> $GITHUB_STEP_SUMMARY
+            git push origin "$BRANCH"
           fi
-      - name: Summary - Skipped
-        if: steps.detect.outputs.release_needed == 'false'
+
+          if [ -n "$existing_pr" ]; then
+            echo "Reusing existing PR #${existing_pr} for $BRANCH."
+            pr_number="$existing_pr"
+          else
+            cat > pr-body.md <<BODY_EOF
+          <!-- Automated release PR created by the Release workflow. -->
+
+          ## Release v${NEW_VERSION}
+
+          | Item | Value |
+          |------|-------|
+          | Version | ${NEW_VERSION} |
+          | Bump type | ${BUMP_TYPE} |
+
+          ### Changes included
+
+          ${SUMMARY}
+
+          ---
+          _This PR was created automatically by the Release workflow. Merging it publishes the release: the tag and GitHub Release are finalized after this PR reaches \`main\`._
+          BODY_EOF
+            pr_number=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore: release v${NEW_VERSION}" \
+              --body-file pr-body.md)
+            pr_number=$(printf '%s' "$pr_number" | grep -oE '[0-9]+$')
+            echo "Created PR #${pr_number} for $BRANCH."
+          fi
+
+          {
+            echo "pr_number=${pr_number}"
+            echo "branch=${BRANCH}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge on release PR
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          PR_NUMBER: ${{ steps.publish.outputs.pr_number }}
         run: |
-          echo "### ⏭️ Release skipped" >> $GITHUB_STEP_SUMMARY
-          echo "No application code changes detected." >> $GITHUB_STEP_SUMMARY
+          if ! gh pr merge "$PR_NUMBER" --auto --merge; then
+            echo "::error::Failed to enable auto-merge on PR #${PR_NUMBER}."
+            echo "Most likely cause: 'Allow auto-merge' is disabled in repository Settings > General > Pull Requests." >&2
+            echo "Enable it once; do NOT work around by merging manually or pushing to main." >&2
+            exit 1
+          fi
+          echo "Auto-merge enabled on PR #${PR_NUMBER}; GitHub will merge after required checks pass."
+
+      - name: Cleanup keystore
+        if: always()
+        run: rm -f my-upload-key.jks
+
+      - name: Summary - release prepared
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+          BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          PR_NUMBER: ${{ steps.publish.outputs.pr_number }}
+        run: |
+          {
+            echo "### ✅ Release v${NEW_VERSION} prepared"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Version | ${NEW_VERSION} |"
+            echo "| Bump type | ${BUMP_TYPE} |"
+            echo "| PR | #${PR_NUMBER} (auto-merge enabled) |"
+            echo "| Tag | created after PR merges |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary - tag exists
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+        run: |
+          {
+            echo "### ⏭️ Release skipped"
+            echo ""
+            echo "Tag v${NEW_VERSION} already exists."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary - no app changes
+        if: steps.classify.outputs.mode == 'prepare' && steps.detect.outputs.release_needed == 'false'
+        run: |
+          {
+            echo "### ⏭️ Release skipped"
+            echo ""
+            echo "No application code changes detected."
+          } >> "$GITHUB_STEP_SUMMARY"
