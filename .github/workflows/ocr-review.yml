@@ -83,7 +83,7 @@ jobs:
         id: pr-context
         if: github.event_name == 'issue_comment'
         # v7.1.0 (immutable pin)
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
           script: |
             const prNumber = context.issue.number;
@@ -235,7 +235,7 @@ jobs:
         # staleness, so nothing is auto-resolved; absence-only threads are
         # logged as RESOLVE-CANDIDATE for human review.
         if: env.OCR_EXIT_CODE == '0'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
