@@ -2,7 +2,7 @@
 // benchmark loudly, so unwrap is the right tool here.
 #![allow(clippy::unwrap_used)]
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use hesabyar_core::advisory::{calculate_financial_health_score, get_offline_budget_advice};
 use hesabyar_core::ai_validation::{parse_ai_transaction_json, validate_ai_advice};
 use hesabyar_core::analytics::compute_analytics;
@@ -17,6 +17,7 @@ use hesabyar_core::parser::amount::parse_amount;
 use hesabyar_core::parser::money_detector::contains_money;
 use hesabyar_core::search::{search_transactions, SearchQuery};
 use hesabyar_core::validation::{validate_backup_payload, validate_transaction};
+use std::hint::black_box;
 
 fn bench_parse_amount(c: &mut Criterion) {
     c.bench_function("parse_500k_toman", |b| {
