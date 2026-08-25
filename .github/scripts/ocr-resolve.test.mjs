@@ -16,6 +16,9 @@ const {
   parseHunkChanges,
   diffTouchesLocation,
   pickResolvingCommit,
+  buildResolutionPrompt,
+  parseLlmResolutions,
+  validateResolution,
 } = require_("./ocr-resolve.js");
 
 const OCR_BODY = (id) => `<!-- ${id} -->\n\nsome finding text`;
@@ -555,4 +558,69 @@ test("isValidResultPayload rejects malformed payloads", () => {
     isValidResultPayload({ comments: [{ path: "a", start_line: 1e21, end_line: 1e21 }] }),
     false
   );
+});
+
+// ---------------------------------------------------------------------------
+// Phase R (LLM) resolution helpers
+// ---------------------------------------------------------------------------
+
+test("buildResolutionPrompt embeds finding ids and commit shas", () => {
+  const prompt = buildResolutionPrompt({
+    findings: [{ id: "ocr-1-1-aaaaaaaaaaaaaaaa", path: "a.kt", start: 10, end: 12, anchor: "abc123", body: "unused var" }],
+    commits: [{ sha: "deadbeefcafe0000000000000000000000000001", message: "fix: remove unused var" }],
+    changedFiles: ["a.kt", "b.kt"],
+  });
+  assert.ok(prompt.includes("ocr-1-1-aaaaaaaaaaaaaaaa"));
+  assert.ok(prompt.includes("deadbeefcafe0000000000000000000000000001"));
+  assert.ok(prompt.includes("a.kt:10-12"));
+  assert.ok(prompt.includes('"resolutions"'));
+});
+
+test("parseLlmResolutions handles bare JSON", () => {
+  const raw = '{"resolutions":[{"id":"ocr-1-1-aaaaaaaaaaaaaaaa","commit":"deadbeefcafe","reason":"fixed"}]}';
+  const { resolutions, errors } = parseLlmResolutions(raw);
+  assert.equal(errors.length, 0);
+  assert.equal(resolutions.length, 1);
+  assert.equal(resolutions[0].id, "ocr-1-1-aaaaaaaaaaaaaaaa");
+  assert.equal(resolutions[0].commit, "deadbeefcafe");
+  assert.equal(resolutions[0].reason, "fixed");
+});
+
+test("parseLlmResolutions strips ```json fences and prose", () => {
+  const raw = "Sure!\n```json\n{\"resolutions\":[{\"id\":\"x\",\"commit\":\"abc123\",\"reason\":\"done\"}]}\n```\nthanks";
+  const { resolutions, errors } = parseLlmResolutions(raw);
+  assert.equal(errors.length, 0);
+  assert.equal(resolutions.length, 1);
+  assert.equal(resolutions[0].id, "x");
+});
+
+test("parseLlmResolutions drops entries with missing fields and reports errors", () => {
+  const raw = '{"resolutions":[{"id":"x","commit":"abc","reason":"fixed"},{"commit":"def","reason":"no id"},"garbage"]}';
+  const { resolutions, errors } = parseLlmResolutions(raw);
+  assert.equal(resolutions.length, 1); // only the well-formed one
+  assert.equal(resolutions[0].commit, "abc");
+  assert.ok(errors.length >= 2);
+});
+
+test("parseLlmResolutions degrades on non-JSON", () => {
+  const { resolutions, errors } = parseLlmResolutions("not json at all");
+  assert.equal(resolutions.length, 0);
+  assert.ok(errors.length >= 1);
+});
+
+test("validateResolution accepts a commit in range (full or prefix)", () => {
+  const shas = ["deadbeefcafe0000000000000000000000000001", "1111111111111111111111111111111111111111"];
+  let v = validateResolution({ commit: "deadbeefcafe0000000000000000000000000001" }, { commitShas: shas });
+  assert.equal(v.ok, true);
+  assert.equal(v.canonicalSha, "deadbeefcafe0000000000000000000000000001");
+  v = validateResolution({ commit: "deadbeefcafe" }, { commitShas: shas });
+  assert.equal(v.ok, true);
+  assert.equal(v.canonicalSha, "deadbeefcafe0000000000000000000000000001");
+});
+
+test("validateResolution rejects a commit outside the range", () => {
+  const shas = ["deadbeefcafe0000000000000000000000000001"];
+  const v = validateResolution({ commit: "9999999999999999999999999999999999999999" }, { commitShas: shas });
+  assert.equal(v.ok, false);
+  assert.ok(/not in/.test(v.reason));
 });

@@ -276,4 +276,134 @@ function pickResolvingCommit(orderedShas, anchorSha) {
   return null;
 }
 
-module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation, pickResolvingCommit };
+// ---------------------------------------------------------------------------
+// Phase R (LLM) resolution helpers — issue #206 follow-up.
+//
+// The deterministic pass (diffTouchesLocation) only resolves when the code at
+// the finding's location provably changed. Absence-candidates it leaves open
+// can still be genuine fixes that landed elsewhere (a refactor, a logic move,
+// or the LLM simply stopped re-flagging). A dedicated LLM pass may attribute
+// such a prior finding to a real commit in its anchor..head range. These
+// helpers keep prompt-building, parsing and validation pure and testable; the
+// network call lives in the workflow.
+// ---------------------------------------------------------------------------
+
+// Cap inputs so a pathological PR cannot blow up the LLM context window.
+const LLM_MAX_CANDIDATES = 15;
+const LLM_MAX_COMMITS = 30;
+const LLM_MAX_FILES = 60;
+const LLM_BODY_LIMIT = 600;
+
+// Build the resolution-audit prompt. `findings` are prior absent findings:
+//   { id, path, start, end, anchor, body }
+// `commits` are commits in each finding's anchor..head range: { sha, message }.
+// `changedFiles` is the union of touched filenames for the range.
+// Returns a single prompt string instructing the model to emit ONLY the JSON
+// shape { "resolutions": [ { "id", "commit", "reason" } ] }.
+function buildResolutionPrompt({ findings, commits, changedFiles }) {
+  const fLines = (findings || []).slice(0, LLM_MAX_CANDIDATES).map((f) => {
+    const body = (f.body || "").replace(/\s+/g, " ").slice(0, LLM_BODY_LIMIT);
+    return [
+      `- id=${f.id}`,
+      `  location=${f.path}:${f.start}-${f.end}`,
+      `  anchor=${f.anchor}`,
+      `  finding=${body}`,
+    ].join("\n");
+  }).join("\n");
+  const cLines = (commits || []).slice(0, LLM_MAX_COMMITS).map((c) => {
+    const msg = String(c.message || "").split("\n")[0].slice(0, 200);
+    return `- ${c.sha}  ${msg}`;
+  }).join("\n");
+  const files = (changedFiles || []).slice(0, LLM_MAX_FILES).join(", ");
+  return [
+    "You are a code-review resolution auditor. The PRIOR inline review findings below are ABSENT from the latest automated review run on this pull request.",
+    "Decide, using ONLY the commits listed, whether each prior finding was genuinely fixed. If a listed commit clearly fixes/addresses a finding, emit a resolution citing THAT commit's SHA. Otherwise omit the finding — never invent a commit.",
+    "",
+    "PRIOR FINDINGS:",
+    fLines || "(none)",
+    "",
+    "COMMITS IN RANGE (sha | first line of message):",
+    cLines || "(none)",
+    "",
+    `FILES CHANGED IN RANGE: ${files || "(unknown)"}`,
+    "",
+    "Respond with ONLY a JSON object of this exact shape (no prose, no markdown fences):",
+    '{"resolutions":[{"id":"<prior finding id>","commit":"<full or 12-char sha from the COMMITS list>","reason":"<one line>"}]}',
+  ].join("\n");
+}
+
+// Parse the LLM's raw response text into structured resolutions. Tolerant of
+// ```json fences and surrounding prose. Drops entries missing id/commit/reason
+// or with non-string fields; collects readable errors instead of throwing so a
+// partial/garbled response degrades to "resolve nothing".
+function parseLlmResolutions(raw) {
+  const resolutions = [];
+  const errors = [];
+  if (typeof raw !== "string" || raw.trim() === "") {
+    errors.push("empty LLM response");
+    return { resolutions, errors };
+  }
+  const text = typeof raw === "string" ? raw.trim() : "";
+  let work = text;
+  const fence = work.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fence) work = fence[1].trim();
+  if (!work.startsWith("{")) {
+    const brace = work.indexOf("{");
+    const lastBrace = work.lastIndexOf("}");
+    if (brace !== -1 && lastBrace > brace) work = work.slice(brace, lastBrace + 1);
+  }
+  let obj;
+  try {
+    obj = JSON.parse(work);
+  } catch (e) {
+    errors.push(`cannot parse JSON (${e.message})`);
+    return { resolutions, errors };
+  }
+  const list = Array.isArray(obj)
+    ? obj
+    : obj && Array.isArray(obj.resolutions)
+      ? obj.resolutions
+      : null;
+  if (!list) {
+    errors.push('no "resolutions" array in response');
+    return { resolutions, errors };
+  }
+  for (const item of list) {
+    if (!item || typeof item !== "object") {
+      errors.push("non-object resolution entry");
+      continue;
+    }
+    const id = typeof item.id === "string" ? item.id : null;
+    const commit = typeof item.commit === "string" ? item.commit.trim() : null;
+    const reason = typeof item.reason === "string" ? item.reason.trim() : null;
+    if (!id || !commit || !reason) {
+      errors.push(`dropped entry missing id/commit/reason (id=${id})`);
+      continue;
+    }
+    resolutions.push({ id, commit, reason });
+  }
+  return { resolutions, errors };
+}
+
+// Validate one parsed resolution against the candidate it claims to close.
+// `commitShas` is the set of real commit SHAs in that finding's anchor..head
+// range (from compareCommits). The cited commit MUST be one of them — this is
+// the fail-safe gate: we never resolve citing an unrelated or pre-existing
+// commit. Returns { ok, reason, canonicalSha? }.
+function validateResolution(res, { commitShas }) {
+  const shas = Array.isArray(commitShas) ? commitShas : [];
+  const want = String(res.commit).toLowerCase();
+  const match = shas.find((s) => {
+    const s2 = String(s).toLowerCase();
+    return s2 === want || s2.startsWith(want);
+  });
+  if (!match) {
+    return {
+      ok: false,
+      reason: `cited commit ${String(res.commit).slice(0, 12)} not in the finding's anchor..head range`,
+    };
+  }
+  return { ok: true, reason: "commit in range", canonicalSha: match };
+}
+
+module.exports = { OCR_ID_RE, extractOcrId, isOcrInlineComment, toRange, toLineRange, rangesIntersect, classifyThreads, isValidResultPayload, toOriginalRange, parseHunkChanges, diffTouchesLocation, pickResolvingCommit, buildResolutionPrompt, parseLlmResolutions, validateResolution };

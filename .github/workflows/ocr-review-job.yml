@@ -351,6 +351,13 @@ jobs:
         # decision glue lives here; the pure predicates live in the trusted
         # ocr-resolve.js below.
         if: env.OCR_EXIT_CODE == '0'
+        env:
+          # Same LLM gateway the OCR action itself uses, so the resolution pass
+          # can ask it to attribute prior (now-absent) findings to a commit.
+          LLM_URL: ${{ inputs.llm_url }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          LLM_USE_ANTHROPIC: ${{ inputs.use_anthropic }}
+          LLM_AUTH: ${{ secrets.auth_token }}
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
@@ -370,7 +377,38 @@ jobs:
               core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
               return;
             }
-            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit } = require('./.github/scripts/ocr-resolve.js');
+            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit, buildResolutionPrompt, parseLlmResolutions, validateResolution } = require('./.github/scripts/ocr-resolve.js');
+
+            // Minimal LLM gateway client mirroring how the OCR action calls the
+            // same endpoint: OpenAI-compatible chat completions by default,
+            // Anthropic Messages API when useAnthropic is true. Returns the raw
+            // assistant text and throws on transport/HTTP errors so callers can
+            // fail open.
+            async function callLlmGateway({ url, model, auth, useAnthropic, prompt }) {
+              if (!url || !auth) throw new Error('LLM gateway url/auth not configured');
+              if (useAnthropic) {
+                const resp = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'x-api-key': auth, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+                  body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
+                });
+                if (!resp.ok) throw new Error(`Anthropic gateway HTTP ${resp.status}`);
+                const json = await resp.json();
+                const text = json && json.content && json.content[0] && json.content[0].text;
+                if (typeof text !== 'string') throw new Error('unexpected Anthropic response shape');
+                return text;
+              }
+              const resp = await fetch(url, {
+                method: 'POST',
+                headers: { authorization: `Bearer ${auth}`, 'content-type': 'application/json' },
+                body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0 }),
+              });
+              if (!resp.ok) throw new Error(`LLM gateway HTTP ${resp.status}`);
+              const json = await resp.json();
+              const text = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+              if (typeof text !== 'string') throw new Error('unexpected LLM response shape');
+              return text;
+            }
 
             // Latest findings from the same runner filesystem. Only a payload
             // matching the expected schema counts as available; anything else
@@ -473,6 +511,10 @@ jobs:
             // Same head per run: candidates reviewing the same path reuse one
             // listCommits result instead of issuing a request per candidate.
             const commitListCache = new Map();
+            // Absence-candidates the deterministic pass leaves open (code at
+            // the location unchanged, finding absent from the latest run) are
+            // collected here for the Phase R LLM attribution pass below.
+            const llmCandidates = [];
 
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
@@ -497,28 +539,52 @@ jobs:
                 continue;
               }
               let verdict;
+              let cmpCommits = [];
+              let changedFiles = [];
               try {
                 // TWO-dot range: the diff base must be the finding's own
                 // anchor commit. THREE-dot would anchor to the merge base,
                 // silently dropping changes between anchor and merge base.
                 const basehead = `${loc.sha}..${headSha}`;
-                let files = compareCache.get(basehead);
-                if (!files) {
+                // Cache the whole compare (files + commits) per anchor..head so
+                // the deterministic check and the LLM attribution pass below
+                // share one request; candidates sharing an anchor reuse it.
+                let cmpData = compareCache.get(basehead);
+                if (!cmpData) {
                   const { data: cmp } = await github.rest.repos.compareCommits({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     basehead,
                   });
-                  files = cmp.files;
-                  compareCache.set(basehead, files);
+                  cmpData = cmp;
+                  compareCache.set(basehead, cmpData);
                 }
+                const files = cmpData.files;
+                cmpCommits = cmpData.commits || [];
+                changedFiles = files || [];
                 verdict = diffTouchesLocation(files, loc);
               } catch (e) {
                 core.warning(`Candidate ${d.id}: compare ${loc.sha.slice(0, 12)}...${headSha.slice(0, 12)} failed (${e.message}); left open.`);
                 continue;
               }
               if (!verdict.changed) {
-                core.info(`RESOLVE-CANDIDATE (code unchanged; left open): ${d.id} — ${verdict.reason}`);
+                core.info(`RESOLVE-CANDIDATE (code unchanged; LLM re-check eligible): ${d.id} — ${verdict.reason}`);
+                if (process.env.LLM_URL && process.env.LLM_AUTH) {
+                  const tId = threadByCommentId.get(d.threadKey);
+                  llmCandidates.push({
+                    id: d.id,
+                    threadKey: d.threadKey,
+                    threadId: tId,
+                    path: loc.path,
+                    start: loc.start,
+                    end: loc.end,
+                    anchor: loc.sha,
+                    body: comment.body || '',
+                    commits: cmpCommits.map((c) => ({ sha: c.sha, message: (c.commit && c.commit.message) || c.message || '' })),
+                    changedFiles: changedFiles.map((f) => f.filename),
+                    validShas: cmpCommits.map((c) => c.sha),
+                  });
+                }
                 continue;
               }
               const threadId = threadByCommentId.get(d.threadKey);
@@ -573,8 +639,71 @@ jobs:
                 core.warning(`Candidate ${d.id}: resolution failed (${e.message}); left open.`);
               }
             }
+            }
+
+            // ---- Phase R (LLM): attribute absence-candidates to a real commit ----
+            // The deterministic pass already proved the code at each candidate
+            // location did NOT change, yet the finding is absent from the latest
+            // review run. A dedicated LLM pass may conclude such a prior finding
+            // was fixed elsewhere and cite the commit. Fail-open: any error skips
+            // the pass and leaves threads open; the cited commit must be in the
+            // finding's anchor..head range (see validateResolution).
+            let llmResolved = 0;
+            if (llmCandidates.length && process.env.LLM_URL && process.env.LLM_AUTH) {
+              try {
+                const prompt = buildResolutionPrompt({
+                  findings: llmCandidates.map((c) => ({ id: c.id, path: c.path, start: c.start, end: c.end, anchor: c.anchor, body: c.body })),
+                  commits: llmCandidates.flatMap((c) => c.commits),
+                  changedFiles: llmCandidates.flatMap((c) => c.changedFiles),
+                });
+                const raw = await callLlmGateway({
+                  url: process.env.LLM_URL,
+                  model: process.env.LLM_MODEL,
+                  auth: process.env.LLM_AUTH,
+                  useAnthropic: process.env.LLM_USE_ANTHROPIC === 'true',
+                  prompt,
+                });
+                const { resolutions, errors } = parseLlmResolutions(raw);
+                for (const err of errors) core.warning(`LLM resolution parse: ${err}`);
+                for (const res of resolutions) {
+                  if (resolvedCount >= MAX_AUTO_RESOLVES) break;
+                  const cand = llmCandidates.find((c) => c.id === res.id);
+                  if (!cand) { core.info(`LLM cited unknown finding id ${res.id}; skipped.`); continue; }
+                  if (!cand.threadId) { core.info(`LLM resolution for ${res.id}: no unresolved thread mapped; skipped.`); continue; }
+                  const v = validateResolution(res, { commitShas: cand.validShas });
+                  if (!v.ok) { core.info(`LLM resolution for ${res.id} rejected: ${v.reason}; left open.`); continue; }
+                  try {
+                    const sha = v.canonicalSha || res.commit;
+                    const shortSha = sha.slice(0, 12);
+                    const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
+                    const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${res.reason}. This prior finding at ${cand.path}:${cand.start}-${cand.end} no longer applies (anchor ${cand.anchor.slice(0, 12)}..${shortSha}).`;
+                    await github.graphql(
+                      `mutation($t: ID!, $body: String!) {
+                        addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
+                      }`,
+                      { t: cand.threadId, body: replyBody }
+                    );
+                    await github.graphql(
+                      `mutation($t: ID!) {
+                        resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
+                      }`,
+                      { t: cand.threadId }
+                    );
+                    resolvedCount++;
+                    llmResolved++;
+                    core.info(`RESOLVED by LLM: ${res.id} — ${res.reason}`);
+                  } catch (e) {
+                    core.warning(`LLM resolution execution failed for ${res.id} (${e.message}); left open.`);
+                  }
+                }
+              } catch (e) {
+                core.warning(`LLM resolution pass failed (${e.message}); prior findings left open.`);
+              }
+            }
+
             const candidates = decisions.filter((d) => d.candidate).length;
-            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved with diff evidence (ceiling ${MAX_AUTO_RESOLVES}); absence alone never resolves.`);
+            const byEvidence = resolvedCount - llmResolved;
+            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved (${byEvidence} by diff evidence, ${llmResolved} by LLM attribution; ceiling ${MAX_AUTO_RESOLVES}); absence alone never resolves.`);
 
       # With sticky_summary disabled, every OCR run posts its OWN summary
       # comment. Keep only the newest one visible: older summaries are
