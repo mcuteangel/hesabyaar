@@ -57,9 +57,16 @@ jobs:
           # Exact lookup: the pull request(s) associated with this landing
           # commit. Works for merge commits, squash and rebase strategies,
           # and cannot miss due to a page-size limit.
-          prs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+          # An API failure must NOT fall through to the prepare path: a real
+          # release landing would then never be finalized. Abort loudly so
+          # the run can be retried.
+          if ! prs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
             --jq '.[] | select(.head.ref | test("^release/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | [(.number | tostring), .head.ref] | @tsv' \
-            2>/dev/null || true)
+            2>api_err.log); then
+            echo "::error::Failed to query PRs associated with commit ${HEAD_SHA}: $(cat api_err.log)"
+            echo "::error::Cannot classify this push safely. Re-run the Release workflow once GitHub API access works."
+            exit 1
+          fi
 
           if [ -n "$prs" ]; then
             mode="finalize"
@@ -122,10 +129,17 @@ jobs:
           mkdir -p release-artifacts notes
 
           # Prefer the artifacts produced by the exact prepare run recorded
-          # in the release PR body. Fall back to a name-only lookup only
-          # when the marker is missing (legacy releases).
-          run_id=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null \
-            | grep -o 'hesabyar-release-run:[0-9]*' | head -n1 | cut -d: -f2 || true)
+          # in the release PR body. A failed API read aborts loudly; a body
+          # without a marker (manual edit, legacy release) falls back to a
+          # name-only lookup with a visible warning.
+          if ! pr_body=$(gh pr view "$PR_NUMBER" --json body --jq '.body'); then
+            echo "::error::Failed to read body of PR #${PR_NUMBER}; cannot resolve the prepare run for v${VERSION}."
+            exit 1
+          fi
+          run_id=$(printf '%s' "$pr_body" | grep -o 'hesabyar-release-run:[0-9]*' | head -n1 | cut -d: -f2 || true)
+          if [ -z "$run_id" ]; then
+            echo "::warning::No prepare-run marker on PR #${PR_NUMBER}; using latest artifact named 'release-v${VERSION}'. Verify the published binaries belong to this release."
+          fi
 
           fetch_artifact () {
             local name="$1" dest="$2" list_url id
