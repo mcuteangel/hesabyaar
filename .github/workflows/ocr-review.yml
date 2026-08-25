@@ -105,6 +105,30 @@ jobs:
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           llm_model: ${{ vars.OCR_LLM_MODEL }}
           llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          # Issue #206 phase 1: the action default disables reasoning
+          # ({"thinking": {"type": "disabled"}}), which produced shallow,
+          # repetitive findings. Enable a bounded thinking budget instead.
+          # If the Kilo gateway ever stops forwarding Anthropic-style
+          # "thinking", swap this for '{"reasoning_effort": "medium"}'.
+          llm_extra_body: '{"thinking": {"type": "enabled", "budget_tokens": 10000}}'
+          # Reasoning extends per-request latency well beyond the CLI default;
+          # give each LLM request an explicit ceiling in seconds.
+          llm_timeout: '600'
+          # Custom review rules (JSON, see .github/ocr-rules.json): real bugs /
+          # security / regressions only; style stays with ktlint/detekt/clippy;
+          # findings require stated confidence. The catch-all entry also carries
+          # project memory (issue #206 phase 4): intentional version bumps,
+          # lockfile updates, Persian-first strings.
+          rule: .github/ocr-rules.json
+          # Noise reduction (issue #206 phase 1): weak findings move to the PR
+          # summary instead of inline comments. Fail-open upstream - nothing is
+          # dropped. Severity 'low' routes only low-severity findings;
+          # categories route style/documentation/maintainability chatter that
+          # ktlint/detekt already cover authoritatively.
+          route_severity_below: 'low'
+          route_categories: 'style,documentation,maintainability'
+          # Explicit review output language (action default is already English).
+          language: 'English'
           # The resolver step assumes a FULL finding set per run; keep
           # incremental mode off or the resolver assumption breaks.
           incremental: 'false'
