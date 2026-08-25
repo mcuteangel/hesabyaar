@@ -479,6 +479,14 @@ jobs:
 
           BRANCH="release/v${NEW_VERSION}"
 
+          # Marker stamped into the PR body so finalize can find exactly these
+          # artifacts. Written into the body AT CREATION TIME (not via a later
+          # edit) so it survives even if the separate stamping step is skipped
+          # or fails. The dedicated 'Stamp release run into PR body' step below
+          # re-stamps a *reused* PR; it is decoupled (continue-on-error) so a
+          # transient API failure there can never block auto-merge.
+          marker="<!-- hesabyar-release-run:${RUN_ID} -->"
+
           # Commit the release state on the dedicated branch. The branch tip
           # is the exact main commit that triggered this run.
           git checkout -B "$BRANCH"
@@ -511,7 +519,9 @@ jobs:
             # PR body assembly. The SUMMARY comes from commit subjects on
             # main and is never shell-expanded: it goes through printf,
             # outside any unquoted heredoc. Only the validated version and
-            # bump type are expanded.
+            # bump type are expanded. The release-run marker is appended so
+            # finalize can resolve the producing run without depending on the
+            # later stamping step succeeding.
             {
               cat <<BODY_EOF
           <!-- Automated release PR created by the Release workflow. -->
@@ -533,6 +543,7 @@ jobs:
 
           _This PR was created automatically by the Release workflow. Merging it publishes the release: the tag and GitHub Release are finalized after this PR reaches `main`._
           FOOTER_EOF
+              printf '%s\n' "$marker"
             } > pr-body.md
             pr_number=$(gh pr create \
               --base main \
@@ -543,21 +554,31 @@ jobs:
             echo "Created PR #${pr_number} for $BRANCH."
           fi
 
-          # Stamp the producing run into the PR body. Finalize reads this
-          # marker so it downloads exactly these artifacts. Replace any old
-          # marker so a reused PR always points at the latest run.
-          # A failed API call must abort loudly; only grep finding no
-          # non-marker lines is benign.
-          marker="<!-- hesabyar-release-run:${RUN_ID} -->"
-          body=$(gh pr view "$pr_number" --json body --jq '.body')
-          { printf '%s\n' "$body" | grep -v 'hesabyar-release-run:' || true; } > pr-body-clean.md
-          printf '%s\n%s\n' "$(cat pr-body-clean.md)" "$marker" > pr-body-stamped.md
-          gh pr edit "$pr_number" --body-file pr-body-stamped.md
-
           {
             echo "pr_number=${pr_number}"
             echo "branch=${BRANCH}"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Stamp release run into PR body
+        # Decoupled from PR creation so a transient API failure (e.g. a missing
+        # token scope) can NEVER block auto-merge. The marker is already written
+        # into the body at creation time; this re-stamp keeps a *reused* PR
+        # pointed at the latest run. continue-on-error guarantees the auto-merge
+        # step below still runs even if this edit fails.
+        id: stamp
+        if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          PR_NUMBER: ${{ steps.publish.outputs.pr_number }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          marker="<!-- hesabyar-release-run:${RUN_ID} -->"
+          body=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+          { printf '%s\n' "$body" | grep -v 'hesabyar-release-run:' || true; } > pr-body-clean.md
+          printf '%s\n%s\n' "$(cat pr-body-clean.md)" "$marker" > pr-body-stamped.md
+          gh pr edit "$PR_NUMBER" --body-file pr-body-stamped.md
 
       - name: Enable auto-merge on release PR
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
