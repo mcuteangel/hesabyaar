@@ -111,7 +111,9 @@ jobs:
                 ref: ref
               });
               if (data.type !== 'file' || typeof data.content !== 'string') {
-                throw new Error(`unexpected getContent payload type: ${data.type} for ${path}`);
+                const err = new Error(`unexpected getContent payload type: ${data.type} for ${path}`);
+                err.code = 'UNEXPECTED_PAYLOAD';
+                throw err;
               }
               return Buffer.from(data.content, 'base64').toString('utf8');
             }
@@ -146,7 +148,7 @@ jobs:
               try {
                 memory = await getTrustedFile(ref, MEMORY_PATH);
               } catch (e) {
-                if (e.status === 404 || /unexpected getContent payload type/.test(e.message)) {
+                if (e.status === 404 || e.code === 'UNEXPECTED_PAYLOAD') {
                   core.warning(`Project memory file not present at ${refLabel} (${ref.slice(0, 12)}); reviewing without it.`);
                 } else {
                   throw e;
@@ -157,7 +159,7 @@ jobs:
               }
               const injected = (Array.isArray(parsed.rules) ? parsed.rules : []).map((r) => ({
                 ...r,
-                rule: memory ? `${r.rule}\n\n${memory}` : r.rule,
+                rule: memory ? `${r.rule ?? ''}\n\n${memory}` : (r.rule ?? ''),
               }));
               // Preserve the full rules document (not just the rules array) so
               // any other top-level keys are retained; only the rules entries
