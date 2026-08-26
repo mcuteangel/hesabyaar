@@ -27,7 +27,7 @@ on:
       use_anthropic:
         description: "'true' for Anthropic-style APIs"
         required: true
-        type: string
+        type: boolean
     secrets:
       auth_token:
         description: 'LLM auth token'
@@ -351,6 +351,13 @@ jobs:
         # decision glue lives here; the pure predicates live in the trusted
         # ocr-resolve.js below.
         if: env.OCR_EXIT_CODE == '0'
+        env:
+          # Same LLM gateway the OCR action itself uses, so the resolution pass
+          # can ask it to attribute prior (now-absent) findings to a commit.
+          LLM_URL: ${{ inputs.llm_url }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          LLM_USE_ANTHROPIC: ${{ inputs.use_anthropic }}
+          LLM_AUTH: ${{ secrets.auth_token }}
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
@@ -370,7 +377,38 @@ jobs:
               core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
               return;
             }
-            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit } = require('./.github/scripts/ocr-resolve.js');
+            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit, buildResolutionPrompt, parseLlmResolutions, validateResolution } = require('./.github/scripts/ocr-resolve.js');
+
+            // Minimal LLM gateway client mirroring how the OCR action calls the
+            // same endpoint: OpenAI-compatible chat completions by default,
+            // Anthropic Messages API when useAnthropic is true. Returns the raw
+            // assistant text and throws on transport/HTTP errors so callers can
+            // fail open.
+            async function callLlmGateway({ url, model, auth, useAnthropic, prompt }) {
+              if (!url || !auth) throw new Error('LLM gateway url/auth not configured');
+              if (useAnthropic) {
+                const resp = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'x-api-key': auth, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+                  body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
+                });
+                if (!resp.ok) throw new Error(`Anthropic gateway HTTP ${resp.status}`);
+                const json = await resp.json();
+                const text = json && json.content && json.content[0] && json.content[0].text;
+                if (typeof text !== 'string') throw new Error('unexpected Anthropic response shape');
+                return text;
+              }
+              const resp = await fetch(url, {
+                method: 'POST',
+                headers: { authorization: `Bearer ${auth}`, 'content-type': 'application/json' },
+                body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0 }),
+              });
+              if (!resp.ok) throw new Error(`LLM gateway HTTP ${resp.status}`);
+              const json = await resp.json();
+              const text = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+              if (typeof text !== 'string') throw new Error('unexpected LLM response shape');
+              return text;
+            }
 
             // Latest findings from the same runner filesystem. Only a payload
             // matching the expected schema counts as available; anything else
@@ -467,12 +505,54 @@ jobs:
             // API error logs a skip and moves on instead of aborting.
             const MAX_AUTO_RESOLVES = 15;
             let resolvedCount = 0;
+            // Collect {id, sha, url} for every finding the resolver closes, so
+            // the OpenCodeReview summary comment can be edited (not minimized)
+            // to cite the fixing commit(s) — CodeRabbit/Sourcery style.
+            const resolvedCitations = [];
             // headSha is constant for the whole loop; candidates sharing an
             // anchor commit reuse one comparison.
             const compareCache = new Map();
             // Same head per run: candidates reviewing the same path reuse one
             // listCommits result instead of issuing a request per candidate.
             const commitListCache = new Map();
+            // Absence-candidates the deterministic pass leaves open (code at
+            // the location unchanged, finding absent from the latest run) are
+            // collected here for the Phase R LLM attribution pass below.
+            const llmCandidates = [];
+
+            // Reply to an OCR thread AND mark it resolved (CodeRabbit-style:
+            // the Resolve conversation button, not just a reply). Shared by the
+            // deterministic and LLM resolution passes so the two reply+resolve
+            // mutations stay in lockstep. Fail-open: never claim a resolution we
+            // did not complete - a failed reply or resolve leaves the thread
+            // open, and we only bump resolvedCount on full success.
+            async function replyAndResolveThread({ threadId, body, id, reason }) {
+              try {
+                await github.graphql(
+                  `mutation($t: ID!, $body: String!) {
+                    addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
+                  }`,
+                  { t: threadId, body }
+                );
+              } catch (e) {
+                core.warning(`Thread ${id}: reply failed (${e.message}); left open.`);
+                return false;
+              }
+              try {
+                await github.graphql(
+                  `mutation($t: ID!) {
+                    resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
+                  }`,
+                  { t: threadId }
+                );
+              } catch (e) {
+                core.warning(`Thread ${id}: resolve failed after reply (${e.message}); left open.`);
+                return false;
+              }
+              resolvedCount += 1;
+              core.info(`RESOLVED (${reason}): ${id}`);
+              return true;
+            }
 
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
@@ -497,28 +577,56 @@ jobs:
                 continue;
               }
               let verdict;
+              let cmpCommits = [];
+              let changedFiles = [];
               try {
                 // TWO-dot range: the diff base must be the finding's own
                 // anchor commit. THREE-dot would anchor to the merge base,
                 // silently dropping changes between anchor and merge base.
                 const basehead = `${loc.sha}..${headSha}`;
-                let files = compareCache.get(basehead);
-                if (!files) {
+                // Cache the whole compare (files + commits) per anchor..head so
+                // the deterministic check and the LLM attribution pass below
+                // share one request; candidates sharing an anchor reuse it.
+                let cmpData = compareCache.get(basehead);
+                if (!cmpData) {
                   const { data: cmp } = await github.rest.repos.compareCommits({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     basehead,
                   });
-                  files = cmp.files;
-                  compareCache.set(basehead, files);
+                  cmpData = cmp;
+                  compareCache.set(basehead, cmpData);
                 }
+                const files = cmpData.files;
+                cmpCommits = cmpData.commits || [];
+                changedFiles = files || [];
                 verdict = diffTouchesLocation(files, loc);
               } catch (e) {
                 core.warning(`Candidate ${d.id}: compare ${loc.sha.slice(0, 12)}...${headSha.slice(0, 12)} failed (${e.message}); left open.`);
                 continue;
               }
               if (!verdict.changed) {
-                core.info(`RESOLVE-CANDIDATE (code unchanged; left open): ${d.id} — ${verdict.reason}`);
+                core.info(`RESOLVE-CANDIDATE (code unchanged; LLM re-check eligible): ${d.id} — ${verdict.reason}`);
+                if (process.env.LLM_URL && process.env.LLM_AUTH) {
+                  if (llmCandidates.length >= MAX_AUTO_RESOLVES) {
+                    core.info(`RESOLVE-CANDIDATE (LLM cap ${MAX_AUTO_RESOLVES} reached): ${d.id} — left open`);
+                  } else {
+                    const tId = threadByCommentId.get(d.threadKey);
+                    llmCandidates.push({
+                      id: d.id,
+                      threadKey: d.threadKey,
+                      threadId: tId,
+                      path: loc.path,
+                      start: loc.start,
+                      end: loc.end,
+                      anchor: loc.sha,
+                      body: comment.body || '',
+                      commits: cmpCommits.map((c) => ({ sha: c.sha, message: (c.commit && c.commit.message) || c.message || '' })).slice(0, 40),
+                      changedFiles: changedFiles.map((f) => f.filename),
+                      validShas: cmpCommits.map((c) => c.sha),
+                    });
+                  }
+                }
                 continue;
               }
               const threadId = threadByCommentId.get(d.threadKey);
@@ -555,35 +663,149 @@ jobs:
                 const shortSha = resolvingCommit.slice(0, 12);
                 const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${resolvingCommit}`;
                 const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${verdict.reason}. The reviewed code at ${loc.path}:${loc.start}-${loc.end} changed after this finding was posted (anchor ${loc.sha.slice(0, 12)}), so it no longer applies.`;
-                await github.graphql(
-                  `mutation($t: ID!, $body: String!) {
-                    addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
-                  }`,
-                  { t: threadId, body: replyBody }
-                );
-                await github.graphql(
-                  `mutation($t: ID!) {
-                    resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
-                  }`,
-                  { t: threadId }
-                );
-                resolvedCount++;
-                core.info(`RESOLVED with evidence: ${d.id} — ${verdict.reason}`);
+                const ok = await replyAndResolveThread({ threadId, body: replyBody, id: d.id, reason: `diff evidence, cited ${shortSha}` });
+                if (ok) resolvedCitations.push({ id: d.id, sha: shortSha, url: commitUrl });
               } catch (e) {
                 core.warning(`Candidate ${d.id}: resolution failed (${e.message}); left open.`);
               }
             }
+
+            // ---- Phase R (LLM): attribute absence-candidates to a real commit ----
+            // The deterministic pass already proved the code at each candidate
+            // location did NOT change, yet the finding is absent from the latest
+            // review run. A dedicated LLM pass may conclude such a prior finding
+            // was fixed elsewhere and cite the commit. Fail-open: any error skips
+            // the pass and leaves threads open; the cited commit must be in the
+            // finding's anchor..head range (see validateResolution).
+            let llmResolved = 0;
+            if (llmCandidates.length && process.env.LLM_URL && process.env.LLM_AUTH) {
+              try {
+                const prompt = buildResolutionPrompt({
+                  findings: llmCandidates.map((c) => ({
+                    id: c.id, path: c.path, start: c.start, end: c.end,
+                    anchor: c.anchor, body: c.body, commits: (c.commits || []).slice(0, 40),
+                  })),
+                });
+                const raw = await callLlmGateway({
+                  url: process.env.LLM_URL,
+                  model: process.env.LLM_MODEL,
+                  auth: process.env.LLM_AUTH,
+                  useAnthropic: process.env.LLM_USE_ANTHROPIC === 'true',
+                  prompt,
+                });
+                const { resolutions, errors } = parseLlmResolutions(raw);
+                for (const err of errors) core.warning(`LLM resolution parse: ${err}`);
+                const handledIds = new Set();
+                for (const res of resolutions) {
+                  // De-duplicate by id: the LLM may echo the same finding id more
+                  // than once. Processing a duplicate would re-post a reply to the
+                  // same thread (resolveReviewThread is idempotent, but the bot
+                  // reply is not). Skip any id we have already handled.
+                  if (handledIds.has(res.id)) { core.info(`LLM resolution duplicate id ${res.id}; skipped to avoid a repeat reply.`); continue; }
+                  if (resolvedCount >= MAX_AUTO_RESOLVES) break;
+                  handledIds.add(res.id);
+                  const cand = llmCandidates.find((c) => c.id === res.id);
+                  if (!cand) { core.info(`LLM cited unknown finding id ${res.id}; skipped.`); continue; }
+                  if (!cand.threadId) { core.info(`LLM resolution for ${res.id}: no unresolved thread mapped; skipped.`); continue; }
+                  // Gate 1 (pure): the cited commit must be in the finding's
+                  // anchor..head SHA set (exact SHA or unique >=7-hex prefix).
+                  const vSha = validateResolution(res, { commitShas: cand.validShas });
+                  if (!vSha.ok) { core.info(`LLM resolution for ${res.id} rejected: ${vSha.reason}; left open.`); continue; }
+                  // Gate 2 (relevance): confirm the cited commit actually touches
+                  // the finding's path, so an unrelated in-range commit (docs/typo)
+                  // cannot close a still-valid thread. Fail-open: any fetch error
+                  // leaves the thread open rather than resolving on an unchecked cite.
+                  let citedFiles = [];
+                  try {
+                    const { data: cdata } = await github.rest.repos.getCommit({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: vSha.canonicalSha,
+                    });
+                    citedFiles = (cdata.files || []).map((f) => f.filename);
+                  } catch (e) {
+                    core.warning(`Path-relevance check for ${res.id} failed (${e.message}); left open.`);
+                    continue;
+                  }
+                  const v = validateResolution(res, {
+                    commitShas: cand.validShas,
+                    findingPath: cand.path,
+                    commitFiles: { [vSha.canonicalSha]: citedFiles },
+                  });
+                  if (!v.ok) { core.info(`LLM resolution for ${res.id} rejected: ${v.reason}; left open.`); continue; }
+                  try {
+                    const sha = v.canonicalSha || res.commit;
+                    const shortSha = sha.slice(0, 12);
+                    const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
+                    const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${res.reason}. This prior finding at ${cand.path}:${cand.start}-${cand.end} no longer applies (anchor ${cand.anchor.slice(0, 12)}..${shortSha}).`;
+                    const ok = await replyAndResolveThread({ threadId: cand.threadId, body: replyBody, id: res.id, reason: `LLM attribution, cited ${shortSha}` });
+                    if (ok) { llmResolved++; resolvedCitations.push({ id: res.id, sha: shortSha, url: commitUrl }); }
+                  } catch (e) {
+                    core.warning(`LLM resolution execution failed for ${res.id} (${e.message}); left open.`);
+                  }
+                }
+              } catch (e) {
+                core.warning(`LLM resolution pass failed (${e.message}); prior findings left open.`);
+              }
+            }
+
+            // Reflect auto-resolutions on the OpenCodeReview summary comment
+            // itself (CodeRabbit/Sourcery style): edit the summary to cite the
+            // fixing commits instead of leaving the resolution only in the
+            // thread replies. Issue comments are editable by their author
+            // (github-actions[bot] === the workflow token), so we annotate
+            // rather than minimize. Fail-open: any error is a warning and the
+            // job stays green; a missing/already-annotated summary is skipped.
+            if (resolvedCitations.length) {
+              try {
+                const RES_NOTE = '<!-- ocr-resolution-note -->';
+                const allComments = await github.paginate(github.rest.issues.listComments, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  per_page: 100
+                });
+                const ocrSummaries = allComments.filter((c) =>
+                  c.user && c.user.login === 'github-actions[bot]' &&
+                  typeof c.body === 'string' && c.body.includes('<!-- ocr-summary -->')
+                );
+                const active = ocrSummaries.length
+                  ? ocrSummaries.reduce((a, b) => (a.created_at > b.created_at ? a : b))
+                  : null;
+                if (active && !active.body.includes(RES_NOTE)) {
+                  const lines = resolvedCitations
+                    .map((r) => `- finding \`${r.id}\` → commit [\`${r.sha}\`](${r.url})`)
+                    .join('\n');
+                  const note = `\n\n---\n${RES_NOTE}\n✅ **Auto-resolved by OCR resolver** (${resolvedCitations.length} finding(s) via \`resolveReviewThread\`):\n${lines}`;
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: active.id,
+                    body: active.body + note
+                  });
+                  core.info(`Annotated OCR summary ${active.id} with ${resolvedCitations.length} resolution(s).`);
+                }
+              } catch (e) {
+                core.warning(`Could not annotate OCR summary with resolution note (${e.message}).`);
+              }
+            }
+
             const candidates = decisions.filter((d) => d.candidate).length;
-            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved with diff evidence (ceiling ${MAX_AUTO_RESOLVES}); absence alone never resolves.`);
+            const byEvidence = resolvedCount - llmResolved;
+            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved (${byEvidence} by diff evidence, ${llmResolved} by LLM attribution; ceiling ${MAX_AUTO_RESOLVES}); absence alone never resolves.`);
 
       # With sticky_summary disabled, every OCR run posts its OWN summary
       # comment. Keep only the newest one visible: older summaries are
       # superseded by definition (each describes a run whose findings have
-      # since been re-evaluated) and get minimized as OUTDATED. Nothing is
-      # ever deleted - minimized comments stay inspectable via the "x of y"
-      # link. This step loads no repository JavaScript, so the trusted-
-      # checkout invariant is unaffected. Fail-open: a minimize failure logs
-      # a warning and keeps the job green.
+      # since been re-evaluated) and get annotated as SUPERSEDED instead of
+      # minimized. Issue comments are editable by their author
+      # (github-actions[bot] === the workflow token), so we append a marker
+      # note that links to the newest summary - exactly how CodeRabbit/
+      # Sourcery keep their own reports visible. Nothing is ever deleted.
+      # This step loads no repository JavaScript, so the trusted-checkout
+      # invariant is unaffected. Fail-open: an annotate failure logs a warning
+      # and keeps the job green (a visible, un-marked summary is preferable to
+      # a hidden one).
       - name: Archive superseded OpenCodeReview summaries
         if: env.OCR_EXIT_CODE == '0'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
@@ -595,46 +817,56 @@ jobs:
             // immutable-pinned, so this contract cannot drift underneath us;
             // bump both together if the pin ever moves.
             const MARKER = '<!-- ocr-summary -->';
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100
-            });
-            const summaries = comments.filter((c) =>
-              c.user && c.user.login === 'github-actions[bot]' &&
-              typeof c.body === 'string' && c.body.includes(MARKER)
+            const SUP_NOTE = '<!-- ocr-superseded-note -->';
+            // Fetch PR conversation comments via GraphQL so we can see the
+            // is_minimized state (REST listComments does not expose it). Legacy
+            // summaries minimized by the PREVIOUS deploy - before this change
+            // switched archive from `minimizeComment` to `updateComment` - must
+            // stay hidden: REST updateComment would otherwise un-minimize them
+            // and re-surface stale, intentionally-hidden reports. We skip
+            // minimized comments so only actively-visible summaries get the
+            // supersede note.
+            const q = `query($owner:String!,$repo:String!,$number:Int!,$first:Int!,$after:String){repository(owner:$owner,name:$repo){pullRequest(number:$number){comments(first:$first,after:$after){nodes{databaseId isMinimized body author{login} createdAt url}pageInfo{hasNextPage endCursor}}}}}}`;
+            let all = [];
+            let after = null;
+            do {
+              const r = await github.graphql(q, { owner: context.repo.owner, repo: context.repo.repo, number: context.issue.number, first: 100, after });
+              all = all.concat(r.repository.pullRequest.comments.nodes);
+              after = r.repository.pullRequest.comments.pageInfo.hasNextPage ? r.repository.pullRequest.comments.pageInfo.endCursor : null;
+            } while (after);
+            const summaries = all.filter((c) =>
+              c.author && c.author.login === 'github-actions[bot]' &&
+              typeof c.body === 'string' && c.body.includes(MARKER) &&
+              !c.isMinimized
             );
             if (summaries.length <= 1) {
-              core.notice(`OpenCodeReview summaries: ${summaries.length} present; nothing to archive.`);
+              core.notice(`OpenCodeReview summaries: ${summaries.length} present (minimized legacy summaries excluded); nothing to archive.`);
               return;
             }
-            // listComments returns oldest-first; keep the newest visible.
-            const newest = summaries.reduce((a, b) => (a.created_at > b.created_at ? a : b));
-            let archived = 0, failed = 0, alreadyArchived = 0;
+            // comments are returned oldest-first; keep the newest visible.
+            const newest = summaries.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
+            let annotated = 0, failed = 0, alreadyAnnotated = 0;
             for (const c of summaries) {
-              if (c.id === newest.id) continue;
-              // REST listComments does not reliably expose is_minimized, so
-              // already-minimized comments are detected via the mutation's
-              // idempotent rejection instead of being re-counted as failures
-              // every run (OCR summary finding on PR #211).
+              if (c.databaseId === newest.databaseId) continue;
+              // Idempotent across re-runs: a summary we already annotated in a
+              // prior run carries the sentinel marker, so we skip it instead of
+              // re-appending.
+              if (typeof c.body === 'string' && c.body.includes(SUP_NOTE)) {
+                alreadyAnnotated++;
+                continue;
+              }
               try {
-                await github.graphql(
-                  `mutation($id: ID!) {
-                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
-                      minimizedComment { isMinimized }
-                    }
-                  }`,
-                  { id: c.node_id }
-                );
-                archived++;
+                const note = `\n\n---\n${SUP_NOTE}\n⚠️ **Superseded** — a later OpenCodeReview run replaced this report. The newest summary is [here](${newest.url}).`;
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: c.databaseId,
+                  body: (typeof c.body === 'string' ? c.body : '') + note
+                });
+                annotated++;
               } catch (e) {
-                if (/already minimized/i.test(String(e && e.message))) {
-                  alreadyArchived++;
-                  continue;
-                }
                 failed++;
-                core.warning(`Could not minimize summary ${c.id}: ${e.message}`);
+                core.warning(`Could not annotate superseded summary ${c.databaseId}: ${e.message}`);
               }
             }
-            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, minimized ${archived} superseded (${alreadyArchived} already archived, ${failed} failed).`);
+            core.notice(`OpenCodeReview summary archive: kept ${newest.url}, annotated ${annotated} superseded (${alreadyAnnotated} already annotated, ${failed} failed).`);
