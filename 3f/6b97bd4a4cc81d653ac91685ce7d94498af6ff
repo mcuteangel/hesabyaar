@@ -1,0 +1,31 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/LoanViewModelTest.kt
+  s_f51ac862ee5a91::t_dcad5a40bd44c6 1-56
+app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt
+  s_f51ac862ee5a91::t_ae9364a2f7f213 26-28
+  s_f51ac862ee5a91::t_3b83122c74e0eb 93
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt
+  s_f51ac862ee5a91::t_d286e2d4a91bb0 230-235,237-238
+  s_f51ac862ee5a91::t_72a5de108bcb84 606-610,612,614-666,681,705
+  s_f51ac862ee5a91::t_72caeb993f5194 667-680,682-704
+app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt
+  s_f51ac862ee5a91::t_44346a7525b827 38-41
+  s_f51ac862ee5a91::t_822afd1dcaf37c 6,11
+  s_f51ac862ee5a91::t_8f21308d522dc7 50-54,56-57
+  s_f51ac862ee5a91::t_0955c93c59fe19 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3f6b97bd4a4cc81d653ac91685ce7d94498af6ff",
+  "prompts": {},
+  "sessions": {
+    "s_f51ac862ee5a91": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc333ff29ffeNPjOZLfbvoH5sK",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
