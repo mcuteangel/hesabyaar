@@ -164,6 +164,9 @@ interface PaymentHistoryDao {
   @Query("SELECT * FROM payment_history WHERE loanId = :loanId ORDER BY date DESC")
   fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>>
 
+  @Query("DELETE FROM payment_history WHERE loanId = :loanId")
+  suspend fun deletePaymentHistoryForLoan(loanId: Long)
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertPayment(payment: PaymentHistory): Long
 

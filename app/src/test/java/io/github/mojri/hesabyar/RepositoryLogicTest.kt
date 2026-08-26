@@ -132,16 +132,6 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun addpaymenttoloanOverpaymentClampsToZero() {
-    var remainingAmount = 1_000_000L
-    val paymentAmount = 5_000_000L
-
-    remainingAmount = (remainingAmount - paymentAmount).coerceAtLeast(0L)
-    assertEquals(0L, remainingAmount)
-    assertTrue(remainingAmount <= 0L)
-  }
-
-  @Test
   fun addpaymenttoloanMultiplePaymentsAccumulate() {
     var remainingAmount = 10_000_000L
     val payments = listOf(3_000_000L, 2_000_000L, 5_000_000L)
@@ -412,25 +402,37 @@ class RepositoryLogicTest {
   }
 
   @Test
-  fun addpaymenttoloanOverpaymentRecordsEffectiveAmount() =
+  fun addPaymentToLoanOverpaymentIsRejectedWithoutSideEffects() =
     runTest {
       val repo = createRepository()
       val loanId = seedLoanWithCategory(5_000L)
 
       val success = repo.addPaymentToLoan(loanId, 10_000L, "overpayment test")
-      assertTrue(success)
+      assertFalse(success)
 
       val paymentHistories = database.paymentHistoryDao().getAllPaymentHistoriesBlocking()
-      assertEquals(1, paymentHistories.size)
-      assertEquals(5_000L, paymentHistories[0].amount)
+      assertEquals(0, paymentHistories.size)
 
       val transactions = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals(1, transactions.size)
-      assertEquals(5_000L, transactions[0].amount)
+      assertEquals(0, transactions.size)
 
       val updatedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
-      assertEquals(0L, updatedLoan.remainingAmount)
-      assertTrue(updatedLoan.isSettled)
+      assertEquals(5_000L, updatedLoan.remainingAmount)
+      assertFalse(updatedLoan.isSettled)
+    }
+
+  @Test
+  fun deleteLoanRemovesItsPaymentHistoriesInSameTransaction() =
+    runTest {
+      val repo = createRepository()
+      val loanId = seedLoanWithCategory(5_000L)
+      repo.addPaymentToLoan(loanId, 2_000L, "first installment")
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      assertEquals(0, database.loanDao().getAllLoansBlocking().size)
+      assertEquals(0, database.paymentHistoryDao().getAllPaymentHistoriesBlocking().size)
     }
 
   @Test

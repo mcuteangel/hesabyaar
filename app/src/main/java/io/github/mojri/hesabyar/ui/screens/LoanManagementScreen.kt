@@ -106,6 +106,7 @@ fun LoanManagementScreen(
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingLoan by remember { mutableStateOf<Loan?>(null) }
+  var deletingLoan by remember { mutableStateOf<Loan?>(null) }
   var termState by remember { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
 
   // Filtered lists
@@ -204,7 +205,7 @@ fun LoanManagementScreen(
             loan = loan,
             loanViewModel = loanViewModel,
             settingsViewModel = settingsViewModel,
-            onDelete = { loanViewModel.deleteLoan(loan) },
+            onDelete = { deletingLoan = loan },
             onEdit = { editingLoan = loan }
           )
         }
@@ -351,11 +352,17 @@ fun LoanManagementScreen(
             val amountDisplay = amountText.toLongOrNull() ?: 0L
             if (personName.isNotBlank() && amountDisplay > 0L) {
               val amountRial = CurrencyFormatter.toRial(amountDisplay)
+              // Keep already-repaid money intact: remaining shrinks only by the
+              // difference between the new and the old principal.
+              val paidSoFar = (loan.originalAmount - loan.remainingAmount).coerceAtLeast(0L)
+              val newRemaining = (amountRial - paidSoFar).coerceAtLeast(0L)
               loanViewModel.updateLoan(
                 loan.copy(
                   personName = personName,
                   type = loanType,
                   originalAmount = amountRial,
+                  remainingAmount = newRemaining,
+                  isSettled = newRemaining == 0L,
                   description = description,
                   date = customDate
                 )
@@ -371,6 +378,48 @@ fun LoanManagementScreen(
       dismissButton = {
         HesabyarButton(
           onClick = { editingLoan = null },
+          text = stringResource(R.string.cancel_label),
+          variant = ButtonVariant.Text
+        )
+      }
+    )
+  }
+
+  // Delete confirmation dialog
+  deletingLoan?.let { loanToDelete ->
+    AlertDialog(
+      onDismissRequest = { deletingLoan = null },
+      title = {
+        Text(
+          "حذف قرض",
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.fillMaxWidth(),
+          textAlign = TextAlign.Right
+        )
+      },
+      text = {
+        val message =
+          "قرض ${loanToDelete.personName} و تمام تاریخچه بازپرداخت‌های آن حذف شود؟ " +
+            "تراکنش‌هایی که قبلاً ثبت شده‌اند باقی می‌مانند."
+        Text(message)
+      },
+      confirmButton = {
+        HesabyarButton(
+          onClick = {
+            loanViewModel.deleteLoan(loanToDelete)
+            deletingLoan = null
+          },
+          text = "حذف",
+          colors =
+            ButtonDefaults.buttonColors(
+              containerColor = MaterialTheme.colorScheme.error,
+              contentColor = MaterialTheme.colorScheme.onError
+            )
+        )
+      },
+      dismissButton = {
+        HesabyarButton(
+          onClick = { deletingLoan = null },
           text = stringResource(R.string.cancel_label),
           variant = ButtonVariant.Text
         )
@@ -604,7 +653,7 @@ fun LoanListItem(
               HesabyarButton(
                 onClick = { showRepayDialog = true },
                 modifier = Modifier.weight(1f),
-                text = "ثبت بازپرداخت جديد",
+                text = "ثبت بازپرداخت جدید",
                 icon = Icons.Filled.Payments,
                 colors =
                   ButtonDefaults.buttonColors(
@@ -619,68 +668,94 @@ fun LoanListItem(
     }
   }
 
-  // Repayment dialog
   if (showRepayDialog) {
-    var repayAmount by remember { mutableStateOf("") }
-    var repayNotes by remember { mutableStateOf("") }
-    var repayDate by remember { mutableStateOf(System.currentTimeMillis()) }
-
-    AlertDialog(
-      onDismissRequest = { showRepayDialog = false },
-      title = {
-        Text(
-          "ثبت بازپرداخت",
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.fillMaxWidth(),
-          textAlign = TextAlign.Right
-        )
-      },
-      text = {
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          HesabyarInputField(
-            value = repayAmount,
-            onValueChange = { repayAmount = it },
-            label = "مبلغ پرداختی (${CurrencyFormatter.unitLabel})"
-          )
-
-          HesabyarInputField(
-            value = repayNotes,
-            onValueChange = { repayNotes = it },
-            label = "توضیحات (مثلا نقدی یا کارت به کارت)",
-            singleLine = false
-          )
-
-          JalaliDateTimePicker(
-            initialTimestamp = repayDate,
-            onTimestampChanged = { repayDate = it }
-          )
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            val amountDisplay = repayAmount.toLongOrNull() ?: 0L
-            if (amountDisplay > 0L) {
-              val amountRial = CurrencyFormatter.toRial(amountDisplay)
-              loanViewModel.makeRepayment(loan.id, amountRial, repayNotes, repayDate)
-              showRepayDialog = false
-            } else {
-              settingsViewModel.showMessage("لطفا مبلغ صحیح وارد کنید")
-            }
-          },
-          text = "پرداخت شد"
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { showRepayDialog = false },
-          text = stringResource(R.string.cancel_label),
-          variant = ButtonVariant.Text
-        )
-      }
+    LoanRepaymentDialog(
+      loan = loan,
+      loanViewModel = loanViewModel,
+      settingsViewModel = settingsViewModel,
+      onDismiss = { showRepayDialog = false }
     )
   }
+}
+
+private class RepaymentFormState {
+  var amount by mutableStateOf("")
+  var notes by mutableStateOf("")
+  var date by mutableStateOf(System.currentTimeMillis())
+}
+
+@Composable
+private fun RepaymentFormFields(form: RepaymentFormState) {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+  ) {
+    HesabyarInputField(
+      value = form.amount,
+      onValueChange = { form.amount = it },
+      label = "مبلغ پرداختی (${CurrencyFormatter.unitLabel})"
+    )
+
+    HesabyarInputField(
+      value = form.notes,
+      onValueChange = { form.notes = it },
+      label = "توضیحات (مثلا نقدی یا کارت به کارت)",
+      singleLine = false
+    )
+
+    JalaliDateTimePicker(
+      initialTimestamp = form.date,
+      onTimestampChanged = { form.date = it }
+    )
+  }
+}
+
+@Composable
+private fun LoanRepaymentDialog(
+  loan: Loan,
+  loanViewModel: LoanViewModel,
+  settingsViewModel: SettingsViewModel,
+  onDismiss: () -> Unit
+) {
+  val form = remember { RepaymentFormState() }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        "ثبت بازپرداخت",
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.fillMaxWidth(),
+        textAlign = TextAlign.Right
+      )
+    },
+    text = { RepaymentFormFields(form) },
+    confirmButton = {
+      HesabyarButton(
+        onClick = {
+          val amountDisplay = form.amount.toLongOrNull() ?: 0L
+          val remainingDisplay = CurrencyFormatter.fromRial(loan.remainingAmount)
+          when {
+            amountDisplay <= 0L -> settingsViewModel.showMessage("لطفا مبلغ صحیح وارد کنید")
+            amountDisplay > remainingDisplay -> {
+              val remainingText = CurrencyFormatter.format(loan.remainingAmount)
+              settingsViewModel.showMessage("مبلغ بیشتر از مانده ($remainingText) است")
+            }
+            else -> {
+              loanViewModel.makeRepayment(loan.id, CurrencyFormatter.toRial(amountDisplay), form.notes, form.date)
+              onDismiss()
+            }
+          }
+        },
+        text = "پرداخت شد"
+      )
+    },
+    dismissButton = {
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.cancel_label),
+        variant = ButtonVariant.Text
+      )
+    }
+  )
 }
