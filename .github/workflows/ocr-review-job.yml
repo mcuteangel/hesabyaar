@@ -605,6 +605,16 @@ jobs:
                   }
                   cmpCommits = cmpData.commits || [];
                   changedFiles = cmpData.files || [];
+                  // Issue #224 / CodeAnt security findings (L876 Critical, L358 Major):
+                  // a still-reported finding may ONLY be re-judged when the code at its
+                  // OWN reported location actually changed across anchor..head. Otherwise an
+                  // unrelated same-file change (comment/import/whitespace) could close a
+                  // still-valid thread. Require location-level evidence, else leave it open.
+                  const verdict = diffTouchesLocation(cmpData.files, loc);
+                  if (!verdict.changed) {
+                    core.info(`KEEP (location ${loc.path}:${loc.start}-${loc.end} unchanged across ${loc.sha.slice(0, 12)}..${headSha.slice(0, 12)}; re-judge would be baseless; left open): ${d.id}`);
+                    continue;
+                  }
                 } catch (e) {
                   core.warning(`KEEP ${d.id}: compare ${loc.sha.slice(0, 12)}..${headSha.slice(0, 12)} failed (${e.message}); left open.`);
                   continue;
