@@ -37,8 +37,16 @@ object HesabyarCore {
     @Throws(HesabyarException::class) fun validateBackup(payload: BackupPayload) = __PKG__.validateBackup(payload)
     fun exportBackupJson(payload: BackupPayload): String = __PKG__.exportBackupJson(payload)
     fun searchTransactions(transactions: List<Transaction>, query: SearchQuery): SearchResponse = __PKG__.searchTransactions(transactions, query)
-    fun computeChecksum(data: ByteArray): String = __PKG__.computeChecksum(data)
-    fun verifyChecksum(data: ByteArray, expected: String): Boolean = __PKG__.verifyChecksum(data, expected)
+// UniFFI 0.32+ requires a direct ByteBuffer for byte arguments.
+    private fun toDirectBuffer(data: ByteArray): java.nio.ByteBuffer {
+        val buffer = java.nio.ByteBuffer.allocateDirect(data.size)
+        buffer.put(data)
+        buffer.flip()
+        return buffer
+    }
+
+    fun computeChecksum(data: ByteArray): String = __PKG__.computeChecksum(toDirectBuffer(data))
+    fun verifyChecksum(data: ByteArray, expected: String): Boolean = __PKG__.verifyChecksum(toDirectBuffer(data), expected)
     @Throws(HesabyarException::class) fun validateTransaction(transaction: Transaction) = __PKG__.validateTransaction(transaction)
     @Throws(HesabyarException::class) fun validateLoan(loan: Loan) = __PKG__.validateLoan(loan)
     @Throws(HesabyarException::class) fun validateInstallment(installment: Installment) = __PKG__.validateInstallment(installment)
