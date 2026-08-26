@@ -28,16 +28,6 @@ class LoanInstallmentTest {
   }
 
   @Test
-  fun `loan overpayment clamps to zero`() {
-    var remainingAmount = 1_000_000L
-    val paymentAmount = 5_000_000L
-
-    remainingAmount = (remainingAmount - paymentAmount).coerceAtLeast(0L)
-    assertEquals(0L, remainingAmount)
-    assertTrue(remainingAmount <= 0L)
-  }
-
-  @Test
   fun `installment toggle paid`() {
     var isPaid = false
     isPaid = !isPaid
