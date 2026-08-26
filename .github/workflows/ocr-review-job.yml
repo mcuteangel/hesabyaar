@@ -377,7 +377,7 @@ jobs:
               core.warning('Trusted audit script not present at base SHA; skipping stale-thread audit.');
               return;
             }
-            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit, buildResolutionPrompt, parseLlmResolutions, validateResolution } = require('./.github/scripts/ocr-resolve.js');
+            const { classifyThreads, isValidResultPayload, toOriginalRange, diffTouchesLocation, pickResolvingCommit, buildResolutionPrompt, buildRejudgePrompt, parseLlmResolutions, validateResolution } = require('./.github/scripts/ocr-resolve.js');
 
             // Minimal LLM gateway client mirroring how the OCR action calls the
             // same endpoint: OpenAI-compatible chat completions by default,
@@ -519,6 +519,10 @@ jobs:
             // the location unchanged, finding absent from the latest run) are
             // collected here for the Phase R LLM attribution pass below.
             const llmCandidates = [];
+            // Issue #224: still-reported (KEEP) findings whose anchor..head
+            // range may contain a commit that actually fixed them. Collected
+            // from the KEEP branch below and re-judged by the LLM in Phase R.
+            const rejudgeCandidates = [];
 
             // Reply to an OCR thread AND mark it resolved (CodeRabbit-style:
             // the Resolve conversation button, not just a reply). Shared by the
@@ -556,7 +560,79 @@ jobs:
 
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
-                core.info(`KEEP: ${d.id} (${d.reason})`);
+                // Issue #224: a finding still reported by the latest OCR run is
+                // not auto-resolved by absence, but a commit in its
+                // anchor..head range may have genuinely fixed the underlying
+                // issue. Collect it for the Phase R LLM re-judgment pass, which
+                // asks the model to confirm a fixing commit (gated by the
+                // in-range + path-touch checks before any resolve). Fail-open:
+                // without the LLM configured, a usable location, or a mapped
+                // thread, we leave it open exactly as before.
+                if (!headSha || !threadsIndexed || !process.env.LLM_URL || !process.env.LLM_AUTH) {
+                  core.info(`KEEP: ${d.id} (${d.reason})`);
+                  continue;
+                }
+                if (rejudgeCandidates.length >= MAX_AUTO_RESOLVES) {
+                  core.info(`KEEP (re-judge cap ${MAX_AUTO_RESOLVES} reached): ${d.id}`);
+                  continue;
+                }
+                const comment = comments.find((c) => String(c.id) === d.threadKey);
+                const loc = comment ? toOriginalRange(comment) : null;
+                if (!loc) {
+                  core.info(`KEEP (no anchorable original location; left open): ${d.id}`);
+                  continue;
+                }
+                const threadId = threadByCommentId.get(d.threadKey);
+                if (!threadId) {
+                  core.info(`KEEP (no unresolved thread mapped; left open): ${d.id}`);
+                  continue;
+                }
+                // anchor..head diff: commits + changed files for the LLM prompt
+                // and the in-range SHA gate. Reuses compareCache.
+                let cmpCommits = [];
+                let changedFiles = [];
+                try {
+                  const basehead = `${loc.sha}..${headSha}`;
+                  let cmpData = compareCache.get(basehead);
+                  if (!cmpData) {
+                    const { data: cmp } = await github.rest.repos.compareCommits({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      basehead,
+                    });
+                    cmpData = cmp;
+                    compareCache.set(basehead, cmpData);
+                  }
+                  cmpCommits = cmpData.commits || [];
+                  changedFiles = cmpData.files || [];
+                  // Issue #224 / CodeAnt security findings (L876 Critical, L358 Major):
+                  // a still-reported finding may ONLY be re-judged when the code at its
+                  // OWN reported location actually changed across anchor..head. Otherwise an
+                  // unrelated same-file change (comment/import/whitespace) could close a
+                  // still-valid thread. Require location-level evidence, else leave it open.
+                  const verdict = diffTouchesLocation(cmpData.files, loc);
+                  if (!verdict.changed) {
+                    core.info(`KEEP (location ${loc.path}:${loc.start}-${loc.end} unchanged across ${loc.sha.slice(0, 12)}..${headSha.slice(0, 12)}; re-judge would be baseless; left open): ${d.id}`);
+                    continue;
+                  }
+                } catch (e) {
+                  core.warning(`KEEP ${d.id}: compare ${loc.sha.slice(0, 12)}..${headSha.slice(0, 12)} failed (${e.message}); left open.`);
+                  continue;
+                }
+                rejudgeCandidates.push({
+                  id: d.id,
+                  threadKey: d.threadKey,
+                  threadId,
+                  path: loc.path,
+                  start: loc.start,
+                  end: loc.end,
+                  anchor: loc.sha,
+                  body: comment.body || '',
+                  commits: cmpCommits.map((c) => ({ sha: c.sha, message: (c.commit && c.commit.message) || c.message || '' })).slice(0, 40),
+                  changedFiles: changedFiles.map((f) => f.filename),
+                  validShas: cmpCommits.map((c) => c.sha),
+                });
+                core.info(`KEEP (re-judge eligible): ${d.id} (${d.reason})`);
                 continue;
               }
               if (!d.candidate) {
@@ -749,6 +825,81 @@ jobs:
               }
             }
 
+            // ---- Phase R (LLM, issue #224): re-judge still-KEEP findings ----
+            // A finding the latest OCR run STILL reports (KEEP, not absence) is
+            // collected above. Here the LLM judges each against its own
+            // anchor..head commits and cites a fixing commit. The same safety
+            // gates as the absence pass apply (cited commit in range + touches
+            // the finding's path) before any resolveReviewThread. Fail-open:
+            // any error leaves threads open; the job stays green.
+            let rejudgeResolved = 0;
+            if (rejudgeCandidates.length && process.env.LLM_URL && process.env.LLM_AUTH) {
+              try {
+                const prompt = buildRejudgePrompt({
+                  findings: rejudgeCandidates.map((c) => ({
+                    id: c.id, path: c.path, start: c.start, end: c.end,
+                    anchor: c.anchor, body: c.body, commits: (c.commits || []).slice(0, 40),
+                  })),
+                });
+                const raw = await callLlmGateway({
+                  url: process.env.LLM_URL,
+                  model: process.env.LLM_MODEL,
+                  auth: process.env.LLM_AUTH,
+                  useAnthropic: process.env.LLM_USE_ANTHROPIC === 'true',
+                  prompt,
+                });
+                const { resolutions, errors } = parseLlmResolutions(raw);
+                for (const err of errors) core.warning(`LLM re-judge parse: ${err}`);
+                const handledIds = new Set();
+                for (const res of resolutions) {
+                  // De-duplicate by id (the LLM may echo the same finding id).
+                  if (handledIds.has(res.id)) { core.info(`LLM re-judge duplicate id ${res.id}; skipped to avoid a repeat reply.`); continue; }
+                  if (resolvedCount >= MAX_AUTO_RESOLVES) break;
+                  handledIds.add(res.id);
+                  const cand = rejudgeCandidates.find((c) => c.id === res.id);
+                  if (!cand) { core.info(`LLM re-judge cited unknown finding id ${res.id}; skipped.`); continue; }
+                  if (!cand.threadId) { core.info(`LLM re-judge for ${res.id}: no unresolved thread mapped; skipped.`); continue; }
+                  // Gate 1 (pure): the cited commit must be in the finding's
+                  // anchor..head SHA set (exact SHA or unique >=7-hex prefix).
+                  const vSha = validateResolution(res, { commitShas: cand.validShas });
+                  if (!vSha.ok) { core.info(`LLM re-judge for ${res.id} rejected: ${vSha.reason}; left open.`); continue; }
+                  // Gate 2 (relevance): confirm the cited commit actually touches
+                  // the finding's path, so an unrelated in-range commit cannot
+                  // close a still-valid thread. Fail-open on any fetch error.
+                  let citedFiles = [];
+                  try {
+                    const { data: cdata } = await github.rest.repos.getCommit({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: vSha.canonicalSha,
+                    });
+                    citedFiles = (cdata.files || []).map((f) => f.filename);
+                  } catch (e) {
+                    core.warning(`Re-judge path-relevance check for ${res.id} failed (${e.message}); left open.`);
+                    continue;
+                  }
+                  const v = validateResolution(res, {
+                    commitShas: cand.validShas,
+                    findingPath: cand.path,
+                    commitFiles: { [vSha.canonicalSha]: citedFiles },
+                  });
+                  if (!v.ok) { core.info(`LLM re-judge for ${res.id} rejected: ${v.reason}; left open.`); continue; }
+                  try {
+                    const sha = v.canonicalSha || res.commit;
+                    const shortSha = sha.slice(0, 12);
+                    const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
+                    const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${res.reason}. This finding at ${cand.path}:${cand.start}-${cand.end} was still reported by the latest review, but a commit in ${cand.anchor.slice(0, 12)}..${shortSha} addresses the underlying issue.`;
+                    const ok = await replyAndResolveThread({ threadId: cand.threadId, body: replyBody, id: res.id, reason: `LLM re-judge, cited ${shortSha}` });
+                    if (ok) { rejudgeResolved++; resolvedCitations.push({ id: res.id, sha: shortSha, url: commitUrl }); }
+                  } catch (e) {
+                    core.warning(`LLM re-judge execution failed for ${res.id} (${e.message}); left open.`);
+                  }
+                }
+              } catch (e) {
+                core.warning(`LLM re-judge pass failed (${e.message}); still-reported findings left open.`);
+              }
+            }
+
             // Reflect auto-resolutions on the OpenCodeReview summary comment
             // itself (CodeRabbit/Sourcery style): edit the summary to cite the
             // fixing commits instead of leaving the resolution only in the
@@ -790,9 +941,9 @@ jobs:
               }
             }
 
-            const candidates = decisions.filter((d) => d.candidate).length;
-            const byEvidence = resolvedCount - llmResolved;
-            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved (${byEvidence} by diff evidence, ${llmResolved} by LLM attribution; ceiling ${MAX_AUTO_RESOLVES}); absence alone never resolves.`);
+            const candidates = decisions.filter((d) => d.candidate).length + rejudgeCandidates.length;
+            const byEvidence = resolvedCount - llmResolved - rejudgeResolved;
+            core.notice(`OpenCodeReview stale-thread audit: ${candidates} candidate(s), ${resolvedCount} resolved (${byEvidence} by diff evidence, ${llmResolved} by LLM absence-attribution, ${rejudgeResolved} by LLM re-judge of still-reported findings; ceiling ${MAX_AUTO_RESOLVES}).`);
 
       # With sticky_summary disabled, every OCR run posts its OWN summary
       # comment. Keep only the newest one visible: older summaries are
