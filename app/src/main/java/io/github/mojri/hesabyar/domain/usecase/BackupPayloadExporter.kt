@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import kotlinx.coroutines.flow.firstOrNull
 import org.json.JSONArray
@@ -94,6 +95,7 @@ class BackupPayloadExporter(
     val curBankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
     val allPayments = repository.getAllPaymentHistories()
     val curAccounts = repository.allAccounts.firstOrNull() ?: emptyList()
+    val curPersons = repository.getAllPersonsIncludingArchived()
 
     rootJson.put("categories", buildCategoriesArray(curCategories))
 
@@ -108,6 +110,8 @@ class BackupPayloadExporter(
     rootJson.put("paymentHistories", buildPaymentHistoriesArray(allPayments))
 
     rootJson.put("accounts", buildAccountsArray(curAccounts, encryptionKey))
+
+    rootJson.put("persons", buildPersonsArray(curPersons))
 
     return rootJson
   }
@@ -226,6 +230,24 @@ class BackupPayloadExporter(
       )
     }
     return paymentsArray
+  }
+
+  private fun buildPersonsArray(persons: List<Person>): JSONArray {
+    val personsArray = JSONArray()
+    persons.forEach {
+      personsArray.put(
+        JSONObject().apply {
+          put("id", it.id)
+          put("name", it.name)
+          put("normalizedName", it.normalizedName)
+          put("phone", it.phone ?: JSONObject.NULL)
+          put("notes", it.notes ?: JSONObject.NULL)
+          put("createdAt", it.createdAt)
+          put("isArchived", it.isArchived)
+        }
+      )
+    }
+    return personsArray
   }
 
   private fun buildAccountsArray(

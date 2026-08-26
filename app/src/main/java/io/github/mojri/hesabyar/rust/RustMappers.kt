@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.ui.AccountAnalytics
@@ -372,6 +373,32 @@ object RustMappers {
 
   fun fromRustAccounts(list: List<io.github.mojri.hesabyar.rust.Account>): List<AccountEntity> =
     list.map { fromRustAccount(it) }
+
+  fun fromRustPerson(rust: io.github.mojri.hesabyar.rust.Person): Person =
+    Person(
+      id = rust.id,
+      name = rust.name,
+      normalizedName = rust.normalizedName,
+      phone = rust.phone,
+      notes = rust.notes,
+      createdAt = if (rust.createdAt != 0L) rust.createdAt else System.currentTimeMillis(),
+      isArchived = rust.isArchived
+    )
+
+  fun fromRustPersons(list: List<io.github.mojri.hesabyar.rust.Person>): List<Person> = list.map { fromRustPerson(it) }
+
+  fun mapPerson(person: Person): io.github.mojri.hesabyar.rust.Person =
+    io.github.mojri.hesabyar.rust.Person(
+      id = person.id,
+      name = person.name,
+      normalizedName = person.normalizedName,
+      phone = person.phone,
+      notes = person.notes,
+      createdAt = person.createdAt,
+      isArchived = person.isArchived
+    )
+
+  fun mapPersons(list: List<Person>): List<io.github.mojri.hesabyar.rust.Person> = list.map { mapPerson(it) }
 
   fun mapAccount(account: AccountEntity): io.github.mojri.hesabyar.rust.Account =
     io.github.mojri.hesabyar.rust.Account(

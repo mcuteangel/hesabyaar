@@ -14,6 +14,7 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.rust.RustBridge
@@ -50,6 +51,7 @@ class BackupJsonParser(
             categories = rustResult.categories.map { RustMappers.fromRustCategory(it) },
             bankLoans = rustResult.bankLoans.map { RustMappers.fromRustBankLoan(it) },
             accounts = rustResult.accounts.map { RustMappers.fromRustAccount(it) },
+            persons = rustResult.persons.map { RustMappers.fromRustPerson(it) },
             settings = parseSettings(rootJson)
           )
         } catch (e: IllegalArgumentException) {
@@ -78,6 +80,7 @@ class BackupJsonParser(
         categories = parseCategories(root),
         bankLoans = parseBankLoansFromJson(root),
         accounts = parseAccountsFromJson(root),
+        persons = parsePersons(root),
         settings = parseSettings(root)
       )
     } catch (e: NumberFormatException) {
@@ -205,6 +208,22 @@ class BackupJsonParser(
           startDate = o.optLong("startDate", 0L),
           description = o.optString("description", ""),
           isSettled = o.optBoolean("isSettled", false)
+        )
+      }
+    } ?: emptyList()
+
+  private fun parsePersons(root: JSONObject): List<Person> =
+    root.optJSONArray("persons")?.let { arr ->
+      (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        Person(
+          id = o.optLong("id", 0L),
+          name = o.optString("name", ""),
+          normalizedName = o.optString("normalizedName", ""),
+          phone = o.nullableString("phone"),
+          notes = o.nullableString("notes"),
+          createdAt = o.optLong("createdAt", 0L),
+          isArchived = o.optBoolean("isArchived", false)
         )
       }
     } ?: emptyList()

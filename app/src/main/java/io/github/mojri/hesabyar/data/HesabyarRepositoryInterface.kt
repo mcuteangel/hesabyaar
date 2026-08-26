@@ -71,6 +71,29 @@ interface HesabyarRepositoryInterface {
     installments: List<Installment>
   ): Long
 
+  // Person CRUD (person-ledger redesign, plans/011)
+  val allPersons: Flow<List<Person>>
+
+  suspend fun getAllPersonsIncludingArchived(): List<Person>
+
+  suspend fun getPersonById(id: Long): Person?
+
+  /** Match-or-create by normalized name; returns the stored row. */
+  suspend fun upsertPerson(person: Person): Person
+
+  /**
+   * D3 sync-on-rename: updates the person row and the denormalized
+   * personName on its loans and transactions in one transaction.
+   * Returns false when the id is unknown or another person already owns
+   * the new normalized name (merging is a separate flow).
+   */
+  suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean
+
+  suspend fun deletePerson(person: Person)
+
   // Account CRUD
   suspend fun getActiveAccounts(): List<AccountEntity>
 

@@ -210,6 +210,7 @@ fn bench_validation(c: &mut Criterion) {
         payment_histories: vec![],
         categories: vec![],
         accounts: vec![],
+        ..Default::default()
     };
 
     c.bench_function("validate_backup_payload_1000_tx", |b| {

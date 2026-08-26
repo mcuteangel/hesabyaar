@@ -242,6 +242,7 @@ class BackupJsonValidator(
       paymentHistories = RustMappers.mapPaymentHistories(paymentHistories),
       bankLoans = RustMappers.mapBankLoans(bankLoans),
       categories = RustMappers.mapCategories(categories),
-      accounts = RustMappers.mapAccounts(accounts)
+      accounts = RustMappers.mapAccounts(accounts),
+      persons = RustMappers.mapPersons(persons)
     )
 }

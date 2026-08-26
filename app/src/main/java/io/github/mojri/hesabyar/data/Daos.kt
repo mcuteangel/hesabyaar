@@ -187,6 +187,56 @@ interface PaymentHistoryDao {
 }
 
 @Dao
+interface PersonDao {
+  @Query("SELECT * FROM persons WHERE isArchived = 0 ORDER BY name")
+  fun getAllPersons(): Flow<List<Person>>
+
+  // Backup paths (export, plaintext→encrypted transfer, tests) need an
+  // unfiltered blocking read so archived rows round-trip losslessly. Other
+  // DAOs follow the same split: live-UI Flow/Blocking variants filter,
+  // bulk/blocking for backup/export don't.
+  @Query("SELECT * FROM persons ORDER BY name")
+  fun getAllPersonsIncludingArchivedBlocking(): List<Person>
+
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  fun insertAllBlocking(persons: List<Person>)
+
+  @Query("SELECT * FROM persons WHERE id = :id LIMIT 1")
+  suspend fun getPersonById(id: Long): Person?
+
+  @Query("SELECT * FROM persons WHERE normalizedName = :normalizedName LIMIT 1")
+  suspend fun getPersonByNormalizedName(normalizedName: String): Person?
+
+  // IGNORE + unique(normalizedName): a race that inserts the same dedup key
+  // twice keeps the first row and returns -1; callers re-query on -1.
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  suspend fun insertPerson(person: Person): Long
+
+  @Query("DELETE FROM persons")
+  suspend fun deleteAllPersons()
+
+  @Update
+  suspend fun updatePerson(person: Person)
+
+  @Delete
+  suspend fun deletePerson(person: Person)
+
+  // D3 rename sync: display names are read from these denormalized columns,
+  // so a rename must rewrite them in the same transaction as the person row.
+  @Query("UPDATE loans SET personName = :newName WHERE personId = :personId")
+  suspend fun syncLoanPersonNames(
+    personId: Long,
+    newName: String
+  )
+
+  @Query("UPDATE transactions SET personName = :newName WHERE personId = :personId")
+  suspend fun syncTransactionPersonNames(
+    personId: Long,
+    newName: String
+  )
+}
+
+@Dao
 interface AccountDao {
   @Query("SELECT * FROM accounts WHERE isArchived = 0 ORDER BY displayOrder, name")
   fun getActiveAccounts(): Flow<List<AccountEntity>>

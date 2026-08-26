@@ -10,6 +10,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,9 +26,10 @@ import java.io.IOException
     PaymentHistory::class,
     Category::class,
     BankLoan::class,
-    AccountEntity::class
+    AccountEntity::class,
+    Person::class
   ],
-  version = 7,
+  version = 8,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -45,6 +47,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun bankLoanDao(): BankLoanDao
 
   abstract fun accountDao(): AccountDao
+
+  abstract fun personDao(): PersonDao
 
   companion object {
     @Volatile
@@ -193,6 +197,113 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Phase 1 of the person-ledger redesign (plans/011): additive-only.
+     *
+     * Creates `persons` (unique index on normalizedName), adds nullable
+     * personId to loans AND transactions, then backfills persons from
+     * distinct loans.personName and stamps personId on both tables where
+     * names normalize to the same key.
+     *
+     * The order is intentional: loans are processed first, then
+     * transactions fall back to inserting a new Person row when their
+     * normalized name has no loan counterpart (option (a) per plans/011
+     * §D4 addendum, "resolved during Phase 1"). Display-name tiebreak
+     * on a normalized-key collision goes to the loan that was processed
+     * first. See plans/011 for the rationale.
+     */
+    internal val MIGRATION_7_8 =
+      object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL(
+            "CREATE TABLE IF NOT EXISTS persons (" +
+              "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+              "name TEXT NOT NULL, normalizedName TEXT NOT NULL, " +
+              "phone TEXT, notes TEXT, createdAt INTEGER NOT NULL, " +
+              "isArchived INTEGER NOT NULL)"
+          )
+          db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_persons_normalizedName ON persons (normalizedName)")
+          db.execSQL("ALTER TABLE loans ADD COLUMN personId INTEGER")
+          db.execSQL("ALTER TABLE transactions ADD COLUMN personId INTEGER")
+
+          val idByNormalized = HashMap<String, Long>()
+          backfillPersonsFromLoans(db, idByNormalized)
+          stampPersonIdsOnTransactions(db, idByNormalized)
+        }
+
+        /** Inserts (or reuses) a person row for [rawName]; returns its id or -1 for blank. */
+        private fun personIdFor(
+          db: SupportSQLiteDatabase,
+          rawName: String,
+          idByNormalized: MutableMap<String, Long>
+        ): Long {
+          val display = PersonNameNormalizer.displayForm(rawName)
+          var result = -1L
+          if (display.isNotEmpty()) {
+            val key = PersonNameNormalizer.normalize(display)
+            if (key.isNotEmpty()) {
+              val existing = idByNormalized[key]
+              result =
+                if (existing != null) {
+                  existing
+                } else {
+                  val statement =
+                    db.compileStatement(
+                      "INSERT INTO persons (name, normalizedName, phone, notes, createdAt, isArchived) " +
+                        "VALUES (?, ?, NULL, NULL, ?, 0)"
+                    )
+                  statement.bindString(1, display)
+                  statement.bindString(2, key)
+                  statement.bindLong(3, System.currentTimeMillis())
+                  val id = statement.executeInsert()
+                  if (id != -1L) idByNormalized[key] = id
+                  id
+                }
+            }
+          }
+          return result
+        }
+
+        private fun backfillPersonsFromLoans(
+          db: SupportSQLiteDatabase,
+          idByNormalized: MutableMap<String, Long>
+        ) {
+          val update =
+            db.compileStatement("UPDATE loans SET personId = ? WHERE id = ?")
+          db
+            .query("SELECT id, personName FROM loans WHERE personName IS NOT NULL ORDER BY date ASC, id ASC")
+            .use { cursor ->
+              while (cursor.moveToNext()) {
+                val loanId = cursor.getLong(0)
+                val personId = personIdFor(db, cursor.getString(1), idByNormalized)
+                if (personId == -1L) continue
+                update.bindLong(1, personId)
+                update.bindLong(2, loanId)
+                update.executeUpdateDelete()
+              }
+            }
+        }
+
+        private fun stampPersonIdsOnTransactions(
+          db: SupportSQLiteDatabase,
+          idByNormalized: MutableMap<String, Long>
+        ) {
+          val update =
+            db.compileStatement("UPDATE transactions SET personId = ? WHERE id = ?")
+          db
+            .query("SELECT id, personName FROM transactions WHERE personName IS NOT NULL")
+            .use { cursor ->
+              while (cursor.moveToNext()) {
+                val personId = personIdFor(db, cursor.getString(1), idByNormalized)
+                if (personId == -1L) continue
+                update.bindLong(1, personId)
+                update.bindLong(2, cursor.getLong(0))
+                update.executeUpdateDelete()
+              }
+            }
+        }
+      }
+
     internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -301,8 +412,15 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
-            .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
+            .addMigrations(
+              MIGRATION_1_2,
+              MIGRATION_2_3,
+              MIGRATION_3_4,
+              MIGRATION_4_5,
+              MIGRATION_5_6,
+              MIGRATION_6_7,
+              MIGRATION_7_8
+            ).addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
             .build()
         instance = db
         db
@@ -342,8 +460,15 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
-          .build()
+          .addMigrations(
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8
+          ).build()
 
       val accounts = plaintextDb.accountDao().getAllAccountsBlocking()
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -352,6 +477,7 @@ abstract class AppDatabase : RoomDatabase() {
       val bankLoans = plaintextDb.bankLoanDao().getAllBankLoansBlocking()
       val installments = plaintextDb.installmentDao().getAllInstallmentsBlocking()
       val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
+      val persons = plaintextDb.personDao().getAllPersonsIncludingArchivedBlocking()
 
       plaintextDb.close()
 
@@ -366,8 +492,15 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
-            .build()
+            .addMigrations(
+              MIGRATION_1_2,
+              MIGRATION_2_3,
+              MIGRATION_3_4,
+              MIGRATION_4_5,
+              MIGRATION_5_6,
+              MIGRATION_6_7,
+              MIGRATION_7_8
+            ).build()
 
         encryptedDb.runInTransaction {
           if (accounts.isNotEmpty()) encryptedDb.accountDao().insertAllBlocking(accounts)
@@ -377,6 +510,7 @@ abstract class AppDatabase : RoomDatabase() {
           if (bankLoans.isNotEmpty()) encryptedDb.bankLoanDao().insertAllBlocking(bankLoans)
           if (installments.isNotEmpty()) encryptedDb.installmentDao().insertAllBlocking(installments)
           if (payments.isNotEmpty()) encryptedDb.paymentHistoryDao().insertAllBlocking(payments)
+          if (persons.isNotEmpty()) encryptedDb.personDao().insertAllBlocking(persons)
         }
 
         encryptedDb.close()
@@ -385,30 +519,29 @@ abstract class AppDatabase : RoomDatabase() {
         context.getDatabasePath("$tempName-wal").delete()
         context.getDatabasePath("$tempName-shm").delete()
       } catch (e: IOException) {
-        context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
-        listOf("-wal", "-shm")
-          .map { context.getDatabasePath("$tempName$it") }
-          .filter { it.exists() }
-          .forEach {
-            it.copyTo(
-              context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"),
-              overwrite = true
-            )
-          }
+        restoreTempBackupToLive(context, tempName, dbFile)
         throw e
       } catch (e: SQLiteException) {
-        context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
-        listOf("-wal", "-shm")
-          .map { context.getDatabasePath("$tempName$it") }
-          .filter { it.exists() }
-          .forEach {
-            it.copyTo(
-              context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"),
-              overwrite = true
-            )
-          }
+        restoreTempBackupToLive(context, tempName, dbFile)
         throw e
       }
+    }
+
+    private fun restoreTempBackupToLive(
+      context: Context,
+      tempName: String,
+      dbFile: File
+    ) {
+      context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
+      listOf("-wal", "-shm")
+        .map { context.getDatabasePath("$tempName$it") }
+        .filter { it.exists() }
+        .forEach {
+          it.copyTo(
+            context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"),
+            overwrite = true
+          )
+        }
     }
   }
 }

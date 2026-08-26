@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import kotlinx.coroutines.CompletableDeferred
@@ -248,4 +249,19 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
+
+  override val allPersons: Flow<List<Person>> = MutableStateFlow(emptyList())
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> = emptyList()
+
+  override suspend fun getPersonById(id: Long): Person? = null
+
+  override suspend fun upsertPerson(person: Person): Person = person.copy(id = 1L)
+
+  override suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean = true
+
+  override suspend fun deletePerson(person: Person) {}
 }

@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,9 @@ import kotlinx.coroutines.flow.flowOf
 internal class FakeRepository : HesabyarRepositoryInterface {
   var importShouldThrow: Exception? = null
   var exportShouldThrow: Exception? = null
+
+  /** Test hook: overrides repayment outcomes — return false or throw. */
+  var addPaymentBehavior: (() -> Boolean)? = null
 
   /** Counts how many times a restore actually executed — for duplicate-submission tests. */
   var executeRestoreCount = 0
@@ -87,7 +91,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     amount: Long,
     notes: String,
     customDate: Long?
-  ): Boolean = false
+  ): Boolean = addPaymentBehavior?.invoke() ?: false
 
   override suspend fun insertInstallment(installment: Installment): Long = 0L
 
@@ -146,4 +150,19 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun getTransactionCountForAccount(accountId: Long): Int = 0
 
   override suspend fun getMaxDisplayOrder(): Int = -1
+
+  override val allPersons: Flow<List<Person>> = flowOf(emptyList())
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> = emptyList()
+
+  override suspend fun getPersonById(id: Long): Person? = null
+
+  override suspend fun upsertPerson(person: Person): Person = person.copy(id = 1L)
+
+  override suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean = true
+
+  override suspend fun deletePerson(person: Person) {}
 }

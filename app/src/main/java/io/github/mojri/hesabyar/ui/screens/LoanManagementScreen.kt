@@ -227,104 +227,15 @@ fun LoanManagementScreen(
   }
 
   // Edit Loan Dialog
-  if (editingLoan != null) {
-    val loan = editingLoan!!
-    var personName by remember { mutableStateOf(loan.personName) }
-    var loanType by remember { mutableStateOf(loan.type) }
-    var amountText by remember { mutableStateOf(CurrencyFormatter.fromRial(loan.originalAmount).toString()) }
-    var description by remember { mutableStateOf(loan.description) }
-    var customDate by remember { mutableStateOf(loan.date) }
-
-    AlertDialog(
-      onDismissRequest = { editingLoan = null },
-      title = {
-        Text(
-          "ویرایش قرض",
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.fillMaxWidth(),
-          textAlign = TextAlign.Right
-        )
+  editingLoan?.let { loanToEdit ->
+    EditLoanDialog(
+      loan = loanToEdit,
+      onUpdate = { updated ->
+        loanViewModel.updateLoan(updated)
+        editingLoan = null
       },
-      text = {
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            LoanTypeSelector(loanType = loanType, onTypeChange = { loanType = it })
-          }
-
-          HesabyarInputField(
-            value = personName,
-            onValueChange = { personName = it },
-            label = "نام شخص طرف حساب"
-          )
-
-          HesabyarInputField(
-            value = amountText,
-            onValueChange = { amountText = it },
-            label = "مبلغ قرض (${CurrencyFormatter.unitLabel})"
-          )
-
-          HesabyarInputField(
-            value = description,
-            onValueChange = { description = it },
-            label = "توضیحات و بابت چی...",
-            singleLine = false
-          )
-
-          JalaliDateTimePicker(
-            initialTimestamp = customDate,
-            onTimestampChanged = { customDate = it }
-          )
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            val amountDisplay = amountText.toLongOrNull() ?: 0L
-            if (personName.isNotBlank() && amountDisplay > 0L) {
-              val amountRial = CurrencyFormatter.toRial(amountDisplay)
-              // Keep already-repaid money intact: remaining shrinks only by the
-              // difference between the new and the old principal.
-              val paidSoFar = (loan.originalAmount - loan.remainingAmount).coerceAtLeast(0L)
-              when {
-                amountRial < paidSoFar -> {
-                  settingsViewModel.showMessage("مبلغ جدید نمی‌تواند کمتر از بازپرداخت‌های ثبت‌شده باشد")
-                }
-                else -> {
-                  val newRemaining = amountRial - paidSoFar
-                  loanViewModel.updateLoan(
-                    loan.copy(
-                      personName = personName,
-                      type = loanType,
-                      originalAmount = amountRial,
-                      remainingAmount = newRemaining,
-                      isSettled = newRemaining == 0L,
-                      description = description,
-                      date = customDate
-                    )
-                  )
-                  editingLoan = null
-                }
-              }
-            } else {
-              settingsViewModel.showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
-            }
-          },
-          text = "ذخیره تغییرات"
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { editingLoan = null },
-          text = stringResource(R.string.cancel_label),
-          variant = ButtonVariant.Text
-        )
-      }
+      showMessage = settingsViewModel::showMessage,
+      onDismiss = { editingLoan = null }
     )
   }
 
@@ -692,13 +603,106 @@ private fun AddLoanDialog(
 }
 
 private class LoanFormState(
-  initialType: LoanType
+  initialType: LoanType,
+  initialPersonName: String = "",
+  initialAmountRial: Long = 0L,
+  initialDescription: String = "",
+  initialDate: Long = System.currentTimeMillis()
 ) {
-  var personName by mutableStateOf("")
+  var personName by mutableStateOf(initialPersonName)
   var loanType by mutableStateOf(initialType)
-  var amountText by mutableStateOf("")
-  var description by mutableStateOf("")
-  var customDate by mutableStateOf(System.currentTimeMillis())
+  var amountText by mutableStateOf(CurrencyFormatter.fromRial(initialAmountRial).toString())
+  var description by mutableStateOf(initialDescription)
+  var customDate by mutableStateOf(initialDate)
+}
+
+@Composable
+private fun EditLoanDialog(
+  loan: Loan,
+  onUpdate: (Loan) -> Unit,
+  showMessage: (String) -> Unit,
+  onDismiss: () -> Unit
+) {
+  val form =
+    remember {
+      LoanFormState(loan.type, loan.personName, loan.originalAmount, loan.description, loan.date)
+    }
+  val initialAmountText = form.amountText
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        "ویرایش قرض",
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.fillMaxWidth(),
+        textAlign = TextAlign.Right
+      )
+    },
+    text = { LoanFormFields(form) },
+    confirmButton = {
+      HesabyarButton(
+        onClick = { submitLoanEdit(form, loan, initialAmountText, onUpdate, showMessage) },
+        text = "ذخیره تغییرات"
+      )
+    },
+    dismissButton = {
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.cancel_label),
+        variant = ButtonVariant.Text
+      )
+    }
+  )
+}
+
+private fun submitLoanEdit(
+  form: LoanFormState,
+  loan: Loan,
+  initialAmountText: String,
+  onUpdate: (Loan) -> Unit,
+  showMessage: (String) -> Unit
+) {
+  val amountDisplay = form.amountText.toLongOrNull() ?: 0L
+  when {
+    form.personName.isBlank() || amountDisplay <= 0L ->
+      showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
+
+    // Display-unit round trips truncate odd Rials in Toman mode; when the
+    // amount field was left untouched, keep the stored amounts as-is.
+    form.amountText == initialAmountText ->
+      onUpdate(
+        loan.copy(
+          personName = form.personName,
+          type = form.loanType,
+          description = form.description,
+          date = form.customDate
+        )
+      )
+
+    else -> {
+      // Keep already-repaid money intact: remaining shrinks only by the
+      // difference between the new and the old principal.
+      val amountRial = CurrencyFormatter.toRial(amountDisplay)
+      val paidSoFar = (loan.originalAmount - loan.remainingAmount).coerceAtLeast(0L)
+      if (amountRial < paidSoFar) {
+        showMessage("مبلغ جدید نمی‌تواند کمتر از بازپرداخت‌های ثبت‌شده باشد")
+      } else {
+        val newRemaining = amountRial - paidSoFar
+        onUpdate(
+          loan.copy(
+            personName = form.personName,
+            type = form.loanType,
+            originalAmount = amountRial,
+            remainingAmount = newRemaining,
+            isSettled = newRemaining == 0L,
+            description = form.description,
+            date = form.customDate
+          )
+        )
+      }
+    }
+  }
 }
 
 @Composable

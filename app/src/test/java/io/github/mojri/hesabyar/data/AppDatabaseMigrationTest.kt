@@ -17,16 +17,23 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Regression tests for [AppDatabase.migratePlaintextToEncryptedIfNeeded]
- * and Room schema migrations (MIGRATION_5_6, MIGRATION_6_7).
+ * Regression tests for the plaintext→encrypted transfer body
+ * (the read+insert half of [AppDatabase.migratePlaintextToEncryptedIfNeeded])
+ * and Room schema migrations (MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).
  *
- * The migration reads all entity types from a plaintext DB and inserts them
- * into an encrypted DB. Previously, accounts were missing from both the read
- * and the insert, causing data loss during conversion.
+ * The 3 transfer tests below simulate the read+insert by hand against
+ * in-memory DBs; the actual `migratePlaintextToEncryptedIfNeeded` is not
+ * invoked here because the real function calls
+ * `System.loadLibrary("sqlcipher")` and depends on the encrypted factory
+ * (a test-seam refactor is tracked separately — see follow-up issue).
+ * If the function's body grows, mirror the additions in the
+ * simulated-transfer tests so a code-reviewer can still verify the
+ * round-trip is intact.
  *
  * Migration tests verify that Room's schema validation passes after running
- * MIGRATION_5_6 (accounts table) and MIGRATION_6_7 (timestamps), and that
- * AccountEntity data survives the round-trip.
+ * MIGRATION_5_6 (accounts table) and MIGRATION_6_7 (timestamps) and
+ * MIGRATION_7_8 (persons + personId columns), and that AccountEntity
+ * and Person data survives the round-trip.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -271,16 +278,17 @@ class AppDatabaseMigrationTest {
     // This creates the exact v5 schema (no accounts table, no timestamps).
     createRawV5Database(context, dbName)
 
-    // Step 2: Run MIGRATION_5_6 and MIGRATION_6_7 on the raw database.
-    // We open the database via Room with all migrations; Room will detect
-    // the version is 5 and apply 5→6→7.
+    // Step 2: Run MIGRATION_5_6, MIGRATION_6_7 and MIGRATION_7_8 on the raw
+    // database. We open the database via Room with all migrations; Room will
+    // detect the version is 5 and apply 5→6→7→8 (the person-ledger migration).
     val migratedDb =
       Room
         .databaseBuilder(context, AppDatabase::class.java, dbName)
         .allowMainThreadQueries()
         .addMigrations(
           AppDatabase.MIGRATION_5_6,
-          AppDatabase.MIGRATION_6_7
+          AppDatabase.MIGRATION_6_7,
+          AppDatabase.MIGRATION_7_8
         ).build()
 
     // Step 3: Insert and query AccountEntity — if the migration-produced
@@ -392,7 +400,8 @@ class AppDatabaseMigrationTest {
       .allowMainThreadQueries()
       .addMigrations(
         AppDatabase.MIGRATION_5_6,
-        AppDatabase.MIGRATION_6_7
+        AppDatabase.MIGRATION_6_7,
+        AppDatabase.MIGRATION_7_8
       ).build()
   }
 
@@ -423,6 +432,296 @@ class AppDatabaseMigrationTest {
       // Timestamps should be 0 (the DEFAULT 0 from MIGRATION_6_7)
       assertEquals("Default account createdAt defaults to 0", 0L, defaultAccount?.createdAt)
       assertEquals("Default account updatedAt defaults to 0", 0L, defaultAccount?.updatedAt)
+
+      migratedDb.close()
+    } finally {
+      dbFile.delete()
+      context.getDatabasePath("$dbName-wal").delete()
+      context.getDatabasePath("$dbName-shm").delete()
+    }
+  }
+
+  /** Raw SQL creating the full v7 schema (v5 tables + accounts/timestamps + transaction account columns). */
+  private fun createV7SchemaTables(db: SupportSQLiteDatabase) {
+    createV5SchemaTables(db)
+    db.execSQL(
+      "CREATE TABLE IF NOT EXISTS accounts (" +
+        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        "name TEXT NOT NULL, type TEXT NOT NULL, bankName TEXT, " +
+        "cardNumber TEXT, accountNumber TEXT, iban TEXT, " +
+        "initialBalance INTEGER NOT NULL DEFAULT 0, " +
+        "color INTEGER NOT NULL DEFAULT 4283215696, icon TEXT, " +
+        "isArchived INTEGER NOT NULL DEFAULT 0, " +
+        "displayOrder INTEGER NOT NULL DEFAULT 0, " +
+        "createdAt INTEGER NOT NULL DEFAULT 0, " +
+        "updatedAt INTEGER NOT NULL DEFAULT 0)"
+    )
+    db.execSQL("ALTER TABLE transactions ADD COLUMN accountId INTEGER NOT NULL DEFAULT 1")
+    db.execSQL("ALTER TABLE transactions ADD COLUMN destinationAccountId INTEGER DEFAULT NULL")
+  }
+
+  /**
+   * Phase 1 person-ledger migration (plans/011): creates the persons table,
+   * adds nullable personId to BOTH loans and transactions, and backfills
+   * persons from distinct loans.personName with normalization-based dedup.
+   *
+   * Seeded variants:
+   * - loan1 'علی' (date=100) and loan2 'علي' (Arabic yeh, date=200) share one key;
+   *   first-by-date original 'علی' becomes the display name.
+   * - loan3 ' علی رضا ' (date=50) trims/collapses to key 'علی رضا'.
+   * - tx1/tx2 stamp onto the shared 'علی' person; tx3 has a loan-less name and,
+   *   after the transactions-side fallback, seeds its OWN person row and is
+   *   stamped too (loans-first, transactions-after ordering is the documented
+   *   policy — see migration7to8DisplayNameTiebreakLoansFirstThenTransactions).
+   *
+   *
+   * Opening the DB through Room validates the produced schema against the
+   * entities; any column/type mismatch throws before assertions run.
+   */
+  @Test
+  fun migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val dbName = "migration_person_backfill_test"
+    val dbFile = context.getDatabasePath(dbName)
+
+    try {
+      val helper =
+        FrameworkSQLiteOpenHelperFactory().create(
+          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
+            .builder(context)
+            .name(dbName)
+            .callback(
+              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                  createV7SchemaTables(db)
+                  createV5SchemaRoomMetadata(db)
+                }
+
+                override fun onUpgrade(
+                  db: SupportSQLiteDatabase,
+                  oldVersion: Int,
+                  newVersion: Int
+                ) {
+                }
+              }
+            ).build()
+        )
+      val raw = helper.writableDatabase
+      seedPersonBackfillData(raw)
+      raw.close()
+      helper.close()
+
+      val migratedDb =
+        Room
+          .databaseBuilder(context, AppDatabase::class.java, dbName)
+          .allowMainThreadQueries()
+          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .build()
+
+      val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("Duplicate spellings collapse into distinct persons by key", 3, persons.size)
+
+      val aliPerson = requireNotNull(persons.firstOrNull { it.name == "علی" })
+      val alirezaPerson = requireNotNull(persons.firstOrNull { it.name == "علی رضا" })
+      val tx3Person = requireNotNull(persons.firstOrNull { it.name == "نام بی‌وام" })
+
+      val loans = migratedDb.loanDao().getAllLoansBlocking()
+      assertEquals(3, loans.size)
+      val loan1 = loans.first { it.description == "d1" }
+      val loan2 = loans.first { it.description == "d2" }
+      val loan3 = loans.first { it.description == "d3" }
+      assertEquals("loan1 stamped with shared person", aliPerson.id, loan1.personId)
+      assertEquals("Arabic-variant loan2 shares the same person", loan1.personId, loan2.personId)
+      assertEquals("loan3 maps to its own person", alirezaPerson.id, loan3.personId)
+
+      val transactions = migratedDb.transactionDao().getAllTransactionsBlocking()
+      assertEquals(3, transactions.size)
+      val tx1 = transactions.first { it.description == "t1" }
+      val tx2 = transactions.first { it.description == "t2" }
+      val tx3 = transactions.first { it.description == "t3" }
+      assertEquals("tx1 stamped via normalized match", aliPerson.id, tx1.personId)
+      assertEquals("tx2 stamped via normalized match", aliPerson.id, tx2.personId)
+      assertNotNull("Transaction-only name now seeds its own Person", tx3Person)
+      assertEquals("tx3 stamped onto its own person row", tx3Person.id, tx3.personId)
+
+      migratedDb.close()
+    } finally {
+      dbFile.delete()
+      context.getDatabasePath("$dbName-wal").delete()
+      context.getDatabasePath("$dbName-shm").delete()
+    }
+  }
+
+  /**
+   * Seeds loans and transactions with personName variants before the
+   * MIGRATION_7_8 backfill runs. loan1/loan2 ('علی'/'علي') share one
+   * normalized key; loan3 trims/collapses to 'علی رضا'; tx1/tx2 match the
+   * shared key; tx3 has a loan-less name and, after the transactions-side
+   * fallback, seeds its own Person row and is stamped (loans-first policy).
+   */
+  private fun seedPersonBackfillData(db: SupportSQLiteDatabase) {
+    db.execSQL(
+      "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
+        "VALUES ('علی', 'DEBTOR', 500000, 500000, 'd1', 100, 0)"
+    )
+    db.execSQL(
+      "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
+        "VALUES ('علي', 'CREDITOR', 300000, 300000, 'd2', 200, 0)"
+    )
+    db.execSQL(
+      "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
+        "VALUES (' علی رضا ', 'DEBTOR', 100000, 100000, 'd3', 50, 0)"
+    )
+    db.execSQL(
+      "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+        "VALUES ('EXPENSE', 1, 10000, 't1', 'علي', 300)"
+    )
+    db.execSQL(
+      "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+        "VALUES ('EXPENSE', 1, 20000, 't2', 'علی', 310)"
+    )
+    db.execSQL(
+      "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+        "VALUES ('EXPENSE', 1, 30000, 't3', 'نام بی‌وام', 320)"
+    )
+  }
+
+  /**
+   * Decision (plans/011 §D4 addendum): loans run first, transactions after.
+   * A transaction whose personName has no matching loan still seeds a brand-new
+   * Person row (option (a) in the Phase 1 follow-up: transactions-side fallback).
+   * This test isolates that from the shared-key dedup case above by giving tx3
+   * a name no loan carries.
+   */
+  @Test
+  fun migration7to8TransactionOnlyPersonNameCreatesPersonRow() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val dbName = "migration_person_tonly_test"
+    val dbFile = context.getDatabasePath(dbName)
+
+    try {
+      val helper =
+        FrameworkSQLiteOpenHelperFactory().create(
+          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
+            .builder(context)
+            .name(dbName)
+            .callback(
+              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                  createV7SchemaTables(db)
+                  createV5SchemaRoomMetadata(db)
+                }
+
+                override fun onUpgrade(
+                  db: SupportSQLiteDatabase,
+                  oldVersion: Int,
+                  newVersion: Int
+                ) {
+                }
+              }
+            ).build()
+        )
+      val raw = helper.writableDatabase
+      raw.execSQL(
+        "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+          "VALUES ('EXPENSE', 1, 1000, 'solo-tx', 'نام صرفاً تراکنشی', 10)"
+      )
+      raw.close()
+      helper.close()
+
+      val migratedDb =
+        Room
+          .databaseBuilder(context, AppDatabase::class.java, dbName)
+          .allowMainThreadQueries()
+          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .build()
+
+      val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("Transaction-only name seeds its own person row", 1, persons.size)
+      val seeded = persons.single()
+      assertEquals("نام صرفاً تراکنشی", seeded.name)
+      assertEquals("نام صرفاً تراکنشی", seeded.normalizedName)
+
+      val txs = migratedDb.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, txs.size)
+      assertEquals("Transaction stamped with the seeded person id", seeded.id, txs.single().personId)
+
+      migratedDb.close()
+    } finally {
+      dbFile.delete()
+      context.getDatabasePath("$dbName-wal").delete()
+      context.getDatabasePath("$dbName-shm").delete()
+    }
+  }
+
+  /**
+   * Display-name tiebreak policy (plans/011 §D4 addendum): loans-first-then-
+   * transactions. A loan and a transaction share a normalized name but the
+   * transaction's raw variant appears EARLIER (date=50 vs loan date=200).
+   * The loan's displayForm still wins because loans backfill before transactions,
+   * so the single Person row's name matches the loan, not the earlier tx.
+   */
+  @Test
+  fun migration7to8DisplayNameTiebreakLoansFirstThenTransactions() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val dbName = "migration_person_tiebreak_test"
+    val dbFile = context.getDatabasePath(dbName)
+
+    try {
+      val helper =
+        FrameworkSQLiteOpenHelperFactory().create(
+          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
+            .builder(context)
+            .name(dbName)
+            .callback(
+              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                  createV7SchemaTables(db)
+                  createV5SchemaRoomMetadata(db)
+                }
+
+                override fun onUpgrade(
+                  db: SupportSQLiteDatabase,
+                  oldVersion: Int,
+                  newVersion: Int
+                ) {
+                }
+              }
+            ).build()
+        )
+      val raw = helper.writableDatabase
+      // Loan at date=200 with Persian kaf 'کاظم'.
+      raw.execSQL(
+        "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
+          "VALUES ('کاظم', 'DEBTOR', 100000, 100000, 'لیب', 200, 0)"
+      )
+      // Transaction at date=50 with Arabic kaf 'كاظم' (same key, earlier date).
+      raw.execSQL(
+        "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+          "VALUES ('EXPENSE', 1, 5000, 'تیک', 'كاظم', 50)"
+      )
+      raw.close()
+      helper.close()
+
+      val migratedDb =
+        Room
+          .databaseBuilder(context, AppDatabase::class.java, dbName)
+          .allowMainThreadQueries()
+          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .build()
+
+      val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("One person for the shared normalized key", 1, persons.size)
+      // Loan's displayForm('کاظم') must win despite the earlier-dated transaction.
+      assertEquals("Loan display name wins the tie", "کاظم", persons.single().name)
+
+      val loans = migratedDb.loanDao().getAllLoansBlocking()
+      val loan = requireNotNull(loans.firstOrNull { it.description == "لیب" })
+      assertEquals("Loan stamped with the shared person", persons.single().id, loan.personId)
+
+      val txs = migratedDb.transactionDao().getAllTransactionsBlocking()
+      val tx = requireNotNull(txs.firstOrNull { it.description == "تیک" })
+      assertEquals("Transaction stamped onto the loan-seeded person", persons.single().id, tx.personId)
 
       migratedDb.close()
     } finally {

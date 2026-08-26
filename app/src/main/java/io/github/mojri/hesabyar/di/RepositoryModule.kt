@@ -13,6 +13,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.InstallmentDao
 import io.github.mojri.hesabyar.data.LoanDao
 import io.github.mojri.hesabyar.data.PaymentHistoryDao
+import io.github.mojri.hesabyar.data.PersonDao
 import io.github.mojri.hesabyar.data.TransactionDao
 import javax.inject.Singleton
 
@@ -29,6 +30,7 @@ object RepositoryModule {
     categoryDao: CategoryDao,
     bankLoanDao: BankLoanDao,
     accountDao: AccountDao,
+    personDao: PersonDao,
     database: AppDatabase
   ): HesabyarRepositoryInterface =
     HesabyarRepository(
@@ -39,6 +41,7 @@ object RepositoryModule {
       categoryDao,
       bankLoanDao,
       accountDao,
+      personDao,
       database
     )
 }

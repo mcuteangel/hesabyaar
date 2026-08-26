@@ -79,6 +79,20 @@ modules, mirrored by the Kotlin fallbacks. Signature changes require updating
 `app/buildSrc/template/HesabyarCore.template.kt`, then running
 `:app:generateAndFixBindings --rerun-tasks`.
 
+Unresolved-category behavior (decided): `"Loans"` is a seeded default
+(`Category.DEFAULTS`, `Entities.kt`) and the delete affordance is hidden for
+default categories (`CategoryManagementScreen.kt`). `HesabyarRepository.deleteCategory`
+now re-reads `isDefault` from the persisted row (so a forged
+`Category(id=…, isDefault=false)` cannot delete a default row), and tests
+cover both the honest and forged paths
+(`RepositoryLogicTest.deleteCategoryKeepsDefaultCategoriesAndDeletesCustomOnes`
++ `RepositoryLogicTest.deleteCategoryRejectsWhenCallerLiesAboutIsDefault`).
+Restore paths can still alter default-category rows, so resolution is allowed
+to fail: an empty `excludedCategoryIds` list means no KPI filtering
+(aggregates keep their current semantics) plus one `AppLogger.w` warning per
+resolution attempt site. Phase 2 must include an explicit test for the
+empty-list case (Rust helper + each Kotlin mirror).
+
 ### D3 — `loans.personName` is sync-on-rename
 
 `renamePerson(personId, newName)` runs in one `withTransaction`: update
@@ -99,15 +113,60 @@ with a unique index — not the raw display name — populated during migration
 backfill and maintained atomically by every create/rename/merge path, so two
 raw spellings that normalize alike can never produce separate person rows.
 The same util lives in `domain/utils` (Room migrations cannot call Rust;
-this is data hygiene/mapping per ADR-001 exceptions) and is reused whenever a
-person is created at runtime, so duplicates cannot reappear later.
+this is data hygiene/mapping, covered by the explicit "Person-name
+normalization" row in ADR-001's Permanent Kotlin Fallbacks table) and is
+reused whenever a person is created at runtime, so duplicates cannot reappear
+later.
+
+### D4 addendum (resolved during Phase 1) — Backfill source ordering & transactions-side fallback
+
+**Decision:** backfill runs in two ordered phases — **loans first, transactions
+after** (call order in `MIGRATION_7_8.migrate`: `backfillPersonsFromLoans` then
+`stampPersonIdsOnTransactions`). This ordering is **intentional and permanent**,
+not a side effect of function call order. Rationale:
+
+- Loans are the primary identity source for persons (a Loan is always attributed
+  to a person, a Transaction may not be). Running loans first guarantees a loan's
+  `displayForm(personName)` becomes the canonical `Person.name` for any shared
+  normalized key.
+- A transaction whose `personName` has **no matching loan** is **not** silently
+  dropped: option (a) was implemented — `stampPersonIdsOnTransactions` falls back
+  to `personIdFor(...)` (insert-or-reuse) when the normalized key is missing,
+  seeding a brand-new `Person` row for transaction-only names. (The prior design
+  did a read-only lookup and left such rows `personId NULL` — discovered and fixed;
+  see "Logic gap found" in the Phase 1 evidence record.)
+
+**Display-name tiebreak policy:** when a loan and a transaction share a normalized
+key but the transaction's variant is dated earlier, the **loan's** `displayForm`
+wins as `Person.name` because loans populate the key (and the row) before the
+transaction stamps it. This is asserted by
+`migration7to8DisplayNameTiebreakLoansFirstThenTransactions`.
+
+**Not adopted:** a single chronological pass across both `loans` and
+`transactions` for name resolution. Rejected because loans and transactions have
+no shared sequence space that meaningfully orders identity, and merging would
+re-introduce ambiguity for rows that should stay loan-attributed. The two-phase
+ordering is explicit and cheaper.
+
+Tests covering both outcomes:
+- `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions` (updated: tx3
+  "نام بی‌وام" now creates its own person instead of staying NULL; persons count
+  2→3).
+- `migration7to8TransactionOnlyPersonNameCreatesPersonRow` (transaction-only name
+  seeds a row + gets stamped).
+- `migration7to8DisplayNameTiebreakLoansFirstThenTransactions` (loan wins date tie).
 
 ### D5 — Backup compatibility (verified, not assumed)
 
 The primary parse path is Rust serde (`BackupJsonParser.kt` prefers
 `RustBridge.parseBackupJsonSync`; `lib.rs parse_backup_json`). Verified:
-`BackupPayload` in `rust/hesabyar-core/src/models/mod.rs` marks every list
-with `#[serde(default)]` and no struct uses `deny_unknown_fields`. Consequences:
+every existing list in `BackupPayload`
+(`rust/hesabyar-core/src/models/mod.rs:386-405`) carries
+`#[serde(default)]`, no struct uses `deny_unknown_fields`, and the
+hand-written `Default impl` mirrors every field. The `persons` field does not
+exist yet — Phase 1 adds it with `#[serde(default)]`, updates the
+`Default` impl in the same change, and keeps the Kotlin fallback parser in
+lockstep. Consequences:
 
 - Old backup → new app: safe once `persons` has `#[serde(default)]` and new
   Loan fields have `#[serde(default, alias = ...)]`.
@@ -138,21 +197,40 @@ BUILD SUCCESSFUL; 63 suites with zero failures; new tests
 Detekt findings introduced here were resolved by extracting
 `LoanRepaymentDialog` + `RepaymentFormState` (no suppressions, no baseline).
 
-## Phase 1 — Person model (schema + CRUD)
+## Phase 1 — Person model (schema + CRUD) — DONE
 
-1. New table `persons(id, name, normalizedName unique-indexed, phone?,
-   notes?, createdAt, isArchived)` via additive migration (CREATE TABLE +
-   ALTER TABLE ADD COLUMN).
-2. Additive columns: `loans.personId`, `transactions.personId` (both nullable).
-3. Migration backfill builds persons from normalized distinct
-   `loans.personName` (D4) and stamps `personId`.
-4. `PersonDao`, `ManagePersonUseCase`, `PersonViewModel` following
-   `ManageCategoryUseCase` patterns.
-5. `renamePerson` sync per D3.
-6. Backup: `persons` array in payload; export/import mirrors loans; merge
-   dedups by name like `mergeCategories`. Apply D5 everywhere.
-7. Tests: migration backfill (duplicate spacing/Arabic-variant names collapse),
-   rename sync, backup round-trips both directions.
+Implementation:
+
+1. New table `persons(id, name, normalizedName unique-indexed, phone?, notes?,
+   createdAt, isArchived)` — see `Entities.kt:92` `Person`.
+2. Additive columns on BOTH tables: `loans.personId` and `transactions.personId`
+   (both nullable; see `Entities.kt:114` and `Entities.kt:138`). Migration
+   `MIGRATION_7_8` in `AppDatabase.kt` adds them in `withTransaction`.
+3. Migration backfill `backfillPersonsFromLoans` + `stampPersonIdsOnTransactions`
+   in `AppDatabase.kt:225-293` builds persons from normalized distinct
+   `loans.personName` and stamps `personId` on `loans` AND `transactions`.
+4. `PersonDao` (`Daos.kt:190`), CRUD + rename sync in `HesabyarRepository`
+   (`HesabyarRepository.kt:246-300`), DI in `DatabaseModule`/`RepositoryModule`.
+   (No `PersonViewModel`/`ManagePersonUseCase` yet — UI phase is Phase 2.)
+5. `renamePerson` sync per D3 (`HesabyarRepository.kt:276-292`): `withTransaction`
+   updates `Person`, `loans.personName`, and `transactions.personName`.
+6. Backup: `persons` array — Rust `Person` record + `persons` field on
+   `BackupPayload` (`rust/hesabyar-core/src/models/mod.rs`) with
+   `#[serde(default)]`; Kotlin `BackupPayload.persons` default; export in
+   `BackupPayloadExporter`, both parse paths in `BackupJsonParser` +
+   `RustMappers.fromRustPerson/fromRustPersons`; `replaceAllFromBackup` and
+   `mergePersons` (dedup by normalizedName) in `HesabyarRepository`.
+7. Tests: migration `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions`
+   asserts BOTH `loans.personId` AND `transactions.personId` are stamped from
+   `loans.personName` (incl. Arabic-variant/collapse cases); rename sync covered
+   by `renamePersonSync` in `PersonRepositoryTest`; backup round-trips both
+   directions — `replaceAllFromBackupPersistsPersonsWithAllFields` and
+   `mergeFromBackupDeduplicatesPersonsByNormalizedNameAndKeepsLocalId` in
+   `RepositoryBackupRestoreTest`.
+
+Evidence: `./gradlew --no-daemon testDebugUnitTest` BUILD SUCCESSFUL;
+`testDebugUnitTestRust` (Rust bridge) and `cargo test` (453 Rust core tests) all
+green; `ktlintCheck detekt` clean. New named tests pass by name.
 
 ## Phase 2 — Ledger-only vs tracked mode
 

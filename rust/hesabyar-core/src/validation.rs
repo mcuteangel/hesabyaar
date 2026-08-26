@@ -877,6 +877,7 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid);
@@ -906,6 +907,7 @@ mod tests {
             payment_histories: vec![make_payment_history(0, 1)],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -933,6 +935,7 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -962,6 +965,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1089,6 +1093,7 @@ mod tests {
             ],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1113,6 +1118,7 @@ mod tests {
             payment_histories: vec![make_payment_history(50000, 99)],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1154,6 +1160,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1206,6 +1213,7 @@ mod tests {
                     updated_at: 1710000000000,
                 },
             ],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1243,6 +1251,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1279,6 +1288,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1320,6 +1330,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         crate::validate_backup(&payload)
             .unwrap_or_else(|e| panic!("Account-only backup should be accepted, got: {}", e));
@@ -1361,6 +1372,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let err = crate::validate_backup(&payload).unwrap_err().to_string();
         assert!(err.contains("destination_account_id"), "got: {}", err);
@@ -1399,6 +1411,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let err = crate::validate_backup(&payload).unwrap_err().to_string();
         assert!(err.contains("must differ"), "got: {}", err);
@@ -1450,6 +1463,7 @@ mod tests {
                 created_at: 0,
                 updated_at: 0,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1508,6 +1522,7 @@ mod tests {
                 created_at: 0,
                 updated_at: 0,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1568,6 +1583,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1617,6 +1633,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1684,6 +1701,7 @@ mod tests {
                     updated_at: 1710000000000,
                 },
             ],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1723,7 +1741,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format — no accounts
+            accounts: vec![], // old backup format — no accounts,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1759,7 +1778,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format
+            accounts: vec![], // old backup format,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1794,7 +1814,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format
+            accounts: vec![], // old backup format,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);

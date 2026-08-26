@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.data
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -14,6 +15,7 @@ class HesabyarRepository(
   private val categoryDao: CategoryDao,
   private val bankLoanDao: BankLoanDao,
   private val accountDao: AccountDao,
+  private val personDao: PersonDao,
   private val database: AppDatabase
 ) : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
@@ -45,7 +47,32 @@ class HesabyarRepository(
   }
 
   override suspend fun deleteCategory(category: Category) {
-    categoryDao.deleteCategory(category)
+    // Default categories (e.g. key="Loans") are infrastructure: loan
+    // repayments and KPI exclusion resolve them by key. The UI hides the
+    // delete affordance for them; this guard closes non-UI paths so the
+    // category cannot silently disappear and degrade those lookups.
+    //
+    // We re-read `isDefault` from the persisted row rather than trusting
+    // the caller's parameter. A caller holding a stale or hand-built
+    // `Category(id=…, isDefault=false)` could otherwise delete the
+    // default row by primary key.
+    val persisted = categoryDao.getCategoryById(category.id)
+    if (persisted == null) {
+      AppLogger.w(
+        "HesabyarRepository",
+        "deleteCategory: category id=${category.id} not found; nothing to delete"
+      )
+      return
+    }
+    if (persisted.isDefault) {
+      AppLogger.w(
+        "HesabyarRepository",
+        "deleteCategory: refusing to delete default category id=${persisted.id} key=${persisted.key} " +
+          "(caller-provided isDefault=${category.isDefault})"
+      )
+      return
+    }
+    categoryDao.deleteCategory(persisted)
   }
 
   override suspend fun insertTransaction(transaction: Transaction): Long = transactionDao.insertTransaction(transaction)
@@ -230,6 +257,66 @@ class HesabyarRepository(
 
   override suspend fun getMaxDisplayOrder(): Int = accountDao.getMaxDisplayOrder()
 
+  // Person CRUD
+  override val allPersons: Flow<List<Person>> = personDao.getAllPersons()
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> =
+    personDao.getAllPersonsIncludingArchivedBlocking()
+
+  override suspend fun getPersonById(id: Long): Person? = personDao.getPersonById(id)
+
+  override suspend fun upsertPerson(person: Person): Person {
+    val display = PersonNameNormalizer.displayForm(person.name)
+    require(display.isNotEmpty()) { "Person name is blank" }
+    val key = PersonNameNormalizer.normalize(display)
+    require(key.isNotEmpty()) { "Person name normalizes to empty" }
+    val existing = personDao.getPersonByNormalizedName(key)
+    if (existing != null) {
+      val merged =
+        existing.copy(
+          phone = person.phone ?: existing.phone,
+          notes = person.notes ?: existing.notes
+        )
+      personDao.updatePerson(merged)
+      return merged
+    }
+    val candidate =
+      person.copy(
+        id = 0,
+        name = display,
+        normalizedName = key,
+        createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
+      )
+    val id = personDao.insertPerson(candidate)
+    return if (id != -1L) candidate.copy(id = id) else requireNotNull(personDao.getPersonByNormalizedName(key))
+  }
+
+  override suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean {
+    val display = PersonNameNormalizer.displayForm(newName)
+    if (display.isEmpty()) return false
+    return database.withTransaction {
+      val person = personDao.getPersonById(personId) ?: return@withTransaction false
+      val key = PersonNameNormalizer.normalize(display)
+      if (key.isEmpty()) return@withTransaction false
+      val clash = personDao.getPersonByNormalizedName(key)
+      if (clash != null && clash.id != personId) return@withTransaction false
+      personDao.updatePerson(person.copy(name = display, normalizedName = key))
+      personDao.syncLoanPersonNames(personId, display)
+      personDao.syncTransactionPersonNames(personId, display)
+      true
+    }
+  }
+
+  override suspend fun deletePerson(person: Person) {
+    // Loans/transactions keep their denormalized personName and a dangling
+    // personId; display never joins Person (D3), so no data is lost. A
+    // merge/reassign flow is deliberately out of scope for Phase 1.
+    database.withTransaction { personDao.deletePerson(person) }
+  }
+
   override suspend fun replaceAllFromBackup(backup: BackupPayload) =
     database.withTransaction {
       transactionDao.deleteAllTransactions()
@@ -238,6 +325,7 @@ class HesabyarRepository(
       paymentHistoryDao.deleteAllPaymentHistory()
       bankLoanDao.deleteAllBankLoans()
       accountDao.deleteAllAccounts()
+      personDao.deleteAllPersons()
 
       // Legacy backups (pre-multi-account) carry no accounts list; their
       // transactions reference the default account (id=1), which the delete
@@ -254,6 +342,7 @@ class HesabyarRepository(
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
       backup.accounts.forEach { accountDao.insert(it) }
+      backup.persons.forEach { personDao.insertPerson(it) }
     }
 
   /**
@@ -270,6 +359,7 @@ class HesabyarRepository(
       val accountIdMap = mergeAccounts(backup.accounts)
       mergeTransactions(backup.transactions, categoryIdMap, installmentIdMap, accountIdMap)
       mergePaymentHistories(backup.paymentHistories, loanIdMap)
+      mergePersons(backup.persons)
     }
 
   private suspend fun mergeCategories(categories: List<Category>): Map<Long, Long> {
@@ -329,6 +419,20 @@ class HesabyarRepository(
       }
     }
     return accountIdMap
+  }
+
+  private suspend fun mergePersons(persons: List<Person>) {
+    // Dedup by normalizedName (mirrors mergeCategories' keyed dedup). Loans
+    // in a backup carry only the denormalized personName, so no FK remap is
+    // needed; the person rows simply coexist with the local set.
+    for (person in persons) {
+      val existing = personDao.getPersonByNormalizedName(person.normalizedName)
+      if (existing != null) {
+        personDao.updatePerson(person.copy(id = existing.id))
+      } else {
+        personDao.insertPerson(person.copy(id = 0))
+      }
+    }
   }
 
   private suspend fun mergeTransactions(
