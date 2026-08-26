@@ -664,7 +664,6 @@ jobs:
                 core.warning(`Candidate ${d.id}: resolution failed (${e.message}); left open.`);
               }
             }
-            }
 
             // ---- Phase R (LLM): attribute absence-candidates to a real commit ----
             // The deterministic pass already proved the code at each candidate
