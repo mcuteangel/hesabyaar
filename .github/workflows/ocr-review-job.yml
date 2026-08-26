@@ -700,7 +700,31 @@ jobs:
                   const cand = llmCandidates.find((c) => c.id === res.id);
                   if (!cand) { core.info(`LLM cited unknown finding id ${res.id}; skipped.`); continue; }
                   if (!cand.threadId) { core.info(`LLM resolution for ${res.id}: no unresolved thread mapped; skipped.`); continue; }
-                  const v = validateResolution(res, { commitShas: cand.validShas });
+                  // Gate 1 (pure): the cited commit must be in the finding's
+                  // anchor..head SHA set (exact SHA or unique >=7-hex prefix).
+                  const vSha = validateResolution(res, { commitShas: cand.validShas });
+                  if (!vSha.ok) { core.info(`LLM resolution for ${res.id} rejected: ${vSha.reason}; left open.`); continue; }
+                  // Gate 2 (relevance): confirm the cited commit actually touches
+                  // the finding's path, so an unrelated in-range commit (docs/typo)
+                  // cannot close a still-valid thread. Fail-open: any fetch error
+                  // leaves the thread open rather than resolving on an unchecked cite.
+                  let citedFiles = [];
+                  try {
+                    const { data: cdata } = await github.rest.repos.getCommit({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: vSha.canonicalSha,
+                    });
+                    citedFiles = (cdata.files || []).map((f) => f.filename);
+                  } catch (e) {
+                    core.warning(`Path-relevance check for ${res.id} failed (${e.message}); left open.`);
+                    continue;
+                  }
+                  const v = validateResolution(res, {
+                    commitShas: cand.validShas,
+                    findingPath: cand.path,
+                    commitFiles: { [vSha.canonicalSha]: citedFiles },
+                  });
                   if (!v.ok) { core.info(`LLM resolution for ${res.id} rejected: ${v.reason}; left open.`); continue; }
                   try {
                     const sha = v.canonicalSha || res.commit;
