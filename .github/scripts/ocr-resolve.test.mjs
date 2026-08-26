@@ -564,16 +564,19 @@ test("isValidResultPayload rejects malformed payloads", () => {
 // Phase R (LLM) resolution helpers
 // ---------------------------------------------------------------------------
 
-test("buildResolutionPrompt embeds finding ids and commit shas", () => {
+test("buildResolutionPrompt embeds per-finding evidence and delimits untrusted text", () => {
   const prompt = buildResolutionPrompt({
-    findings: [{ id: "ocr-1-1-aaaaaaaaaaaaaaaa", path: "a.kt", start: 10, end: 12, anchor: "abc123", body: "unused var" }],
-    commits: [{ sha: "deadbeefcafe0000000000000000000000000001", message: "fix: remove unused var" }],
-    changedFiles: ["a.kt", "b.kt"],
+    findings: [{ id: "ocr-1-1-aaaaaaaaaaaaaaaa", path: "a.kt", start: 10, end: 12, anchor: "abc123", body: "unused var", commits: [{ sha: "deadbeefcafe0000000000000000000000000001", message: "fix: remove unused var" }] }],
+    // (per-finding evidence comes from f.commits; top-level commits/changedFiles are no longer read by buildResolutionPrompt)
+    // (changedFiles no longer consumed by buildResolutionPrompt)
   });
   assert.ok(prompt.includes("ocr-1-1-aaaaaaaaaaaaaaaa"));
   assert.ok(prompt.includes("deadbeefcafe0000000000000000000000000001"));
   assert.ok(prompt.includes("a.kt:10-12"));
   assert.ok(prompt.includes('"resolutions"'));
+  assert.ok(prompt.includes("unused var"));
+  assert.ok(prompt.includes("<prior_finding_text>"));
+  assert.ok(prompt.includes("UNTRUSTED DATA"));
 });
 
 test("parseLlmResolutions handles bare JSON", () => {
@@ -623,4 +626,23 @@ test("validateResolution rejects a commit outside the range", () => {
   const v = validateResolution({ commit: "9999999999999999999999999999999999999999" }, { commitShas: shas });
   assert.equal(v.ok, false);
   assert.ok(/not in/.test(v.reason));
+});
+
+test("validateResolution rejects an ambiguous short prefix", () => {
+  const shas = [
+    "deadbeefcafe0000000000000000000000000001",
+    "deadbeefcafe1111111111111111111111111112",
+  ];
+  const v = validateResolution({ commit: "deadbeef" }, { commitShas: shas });
+  assert.equal(v.ok, false);
+  assert.ok(/ambiguous/.test(v.reason));
+});
+
+test("validateResolution rejects a too-short or non-hex prefix but accepts a unique 7-char prefix", () => {
+  const shas = ["deadbeefcafe0000000000000000000000000001"];
+  assert.equal(validateResolution({ commit: "d" }, { commitShas: shas }).ok, false);
+  assert.equal(validateResolution({ commit: "zzz" }, { commitShas: shas }).ok, false);
+  const v = validateResolution({ commit: "deadbeef" }, { commitShas: shas });
+  assert.equal(v.ok, true);
+  assert.equal(v.canonicalSha, "deadbeefcafe0000000000000000000000000001");
 });

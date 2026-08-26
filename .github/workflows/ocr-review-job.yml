@@ -516,6 +516,40 @@ jobs:
             // collected here for the Phase R LLM attribution pass below.
             const llmCandidates = [];
 
+            // Reply to an OCR thread AND mark it resolved (CodeRabbit-style:
+            // the Resolve conversation button, not just a reply). Shared by the
+            // deterministic and LLM resolution passes so the two reply+resolve
+            // mutations stay in lockstep. Fail-open: never claim a resolution we
+            // did not complete - a failed reply or resolve leaves the thread
+            // open, and we only bump resolvedCount on full success.
+            async function replyAndResolveThread({ threadId, body, id, reason }) {
+              try {
+                await github.graphql(
+                  `mutation($t: ID!, $body: String!) {
+                    addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
+                  }`,
+                  { t: threadId, body }
+                );
+              } catch (e) {
+                core.warning(`Thread ${id}: reply failed (${e.message}); left open.`);
+                return false;
+              }
+              try {
+                await github.graphql(
+                  `mutation($t: ID!) {
+                    resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
+                  }`,
+                  { t: threadId }
+                );
+              } catch (e) {
+                core.warning(`Thread ${id}: resolve failed after reply (${e.message}); left open.`);
+                return false;
+              }
+              resolvedCount += 1;
+              core.info(`RESOLVED (${reason}): ${id}`);
+              return true;
+            }
+
             for (const d of decisions) {
               if (d.decision === 'KEEP') {
                 core.info(`KEEP: ${d.id} (${d.reason})`);
@@ -570,20 +604,24 @@ jobs:
               if (!verdict.changed) {
                 core.info(`RESOLVE-CANDIDATE (code unchanged; LLM re-check eligible): ${d.id} — ${verdict.reason}`);
                 if (process.env.LLM_URL && process.env.LLM_AUTH) {
-                  const tId = threadByCommentId.get(d.threadKey);
-                  llmCandidates.push({
-                    id: d.id,
-                    threadKey: d.threadKey,
-                    threadId: tId,
-                    path: loc.path,
-                    start: loc.start,
-                    end: loc.end,
-                    anchor: loc.sha,
-                    body: comment.body || '',
-                    commits: cmpCommits.map((c) => ({ sha: c.sha, message: (c.commit && c.commit.message) || c.message || '' })),
-                    changedFiles: changedFiles.map((f) => f.filename),
-                    validShas: cmpCommits.map((c) => c.sha),
-                  });
+                  if (llmCandidates.length >= MAX_AUTO_RESOLVES) {
+                    core.info(`RESOLVE-CANDIDATE (LLM cap ${MAX_AUTO_RESOLVES} reached): ${d.id} — left open`);
+                  } else {
+                    const tId = threadByCommentId.get(d.threadKey);
+                    llmCandidates.push({
+                      id: d.id,
+                      threadKey: d.threadKey,
+                      threadId: tId,
+                      path: loc.path,
+                      start: loc.start,
+                      end: loc.end,
+                      anchor: loc.sha,
+                      body: comment.body || '',
+                      commits: cmpCommits.map((c) => ({ sha: c.sha, message: (c.commit && c.commit.message) || c.message || '' })).slice(0, 40),
+                      changedFiles: changedFiles.map((f) => f.filename),
+                      validShas: cmpCommits.map((c) => c.sha),
+                    });
+                  }
                 }
                 continue;
               }
@@ -621,20 +659,7 @@ jobs:
                 const shortSha = resolvingCommit.slice(0, 12);
                 const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${resolvingCommit}`;
                 const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${verdict.reason}. The reviewed code at ${loc.path}:${loc.start}-${loc.end} changed after this finding was posted (anchor ${loc.sha.slice(0, 12)}), so it no longer applies.`;
-                await github.graphql(
-                  `mutation($t: ID!, $body: String!) {
-                    addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
-                  }`,
-                  { t: threadId, body: replyBody }
-                );
-                await github.graphql(
-                  `mutation($t: ID!) {
-                    resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
-                  }`,
-                  { t: threadId }
-                );
-                resolvedCount++;
-                core.info(`RESOLVED with evidence: ${d.id} — ${verdict.reason}`);
+                await replyAndResolveThread({ threadId, body: replyBody, id: d.id, reason: `diff evidence, cited ${shortSha}` });
               } catch (e) {
                 core.warning(`Candidate ${d.id}: resolution failed (${e.message}); left open.`);
               }
@@ -652,9 +677,10 @@ jobs:
             if (llmCandidates.length && process.env.LLM_URL && process.env.LLM_AUTH) {
               try {
                 const prompt = buildResolutionPrompt({
-                  findings: llmCandidates.map((c) => ({ id: c.id, path: c.path, start: c.start, end: c.end, anchor: c.anchor, body: c.body })),
-                  commits: llmCandidates.flatMap((c) => c.commits),
-                  changedFiles: llmCandidates.flatMap((c) => c.changedFiles),
+                  findings: llmCandidates.map((c) => ({
+                    id: c.id, path: c.path, start: c.start, end: c.end,
+                    anchor: c.anchor, body: c.body, commits: (c.commits || []).slice(0, 40),
+                  })),
                 });
                 const raw = await callLlmGateway({
                   url: process.env.LLM_URL,
@@ -677,21 +703,8 @@ jobs:
                     const shortSha = sha.slice(0, 12);
                     const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
                     const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${res.reason}. This prior finding at ${cand.path}:${cand.start}-${cand.end} no longer applies (anchor ${cand.anchor.slice(0, 12)}..${shortSha}).`;
-                    await github.graphql(
-                      `mutation($t: ID!, $body: String!) {
-                        addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $t, body: $body }) { comment { id } }
-                      }`,
-                      { t: cand.threadId, body: replyBody }
-                    );
-                    await github.graphql(
-                      `mutation($t: ID!) {
-                        resolveReviewThread(input: { threadId: $t }) { thread { isResolved } }
-                      }`,
-                      { t: cand.threadId }
-                    );
-                    resolvedCount++;
-                    llmResolved++;
-                    core.info(`RESOLVED by LLM: ${res.id} — ${res.reason}`);
+                    const ok = await replyAndResolveThread({ threadId: cand.threadId, body: replyBody, id: res.id, reason: `LLM attribution, cited ${shortSha}` });
+                    if (ok) llmResolved++;
                   } catch (e) {
                     core.warning(`LLM resolution execution failed for ${res.id} (${e.message}); left open.`);
                   }
