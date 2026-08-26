@@ -23,6 +23,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   var importShouldThrow: Exception? = null
   var exportShouldThrow: Exception? = null
 
+  /** Test hook: overrides repayment outcomes — return false or throw. */
+  var addPaymentBehavior: (() -> Boolean)? = null
+
   /** Counts how many times a restore actually executed — for duplicate-submission tests. */
   var executeRestoreCount = 0
 
@@ -87,7 +90,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     amount: Long,
     notes: String,
     customDate: Long?
-  ): Boolean = false
+  ): Boolean = addPaymentBehavior?.invoke() ?: false
 
   override suspend fun insertInstallment(installment: Installment): Long = 0L
 

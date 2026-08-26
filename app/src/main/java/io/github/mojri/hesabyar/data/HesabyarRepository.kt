@@ -66,7 +66,10 @@ class HesabyarRepository(
   }
 
   override suspend fun deleteLoan(loan: Loan) {
-    loanDao.deleteLoan(loan)
+    database.withTransaction {
+      paymentHistoryDao.deletePaymentHistoryForLoan(loan.id)
+      loanDao.deleteLoan(loan)
+    }
   }
 
   override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> =
@@ -84,9 +87,12 @@ class HesabyarRepository(
       val loan = loanDao.getLoanById(loanId) ?: return@withTransaction false
       val loansCategory = getCategoryByKey("Loans") ?: return@withTransaction false
       if (loan.remainingAmount <= 0L) return@withTransaction false
-      val newRemaining = (loan.remainingAmount - amount).coerceAtLeast(0L)
+      // Overpayments are rejected (not clamped) so the caller can warn the user
+      // instead of silently recording less money than they handed over.
+      if (amount > loan.remainingAmount) return@withTransaction false
+      val newRemaining = loan.remainingAmount - amount
       val isSettled = newRemaining == 0L
-      val effectiveAmount = loan.remainingAmount - newRemaining
+      val effectiveAmount = amount
       val date = customDate ?: System.currentTimeMillis()
 
       val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
