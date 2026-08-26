@@ -826,7 +826,7 @@ jobs:
             // and re-surface stale, intentionally-hidden reports. We skip
             // minimized comments so only actively-visible summaries get the
             // supersede note.
-            const q = `query($owner:String!,$repo:String!,$number:Int!,$first:Int!,$after:String){repository(owner:$owner,name:$repo){pullRequest(number:$number){comments(first:$first,after:$after){nodes{databaseId isMinimized body author{login} createdAt url}pageInfo{hasNextPage endCursor}}}}}}`;
+            const q = `query($owner:String!,$repo:String!,$number:Int!,$first:Int!,$after:String){repository(owner:$owner,name:$repo){pullRequest(number:$number){comments(first:$first,after:$after){nodes{databaseId isMinimized body author{login} createdAt url}pageInfo{hasNextPage endCursor}}}}}`;
             let all = [];
             let after = null;
             do {
