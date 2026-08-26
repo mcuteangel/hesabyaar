@@ -1,0 +1,21 @@
+plans/README.md
+  s_f51ac862ee5a91::t_cc3cb82f10fdc2 21
+plans/011-personal-loan-ledger-redesign.md
+  s_f51ac862ee5a91::t_a09c1cda22430a 1-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9425e8968adbf35fdd906cff98c74ccefae22651",
+  "prompts": {},
+  "sessions": {
+    "s_f51ac862ee5a91": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc333ff29ffeNPjOZLfbvoH5sK",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
