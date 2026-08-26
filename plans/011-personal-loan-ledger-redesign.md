@@ -94,7 +94,11 @@ limitation.
 Dedup key = normalize(name): trim; collapse internal whitespace; remove
 zero-width characters; fold Arabic variants to Persian (`ي→ی`, `ك→ک`, `ة→ه`);
 lowercase the Latin part. Store the first trimmed original as the display
-name. The same util lives in `domain/utils` (Room migrations cannot call Rust;
+name. Identity enforcement uses a persisted `persons.normalizedName` column
+with a unique index — not the raw display name — populated during migration
+backfill and maintained atomically by every create/rename/merge path, so two
+raw spellings that normalize alike can never produce separate person rows.
+The same util lives in `domain/utils` (Room migrations cannot call Rust;
 this is data hygiene/mapping per ADR-001 exceptions) and is reused whenever a
 person is created at runtime, so duplicates cannot reappear later.
 
@@ -136,8 +140,9 @@ Detekt findings introduced here were resolved by extracting
 
 ## Phase 1 — Person model (schema + CRUD)
 
-1. New table `persons(id, name unique-indexed, phone?, notes?, createdAt,
-   isArchived)` via additive migration (CREATE TABLE + ALTER TABLE ADD COLUMN).
+1. New table `persons(id, name, normalizedName unique-indexed, phone?,
+   notes?, createdAt, isArchived)` via additive migration (CREATE TABLE +
+   ALTER TABLE ADD COLUMN).
 2. Additive columns: `loans.personId`, `transactions.personId` (both nullable).
 3. Migration backfill builds persons from normalized distinct
    `loans.personName` (D4) and stamps `personId`.
@@ -167,7 +172,10 @@ Detekt findings introduced here were resolved by extracting
 ## Phase 3 — Persons ledger UI
 
 1. `PersonsScreen`: one row per person with net position
-   (my receivables − my debts), direction color, search.
+   (my receivables − my debts), search. Direction is never color-only: pair
+   the tint with an explicit direction icon and label, and expose the meaning
+   through semantics (`contentDescription` or `semantics {}`) so screen
+   readers and color-blind users get the same information.
 2. Net computation is business logic: new Rust core function (for example
    `compute_person_balances`) per ADR-001, Kotlin fallback within allowed
    exceptions, bindings regenerated.

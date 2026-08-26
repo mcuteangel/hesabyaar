@@ -37,10 +37,11 @@ class LoanViewModel
       loanId: Long,
       amount: Long,
       notes: String,
-      customDate: Long? = null
+      customDate: Long? = null,
+      onResult: (Boolean) -> Unit = {}
     ) {
       viewModelScope.launch {
-        manageLoanUseCase.makeRepayment(loanId, amount, notes, customDate)
+        onResult(manageLoanUseCase.makeRepayment(loanId, amount, notes, customDate))
       }
     }
 
