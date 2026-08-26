@@ -27,7 +27,7 @@ on:
       use_anthropic:
         description: "'true' for Anthropic-style APIs"
         required: true
-        type: string
+        type: boolean
     secrets:
       auth_token:
         description: 'LLM auth token'

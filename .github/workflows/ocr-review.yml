@@ -76,7 +76,7 @@ jobs:
     with:
       llm_url: ${{ vars.OCR_LLM_URL }}
       llm_model: ${{ vars.OCR_LLM_MODEL }}
-      use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+      use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC == 'true' }}
     secrets:
       auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
 
@@ -93,6 +93,6 @@ jobs:
     with:
       llm_url: ${{ vars.OCR_FALLBACK_URL }}
       llm_model: ${{ vars.OCR_FALLBACK_MODEL }}
-      use_anthropic: 'true'
+      use_anthropic: true
     secrets:
       auth_token: ${{ secrets.OCR_FALLBACK_AUTH_TOKEN }}
