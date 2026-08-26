@@ -695,8 +695,15 @@ jobs:
                 });
                 const { resolutions, errors } = parseLlmResolutions(raw);
                 for (const err of errors) core.warning(`LLM resolution parse: ${err}`);
+                const handledIds = new Set();
                 for (const res of resolutions) {
+                  // De-duplicate by id: the LLM may echo the same finding id more
+                  // than once. Processing a duplicate would re-post a reply to the
+                  // same thread (resolveReviewThread is idempotent, but the bot
+                  // reply is not). Skip any id we have already handled.
+                  if (handledIds.has(res.id)) { core.info(`LLM resolution duplicate id ${res.id}; skipped to avoid a repeat reply.`); continue; }
                   if (resolvedCount >= MAX_AUTO_RESOLVES) break;
+                  handledIds.add(res.id);
                   const cand = llmCandidates.find((c) => c.id === res.id);
                   if (!cand) { core.info(`LLM cited unknown finding id ${res.id}; skipped.`); continue; }
                   if (!cand.threadId) { core.info(`LLM resolution for ${res.id}: no unresolved thread mapped; skipped.`); continue; }
@@ -810,46 +817,56 @@ jobs:
             // immutable-pinned, so this contract cannot drift underneath us;
             // bump both together if the pin ever moves.
             const MARKER = '<!-- ocr-summary -->';
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100
-            });
-            const summaries = comments.filter((c) =>
-              c.user && c.user.login === 'github-actions[bot]' &&
-              typeof c.body === 'string' && c.body.includes(MARKER)
+            const SUP_NOTE = '<!-- ocr-superseded-note -->';
+            // Fetch PR conversation comments via GraphQL so we can see the
+            // is_minimized state (REST listComments does not expose it). Legacy
+            // summaries minimized by the PREVIOUS deploy - before this change
+            // switched archive from `minimizeComment` to `updateComment` - must
+            // stay hidden: REST updateComment would otherwise un-minimize them
+            // and re-surface stale, intentionally-hidden reports. We skip
+            // minimized comments so only actively-visible summaries get the
+            // supersede note.
+            const q = `query($owner:String!,$repo:String!,$number:Int!,$first:Int!,$after:String){repository(owner:$owner,name:$repo){pullRequest(number:$number){comments(first:$first,after:$after){nodes{databaseId isMinimized body author{login} createdAt url}pageInfo{hasNextPage endCursor}}}}}}`;
+            let all = [];
+            let after = null;
+            do {
+              const r = await github.graphql(q, { owner: context.repo.owner, repo: context.repo.repo, number: context.issue.number, first: 100, after });
+              all = all.concat(r.repository.pullRequest.comments.nodes);
+              after = r.repository.pullRequest.comments.pageInfo.hasNextPage ? r.repository.pullRequest.comments.pageInfo.endCursor : null;
+            } while (after);
+            const summaries = all.filter((c) =>
+              c.author && c.author.login === 'github-actions[bot]' &&
+              typeof c.body === 'string' && c.body.includes(MARKER) &&
+              !c.isMinimized
             );
             if (summaries.length <= 1) {
-              core.notice(`OpenCodeReview summaries: ${summaries.length} present; nothing to archive.`);
+              core.notice(`OpenCodeReview summaries: ${summaries.length} present (minimized legacy summaries excluded); nothing to archive.`);
               return;
             }
-            // listComments returns oldest-first; keep the newest visible.
-            const newest = summaries.reduce((a, b) => (a.created_at > b.created_at ? a : b));
-            const SUP_NOTE = '<!-- ocr-superseded-note -->';
+            // comments are returned oldest-first; keep the newest visible.
+            const newest = summaries.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
             let annotated = 0, failed = 0, alreadyAnnotated = 0;
             for (const c of summaries) {
-              if (c.id === newest.id) continue;
+              if (c.databaseId === newest.databaseId) continue;
               // Idempotent across re-runs: a summary we already annotated in a
               // prior run carries the sentinel marker, so we skip it instead of
-              // re-appending (listComments does not reliably expose
-              // is_minimized, which is why we no longer minimize - see PR below).
+              // re-appending.
               if (typeof c.body === 'string' && c.body.includes(SUP_NOTE)) {
                 alreadyAnnotated++;
                 continue;
               }
               try {
-                const note = `\n\n---\n${SUP_NOTE}\n⚠️ **Superseded** — a later OpenCodeReview run replaced this report. The newest summary is [here](${newest.html_url}).`;
+                const note = `\n\n---\n${SUP_NOTE}\n⚠️ **Superseded** — a later OpenCodeReview run replaced this report. The newest summary is [here](${newest.url}).`;
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  comment_id: c.id,
+                  comment_id: c.databaseId,
                   body: (typeof c.body === 'string' ? c.body : '') + note
                 });
                 annotated++;
               } catch (e) {
                 failed++;
-                core.warning(`Could not annotate superseded summary ${c.id}: ${e.message}`);
+                core.warning(`Could not annotate superseded summary ${c.databaseId}: ${e.message}`);
               }
             }
-            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, annotated ${annotated} superseded (${alreadyAnnotated} already annotated, ${failed} failed).`);
+            core.notice(`OpenCodeReview summary archive: kept ${newest.url}, annotated ${annotated} superseded (${alreadyAnnotated} already annotated, ${failed} failed).`);
