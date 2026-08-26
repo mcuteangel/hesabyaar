@@ -505,6 +505,10 @@ jobs:
             // API error logs a skip and moves on instead of aborting.
             const MAX_AUTO_RESOLVES = 15;
             let resolvedCount = 0;
+            // Collect {id, sha, url} for every finding the resolver closes, so
+            // the OpenCodeReview summary comment can be edited (not minimized)
+            // to cite the fixing commit(s) — CodeRabbit/Sourcery style.
+            const resolvedCitations = [];
             // headSha is constant for the whole loop; candidates sharing an
             // anchor commit reuse one comparison.
             const compareCache = new Map();
@@ -659,7 +663,8 @@ jobs:
                 const shortSha = resolvingCommit.slice(0, 12);
                 const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${resolvingCommit}`;
                 const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${verdict.reason}. The reviewed code at ${loc.path}:${loc.start}-${loc.end} changed after this finding was posted (anchor ${loc.sha.slice(0, 12)}), so it no longer applies.`;
-                await replyAndResolveThread({ threadId, body: replyBody, id: d.id, reason: `diff evidence, cited ${shortSha}` });
+                const ok = await replyAndResolveThread({ threadId, body: replyBody, id: d.id, reason: `diff evidence, cited ${shortSha}` });
+                if (ok) resolvedCitations.push({ id: d.id, sha: shortSha, url: commitUrl });
               } catch (e) {
                 core.warning(`Candidate ${d.id}: resolution failed (${e.message}); left open.`);
               }
@@ -703,13 +708,54 @@ jobs:
                     const commitUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
                     const replyBody = `Resolved by commit [${shortSha}](${commitUrl}): ${res.reason}. This prior finding at ${cand.path}:${cand.start}-${cand.end} no longer applies (anchor ${cand.anchor.slice(0, 12)}..${shortSha}).`;
                     const ok = await replyAndResolveThread({ threadId: cand.threadId, body: replyBody, id: res.id, reason: `LLM attribution, cited ${shortSha}` });
-                    if (ok) llmResolved++;
+                    if (ok) { llmResolved++; resolvedCitations.push({ id: res.id, sha: shortSha, url: commitUrl }); }
                   } catch (e) {
                     core.warning(`LLM resolution execution failed for ${res.id} (${e.message}); left open.`);
                   }
                 }
               } catch (e) {
                 core.warning(`LLM resolution pass failed (${e.message}); prior findings left open.`);
+              }
+            }
+
+            // Reflect auto-resolutions on the OpenCodeReview summary comment
+            // itself (CodeRabbit/Sourcery style): edit the summary to cite the
+            // fixing commits instead of leaving the resolution only in the
+            // thread replies. Issue comments are editable by their author
+            // (github-actions[bot] === the workflow token), so we annotate
+            // rather than minimize. Fail-open: any error is a warning and the
+            // job stays green; a missing/already-annotated summary is skipped.
+            if (resolvedCitations.length) {
+              try {
+                const RES_NOTE = '<!-- ocr-resolution-note -->';
+                const allComments = await github.paginate(github.rest.issues.listComments, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  per_page: 100
+                });
+                const ocrSummaries = allComments.filter((c) =>
+                  c.user && c.user.login === 'github-actions[bot]' &&
+                  typeof c.body === 'string' && c.body.includes('<!-- ocr-summary -->')
+                );
+                const active = ocrSummaries.length
+                  ? ocrSummaries.reduce((a, b) => (a.created_at > b.created_at ? a : b))
+                  : null;
+                if (active && !active.body.includes(RES_NOTE)) {
+                  const lines = resolvedCitations
+                    .map((r) => `- finding \`${r.id}\` → commit [\`${r.sha}\`](${r.url})`)
+                    .join('\n');
+                  const note = `\n\n---\n${RES_NOTE}\n✅ **Auto-resolved by OCR resolver** (${resolvedCitations.length} finding(s) via \`resolveReviewThread\`):\n${lines}`;
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: active.id,
+                    body: active.body + note
+                  });
+                  core.info(`Annotated OCR summary ${active.id} with ${resolvedCitations.length} resolution(s).`);
+                }
+              } catch (e) {
+                core.warning(`Could not annotate OCR summary with resolution note (${e.message}).`);
               }
             }
 
@@ -720,11 +766,15 @@ jobs:
       # With sticky_summary disabled, every OCR run posts its OWN summary
       # comment. Keep only the newest one visible: older summaries are
       # superseded by definition (each describes a run whose findings have
-      # since been re-evaluated) and get minimized as OUTDATED. Nothing is
-      # ever deleted - minimized comments stay inspectable via the "x of y"
-      # link. This step loads no repository JavaScript, so the trusted-
-      # checkout invariant is unaffected. Fail-open: a minimize failure logs
-      # a warning and keeps the job green.
+      # since been re-evaluated) and get annotated as SUPERSEDED instead of
+      # minimized. Issue comments are editable by their author
+      # (github-actions[bot] === the workflow token), so we append a marker
+      # note that links to the newest summary - exactly how CodeRabbit/
+      # Sourcery keep their own reports visible. Nothing is ever deleted.
+      # This step loads no repository JavaScript, so the trusted-checkout
+      # invariant is unaffected. Fail-open: an annotate failure logs a warning
+      # and keeps the job green (a visible, un-marked summary is preferable to
+      # a hidden one).
       - name: Archive superseded OpenCodeReview summaries
         if: env.OCR_EXIT_CODE == '0'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
@@ -752,30 +802,30 @@ jobs:
             }
             // listComments returns oldest-first; keep the newest visible.
             const newest = summaries.reduce((a, b) => (a.created_at > b.created_at ? a : b));
-            let archived = 0, failed = 0, alreadyArchived = 0;
+            const SUP_NOTE = '<!-- ocr-superseded-note -->';
+            let annotated = 0, failed = 0, alreadyAnnotated = 0;
             for (const c of summaries) {
               if (c.id === newest.id) continue;
-              // REST listComments does not reliably expose is_minimized, so
-              // already-minimized comments are detected via the mutation's
-              // idempotent rejection instead of being re-counted as failures
-              // every run (OCR summary finding on PR #211).
+              // Idempotent across re-runs: a summary we already annotated in a
+              // prior run carries the sentinel marker, so we skip it instead of
+              // re-appending (listComments does not reliably expose
+              // is_minimized, which is why we no longer minimize - see PR below).
+              if (typeof c.body === 'string' && c.body.includes(SUP_NOTE)) {
+                alreadyAnnotated++;
+                continue;
+              }
               try {
-                await github.graphql(
-                  `mutation($id: ID!) {
-                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
-                      minimizedComment { isMinimized }
-                    }
-                  }`,
-                  { id: c.node_id }
-                );
-                archived++;
+                const note = `\n\n---\n${SUP_NOTE}\n⚠️ **Superseded** — a later OpenCodeReview run replaced this report. The newest summary is [here](${newest.html_url}).`;
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: c.id,
+                  body: (typeof c.body === 'string' ? c.body : '') + note
+                });
+                annotated++;
               } catch (e) {
-                if (/already minimized/i.test(String(e && e.message))) {
-                  alreadyArchived++;
-                  continue;
-                }
                 failed++;
-                core.warning(`Could not minimize summary ${c.id}: ${e.message}`);
+                core.warning(`Could not annotate superseded summary ${c.id}: ${e.message}`);
               }
             }
-            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, minimized ${archived} superseded (${alreadyArchived} already archived, ${failed} failed).`);
+            core.notice(`OpenCodeReview summary archive: kept ${newest.html_url}, annotated ${annotated} superseded (${alreadyAnnotated} already annotated, ${failed} failed).`);
