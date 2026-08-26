@@ -304,11 +304,20 @@ const LLM_BODY_LIMIT = 600;
 // SECURITY: the prior finding's `body` is PR-controlled text. It is wrapped in
 // <prior_finding_text> tags and the model is explicitly told to treat that text
 // as untrusted DATA, never as instructions, so it cannot be steered into citing
-// an unrelated in-range commit. The deterministic in-range gate in
-// validateResolution is the second, independent safeguard.
+// an unrelated in-range commit. The body's own delimiter tags are escaped before
+// interpolation so they cannot prematurely close the region and break out into
+// instructions. The deterministic in-range gate in validateResolution is the
+// second, independent safeguard.
 function buildResolutionPrompt({ findings }) {
   const blocks = (findings || []).slice(0, LLM_MAX_CANDIDATES).map((f) => {
-    const body = (f.body || "").replace(/\s+/g, " ").slice(0, LLM_BODY_LIMIT);
+    // Escape any delimiter tags the PR-controlled body might contain so it
+    // cannot close the <prior_finding_text> region early and inject
+    // top-level instructions (prompt-injection). A literal backslash before
+    // the slash prevents the exact token from matching the wrapper's tag.
+    const body = (f.body || "")
+      .replace(/<\/?prior_finding_text>/gi, (m) => m.replace("/", "\\/"))
+      .replace(/\s+/g, " ")
+      .slice(0, LLM_BODY_LIMIT);
     const commits = (f.commits || []).slice(0, LLM_MAX_COMMITS).map((c) => {
       const msg = String(c.message || "").split("\n")[0].slice(0, 160);
       return `- ${c.sha}  ${msg}`;
