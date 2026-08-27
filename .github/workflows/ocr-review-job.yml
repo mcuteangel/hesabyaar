@@ -230,7 +230,11 @@ jobs:
           # repetitive findings. Enable a bounded thinking budget instead.
           # If the Kilo gateway ever stops forwarding Anthropic-style
           # "thinking", swap this for '{"reasoning_effort": "medium"}'.
-          llm_extra_body: '{"thinking": {"type": "enabled", "budget_tokens": 10000}}'
+          # Raised 10000 -> 24000 (issue #224 follow-up): the weak kilo-auto/free
+          # model needs more budget to trace cross-file data flow (Room
+          # migration / backup round-trip / personId links) so genuine
+          # data-integrity regressions are not dropped.
+          llm_extra_body: '{"thinking": {"type": "enabled", "budget_tokens": 24000}}'
           # Reasoning extends per-request latency well beyond the CLI default;
           # give each LLM request an explicit ceiling in seconds.
           llm_timeout: '600'
