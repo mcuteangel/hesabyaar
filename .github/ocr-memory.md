@@ -23,11 +23,12 @@ without touching the rule matching logic.
 
 ## Reporting discipline
 
-- Report ONLY bugs, security issues, and regressions with **HIGH confidence**
-  and a concrete failure scenario.
+- Report genuine bugs, security issues, and regressions you are **reasonably
+  confident** about, with a concrete failure scenario.
 - Skip style, documentation nits, naming, and anything ktlint / detekt /
   clippy would already flag.
 - Pure refactoring preference is not a bug. Report a maintainability concern
   only when it materially raises the risk of future defects — such findings
   belong in the PR summary, not as inline comments.
-- If you are below ~80% confident a finding is a real issue, omit it.
+- If you are below ~65% confident a finding is a real issue AND cannot name a
+  concrete failure scenario, omit it; otherwise report it.
