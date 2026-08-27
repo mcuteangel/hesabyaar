@@ -1,0 +1,155 @@
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_f51ac862ee5a91::t_88b1c434af1965 206-213
+  s_f51ac862ee5a91::t_895f6839f3a5c6 13
+  s_f51ac862ee5a91::t_023bfa601404ad 29-30,32,51
+  s_f51ac862ee5a91::t_b4c2a798037ba9 200-205,214-233,263-288,290-296,299-306
+  s_f51ac862ee5a91::t_0881b6402befaf 289,297-298
+  s_f51ac862ee5a91::t_baefdb0036a70c 522,525,529-544
+  s_f51ac862ee5a91::t_7bc7f2b55c26f3 513
+  s_f51ac862ee5a91::t_63700f63176add 415-423
+  s_f51ac862ee5a91::t_97462126e07a45 495-503
+  s_f51ac862ee5a91::t_2bb6e7f9f59f6f 463-471
+  s_f51ac862ee5a91::t_9fdf480eca4ebb 480
+  s_f51ac862ee5a91::t_17f993f1922d2e 234-262
+app/src/test/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizerTest.kt
+  s_f51ac862ee5a91::t_94577d977734c9 37-42
+  s_f51ac862ee5a91::t_13c7723796bc06 22-23
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_f51ac862ee5a91::t_7a3b273e9870a7 263-265
+  s_f51ac862ee5a91::t_a48c25c5868716 272
+  s_f51ac862ee5a91::t_ad5c27437e69ea 6,18,50-75,260-262,266-271,273-319,328,345,362,424-437
+app/src/main/java/io/github/mojri/hesabyar/data/Entities.kt
+  s_f51ac862ee5a91::t_cce868f512f6fa 89-102,104
+  s_f51ac862ee5a91::t_32c3e76f99bdba 4
+  s_f51ac862ee5a91::t_131caa5274078b 138-140
+  s_f51ac862ee5a91::t_2c26304e60347d 103
+  s_f51ac862ee5a91::t_3ede525ef2c2a8 114-116
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonParser.kt
+  s_f51ac862ee5a91::t_2dbd6784b6f011 54
+  s_f51ac862ee5a91::t_88be8cdbd14c36 83
+  s_f51ac862ee5a91::t_9e3bde73035598 17
+  s_f51ac862ee5a91::t_9a61e21bbb59c9 215-230
+rust/hesabyar-core/src/models/mod.rs
+  s_f51ac862ee5a91::t_9b981e9db6a111 556,595,641-736
+  s_f51ac862ee5a91::t_378ebe224c7d92 227-228
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt
+  s_f51ac862ee5a91::t_6ae5acc95a0b52 74-76,79-96
+  s_f51ac862ee5a91::t_b1b572b4c5f04d 77-78
+app/src/test/java/io/github/mojri/hesabyar/RepositoryBackupRestoreTest.kt
+  s_f51ac862ee5a91::t_5c83049845ead8 227-254,265-269,273-311,313-318
+  s_f51ac862ee5a91::t_0f38d8857769f0 261-264
+  s_f51ac862ee5a91::t_6c12e4b81fb0fb 271
+  s_f51ac862ee5a91::t_45901d6d029fd8 67
+  s_f51ac862ee5a91::t_dfb7a0e44e9d3b 258-260
+  s_f51ac862ee5a91::t_cfa04fe5578c4b 257
+  s_f51ac862ee5a91::t_dee271a89699e1 14
+  s_f51ac862ee5a91::t_95fb6b169eda67 11
+  s_f51ac862ee5a91::t_59c4e436e3c0dc 18,20
+  s_f51ac862ee5a91::t_8feac28d9fba8f 312
+  s_f51ac862ee5a91::t_0372357d47489c 255-256,270,272
+app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt
+  s_f51ac862ee5a91::t_54fcd83f3a70df 16
+  s_f51ac862ee5a91::t_5837fceaa9632e 49-51
+app/src/test/java/io/github/mojri/hesabyar/RepositoryMergeAccountsTest.kt
+  s_f51ac862ee5a91::t_380eb7d96e286d 57
+docs/architecture/ADR-001-rust-sole-implementation.md
+  s_f51ac862ee5a91::t_593fb93840eb0c 42
+app/src/test/java/io/github/mojri/hesabyar/rust/RustBridgeTest.kt
+  s_f51ac862ee5a91::t_8b6a9f3203bd62 302-303
+app/src/test/java/io/github/mojri/hesabyar/ui/LoanViewModelTest.kt
+  s_f51ac862ee5a91::t_dcad5a40bd44c6 1-56
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_f51ac862ee5a91::t_c19339f93ab27a 194-197
+  s_f51ac862ee5a91::t_e054d6069ff2db 189-193,198-238
+app/src/test/java/io/github/mojri/hesabyar/PersonRepositoryTest.kt
+  s_f51ac862ee5a91::t_0c8c099ef60205 173-187
+  s_f51ac862ee5a91::t_09ff633badcaf5 87
+  s_f51ac862ee5a91::t_aca3f8bba99677 85
+  s_f51ac862ee5a91::t_d56ba99f44228f 153,155
+  s_f51ac862ee5a91::t_7e8e71994a6b09 120
+  s_f51ac862ee5a91::t_f658c6dde4eece 23
+  s_f51ac862ee5a91::t_7a989ba3f72237 1-22,24-63,71-84,86,88-93,95,97-119,121-152,154,156-169,188-224
+  s_f51ac862ee5a91::t_a51736f8dc3303 64-70
+  s_f51ac862ee5a91::t_241835ea015500 94,96
+app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt
+  s_f51ac862ee5a91::t_020588064cc720 16
+  s_f51ac862ee5a91::t_8e6508bad2adbb 33,44
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonValidator.kt
+  s_f51ac862ee5a91::t_465b601a674595 245-246
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizer.kt
+  s_f51ac862ee5a91::t_fc1b977f5d2176 12-15,29-30
+  s_f51ac862ee5a91::t_838727b35c2ac7 1-11,17-28,31-43
+  s_f51ac862ee5a91::t_14237862c3eb91 16
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupPayloadExporter.kt
+  s_f51ac862ee5a91::t_526e2f060e00d2 235-252
+  s_f51ac862ee5a91::t_6cdadf766ac017 98
+  s_f51ac862ee5a91::t_e13970d2c21045 12
+  s_f51ac862ee5a91::t_2e588c8747f9a6 114
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_f51ac862ee5a91::t_cc148dc32b9e19 11
+  s_f51ac862ee5a91::t_19a3578bf45cd2 252-254,257-266
+  s_f51ac862ee5a91::t_9029bf215168c7 255-256
+plans/011-personal-loan-ledger-redesign.md
+  s_f51ac862ee5a91::t_f6fc6827019406 200-233
+  s_f51ac862ee5a91::t_154614dd3d620c 163-169
+  s_f51ac862ee5a91::t_24fa232f7849a1 116-119
+  s_f51ac862ee5a91::t_db7b5ceed0ec2a 82-83,95
+  s_f51ac862ee5a91::t_36e732c5bffdb3 121-157
+  s_f51ac862ee5a91::t_4e547784dc2afa 84-94
+app/src/main/java/io/github/mojri/hesabyar/rust/RustMappers.kt
+  s_f51ac862ee5a91::t_f80d08c78f3255 390-402
+  s_f51ac862ee5a91::t_92d629e57065b7 12
+  s_f51ac862ee5a91::t_a734693e56d445 377-389
+plans/README.md
+  s_f51ac862ee5a91::t_651b386a876352 21
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt
+  s_f51ac862ee5a91::t_72a5de108bcb84 606-610,612,614-666,681,705
+  s_f51ac862ee5a91::t_d286e2d4a91bb0 230-235,237-238
+  s_f51ac862ee5a91::t_72caeb993f5194 667-680,682-704
+app/src/main/java/io/github/mojri/hesabyar/data/BackupModels.kt
+  s_f51ac862ee5a91::t_ebd4d7f8df33bc 28
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigrationTest.kt
+  s_f51ac862ee5a91::t_6679249c07c869 503
+  s_f51ac862ee5a91::t_a15d2cb363a0e3 576,580-631,633-705,707-724
+  s_f51ac862ee5a91::t_315b0bac594cd9 706
+  s_f51ac862ee5a91::t_f22f39590e26e9 436-460,469-502,504-513,516-518,520-536,539-546
+  s_f51ac862ee5a91::t_ba182d2e94d4bd 274-276,283-284
+  s_f51ac862ee5a91::t_e2c05eb2b5e8bc 461-467
+  s_f51ac862ee5a91::t_77050ae890b8e0 515,519,537-538
+  s_f51ac862ee5a91::t_55dfae0600e422 396-397
+  s_f51ac862ee5a91::t_d932860a2b633c 514
+  s_f51ac862ee5a91::t_491c414986cc6f 547,555-575,577-579,725
+  s_f51ac862ee5a91::t_c49cdd5a13edef 548-554
+  s_f51ac862ee5a91::t_322c3b692cc35a 632
+app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt
+  s_f51ac862ee5a91::t_8e3b1dd718b607 11,27-29,94,153-167
+app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt
+  s_f51ac862ee5a91::t_8f21308d522dc7 50-54,56-57
+  s_f51ac862ee5a91::t_822afd1dcaf37c 6,11
+  s_f51ac862ee5a91::t_44346a7525b827 38-41
+  s_f51ac862ee5a91::t_0955c93c59fe19 55
+app/src/test/java/io/github/mojri/hesabyar/RepositoryLogicTest.kt
+  s_f51ac862ee5a91::t_ff6e58dec6a1c8 69
+  s_f51ac862ee5a91::t_51754ce60b9e0c 439-471
+app/src/test/java/io/github/mojri/hesabyar/ui/InstallmentViewModelTest.kt
+  s_f51ac862ee5a91::t_5319acc9d628de 182
+  s_f51ac862ee5a91::t_eaf05732118dc5 11
+  s_f51ac862ee5a91::t_3bf5bbfd874b22 184-185
+  s_f51ac862ee5a91::t_d814be637c9570 181,183,186-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "36eb36313887b2619e10757e533531df61fcdee4",
+  "prompts": {},
+  "sessions": {
+    "s_f51ac862ee5a91": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc333ff29ffeNPjOZLfbvoH5sK",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}
