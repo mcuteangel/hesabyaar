@@ -21,6 +21,21 @@
       "merge_system_rule": true
     },
     {
+      "path": "plans/**",
+      "rule": "Implementation plans, design documents, and architecture RFCs. Report genuine contradictions, broken architectural invariants, and discrepancies where the document directly contradicts active code or schema constraints. Highlight contradictions between different sections of the same plan or impossible migration promises. Do NOT report: formatting, markdown style, typos, or minor wording preferences. Report a finding only when you can point out the concrete contradiction; state your confidence.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "docs/**",
+      "rule": "Project architecture and technical documentation. Report genuine contradictions with implemented code, broken API contracts, or obsolete security/database invariants. Do NOT report: wording style, formatting, or missing non-critical sections.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.{sh,bash}",
+      "rule": "Shell scripts and CI automation. Report ONLY genuine bugs, unquoted variable expansions in sensitive contexts, dangerous globbing, unhandled error codes, or broken logic. Do NOT report formatting or styling.",
+      "merge_system_rule": true
+    },
+    {
       "path": "**",
       "rule": "General policy for this repository (hesabyaar): report genuine bugs, security issues, and regressions you are reasonably confident about, with a concrete failure scenario. Skip style, documentation nits, naming, and anything ktlint/detekt/clippy would flag. Pure refactoring preference is not a bug; report a maintainability concern only when it materially raises the risk of future defects (such findings are delivered in the PR summary rather than inline). Core guardrails (apply on EVERY run, including the fail-open path where .github/ocr-memory.md is absent): version bumps in Cargo.toml/Gradle files are INTENTIONAL release triggers - never flag them; lockfile updates under gradle/ and Cargo.lock are automated Dependabot output - intentional; user-facing strings are expected in Persian (Farsi) - do not flag mixed Persian/English as an inconsistency. When present, .github/ocr-memory.md injects the fuller project context on top of these. If you are below ~65% confident a finding is a real issue AND cannot name a concrete failure scenario, omit it; otherwise report it.",
       "merge_system_rule": true
