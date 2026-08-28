@@ -64,9 +64,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  # minimizeComment (summary archive, phase 3) operates on PR conversation
-  # comments, which GitHub models as issue comments; without this scope every
-  # minimize call is rejected and archiving silently no-ops.
+  # The summary archive (phase 3) edits PR conversation comments via
+  # issues.updateComment, which GitHub models as issue comments; without this
+  # scope the edit is rejected and archiving silently no-ops.
   issues: write
 
 jobs:
@@ -76,7 +76,7 @@ jobs:
     with:
       llm_url: ${{ vars.OCR_LLM_URL }}
       llm_model: ${{ vars.OCR_LLM_MODEL }}
-      use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+      use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC == 'true' }}
     secrets:
       auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
 
@@ -93,6 +93,6 @@ jobs:
     with:
       llm_url: ${{ vars.OCR_FALLBACK_URL }}
       llm_model: ${{ vars.OCR_FALLBACK_MODEL }}
-      use_anthropic: 'true'
+      use_anthropic: true
     secrets:
       auth_token: ${{ secrets.OCR_FALLBACK_AUTH_TOKEN }}
