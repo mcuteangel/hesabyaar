@@ -64,6 +64,12 @@ interface TransactionDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   fun insertAllBlocking(transactions: List<Transaction>)
+
+  @Query("UPDATE transactions SET personName = :newName WHERE personId = :personId")
+  suspend fun syncTransactionPersonNames(
+    personId: Long,
+    newName: String
+  )
 }
 
 @Dao
@@ -94,6 +100,12 @@ interface LoanDao {
 
   @Query("SELECT * FROM loans ORDER BY date DESC")
   fun getAllLoansBlocking(): List<Loan>
+
+  @Query("UPDATE loans SET personName = :newName WHERE personId = :personId")
+  suspend fun syncLoanPersonNames(
+    personId: Long,
+    newName: String
+  )
 }
 
 @Dao
@@ -221,19 +233,8 @@ interface PersonDao {
   @Delete
   suspend fun deletePerson(person: Person)
 
-  // D3 rename sync: display names are read from these denormalized columns,
-  // so a rename must rewrite them in the same transaction as the person row.
-  @Query("UPDATE loans SET personName = :newName WHERE personId = :personId")
-  suspend fun syncLoanPersonNames(
-    personId: Long,
-    newName: String
-  )
-
-  @Query("UPDATE transactions SET personName = :newName WHERE personId = :personId")
-  suspend fun syncTransactionPersonNames(
-    personId: Long,
-    newName: String
-  )
+  // D3 rename sync moved to LoanDao/TransactionDao — PersonDao now owns
+  // only person persistence; repository coordinates the cross-table rename.
 }
 
 @Dao

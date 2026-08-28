@@ -460,6 +460,38 @@ class AppDatabaseMigrationTest {
     db.execSQL("ALTER TABLE transactions ADD COLUMN destinationAccountId INTEGER DEFAULT NULL")
   }
 
+  private fun createAndSeedV7Database(
+    context: Context,
+    dbName: String,
+    seed: (SupportSQLiteDatabase) -> Unit
+  ) {
+    val helper =
+      FrameworkSQLiteOpenHelperFactory().create(
+        androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
+          .builder(context)
+          .name(dbName)
+          .callback(
+            object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
+              override fun onCreate(db: SupportSQLiteDatabase) {
+                createV7SchemaTables(db)
+                createV5SchemaRoomMetadata(db)
+              }
+
+              override fun onUpgrade(
+                db: SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int
+              ) {
+              }
+            }
+          ).build()
+      )
+    val raw = helper.writableDatabase
+    seed(raw)
+    raw.close()
+    helper.close()
+  }
+
   /**
    * Phase 1 person-ledger migration (plans/011): creates the persons table,
    * adds nullable personId to BOTH loans and transactions, and backfills
@@ -485,31 +517,7 @@ class AppDatabaseMigrationTest {
     val dbFile = context.getDatabasePath(dbName)
 
     try {
-      val helper =
-        FrameworkSQLiteOpenHelperFactory().create(
-          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
-            .builder(context)
-            .name(dbName)
-            .callback(
-              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                  createV7SchemaTables(db)
-                  createV5SchemaRoomMetadata(db)
-                }
-
-                override fun onUpgrade(
-                  db: SupportSQLiteDatabase,
-                  oldVersion: Int,
-                  newVersion: Int
-                ) {
-                }
-              }
-            ).build()
-        )
-      val raw = helper.writableDatabase
-      seedPersonBackfillData(raw)
-      raw.close()
-      helper.close()
+      createAndSeedV7Database(context, dbName) { raw -> seedPersonBackfillData(raw) }
 
       val migratedDb =
         Room
@@ -523,7 +531,7 @@ class AppDatabaseMigrationTest {
 
       val aliPerson = requireNotNull(persons.firstOrNull { it.name == "علی" })
       val alirezaPerson = requireNotNull(persons.firstOrNull { it.name == "علی رضا" })
-      val tx3Person = requireNotNull(persons.firstOrNull { it.name == "نام بی‌وام" })
+      val tx3Person = requireNotNull(persons.firstOrNull { it.name == "نام بیوام" })
 
       val loans = migratedDb.loanDao().getAllLoansBlocking()
       assertEquals(3, loans.size)
@@ -600,34 +608,12 @@ class AppDatabaseMigrationTest {
     val dbFile = context.getDatabasePath(dbName)
 
     try {
-      val helper =
-        FrameworkSQLiteOpenHelperFactory().create(
-          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
-            .builder(context)
-            .name(dbName)
-            .callback(
-              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                  createV7SchemaTables(db)
-                  createV5SchemaRoomMetadata(db)
-                }
-
-                override fun onUpgrade(
-                  db: SupportSQLiteDatabase,
-                  oldVersion: Int,
-                  newVersion: Int
-                ) {
-                }
-              }
-            ).build()
+      createAndSeedV7Database(context, dbName) { raw ->
+        raw.execSQL(
+          "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+            "VALUES ('EXPENSE', 1, 1000, 'solo-tx', 'نام صرفاً تراکنشی', 10)"
         )
-      val raw = helper.writableDatabase
-      raw.execSQL(
-        "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
-          "VALUES ('EXPENSE', 1, 1000, 'solo-tx', 'نام صرفاً تراکنشی', 10)"
-      )
-      raw.close()
-      helper.close()
+      }
 
       val migratedDb =
         Room
@@ -668,40 +654,18 @@ class AppDatabaseMigrationTest {
     val dbFile = context.getDatabasePath(dbName)
 
     try {
-      val helper =
-        FrameworkSQLiteOpenHelperFactory().create(
-          androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration
-            .builder(context)
-            .name(dbName)
-            .callback(
-              object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(7) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                  createV7SchemaTables(db)
-                  createV5SchemaRoomMetadata(db)
-                }
-
-                override fun onUpgrade(
-                  db: SupportSQLiteDatabase,
-                  oldVersion: Int,
-                  newVersion: Int
-                ) {
-                }
-              }
-            ).build()
+      createAndSeedV7Database(context, dbName) { raw ->
+        // Loan at date=200 with Persian kaf 'کاظم'.
+        raw.execSQL(
+          "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
+            "VALUES ('کاظم', 'DEBTOR', 100000, 100000, 'لیب', 200, 0)"
         )
-      val raw = helper.writableDatabase
-      // Loan at date=200 with Persian kaf 'کاظم'.
-      raw.execSQL(
-        "INSERT INTO loans (personName, type, originalAmount, remainingAmount, description, date, isSettled) " +
-          "VALUES ('کاظم', 'DEBTOR', 100000, 100000, 'لیب', 200, 0)"
-      )
-      // Transaction at date=50 with Arabic kaf 'كاظم' (same key, earlier date).
-      raw.execSQL(
-        "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
-          "VALUES ('EXPENSE', 1, 5000, 'تیک', 'كاظم', 50)"
-      )
-      raw.close()
-      helper.close()
+        // Transaction at date=50 with Arabic kaf 'كاظم' (same key, earlier date).
+        raw.execSQL(
+          "INSERT INTO transactions (type, categoryId, amount, description, personName, date) " +
+            "VALUES ('EXPENSE', 1, 5000, 'تیک', 'كاظم', 50)"
+        )
+      }
 
       val migratedDb =
         Room

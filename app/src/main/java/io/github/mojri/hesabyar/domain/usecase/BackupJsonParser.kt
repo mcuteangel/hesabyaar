@@ -17,6 +17,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.RustMappers
 import kotlinx.coroutines.CoroutineDispatcher
@@ -111,6 +112,8 @@ class BackupJsonParser(
           amount = o.optLong("amount", 0L),
           description = o.optString("description", ""),
           personName = o.optString("personName", "").ifBlank { null },
+          personId =
+            if (o.has("personId") && !o.isNull("personId")) o.optLong("personId").takeIf { it != 0L } else null,
           date = o.optLong("date", 0L),
           dueDate = o.optLong("dueDate", 0L).takeIf { it != 0L },
           installmentId = o.optLong("installmentId", 0L).takeIf { it != 0L },
@@ -133,6 +136,8 @@ class BackupJsonParser(
         Loan(
           id = o.optLong("id", 0L),
           personName = o.optString("personName", ""),
+          personId =
+            if (o.has("personId") && !o.isNull("personId")) o.optLong("personId").takeIf { it != 0L } else null,
           type = type,
           originalAmount = o.optLong("originalAmount", 0L),
           remainingAmount = o.optLong("remainingAmount", 0L),
@@ -216,10 +221,27 @@ class BackupJsonParser(
     root.optJSONArray("persons")?.let { arr ->
       (0 until arr.length()).mapNotNull { i ->
         val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        // Recompute normalizedName when the backup omits it or carries an
+        // empty/stale value. The persons table has a UNIQUE NOT NULL index on
+        // normalizedName (AppDatabase.kt:221-225, Entities.kt:91-98) and
+        // PersonDao.insertPerson uses OnConflictStrategy.IGNORE — a blank
+        // normalizedName would collapse every malformed person onto the same
+        // unique key and be silently dropped. Mirrors the runtime invariant
+        // (HesabyarRepository.upsertPerson requires a non-empty key); rows
+        // whose name also normalizes to empty are skipped (defense in depth).
+        val rawNormalized = o.optString("normalizedName", "")
+        val rawName = o.optString("name", "")
+        val key =
+          rawNormalized.takeIf { it.isNotBlank() }
+            ?: PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(rawName))
+        if (key.isEmpty()) {
+          Log.w(TAG, "parsePersons: skipping unnormalizable person id=${o.optLong("id", 0L)}")
+          return@mapNotNull null
+        }
         Person(
           id = o.optLong("id", 0L),
-          name = o.optString("name", ""),
-          normalizedName = o.optString("normalizedName", ""),
+          name = rawName,
+          normalizedName = key,
           phone = o.nullableString("phone"),
           notes = o.nullableString("notes"),
           createdAt = o.optLong("createdAt", 0L),

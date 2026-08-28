@@ -173,12 +173,14 @@ class PersonRepositoryTest {
   fun upsertPersonRejectsNameThatNormalizesToEmpty() =
     runTest {
       val repo = createRepository()
-      // ZWSP-only name: display is non-empty, but normalize() returns "".
+      // ZWSP-only name: displayForm strips zero-width, so display is empty
+      // and either the blank-check or the empty-key check rejects it.
       try {
         repo.upsertPerson(person("\u200B\u200C\u200D"))
         fail("expected IllegalArgumentException for zero-width-only name")
       } catch (e: IllegalArgumentException) {
-        assertTrue(e.message?.contains("normalizes to empty") == true)
+        val msg = e.message ?: ""
+        assertTrue(msg.contains("normalizes to empty") || msg.contains("Person name is blank"))
       }
       val all = repo.getAllPersonsIncludingArchived()
       assertTrue("no row should be inserted for an empty-key name", all.isEmpty())

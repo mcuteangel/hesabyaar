@@ -12,6 +12,25 @@ interface HesabyarRepositoryInterface {
   val allBankLoans: Flow<List<BankLoan>>
   val allAccounts: Flow<List<AccountEntity>>
 
+  // Person CRUD — also exposed via PersonRepositoryInterface for narrow DI.
+  // Kept here so existing call sites (BackupPayloadExporter, RepositoryTests)
+  // continue to compile through HesabyarRepositoryInterface alone; new
+  // person-specific use cases should depend on PersonRepositoryInterface.
+  val allPersons: Flow<List<Person>>
+
+  suspend fun getAllPersonsIncludingArchived(): List<Person>
+
+  suspend fun getPersonById(id: Long): Person?
+
+  suspend fun upsertPerson(person: Person): Person
+
+  suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean
+
+  suspend fun deletePerson(person: Person)
+
   fun getTransactionsInRange(
     start: Long,
     end: Long
@@ -70,29 +89,6 @@ interface HesabyarRepositoryInterface {
     bankLoan: BankLoan,
     installments: List<Installment>
   ): Long
-
-  // Person CRUD (person-ledger redesign, plans/011)
-  val allPersons: Flow<List<Person>>
-
-  suspend fun getAllPersonsIncludingArchived(): List<Person>
-
-  suspend fun getPersonById(id: Long): Person?
-
-  /** Match-or-create by normalized name; returns the stored row. */
-  suspend fun upsertPerson(person: Person): Person
-
-  /**
-   * D3 sync-on-rename: updates the person row and the denormalized
-   * personName on its loans and transactions in one transaction.
-   * Returns false when the id is unknown or another person already owns
-   * the new normalized name (merging is a separate flow).
-   */
-  suspend fun renamePerson(
-    personId: Long,
-    newName: String
-  ): Boolean
-
-  suspend fun deletePerson(person: Person)
 
   // Account CRUD
   suspend fun getActiveAccounts(): List<AccountEntity>

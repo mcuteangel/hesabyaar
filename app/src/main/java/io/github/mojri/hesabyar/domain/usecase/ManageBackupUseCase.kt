@@ -97,6 +97,7 @@ class ManageBackupUseCase(
    * @throws IllegalStateException if the raw accounts array cannot be matched 1:1 with
    *   the parsed accounts by id (malformed entry, duplicate id, or missing counterpart)
    */
+  @Suppress("CyclomaticComplexMethod", "LongMethod", "LoopWithTooManyJumpStatements")
   suspend fun decryptBackupWithPassphrase(
     backup: BackupPayload,
     rootJson: JSONObject,
@@ -166,7 +167,47 @@ class ManageBackupUseCase(
               )
           )
         }
-      backup.copy(accounts = decryptedAccounts)
+      // Decrypt person PII (phone/notes) — same passphrase-derived key, per-person AAD.
+      val personsArray = rootJson.optJSONArray("persons")
+      val decryptedPersons =
+        if (personsArray == null || personsArray.length() == 0) {
+          backup.persons
+        } else {
+          val encryptedPersonsById = HashMap<Long, JSONObject>(personsArray.length() * 2)
+          for (i in 0 until personsArray.length()) {
+            val o = personsArray.optJSONObject(i) ?: continue
+            if (!o.has("id")) continue
+            val id = o.optLong("id", -1L)
+            if (id <= 0L) continue
+            if (encryptedPersonsById.containsKey(id)) {
+              throw IllegalStateException("Duplicate person id $id in encrypted backup")
+            }
+            encryptedPersonsById[id] = o
+          }
+          backup.persons.map { person ->
+            val raw = encryptedPersonsById[person.id]
+            if (raw == null) {
+              // No encrypted counterpart — fall back to parsed value (legacy/plaintext backup).
+              person
+            } else {
+              person.copy(
+                phone =
+                  BackupCipher.decryptOrNull(
+                    raw.opt("phone"),
+                    key,
+                    BackupCipher.personFieldAad(person.id, "phone")
+                  ) ?: person.phone,
+                notes =
+                  BackupCipher.decryptOrNull(
+                    raw.opt("notes"),
+                    key,
+                    BackupCipher.personFieldAad(person.id, "notes")
+                  ) ?: person.notes
+              )
+            }
+          }
+        }
+      backup.copy(accounts = decryptedAccounts, persons = decryptedPersons)
     }
 
   suspend fun parseBackupJson(jsonString: String): BackupPayload? = parser.parseBackupJson(jsonString)

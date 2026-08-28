@@ -14,6 +14,7 @@ import io.github.mojri.hesabyar.data.InstallmentDao
 import io.github.mojri.hesabyar.data.LoanDao
 import io.github.mojri.hesabyar.data.PaymentHistoryDao
 import io.github.mojri.hesabyar.data.PersonDao
+import io.github.mojri.hesabyar.data.PersonRepositoryInterface
 import io.github.mojri.hesabyar.data.TransactionDao
 import javax.inject.Singleton
 
@@ -44,4 +45,7 @@ object RepositoryModule {
       personDao,
       database
     )
+
+  @Provides
+  fun providePersonRepository(repository: HesabyarRepository): PersonRepositoryInterface = repository
 }

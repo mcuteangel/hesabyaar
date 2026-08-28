@@ -111,7 +111,7 @@ class BackupPayloadExporter(
 
     rootJson.put("accounts", buildAccountsArray(curAccounts, encryptionKey))
 
-    rootJson.put("persons", buildPersonsArray(curPersons))
+    rootJson.put("persons", buildPersonsArray(curPersons, encryptionKey))
 
     return rootJson
   }
@@ -145,6 +145,7 @@ class BackupPayloadExporter(
           put("amount", it.amount)
           put("description", it.description)
           put("personName", it.personName ?: "")
+          put("personId", it.personId ?: JSONObject.NULL)
           put("date", it.date)
           put("dueDate", it.dueDate ?: 0L)
           put("installmentId", it.installmentId ?: 0L)
@@ -163,6 +164,7 @@ class BackupPayloadExporter(
         JSONObject().apply {
           put("id", it.id)
           put("personName", it.personName)
+          put("personId", it.personId ?: JSONObject.NULL)
           put("type", it.type.name)
           put("originalAmount", it.originalAmount)
           put("remainingAmount", it.remainingAmount)
@@ -232,7 +234,10 @@ class BackupPayloadExporter(
     return paymentsArray
   }
 
-  private fun buildPersonsArray(persons: List<Person>): JSONArray {
+  private fun buildPersonsArray(
+    persons: List<Person>,
+    encryptionKey: SecretKey? = null
+  ): JSONArray {
     val personsArray = JSONArray()
     persons.forEach {
       personsArray.put(
@@ -240,8 +245,27 @@ class BackupPayloadExporter(
           put("id", it.id)
           put("name", it.name)
           put("normalizedName", it.normalizedName)
-          put("phone", it.phone ?: JSONObject.NULL)
-          put("notes", it.notes ?: JSONObject.NULL)
+          if (encryptionKey != null) {
+            put(
+              "phone",
+              BackupCipher.encryptOrNull(
+                it.phone,
+                encryptionKey,
+                BackupCipher.personFieldAad(it.id, "phone")
+              )
+            )
+            put(
+              "notes",
+              BackupCipher.encryptOrNull(
+                it.notes,
+                encryptionKey,
+                BackupCipher.personFieldAad(it.id, "notes")
+              )
+            )
+          } else {
+            put("phone", it.phone ?: JSONObject.NULL)
+            put("notes", it.notes ?: JSONObject.NULL)
+          }
           put("createdAt", it.createdAt)
           put("isArchived", it.isArchived)
         }

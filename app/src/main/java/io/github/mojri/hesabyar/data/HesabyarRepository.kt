@@ -17,7 +17,8 @@ class HesabyarRepository(
   private val accountDao: AccountDao,
   private val personDao: PersonDao,
   private val database: AppDatabase
-) : HesabyarRepositoryInterface {
+) : HesabyarRepositoryInterface,
+  PersonRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
   override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
@@ -304,8 +305,8 @@ class HesabyarRepository(
       val clash = personDao.getPersonByNormalizedName(key)
       if (clash != null && clash.id != personId) return@withTransaction false
       personDao.updatePerson(person.copy(name = display, normalizedName = key))
-      personDao.syncLoanPersonNames(personId, display)
-      personDao.syncTransactionPersonNames(personId, display)
+      loanDao.syncLoanPersonNames(personId, display)
+      transactionDao.syncTransactionPersonNames(personId, display)
       true
     }
   }
@@ -319,31 +320,103 @@ class HesabyarRepository(
 
   override suspend fun replaceAllFromBackup(backup: BackupPayload) =
     database.withTransaction {
-      transactionDao.deleteAllTransactions()
-      loanDao.deleteAllLoans()
-      installmentDao.deleteAllInstallments()
-      paymentHistoryDao.deleteAllPaymentHistory()
-      bankLoanDao.deleteAllBankLoans()
-      accountDao.deleteAllAccounts()
-      personDao.deleteAllPersons()
-
-      // Legacy backups (pre-multi-account) carry no accounts list; their
-      // transactions reference the default account (id=1), which the delete
-      // above just removed. Re-seed it so those transactions are not orphaned —
-      // mirrors the fresh-install seed (AppDatabase.DEFAULT_ACCOUNT_SEED_CALLBACK).
-      if (backup.accounts.isEmpty()) {
-        accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
-      }
-
+      clearAllTablesForReplace()
+      reseedDefaultAccountIfNeeded(backup.accounts.isEmpty())
       backup.categories.forEach { categoryDao.insertCategory(it) }
-      backup.transactions.forEach { transactionDao.insertTransaction(it) }
-      backup.loans.forEach { loanDao.insertLoan(it) }
+      val personMaps = insertPersonsForReplace(backup.persons)
+      insertLoansWithPersonRemap(backup.loans, personMaps)
+      insertTransactionsWithPersonRemap(backup.transactions, personMaps)
       backup.installments.forEach { installmentDao.insertInstallment(it) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
       backup.accounts.forEach { accountDao.insert(it) }
-      backup.persons.forEach { personDao.insertPerson(it) }
     }
+
+  private suspend fun clearAllTablesForReplace() {
+    transactionDao.deleteAllTransactions()
+    loanDao.deleteAllLoans()
+    installmentDao.deleteAllInstallments()
+    paymentHistoryDao.deleteAllPaymentHistory()
+    bankLoanDao.deleteAllBankLoans()
+    accountDao.deleteAllAccounts()
+    personDao.deleteAllPersons()
+  }
+
+  private suspend fun reseedDefaultAccountIfNeeded(isEmpty: Boolean) {
+    if (isEmpty) accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
+  }
+
+  private suspend fun insertPersonsForReplace(persons: List<Person>): PersonKeyMaps {
+    val sourceIdToKey =
+      persons.associate {
+        it.id to
+          PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it.name))
+      }
+    val keyToLocalId = mutableMapOf<String, Long>()
+    for (raw in persons) {
+      insertOnePersonForReplace(raw, keyToLocalId)
+    }
+    return PersonKeyMaps(sourceIdToKey, keyToLocalId)
+  }
+
+  private suspend fun insertOnePersonForReplace(
+    raw: Person,
+    keyToLocalId: MutableMap<String, Long>
+  ) {
+    val display = PersonNameNormalizer.displayForm(raw.name)
+    val key = PersonNameNormalizer.normalize(display)
+    if (key.isEmpty() || keyToLocalId.containsKey(key)) return
+    val newId = personDao.insertPerson(raw.copy(name = display, normalizedName = key, id = 0))
+    val storedId =
+      if (newId != -1L) {
+        newId
+      } else {
+        personDao.getPersonByNormalizedName(key)?.id ?: return
+      }
+    keyToLocalId[key] = storedId
+  }
+
+  private suspend fun insertLoansWithPersonRemap(
+    loans: List<Loan>,
+    maps: PersonKeyMaps
+  ) {
+    for (loan in loans) {
+      val mappedPersonId = resolvePersonId(loan.personId, loan.personName, maps)
+      loanDao.insertLoan(loan.copy(personId = mappedPersonId))
+    }
+  }
+
+  private suspend fun insertTransactionsWithPersonRemap(
+    transactions: List<Transaction>,
+    maps: PersonKeyMaps
+  ) {
+    for (tx in transactions) {
+      val mappedPersonId = resolvePersonId(tx.personId, tx.personName, maps)
+      transactionDao.insertTransaction(tx.copy(personId = mappedPersonId))
+    }
+  }
+
+  private data class PersonKeyMaps(
+    val sourceIdToKey: Map<Long, String>,
+    val keyToLocalId: Map<String, Long>
+  )
+
+  private fun resolvePersonId(
+    sourcePersonId: Long?,
+    fallbackName: String?,
+    maps: PersonKeyMaps
+  ): Long? {
+    val fromSource =
+      sourcePersonId
+        ?.let { maps.sourceIdToKey[it] }
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { maps.keyToLocalId[it] }
+    val fallbackKey =
+      fallbackName
+        ?.let { PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it)) }
+        ?.takeIf { it.isNotEmpty() }
+    return fromSource ?: fallbackKey?.let { maps.keyToLocalId[it] }
+  }
 
   /**
    * Merges backup data into the database while preserving relationships through foreign-key remapping.
@@ -353,13 +426,28 @@ class HesabyarRepository(
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val categoryIdMap = mergeCategories(backup.categories)
-      val loanIdMap = mergeLoans(backup.loans)
+      val personKeyToId = mergePersons(backup.persons)
+      val personMaps =
+        PersonKeyMaps(
+          sourceIdToKey =
+            backup.persons.associate {
+              it.id to
+                PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it.name))
+            },
+          keyToLocalId = personKeyToId
+        )
+
+      fun resolveForMerge(
+        sourcePersonId: Long?,
+        fallbackName: String?
+      ): Long? = resolvePersonId(sourcePersonId, fallbackName, personMaps)
+
+      val loanIdMap = mergeLoans(backup.loans, ::resolveForMerge)
       val bankLoanIdMap = mergeBankLoans(backup.bankLoans)
       val installmentIdMap = mergeInstallments(backup.installments, bankLoanIdMap)
       val accountIdMap = mergeAccounts(backup.accounts)
-      mergeTransactions(backup.transactions, categoryIdMap, installmentIdMap, accountIdMap)
+      mergeTransactions(backup.transactions, categoryIdMap, installmentIdMap, accountIdMap, ::resolveForMerge)
       mergePaymentHistories(backup.paymentHistories, loanIdMap)
-      mergePersons(backup.persons)
     }
 
   private suspend fun mergeCategories(categories: List<Category>): Map<Long, Long> {
@@ -380,8 +468,14 @@ class HesabyarRepository(
     return idToKey.mapValues { keyToId[it.value] ?: it.key }
   }
 
-  private suspend fun mergeLoans(loans: List<Loan>): Map<Long, Long> =
-    loans.associate { it.id to loanDao.insertLoan(it.copy(id = 0)) }
+  private suspend fun mergeLoans(
+    loans: List<Loan>,
+    resolvePersonId: (Long?, String?) -> Long? = { _, _ -> null }
+  ): Map<Long, Long> =
+    loans.associate { loan ->
+      val mappedPersonId = resolvePersonId(loan.personId, loan.personName)
+      loan.id to loanDao.insertLoan(loan.copy(id = 0, personId = mappedPersonId))
+    }
 
   private suspend fun mergeBankLoans(bankLoans: List<BankLoan>): Map<Long, Long> =
     bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it.copy(id = 0)) }
@@ -421,17 +515,49 @@ class HesabyarRepository(
     return accountIdMap
   }
 
-  private suspend fun mergePersons(persons: List<Person>) {
-    // Dedup by normalizedName (mirrors mergeCategories' keyed dedup). Loans
-    // in a backup carry only the denormalized personName, so no FK remap is
-    // needed; the person rows simply coexist with the local set.
+  private suspend fun mergePersons(persons: List<Person>): Map<String, Long> {
+    // Dedup by re-derived normalizedName (do not trust backup payload).
+    // Preload existing keys so the loop avoids N queries when the backup
+    // carries many persons (mirrors mergeAccounts' name→id map).
+    val existingByKey =
+      personDao
+        .getAllPersonsIncludingArchivedBlocking()
+        .associateBy { it.normalizedName }
+        .toMutableMap()
     for (person in persons) {
-      val existing = personDao.getPersonByNormalizedName(person.normalizedName)
-      if (existing != null) {
-        personDao.updatePerson(person.copy(id = existing.id))
-      } else {
-        personDao.insertPerson(person.copy(id = 0))
-      }
+      mergeOnePerson(person, existingByKey)
+    }
+    return existingByKey.mapValues { it.value.id }
+  }
+
+  private suspend fun mergeOnePerson(
+    person: Person,
+    existingByKey: MutableMap<String, Person>
+  ) {
+    val display = PersonNameNormalizer.displayForm(person.name)
+    val key = PersonNameNormalizer.normalize(display)
+    if (key.isEmpty()) return
+    val existing = existingByKey[key] ?: personDao.getPersonByNormalizedName(key)
+    if (existing != null) {
+      val merged =
+        existing.copy(
+          name = display,
+          normalizedName = key,
+          phone = person.phone ?: existing.phone,
+          notes = person.notes ?: existing.notes
+        )
+      personDao.updatePerson(merged)
+      existingByKey[key] = merged
+    } else {
+      val candidate = person.copy(id = 0, name = display, normalizedName = key)
+      val insertedId = personDao.insertPerson(candidate)
+      val stored =
+        if (insertedId != -1L) {
+          candidate.copy(id = insertedId)
+        } else {
+          personDao.getPersonByNormalizedName(key) ?: return
+        }
+      existingByKey[key] = stored
     }
   }
 
@@ -439,7 +565,8 @@ class HesabyarRepository(
     transactions: List<Transaction>,
     categoryIdMap: Map<Long, Long>,
     installmentIdMap: Map<Long, Long>,
-    accountIdMap: Map<Long, Long>
+    accountIdMap: Map<Long, Long>,
+    resolvePersonId: (Long?, String?) -> Long? = { _, _ -> null }
   ) {
     val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
     // Accounts were merged before this call, so the local table reflects the
@@ -474,13 +601,15 @@ class HesabyarRepository(
           ?: otherCategoryId
           ?: transaction.categoryId
       val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
+      val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
       transactionDao.insertTransaction(
         transaction.copy(
           id = 0,
           categoryId = mappedCategoryId,
           installmentId = mappedInstallmentId,
           accountId = mappedAccountId,
-          destinationAccountId = mappedDestinationAccountId
+          destinationAccountId = mappedDestinationAccountId,
+          personId = mappedPersonId
         )
       )
     }

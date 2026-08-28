@@ -74,6 +74,13 @@ pub struct Transaction {
     pub description: String,
     #[serde(skip_serializing_if = "Option::is_none", alias = "personName")]
     pub person_name: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "personId"
+    )]
+    pub person_id: Option<i64>,
     pub date: i64,
     #[serde(
         default,
@@ -155,6 +162,13 @@ pub struct Loan {
     pub id: i64,
     #[serde(alias = "personName")]
     pub person_name: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "personId"
+    )]
+    pub person_id: Option<i64>,
     #[serde(rename = "type", alias = "loanType")]
     pub loan_type: String,
     #[serde(alias = "originalAmount")]
@@ -535,6 +549,7 @@ mod tests {
                 amount: 50000,
                 description: "Test".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -580,6 +595,7 @@ mod tests {
                 amount: 300000,
                 description: "Transfer between accounts".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -955,6 +971,7 @@ mod tests {
             amount: 50000,
             description: "Test".to_string(),
             person_name: None,
+            person_id: None,
             date: 1710000000000,
             due_date: None,
             installment_id: None,

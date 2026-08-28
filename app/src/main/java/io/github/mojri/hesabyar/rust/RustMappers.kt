@@ -178,6 +178,7 @@ object RustMappers {
       amount = tx.amount,
       description = tx.description,
       personName = tx.personName,
+      personId = tx.personId,
       date = tx.date,
       dueDate = tx.dueDate,
       installmentId = tx.installmentId,
@@ -189,6 +190,7 @@ object RustMappers {
     io.github.mojri.hesabyar.rust.Loan(
       id = loan.id,
       personName = loan.personName,
+      personId = loan.personId,
       loanType = loan.type.name,
       originalAmount = loan.originalAmount,
       remainingAmount = loan.remainingAmount,
@@ -282,6 +284,7 @@ object RustMappers {
       amount = tx.amount,
       description = tx.description,
       personName = tx.personName,
+      personId = tx.personId,
       date = tx.date,
       dueDate = tx.dueDate,
       installmentId = tx.installmentId,
@@ -293,6 +296,7 @@ object RustMappers {
     Loan(
       id = loan.id,
       personName = loan.personName,
+      personId = loan.personId,
       type = LoanType.valueOf(loan.loanType),
       originalAmount = loan.originalAmount,
       remainingAmount = loan.remainingAmount,

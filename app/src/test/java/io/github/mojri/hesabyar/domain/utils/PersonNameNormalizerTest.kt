@@ -44,4 +44,10 @@ class PersonNameNormalizerTest {
     assertEquals("  علی  ".trim(), PersonNameNormalizer.displayForm("  علی  "))
     assertEquals("ALI", PersonNameNormalizer.displayForm("ALI"))
   }
+
+  @Test
+  fun displayFormStripsZeroWidthCharacters() {
+    assertEquals("", PersonNameNormalizer.displayForm("\u200B"))
+    assertEquals("علی", PersonNameNormalizer.displayForm("\u200Bعلی\u200C"))
+  }
 }

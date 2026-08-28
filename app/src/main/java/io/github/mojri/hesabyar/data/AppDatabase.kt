@@ -288,19 +288,34 @@ abstract class AppDatabase : RoomDatabase() {
           db: SupportSQLiteDatabase,
           idByNormalized: MutableMap<String, Long>
         ) {
-          val update =
-            db.compileStatement("UPDATE transactions SET personId = ? WHERE id = ?")
+          // Iterate once to build (id, normalizedKey) pairs for transactions
+          // whose name normalizes to a key already known from the loans
+          // backfill (or a key we just inserted via personIdFor). A second
+          // pass then issues a single batched UPDATE per distinct personId
+          // instead of one UPDATE per row.
+          val updatesByPersonId = HashMap<Long, LongArray>()
           db
             .query("SELECT id, personName FROM transactions WHERE personName IS NOT NULL")
             .use { cursor ->
               while (cursor.moveToNext()) {
+                val txId = cursor.getLong(0)
                 val personId = personIdFor(db, cursor.getString(1), idByNormalized)
                 if (personId == -1L) continue
-                update.bindLong(1, personId)
-                update.bindLong(2, cursor.getLong(0))
-                update.executeUpdateDelete()
+                updatesByPersonId[personId] =
+                  (updatesByPersonId[personId] ?: longArrayOf()) + txId
               }
             }
+          if (updatesByPersonId.isEmpty()) return
+          for ((personId, txIds) in updatesByPersonId) {
+            val placeholders = txIds.joinToString(",") { "?" }
+            val stmt =
+              db.compileStatement(
+                "UPDATE transactions SET personId = ? WHERE id IN ($placeholders)"
+              )
+            stmt.bindLong(1, personId)
+            for ((i, id) in txIds.withIndex()) stmt.bindLong(i + 2, id)
+            stmt.executeUpdateDelete()
+          }
         }
       }
 
@@ -393,6 +408,23 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Single source of truth for the full migration chain. Used by every
+     * `Room.databaseBuilder(...).addMigrations(...)` call so a new migration
+     * is registered in one place and cannot be omitted from any path
+     * (live DB, plaintext→encrypted transfer, future test factories).
+     */
+    internal val ALL_MIGRATIONS: Array<Migration> =
+      arrayOf(
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5,
+        MIGRATION_5_6,
+        MIGRATION_6_7,
+        MIGRATION_7_8
+      )
+
     fun getDatabase(context: Context): AppDatabase {
       instance?.let { return it }
       return synchronized(this) {
@@ -412,15 +444,8 @@ abstract class AppDatabase : RoomDatabase() {
               AppDatabase::class.java,
               "hesabyar_database"
             ).openHelperFactory(factory)
-            .addMigrations(
-              MIGRATION_1_2,
-              MIGRATION_2_3,
-              MIGRATION_3_4,
-              MIGRATION_4_5,
-              MIGRATION_5_6,
-              MIGRATION_6_7,
-              MIGRATION_7_8
-            ).addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
+            .addMigrations(*ALL_MIGRATIONS)
+            .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
             .build()
         instance = db
         db
@@ -460,15 +485,8 @@ abstract class AppDatabase : RoomDatabase() {
       val plaintextDb =
         Room
           .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(
-            MIGRATION_1_2,
-            MIGRATION_2_3,
-            MIGRATION_3_4,
-            MIGRATION_4_5,
-            MIGRATION_5_6,
-            MIGRATION_6_7,
-            MIGRATION_7_8
-          ).build()
+          .addMigrations(*ALL_MIGRATIONS)
+          .build()
 
       val accounts = plaintextDb.accountDao().getAllAccountsBlocking()
       val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
@@ -492,15 +510,8 @@ abstract class AppDatabase : RoomDatabase() {
           Room
             .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
             .openHelperFactory(factory)
-            .addMigrations(
-              MIGRATION_1_2,
-              MIGRATION_2_3,
-              MIGRATION_3_4,
-              MIGRATION_4_5,
-              MIGRATION_5_6,
-              MIGRATION_6_7,
-              MIGRATION_7_8
-            ).build()
+            .addMigrations(*ALL_MIGRATIONS)
+            .build()
 
         encryptedDb.runInTransaction {
           if (accounts.isNotEmpty()) encryptedDb.accountDao().insertAllBlocking(accounts)

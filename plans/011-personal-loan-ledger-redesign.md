@@ -199,38 +199,37 @@ Detekt findings introduced here were resolved by extracting
 
 ## Phase 1 — Person model (schema + CRUD) — DONE
 
-Implementation:
+See the authoritative addendum below for backfill ordering, display-name
+tiebreak, and the option-(a) transaction-only fallback decision.
+Implementation details live in the code; the test list is mirrored in
+`AppDatabaseMigrationTest`, `PersonRepositoryTest`, and
+`RepositoryBackupRestoreTest`. Schema and Rust surface match
+`Entities.kt` and `rust/hesabyar-core/src/models/mod.rs`.
 
-1. New table `persons(id, name, normalizedName unique-indexed, phone?, notes?,
-   createdAt, isArchived)` — see `Entities.kt:92` `Person`.
-2. Additive columns on BOTH tables: `loans.personId` and `transactions.personId`
-   (both nullable; see `Entities.kt:114` and `Entities.kt:138`). Migration
-   `MIGRATION_7_8` in `AppDatabase.kt` adds them in `withTransaction`.
-3. Migration backfill `backfillPersonsFromLoans` + `stampPersonIdsOnTransactions`
-   in `AppDatabase.kt:225-293` builds persons from normalized distinct
-   `loans.personName` and stamps `personId` on `loans` AND `transactions`.
-4. `PersonDao` (`Daos.kt:190`), CRUD + rename sync in `HesabyarRepository`
-   (`HesabyarRepository.kt:246-300`), DI in `DatabaseModule`/`RepositoryModule`.
-   (No `PersonViewModel`/`ManagePersonUseCase` yet — UI phase is Phase 2.)
-5. `renamePerson` sync per D3 (`HesabyarRepository.kt:276-292`): `withTransaction`
-   updates `Person`, `loans.personName`, and `transactions.personName`.
-6. Backup: `persons` array — Rust `Person` record + `persons` field on
-   `BackupPayload` (`rust/hesabyar-core/src/models/mod.rs`) with
-   `#[serde(default)]`; Kotlin `BackupPayload.persons` default; export in
-   `BackupPayloadExporter`, both parse paths in `BackupJsonParser` +
-   `RustMappers.fromRustPerson/fromRustPersons`; `replaceAllFromBackup` and
-   `mergePersons` (dedup by normalizedName) in `HesabyarRepository`.
-7. Tests: migration `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions`
-   asserts BOTH `loans.personId` AND `transactions.personId` are stamped from
-   `loans.personName` (incl. Arabic-variant/collapse cases); rename sync covered
-   by `renamePersonSync` in `PersonRepositoryTest`; backup round-trips both
-   directions — `replaceAllFromBackupPersistsPersonsWithAllFields` and
-   `mergeFromBackupDeduplicatesPersonsByNormalizedNameAndKeepsLocalId` in
-   `RepositoryBackupRestoreTest`.
+**D4 addendum (resolved during Phase 1).**
 
-Evidence: `./gradlew --no-daemon testDebugUnitTest` BUILD SUCCESSFUL;
-`testDebugUnitTestRust` (Rust bridge) and `cargo test` (453 Rust core tests) all
-green; `ktlintCheck detekt` clean. New named tests pass by name.
+The migration backfill order is intentional and permanent:
+
+1. Loans are processed first; distinct normalized `loans.personName` rows
+   become the source of truth for `persons` identity.
+2. Transactions are processed second. When a transaction's normalized
+   name matches no loan-backed person key, the migration inserts a new
+   `Person` row (option (a)) and stamps `Transaction.personId` with the
+   new id. This is documented as "transaction-only names seed a Person
+   row" in the MIGRATION_7_8 KDoc and the migration test
+   `migration7to8TransactionOnlyPersonNameCreatesPersonRow`.
+3. Display-name tiebreak on a normalized-key collision goes to whichever
+   row is processed first — i.e. the loan. The transaction's earlier
+   `date` does **not** win, because the MIGRATION contract anchors
+   identity in `loans` (D3). See
+   `migration7to8DisplayNameTiebreakLoansFirstThenTransactions`.
+
+For all other Phase 1 details (Person schema, MIGRATION_7_8,
+`PersonDao`, `upsertPerson`/`renamePerson`/`mergePersons`, backup
+`persons` field, test names, evidence bundle), consult the
+git log of `feature/person-loan-ledger` for the commit(s) that
+implemented Phase 1 — keeping a duplicated prose summary here
+diverges from the code on every refactor.
 
 ## Phase 2 — Ledger-only vs tracked mode
 
