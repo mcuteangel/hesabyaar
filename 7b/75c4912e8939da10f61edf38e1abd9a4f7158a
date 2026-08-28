@@ -1,0 +1,95 @@
+rust/hesabyar-core/src/models/mod.rs
+  s_f51ac862ee5a91::t_70ed0e7d7e3dea 598
+  s_f51ac862ee5a91::t_6bafa560edf0c8 974
+  s_f51ac862ee5a91::t_a4e777fa9c971a 165-171
+  s_f51ac862ee5a91::t_82a6dec888dada 77-83
+  s_f51ac862ee5a91::t_7114c5407b2be8 552
+app/src/main/java/io/github/mojri/hesabyar/auth/BackupCipher.kt
+  s_f51ac862ee5a91::t_6a2ad693c88e5f 101-105
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_f51ac862ee5a91::t_efa4b9539d3316 103-108
+  s_f51ac862ee5a91::t_e91cb1eb7ba043 236-237
+  s_f51ac862ee5a91::t_387eb3c326b372 67-72
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageBackupUseCase.kt
+  s_f51ac862ee5a91::t_884a0130738006 100
+  s_f51ac862ee5a91::t_8ebc90b8ffc8c4 170-210
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigrationTest.kt
+  s_f51ac862ee5a91::t_8da5de5b44b103 611-614,616
+  s_f51ac862ee5a91::t_053622b9a42d6e 520
+  s_f51ac862ee5a91::t_91874a673344c9 463-494
+  s_f51ac862ee5a91::t_1e654ec7cdc08e 657-661,663-668
+  s_f51ac862ee5a91::t_e64a73fc8d7b69 534
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_f51ac862ee5a91::t_a14f96e931f331 441,445
+  s_f51ac862ee5a91::t_a44ecda0862812 21-22
+  s_f51ac862ee5a91::t_c4336e1e8b890b 309-310,380
+  s_f51ac862ee5a91::t_2d8583fb400a7e 426-436,439
+  s_f51ac862ee5a91::t_89ef398543fd2b 467-474
+  s_f51ac862ee5a91::t_c5cd7289b69c52 551
+  s_f51ac862ee5a91::t_69d386987e2553 514
+  s_f51ac862ee5a91::t_7cc18bc00312df 324-325,327-329,336-349,351-379,381-397,399-415
+  s_f51ac862ee5a91::t_cecaed0d757e47 425,437-438
+  s_f51ac862ee5a91::t_af52e0ad38aebf 558-559
+  s_f51ac862ee5a91::t_824c0d8e166788 594,601-602
+  s_f51ac862ee5a91::t_398fd10efd1c0e 440
+  s_f51ac862ee5a91::t_7be679eb7d007b 519-523,525-528,530-538,540-542,544,546-548
+  s_f51ac862ee5a91::t_a3d848f6192c4b 10
+  s_f51ac862ee5a91::t_4da59de1fbbfe3 350
+  s_f51ac862ee5a91::t_8e5c15e38cdd3b 398
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupPayloadExporter.kt
+  s_f51ac862ee5a91::t_c392f53d52d876 148,167
+  s_f51ac862ee5a91::t_7dae4267fc4d2c 114
+  s_f51ac862ee5a91::t_197659dadbb278 237-240,248-268
+app/src/test/java/io/github/mojri/hesabyar/PersonRepositoryTest.kt
+  s_f51ac862ee5a91::t_d79089c6f3facd 176-177,182-183
+rust/hesabyar-core/benches/parser_bench.rs
+  s_f51ac862ee5a91::t_42a69d8462c890 56
+  s_f51ac862ee5a91::t_d7d4bbccddc483 106
+  s_f51ac862ee5a91::t_36fca18017b955 306
+app/src/main/java/io/github/mojri/hesabyar/rust/RustMappers.kt
+  s_f51ac862ee5a91::t_d962bb75756963 193
+  s_f51ac862ee5a91::t_3d6ca204ac0dd4 181
+  s_f51ac862ee5a91::t_d1f4c48e06e046 287,299
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonParser.kt
+  s_f51ac862ee5a91::t_898f5f1698e1e4 20
+  s_f51ac862ee5a91::t_20d6bcce396660 224-240,243-244
+  s_f51ac862ee5a91::t_04803155a39f65 115-116,139-140
+plans/011-personal-loan-ledger-redesign.md
+  s_f51ac862ee5a91::t_a88b12f9082ac7 202-232
+app/src/main/java/io/github/mojri/hesabyar/data/PersonRepositoryInterface.kt
+  s_f51ac862ee5a91::t_39c77e42a322e5 1-36
+app/src/test/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizerTest.kt
+  s_f51ac862ee5a91::t_d0df88895398aa 47-52
+config/detekt/detekt-baseline.xml
+  s_f51ac862ee5a91::t_b65e7b0727bea7 261
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizer.kt
+  s_f51ac862ee5a91::t_1c86e1ea238923 10-16,28-29,49-62
+app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt
+  s_f51ac862ee5a91::t_0073f46172a937 48-49
+  s_f51ac862ee5a91::t_2c132b3b0e543e 50
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt
+  s_f51ac862ee5a91::t_0084549aa38b27 15-32
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_f51ac862ee5a91::t_a81d54da47c670 513-514
+  s_f51ac862ee5a91::t_086a6012f867b5 305
+  s_f51ac862ee5a91::t_74d598776b59d6 411-427
+  s_f51ac862ee5a91::t_6c77681e14843b 488-489
+  s_f51ac862ee5a91::t_276f288c40c19d 291-296,301,304,308-318
+  s_f51ac862ee5a91::t_ecaff2fe00ca95 447-448
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7b75c4912e8939da10f61edf38e1abd9a4f7158a",
+  "prompts": {},
+  "sessions": {
+    "s_f51ac862ee5a91": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc333ff29ffeNPjOZLfbvoH5sK",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
