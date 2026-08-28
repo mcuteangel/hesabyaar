@@ -263,6 +263,7 @@ class RepositoryBackupRestoreTest {
           "Ali must be persisted"
         }
       assertEquals("علی رضایی", ali.name)
+      assertEquals("علی رضایی", ali.normalizedName)
       assertEquals("09120000000", ali.phone)
       assertEquals("همکار قدیمی", ali.notes)
       assertEquals(1000L, ali.createdAt)
@@ -270,7 +271,9 @@ class RepositoryBackupRestoreTest {
       // The archived row is still persisted and addressable by id.
       val sara = requireNotNull(database.personDao().getPersonById(2L)) { "Archived person persisted and addressable" }
       assertEquals("سارا", sara.name)
+      assertEquals("سارا", sara.normalizedName)
       assertNull(sara.phone)
+      assertEquals(2000L, sara.createdAt)
       assertTrue(sara.isArchived)
     }
 
@@ -313,7 +316,10 @@ class RepositoryBackupRestoreTest {
       assertEquals("Normalized names dedup to one row", 1, stored.size)
       val kept = requireNotNull(stored.single())
       assertEquals("Local id preserved (backup id ignored on conflict)", 1L, kept.id)
-      assertEquals("Phone updated from the merging backup", "0919", kept.phone)
+      assertEquals("Local name preserved on conflict (backup does not overwrite identity)", "علی", kept.name)
+      assertEquals("Normalized key preserved on conflict", "علی", kept.normalizedName)
+      assertEquals("Local createdAt preserved on conflict", 1000L, kept.createdAt)
+      assertEquals("Local phone kept when already present (backup fills blanks only)", "0912", kept.phone)
     }
 
   private fun backupPayload(

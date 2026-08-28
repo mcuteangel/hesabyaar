@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.domain.utils.LoanEditCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
@@ -627,7 +628,14 @@ private fun EditLoanDialog(
     remember {
       LoanFormState(loan.type, loan.personName, loan.originalAmount, loan.description, loan.date)
     }
-  val initialAmountText = form.amountText
+  // Capture the amount shown when the dialog opened once. Reading form.amountText
+  // here would re-read the live value on every recomposition, so the
+  // "amount unchanged" branch would never trigger and repayment preservation
+  // would be skipped (silent financial-data loss).
+  val initialAmountText =
+    remember(loan.originalAmount) {
+      CurrencyFormatter.fromRial(loan.originalAmount).toString()
+    }
 
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -688,14 +696,14 @@ private fun submitLoanEdit(
       if (amountRial < paidSoFar) {
         showMessage("مبلغ جدید نمی‌تواند کمتر از بازپرداخت‌های ثبت‌شده باشد")
       } else {
-        val newRemaining = amountRial - paidSoFar
+        val r = LoanEditCalculator.recompute(loan, amountRial)
         onUpdate(
           loan.copy(
             personName = form.personName,
             type = form.loanType,
-            originalAmount = amountRial,
-            remainingAmount = newRemaining,
-            isSettled = newRemaining == 0L,
+            originalAmount = r.originalAmount,
+            remainingAmount = r.remainingAmount,
+            isSettled = r.isSettled,
             description = form.description,
             date = form.customDate
           )

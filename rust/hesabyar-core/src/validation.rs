@@ -444,6 +444,20 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_installment_batch(&payload.installments).errors);
     errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     errors.extend(validate_payment_history_batch(&payload.payment_histories).errors);
+    // Person validation: blank name/normalizedName and duplicate normalizedName are
+    // rejected. Mirrors the Kotlin fallback in BackupJsonValidator so both paths agree.
+    let mut seen_person_keys = std::collections::HashSet::new();
+    for (i, p) in payload.persons.iter().enumerate() {
+        if p.name.trim().is_empty() {
+            errors.push(format!("Person[{}] has a blank name", i));
+        }
+        let key = p.normalized_name.trim();
+        if key.is_empty() {
+            errors.push(format!("Person[{}] has a blank normalizedName", i));
+        } else if !seen_person_keys.insert(key.to_string()) {
+            errors.push(format!("Person[{}] has a duplicate normalizedName", i));
+        }
+    }
     // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
     // Zero is a legacy default tolerated in all cases.
     let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
@@ -1835,5 +1849,74 @@ mod tests {
             .errors
             .iter()
             .any(|e| e.contains("non-legacy destination account")));
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_blank_and_duplicate_persons() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1,
+            app_version: "1.0".into(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![],
+            persons: vec![
+                Person {
+                    id: 1,
+                    name: "".into(),
+                    normalized_name: "ali".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 2,
+                    name: "Ali".into(),
+                    normalized_name: "".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 3,
+                    name: "Sara".into(),
+                    normalized_name: "sara".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 4,
+                    name: "Sara2".into(),
+                    normalized_name: "sara".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+            ],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let joined = result.errors.join(" | ");
+        assert!(
+            joined.contains("blank name"),
+            "expected blank name error: {joined}"
+        );
+        assert!(
+            joined.contains("blank normalizedName"),
+            "expected blank normalizedName error: {joined}"
+        );
+        assert!(
+            joined.contains("duplicate normalizedName"),
+            "expected duplicate normalizedName error: {joined}"
+        );
     }
 }

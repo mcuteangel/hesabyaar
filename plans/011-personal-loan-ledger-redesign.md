@@ -161,7 +161,7 @@ Tests covering both outcomes:
 The primary parse path is Rust serde (`BackupJsonParser.kt` prefers
 `RustBridge.parseBackupJsonSync`; `lib.rs parse_backup_json`). Verified:
 every existing list in `BackupPayload`
-(`rust/hesabyar-core/src/models/mod.rs:386-405`) carries
+(`rust/hesabyar-core/src/models/mod.rs:418-434`) carries
 `#[serde(default)]`, no struct uses `deny_unknown_fields`, and the
 hand-written `Default impl` mirrors every field. The `persons` field does not
 exist yet — Phase 1 adds it with `#[serde(default)]`, updates the

@@ -539,12 +539,14 @@ class HesabyarRepository(
     if (key.isEmpty()) return
     val existing = existingByKey[key] ?: personDao.getPersonByNormalizedName(key)
     if (existing != null) {
+      // Merge (do not let the backup overwrite local identity fields): keep the
+      // local name, createdAt and isArchived. Only fill blank phone/notes from
+      // the backup so a local edit is never clobbered by a stale backup value.
       val merged =
         existing.copy(
-          name = display,
           normalizedName = key,
-          phone = person.phone ?: existing.phone,
-          notes = person.notes ?: existing.notes
+          phone = if (existing.phone.isNullOrBlank()) person.phone else existing.phone,
+          notes = if (existing.notes.isNullOrBlank()) person.notes else existing.notes
         )
       personDao.updatePerson(merged)
       existingByKey[key] = merged

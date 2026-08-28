@@ -111,8 +111,10 @@ data class Transaction(
   val amount: Long,
   val description: String,
   val personName: String? = null,
-  // FK to persons (denormalized personName stays the display source, D3).
-  // Nullable: legacy rows and rows whose name predates the persons table.
+  // Nullable reference to persons (NOT an enforced Room FK — the migration
+  // creates a plain INTEGER column). Denormalized personName stays the
+  // display source (D3). Nullable: legacy rows and rows whose name predates
+  // the persons table.
   val personId: Long? = null,
   val date: Long = System.currentTimeMillis(),
   val dueDate: Long? = null,
@@ -135,8 +137,9 @@ const val DEFAULT_ACCOUNT_ID = 1L
 data class Loan(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val personName: String,
-  // FK to persons (denormalized personName stays the display source, D3).
-  // Nullable: legacy rows created before the persons table.
+  // Nullable reference to persons (NOT an enforced Room FK — the migration
+  // creates a plain INTEGER column). Denormalized personName stays the
+  // display source (D3). Nullable: legacy rows created before the persons table.
   val personId: Long? = null,
   val type: LoanType,
   // Rial
