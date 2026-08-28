@@ -1,0 +1,21 @@
+AGENTS.md
+  s_f51ac862ee5a91::t_3c7973e81688b4 305,307,311,313,316,318-322
+  s_f51ac862ee5a91::t_93e569478ecfb0 349
+  s_f51ac862ee5a91::t_5bc56ac99881f6 309,315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "20740a6cf2b73988a321181f071ba588f91003ee",
+  "prompts": {},
+  "sessions": {
+    "s_f51ac862ee5a91": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc333ff29ffeNPjOZLfbvoH5sK",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
