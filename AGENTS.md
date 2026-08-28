@@ -302,20 +302,24 @@ Do not summarize test or build success as "passed" without the underlying raw ev
 
 > Reason: this project had many cases where a summary described work (specific test names, specific fixes) that did not exist in the committed code. Treat this as a standing requirement. Do not apply it only when asked.
 
-## Detekt Findings: Fix, Never Suppress
+## Detekt Findings: Fix on Touch, Never Re-Baseline
 
-Resolve all detekt findings with proper refactoring. Do not add `@Suppress` annotations without a justified reason. The goal is a clean codebase, not a silent one.
+The `config/detekt/detekt-baseline.xml` is a frozen snapshot of pre-existing findings in files that are NOT being changed. It keeps the build and CI green for legacy code. It is NOT a place to hide new work.
 
-### New Detekt Findings Must Be Split or Refactored, Never Baselined
+The only `@Suppress` annotations permitted anywhere are the two documented exceptions under Allowed Suppressions below. Anything outside those two is forbidden.
 
-A new detekt finding (one not present before your change) must be resolved by splitting and refactoring the code. Do not:
+### Rule: editing a file obligates fixing its findings
 
-- Add a `@Suppress`.
-- Add it to `config/detekt/detekt-baseline.xml`.
+When you modify a file, every detekt finding in that file — even one that was previously baselined — must be fixed by splitting and refactoring. Do not:
 
-The baseline is a frozen snapshot of pre-existing findings only. It is not a channel for new findings. The only carve-outs for suppressing are the documented `@Suppress` exceptions under Allowed Suppressions below.
+- Add a `@Suppress` (except the two documented exceptions).
+- Re-add or keep the finding's entry in `detekt-baseline.xml`.
 
-If your change makes a class or function cross a threshold (for example, detekt `LargeClass` on a test class), split it into a new, smaller class or file. Do not re-baseline it, even if a similar class was baselined before.
+Mechanism: a baseline entry is keyed by signature. When your edit changes the class or function signature, the old entry stops matching and the finding surfaces. At that point you must fix it in the same change. Even if the signature is unchanged and the entry still matches, you still must fix the finding before you leave the file — and you must remove the entry from the baseline so it is no longer hidden.
+
+Pre-existing findings in files you do NOT touch may stay baselined. You must never grow the baseline: never add a new entry for code you introduce or modify.
+
+If your change makes a class or function cross a threshold (for example, detekt `LargeClass` on a test class), split it into a new, smaller class or file, remove the old baseline entry for that class, and fix the findings.
 
 
 ### Allowed Suppressions (with a justification)
@@ -342,7 +346,7 @@ If your change makes a class or function cross a threshold (for example, detekt 
 4. Complex methods — decompose the conditional logic into small, well-named functions.
 5. Cognitive complexity — restructure the control flow. Prefer early returns over deep nesting.
 
-If a detekt rule does not apply to a specific file (for example, test files with naturally long functions), add the suppression with a comment that explains why.
+If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. There is no other carve-out.
 
 ## Code Intelligence: Serena
 
