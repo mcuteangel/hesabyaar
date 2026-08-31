@@ -163,10 +163,10 @@ The primary parse path is Rust serde (`BackupJsonParser.kt` prefers
 every existing list in `BackupPayload`
 (`rust/hesabyar-core/src/models/mod.rs:418-434`) carries
 `#[serde(default)]`, no struct uses `deny_unknown_fields`, and the
-hand-written `Default impl` mirrors every field. The `persons` field does not
-exist yet — Phase 1 adds it with `#[serde(default)]`, updates the
-`Default` impl in the same change, and keeps the Kotlin fallback parser in
-lockstep. Consequences:
+hand-written `Default impl` mirrors every field. Phase 1 already added the
+`persons` field with `#[serde(default)]` and updated the `Default` impl; the
+Kotlin fallback parser (`BackupJsonParser.parsePersons`,
+`domain/usecase/PersonBackupValidator`) was kept in lockstep. Consequences:
 
 - Old backup → new app: safe once `persons` has `#[serde(default)]` and new
   Loan fields have `#[serde(default, alias = ...)]`.

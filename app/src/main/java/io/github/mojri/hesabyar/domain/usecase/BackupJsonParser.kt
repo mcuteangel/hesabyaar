@@ -229,11 +229,15 @@ class BackupJsonParser(
         // unique key and be silently dropped. Mirrors the runtime invariant
         // (HesabyarRepository.upsertPerson requires a non-empty key); rows
         // whose name also normalizes to empty are skipped (defense in depth).
-        val rawNormalized = o.optString("normalizedName", "")
         val rawName = o.optString("name", "")
-        val key =
-          rawNormalized.takeIf { it.isNotBlank() }
-            ?: PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(rawName))
+        // Always derive the dedup key from the canonical name form. Never trust a
+        // supplied normalizedName: a mismatched value (name="Ali",
+        // normalizedName="reza") would bind Ali's records to Reza's identity and
+        // survive the round-trip because the restore path also derives the key
+        // from name. The persons table UNIQUE index on normalizedName plus
+        // PersonDao.IGNORE silently drops an empty key, so skip unnormalizable names.
+        val display = PersonNameNormalizer.displayForm(rawName)
+        val key = PersonNameNormalizer.normalize(display)
         if (key.isEmpty()) {
           Log.w(TAG, "parsePersons: skipping unnormalizable person id=${o.optLong("id", 0L)}")
           return@mapNotNull null

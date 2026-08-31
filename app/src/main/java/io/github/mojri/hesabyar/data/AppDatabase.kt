@@ -293,7 +293,7 @@ abstract class AppDatabase : RoomDatabase() {
           // backfill (or a key we just inserted via personIdFor). A second
           // pass then issues a single batched UPDATE per distinct personId
           // instead of one UPDATE per row.
-          val updatesByPersonId = HashMap<Long, LongArray>()
+          val updatesByPersonId = HashMap<Long, MutableList<Long>>()
           db
             .query("SELECT id, personName FROM transactions WHERE personName IS NOT NULL")
             .use { cursor ->
@@ -301,20 +301,26 @@ abstract class AppDatabase : RoomDatabase() {
                 val txId = cursor.getLong(0)
                 val personId = personIdFor(db, cursor.getString(1), idByNormalized)
                 if (personId == -1L) continue
-                updatesByPersonId[personId] =
-                  (updatesByPersonId[personId] ?: longArrayOf()) + txId
+                updatesByPersonId.getOrPut(personId) { mutableListOf() }.add(txId)
               }
             }
           if (updatesByPersonId.isEmpty()) return
+          // Chunk per person: SQLite's SQLITE_MAX_VARIABLE_NUMBER is 999 on
+          // pre-API-26 (32766 on API 26+). A person with >998 transactions would
+          // overflow the bound-variable limit and abort the migration for that
+          // user. The +1 reserve is for the personId bind.
+          val chunkSize = 900
           for ((personId, txIds) in updatesByPersonId) {
-            val placeholders = txIds.joinToString(",") { "?" }
-            val stmt =
-              db.compileStatement(
-                "UPDATE transactions SET personId = ? WHERE id IN ($placeholders)"
-              )
-            stmt.bindLong(1, personId)
-            for ((i, id) in txIds.withIndex()) stmt.bindLong(i + 2, id)
-            stmt.executeUpdateDelete()
+            txIds.chunked(chunkSize).forEach { batch ->
+              val placeholders = batch.joinToString(",") { "?" }
+              val stmt =
+                db.compileStatement(
+                  "UPDATE transactions SET personId = ? WHERE id IN ($placeholders)"
+                )
+              stmt.bindLong(1, personId)
+              batch.forEachIndexed { i, id -> stmt.bindLong(i + 2, id) }
+              stmt.executeUpdateDelete()
+            }
           }
         }
       }

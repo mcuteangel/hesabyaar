@@ -104,6 +104,7 @@
     <string name="backup_validation_person_name_blank">نام شخص #%1$d خالی است</string>
     <string name="backup_validation_person_normalized_blank">نام یکتای شخص #%1$d خالی است</string>
     <string name="backup_validation_person_duplicate">نام یکتای شخص #%1$d تکراری است</string>
+    <string name="backup_validation_person_duplicate_id">شناسه شخص %1$s تکراری است</string>
 
     <!-- BackupReferenceValidator (cross-reference validation errors) -->
     <string name="backup_error_duplicate_account_id">حساب تکراری با شناسه %1$s</string>

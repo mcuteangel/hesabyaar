@@ -413,6 +413,47 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     errors
 }
 
+/// Mirrors the Kotlin `PersonNameNormalizer` (app/…/domain/utils/PersonNameNormalizer.kt)
+/// for validation purposes only.
+///
+/// The stored dedup key is produced by the Kotlin util, which ADR-001 lists as a
+/// permanent Kotlin fallback. This function exists so the Rust validation path
+/// judges a payload by the same key the restore path will derive from `name`,
+/// instead of trusting the backup-supplied `normalized_name`. A tampered pair
+/// such as `name = "Ali", normalized_name = "reza"` would otherwise either bind
+/// Ali's records to Reza's identity or trip a false duplicate error.
+///
+/// Used only to reject or accept a payload. It never writes a key, so any drift
+/// from the Kotlin util costs a wrong accept/reject, never data corruption.
+fn normalize_person_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut pending_space = false;
+    for raw in name.chars() {
+        // Fold Arabic variants to their Persian counterparts.
+        let folded = match raw {
+            '\u{064A}' => '\u{06CC}', // Arabic yeh -> Persian yeh
+            '\u{0643}' => '\u{06A9}', // Arabic kaf -> Persian keheh
+            '\u{0629}' => '\u{0647}', // Arabic teh marbuta -> heh
+            other => other,
+        };
+        match folded {
+            // Zero width: ZWSP, ZWNJ, ZWJ, word joiner, BOM.
+            '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' => {}
+            c if c.is_whitespace() => {
+                pending_space = !out.is_empty();
+            }
+            c => {
+                if pending_space && !out.is_empty() {
+                    out.push(' ');
+                }
+                pending_space = false;
+                out.extend(c.to_lowercase());
+            }
+        }
+    }
+    out
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
@@ -444,19 +485,39 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_installment_batch(&payload.installments).errors);
     errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     errors.extend(validate_payment_history_batch(&payload.payment_histories).errors);
-    // Person validation: blank name/normalizedName and duplicate normalizedName are
-    // rejected. Mirrors the Kotlin fallback in BackupJsonValidator so both paths agree.
+    // Person validation: blank name, blank derived key, duplicate derived key and
+    // duplicate source ID are rejected. Mirrors the Kotlin fallback in
+    // BackupJsonValidator so both paths agree. The key is derived from `name` and
+    // never read from the backup-supplied `normalized_name`.
     let mut seen_person_keys = std::collections::HashSet::new();
     for (i, p) in payload.persons.iter().enumerate() {
         if p.name.trim().is_empty() {
             errors.push(format!("Person[{}] has a blank name", i));
         }
-        let key = p.normalized_name.trim();
+        let key = normalize_person_name(&p.name);
         if key.is_empty() {
             errors.push(format!("Person[{}] has a blank normalizedName", i));
-        } else if !seen_person_keys.insert(key.to_string()) {
+        } else if !seen_person_keys.insert(key) {
             errors.push(format!("Person[{}] has a duplicate normalizedName", i));
         }
+    }
+    // Duplicate source IDs: the restore path maps source IDs to local rows with
+    // `associate`, so a later entry silently overwrites the earlier mapping and
+    // loans/transactions referencing that ID resolve to the wrong person.
+    let mut person_id_counts: std::collections::HashMap<i64, usize> =
+        std::collections::HashMap::new();
+    for p in payload.persons.iter() {
+        *person_id_counts.entry(p.id).or_insert(0) += 1;
+    }
+    let mut duplicate_person_ids: Vec<i64> = person_id_counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(id, _)| id)
+        .collect();
+    // Sort so the reported errors are deterministic across runs.
+    duplicate_person_ids.sort_unstable();
+    for id in duplicate_person_ids {
+        errors.push(format!("Person has a duplicate id {}", id));
     }
     // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
     // Zero is a legacy default tolerated in all cases.
@@ -1894,8 +1955,10 @@ mod tests {
                 },
                 Person {
                     id: 4,
-                    name: "Sara2".into(),
-                    normalized_name: "sara".into(),
+                    // Differs from "Sara" only by case: both names normalize to
+                    // "sara", so the duplicate must be caught from the derived key.
+                    name: "SARA".into(),
+                    normalized_name: "sara2".into(),
                     phone: None,
                     notes: None,
                     created_at: 0,
@@ -1918,5 +1981,110 @@ mod tests {
             joined.contains("duplicate normalizedName"),
             "expected duplicate normalizedName error: {joined}"
         );
+    }
+
+    #[test]
+    fn test_validate_backup_derives_person_key_from_name_not_supplied_field() {
+        // A tampered normalizedName must not decide identity. Both entries carry
+        // the same supplied key, but their names are distinct people, so the
+        // payload is valid. The restore path re-derives the key from the name.
+        let payload = BackupPayload {
+            persons: vec![
+                Person {
+                    id: 1,
+                    name: "Ali".into(),
+                    normalized_name: "reza".into(),
+                    ..person_default()
+                },
+                Person {
+                    id: 2,
+                    name: "Reza".into(),
+                    normalized_name: "reza".into(),
+                    ..person_default()
+                },
+            ],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "names are distinct so the payload must pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_duplicate_person_ids() {
+        let payload = BackupPayload {
+            persons: vec![
+                Person {
+                    id: 7,
+                    name: "Ali".into(),
+                    normalized_name: "ali".into(),
+                    ..person_default()
+                },
+                Person {
+                    id: 7,
+                    name: "Sara".into(),
+                    normalized_name: "sara".into(),
+                    ..person_default()
+                },
+            ],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result.errors.iter().any(|e| e.contains("duplicate id 7")),
+            "expected duplicate id error: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_normalize_person_name_matches_kotlin_contract() {
+        // Parity with PersonNameNormalizer.kt: trim, collapse whitespace, strip
+        // zero-width, fold Arabic variants to Persian, lowercase.
+        assert_eq!(normalize_person_name("  Ali  "), "ali");
+        assert_eq!(normalize_person_name("Ali   Reza"), "ali reza");
+        assert_eq!(normalize_person_name("علی\u{200B}رضا"), "علیرضا");
+        assert_eq!(normalize_person_name("يک"), "یک");
+        assert_eq!(normalize_person_name("ة"), "ه");
+        assert_eq!(normalize_person_name("\u{200C}\u{200B}"), "");
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_zero_width_only_person_name() {
+        let payload = BackupPayload {
+            persons: vec![Person {
+                id: 1,
+                name: "\u{200C}".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("blank normalizedName")),
+            "a zero-width-only name must normalize to empty: {:?}",
+            result.errors
+        );
+    }
+
+    fn person_default() -> Person {
+        Person {
+            id: 0,
+            name: "".into(),
+            normalized_name: "".into(),
+            phone: None,
+            notes: None,
+            created_at: 0,
+            is_archived: false,
+        }
     }
 }

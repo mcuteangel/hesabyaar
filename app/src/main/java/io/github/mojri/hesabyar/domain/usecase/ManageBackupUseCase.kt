@@ -109,63 +109,70 @@ class ManageBackupUseCase(
         getEncryptionSalt(rootJson)
           ?: throw IllegalArgumentException("Backup does not contain encryption metadata")
       val key = BackupCipher.deriveKey(passphrase, salt, getEncryptionIterations(rootJson))
-      val accountsArray = rootJson.optJSONArray("accounts") ?: return@withContext backup
-
-      // Index raw JSON accounts by stable account id. A raw entry that is not an
-      // object, lacks an id, or duplicates another id would make id-based matching
-      // ambiguous — reject instead of guessing.
-      val encryptedById = HashMap<Long, JSONObject>(accountsArray.length() * 2)
-      for (i in 0 until accountsArray.length()) {
-        val o =
-          accountsArray.optJSONObject(i)
-            ?: throw IllegalStateException(
-              "Account entry #$i in encrypted backup is not a JSON object"
-            )
-        if (!o.has("id")) {
-          throw IllegalStateException("Account entry #$i in encrypted backup has no id field")
-        }
-        val id = o.optLong("id", -1L)
-        if (id <= 0L) {
-          throw IllegalStateException(
-            "Account entry #$i in encrypted backup has invalid id: $id"
-          )
-        }
-        if (encryptedById.containsKey(id)) {
-          throw IllegalStateException("Duplicate account id $id in encrypted backup")
-        }
-        encryptedById[id] = o
-      }
+      val accountsArray = rootJson.optJSONArray("accounts")
 
       // Each parsed account must have exactly one raw counterpart to decrypt.
       // A missing counterpart means the parsed payload and raw JSON diverged —
       // failing beats silently preserving the wrong account's ciphertext.
+      // When the accounts array is absent (e.g. an encrypted backup that carries
+      // only persons), decryption is skipped for accounts but must still run for
+      // persons below, so do not return early here.
       val decryptedAccounts =
-        backup.accounts.map { account ->
-          val raw =
-            encryptedById[account.id]
-              ?: throw IllegalStateException(
-                "Parsed account ${account.id} has no counterpart in encrypted backup"
+        if (accountsArray == null) {
+          backup.accounts
+        } else {
+          // Index raw JSON accounts by stable account id. A raw entry that is not an
+          // object, lacks an id, or duplicates another id would make id-based matching
+          // ambiguous — reject instead of guessing.
+          val encryptedById = HashMap<Long, JSONObject>(accountsArray.length() * 2)
+          for (i in 0 until accountsArray.length()) {
+            val o =
+              accountsArray.optJSONObject(i)
+                ?: throw IllegalStateException(
+                  "Account entry #$i in encrypted backup is not a JSON object"
+                )
+            if (!o.has("id")) {
+              throw IllegalStateException("Account entry #$i in encrypted backup has no id field")
+            }
+            val id = o.optLong("id", -1L)
+            if (id <= 0L) {
+              throw IllegalStateException(
+                "Account entry #$i in encrypted backup has invalid id: $id"
               )
-          account.copy(
-            cardNumber =
-              BackupCipher.decryptOrNull(
-                raw.opt("cardNumber"),
-                key,
-                BackupCipher.accountFieldAad(account.id, "cardNumber")
-              ),
-            accountNumber =
-              BackupCipher.decryptOrNull(
-                raw.opt("accountNumber"),
-                key,
-                BackupCipher.accountFieldAad(account.id, "accountNumber")
-              ),
-            iban =
-              BackupCipher.decryptOrNull(
-                raw.opt("iban"),
-                key,
-                BackupCipher.accountFieldAad(account.id, "iban")
-              )
-          )
+            }
+            if (encryptedById.containsKey(id)) {
+              throw IllegalStateException("Duplicate account id $id in encrypted backup")
+            }
+            encryptedById[id] = o
+          }
+
+          backup.accounts.map { account ->
+            val raw =
+              encryptedById[account.id]
+                ?: throw IllegalStateException(
+                  "Parsed account ${account.id} has no counterpart in encrypted backup"
+                )
+            account.copy(
+              cardNumber =
+                BackupCipher.decryptOrNull(
+                  raw.opt("cardNumber"),
+                  key,
+                  BackupCipher.accountFieldAad(account.id, "cardNumber")
+                ),
+              accountNumber =
+                BackupCipher.decryptOrNull(
+                  raw.opt("accountNumber"),
+                  key,
+                  BackupCipher.accountFieldAad(account.id, "accountNumber")
+                ),
+              iban =
+                BackupCipher.decryptOrNull(
+                  raw.opt("iban"),
+                  key,
+                  BackupCipher.accountFieldAad(account.id, "iban")
+                )
+            )
+          }
         }
       // Decrypt person PII (phone/notes) — same passphrase-derived key, per-person AAD.
       val personsArray = rootJson.optJSONArray("persons")
@@ -185,26 +192,25 @@ class ManageBackupUseCase(
             encryptedPersonsById[id] = o
           }
           backup.persons.map { person ->
-            val raw = encryptedPersonsById[person.id]
-            if (raw == null) {
-              // No encrypted counterpart — fall back to parsed value (legacy/plaintext backup).
-              person
-            } else {
-              person.copy(
-                phone =
-                  BackupCipher.decryptOrNull(
-                    raw.opt("phone"),
-                    key,
-                    BackupCipher.personFieldAad(person.id, "phone")
-                  ) ?: person.phone,
-                notes =
-                  BackupCipher.decryptOrNull(
-                    raw.opt("notes"),
-                    key,
-                    BackupCipher.personFieldAad(person.id, "notes")
-                  ) ?: person.notes
-              )
-            }
+            val raw =
+              encryptedPersonsById[person.id]
+                ?: throw IllegalStateException(
+                  "Parsed person ${person.id} has no counterpart in encrypted backup"
+                )
+            person.copy(
+              phone =
+                BackupCipher.decryptOrNull(
+                  raw.opt("phone"),
+                  key,
+                  BackupCipher.personFieldAad(person.id, "phone")
+                ) ?: person.phone,
+              notes =
+                BackupCipher.decryptOrNull(
+                  raw.opt("notes"),
+                  key,
+                  BackupCipher.personFieldAad(person.id, "notes")
+                ) ?: person.notes
+            )
           }
         }
       backup.copy(accounts = decryptedAccounts, persons = decryptedPersons)

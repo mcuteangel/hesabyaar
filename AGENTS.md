@@ -346,7 +346,7 @@ If your change makes a class or function cross a threshold (for example, detekt 
 4. Complex methods — decompose the conditional logic into small, well-named functions.
 5. Cognitive complexity — restructure the control flow. Prefer early returns over deep nesting.
 
-If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. There is no other carve-out.
+If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. Other suppressions are forbidden except the documented `@Suppress("TooGenericExceptionCaught")` cases (Rust FFI rethrow and org.json malformed-JSON access).
 
 ## Code Intelligence: Serena
 

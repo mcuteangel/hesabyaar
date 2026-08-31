@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import io.github.mojri.hesabyar.ui.AccountAnalytics
 import io.github.mojri.hesabyar.ui.AccountDashboardSummary
 import java.math.RoundingMode
@@ -378,16 +379,19 @@ object RustMappers {
   fun fromRustAccounts(list: List<io.github.mojri.hesabyar.rust.Account>): List<AccountEntity> =
     list.map { fromRustAccount(it) }
 
-  fun fromRustPerson(rust: io.github.mojri.hesabyar.rust.Person): Person =
-    Person(
+  fun fromRustPerson(rust: io.github.mojri.hesabyar.rust.Person): Person {
+    val display = PersonNameNormalizer.displayForm(rust.name)
+    val normalizedName = PersonNameNormalizer.normalize(display)
+    return Person(
       id = rust.id,
       name = rust.name,
-      normalizedName = rust.normalizedName,
+      normalizedName = normalizedName,
       phone = rust.phone,
       notes = rust.notes,
       createdAt = if (rust.createdAt != 0L) rust.createdAt else System.currentTimeMillis(),
       isArchived = rust.isArchived
     )
+  }
 
   fun fromRustPersons(list: List<io.github.mojri.hesabyar.rust.Person>): List<Person> = list.map { fromRustPerson(it) }
 
