@@ -129,12 +129,13 @@ not a side effect of function call order. Rationale:
   to a person, a Transaction may not be). Running loans first guarantees a loan's
   `displayForm(personName)` becomes the canonical `Person.name` for any shared
   normalized key.
-- A transaction whose `personName` has **no matching loan** is **not** silently
-  dropped: option (a) was implemented — `stampPersonIdsOnTransactions` falls back
-  to `personIdFor(...)` (insert-or-reuse) when the normalized key is missing,
-  seeding a brand-new `Person` row for transaction-only names. (The prior design
-  did a read-only lookup and left such rows `personId NULL` — discovered and fixed;
-  see "Logic gap found" in the Phase 1 evidence record.)
+- A transaction whose `personName` has **no matching loan** keeps `personId NULL`:
+  `stampPersonIdsOnTransactions` is **lookup-only** — it resolves `personId` only
+  when the normalized key already exists in `idByNormalized` (populated from
+  loans) and never calls the insert-capable `personIdFor`. Loans are the identity
+  source, so transaction-only names must not spawn phantom `persons` rows that
+  surface in the person ledger. This is the behavior the migration's own contract
+  documents and the PR review required (thread db-id 3871531314).
 
 **Display-name tiebreak policy:** when a loan and a transaction share a normalized
 key but the transaction's variant is dated earlier, the **loan's** `displayForm`
@@ -150,10 +151,10 @@ ordering is explicit and cheaper.
 
 Tests covering both outcomes:
 - `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions` (updated: tx3
-  "نام بی‌وام" now creates its own person instead of staying NULL; persons count
-  2→3).
-- `migration7to8TransactionOnlyPersonNameCreatesPersonRow` (transaction-only name
-  seeds a row + gets stamped).
+  "نام بی‌وام" has no matching loan, so it keeps `personId NULL` and no person is
+  seeded; persons count is 2, not 3).
+- `migration7to8TransactionOnlyPersonNameStaysNull` (transaction-only name does
+  NOT seed a person row; its `personId` stays NULL).
 - `migration7to8DisplayNameTiebreakLoansFirstThenTransactions` (loan wins date tie).
 
 ### D5 — Backup compatibility (verified, not assumed)
@@ -212,12 +213,13 @@ The migration backfill order is intentional and permanent:
 
 1. Loans are processed first; distinct normalized `loans.personName` rows
    become the source of truth for `persons` identity.
-2. Transactions are processed second. When a transaction's normalized
-   name matches no loan-backed person key, the migration inserts a new
-   `Person` row (option (a)) and stamps `Transaction.personId` with the
-   new id. This is documented as "transaction-only names seed a Person
-   row" in the MIGRATION_7_8 KDoc and the migration test
-   `migration7to8TransactionOnlyPersonNameCreatesPersonRow`.
+2. Transactions are processed second. `stampPersonIdsOnTransactions` is
+   **lookup-only**: when a transaction's normalized name matches no
+   loan-backed person key, it keeps `personId NULL` and does NOT insert a
+   new `Person` row (loans are the identity source; transaction-only names
+   must not spawn phantom persons). This is asserted by
+   `migration7to8TransactionOnlyPersonNameStaysNull` and by the tx3 case in
+   `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions`.
 3. Display-name tiebreak on a normalized-key collision goes to whichever
    row is processed first — i.e. the loan. The transaction's earlier
    `date` does **not** win, because the MIGRATION contract anchors

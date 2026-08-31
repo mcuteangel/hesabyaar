@@ -165,8 +165,14 @@ class PersonRepositoryTest {
       val repo = createRepository()
       val person = repo.upsertPerson(person("علی"))
 
-      assertFalse(repo.renamePerson(person.id, "   "))
-      assertFalse(repo.renamePerson(999L, "معتبر"))
+      try {
+        repo.renamePerson(person.id, "   ")
+        fail("expected IllegalArgumentException for blank rename name")
+      } catch (e: IllegalArgumentException) {
+        val msg = e.message ?: ""
+        assertTrue(msg.contains("normalizes to empty") || msg.contains("Person name is blank"))
+      }
+      assertFalse("unknown id must be refused", repo.renamePerson(999L, "معتبر"))
     }
 
   @Test

@@ -423,6 +423,13 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 /// such as `name = "Ali", normalized_name = "reza"` would otherwise either bind
 /// Ali's records to Reza's identity or trip a false duplicate error.
 ///
+/// It must EXACTLY mirror `PersonNameNormalizer.normalize` (Kotlin):
+/// - whitespace uses Java `Character.isWhitespace` (see `is_java_whitespace`),
+///   which EXCLUDES NBSP/NNBSP/NARROW-NBSP — Rust's `char::is_whitespace`
+///   (Unicode White_Space) would fold NBSP to a space and diverge from Kotlin;
+/// - case folding uses simple single-codepoint mapping (Kotlin
+///   `Char.lowercaseChar`): if the lowercase expands to more than one code
+///   point the original char is kept unchanged.
 /// Used only to reject or accept a payload. It never writes a key, so any drift
 /// from the Kotlin util costs a wrong accept/reject, never data corruption.
 fn normalize_person_name(name: &str) -> String {
@@ -439,7 +446,7 @@ fn normalize_person_name(name: &str) -> String {
         match folded {
             // Zero width: ZWSP, ZWNJ, ZWJ, word joiner, BOM.
             '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' => {}
-            c if c.is_whitespace() => {
+            c if is_java_whitespace(c) => {
                 pending_space = !out.is_empty();
             }
             c => {
@@ -447,11 +454,33 @@ fn normalize_person_name(name: &str) -> String {
                     out.push(' ');
                 }
                 pending_space = false;
-                out.extend(c.to_lowercase());
+                // Simple (single-codepoint) case fold to mirror Kotlin
+                // lowercaseChar(): if the lowercase expands to more than one code
+                // point, keep the original char unchanged.
+                let lowered: String = c.to_lowercase().collect();
+                if lowered.chars().count() == 1 {
+                    out.push(lowered.chars().next().unwrap());
+                } else {
+                    out.push(c);
+                }
             }
         }
     }
     out
+}
+
+/// Mirrors Java `Character.isWhitespace` (which Kotlin `Char.isWhitespace`
+/// delegates to): ASCII control whitespace plus Unicode space separators,
+/// EXCLUDING the non-breaking space variants that Java deliberately omits
+/// (NBSP `U+00A0`, NNBSP `U+2007`, NARROW NBSP `U+202F`). Rust's
+/// `char::is_whitespace` (Unicode White_Space) would otherwise treat NBSP as a
+/// space and diverge from the Kotlin normalizer.
+fn is_java_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}' | '\u{000A}' | '\u{000B}' | '\u{000C}' | '\u{000D}'
+            | '\u{001C}' | '\u{001D}' | '\u{001E}' | '\u{001F}'
+    ) || (c.is_whitespace() && c != '\u{00A0}' && c != '\u{2007}' && c != '\u{202F}')
 }
 
 /// Validate an entire backup payload. Collects all errors from all entities.
@@ -2051,6 +2080,33 @@ mod tests {
         assert_eq!(normalize_person_name("يک"), "یک");
         assert_eq!(normalize_person_name("ة"), "ه");
         assert_eq!(normalize_person_name("\u{200C}\u{200B}"), "");
+
+        // NBSP parity: Java `Character.isWhitespace` EXCLUDES NBSP (`U+00A0`),
+        // NNBSP (`U+2007`) and NARROW NBSP (`U+202F`). The Kotlin normalizer
+        // therefore treats NBSP as a literal character, never as a space to
+        // trim or collapse. Rust `char::is_whitespace` would wrongly fold it,
+        // so `is_java_whitespace` must keep this divergence.
+        // NBSP is preserved verbatim (not collapsed to a normal space).
+        assert_eq!(normalize_person_name("محمد\u{00A0}رضا"), "محمد\u{00A0}رضا");
+        // A normal ASCII space path collapses to a single space — proving NBSP
+        // does NOT take the whitespace branch.
+        assert_eq!(normalize_person_name("محمد رضا"), "محمد رضا");
+        // NBSP at the edges is NOT trimmed (it is not whitespace).
+        assert_eq!(normalize_person_name("\u{00A0}ali"), "\u{00A0}ali");
+        assert_eq!(normalize_person_name("ali\u{00A0}"), "ali\u{00A0}");
+        // NNBSP and NARROW NBSP are likewise preserved, not folded.
+        assert_eq!(normalize_person_name("a\u{2007}b"), "a\u{2007}b");
+        assert_eq!(normalize_person_name("a\u{202F}b"), "a\u{202F}b");
+
+        // Case-fold parity: Kotlin `Char.lowercaseChar()` uses the SIMPLE
+        // single-codepoint case mapping. Characters whose lowercase expands to
+        // more than one code point (e.g. `İ` U+0130) are left UNCHANGED. Rust
+        // `to_lowercase` produces a multi-codepoint string for `İ`, so our
+        // `count() == 1` guard must keep the original char.
+        assert_eq!(normalize_person_name("İ"), "İ");
+        assert_eq!(normalize_person_name("İstanbul"), "İstanbul");
+        // Latin simple fold still works for single-codepoint mappings.
+        assert_eq!(normalize_person_name("ALI"), "ali");
     }
 
     #[test]

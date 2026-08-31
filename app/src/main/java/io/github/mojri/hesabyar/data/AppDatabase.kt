@@ -205,12 +205,14 @@ abstract class AppDatabase : RoomDatabase() {
      * distinct loans.personName and stamps personId on both tables where
      * names normalize to the same key.
      *
-     * The order is intentional: loans are processed first, then
-     * transactions fall back to inserting a new Person row when their
-     * normalized name has no loan counterpart (option (a) per plans/011
-     * §D4 addendum, "resolved during Phase 1"). Display-name tiebreak
-     * on a normalized-key collision goes to the loan that was processed
-     * first. See plans/011 for the rationale.
+     * The order is intentional: loans are processed first (the identity
+     * source), then transactions are resolved lookup-only — a transaction
+     * is stamped only when its normalized name already maps to a loan-backed
+     * person; transaction-only names keep personId NULL and never spawn a
+     * phantom Person row (see stampPersonIdsOnTransactions and plans/011
+     * §D4 addendum). Display-name tiebreak on a normalized-key collision
+     * goes to the loan that was processed first. See plans/011 for the
+     * rationale.
      */
     internal val MIGRATION_7_8 =
       object : Migration(7, 8) {
@@ -238,28 +240,28 @@ abstract class AppDatabase : RoomDatabase() {
           idByNormalized: MutableMap<String, Long>
         ): Long {
           val display = PersonNameNormalizer.displayForm(rawName)
+          val key = PersonNameNormalizer.normalize(display)
           var result = -1L
-          if (display.isNotEmpty()) {
-            val key = PersonNameNormalizer.normalize(display)
-            if (key.isNotEmpty()) {
-              val existing = idByNormalized[key]
-              result =
-                if (existing != null) {
-                  existing
-                } else {
-                  val statement =
-                    db.compileStatement(
-                      "INSERT INTO persons (name, normalizedName, phone, notes, createdAt, isArchived) " +
-                        "VALUES (?, ?, NULL, NULL, ?, 0)"
-                    )
-                  statement.bindString(1, display)
-                  statement.bindString(2, key)
-                  statement.bindLong(3, System.currentTimeMillis())
-                  val id = statement.executeInsert()
-                  if (id != -1L) idByNormalized[key] = id
-                  id
-                }
-            }
+          if (display.isNotEmpty() && key.isNotEmpty()) {
+            val existing = idByNormalized[key]
+            result =
+              if (existing != null) {
+                existing
+              } else {
+                val sql =
+                  "INSERT INTO persons (name, normalizedName, phone, notes, createdAt, isArchived) " +
+                    "VALUES (?, ?, NULL, NULL, ?, 0)"
+                val statement = db.compileStatement(sql)
+                val id =
+                  statement.use { s ->
+                    s.bindString(1, display)
+                    s.bindString(2, key)
+                    s.bindLong(3, System.currentTimeMillis())
+                    s.executeInsert()
+                  }
+                if (id != -1L) idByNormalized[key] = id
+                id
+              }
           }
           return result
         }
@@ -268,40 +270,45 @@ abstract class AppDatabase : RoomDatabase() {
           db: SupportSQLiteDatabase,
           idByNormalized: MutableMap<String, Long>
         ) {
-          val update =
-            db.compileStatement("UPDATE loans SET personId = ? WHERE id = ?")
-          db
-            .query("SELECT id, personName FROM loans WHERE personName IS NOT NULL ORDER BY date ASC, id ASC")
-            .use { cursor ->
-              while (cursor.moveToNext()) {
-                val loanId = cursor.getLong(0)
-                val personId = personIdFor(db, cursor.getString(1), idByNormalized)
-                if (personId == -1L) continue
-                update.bindLong(1, personId)
-                update.bindLong(2, loanId)
-                update.executeUpdateDelete()
+          db.compileStatement("UPDATE loans SET personId = ? WHERE id = ?").use { update ->
+            db
+              .query("SELECT id, personName FROM loans WHERE personName IS NOT NULL ORDER BY date ASC, id ASC")
+              .use { cursor ->
+                while (cursor.moveToNext()) {
+                  val loanId = cursor.getLong(0)
+                  val personId = personIdFor(db, cursor.getString(1), idByNormalized)
+                  if (personId == -1L) continue
+                  update.bindLong(1, personId)
+                  update.bindLong(2, loanId)
+                  update.executeUpdateDelete()
+                }
               }
-            }
+          }
         }
 
         private fun stampPersonIdsOnTransactions(
           db: SupportSQLiteDatabase,
           idByNormalized: MutableMap<String, Long>
         ) {
-          // Iterate once to build (id, normalizedKey) pairs for transactions
-          // whose name normalizes to a key already known from the loans
-          // backfill (or a key we just inserted via personIdFor). A second
-          // pass then issues a single batched UPDATE per distinct personId
-          // instead of one UPDATE per row.
+          // Resolve each transaction's personId by looking up its normalized
+          // name in the map pre-populated from loans (the identity source per
+          // migration contract D3). Transactions whose name matches no loan
+          // name keep personId NULL: we must NOT call the insert-capable
+          // personIdFor here, or transaction-only names would spawn phantom
+          // persons that pollute the persons table and surface in the person
+          // ledger. A second pass then issues a single batched UPDATE per
+          // distinct personId instead of one UPDATE per row.
           val updatesByPersonId = HashMap<Long, MutableList<Long>>()
           db
             .query("SELECT id, personName FROM transactions WHERE personName IS NOT NULL")
             .use { cursor ->
               while (cursor.moveToNext()) {
-                val txId = cursor.getLong(0)
-                val personId = personIdFor(db, cursor.getString(1), idByNormalized)
+                val rawName = cursor.getString(1)
+                val display = PersonNameNormalizer.displayForm(rawName)
+                val key = if (display.isNotEmpty()) PersonNameNormalizer.normalize(display) else ""
+                val personId = if (key.isNotEmpty()) idByNormalized[key] ?: -1L else -1L
                 if (personId == -1L) continue
-                updatesByPersonId.getOrPut(personId) { mutableListOf() }.add(txId)
+                updatesByPersonId.getOrPut(personId) { mutableListOf() }.add(cursor.getLong(0))
               }
             }
           if (updatesByPersonId.isEmpty()) return
@@ -313,13 +320,11 @@ abstract class AppDatabase : RoomDatabase() {
           for ((personId, txIds) in updatesByPersonId) {
             txIds.chunked(chunkSize).forEach { batch ->
               val placeholders = batch.joinToString(",") { "?" }
-              val stmt =
-                db.compileStatement(
-                  "UPDATE transactions SET personId = ? WHERE id IN ($placeholders)"
-                )
-              stmt.bindLong(1, personId)
-              batch.forEachIndexed { i, id -> stmt.bindLong(i + 2, id) }
-              stmt.executeUpdateDelete()
+              db.compileStatement("UPDATE transactions SET personId = ? WHERE id IN ($placeholders)").use { stmt ->
+                stmt.bindLong(1, personId)
+                batch.forEachIndexed { i, id -> stmt.bindLong(i + 2, id) }
+                stmt.executeUpdateDelete()
+              }
             }
           }
         }

@@ -296,12 +296,14 @@ class HesabyarRepository(
     personId: Long,
     newName: String
   ): Boolean {
+    // Blank/empty names use the same contract as upsertPerson: throw rather
+    // than return false, so callers handle both methods uniformly.
     val display = PersonNameNormalizer.displayForm(newName)
-    if (display.isEmpty()) return false
+    require(display.isNotEmpty()) { "Person name is blank" }
     return database.withTransaction {
       val person = personDao.getPersonById(personId) ?: return@withTransaction false
       val key = PersonNameNormalizer.normalize(display)
-      if (key.isEmpty()) return@withTransaction false
+      require(key.isNotEmpty()) { "Person name normalizes to empty" }
       val clash = personDao.getPersonByNormalizedName(key)
       if (clash != null && clash.id != personId) return@withTransaction false
       personDao.updatePerson(person.copy(name = display, normalizedName = key))
@@ -347,14 +349,18 @@ class HesabyarRepository(
   }
 
   private suspend fun insertPersonsForReplace(persons: List<Person>): PersonKeyMaps {
-    val sourceIdToKey =
-      persons.associate {
-        it.id to
-          PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it.name))
-      }
+    // Build the source-id -> key map ONLY for persons that actually survive
+    // insertion. Persons dropped on a key collision are excluded so their
+    // loans/transactions are left with personId NULL (not mis-attributed to the
+    // surviving person) — see resolvePersonId.
+    val sourceIdToKey = mutableMapOf<Long, String>()
     val keyToLocalId = mutableMapOf<String, Long>()
     for (raw in persons) {
-      insertOnePersonForReplace(raw, keyToLocalId)
+      val survived = insertOnePersonForReplace(raw, keyToLocalId)
+      if (survived) {
+        val key = PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(raw.name))
+        if (key.isNotEmpty()) sourceIdToKey[raw.id] = key
+      }
     }
     return PersonKeyMaps(sourceIdToKey, keyToLocalId)
   }
@@ -362,18 +368,25 @@ class HesabyarRepository(
   private suspend fun insertOnePersonForReplace(
     raw: Person,
     keyToLocalId: MutableMap<String, Long>
-  ) {
+  ): Boolean {
     val display = PersonNameNormalizer.displayForm(raw.name)
     val key = PersonNameNormalizer.normalize(display)
-    if (key.isEmpty() || keyToLocalId.containsKey(key)) return
-    val newId = personDao.insertPerson(raw.copy(name = display, normalizedName = key, id = 0))
     val storedId =
-      if (newId != -1L) {
-        newId
+      if (key.isEmpty() || keyToLocalId.containsKey(key)) {
+        if (key.isNotEmpty() && keyToLocalId.containsKey(key)) {
+          AppLogger.w(
+            "HesabyarRepository",
+            "insertOnePersonForReplace: skipping person '${raw.name}' — normalized key " +
+              "'$key' already exists (collision); its links keep personId NULL"
+          )
+        }
+        -1L
       } else {
-        personDao.getPersonByNormalizedName(key)?.id ?: return
+        val inserted = personDao.insertPerson(raw.copy(name = display, normalizedName = key, id = 0))
+        if (inserted != -1L) inserted else personDao.getPersonByNormalizedName(key)?.id ?: -1L
       }
-    keyToLocalId[key] = storedId
+    if (storedId != -1L) keyToLocalId[key] = storedId
+    return storedId != -1L
   }
 
   private suspend fun insertLoansWithPersonRemap(
@@ -406,16 +419,20 @@ class HesabyarRepository(
     fallbackName: String?,
     maps: PersonKeyMaps
   ): Long? {
-    val fromSource =
-      sourcePersonId
-        ?.let { maps.sourceIdToKey[it] }
-        ?.takeIf { it.isNotEmpty() }
-        ?.let { maps.keyToLocalId[it] }
+    if (sourcePersonId != null) {
+      // Known backup person: remap only if it survived insertion. Persons
+      // dropped on a key collision are intentionally absent from sourceIdToKey,
+      // so their records keep personId NULL instead of being mis-attributed to
+      // the surviving person.
+      val key = maps.sourceIdToKey[sourcePersonId]
+      return key?.takeIf { it.isNotEmpty() }?.let { maps.keyToLocalId[it] }
+    }
+    // Legacy record with no person id: best-effort remap by denormalized name.
     val fallbackKey =
       fallbackName
         ?.let { PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it)) }
         ?.takeIf { it.isNotEmpty() }
-    return fromSource ?: fallbackKey?.let { maps.keyToLocalId[it] }
+    return fallbackKey?.let { maps.keyToLocalId[it] }
   }
 
   /**

@@ -52,7 +52,9 @@ class BackupJsonParser(
             categories = rustResult.categories.map { RustMappers.fromRustCategory(it) },
             bankLoans = rustResult.bankLoans.map { RustMappers.fromRustBankLoan(it) },
             accounts = rustResult.accounts.map { RustMappers.fromRustAccount(it) },
-            persons = rustResult.persons.map { RustMappers.fromRustPerson(it) },
+            // fromRustPerson returns null for names that normalize to empty
+            // (defense in depth, mirroring parsePersons); drop them here.
+            persons = rustResult.persons.mapNotNull { RustMappers.fromRustPerson(it) },
             settings = parseSettings(rootJson)
           )
         } catch (e: IllegalArgumentException) {

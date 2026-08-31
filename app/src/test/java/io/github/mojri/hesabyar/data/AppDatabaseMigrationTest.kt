@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -502,9 +503,8 @@ class AppDatabaseMigrationTest {
    *   first-by-date original 'علی' becomes the display name.
    * - loan3 ' علی رضا ' (date=50) trims/collapses to key 'علی رضا'.
    * - tx1/tx2 stamp onto the shared 'علی' person; tx3 has a loan-less name and,
-   *   after the transactions-side fallback, seeds its OWN person row and is
-   *   stamped too (loans-first, transactions-after ordering is the documented
-   *   policy — see migration7to8DisplayNameTiebreakLoansFirstThenTransactions).
+   *   per the lookup-only migration contract (loans are the identity source),
+   *   keeps personId NULL and does NOT seed a person row.
    *
    *
    * Opening the DB through Room validates the produced schema against the
@@ -527,11 +527,12 @@ class AppDatabaseMigrationTest {
           .build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
-      assertEquals("Duplicate spellings collapse into distinct persons by key", 3, persons.size)
+      // loan1+loan2 share the 'علی' key; loan3 becomes 'علی رضا'. tx3 is
+      // loan-less, so it does NOT seed a person (loans are the identity source).
+      assertEquals("Duplicate spellings collapse into distinct persons by key", 2, persons.size)
 
       val aliPerson = requireNotNull(persons.firstOrNull { it.name == "علی" })
       val alirezaPerson = requireNotNull(persons.firstOrNull { it.name == "علی رضا" })
-      val tx3Person = requireNotNull(persons.firstOrNull { it.name == "نام بیوام" })
 
       val loans = migratedDb.loanDao().getAllLoansBlocking()
       assertEquals(3, loans.size)
@@ -549,8 +550,10 @@ class AppDatabaseMigrationTest {
       val tx3 = transactions.first { it.description == "t3" }
       assertEquals("tx1 stamped via normalized match", aliPerson.id, tx1.personId)
       assertEquals("tx2 stamped via normalized match", aliPerson.id, tx2.personId)
-      assertNotNull("Transaction-only name now seeds its own Person", tx3Person)
-      assertEquals("tx3 stamped onto its own person row", tx3Person.id, tx3.personId)
+      assertNull(
+        "Transaction-only name keeps personId NULL (loans are the identity source)",
+        tx3.personId
+      )
 
       migratedDb.close()
     } finally {
@@ -564,8 +567,9 @@ class AppDatabaseMigrationTest {
    * Seeds loans and transactions with personName variants before the
    * MIGRATION_7_8 backfill runs. loan1/loan2 ('علی'/'علي') share one
    * normalized key; loan3 trims/collapses to 'علی رضا'; tx1/tx2 match the
-   * shared key; tx3 has a loan-less name and, after the transactions-side
-   * fallback, seeds its own Person row and is stamped (loans-first policy).
+   * shared key; tx3 has a loan-less name and, per the lookup-only contract,
+   * keeps personId NULL and does not seed a Person row (loans are the
+   * identity source).
    */
   private fun seedPersonBackfillData(db: SupportSQLiteDatabase) {
     db.execSQL(
@@ -596,13 +600,13 @@ class AppDatabaseMigrationTest {
 
   /**
    * Decision (plans/011 §D4 addendum): loans run first, transactions after.
-   * A transaction whose personName has no matching loan still seeds a brand-new
-   * Person row (option (a) in the Phase 1 follow-up: transactions-side fallback).
-   * This test isolates that from the shared-key dedup case above by giving tx3
-   * a name no loan carries.
+   * A transaction whose personName has no matching loan keeps personId NULL
+   * (lookup-only `stampPersonIdsOnTransactions` — loans are the identity
+   * source). This test isolates that from the shared-key dedup case above by
+   * giving the solo transaction a name no loan carries.
    */
   @Test
-  fun migration7to8TransactionOnlyPersonNameCreatesPersonRow() {
+  fun migration7to8TransactionOnlyPersonNameStaysNull() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val dbName = "migration_person_tonly_test"
     val dbFile = context.getDatabasePath(dbName)
@@ -623,14 +627,14 @@ class AppDatabaseMigrationTest {
           .build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
-      assertEquals("Transaction-only name seeds its own person row", 1, persons.size)
-      val seeded = persons.single()
-      assertEquals("نام صرفاً تراکنشی", seeded.name)
-      assertEquals("نام صرفاً تراکنشی", seeded.normalizedName)
+      assertEquals("Transaction-only name does NOT seed a person row", 0, persons.size)
 
       val txs = migratedDb.transactionDao().getAllTransactionsBlocking()
       assertEquals(1, txs.size)
-      assertEquals("Transaction stamped with the seeded person id", seeded.id, txs.single().personId)
+      assertNull(
+        "Transaction keeps personId NULL (loans are the identity source)",
+        txs.single().personId
+      )
 
       migratedDb.close()
     } finally {

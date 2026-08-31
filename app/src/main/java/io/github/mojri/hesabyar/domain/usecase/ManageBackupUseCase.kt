@@ -180,12 +180,29 @@ class ManageBackupUseCase(
         if (personsArray == null || personsArray.length() == 0) {
           backup.persons
         } else {
+          // Mirror the account loop: every entry in an encrypted persons array
+          // must be a valid object with a positive id and no duplicates. The
+          // account path fails loudly on exactly these divergences; person
+          // handling must too, instead of silently skipping a malformed entry
+          // and then passing its still-ciphertext phone/notes through as
+          // plaintext (the old `continue` let a tampered entry survive restore
+          // un-decrypted). An encrypted backup must have a 1:1 person match.
           val encryptedPersonsById = HashMap<Long, JSONObject>(personsArray.length() * 2)
           for (i in 0 until personsArray.length()) {
-            val o = personsArray.optJSONObject(i) ?: continue
-            if (!o.has("id")) continue
+            val o =
+              personsArray.optJSONObject(i)
+                ?: throw IllegalStateException(
+                  "Person entry #$i in encrypted backup is not a JSON object"
+                )
+            if (!o.has("id")) {
+              throw IllegalStateException("Person entry #$i in encrypted backup has no id field")
+            }
             val id = o.optLong("id", -1L)
-            if (id <= 0L) continue
+            if (id <= 0L) {
+              throw IllegalStateException(
+                "Person entry #$i in encrypted backup has invalid id: $id"
+              )
+            }
             if (encryptedPersonsById.containsKey(id)) {
               throw IllegalStateException("Duplicate person id $id in encrypted backup")
             }
