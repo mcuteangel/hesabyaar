@@ -478,8 +478,15 @@ fn normalize_person_name(name: &str) -> String {
 fn is_java_whitespace(c: char) -> bool {
     matches!(
         c,
-        '\u{0009}' | '\u{000A}' | '\u{000B}' | '\u{000C}' | '\u{000D}'
-            | '\u{001C}' | '\u{001D}' | '\u{001E}' | '\u{001F}'
+        '\u{0009}'
+            | '\u{000A}'
+            | '\u{000B}'
+            | '\u{000C}'
+            | '\u{000D}'
+            | '\u{001C}'
+            | '\u{001D}'
+            | '\u{001E}'
+            | '\u{001F}'
     ) || (c.is_whitespace() && c != '\u{00A0}' && c != '\u{2007}' && c != '\u{202F}')
 }
 
