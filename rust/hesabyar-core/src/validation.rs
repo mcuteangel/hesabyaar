@@ -430,6 +430,7 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 /// - case folding uses simple single-codepoint mapping (Kotlin
 ///   `Char.lowercaseChar`): if the lowercase expands to more than one code
 ///   point the original char is kept unchanged.
+///
 /// Used only to reject or accept a payload. It never writes a key, so any drift
 /// from the Kotlin util costs a wrong accept/reject, never data corruption.
 fn normalize_person_name(name: &str) -> String {
@@ -459,7 +460,7 @@ fn normalize_person_name(name: &str) -> String {
                 // point, keep the original char unchanged.
                 let lowered: String = c.to_lowercase().collect();
                 if lowered.chars().count() == 1 {
-                    out.push(lowered.chars().next().unwrap());
+                    out.push_str(&lowered);
                 } else {
                     out.push(c);
                 }
