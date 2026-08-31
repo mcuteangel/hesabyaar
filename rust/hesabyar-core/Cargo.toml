@@ -14,7 +14,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 sha2 = "0.11"
-rust_xlsxwriter = "0.98"
+rust_xlsxwriter = "0.99"
 
 
 [dev-dependencies]
