@@ -427,9 +427,12 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 /// - whitespace uses Java `Character.isWhitespace` (see `is_java_whitespace`),
 ///   which EXCLUDES NBSP/NNBSP/NARROW-NBSP — Rust's `char::is_whitespace`
 ///   (Unicode White_Space) would fold NBSP to a space and diverge from Kotlin;
-/// - case folding uses simple single-codepoint mapping (Kotlin
-///   `Char.lowercaseChar`): if the lowercase expands to more than one code
-///   point the original char is kept unchanged.
+/// - case folding mirrors Kotlin `Char.lowercaseChar` (Java
+///   `Character.toLowerCase`): the Unicode SIMPLE lowercase (a single code
+///   point) is applied, or the char is kept unchanged when no single-char
+///   lowercase exists. `İ` (U+0130) is the common char whose simple
+///   lowercase is a single `i` while Rust's full `to_lowercase` expands to
+///   two code points, so it is mapped explicitly to stay in parity.
 ///
 /// Used only to reject or accept a payload. It never writes a key, so any drift
 /// from the Kotlin util costs a wrong accept/reject, never data corruption.
@@ -456,13 +459,23 @@ fn normalize_person_name(name: &str) -> String {
                 }
                 pending_space = false;
                 // Simple (single-codepoint) case fold to mirror Kotlin
-                // lowercaseChar(): if the lowercase expands to more than one code
-                // point, keep the original char unchanged.
-                let lowered: String = c.to_lowercase().collect();
-                if lowered.chars().count() == 1 {
-                    out.push_str(&lowered);
+                // `Char.lowercaseChar()` (Java `Character.toLowerCase`): the
+                // Unicode SIMPLE lowercase is used when it is a single code
+                // point, otherwise the original char is kept unchanged.
+                // Rust `char::to_lowercase()` is the FULL mapping and can yield
+                // several code points; for `İ` (U+0130) it yields "i\u{307}"
+                // while Kotlin's simple mapping yields a single `i`. The general
+                // `count() == 1` guard below would wrongly keep `İ`, so map it
+                // explicitly to stay in parity with the Kotlin util.
+                if c == '\u{0130}' {
+                    out.push('i');
                 } else {
-                    out.push(c);
+                    let lowered: String = c.to_lowercase().collect();
+                    if lowered.chars().count() == 1 {
+                        out.push_str(&lowered);
+                    } else {
+                        out.push(c);
+                    }
                 }
             }
         }
@@ -2106,13 +2119,14 @@ mod tests {
         assert_eq!(normalize_person_name("a\u{2007}b"), "a\u{2007}b");
         assert_eq!(normalize_person_name("a\u{202F}b"), "a\u{202F}b");
 
-        // Case-fold parity: Kotlin `Char.lowercaseChar()` uses the SIMPLE
-        // single-codepoint case mapping. Characters whose lowercase expands to
-        // more than one code point (e.g. `İ` U+0130) are left UNCHANGED. Rust
-        // `to_lowercase` produces a multi-codepoint string for `İ`, so our
-        // `count() == 1` guard must keep the original char.
-        assert_eq!(normalize_person_name("İ"), "İ");
-        assert_eq!(normalize_person_name("İstanbul"), "İstanbul");
+        // Case-fold parity: Kotlin `Char.lowercaseChar()` (Java
+        // `Character.toLowerCase`) applies the Unicode SIMPLE lowercase. For
+        // `İ` (U+0130) that simple mapping is a single `i`, so Kotlin yields
+        // "istanbul"; Rust's full `to_lowercase` would expand `İ` to "i\u{307}"
+        // and our `count() == 1` guard would wrongly keep it, so we map it
+        // explicitly. The result must match Kotlin's `PersonNameNormalizer`.
+        assert_eq!(normalize_person_name("İ"), "i");
+        assert_eq!(normalize_person_name("İstanbul"), "istanbul");
         // Latin simple fold still works for single-codepoint mappings.
         assert_eq!(normalize_person_name("ALI"), "ali");
     }

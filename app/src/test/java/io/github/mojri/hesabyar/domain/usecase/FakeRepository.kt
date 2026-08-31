@@ -252,7 +252,18 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override val allPersons: Flow<List<Person>> = MutableStateFlow(emptyList())
 
-  override suspend fun getAllPersonsIncludingArchived(): List<Person> = emptyList()
+  private val personsList = mutableListOf<Person>()
+
+  /**
+   * Adds a person to [getAllPersonsIncludingArchived] so encrypted-export tests
+   * can carry person PII. The list starts empty, so tests that never call this
+   * keep the previous "no persons" behaviour.
+   */
+  fun addPerson(person: Person) {
+    personsList.add(person)
+  }
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> = personsList.toList()
 
   override suspend fun getPersonById(id: Long): Person? = null
 

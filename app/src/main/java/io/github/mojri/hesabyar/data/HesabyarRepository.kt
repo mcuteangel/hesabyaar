@@ -137,6 +137,10 @@ class HesabyarRepository(
           amount = effectiveAmount,
           description = desc,
           personName = loan.personName,
+          // Link the repayment to the loan's person so a later renamePerson
+          // (which runs syncTransactionPersonNames) keeps this denormalized
+          // personName in sync, exactly like the loan itself (D3).
+          personId = loan.personId,
           date = date
         )
       val payment = PaymentHistory(loanId = loanId, amount = effectiveAmount, notes = notes, date = date)
