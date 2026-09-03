@@ -306,7 +306,7 @@ Do not summarize test or build success as "passed" without the underlying raw ev
 
 The `config/detekt/detekt-baseline.xml` is a frozen snapshot of pre-existing findings in files that are NOT being changed. It keeps the build and CI green for legacy code. It is NOT a place to hide new work.
 
-The only `@Suppress` annotations permitted anywhere are the two documented exceptions under Allowed Suppressions below. Anything outside those two is forbidden. Existing inline suppressions outside these two remain as legacy. Remove them when you touch the file.
+The only new Detekt `@Suppress` annotations permitted are the two documented exceptions under Allowed Suppressions below. Existing inline suppressions outside these two remain as legacy. Remove each Detekt suppression when you touch its file and fix the underlying finding.
 
 ### Rule: editing a file obligates fixing its findings
 
