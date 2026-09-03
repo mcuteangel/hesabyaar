@@ -250,7 +250,8 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
 
-  override val allPersons: Flow<List<Person>> = MutableStateFlow(emptyList())
+  private val _allPersons = MutableStateFlow<List<Person>>(emptyList())
+  override val allPersons: Flow<List<Person>> = _allPersons.asStateFlow()
 
   private val personsList = mutableListOf<Person>()
 
@@ -261,18 +262,38 @@ internal class FakeRepository : HesabyarRepositoryInterface {
    */
   fun addPerson(person: Person) {
     personsList.add(person)
+    _allPersons.value = personsList.toList()
   }
 
   override suspend fun getAllPersonsIncludingArchived(): List<Person> = personsList.toList()
 
-  override suspend fun getPersonById(id: Long): Person? = null
+  override suspend fun getPersonById(id: Long): Person? = personsList.firstOrNull { it.id == id }
 
-  override suspend fun upsertPerson(person: Person): Person = person.copy(id = 1L)
+  override suspend fun upsertPerson(person: Person): Person {
+    val existingIdx = personsList.indexOfFirst { it.normalizedName == person.normalizedName }
+    return if (existingIdx >= 0) {
+      personsList[existingIdx]
+    } else {
+      val withId = person.copy(id = nextId++)
+      personsList.add(withId)
+      _allPersons.value = personsList.toList()
+      withId
+    }
+  }
 
   override suspend fun renamePerson(
     personId: Long,
     newName: String
-  ): Boolean = true
+  ): Boolean {
+    val idx = personsList.indexOfFirst { it.id == personId }
+    if (idx < 0) return false
+    personsList[idx] = personsList[idx].copy(name = newName)
+    _allPersons.value = personsList.toList()
+    return true
+  }
 
-  override suspend fun deletePerson(person: Person) {}
+  override suspend fun deletePerson(person: Person) {
+    personsList.removeIf { it.id == person.id }
+    _allPersons.value = personsList.toList()
+  }
 }

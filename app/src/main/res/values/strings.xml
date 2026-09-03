@@ -116,6 +116,8 @@
     <string name="backup_error_transfer_same_source_destination">تراکنش انتقالی #%1$d مبدا و مقصد یکسان دارند</string>
     <string name="backup_error_transaction_invalid_category">تراکنش #%1$d به دسته‌بندی ناموجود %2$s ارجاع می‌دهد</string>
     <string name="backup_error_payment_invalid_loan">پرداخت #%1$d به وام ناموجود %2$s ارجاع می‌دهد</string>
+    <string name="backup_error_loan_invalid_person">وام #%1$d به شخص ناموجود %2$s ارجاع می‌دهد</string>
+    <string name="backup_error_transaction_invalid_person">تراکنش #%1$d به شخص ناموجود %2$s ارجاع می‌دهد</string>
 
     <!-- AccountManagementScreen delete dialogs -->
     <string name="account_delete_title">حذف حساب</string>

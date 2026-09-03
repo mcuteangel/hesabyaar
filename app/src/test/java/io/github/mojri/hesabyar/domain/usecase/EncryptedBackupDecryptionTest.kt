@@ -170,8 +170,7 @@ class EncryptedBackupDecryptionTest {
     val passphrase = "correct-passphrase"
 
     // A person with no phone: the exporter writes JSON null, so decryption has
-    // nothing to do. The result must be null — never the stored ciphertext,
-    // since the parsed payload holds the raw base64 in that case.
+    // nothing to do. The parsed value is already null and must stay null.
     repo.addPerson(
       Person(
         id = 1L,

@@ -148,6 +148,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
             && payload.bank_loans.is_empty()
             && payload.categories.is_empty()
             && payload.accounts.is_empty()
+            && payload.persons.is_empty()
         {
             return Err(HesabyarError::BackupValidation {
                 detail: "Backup contains no data".to_string(),

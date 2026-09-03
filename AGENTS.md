@@ -306,7 +306,7 @@ Do not summarize test or build success as "passed" without the underlying raw ev
 
 The `config/detekt/detekt-baseline.xml` is a frozen snapshot of pre-existing findings in files that are NOT being changed. It keeps the build and CI green for legacy code. It is NOT a place to hide new work.
 
-The only `@Suppress` annotations permitted anywhere are the two documented exceptions under Allowed Suppressions below. Anything outside those two is forbidden.
+The only `@Suppress` annotations permitted anywhere are the two documented exceptions under Allowed Suppressions below. Anything outside those two is forbidden. Existing inline suppressions outside these two remain as legacy. Remove them when you touch the file.
 
 ### Rule: editing a file obligates fixing its findings
 
@@ -315,9 +315,9 @@ When you modify a file, every detekt finding in that file — even one that was 
 - Add a `@Suppress` (except the two documented exceptions).
 - Re-add or keep the finding's entry in `detekt-baseline.xml`.
 
-Mechanism: a baseline entry is keyed by signature. When your edit changes the class or function signature, the old entry stops matching and the finding surfaces. At that point you must fix it in the same change. Even if the signature is unchanged and the entry still matches, you still must fix the finding before you leave the file — and you must remove the entry from the baseline so it is no longer hidden.
+Mechanism: a baseline entry is keyed by signature. When you edit a signature, the old entry stops matching. The finding surfaces. Fix it in the same change. If the signature is unchanged and the entry still matches, fix the finding anyway. Then remove the entry from the baseline.
 
-Pre-existing findings in files you do NOT touch may stay baselined. You must never grow the baseline: never add a new entry for code you introduce or modify.
+Pre-existing findings in files you do NOT touch may stay baselined. You must never grow the baseline. Never add a new entry for code you introduce or modify.
 
 If your change makes a class or function cross a threshold (for example, detekt `LargeClass` on a test class), split it into a new, smaller class or file, remove the old baseline entry for that class, and fix the findings.
 

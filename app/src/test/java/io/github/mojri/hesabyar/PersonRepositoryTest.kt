@@ -98,6 +98,7 @@ class PersonRepositoryTest {
       assertEquals(created.id, updated.id)
       assertEquals("0912", updated.phone)
       assertEquals("همکار", updated.notes)
+      assertEquals("رضا", updated.name)
     }
 
   @Test

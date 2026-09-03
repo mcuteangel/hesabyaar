@@ -40,6 +40,8 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
+private const val TOMAN_TO_RIAL_FACTOR = 10L
+
 @Composable
 private fun LoanTypeSelector(
   loanType: LoanType,
@@ -577,8 +579,14 @@ private fun AddLoanDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
+          val maxTomanDisplay = Long.MAX_VALUE / TOMAN_TO_RIAL_FACTOR
           val amountDisplay = form.amountText.toLongOrNull() ?: 0L
-          if (form.personName.isNotBlank() && amountDisplay > 0L) {
+          if (
+            CurrencyFormatter.currentUnit == io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN &&
+            amountDisplay > maxTomanDisplay
+          ) {
+            showMessage("مبلغ بیش از حد بزرگ است")
+          } else if (form.personName.isNotBlank() && amountDisplay > 0L) {
             onConfirm(
               form.personName,
               form.loanType,
@@ -671,10 +679,15 @@ private fun submitLoanEdit(
   onUpdate: (Loan) -> Unit,
   showMessage: (String) -> Unit
 ) {
+  val maxTomanDisplay = Long.MAX_VALUE / TOMAN_TO_RIAL_FACTOR
   val amountDisplay = form.amountText.toLongOrNull() ?: 0L
   when {
     form.personName.isBlank() || amountDisplay <= 0L ->
       showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
+
+    CurrencyFormatter.currentUnit == io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN &&
+      amountDisplay > maxTomanDisplay ->
+      showMessage("مبلغ بیش از حد بزرگ است")
 
     // Display-unit round trips truncate odd Rials in Toman mode; when the
     // amount field was left untouched, keep the stored amounts as-is.

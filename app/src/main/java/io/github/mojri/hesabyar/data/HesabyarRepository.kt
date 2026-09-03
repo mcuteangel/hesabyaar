@@ -56,24 +56,27 @@ class HesabyarRepository(
     // We re-read `isDefault` from the persisted row rather than trusting
     // the caller's parameter. A caller holding a stale or hand-built
     // `Category(id=…, isDefault=false)` could otherwise delete the
-    // default row by primary key.
-    val persisted = categoryDao.getCategoryById(category.id)
-    if (persisted == null) {
-      AppLogger.w(
-        "HesabyarRepository",
-        "deleteCategory: category id=${category.id} not found; nothing to delete"
-      )
-      return
+    // default row by primary key. The check and delete run in one
+    // transaction so a concurrent mark-default cannot slip between them.
+    database.withTransaction {
+      val persisted = categoryDao.getCategoryById(category.id)
+      if (persisted == null) {
+        AppLogger.w(
+          "HesabyarRepository",
+          "deleteCategory: category id=${category.id} not found; nothing to delete"
+        )
+        return@withTransaction
+      }
+      if (persisted.isDefault) {
+        AppLogger.w(
+          "HesabyarRepository",
+          "deleteCategory: refusing to delete default category id=${persisted.id} key=${persisted.key} " +
+            "(caller-provided isDefault=${category.isDefault})"
+        )
+        return@withTransaction
+      }
+      categoryDao.deleteCategory(persisted)
     }
-    if (persisted.isDefault) {
-      AppLogger.w(
-        "HesabyarRepository",
-        "deleteCategory: refusing to delete default category id=${persisted.id} key=${persisted.key} " +
-          "(caller-provided isDefault=${category.isDefault})"
-      )
-      return
-    }
-    categoryDao.deleteCategory(persisted)
   }
 
   override suspend fun insertTransaction(transaction: Transaction): Long = transactionDao.insertTransaction(transaction)
@@ -276,24 +279,43 @@ class HesabyarRepository(
     val key = PersonNameNormalizer.normalize(display)
     require(key.isNotEmpty()) { "Person name normalizes to empty" }
     val existing = personDao.getPersonByNormalizedName(key)
-    if (existing != null) {
-      val merged =
-        existing.copy(
-          phone = person.phone ?: existing.phone,
-          notes = person.notes ?: existing.notes
-        )
-      personDao.updatePerson(merged)
-      return merged
-    }
-    val candidate =
-      person.copy(
-        id = 0,
-        name = display,
-        normalizedName = key,
-        createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
-      )
-    val id = personDao.insertPerson(candidate)
-    return if (id != -1L) candidate.copy(id = id) else requireNotNull(personDao.getPersonByNormalizedName(key))
+    val result =
+      if (existing != null) {
+        val merged =
+          existing.copy(
+            phone = person.phone ?: existing.phone,
+            notes = person.notes ?: existing.notes
+          )
+        personDao.updatePerson(merged)
+        merged
+      } else {
+        val candidate =
+          person.copy(
+            id = 0,
+            name = display,
+            normalizedName = key,
+            createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
+          )
+        val id = personDao.insertPerson(candidate)
+        if (id != -1L) {
+          candidate.copy(id = id)
+        } else {
+          // Concurrent insert won the race: merge loser's contact fields into winner.
+          val winner = requireNotNull(personDao.getPersonByNormalizedName(key))
+          if (person.phone != null || person.notes != null) {
+            val mergedWinner =
+              winner.copy(
+                phone = person.phone ?: winner.phone,
+                notes = person.notes ?: winner.notes
+              )
+            if (mergedWinner != winner) personDao.updatePerson(mergedWinner)
+            mergedWinner
+          } else {
+            winner
+          }
+        }
+      }
+    return result
   }
 
   override suspend fun renamePerson(

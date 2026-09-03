@@ -207,24 +207,9 @@ Implementation details live in the code; the test list is mirrored in
 `RepositoryBackupRestoreTest`. Schema and Rust surface match
 `Entities.kt` and `rust/hesabyar-core/src/models/mod.rs`.
 
-**D4 addendum (resolved during Phase 1).**
+**D4 addendum (resolved during Phase 1).** See §D4 addendum above for the authoritative ordering and lookup-only contract.
 
-The migration backfill order is intentional and permanent:
-
-1. Loans are processed first; distinct normalized `loans.personName` rows
-   become the source of truth for `persons` identity.
-2. Transactions are processed second. `stampPersonIdsOnTransactions` is
-   **lookup-only**: when a transaction's normalized name matches no
-   loan-backed person key, it keeps `personId NULL` and does NOT insert a
-   new `Person` row (loans are the identity source; transaction-only names
-   must not spawn phantom persons). This is asserted by
-   `migration7to8TransactionOnlyPersonNameStaysNull` and by the tx3 case in
-   `migration7to8BackfillsPersonsAndStampsBothLoansAndTransactions`.
-3. Display-name tiebreak on a normalized-key collision goes to whichever
-   row is processed first — i.e. the loan. The transaction's earlier
-   `date` does **not** win, because the MIGRATION contract anchors
-   identity in `loans` (D3). See
-   `migration7to8DisplayNameTiebreakLoansFirstThenTransactions`.
+The details there apply here without duplication.
 
 For all other Phase 1 details (Person schema, MIGRATION_7_8,
 `PersonDao`, `upsertPerson`/`renamePerson`/`mergePersons`, backup

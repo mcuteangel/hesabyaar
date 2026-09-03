@@ -582,6 +582,28 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     for id in duplicate_person_ids {
         errors.push(format!("Person has a duplicate id {}", id));
     }
+    // Person reference validation: positive person_id must point to a declared person.
+    let person_ids: std::collections::HashSet<_> = payload.persons.iter().map(|p| p.id).collect();
+    for (i, loan) in payload.loans.iter().enumerate() {
+        if let Some(pid) = loan.person_id {
+            if pid > 0 && !person_ids.contains(&pid) {
+                errors.push(format!(
+                    "Loan[{}] references non-existent person {}",
+                    i, pid
+                ));
+            }
+        }
+    }
+    for (i, tx) in payload.transactions.iter().enumerate() {
+        if let Some(pid) = tx.person_id {
+            if pid > 0 && !person_ids.contains(&pid) {
+                errors.push(format!(
+                    "Transaction[{}] references non-existent person {}",
+                    i, pid
+                ));
+            }
+        }
+    }
     // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
     // Zero is a legacy default tolerated in all cases.
     let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();

@@ -26,38 +26,44 @@ object PersonNameNormalizer {
    * Collapses spelling variants to one dedup key: trims, collapses internal
    * whitespace to single spaces, strips zero-width characters, folds Arabic
    * variants to Persian, lowercases the retained code points (see contract
-   * note on the class).
+   * note on the class). Iterates by code point so supplementary-plane
+   * case variants (e.g. Deseret) fold correctly.
    */
   fun normalize(name: String): String {
     var pendingSpace = false
     return buildString(name.length) {
-      for (raw in name) {
-        val folded = arabicToPersian[raw] ?: raw
+      var i = 0
+      while (i < name.length) {
+        val cp = name.codePointAt(i)
+        val foldedCp =
+          when (cp) {
+            'ي'.code -> 'ی'.code
+            'ك'.code -> 'ک'.code
+            'ة'.code -> 'ه'.code
+            else -> cp
+          }
         when {
-          folded.code in zeroWidthCodes -> Unit
-          folded.isWhitespace() -> pendingSpace = length > 0
+          foldedCp in zeroWidthCodes -> Unit
+          Character.isWhitespace(foldedCp) -> pendingSpace = length > 0
           else -> {
             if (pendingSpace && length > 0) append(' ')
             pendingSpace = false
-            append(folded.lowercaseChar())
+            appendCodePoint(Character.toLowerCase(foldedCp))
           }
         }
+        i += Character.charCount(cp)
       }
     }
   }
 
   /**
-   * Display form of a raw input: trims outer whitespace AND strips embedded
-   * zero-width characters so the result is non-empty whenever the source has
-   * any visible content. A name consisting only of zero-width characters
-   * (a copy-paste artifact in Persian text) is rejected by callers; see
+   * Display form of a raw input: trims outer whitespace only. Zero-width
+   * characters are preserved so Persian ZWNJ spelling (e.g. "می‌روم") is
+   * not altered; they are stripped only for the dedup key in [normalize]
+   * (plans/011 §D4 — first trimmed original is the display name).
+   * A name consisting only of zero-width characters remains non-empty here
+   * but normalizes to empty and is rejected by callers; see
    * [HesabyarRepository.upsertPerson] and [HesabyarRepository.renamePerson].
    */
-  fun displayForm(name: String): String =
-    buildString(name.length) {
-      for (raw in name) {
-        if (raw.code in zeroWidthCodes) continue
-        append(raw)
-      }
-    }.trim()
+  fun displayForm(name: String): String = name.trim()
 }

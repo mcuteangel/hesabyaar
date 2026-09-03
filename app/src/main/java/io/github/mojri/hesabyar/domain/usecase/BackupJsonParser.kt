@@ -52,9 +52,7 @@ class BackupJsonParser(
             categories = rustResult.categories.map { RustMappers.fromRustCategory(it) },
             bankLoans = rustResult.bankLoans.map { RustMappers.fromRustBankLoan(it) },
             accounts = rustResult.accounts.map { RustMappers.fromRustAccount(it) },
-            // fromRustPerson returns null for names that normalize to empty
-            // (defense in depth, mirroring parsePersons); drop them here.
-            persons = rustResult.persons.mapNotNull { RustMappers.fromRustPerson(it) },
+            persons = RustMappers.fromRustPersons(rustResult.persons),
             settings = parseSettings(rootJson)
           )
         } catch (e: IllegalArgumentException) {
@@ -250,7 +248,7 @@ class BackupJsonParser(
           normalizedName = key,
           phone = o.nullableString("phone"),
           notes = o.nullableString("notes"),
-          createdAt = o.optLong("createdAt", 0L),
+          createdAt = o.optLong("createdAt", 0L).takeIf { it != 0L } ?: System.currentTimeMillis(),
           isArchived = o.optBoolean("isArchived", false)
         )
       }
