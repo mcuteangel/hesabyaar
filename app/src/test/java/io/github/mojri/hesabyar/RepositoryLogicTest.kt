@@ -66,6 +66,7 @@ class RepositoryLogicTest {
       database.categoryDao(),
       database.bankLoanDao(),
       database.accountDao(),
+      database.personDao(),
       database
     )
 
@@ -433,6 +434,104 @@ class RepositoryLogicTest {
 
       assertEquals(0, database.loanDao().getAllLoansBlocking().size)
       assertEquals(0, database.paymentHistoryDao().getAllPaymentHistoriesBlocking().size)
+    }
+
+  @Test
+  fun deleteCategoryKeepsDefaultCategoriesAndDeletesCustomOnes() =
+    runTest {
+      val repo = createRepository()
+      val defaultCategory =
+        Category(
+          name = "وام و قرض",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 0xFF9C27B0L,
+          type = CategoryType.BOTH,
+          isDefault = true
+        )
+      val defaultId = repo.insertCategory(defaultCategory)
+
+      repo.deleteCategory(defaultCategory.copy(id = defaultId))
+      assertNotNull(database.categoryDao().getCategoryById(defaultId))
+
+      val customCategory =
+        Category(
+          name = "سرگرمی",
+          key = "Entertainment",
+          icon = "SportsEsports",
+          color = 0xFF3F51B5L,
+          type = CategoryType.EXPENSE,
+          isDefault = false
+        )
+      val customId = repo.insertCategory(customCategory)
+
+      repo.deleteCategory(customCategory.copy(id = customId))
+      assertNull(database.categoryDao().getCategoryById(customId))
+    }
+
+  @Test
+  fun deleteCategoryRejectsWhenCallerLiesAboutIsDefault() =
+    runTest {
+      val repo = createRepository()
+      // Persist a real default category.
+      val defaultId =
+        repo.insertCategory(
+          Category(
+            name = "وام و قرض",
+            key = "Loans",
+            icon = "HistoryEdu",
+            color = 0xFF9C27B0L,
+            type = CategoryType.BOTH,
+            isDefault = true
+          )
+        )
+      val nonDefaultId =
+        repo.insertCategory(
+          Category(
+            name = "سرگرمی",
+            key = "Entertainment",
+            icon = "SportsEsports",
+            color = 0xFF3F51B5L,
+            type = CategoryType.EXPENSE,
+            isDefault = false
+          )
+        )
+
+      // Caller hands in a hand-built Category that lies about isDefault
+      // (the real persisted row is the opposite). The repository must
+      // re-read isDefault from the row and refuse.
+      val forgedDefaultDelete =
+        Category(
+          id = defaultId,
+          name = "anything",
+          key = "anything",
+          icon = "anything",
+          color = 0L,
+          type = CategoryType.EXPENSE,
+          isDefault = false
+        )
+      val forgedNonDefaultDelete =
+        Category(
+          id = nonDefaultId,
+          name = "anything",
+          key = "anything",
+          icon = "anything",
+          color = 0L,
+          type = CategoryType.EXPENSE,
+          isDefault = true
+        )
+
+      repo.deleteCategory(forgedDefaultDelete)
+      assertNotNull(
+        "default category must survive a forged non-default delete",
+        database.categoryDao().getCategoryById(defaultId)
+      )
+
+      repo.deleteCategory(forgedNonDefaultDelete)
+      assertNull(
+        "custom category is legitimately deleted by a forged default",
+        database.categoryDao().getCategoryById(nonDefaultId)
+      )
     }
 
   @Test

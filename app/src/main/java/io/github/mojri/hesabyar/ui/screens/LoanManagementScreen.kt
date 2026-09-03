@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.domain.utils.LoanEditCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
@@ -38,6 +39,8 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
+
+private const val TOMAN_TO_RIAL_FACTOR = 10L
 
 @Composable
 private fun LoanTypeSelector(
@@ -576,8 +579,14 @@ private fun AddLoanDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
+          val maxTomanDisplay = Long.MAX_VALUE / TOMAN_TO_RIAL_FACTOR
           val amountDisplay = form.amountText.toLongOrNull() ?: 0L
-          if (form.personName.isNotBlank() && amountDisplay > 0L) {
+          if (
+            CurrencyFormatter.currentUnit == io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN &&
+            amountDisplay > maxTomanDisplay
+          ) {
+            showMessage("مبلغ بیش از حد بزرگ است")
+          } else if (form.personName.isNotBlank() && amountDisplay > 0L) {
             onConfirm(
               form.personName,
               form.loanType,
@@ -627,7 +636,14 @@ private fun EditLoanDialog(
     remember {
       LoanFormState(loan.type, loan.personName, loan.originalAmount, loan.description, loan.date)
     }
-  val initialAmountText = form.amountText
+  // Capture the amount shown when the dialog opened once. Reading form.amountText
+  // here would re-read the live value on every recomposition, so the
+  // "amount unchanged" branch would never trigger and repayment preservation
+  // would be skipped (silent financial-data loss).
+  val initialAmountText =
+    remember(loan.originalAmount) {
+      CurrencyFormatter.fromRial(loan.originalAmount).toString()
+    }
 
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -663,10 +679,15 @@ private fun submitLoanEdit(
   onUpdate: (Loan) -> Unit,
   showMessage: (String) -> Unit
 ) {
+  val maxTomanDisplay = Long.MAX_VALUE / TOMAN_TO_RIAL_FACTOR
   val amountDisplay = form.amountText.toLongOrNull() ?: 0L
   when {
     form.personName.isBlank() || amountDisplay <= 0L ->
       showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
+
+    CurrencyFormatter.currentUnit == io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN &&
+      amountDisplay > maxTomanDisplay ->
+      showMessage("مبلغ بیش از حد بزرگ است")
 
     // Display-unit round trips truncate odd Rials in Toman mode; when the
     // amount field was left untouched, keep the stored amounts as-is.
@@ -688,14 +709,14 @@ private fun submitLoanEdit(
       if (amountRial < paidSoFar) {
         showMessage("مبلغ جدید نمی‌تواند کمتر از بازپرداخت‌های ثبت‌شده باشد")
       } else {
-        val newRemaining = amountRial - paidSoFar
+        val r = LoanEditCalculator.recompute(loan, amountRial)
         onUpdate(
           loan.copy(
             personName = form.personName,
             type = form.loanType,
-            originalAmount = amountRial,
-            remainingAmount = newRemaining,
-            isSettled = newRemaining == 0L,
+            originalAmount = r.originalAmount,
+            remainingAmount = r.remainingAmount,
+            isSettled = r.isSettled,
             description = form.description,
             date = form.customDate
           )

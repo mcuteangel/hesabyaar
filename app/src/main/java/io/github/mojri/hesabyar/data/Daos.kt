@@ -64,6 +64,18 @@ interface TransactionDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   fun insertAllBlocking(transactions: List<Transaction>)
+
+  @Query("UPDATE transactions SET personName = :newName WHERE personId = :personId")
+  suspend fun syncTransactionPersonNames(
+    personId: Long,
+    newName: String
+  )
+
+  @Query("UPDATE transactions SET personName = :newName WHERE personId IS NULL AND personName = :oldName")
+  suspend fun syncTransactionPersonNamesForNullId(
+    oldName: String,
+    newName: String
+  )
 }
 
 @Dao
@@ -94,6 +106,18 @@ interface LoanDao {
 
   @Query("SELECT * FROM loans ORDER BY date DESC")
   fun getAllLoansBlocking(): List<Loan>
+
+  @Query("UPDATE loans SET personName = :newName WHERE personId = :personId")
+  suspend fun syncLoanPersonNames(
+    personId: Long,
+    newName: String
+  )
+
+  @Query("UPDATE loans SET personName = :newName WHERE personId IS NULL AND personName = :oldName")
+  suspend fun syncLoanPersonNamesForNullId(
+    oldName: String,
+    newName: String
+  )
 }
 
 @Dao
@@ -184,6 +208,45 @@ interface PaymentHistoryDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   fun insertAllBlocking(payments: List<PaymentHistory>)
+}
+
+@Dao
+interface PersonDao {
+  @Query("SELECT * FROM persons WHERE isArchived = 0 ORDER BY name")
+  fun getAllPersons(): Flow<List<Person>>
+
+  // Backup paths (export, plaintext→encrypted transfer, tests) need an
+  // unfiltered blocking read so archived rows round-trip losslessly. Other
+  // DAOs follow the same split: live-UI Flow/Blocking variants filter,
+  // bulk/blocking for backup/export don't.
+  @Query("SELECT * FROM persons ORDER BY name")
+  fun getAllPersonsIncludingArchivedBlocking(): List<Person>
+
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  fun insertAllBlocking(persons: List<Person>)
+
+  @Query("SELECT * FROM persons WHERE id = :id LIMIT 1")
+  suspend fun getPersonById(id: Long): Person?
+
+  @Query("SELECT * FROM persons WHERE normalizedName = :normalizedName LIMIT 1")
+  suspend fun getPersonByNormalizedName(normalizedName: String): Person?
+
+  // IGNORE + unique(normalizedName): a race that inserts the same dedup key
+  // twice keeps the first row and returns -1; callers re-query on -1.
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  suspend fun insertPerson(person: Person): Long
+
+  @Query("DELETE FROM persons")
+  suspend fun deleteAllPersons()
+
+  @Update
+  suspend fun updatePerson(person: Person)
+
+  @Delete
+  suspend fun deletePerson(person: Person)
+
+  // D3 rename sync moved to LoanDao/TransactionDao — PersonDao now owns
+  // only person persistence; repository coordinates the cross-table rename.
 }
 
 @Dao

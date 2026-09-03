@@ -22,6 +22,7 @@ class RustMappersTest {
           amount = 0L,
           description = "",
           personName = null,
+          personId = null,
           date = 0L,
           dueDate = null,
           installmentId = null,

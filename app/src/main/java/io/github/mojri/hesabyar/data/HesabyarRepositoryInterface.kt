@@ -12,6 +12,25 @@ interface HesabyarRepositoryInterface {
   val allBankLoans: Flow<List<BankLoan>>
   val allAccounts: Flow<List<AccountEntity>>
 
+  // Person CRUD — also exposed via PersonRepositoryInterface for narrow DI.
+  // Kept here so existing call sites (BackupPayloadExporter, RepositoryTests)
+  // continue to compile through HesabyarRepositoryInterface alone; new
+  // person-specific use cases should depend on PersonRepositoryInterface.
+  val allPersons: Flow<List<Person>>
+
+  suspend fun getAllPersonsIncludingArchived(): List<Person>
+
+  suspend fun getPersonById(id: Long): Person?
+
+  suspend fun upsertPerson(person: Person): Person
+
+  suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean
+
+  suspend fun deletePerson(person: Person)
+
   fun getTransactionsInRange(
     start: Long,
     end: Long

@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.data
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -14,8 +15,10 @@ class HesabyarRepository(
   private val categoryDao: CategoryDao,
   private val bankLoanDao: BankLoanDao,
   private val accountDao: AccountDao,
+  private val personDao: PersonDao,
   private val database: AppDatabase
-) : HesabyarRepositoryInterface {
+) : HesabyarRepositoryInterface,
+  PersonRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = transactionDao.getAllTransactions()
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
   override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
@@ -45,7 +48,35 @@ class HesabyarRepository(
   }
 
   override suspend fun deleteCategory(category: Category) {
-    categoryDao.deleteCategory(category)
+    // Default categories (e.g. key="Loans") are infrastructure: loan
+    // repayments and KPI exclusion resolve them by key. The UI hides the
+    // delete affordance for them; this guard closes non-UI paths so the
+    // category cannot silently disappear and degrade those lookups.
+    //
+    // We re-read `isDefault` from the persisted row rather than trusting
+    // the caller's parameter. A caller holding a stale or hand-built
+    // `Category(id=…, isDefault=false)` could otherwise delete the
+    // default row by primary key. The check and delete run in one
+    // transaction so a concurrent mark-default cannot slip between them.
+    database.withTransaction {
+      val persisted = categoryDao.getCategoryById(category.id)
+      if (persisted == null) {
+        AppLogger.w(
+          "HesabyarRepository",
+          "deleteCategory: category id=${category.id} not found; nothing to delete"
+        )
+        return@withTransaction
+      }
+      if (persisted.isDefault) {
+        AppLogger.w(
+          "HesabyarRepository",
+          "deleteCategory: refusing to delete default category id=${persisted.id} key=${persisted.key} " +
+            "(caller-provided isDefault=${category.isDefault})"
+        )
+        return@withTransaction
+      }
+      categoryDao.deleteCategory(persisted)
+    }
   }
 
   override suspend fun insertTransaction(transaction: Transaction): Long = transactionDao.insertTransaction(transaction)
@@ -109,6 +140,10 @@ class HesabyarRepository(
           amount = effectiveAmount,
           description = desc,
           personName = loan.personName,
+          // Link the repayment to the loan's person so a later renamePerson
+          // (which runs syncTransactionPersonNames) keeps this denormalized
+          // personName in sync, exactly like the loan itself (D3).
+          personId = loan.personId,
           date = date
         )
       val payment = PaymentHistory(loanId = loanId, amount = effectiveAmount, notes = notes, date = date)
@@ -230,31 +265,204 @@ class HesabyarRepository(
 
   override suspend fun getMaxDisplayOrder(): Int = accountDao.getMaxDisplayOrder()
 
+  // Person CRUD
+  override val allPersons: Flow<List<Person>> = personDao.getAllPersons()
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> =
+    personDao.getAllPersonsIncludingArchivedBlocking()
+
+  override suspend fun getPersonById(id: Long): Person? = personDao.getPersonById(id)
+
+  override suspend fun upsertPerson(person: Person): Person {
+    val display = PersonNameNormalizer.displayForm(person.name)
+    require(display.isNotEmpty()) { "Person name is blank" }
+    val key = PersonNameNormalizer.normalize(display)
+    require(key.isNotEmpty()) { "Person name normalizes to empty" }
+    val existing = personDao.getPersonByNormalizedName(key)
+    val result =
+      if (existing != null) {
+        val merged =
+          existing.copy(
+            phone = person.phone ?: existing.phone,
+            notes = person.notes ?: existing.notes
+          )
+        personDao.updatePerson(merged)
+        merged
+      } else {
+        val candidate =
+          person.copy(
+            id = 0,
+            name = display,
+            normalizedName = key,
+            createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
+          )
+        val id = personDao.insertPerson(candidate)
+        if (id != -1L) {
+          candidate.copy(id = id)
+        } else {
+          // Concurrent insert won the race: merge loser's contact fields into winner.
+          val winner = requireNotNull(personDao.getPersonByNormalizedName(key))
+          if (person.phone != null || person.notes != null) {
+            val mergedWinner =
+              winner.copy(
+                phone = person.phone ?: winner.phone,
+                notes = person.notes ?: winner.notes
+              )
+            if (mergedWinner != winner) personDao.updatePerson(mergedWinner)
+            mergedWinner
+          } else {
+            winner
+          }
+        }
+      }
+    return result
+  }
+
+  override suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean {
+    // Blank/empty names use the same contract as upsertPerson: throw rather
+    // than return false, so callers handle both methods uniformly.
+    val display = PersonNameNormalizer.displayForm(newName)
+    require(display.isNotEmpty()) { "Person name is blank" }
+    return database.withTransaction {
+      val person = personDao.getPersonById(personId) ?: return@withTransaction false
+      val key = PersonNameNormalizer.normalize(display)
+      require(key.isNotEmpty()) { "Person name normalizes to empty" }
+      val clash = personDao.getPersonByNormalizedName(key)
+      if (clash != null && clash.id != personId) return@withTransaction false
+      val oldName = person.name
+      personDao.updatePerson(person.copy(name = display, normalizedName = key))
+      loanDao.syncLoanPersonNames(personId, display)
+      loanDao.syncLoanPersonNamesForNullId(oldName, display)
+      transactionDao.syncTransactionPersonNames(personId, display)
+      transactionDao.syncTransactionPersonNamesForNullId(oldName, display)
+      true
+    }
+  }
+
+  override suspend fun deletePerson(person: Person) {
+    // Loans/transactions keep their denormalized personName and a dangling
+    // personId; display never joins Person (D3), so no data is lost. A
+    // merge/reassign flow is deliberately out of scope for Phase 1.
+    database.withTransaction { personDao.deletePerson(person) }
+  }
+
   override suspend fun replaceAllFromBackup(backup: BackupPayload) =
     database.withTransaction {
-      transactionDao.deleteAllTransactions()
-      loanDao.deleteAllLoans()
-      installmentDao.deleteAllInstallments()
-      paymentHistoryDao.deleteAllPaymentHistory()
-      bankLoanDao.deleteAllBankLoans()
-      accountDao.deleteAllAccounts()
-
-      // Legacy backups (pre-multi-account) carry no accounts list; their
-      // transactions reference the default account (id=1), which the delete
-      // above just removed. Re-seed it so those transactions are not orphaned —
-      // mirrors the fresh-install seed (AppDatabase.DEFAULT_ACCOUNT_SEED_CALLBACK).
-      if (backup.accounts.isEmpty()) {
-        accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
-      }
-
+      clearAllTablesForReplace()
+      reseedDefaultAccountIfNeeded(backup.accounts.isEmpty())
       backup.categories.forEach { categoryDao.insertCategory(it) }
-      backup.transactions.forEach { transactionDao.insertTransaction(it) }
-      backup.loans.forEach { loanDao.insertLoan(it) }
+      val personMaps = insertPersonsForReplace(backup.persons)
+      insertLoansWithPersonRemap(backup.loans, personMaps)
+      insertTransactionsWithPersonRemap(backup.transactions, personMaps)
       backup.installments.forEach { installmentDao.insertInstallment(it) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
       backup.accounts.forEach { accountDao.insert(it) }
     }
+
+  private suspend fun clearAllTablesForReplace() {
+    transactionDao.deleteAllTransactions()
+    loanDao.deleteAllLoans()
+    installmentDao.deleteAllInstallments()
+    paymentHistoryDao.deleteAllPaymentHistory()
+    bankLoanDao.deleteAllBankLoans()
+    accountDao.deleteAllAccounts()
+    personDao.deleteAllPersons()
+  }
+
+  private suspend fun reseedDefaultAccountIfNeeded(isEmpty: Boolean) {
+    if (isEmpty) accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
+  }
+
+  private suspend fun insertPersonsForReplace(persons: List<Person>): PersonKeyMaps {
+    // Build the source-id -> key map ONLY for persons that actually survive
+    // insertion. Persons dropped on a key collision are excluded so their
+    // loans/transactions are left with personId NULL (not mis-attributed to the
+    // surviving person) — see resolvePersonId.
+    val sourceIdToKey = mutableMapOf<Long, String>()
+    val keyToLocalId = mutableMapOf<String, Long>()
+    for (raw in persons) {
+      val survived = insertOnePersonForReplace(raw, keyToLocalId)
+      if (survived) {
+        val key = PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(raw.name))
+        if (key.isNotEmpty()) sourceIdToKey[raw.id] = key
+      }
+    }
+    return PersonKeyMaps(sourceIdToKey, keyToLocalId)
+  }
+
+  private suspend fun insertOnePersonForReplace(
+    raw: Person,
+    keyToLocalId: MutableMap<String, Long>
+  ): Boolean {
+    val display = PersonNameNormalizer.displayForm(raw.name)
+    val key = PersonNameNormalizer.normalize(display)
+    val storedId =
+      if (key.isEmpty() || keyToLocalId.containsKey(key)) {
+        if (key.isNotEmpty() && keyToLocalId.containsKey(key)) {
+          AppLogger.w(
+            "HesabyarRepository",
+            "insertOnePersonForReplace: skipping person '${raw.name}' — normalized key " +
+              "'$key' already exists (collision); its links keep personId NULL"
+          )
+        }
+        -1L
+      } else {
+        val inserted = personDao.insertPerson(raw.copy(name = display, normalizedName = key, id = 0))
+        if (inserted != -1L) inserted else personDao.getPersonByNormalizedName(key)?.id ?: -1L
+      }
+    if (storedId != -1L) keyToLocalId[key] = storedId
+    return storedId != -1L
+  }
+
+  private suspend fun insertLoansWithPersonRemap(
+    loans: List<Loan>,
+    maps: PersonKeyMaps
+  ) {
+    for (loan in loans) {
+      val mappedPersonId = resolvePersonId(loan.personId, loan.personName, maps)
+      loanDao.insertLoan(loan.copy(personId = mappedPersonId))
+    }
+  }
+
+  private suspend fun insertTransactionsWithPersonRemap(
+    transactions: List<Transaction>,
+    maps: PersonKeyMaps
+  ) {
+    for (tx in transactions) {
+      val mappedPersonId = resolvePersonId(tx.personId, tx.personName, maps)
+      transactionDao.insertTransaction(tx.copy(personId = mappedPersonId))
+    }
+  }
+
+  private data class PersonKeyMaps(
+    val sourceIdToKey: Map<Long, String>,
+    val keyToLocalId: Map<String, Long>
+  )
+
+  private fun resolvePersonId(
+    sourcePersonId: Long?,
+    fallbackName: String?,
+    maps: PersonKeyMaps
+  ): Long? {
+    if (sourcePersonId != null) {
+      // Known backup person: remap only if it survived insertion. Persons
+      // dropped on a key collision are intentionally absent from sourceIdToKey,
+      // so their records keep personId NULL instead of being mis-attributed to
+      // the surviving person.
+      val key = maps.sourceIdToKey[sourcePersonId]
+      return key?.takeIf { it.isNotEmpty() }?.let { maps.keyToLocalId[it] }
+    }
+    // Legacy record with no person id: best-effort remap by denormalized name.
+    val fallbackKey =
+      fallbackName
+        ?.let { PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it)) }
+        ?.takeIf { it.isNotEmpty() }
+    return fallbackKey?.let { maps.keyToLocalId[it] }
+  }
 
   /**
    * Merges backup data into the database while preserving relationships through foreign-key remapping.
@@ -264,11 +472,27 @@ class HesabyarRepository(
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val categoryIdMap = mergeCategories(backup.categories)
-      val loanIdMap = mergeLoans(backup.loans)
+      val personKeyToId = mergePersons(backup.persons)
+      val personMaps =
+        PersonKeyMaps(
+          sourceIdToKey =
+            backup.persons.associate {
+              it.id to
+                PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(it.name))
+            },
+          keyToLocalId = personKeyToId
+        )
+
+      fun resolveForMerge(
+        sourcePersonId: Long?,
+        fallbackName: String?
+      ): Long? = resolvePersonId(sourcePersonId, fallbackName, personMaps)
+
+      val loanIdMap = mergeLoans(backup.loans, ::resolveForMerge)
       val bankLoanIdMap = mergeBankLoans(backup.bankLoans)
       val installmentIdMap = mergeInstallments(backup.installments, bankLoanIdMap)
       val accountIdMap = mergeAccounts(backup.accounts)
-      mergeTransactions(backup.transactions, categoryIdMap, installmentIdMap, accountIdMap)
+      mergeTransactions(backup.transactions, categoryIdMap, installmentIdMap, accountIdMap, ::resolveForMerge)
       mergePaymentHistories(backup.paymentHistories, loanIdMap)
     }
 
@@ -290,8 +514,14 @@ class HesabyarRepository(
     return idToKey.mapValues { keyToId[it.value] ?: it.key }
   }
 
-  private suspend fun mergeLoans(loans: List<Loan>): Map<Long, Long> =
-    loans.associate { it.id to loanDao.insertLoan(it.copy(id = 0)) }
+  private suspend fun mergeLoans(
+    loans: List<Loan>,
+    resolvePersonId: (Long?, String?) -> Long? = { _, _ -> null }
+  ): Map<Long, Long> =
+    loans.associate { loan ->
+      val mappedPersonId = resolvePersonId(loan.personId, loan.personName)
+      loan.id to loanDao.insertLoan(loan.copy(id = 0, personId = mappedPersonId))
+    }
 
   private suspend fun mergeBankLoans(bankLoans: List<BankLoan>): Map<Long, Long> =
     bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it.copy(id = 0)) }
@@ -331,11 +561,60 @@ class HesabyarRepository(
     return accountIdMap
   }
 
+  private suspend fun mergePersons(persons: List<Person>): Map<String, Long> {
+    // Dedup by re-derived normalizedName (do not trust backup payload).
+    // Preload existing keys so the loop avoids N queries when the backup
+    // carries many persons (mirrors mergeAccounts' name→id map).
+    val existingByKey =
+      personDao
+        .getAllPersonsIncludingArchivedBlocking()
+        .associateBy { it.normalizedName }
+        .toMutableMap()
+    for (person in persons) {
+      mergeOnePerson(person, existingByKey)
+    }
+    return existingByKey.mapValues { it.value.id }
+  }
+
+  private suspend fun mergeOnePerson(
+    person: Person,
+    existingByKey: MutableMap<String, Person>
+  ) {
+    val display = PersonNameNormalizer.displayForm(person.name)
+    val key = PersonNameNormalizer.normalize(display)
+    if (key.isEmpty()) return
+    val existing = existingByKey[key] ?: personDao.getPersonByNormalizedName(key)
+    if (existing != null) {
+      // Merge (do not let the backup overwrite local identity fields): keep the
+      // local name, createdAt and isArchived. Only fill blank phone/notes from
+      // the backup so a local edit is never clobbered by a stale backup value.
+      val merged =
+        existing.copy(
+          normalizedName = key,
+          phone = if (existing.phone.isNullOrBlank()) person.phone else existing.phone,
+          notes = if (existing.notes.isNullOrBlank()) person.notes else existing.notes
+        )
+      personDao.updatePerson(merged)
+      existingByKey[key] = merged
+    } else {
+      val candidate = person.copy(id = 0, name = display, normalizedName = key)
+      val insertedId = personDao.insertPerson(candidate)
+      val stored =
+        if (insertedId != -1L) {
+          candidate.copy(id = insertedId)
+        } else {
+          personDao.getPersonByNormalizedName(key) ?: return
+        }
+      existingByKey[key] = stored
+    }
+  }
+
   private suspend fun mergeTransactions(
     transactions: List<Transaction>,
     categoryIdMap: Map<Long, Long>,
     installmentIdMap: Map<Long, Long>,
-    accountIdMap: Map<Long, Long>
+    accountIdMap: Map<Long, Long>,
+    resolvePersonId: (Long?, String?) -> Long? = { _, _ -> null }
   ) {
     val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
     // Accounts were merged before this call, so the local table reflects the
@@ -370,13 +649,15 @@ class HesabyarRepository(
           ?: otherCategoryId
           ?: transaction.categoryId
       val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
+      val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
       transactionDao.insertTransaction(
         transaction.copy(
           id = 0,
           categoryId = mappedCategoryId,
           installmentId = mappedInstallmentId,
           accountId = mappedAccountId,
-          destinationAccountId = mappedDestinationAccountId
+          destinationAccountId = mappedDestinationAccountId,
+          personId = mappedPersonId
         )
       )
     }

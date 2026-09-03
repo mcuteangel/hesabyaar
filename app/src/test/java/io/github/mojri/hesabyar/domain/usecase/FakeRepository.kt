@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
 import kotlinx.coroutines.CompletableDeferred
@@ -248,4 +249,51 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   }
 
   override suspend fun getMaxDisplayOrder(): Int = accountsList.maxOfOrNull { it.displayOrder } ?: -1
+
+  private val _allPersons = MutableStateFlow<List<Person>>(emptyList())
+  override val allPersons: Flow<List<Person>> = _allPersons.asStateFlow()
+
+  private val personsList = mutableListOf<Person>()
+
+  /**
+   * Adds a person to [getAllPersonsIncludingArchived] so encrypted-export tests
+   * can carry person PII. The list starts empty, so tests that never call this
+   * keep the previous "no persons" behaviour.
+   */
+  fun addPerson(person: Person) {
+    personsList.add(person)
+    _allPersons.value = personsList.toList()
+  }
+
+  override suspend fun getAllPersonsIncludingArchived(): List<Person> = personsList.toList()
+
+  override suspend fun getPersonById(id: Long): Person? = personsList.firstOrNull { it.id == id }
+
+  override suspend fun upsertPerson(person: Person): Person {
+    val existingIdx = personsList.indexOfFirst { it.normalizedName == person.normalizedName }
+    return if (existingIdx >= 0) {
+      personsList[existingIdx]
+    } else {
+      val withId = person.copy(id = nextId++)
+      personsList.add(withId)
+      _allPersons.value = personsList.toList()
+      withId
+    }
+  }
+
+  override suspend fun renamePerson(
+    personId: Long,
+    newName: String
+  ): Boolean {
+    val idx = personsList.indexOfFirst { it.id == personId }
+    if (idx < 0) return false
+    personsList[idx] = personsList[idx].copy(name = newName)
+    _allPersons.value = personsList.toList()
+    return true
+  }
+
+  override suspend fun deletePerson(person: Person) {
+    personsList.removeIf { it.id == person.id }
+    _allPersons.value = personsList.toList()
+  }
 }
