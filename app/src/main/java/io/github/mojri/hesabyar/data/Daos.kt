@@ -70,6 +70,12 @@ interface TransactionDao {
     personId: Long,
     newName: String
   )
+
+  @Query("UPDATE transactions SET personName = :newName WHERE personId IS NULL AND personName = :oldName")
+  suspend fun syncTransactionPersonNamesForNullId(
+    oldName: String,
+    newName: String
+  )
 }
 
 @Dao
@@ -104,6 +110,12 @@ interface LoanDao {
   @Query("UPDATE loans SET personName = :newName WHERE personId = :personId")
   suspend fun syncLoanPersonNames(
     personId: Long,
+    newName: String
+  )
+
+  @Query("UPDATE loans SET personName = :newName WHERE personId IS NULL AND personName = :oldName")
+  suspend fun syncLoanPersonNamesForNullId(
+    oldName: String,
     newName: String
   )
 }

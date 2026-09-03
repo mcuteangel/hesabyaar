@@ -225,8 +225,16 @@ abstract class AppDatabase : RoomDatabase() {
               "isArchived INTEGER NOT NULL)"
           )
           db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_persons_normalizedName ON persons (normalizedName)")
-          db.execSQL("ALTER TABLE loans ADD COLUMN personId INTEGER")
-          db.execSQL("ALTER TABLE transactions ADD COLUMN personId INTEGER")
+          try {
+            db.execSQL("ALTER TABLE loans ADD COLUMN personId INTEGER")
+          } catch (e: SQLiteException) {
+            if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
+          }
+          try {
+            db.execSQL("ALTER TABLE transactions ADD COLUMN personId INTEGER")
+          } catch (e: SQLiteException) {
+            if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
+          }
 
           val idByNormalized = HashMap<String, Long>()
           backfillPersonsFromLoans(db, idByNormalized)
