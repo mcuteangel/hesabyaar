@@ -400,16 +400,22 @@ object RustMappers {
   fun fromRustPersons(list: List<io.github.mojri.hesabyar.rust.Person>): List<Person> =
     list.mapNotNull { fromRustPerson(it) }
 
-  fun mapPerson(person: Person): io.github.mojri.hesabyar.rust.Person =
-    io.github.mojri.hesabyar.rust.Person(
+  fun mapPerson(person: Person): io.github.mojri.hesabyar.rust.Person {
+    val normalizedName =
+      PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(person.name))
+    require(normalizedName.isNotEmpty()) {
+      "Person ${person.id} has empty normalizedName after re-derivation"
+    }
+    return io.github.mojri.hesabyar.rust.Person(
       id = person.id,
       name = person.name,
-      normalizedName = person.normalizedName,
+      normalizedName = normalizedName,
       phone = person.phone,
       notes = person.notes,
       createdAt = person.createdAt,
       isArchived = person.isArchived
     )
+  }
 
   fun mapPersons(list: List<Person>): List<io.github.mojri.hesabyar.rust.Person> = list.map { mapPerson(it) }
 

@@ -483,12 +483,11 @@ fn normalize_person_name(name: &str) -> String {
     out
 }
 
-/// Mirrors Java `Character.isWhitespace` (which Kotlin `Char.isWhitespace`
-/// delegates to): ASCII control whitespace plus Unicode space separators,
-/// EXCLUDING the non-breaking space variants that Java deliberately omits
-/// (NBSP `U+00A0`, NNBSP `U+2007`, NARROW NBSP `U+202F`). Rust's
-/// `char::is_whitespace` (Unicode White_Space) would otherwise treat NBSP as a
-/// space and diverge from the Kotlin normalizer.
+/// Mirrors Kotlin `Char.isWhitespace` on JVM (`Character.isWhitespace`), which the
+/// Kotlin normalizer delegates to. Java/Kotlin `isWhitespace` EXCLUDES NBSP variants
+/// (`U+00A0`, `U+2007`, `U+202F`) and NEL `U+0085`; Rust `char::is_whitespace` (Unicode
+/// White_Space) includes them, so they are excluded here to keep Rust validation
+/// and Kotlin runtime dedup keys in parity (see test_normalize_person_name_matches_kotlin_contract).
 fn is_java_whitespace(c: char) -> bool {
     matches!(
         c,
@@ -501,7 +500,11 @@ fn is_java_whitespace(c: char) -> bool {
             | '\u{001D}'
             | '\u{001E}'
             | '\u{001F}'
-    ) || (c.is_whitespace() && c != '\u{00A0}' && c != '\u{2007}' && c != '\u{202F}')
+    ) || (c.is_whitespace()
+        && c != '\u{00A0}'
+        && c != '\u{2007}'
+        && c != '\u{202F}'
+        && c != '\u{0085}')
 }
 
 /// Validate an entire backup payload. Collects all errors from all entities.
@@ -541,7 +544,17 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     // never read from the backup-supplied `normalized_name`.
     let mut seen_person_keys = std::collections::HashSet::new();
     for (i, p) in payload.persons.iter().enumerate() {
-        if p.name.trim().is_empty() {
+        // Mirror Kotlin `p.name.isBlank()` (Character.isWhitespace || isSpaceChar) — see `is_java_whitespace`.
+        // `str::trim` uses Unicode White_Space (includes U+0085, excludes NBSP handling divergence).
+        let name_is_blank = p.name.is_empty()
+            || p.name.chars().all(|c| {
+                is_java_whitespace(c)
+                    || matches!(
+                        c,
+                        '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+                    )
+            });
+        if name_is_blank {
             errors.push(format!("Person[{}] has a blank name", i));
         }
         let key = normalize_person_name(&p.name);
