@@ -1,0 +1,57 @@
+app/src/test/java/io/github/mojri/hesabyar/PersonRepositoryTest.kt
+  s_59402ea6dda289::t_c6c594df15448d 101
+plans/011-personal-loan-ledger-redesign.md
+  s_59402ea6dda289::t_6629b88acf66ba 210-212
+app/src/test/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizerTest.kt
+  s_59402ea6dda289::t_fab55bda1e7a42 50-54
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_59402ea6dda289::t_76d475962c60aa 279
+  s_59402ea6dda289::t_7c8212459f0cfb 270-278,280-282,287-290,292-293,295-296,298
+  s_59402ea6dda289::t_8d2fb97466daba 265
+  s_59402ea6dda289::t_4b64fee312bdb5 253-254
+  s_59402ea6dda289::t_8514bd943ede51 291,297
+app/src/main/res/values/strings.xml
+  s_59402ea6dda289::t_be3fafa1b757da 119-120
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizer.kt
+  s_59402ea6dda289::t_ed4cb71a856576 29-30,35-44,46-47,51,54,60-65,68
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonParser.kt
+  s_59402ea6dda289::t_46feab415fe091 55
+  s_59402ea6dda289::t_11276cee6e9889 251
+rust/hesabyar-core/src/validation.rs
+  s_59402ea6dda289::t_c97ccd5ba65efb 585-606
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt
+  s_59402ea6dda289::t_1741ef682a4185 43
+  s_59402ea6dda289::t_53118ac3d46bed 586
+  s_59402ea6dda289::t_cd0f930106126d 688,690-691
+  s_59402ea6dda289::t_1609f3392b7538 689
+  s_59402ea6dda289::t_8014f576a94954 44
+  s_59402ea6dda289::t_f96a5a1be2ba68 584-585,587-589
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupReferenceValidator.kt
+  s_59402ea6dda289::t_beb54a6d2299fc 166-188
+  s_59402ea6dda289::t_fcbdef262e40b4 38
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/EncryptedBackupDecryptionTest.kt
+  s_59402ea6dda289::t_b8fb3e613dceee 173
+rust/hesabyar-core/src/lib.rs
+  s_59402ea6dda289::t_3e89058997cfe4 151
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_59402ea6dda289::t_d36eb1971e2b9a 282-318
+  s_59402ea6dda289::t_6b0887913fbac3 59-78
+AGENTS.md
+  s_59402ea6dda289::t_a1c9c7cee8f509 309,318,320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0692d03dfbdbfd291f1b7f95588430a41ebca6a9",
+  "prompts": {},
+  "sessions": {
+    "s_59402ea6dda289": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f9a0969cdffecLT2tgK7JR12IY",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
