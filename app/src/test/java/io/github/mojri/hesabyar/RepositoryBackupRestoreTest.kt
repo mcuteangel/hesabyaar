@@ -7,13 +7,13 @@ import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
-import io.github.mojri.hesabyar.data.HesabyarRepository
-import io.github.mojri.hesabyar.data.Person
-import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Person
+import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -377,7 +377,14 @@ class RepositoryBackupRestoreTest {
       val ali = requireNotNull(persons.first { it.name == "علی" })
       val sara = requireNotNull(persons.first { it.name == "سارا" })
       // Every recovered loan/transaction must be linked to the recovered row.
-      assertEquals(ali.id, database.loanDao().getAllLoansBlocking().single().personId)
+      assertEquals(
+        ali.id,
+        database
+          .loanDao()
+          .getAllLoansBlocking()
+          .single()
+          .personId
+      )
       val txs = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(ali.id, txs.first { it.personName == "علی" }.personId)
       assertEquals(sara.id, txs.first { it.personName == "سارا" }.personId)
@@ -410,7 +417,11 @@ class RepositoryBackupRestoreTest {
       assertEquals(
         "replace-mode loan re-linked to the recovered person",
         person.id,
-        database.loanDao().getAllLoansBlocking().single().personId
+        database
+          .loanDao()
+          .getAllLoansBlocking()
+          .single()
+          .personId
       )
     }
 
@@ -508,7 +519,12 @@ class RepositoryBackupRestoreTest {
         )
       )
 
-      val keys = database.categoryDao().getAllCategoriesBlocking().map { it.key }.toSet()
+      val keys =
+        database
+          .categoryDao()
+          .getAllCategoriesBlocking()
+          .map { it.key }
+          .toSet()
       assertEquals("REPLACE mirrors the backup exactly", setOf("Food"), keys)
       assertFalse("stale custom category removed", keys.contains("Stale"))
     }

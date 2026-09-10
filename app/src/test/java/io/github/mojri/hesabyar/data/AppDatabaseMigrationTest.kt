@@ -286,7 +286,11 @@ class AppDatabaseMigrationTest {
         )
       )
       val targetRezaIdBefore =
-        targetDb.personDao().getAllPersonsIncludingArchivedBlocking().single().id
+        targetDb
+          .personDao()
+          .getAllPersonsIncludingArchivedBlocking()
+          .single()
+          .id
 
       seedAccountAndPersons()
       insertLinkedTransactionAndLoan()

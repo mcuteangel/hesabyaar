@@ -423,8 +423,7 @@ class BackupJsonParserFallbackPersonTest {
                 put("normalizedName", "")
                 put("createdAt", 0L)
               }
-            )
-            .put(
+            ).put(
               JSONObject().apply {
                 put("id", 2L)
                 put("name", "علی")
