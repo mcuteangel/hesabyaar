@@ -42,8 +42,15 @@ internal class InstallmentDelegate(
         )
       } else if (justUnpaid) {
         // Reverse the expense recorded when the installment was first paid, so
-        // toggling paid → unpaid → paid never double-counts the money.
-        val category = installmentsCategory ?: return@withTransaction
+        // toggling paid → unpaid → paid never double-counts the money. A
+        // missing category aborts the whole update — the paid→unpaid flip rolls
+        // back with the transaction — instead of leaving the expense behind an
+        // unpaid row.
+        val category =
+          installmentsCategory
+            ?: throw IllegalStateException(
+              "Installments category is missing; cannot reverse the paid installment expense"
+            )
         transactionLinkDao.deleteTransactionForInstallment(
           installmentId = installment.id,
           categoryId = category.id
@@ -53,6 +60,16 @@ internal class InstallmentDelegate(
   }
 
   override suspend fun deleteInstallment(installment: Installment) {
-    installmentDao.deleteInstallment(installment)
+    database.withTransaction {
+      // A paid installment's expense row must die with it, or reports keep
+      // counting money for an installment that no longer exists. The row is
+      // generated with this installmentId, so no category filter is needed —
+      // deleting by installmentId alone also survives a missing Installments
+      // category (e.g. a REPLACE-restore from a backup without it).
+      if (installment.isPaid) {
+        transactionLinkDao.deleteTransactionsForInstallment(installment.id)
+      }
+      installmentDao.deleteInstallment(installment)
+    }
   }
 }

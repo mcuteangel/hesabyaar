@@ -402,8 +402,9 @@ class AppDatabaseMigration7to8Test {
    * test would pass even without the guard (any later statement would also
    * throw against a broken schema). So instead of dropping a whole table, a
    * decorator makes ONLY `ALTER TABLE ... ADD COLUMN personId` throw a
-   * non-duplicate SQLiteException; the migration then succeeds iff the guard
-   * rethrows, and every other statement proves it works on a healthy schema.
+   * non-duplicate SQLiteException; the test then passes iff migrate() THROWS
+   * (i.e. the guard propagates the error instead of swallowing it), and every
+   * other statement proves it works on a healthy schema.
    */
   @Test
   fun migration7to8RethrowsUnrelatedSqliteErrors() {

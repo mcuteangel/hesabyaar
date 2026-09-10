@@ -586,12 +586,13 @@ fn normalize_person_name(name: &str) -> String {
 
 /// Mirrors Kotlin `Char.isWhitespace` on JVM (`Character.isWhitespace`), which the
 /// Kotlin normalizer delegates to. Java/Kotlin `isWhitespace` EXCLUDES NBSP variants
-/// (`U+00A0`, `U+2007`, `U+202F`) but INCLUDES NEL `U+0085`; Rust `char::is_whitespace`
-/// (Unicode White_Space) treats NBSP variants the same way Kotlin does but disagrees
-/// only on NBSP-family characters that Rust also flags as whitespace. The NBSP variants
-/// are excluded here so Rust validation matches Kotlin's runtime dedup keys (see
-/// test_normalize_person_name_matches_kotlin_contract). NEL is left in `is_whitespace`
-/// so a name containing NEL is normalized identically on both sides.
+/// (`U+00A0`, `U+2007`, `U+202F`) AND NEL (`U+0085`) — verified on JVM 24:
+/// `Character.isWhitespace('\u{0085}')` is false, because NEL has Unicode category
+/// Cc (control), not Zs/Zl/Zp, and is not one of the control codes Java flags.
+/// Rust `char::is_whitespace` (Unicode White_Space) INCLUDES NEL, so NEL must be
+/// excluded explicitly alongside the NBSP variants; otherwise a name containing
+/// NEL would normalize to a different key than Kotlin's runtime dedup key (see
+/// test_normalize_person_name_matches_kotlin_contract).
 fn is_java_whitespace(c: char) -> bool {
     matches!(
         c,
@@ -604,7 +605,11 @@ fn is_java_whitespace(c: char) -> bool {
             | '\u{001D}'
             | '\u{001E}'
             | '\u{001F}'
-    ) || (c.is_whitespace() && c != '\u{00A0}' && c != '\u{2007}' && c != '\u{202F}')
+    ) || (c.is_whitespace()
+        && c != '\u{00A0}'
+        && c != '\u{2007}'
+        && c != '\u{202F}'
+        && c != '\u{0085}')
 }
 
 /// Validate an entire backup payload. Collects all errors from all entities.
@@ -2173,6 +2178,31 @@ mod tests {
         assert_eq!(normalize_person_name("يک"), "یک");
         assert_eq!(normalize_person_name("ة"), "ه");
         assert_eq!(normalize_person_name("\u{200C}\u{200B}"), "");
+        // Full Arabic-fold parity (the Kotlin map folds every one of these):
+        // remaining yeh variants (alef maksura, yeh with hamza).
+        assert_eq!(normalize_person_name("ى"), "ی");
+        assert_eq!(normalize_person_name("ئ"), "ی");
+        // Every alef variant folds to the plain alef.
+        assert_eq!(normalize_person_name("أ"), "ا");
+        assert_eq!(normalize_person_name("إ"), "ا");
+        assert_eq!(normalize_person_name("آ"), "ا");
+        assert_eq!(normalize_person_name("ٱ"), "ا");
+        // Waw with hamza folds to plain waw.
+        assert_eq!(normalize_person_name("ؤ"), "و");
+        // Lam-alef presentation-form ligatures (isolated/final, plain/hamza/madda)
+        // expand to the canonical two-char sequence — exactly what the Kotlin
+        // map emits, so a Rust-side fold drift fails here.
+        assert_eq!(normalize_person_name("ﻵ"), "لا");
+        assert_eq!(normalize_person_name("ﻶ"), "لا");
+        assert_eq!(normalize_person_name("ﻷ"), "لا");
+        assert_eq!(normalize_person_name("ﻸ"), "لا");
+        assert_eq!(normalize_person_name("ﻹ"), "لا");
+        assert_eq!(normalize_person_name("ﻺ"), "لا");
+        assert_eq!(normalize_person_name("ﻻ"), "لا");
+        assert_eq!(normalize_person_name("ﻼ"), "لا");
+        // Mixed-script round trip: Arabic-typed and Persian-typed spellings of
+        // the same name must share one dedup key.
+        assert_eq!(normalize_person_name("علي"), normalize_person_name("علی"));
 
         // NBSP parity: Java `Character.isWhitespace` EXCLUDES NBSP (`U+00A0`),
         // NNBSP (`U+2007`) and NARROW NBSP (`U+202F`). The Kotlin normalizer
@@ -2191,14 +2221,16 @@ mod tests {
         assert_eq!(normalize_person_name("a\u{2007}b"), "a\u{2007}b");
         assert_eq!(normalize_person_name("a\u{202F}b"), "a\u{202F}b");
 
-        // NEL (`U+0085`) parity: Java `Character.isWhitespace` INCLUDES NEL,
-        // so Kotlin's normalizer folds NEL into a separator (collapses adjacent
-        // runs to a single space). Rust `char::is_whitespace` also includes it,
-        // so the parity point is the Java semantics, not an exception. If a
-        // future change drops NEL from the exception list's siblings by
-        // mistake, this assertion will fail.
-        assert_eq!(normalize_person_name("a\u{0085}b"), "a b");
-        assert_eq!(normalize_person_name("a\u{0085}\u{0085}b"), "a b");
+        // NEL (`U+0085`) parity: Java `Character.isWhitespace` EXCLUDES NEL
+        // (verified on JVM 24 — NEL is category Cc, and Java only flags
+        // space-separator/line-separator/paragraph-separator chars plus a
+        // fixed list of control codes that does not include NEL). Kotlin's
+        // normalizer therefore keeps NEL as a literal character; Rust's
+        // `char::is_whitespace` (Unicode White_Space) would wrongly fold it
+        // into a separator, so `is_java_whitespace` must exclude it.
+        assert_eq!(normalize_person_name("a\u{0085}b"), "a\u{0085}b");
+        // A NEL-only name does not trim to empty — it stays non-empty.
+        assert!(!normalize_person_name("\u{0085}").is_empty());
 
         // Case-fold parity: Kotlin `Char.lowercaseChar()` (Java
         // `Character.toLowerCase`) applies the Unicode SIMPLE lowercase. For

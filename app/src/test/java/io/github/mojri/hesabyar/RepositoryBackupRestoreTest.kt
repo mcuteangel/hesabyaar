@@ -10,6 +10,10 @@ import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -320,6 +324,193 @@ class RepositoryBackupRestoreTest {
       assertEquals("Normalized key preserved on conflict", "علی", kept.normalizedName)
       assertEquals("Local createdAt preserved on conflict", 1000L, kept.createdAt)
       assertEquals("Local phone kept when already present (backup fills blanks only)", "0912", kept.phone)
+    }
+
+  @Test
+  fun mergeFromBackupRecoversPersonsFromLegacyLoanAndTransactionNames() =
+    runTest {
+      val repo = createRepository()
+      // Legacy backup: no persons array, identities only as denormalized names.
+      // Ali appears on a loan AND a transaction; Sara only on a transaction.
+      repo.mergeFromBackup(
+        BackupPayload(
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "علی",
+                type = LoanType.DEBTOR,
+                originalAmount = 1_000L,
+                remainingAmount = 500L,
+                description = "legacy",
+                date = 100L
+              )
+            ),
+          transactions =
+            listOf(
+              Transaction(
+                id = 1L,
+                type = TransactionType.EXPENSE,
+                categoryId = 0L,
+                amount = 100L,
+                description = "legacy tx",
+                personName = "علی",
+                date = 100L,
+                accountId = 1L
+              ),
+              Transaction(
+                id = 2L,
+                type = TransactionType.EXPENSE,
+                categoryId = 0L,
+                amount = 50L,
+                description = "legacy tx",
+                personName = "سارا",
+                date = 100L,
+                accountId = 1L
+              )
+            )
+        )
+      )
+
+      val persons = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("both identities recovered from denormalized names", 2, persons.size)
+      val ali = requireNotNull(persons.first { it.name == "علی" })
+      val sara = requireNotNull(persons.first { it.name == "سارا" })
+      // Every recovered loan/transaction must be linked to the recovered row.
+      assertEquals(ali.id, database.loanDao().getAllLoansBlocking().single().personId)
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(ali.id, txs.first { it.personName == "علی" }.personId)
+      assertEquals(sara.id, txs.first { it.personName == "سارا" }.personId)
+    }
+
+  @Test
+  fun replaceFromLegacyBackupWithoutPersonsRecoversIdentitiesAndLinks() =
+    runTest {
+      val repo = createRepository()
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "رضا",
+                type = LoanType.CREDITOR,
+                originalAmount = 2_000L,
+                remainingAmount = 2_000L,
+                description = "legacy replace",
+                date = 100L
+              )
+            )
+        )
+      )
+
+      val person = requireNotNull(database.personDao().getAllPersonsIncludingArchivedBlocking().single())
+      assertEquals("رضا", person.name)
+      assertEquals("رضا", person.normalizedName)
+      assertEquals(
+        "replace-mode loan re-linked to the recovered person",
+        person.id,
+        database.loanDao().getAllLoansBlocking().single().personId
+      )
+    }
+
+  @Test
+  fun mergeFromBackupResolvesPersonReferencedByIdButMissingFromPersonsArray() =
+    runTest {
+      val repo = createRepository()
+      // The persons array carries Ali, but the loan references Sara by id 77 —
+      // an id with no persons row (a stripped/legacy payload). sourceIdToKey
+      // maps every REFERENCED id, so Sara's loan resolves by her name.
+      repo.mergeFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(id = 1L, name = "علی", normalizedName = "علی", createdAt = 1L)
+            ),
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "علی",
+                personId = 1L,
+                type = LoanType.DEBTOR,
+                originalAmount = 1_000L,
+                remainingAmount = 1_000L,
+                description = "known id",
+                date = 100L
+              ),
+              Loan(
+                id = 2L,
+                personName = "سارا",
+                personId = 77L,
+                type = LoanType.CREDITOR,
+                originalAmount = 3_000L,
+                remainingAmount = 3_000L,
+                description = "referenced id with no persons row",
+                date = 100L
+              )
+            )
+        )
+      )
+
+      val loans = database.loanDao().getAllLoansBlocking()
+      val ali = requireNotNull(database.personDao().getPersonByNormalizedName("علی"))
+      // The known id maps through personsToMerge.
+      assertEquals(ali.id, loans.first { it.personName == "علی" }.personId)
+      // The dangling id falls back to name resolution and still links.
+      val sara = requireNotNull(database.personDao().getPersonByNormalizedName("سارا"))
+      assertEquals(sara.id, loans.first { it.personName == "سارا" }.personId)
+    }
+
+  @Test
+  fun replaceAllFromBackupRemovesStaleLocalCategories() =
+    runTest {
+      val repo = createRepository()
+      // A custom local category (not in the backup) must not survive REPLACE:
+      // restore mirrors the backup exactly.
+      val staleId =
+        database.categoryDao().insertCategory(
+          Category(
+            name = "قدیمی",
+            key = "Stale",
+            icon = "Star",
+            color = 1,
+            type = CategoryType.EXPENSE,
+            isDefault = false
+          )
+        )
+      val keepId =
+        database.categoryDao().insertCategory(
+          Category(
+            name = "خوراک",
+            key = "Food",
+            icon = "Restaurant",
+            color = 1,
+            type = CategoryType.EXPENSE,
+            isDefault = false
+          )
+        )
+
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          categories =
+            listOf(
+              Category(
+                id = keepId,
+                name = "خوراک",
+                key = "Food",
+                icon = "Restaurant",
+                color = 1,
+                type = CategoryType.EXPENSE,
+                isDefault = false
+              )
+            )
+        )
+      )
+
+      val keys = database.categoryDao().getAllCategoriesBlocking().map { it.key }.toSet()
+      assertEquals("REPLACE mirrors the backup exactly", setOf("Food"), keys)
+      assertFalse("stale custom category removed", keys.contains("Stale"))
     }
 
   private fun backupPayload(

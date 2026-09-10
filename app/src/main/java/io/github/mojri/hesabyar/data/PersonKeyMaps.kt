@@ -14,7 +14,11 @@ internal fun resolvePersonId(
 ): Long? {
   if (sourcePersonId != null) {
     val key = maps.sourceIdToKey[sourcePersonId]
-    return key?.takeIf { it.isNotEmpty() }?.let { maps.keyToLocalId[it] }
+    val localId = key?.takeIf { it.isNotEmpty() }?.let { maps.keyToLocalId[it] }
+    // An id with no usable key (referenced by a loan/transaction but not
+    // carried in the persons list) must not orphan the link: fall through to
+    // name resolution below instead of returning null outright.
+    if (localId != null) return localId
   }
   val fallbackKey =
     fallbackName

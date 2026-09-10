@@ -52,12 +52,7 @@ internal class BackupDelegate(
       // stale custom or renamed categories behind.
       categoryDao.deleteAllCategories()
       backup.categories.forEach { categoryDao.insertCategory(it) }
-      val personsToInsert =
-        if (backup.persons.isEmpty()) {
-          recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
-        } else {
-          backup.persons
-        }
+      val personsToInsert = withRecoveredReferencedPersons(backup)
       val personMaps = backupInsertPersonsForReplace(personsToInsert, personDao)
       backupInsertLoansWithPersonRemap(backup.loans, personMaps, loanDao)
       backupInsertTransactionsWithPersonRemap(backup.transactions, personMaps, transactionDao)
@@ -70,14 +65,11 @@ internal class BackupDelegate(
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
       val categoryIdMap = backupMergeCategories(backup.categories, categoryDao)
-      // Legacy backups predate the persons array; recover identities from the
-      // loan/transaction names so the merge path links them like replace does.
-      val personsToMerge =
-        if (backup.persons.isEmpty()) {
-          recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
-        } else {
-          backup.persons
-        }
+      // Legacy backups predate the persons array; referenced-only identities
+      // (a loan/transaction pointing at a person id the persons list never
+      // carried) are absent from it. Both cases are healed here so every
+      // referenced name resolves during the merge below.
+      val personsToMerge = withRecoveredReferencedPersons(backup)
       val personKeyToId = backupMergePersons(personsToMerge, personDao)
       // Map every referenced source person id — not only the rows carried in
       // backup.persons — so loans/transactions pointing at an id present in

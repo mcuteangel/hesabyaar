@@ -115,6 +115,12 @@ interface TransactionLinkDao {
     installmentId: Long,
     categoryId: Long
   )
+
+  // Delete-installment path: the generated rows carry this installmentId, so
+  // no category filter is needed (the Installments category itself may be
+  // gone when the deletion happens, e.g. after a REPLACE-restore).
+  @Query("DELETE FROM transactions WHERE installmentId = :installmentId")
+  suspend fun deleteTransactionsForInstallment(installmentId: Long)
 }
 
 @Dao

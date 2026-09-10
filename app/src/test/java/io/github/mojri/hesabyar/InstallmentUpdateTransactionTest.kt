@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
@@ -141,5 +142,110 @@ class InstallmentUpdateTransactionTest {
       val unchanged = database.installmentDao().getInstallmentById(installmentId)!!
       assertFalse("rollback must keep the row unpaid", unchanged.isPaid)
       assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
+    }
+
+  @Test
+  fun unpayWithoutCategoryThrowsAndRollsBackInsteadOfStrandingExpense() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 3_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+        )
+      val stored = database.installmentDao().getInstallmentById(installmentId)!!
+      repo.updateInstallment(stored.copy(isPaid = true))
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      // A REPLACE-restore can leave the DB without an Installments category.
+      database.categoryDao().deleteAllCategories()
+
+      // The unpay must abort ATOMICALLY: before the fix, the row flipped to
+      // unpaid while the expense stayed behind (double-counted money).
+      try {
+        repo.updateInstallment(stored.copy(isPaid = false))
+        fail("unpay without Installments category must abort, not strand the expense")
+      } catch (expected: IllegalStateException) {
+      }
+
+      val unchanged = database.installmentDao().getInstallmentById(installmentId)!!
+      assertTrue("rollback must keep the row paid", unchanged.isPaid)
+      assertEquals(
+        "the expense row must survive the aborted unpay (it is still owed)",
+        1,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
+
+  @Test
+  fun deletePaidInstallmentRemovesItsLinkedExpense() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 4_000_000L, dueDate = 1_700_000_000_000L, isPaid = true)
+        )
+      // Going through updateInstallment keeps the isPaid flip and its expense
+      // consistent, mirroring the real user flow.
+      repo.updateInstallment(
+        database.installmentDao().getInstallmentById(installmentId)!!.copy(isPaid = false)
+      )
+      repo.updateInstallment(
+        database.installmentDao().getInstallmentById(installmentId)!!.copy(isPaid = true)
+      )
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      repo.deleteInstallment(database.installmentDao().getInstallmentById(installmentId)!!)
+
+      assertEquals("installment gone", 0, database.installmentDao().getAllInstallmentsSync().size)
+      assertEquals(
+        "linked expense must die with the paid installment",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
+
+  @Test
+  fun deleteUnpaidInstallmentLeavesTransactionsAlone() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 5_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+        )
+
+      repo.deleteInstallment(database.installmentDao().getInstallmentById(installmentId)!!)
+
+      assertEquals(0, database.installmentDao().getAllInstallmentsSync().size)
+      assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
+    }
+
+  @Test
+  fun deletePaidInstallmentWithoutCategoryStillRemovesExpense() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 6_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+        )
+      val stored = database.installmentDao().getInstallmentById(installmentId)!!
+      repo.updateInstallment(stored.copy(isPaid = true))
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      // Deleting a paid installment must still clean up its expense even when
+      // the Installments category is gone (delete uses installmentId alone).
+      database.categoryDao().deleteAllCategories()
+
+      repo.deleteInstallment(database.installmentDao().getInstallmentById(installmentId)!!)
+
+      assertEquals(0, database.installmentDao().getAllInstallmentsSync().size)
+      assertEquals(
+        "expense cleanup must not depend on the Installments category",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
     }
 }

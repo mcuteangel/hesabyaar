@@ -28,7 +28,7 @@ class BackupJsonParserFallbackPersonTest {
   private fun buildBackupJson(block: JSONObject.() -> Unit): String = JSONObject().apply(block).toString()
 
   @Test
-  fun fallbackParserNormalizesPersonNameAndPreservesRawName() {
+  fun fallbackParserTrimsPersonNameAndDerivesNormalizedName() {
     val rawName = "  علی  رضا  "
     val staleNormalized = "stale_value"
     val json =
@@ -49,12 +49,14 @@ class BackupJsonParserFallbackPersonTest {
     assertNotNull(result)
     assertEquals(1, result!!.persons.size)
     val person = result.persons[0]
-    assertEquals(rawName, person.name)
+    // The display name is the OUTER-trimmed original (displayForm trims edges
+    // only — internal double spaces stay), never the raw padded string.
+    assertEquals("علی  رضا", person.name)
     assertEquals("علی رضا", person.normalizedName)
   }
 
   @Test
-  fun fallbackParserRejectsZeroWidthOnlyPersonName() {
+  fun fallbackParserSkipsZeroWidthOnlyPersonName() {
     val zeroWidthName = " \u200B \u200C "
     val json =
       buildBackupJson {
@@ -70,12 +72,16 @@ class BackupJsonParserFallbackPersonTest {
           )
         )
       }
+    // A person whose name normalizes to empty is SKIPPED, not a whole-backup
+    // rejection: one junk row must not abort the rest of the payload. The
+    // skip contract lets validation surface dangling references separately.
     val result = runBlocking { useCase.parseBackupJson(json) }
-    assertNull(result)
+    assertNotNull(result)
+    assertTrue(result!!.persons.isEmpty())
   }
 
   @Test
-  fun fallbackParserRejectsBlankPersonName() {
+  fun fallbackParserSkipsBlankPersonName() {
     val json =
       buildBackupJson {
         put(
@@ -90,12 +96,16 @@ class BackupJsonParserFallbackPersonTest {
           )
         )
       }
+    // A person whose name normalizes to empty is SKIPPED, not a whole-backup
+    // rejection: one junk row must not abort the rest of the payload. The
+    // skip contract lets validation surface dangling references separately.
     val result = runBlocking { useCase.parseBackupJson(json) }
-    assertNull(result)
+    assertNotNull(result)
+    assertTrue(result!!.persons.isEmpty())
   }
 
   @Test
-  fun fallbackParserRejectsEmptyPersonName() {
+  fun fallbackParserSkipsEmptyPersonName() {
     val json =
       buildBackupJson {
         put(
@@ -110,8 +120,12 @@ class BackupJsonParserFallbackPersonTest {
           )
         )
       }
+    // A person whose name normalizes to empty is SKIPPED, not a whole-backup
+    // rejection: one junk row must not abort the rest of the payload. The
+    // skip contract lets validation surface dangling references separately.
     val result = runBlocking { useCase.parseBackupJson(json) }
-    assertNull(result)
+    assertNotNull(result)
+    assertTrue(result!!.persons.isEmpty())
   }
 
   @Test
@@ -393,6 +407,40 @@ class BackupJsonParserFallbackPersonTest {
     assertNull(result.loans[1].personId)
     assertNull(result.loans[2].personId)
     assertEquals(5L, result.loans[3].personId)
+  }
+
+  @Test
+  fun fallbackParserSkipsUnusablePersonButKeepsUsableOnes() {
+    val json =
+      buildBackupJson {
+        put(
+          "persons",
+          JSONArray()
+            .put(
+              JSONObject().apply {
+                put("id", 1L)
+                put("name", "\u200B")
+                put("normalizedName", "")
+                put("createdAt", 0L)
+              }
+            )
+            .put(
+              JSONObject().apply {
+                put("id", 2L)
+                put("name", "علی")
+                put("normalizedName", "stale")
+                put("createdAt", 1000L)
+              }
+            )
+        )
+      }
+    // The junk row drops out without aborting its usable sibling — the exact
+    // regression this skip contract guards against.
+    val result = runBlocking { useCase.parseBackupJson(json) }
+    assertNotNull(result)
+    assertEquals(1, result!!.persons.size)
+    assertEquals(2L, result.persons[0].id)
+    assertEquals("علی", result.persons[0].name)
   }
 
   @Test

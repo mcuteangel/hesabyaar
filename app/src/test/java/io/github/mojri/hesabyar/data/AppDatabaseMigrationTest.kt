@@ -259,6 +259,47 @@ class AppDatabaseMigrationTest {
       val archivedIdInTarget = seedSourceAndTransfer()
       assertArchivedPersonsPreserved(archivedIdInTarget)
       assertLoanReLinkedToArchivedPerson()
+      assertTransactionReLinkedToActivePerson()
+    }
+
+  /**
+   * Drives the id-remap branch of [AppDatabase.transferPlaintextData] with a
+   * real collision: the target DB already holds a person whose normalizedName
+   * equals the source's, so `insertAllBlocking` (IGNORE) drops the source row
+   * and its id diverges. `personIdRemapForTransfer` must re-link the copied
+   * loan/transaction to the TARGET id — a regression in the remap would
+   * otherwise write the stale source id and dangle the reference.
+   */
+  @Test
+  fun transferPlaintextDataRemapsPersonIdOnNormalizedKeyCollision() =
+    runTest {
+      // Target already has Reza under a DIFFERENT id than the source uses.
+      targetDb.personDao().insertAllBlocking(
+        listOf(
+          Person(
+            id = 0L,
+            name = "Reza",
+            normalizedName = "reza",
+            createdAt = 50L,
+            isArchived = false
+          )
+        )
+      )
+      val targetRezaIdBefore =
+        targetDb.personDao().getAllPersonsIncludingArchivedBlocking().single().id
+
+      seedAccountAndPersons()
+      insertLinkedTransactionAndLoan()
+      transferPlaintextData(sourceDb, targetDb)
+
+      val targetPersons = targetDb.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("collision keeps one Reza only", 1, targetPersons.count { it.normalizedName == "reza" })
+      val targetRezaId = targetPersons.first { it.normalizedName == "reza" }.id
+      assertEquals("target row kept its own id (source dropped by IGNORE)", targetRezaIdBefore, targetRezaId)
+
+      // The copied loan must point at the TARGET Reza id, not the source id.
+      val loan = targetDb.loanDao().getAllLoansBlocking().single()
+      assertEquals("loan personId remapped to the surviving target id", targetRezaId, loan.personId)
     }
 
 /**
@@ -317,8 +358,8 @@ class AppDatabaseMigrationTest {
     assertEquals("source must have 2 persons (active + archived)", 2, sourcePersons.size)
   }
 
-  /** Inserts one transaction linked to Sara and one loan linked to Reza. Returns their source ids. */
-  private fun insertLinkedTransactionAndLoan(): Pair<Long, Long> {
+  /** Inserts one transaction linked to Sara and one loan linked to Reza. */
+  private fun insertLinkedTransactionAndLoan() {
     val activeId =
       sourceDb
         .personDao()
@@ -359,7 +400,6 @@ class AppDatabaseMigrationTest {
         )
       )
     )
-    return activeId to archivedId
   }
 
   /**
@@ -380,6 +420,26 @@ class AppDatabaseMigrationTest {
     val activeInTarget = targetPersons.first { it.name == "Sara" }
     assertEquals("active flag preserved", false, activeInTarget.isArchived)
     assertEquals("active person phone preserved", "09120000000", activeInTarget.phone)
+  }
+
+  /**
+   * Asserts the transaction seeded by [insertLinkedTransactionAndLoan] kept a
+   * personId that resolves in the target DB (the loan's sibling link; see
+   * also [assertLoanReLinkedToArchivedPerson]).
+   */
+  private fun assertTransactionReLinkedToActivePerson() {
+    val txs = targetDb.transactionDao().getAllTransactionsBlocking()
+    assertEquals("target must have 1 transaction after real transfer", 1, txs.size)
+    val activeInTarget =
+      targetDb
+        .personDao()
+        .getAllPersonsIncludingArchivedBlocking()
+        .first { it.name == "Sara" }
+    assertEquals(
+      "transaction personId re-linked to active person id",
+      activeInTarget.id,
+      txs[0].personId
+    )
   }
 
   /**

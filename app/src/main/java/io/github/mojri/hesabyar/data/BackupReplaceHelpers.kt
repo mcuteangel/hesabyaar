@@ -50,6 +50,31 @@ internal fun recoverPersonsFromLoansAndTransactions(
   return distinct.map { (key, display) -> Person(name = display, normalizedName = key) }
 }
 
+/**
+ * Heals the persons list before a merge/replace restore:
+ * - Legacy backups (empty `persons`) get every identity recovered from the
+ *   denormalized loan/transaction names.
+ * - Newer-but-stripped payloads can reference a person id on a loan/transaction
+ *   while the persons array omits that row. Every referenced-but-missing
+ *   identity is appended (deduplicated by normalized key) so the id-to-key
+ *   map and name fallback both resolve it instead of writing personId=null.
+ */
+internal fun withRecoveredReferencedPersons(backup: BackupPayload): List<Person> {
+  if (backup.persons.isEmpty()) {
+    return recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
+  }
+  val byKey = LinkedHashMap<String, Person>()
+  for (person in backup.persons) {
+    val key = PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(person.name))
+    if (key.isNotEmpty()) byKey.putIfAbsent(key, person)
+  }
+  val recovered = recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
+  for (person in recovered) {
+    byKey.putIfAbsent(person.normalizedName, person)
+  }
+  return byKey.values.toList()
+}
+
 internal suspend fun backupInsertPersonsForReplace(
   persons: List<Person>,
   personDao: PersonDao
