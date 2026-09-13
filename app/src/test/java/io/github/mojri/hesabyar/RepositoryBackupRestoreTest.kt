@@ -426,6 +426,60 @@ class RepositoryBackupRestoreTest {
     }
 
   @Test
+  fun replaceWithNonEmptyPersonsRecoversOnlyReferencedMissingIdentities() =
+    runTest {
+      val repo = createRepository()
+      // Modern payload: persons carries Ali; one transaction references Maryam
+      // by id 77 (missing from persons); the other is name-only with
+      // personId == null — a deliberately unlinked row (deletePerson clears
+      // ids but keeps names), which must NOT resurrect a person of its own.
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(id = 1L, name = "علی", normalizedName = "علی", createdAt = 1L)
+            ),
+          transactions =
+            listOf(
+              transaction(
+                id = 10L,
+                type = TransactionType.EXPENSE,
+                accountId = 1L,
+                amount = 500L
+              ).copy(personName = "مریم", personId = 77L),
+              transaction(
+                id = 11L,
+                type = TransactionType.EXPENSE,
+                accountId = 1L,
+                amount = 700L
+              ).copy(personName = "زهرا", personId = null)
+            )
+        )
+      )
+
+      val stored = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("carried Ali plus only the referenced-by-id Maryam", 2, stored.size)
+      val maryam = requireNotNull(stored.firstOrNull { it.name == "مریم" }) { "referenced identity recovered" }
+      assertEquals(
+        "referenced-by-id transaction linked to the recovered person",
+        maryam.id,
+        database
+          .transactionDao()
+          .getAllTransactionsBlocking()
+          .first { it.amount == 500L }
+          .personId
+      )
+      assertNull(
+        "unlinked name-only row must not gain a personId (no resurrection)",
+        database
+          .transactionDao()
+          .getAllTransactionsBlocking()
+          .first { it.amount == 700L }
+          .personId
+      )
+    }
+
+  @Test
   fun mergeFromBackupResolvesPersonReferencedByIdButMissingFromPersonsArray() =
     runTest {
       val repo = createRepository()

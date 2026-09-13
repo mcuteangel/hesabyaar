@@ -55,20 +55,33 @@ internal fun recoverPersonsFromLoansAndTransactions(
  * - Legacy backups (empty `persons`) get every identity recovered from the
  *   denormalized loan/transaction names.
  * - Newer-but-stripped payloads can reference a person id on a loan/transaction
- *   while the persons array omits that row. Every referenced-but-missing
- *   identity is appended (deduplicated by normalized key) so the id-to-key
- *   map and name fallback both resolve it instead of writing personId=null.
+ *   while the persons array omits that row. Only those referenced-but-missing
+ *   identities are appended (deduplicated by normalized key); name-only rows
+ *   with `personId == null` keep their unlinked state — the user may have
+ *   unlinked them on purpose (see deletePerson), and re-creating the person
+ *   would undo that decision.
  */
 internal fun withRecoveredReferencedPersons(backup: BackupPayload): List<Person> {
   if (backup.persons.isEmpty()) {
     return recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
   }
+  val declaredIds = backup.persons.map { it.id }.toSet()
   val byKey = LinkedHashMap<String, Person>()
   for (person in backup.persons) {
     val key = PersonNameNormalizer.normalize(PersonNameNormalizer.displayForm(person.name))
     if (key.isNotEmpty()) byKey.putIfAbsent(key, person)
   }
-  val recovered = recoverPersonsFromLoansAndTransactions(backup.loans, backup.transactions)
+  // Only names carried by rows whose person id is missing from the persons
+  // array participate in recovery; a name-only row is deliberately unlinked.
+  val referencedLoans =
+    backup.loans.filter { loan ->
+      loan.personId != null && loan.personId !in declaredIds && loan.personName.isNotBlank()
+    }
+  val referencedTransactions =
+    backup.transactions.filter { tx ->
+      tx.personId != null && tx.personId !in declaredIds && !tx.personName.isNullOrBlank()
+    }
+  val recovered = recoverPersonsFromLoansAndTransactions(referencedLoans, referencedTransactions)
   for (person in recovered) {
     byKey.putIfAbsent(person.normalizedName, person)
   }

@@ -248,4 +248,33 @@ class InstallmentUpdateTransactionTest {
         database.transactionDao().getAllTransactionsBlocking().size
       )
     }
+
+  @Test
+  fun deleteInstallmentWithStaleUnpaidSnapshotStillRemovesExpense() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 7_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+        )
+      val stale = database.installmentDao().getInstallmentById(installmentId)!!
+      // The row becomes paid AFTER the caller captured its unpaid snapshot —
+      // the delete must decide from the persisted state, not the stale object.
+      repo.updateInstallment(stale.copy(isPaid = true))
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      repo.deleteInstallment(stale)
+
+      assertEquals(
+        "stale snapshot must still delete the row",
+        0,
+        database.installmentDao().getAllInstallmentsSync().size
+      )
+      assertEquals(
+        "the paid row's linked expense must die with it despite the stale unpaid snapshot",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
 }

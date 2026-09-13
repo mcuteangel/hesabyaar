@@ -61,13 +61,12 @@ internal class InstallmentDelegate(
 
   override suspend fun deleteInstallment(installment: Installment) {
     database.withTransaction {
-      // A paid installment's expense row must die with it, or reports keep
-      // counting money for an installment that no longer exists. The row is
-      // generated with this installmentId, so no category filter is needed —
-      // deleting by installmentId alone also survives a missing Installments
-      // category (e.g. a REPLACE-restore from a backup without it).
-      if (installment.isPaid) {
-        transactionLinkDao.deleteTransactionsForInstallment(installment.id)
+      // Decide from the persisted row, not the caller's object: a stale
+      // unpaid snapshot deleting a row that is actually paid would skip the
+      // linked-expense cleanup and strand the money behind a dead row.
+      val existing = installmentDao.getInstallmentById(installment.id) ?: return@withTransaction
+      if (existing.isPaid) {
+        transactionLinkDao.deleteTransactionsForInstallment(existing.id)
       }
       installmentDao.deleteInstallment(installment)
     }

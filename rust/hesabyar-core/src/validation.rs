@@ -547,6 +547,50 @@ fn normalize_person_name(name: &str) -> String {
             '\u{0623}' | '\u{0625}' | '\u{0622}' | '\u{0671}' => '\u{0627}',
             // waw with hamza -> waw
             '\u{0624}' => '\u{0648}',
+            // Presentation forms of the individual letters (isolated/final/
+            // initial/medial, U+FB50-U+FEFF). PDF-pasted or shaped-render text
+            // can carry these instead of the base letters; they fold to the
+            // same targets as the base letters so both sides share one key
+            // (mirrors the Kotlin map in PersonNameNormalizer.kt).
+            '\u{FE80}' => '\u{0621}',
+            '\u{FB50}' | '\u{FB51}' | '\u{FE8D}' | '\u{FE8E}' => '\u{0627}',
+            '\u{FE8F}' | '\u{FE90}' | '\u{FE91}' | '\u{FE92}' => '\u{0628}',
+            '\u{FE95}' | '\u{FE96}' | '\u{FE97}' | '\u{FE98}' => '\u{062A}',
+            '\u{FE99}' | '\u{FE9A}' | '\u{FE9B}' | '\u{FE9C}' => '\u{062B}',
+            '\u{FE9D}' | '\u{FE9E}' | '\u{FE9F}' | '\u{FEA0}' => '\u{062C}',
+            '\u{FEA1}' | '\u{FEA2}' | '\u{FEA3}' | '\u{FEA4}' => '\u{062D}',
+            '\u{FEA5}' | '\u{FEA6}' | '\u{FEA7}' | '\u{FEA8}' => '\u{062E}',
+            '\u{FEA9}' | '\u{FEAA}' => '\u{062F}',
+            '\u{FEAB}' | '\u{FEAC}' => '\u{0630}',
+            '\u{FEAD}' | '\u{FEAE}' => '\u{0631}',
+            '\u{FEAF}' | '\u{FEB0}' => '\u{0632}',
+            '\u{FEB1}' | '\u{FEB2}' | '\u{FEB3}' | '\u{FEB4}' => '\u{0633}',
+            '\u{FEB5}' | '\u{FEB6}' | '\u{FEB7}' | '\u{FEB8}' => '\u{0634}',
+            '\u{FEB9}' | '\u{FEBA}' | '\u{FEBB}' | '\u{FEBC}' => '\u{0635}',
+            '\u{FEBD}' | '\u{FEBE}' | '\u{FEBF}' | '\u{FEC0}' => '\u{0636}',
+            '\u{FEC1}' | '\u{FEC2}' | '\u{FEC3}' | '\u{FEC4}' => '\u{0637}',
+            '\u{FEC5}' | '\u{FEC6}' | '\u{FEC7}' | '\u{FEC8}' => '\u{0638}',
+            '\u{FEC9}' | '\u{FECA}' | '\u{FECB}' | '\u{FECC}' => '\u{0639}',
+            '\u{FECD}' | '\u{FECE}' | '\u{FECF}' | '\u{FED0}' => '\u{063A}',
+            '\u{FED1}' | '\u{FED2}' | '\u{FED3}' | '\u{FED4}' => '\u{0641}',
+            '\u{FED5}' | '\u{FED6}' | '\u{FED7}' | '\u{FED8}' => '\u{0642}',
+            '\u{FEDD}' | '\u{FEDE}' | '\u{FEDF}' | '\u{FEE0}' => '\u{0644}',
+            '\u{FEE1}' | '\u{FEE2}' | '\u{FEE3}' | '\u{FEE4}' => '\u{0645}',
+            '\u{FEE5}' | '\u{FEE6}' | '\u{FEE7}' | '\u{FEE8}' => '\u{0646}',
+            '\u{FE93}' | '\u{FE94}' | '\u{FEE9}' | '\u{FEEA}' | '\u{FEEB}' | '\u{FEEC}' => {
+                '\u{0647}'
+            }
+            '\u{FEED}' | '\u{FEEE}' => '\u{0648}',
+            '\u{FB56}' | '\u{FB57}' | '\u{FB58}' | '\u{FB59}' => '\u{067E}',
+            '\u{FB7A}' | '\u{FB7B}' | '\u{FB7C}' | '\u{FB7D}' => '\u{0686}',
+            '\u{FB8A}' | '\u{FB8B}' => '\u{0698}',
+            '\u{FB8E}' | '\u{FB8F}' | '\u{FB90}' | '\u{FB91}' | '\u{FED9}' | '\u{FEDA}'
+            | '\u{FEDB}' | '\u{FEDC}' => '\u{06A9}',
+            '\u{FB92}' | '\u{FB93}' | '\u{FB94}' | '\u{FB95}' => '\u{06AF}',
+            '\u{FBE8}' | '\u{FBE9}' | '\u{FBFC}' | '\u{FBFD}' | '\u{FBFE}' | '\u{FBFF}'
+            | '\u{FEEF}' | '\u{FEF0}' | '\u{FEF1}' | '\u{FEF2}' | '\u{FEF3}' | '\u{FEF4}' => {
+                '\u{06CC}'
+            }
             other => other,
         };
         match folded {
@@ -2242,6 +2286,59 @@ mod tests {
         assert_eq!(normalize_person_name("İstanbul"), "istanbul");
         // Latin simple fold still works for single-codepoint mappings.
         assert_eq!(normalize_person_name("ALI"), "ali");
+
+        // Single-letter presentation forms (isolated/final/initial/medial,
+        // U+FB50-U+FEFF) fold to the same key as the base letter — mirroring
+        // the Kotlin map exactly. PDF-pasted text carries these shaped glyphs
+        // instead of the base letters.
+        assert_eq!(normalize_person_name("\u{FE8D}"), "\u{0627}"); // alef isolated
+        assert_eq!(normalize_person_name("\u{FE8E}"), "\u{0627}"); // alef final
+        assert_eq!(normalize_person_name("\u{FE8F}"), "\u{0628}"); // beh isolated
+        assert_eq!(normalize_person_name("\u{FE95}"), "\u{062A}"); // teh isolated
+        assert_eq!(normalize_person_name("\u{FE99}"), "\u{062B}"); // theh isolated
+        assert_eq!(normalize_person_name("\u{FE9D}"), "\u{062C}"); // jeem isolated
+        assert_eq!(normalize_person_name("\u{FEA1}"), "\u{062D}"); // hah isolated
+        assert_eq!(normalize_person_name("\u{FEA5}"), "\u{062E}"); // khah isolated
+        assert_eq!(normalize_person_name("\u{FEA9}"), "\u{062F}"); // dal isolated
+        assert_eq!(normalize_person_name("\u{FEAB}"), "\u{0630}"); // thal isolated
+        assert_eq!(normalize_person_name("\u{FEAD}"), "\u{0631}"); // reh isolated
+        assert_eq!(normalize_person_name("\u{FEAF}"), "\u{0632}"); // zain isolated
+        assert_eq!(normalize_person_name("\u{FEB1}"), "\u{0633}"); // seen isolated
+        assert_eq!(normalize_person_name("\u{FEB5}"), "\u{0634}"); // sheen isolated
+        assert_eq!(normalize_person_name("\u{FEB9}"), "\u{0635}"); // sad isolated
+        assert_eq!(normalize_person_name("\u{FEBD}"), "\u{0636}"); // dad isolated
+        assert_eq!(normalize_person_name("\u{FEC1}"), "\u{0637}"); // tah isolated
+        assert_eq!(normalize_person_name("\u{FEC5}"), "\u{0638}"); // zah isolated
+        assert_eq!(normalize_person_name("\u{FEC9}"), "\u{0639}"); // ain isolated
+        assert_eq!(normalize_person_name("\u{FECD}"), "\u{063A}"); // ghain isolated
+        assert_eq!(normalize_person_name("\u{FED1}"), "\u{0641}"); // feh isolated
+        assert_eq!(normalize_person_name("\u{FED5}"), "\u{0642}"); // qaf isolated
+        assert_eq!(normalize_person_name("\u{FEDD}"), "\u{0644}"); // lam isolated
+        assert_eq!(normalize_person_name("\u{FEE1}"), "\u{0645}"); // meem isolated
+        assert_eq!(normalize_person_name("\u{FEE5}"), "\u{0646}"); // noon isolated
+        assert_eq!(normalize_person_name("\u{FE93}"), "\u{0647}"); // teh marbuta isolated -> heh
+        assert_eq!(normalize_person_name("\u{FEE9}"), "\u{0647}"); // heh isolated
+        assert_eq!(normalize_person_name("\u{FEED}"), "\u{0648}"); // waw isolated
+        assert_eq!(normalize_person_name("\u{FEEF}"), "\u{06CC}"); // alef maksura isolated -> yeh
+        assert_eq!(normalize_person_name("\u{FEF1}"), "\u{06CC}"); // yeh isolated -> yeh
+        assert_eq!(normalize_person_name("\u{FB50}"), "\u{0627}"); // alef wasla isolated -> alef
+                                                                   // Kaf presentation forms fold to keheh, matching the base-letter rule.
+        assert_eq!(normalize_person_name("\u{FED9}"), "\u{06A9}");
+        assert_eq!(normalize_person_name("\u{FEDB}"), "\u{06A9}");
+        assert_eq!(normalize_person_name("\u{FB8E}"), "\u{06A9}");
+        // Persian-only letters fold back to their bases.
+        assert_eq!(normalize_person_name("\u{FB56}"), "\u{067E}"); // peh isolated
+        assert_eq!(normalize_person_name("\u{FB7A}"), "\u{0686}"); // tcheh isolated
+        assert_eq!(normalize_person_name("\u{FB8A}"), "\u{0698}"); // jeh isolated
+        assert_eq!(normalize_person_name("\u{FB92}"), "\u{06AF}"); // gaf isolated
+        assert_eq!(normalize_person_name("\u{FBFC}"), "\u{06CC}"); // farsi yeh isolated
+        assert_eq!(normalize_person_name("\u{FBE8}"), "\u{06CC}"); // uighur maksura initial
+                                                                   // The original bug: keyboard kaf vs PDF-pasted presentation-form kaf
+                                                                   // produced two records for the visually identical name.
+        assert_eq!(
+            normalize_person_name("اکبر"),
+            normalize_person_name("ا\u{FED9}بر")
+        );
     }
 
     #[test]
