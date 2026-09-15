@@ -413,6 +413,249 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     errors
 }
 
+/// Validate person records and cross-reference loans/transactions against them.
+///
+/// Both `validate_backup_payload` (collect-all path) and `validate_backup`
+/// (fail-fast FFI path) call this so person validation cannot be skipped by
+/// either entry point. Field checks: blank name, blank derived key, duplicate
+/// derived key, duplicate source ID. Cross-reference checks: positive
+/// `person_id` on loans and transactions must point to a declared person.
+pub fn validate_persons(payload: &BackupPayload) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // Field checks: blank name, blank derived key, duplicate derived key,
+    // and duplicate source IDs. The key is derived from `name` and never
+    // read from the backup-supplied `normalized_name` (mirrors the Kotlin
+    // fallback in BackupJsonValidator so both paths agree).
+    let mut seen_person_keys = std::collections::HashSet::new();
+    for (i, p) in payload.persons.iter().enumerate() {
+        // Mirror Kotlin `p.name.isBlank()` (Character.isWhitespace || isSpaceChar) —
+        // see `is_java_whitespace`. `str::trim` uses Unicode White_Space, which
+        // would diverge, so check every char explicitly.
+        let name_is_blank = p.name.is_empty()
+            || p.name.chars().all(|c| {
+                is_java_whitespace(c)
+                    || matches!(
+                        c,
+                        '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+                    )
+            });
+        if name_is_blank {
+            errors.push(format!("Person[{}] has a blank name", i));
+        }
+        let key = normalize_person_name(&p.name);
+        if key.is_empty() {
+            errors.push(format!("Person[{}] has a blank normalizedName", i));
+        } else if !seen_person_keys.insert(key) {
+            errors.push(format!("Person[{}] has a duplicate normalizedName", i));
+        }
+    }
+    // Duplicate source IDs: the restore path maps source IDs to local rows with
+    // `associate`, so a later entry silently overwrites the earlier mapping and
+    // loans/transactions referencing that ID resolve to the wrong person.
+    let mut person_id_counts: std::collections::HashMap<i64, usize> =
+        std::collections::HashMap::new();
+    for p in payload.persons.iter() {
+        *person_id_counts.entry(p.id).or_insert(0) += 1;
+    }
+    let mut duplicate_person_ids: Vec<i64> = person_id_counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(id, _)| id)
+        .collect();
+    // Sort so the reported errors are deterministic across runs.
+    duplicate_person_ids.sort_unstable();
+    for id in duplicate_person_ids {
+        errors.push(format!("Person has a duplicate id {}", id));
+    }
+    // Cross-reference: positive person_id must point to a declared person.
+    // Zero is a legacy default tolerated in all cases.
+    let person_ids: std::collections::HashSet<_> = payload.persons.iter().map(|p| p.id).collect();
+    for (i, loan) in payload.loans.iter().enumerate() {
+        if let Some(pid) = loan.person_id {
+            if pid > 0 && !person_ids.contains(&pid) {
+                errors.push(format!(
+                    "Loan[{}] references non-existent person {}",
+                    i, pid
+                ));
+            }
+        }
+    }
+    for (i, tx) in payload.transactions.iter().enumerate() {
+        if let Some(pid) = tx.person_id {
+            if pid > 0 && !person_ids.contains(&pid) {
+                errors.push(format!(
+                    "Transaction[{}] references non-existent person {}",
+                    i, pid
+                ));
+            }
+        }
+    }
+    errors
+}
+
+/// Mirrors the Kotlin `PersonNameNormalizer` (app/…/domain/utils/PersonNameNormalizer.kt)
+/// for validation purposes only.
+///
+/// The stored dedup key is produced by the Kotlin util, which ADR-001 lists as a
+/// permanent Kotlin fallback. This function exists so the Rust validation path
+/// judges a payload by the same key the restore path will derive from `name`,
+/// instead of trusting the backup-supplied `normalized_name`. A tampered pair
+/// such as `name = "Ali", normalized_name = "reza"` would otherwise either bind
+/// Ali's records to Reza's identity or trip a false duplicate error.
+///
+/// It must EXACTLY mirror `PersonNameNormalizer.normalize` (Kotlin):
+/// - whitespace uses Java `Character.isWhitespace` (see `is_java_whitespace`),
+///   which EXCLUDES NBSP/NNBSP/NARROW-NBSP — Rust's `char::is_whitespace`
+///   (Unicode White_Space) would fold NBSP to a space and diverge from Kotlin;
+/// - case folding mirrors Kotlin `Char.lowercaseChar` (Java
+///   `Character.toLowerCase`): the Unicode SIMPLE lowercase (a single code
+///   point) is applied, or the char is kept unchanged when no single-char
+///   lowercase exists. `İ` (U+0130) is the common char whose simple
+///   lowercase is a single `i` while Rust's full `to_lowercase` expands to
+///   two code points, so it is mapped explicitly to stay in parity.
+///
+/// Used only to reject or accept a payload. It never writes a key, so any drift
+/// from the Kotlin util costs a wrong accept/reject, never data corruption.
+fn normalize_person_name(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut pending_space = false;
+    for raw in name.chars() {
+        // Lam-alef presentation-form ligatures (FEF5-FEFC) fold to the two-char
+        // canonical lam + alef sequence, mirroring the Kotlin map exactly.
+        match raw {
+            '\u{FEF5}' | '\u{FEF6}' | '\u{FEF7}' | '\u{FEF8}' | '\u{FEF9}' | '\u{FEFA}'
+            | '\u{FEFB}' | '\u{FEFC}' => {
+                if pending_space && !out.is_empty() {
+                    out.push(' ');
+                }
+                pending_space = false;
+                out.push_str("\u{0644}\u{0627}");
+                continue;
+            }
+            _ => {}
+        }
+        // Single-character Arabic-script fold to the Persian counterpart.
+        let folded = match raw {
+            // yeh variants -> Persian yeh
+            '\u{064A}' | '\u{0649}' | '\u{0626}' => '\u{06CC}',
+            // kaf -> Persian keheh
+            '\u{0643}' => '\u{06A9}',
+            // teh marbuta -> heh
+            '\u{0629}' => '\u{0647}',
+            // alef variants -> plain alef
+            '\u{0623}' | '\u{0625}' | '\u{0622}' | '\u{0671}' => '\u{0627}',
+            // waw with hamza -> waw
+            '\u{0624}' => '\u{0648}',
+            // Presentation forms of the individual letters (isolated/final/
+            // initial/medial, U+FB50-U+FEFF). PDF-pasted or shaped-render text
+            // can carry these instead of the base letters; they fold to the
+            // same targets as the base letters so both sides share one key
+            // (mirrors the Kotlin map in PersonNameNormalizer.kt).
+            '\u{FE80}' => '\u{0621}',
+            '\u{FB50}' | '\u{FB51}' | '\u{FE81}' | '\u{FE82}' | '\u{FE83}' | '\u{FE84}'
+            | '\u{FE87}' | '\u{FE88}' | '\u{FE8D}' | '\u{FE8E}' => '\u{0627}',
+            '\u{FE8F}' | '\u{FE90}' | '\u{FE91}' | '\u{FE92}' => '\u{0628}',
+            '\u{FE95}' | '\u{FE96}' | '\u{FE97}' | '\u{FE98}' => '\u{062A}',
+            '\u{FE99}' | '\u{FE9A}' | '\u{FE9B}' | '\u{FE9C}' => '\u{062B}',
+            '\u{FE9D}' | '\u{FE9E}' | '\u{FE9F}' | '\u{FEA0}' => '\u{062C}',
+            '\u{FEA1}' | '\u{FEA2}' | '\u{FEA3}' | '\u{FEA4}' => '\u{062D}',
+            '\u{FEA5}' | '\u{FEA6}' | '\u{FEA7}' | '\u{FEA8}' => '\u{062E}',
+            '\u{FEA9}' | '\u{FEAA}' => '\u{062F}',
+            '\u{FEAB}' | '\u{FEAC}' => '\u{0630}',
+            '\u{FEAD}' | '\u{FEAE}' => '\u{0631}',
+            '\u{FEAF}' | '\u{FEB0}' => '\u{0632}',
+            '\u{FEB1}' | '\u{FEB2}' | '\u{FEB3}' | '\u{FEB4}' => '\u{0633}',
+            '\u{FEB5}' | '\u{FEB6}' | '\u{FEB7}' | '\u{FEB8}' => '\u{0634}',
+            '\u{FEB9}' | '\u{FEBA}' | '\u{FEBB}' | '\u{FEBC}' => '\u{0635}',
+            '\u{FEBD}' | '\u{FEBE}' | '\u{FEBF}' | '\u{FEC0}' => '\u{0636}',
+            '\u{FEC1}' | '\u{FEC2}' | '\u{FEC3}' | '\u{FEC4}' => '\u{0637}',
+            '\u{FEC5}' | '\u{FEC6}' | '\u{FEC7}' | '\u{FEC8}' => '\u{0638}',
+            '\u{FEC9}' | '\u{FECA}' | '\u{FECB}' | '\u{FECC}' => '\u{0639}',
+            '\u{FECD}' | '\u{FECE}' | '\u{FECF}' | '\u{FED0}' => '\u{063A}',
+            '\u{FED1}' | '\u{FED2}' | '\u{FED3}' | '\u{FED4}' => '\u{0641}',
+            '\u{FED5}' | '\u{FED6}' | '\u{FED7}' | '\u{FED8}' => '\u{0642}',
+            '\u{FEDD}' | '\u{FEDE}' | '\u{FEDF}' | '\u{FEE0}' => '\u{0644}',
+            '\u{FEE1}' | '\u{FEE2}' | '\u{FEE3}' | '\u{FEE4}' => '\u{0645}',
+            '\u{FEE5}' | '\u{FEE6}' | '\u{FEE7}' | '\u{FEE8}' => '\u{0646}',
+            '\u{FE93}' | '\u{FE94}' | '\u{FEE9}' | '\u{FEEA}' | '\u{FEEB}' | '\u{FEEC}' => {
+                '\u{0647}'
+            }
+            '\u{FE85}' | '\u{FE86}' | '\u{FEED}' | '\u{FEEE}' => '\u{0648}',
+            '\u{FB56}' | '\u{FB57}' | '\u{FB58}' | '\u{FB59}' => '\u{067E}',
+            '\u{FB7A}' | '\u{FB7B}' | '\u{FB7C}' | '\u{FB7D}' => '\u{0686}',
+            '\u{FB8A}' | '\u{FB8B}' => '\u{0698}',
+            '\u{FB8E}' | '\u{FB8F}' | '\u{FB90}' | '\u{FB91}' | '\u{FED9}' | '\u{FEDA}'
+            | '\u{FEDB}' | '\u{FEDC}' => '\u{06A9}',
+            '\u{FB92}' | '\u{FB93}' | '\u{FB94}' | '\u{FB95}' => '\u{06AF}',
+            '\u{FBFC}' | '\u{FBFD}' | '\u{FBFE}' | '\u{FBFF}' | '\u{FBE8}' | '\u{FBE9}'
+            | '\u{FE89}' | '\u{FE8A}' | '\u{FE8B}' | '\u{FE8C}' | '\u{FEEF}' | '\u{FEF0}'
+            | '\u{FEF1}' | '\u{FEF2}' | '\u{FEF3}' | '\u{FEF4}' => '\u{06CC}',
+            other => other,
+        };
+        match folded {
+            // Zero width: ZWSP, ZWNJ, ZWJ, word joiner, BOM.
+            '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' => {}
+            c if is_java_whitespace(c) => {
+                pending_space = !out.is_empty();
+            }
+            c => {
+                if pending_space && !out.is_empty() {
+                    out.push(' ');
+                }
+                pending_space = false;
+                // Simple (single-codepoint) case fold to mirror Kotlin
+                // `Char.lowercaseChar()` (Java `Character.toLowerCase`): the
+                // Unicode SIMPLE lowercase is used when it is a single code
+                // point, otherwise the original char is kept unchanged.
+                // Rust `char::to_lowercase()` is the FULL mapping and can yield
+                // several code points; for `İ` (U+0130) it yields "i\u{307}"
+                // while Kotlin's simple mapping yields a single `i`, so it is
+                // mapped explicitly to stay in parity.
+                if c == '\u{0130}' {
+                    out.push('i');
+                } else {
+                    let lowered: String = c.to_lowercase().collect();
+                    if lowered.chars().count() == 1 {
+                        out.push_str(&lowered);
+                    } else {
+                        out.push(c);
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Mirrors Kotlin `Char.isWhitespace` on JVM (`Character.isWhitespace`), which the
+/// Kotlin normalizer delegates to. Java/Kotlin `isWhitespace` EXCLUDES NBSP variants
+/// (`U+00A0`, `U+2007`, `U+202F`) AND NEL (`U+0085`) — verified on JVM 24:
+/// `Character.isWhitespace('\u{0085}')` is false, because NEL has Unicode category
+/// Cc (control), not Zs/Zl/Zp, and is not one of the control codes Java flags.
+/// Rust `char::is_whitespace` (Unicode White_Space) INCLUDES NEL, so NEL must be
+/// excluded explicitly alongside the NBSP variants; otherwise a name containing
+/// NEL would normalize to a different key than Kotlin's runtime dedup key (see
+/// test_normalize_person_name_matches_kotlin_contract).
+fn is_java_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}'
+            | '\u{000A}'
+            | '\u{000B}'
+            | '\u{000C}'
+            | '\u{000D}'
+            | '\u{001C}'
+            | '\u{001D}'
+            | '\u{001E}'
+            | '\u{001F}'
+    ) || (c.is_whitespace()
+        && c != '\u{00A0}'
+        && c != '\u{2007}'
+        && c != '\u{202F}'
+        && c != '\u{0085}')
+}
+
 /// Validate an entire backup payload. Collects all errors from all entities.
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
@@ -444,6 +687,9 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_installment_batch(&payload.installments).errors);
     errors.extend(validate_bank_loan_batch(&payload.bank_loans).errors);
     errors.extend(validate_payment_history_batch(&payload.payment_histories).errors);
+    // Person validation: field checks + cross-references. Single shared
+    // function so both FFI and internal paths enforce identical rules.
+    errors.extend(validate_persons(payload));
     // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
     // Zero is a legacy default tolerated in all cases.
     let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
@@ -473,6 +719,7 @@ mod tests {
             amount,
             description: desc.to_string(),
             person_name: None,
+            person_id: None,
             date: 1710000000000,
             due_date: None,
             installment_id: None,
@@ -485,6 +732,7 @@ mod tests {
         Loan {
             id: 1,
             person_name: "Ali".to_string(),
+            person_id: None,
             loan_type: loan_type.to_string(),
             original_amount: amount,
             remaining_amount: remaining,
@@ -877,6 +1125,7 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(result.is_valid);
@@ -906,6 +1155,7 @@ mod tests {
             payment_histories: vec![make_payment_history(0, 1)],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -933,6 +1183,7 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -962,6 +1213,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1089,6 +1341,7 @@ mod tests {
             ],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1113,6 +1366,7 @@ mod tests {
             payment_histories: vec![make_payment_history(50000, 99)],
             categories: vec![],
             accounts: vec![],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1154,6 +1408,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1206,6 +1461,7 @@ mod tests {
                     updated_at: 1710000000000,
                 },
             ],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1243,6 +1499,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1279,6 +1536,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1320,6 +1578,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         crate::validate_backup(&payload)
             .unwrap_or_else(|e| panic!("Account-only backup should be accepted, got: {}", e));
@@ -1341,6 +1600,7 @@ mod tests {
                 amount: 50000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1361,6 +1621,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let err = crate::validate_backup(&payload).unwrap_err().to_string();
         assert!(err.contains("destination_account_id"), "got: {}", err);
@@ -1379,6 +1640,7 @@ mod tests {
                 amount: 50000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1399,6 +1661,7 @@ mod tests {
                 is_default: false,
             }],
             accounts: vec![],
+            ..Default::default()
         };
         let err = crate::validate_backup(&payload).unwrap_err().to_string();
         assert!(err.contains("must differ"), "got: {}", err);
@@ -1418,6 +1681,7 @@ mod tests {
             amount: 50_000,
             description: "transfer".to_string(),
             person_name: None,
+            person_id: None,
             date: 1710000000000,
             due_date: None,
             installment_id: None,
@@ -1450,6 +1714,7 @@ mod tests {
                 created_at: 0,
                 updated_at: 0,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1481,6 +1746,7 @@ mod tests {
                 amount: 50_000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1508,6 +1774,7 @@ mod tests {
                 created_at: 0,
                 updated_at: 0,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1541,6 +1808,7 @@ mod tests {
                 amount: 50000,
                 description: "coffee".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1568,6 +1836,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1590,6 +1859,7 @@ mod tests {
                 amount: 50000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1617,6 +1887,7 @@ mod tests {
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
             }],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1639,6 +1910,7 @@ mod tests {
                 amount: 50000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1684,6 +1956,7 @@ mod tests {
                     updated_at: 1710000000000,
                 },
             ],
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1712,6 +1985,7 @@ mod tests {
                 amount: 50000,
                 description: "coffee".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1723,7 +1997,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format — no accounts
+            accounts: vec![], // old backup format — no accounts,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1748,6 +2023,7 @@ mod tests {
                 amount: 50000,
                 description: "coffee".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1759,7 +2035,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format
+            accounts: vec![], // old backup format,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(
@@ -1783,6 +2060,7 @@ mod tests {
                 amount: 50000,
                 description: "transfer".to_string(),
                 person_name: None,
+                person_id: None,
                 date: 1710000000000,
                 due_date: None,
                 installment_id: None,
@@ -1794,7 +2072,8 @@ mod tests {
             bank_loans: vec![],
             payment_histories: vec![],
             categories: vec![],
-            accounts: vec![], // old backup format
+            accounts: vec![], // old backup format,
+            ..Default::default()
         };
         let result = validate_backup_payload(&payload);
         assert!(!result.is_valid);
@@ -1802,5 +2081,574 @@ mod tests {
             .errors
             .iter()
             .any(|e| e.contains("non-legacy destination account")));
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_blank_and_duplicate_persons() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1,
+            app_version: "1.0".into(),
+            transactions: vec![],
+            loans: vec![],
+            installments: vec![],
+            bank_loans: vec![],
+            payment_histories: vec![],
+            categories: vec![],
+            accounts: vec![],
+            persons: vec![
+                Person {
+                    id: 1,
+                    name: "".into(),
+                    normalized_name: "ali".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 2,
+                    name: "Ali".into(),
+                    normalized_name: "".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 3,
+                    name: "Sara".into(),
+                    normalized_name: "sara".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+                Person {
+                    id: 4,
+                    // Differs from "Sara" only by case: both names normalize to
+                    // "sara", so the duplicate must be caught from the derived key.
+                    name: "SARA".into(),
+                    normalized_name: "sara2".into(),
+                    phone: None,
+                    notes: None,
+                    created_at: 0,
+                    is_archived: false,
+                },
+            ],
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        let joined = result.errors.join(" | ");
+        assert!(
+            joined.contains("blank name"),
+            "expected blank name error: {joined}"
+        );
+        assert!(
+            joined.contains("blank normalizedName"),
+            "expected blank normalizedName error: {joined}"
+        );
+        assert!(
+            joined.contains("duplicate normalizedName"),
+            "expected duplicate normalizedName error: {joined}"
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_derives_person_key_from_name_not_supplied_field() {
+        // A tampered normalizedName must not decide identity. Both entries carry
+        // the same supplied key, but their names are distinct people, so the
+        // payload is valid. The restore path re-derives the key from the name.
+        let payload = BackupPayload {
+            persons: vec![
+                Person {
+                    id: 1,
+                    name: "Ali".into(),
+                    normalized_name: "reza".into(),
+                    ..person_default()
+                },
+                Person {
+                    id: 2,
+                    name: "Reza".into(),
+                    normalized_name: "reza".into(),
+                    ..person_default()
+                },
+            ],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "names are distinct so the payload must pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_duplicate_person_ids() {
+        let payload = BackupPayload {
+            persons: vec![
+                Person {
+                    id: 7,
+                    name: "Ali".into(),
+                    normalized_name: "ali".into(),
+                    ..person_default()
+                },
+                Person {
+                    id: 7,
+                    name: "Sara".into(),
+                    normalized_name: "sara".into(),
+                    ..person_default()
+                },
+            ],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result.errors.iter().any(|e| e.contains("duplicate id 7")),
+            "expected duplicate id error: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_normalize_person_name_matches_kotlin_contract() {
+        // Parity with PersonNameNormalizer.kt: trim, collapse whitespace, strip
+        // zero-width, fold Arabic variants to Persian, lowercase.
+        assert_eq!(normalize_person_name("  Ali  "), "ali");
+        assert_eq!(normalize_person_name("Ali   Reza"), "ali reza");
+        assert_eq!(normalize_person_name("علی\u{200B}رضا"), "علیرضا");
+        assert_eq!(normalize_person_name("يک"), "یک");
+        assert_eq!(normalize_person_name("ة"), "ه");
+        assert_eq!(normalize_person_name("\u{200C}\u{200B}"), "");
+        // Full Arabic-fold parity (the Kotlin map folds every one of these):
+        // remaining yeh variants (alef maksura, yeh with hamza).
+        assert_eq!(normalize_person_name("ى"), "ی");
+        assert_eq!(normalize_person_name("ئ"), "ی");
+        // Every alef variant folds to the plain alef.
+        assert_eq!(normalize_person_name("أ"), "ا");
+        assert_eq!(normalize_person_name("إ"), "ا");
+        assert_eq!(normalize_person_name("آ"), "ا");
+        assert_eq!(normalize_person_name("ٱ"), "ا");
+        // Waw with hamza folds to plain waw.
+        assert_eq!(normalize_person_name("ؤ"), "و");
+        // Lam-alef presentation-form ligatures (isolated/final, plain/hamza/madda)
+        // expand to the canonical two-char sequence — exactly what the Kotlin
+        // map emits, so a Rust-side fold drift fails here.
+        assert_eq!(normalize_person_name("ﻵ"), "لا");
+        assert_eq!(normalize_person_name("ﻶ"), "لا");
+        assert_eq!(normalize_person_name("ﻷ"), "لا");
+        assert_eq!(normalize_person_name("ﻸ"), "لا");
+        assert_eq!(normalize_person_name("ﻹ"), "لا");
+        assert_eq!(normalize_person_name("ﻺ"), "لا");
+        assert_eq!(normalize_person_name("ﻻ"), "لا");
+        assert_eq!(normalize_person_name("ﻼ"), "لا");
+        // Mixed-script round trip: Arabic-typed and Persian-typed spellings of
+        // the same name must share one dedup key.
+        assert_eq!(normalize_person_name("علي"), normalize_person_name("علی"));
+
+        // NBSP parity: Java `Character.isWhitespace` EXCLUDES NBSP (`U+00A0`),
+        // NNBSP (`U+2007`) and NARROW NBSP (`U+202F`). The Kotlin normalizer
+        // therefore treats NBSP as a literal character, never as a space to
+        // trim or collapse. Rust `char::is_whitespace` would wrongly fold it,
+        // so `is_java_whitespace` must keep this divergence.
+        // NBSP is preserved verbatim (not collapsed to a normal space).
+        assert_eq!(normalize_person_name("محمد\u{00A0}رضا"), "محمد\u{00A0}رضا");
+        // A normal ASCII space path collapses to a single space — proving NBSP
+        // does NOT take the whitespace branch.
+        assert_eq!(normalize_person_name("محمد رضا"), "محمد رضا");
+        // NBSP at the edges is NOT trimmed (it is not whitespace).
+        assert_eq!(normalize_person_name("\u{00A0}ali"), "\u{00A0}ali");
+        assert_eq!(normalize_person_name("ali\u{00A0}"), "ali\u{00A0}");
+        // NNBSP and NARROW NBSP are likewise preserved, not folded.
+        assert_eq!(normalize_person_name("a\u{2007}b"), "a\u{2007}b");
+        assert_eq!(normalize_person_name("a\u{202F}b"), "a\u{202F}b");
+
+        // NEL (`U+0085`) parity: Java `Character.isWhitespace` EXCLUDES NEL
+        // (verified on JVM 24 — NEL is category Cc, and Java only flags
+        // space-separator/line-separator/paragraph-separator chars plus a
+        // fixed list of control codes that does not include NEL). Kotlin's
+        // normalizer therefore keeps NEL as a literal character; Rust's
+        // `char::is_whitespace` (Unicode White_Space) would wrongly fold it
+        // into a separator, so `is_java_whitespace` must exclude it.
+        assert_eq!(normalize_person_name("a\u{0085}b"), "a\u{0085}b");
+        // A NEL-only name does not trim to empty — it stays non-empty.
+        assert!(!normalize_person_name("\u{0085}").is_empty());
+
+        // Case-fold parity: Kotlin `Char.lowercaseChar()` (Java
+        // `Character.toLowerCase`) applies the Unicode SIMPLE lowercase. For
+        // `İ` (U+0130) that simple mapping is a single `i`, so Kotlin yields
+        // "istanbul"; Rust's full `to_lowercase` would expand `İ` to "i\u{307}"
+        // and our `count() == 1` guard would wrongly keep it, so we map it
+        // explicitly. The result must match Kotlin's `PersonNameNormalizer`.
+        assert_eq!(normalize_person_name("İ"), "i");
+        assert_eq!(normalize_person_name("İstanbul"), "istanbul");
+        // Latin simple fold still works for single-codepoint mappings.
+        assert_eq!(normalize_person_name("ALI"), "ali");
+
+        // Single-letter presentation forms (isolated/final/initial/medial,
+        // U+FB50-U+FEFF) fold to the same key as the base letter — mirroring
+        // the Kotlin map exactly. PDF-pasted text carries these shaped glyphs
+        // instead of the base letters.
+        assert_eq!(normalize_person_name("\u{FE8D}"), "\u{0627}"); // alef isolated
+        assert_eq!(normalize_person_name("\u{FE8E}"), "\u{0627}"); // alef final
+        assert_eq!(normalize_person_name("\u{FE8F}"), "\u{0628}"); // beh isolated
+        assert_eq!(normalize_person_name("\u{FE95}"), "\u{062A}"); // teh isolated
+        assert_eq!(normalize_person_name("\u{FE99}"), "\u{062B}"); // theh isolated
+        assert_eq!(normalize_person_name("\u{FE9D}"), "\u{062C}"); // jeem isolated
+        assert_eq!(normalize_person_name("\u{FEA1}"), "\u{062D}"); // hah isolated
+        assert_eq!(normalize_person_name("\u{FEA5}"), "\u{062E}"); // khah isolated
+        assert_eq!(normalize_person_name("\u{FEA9}"), "\u{062F}"); // dal isolated
+        assert_eq!(normalize_person_name("\u{FEAB}"), "\u{0630}"); // thal isolated
+        assert_eq!(normalize_person_name("\u{FEAD}"), "\u{0631}"); // reh isolated
+        assert_eq!(normalize_person_name("\u{FEAF}"), "\u{0632}"); // zain isolated
+        assert_eq!(normalize_person_name("\u{FEB1}"), "\u{0633}"); // seen isolated
+        assert_eq!(normalize_person_name("\u{FEB5}"), "\u{0634}"); // sheen isolated
+        assert_eq!(normalize_person_name("\u{FEB9}"), "\u{0635}"); // sad isolated
+        assert_eq!(normalize_person_name("\u{FEBD}"), "\u{0636}"); // dad isolated
+        assert_eq!(normalize_person_name("\u{FEC1}"), "\u{0637}"); // tah isolated
+        assert_eq!(normalize_person_name("\u{FEC5}"), "\u{0638}"); // zah isolated
+        assert_eq!(normalize_person_name("\u{FEC9}"), "\u{0639}"); // ain isolated
+        assert_eq!(normalize_person_name("\u{FECD}"), "\u{063A}"); // ghain isolated
+        assert_eq!(normalize_person_name("\u{FED1}"), "\u{0641}"); // feh isolated
+        assert_eq!(normalize_person_name("\u{FED5}"), "\u{0642}"); // qaf isolated
+        assert_eq!(normalize_person_name("\u{FEDD}"), "\u{0644}"); // lam isolated
+        assert_eq!(normalize_person_name("\u{FEE1}"), "\u{0645}"); // meem isolated
+        assert_eq!(normalize_person_name("\u{FEE5}"), "\u{0646}"); // noon isolated
+        assert_eq!(normalize_person_name("\u{FE93}"), "\u{0647}"); // teh marbuta isolated -> heh
+        assert_eq!(normalize_person_name("\u{FEE9}"), "\u{0647}"); // heh isolated
+        assert_eq!(normalize_person_name("\u{FEED}"), "\u{0648}"); // waw isolated
+        assert_eq!(normalize_person_name("\u{FEEF}"), "\u{06CC}"); // alef maksura isolated -> yeh
+        assert_eq!(normalize_person_name("\u{FEF1}"), "\u{06CC}"); // yeh isolated -> yeh
+        assert_eq!(normalize_person_name("\u{FB50}"), "\u{0627}"); // alef wasla isolated -> alef
+                                                                   // Variant base letter presentation forms (FE81-FE8C) fold to the
+                                                                   // same canonical targets as their base variants.
+        assert_eq!(normalize_person_name("\u{FE81}"), "\u{0627}"); // alef with madda isolated
+        assert_eq!(normalize_person_name("\u{FE83}"), "\u{0627}"); // alef with hamza above isolated
+        assert_eq!(normalize_person_name("\u{FE85}"), "\u{0648}"); // waw with hamza isolated
+        assert_eq!(normalize_person_name("\u{FE87}"), "\u{0627}"); // alef with hamza below isolated
+        assert_eq!(normalize_person_name("\u{FE89}"), "\u{06CC}"); // yeh with hamza isolated
+        assert_eq!(normalize_person_name("\u{FE8C}"), "\u{06CC}"); // yeh with hamza medial
+
+        // Kaf presentation forms fold to keheh, matching the base-letter rule.
+        assert_eq!(normalize_person_name("\u{FED9}"), "\u{06A9}");
+        assert_eq!(normalize_person_name("\u{FEDB}"), "\u{06A9}");
+        assert_eq!(normalize_person_name("\u{FB8E}"), "\u{06A9}");
+        // Persian-only letters fold back to their bases.
+        assert_eq!(normalize_person_name("\u{FB56}"), "\u{067E}"); // peh isolated
+        assert_eq!(normalize_person_name("\u{FB7A}"), "\u{0686}"); // tcheh isolated
+        assert_eq!(normalize_person_name("\u{FB8A}"), "\u{0698}"); // jeh isolated
+        assert_eq!(normalize_person_name("\u{FB92}"), "\u{06AF}"); // gaf isolated
+        assert_eq!(normalize_person_name("\u{FBFC}"), "\u{06CC}"); // farsi yeh isolated
+        assert_eq!(normalize_person_name("\u{FBE8}"), "\u{06CC}"); // uighur maksura initial
+                                                                   // The original bug: keyboard kaf vs PDF-pasted presentation-form kaf
+                                                                   // produced two records for the visually identical name.
+        assert_eq!(
+            normalize_person_name("اکبر"),
+            normalize_person_name("ا\u{FED9}بر")
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_rejects_zero_width_only_person_name() {
+        let payload = BackupPayload {
+            persons: vec![Person {
+                id: 1,
+                name: "\u{200C}".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("blank normalizedName")),
+            "a zero-width-only name must normalize to empty: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_person_reference_accepts_declared_person_on_loan() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            loans: vec![Loan {
+                id: 1,
+                person_name: "Ali".into(),
+                person_id: Some(1),
+                loan_type: "DEBTOR".into(),
+                original_amount: 5_000_000,
+                remaining_amount: 3_000_000,
+                description: "test".into(),
+                date: 1710000000000,
+                is_settled: false,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "declared person_id on loan must be accepted, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_person_reference_accepts_declared_person_on_transaction() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50_000,
+                description: "coffee".into(),
+                person_name: None,
+                person_id: Some(1),
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "declared person_id on transaction must be accepted, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_person_reference_rejects_orphan_loan_person_id() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            loans: vec![Loan {
+                id: 1,
+                person_name: "Unknown".into(),
+                person_id: Some(99), // positive but not declared
+                loan_type: "DEBTOR".into(),
+                original_amount: 5_000_000,
+                remaining_amount: 3_000_000,
+                description: "test".into(),
+                date: 1710000000000,
+                is_settled: false,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("non-existent person")),
+            "expected orphan person_id error on loan, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_person_reference_rejects_orphan_transaction_person_id() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50_000,
+                description: "coffee".into(),
+                person_name: None,
+                person_id: Some(99), // positive but not declared
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("non-existent person")),
+            "expected orphan person_id error on transaction, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_person_reference_tolerates_null_person_id() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            loans: vec![Loan {
+                id: 1,
+                person_name: "Ali".into(),
+                person_id: None, // null is a legacy default, tolerated
+                loan_type: "DEBTOR".into(),
+                original_amount: 5_000_000,
+                remaining_amount: 3_000_000,
+                description: "test".into(),
+                date: 1710000000000,
+                is_settled: false,
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 50_000,
+                description: "coffee".into(),
+                person_name: None,
+                person_id: None, // null is a legacy default, tolerated
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: None,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(
+            result.is_valid,
+            "null person_id must be tolerated, got: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_validate_backup_validates_persons_in_fail_fast_ffi_path() {
+        // validate_backup (FFI path) must also reject a person with a blank name.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            ..Default::default()
+        };
+        let err = crate::validate_backup(&payload).unwrap_err().to_string();
+        assert!(err.contains("blank name"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_validate_backup_fail_fast_rejects_orphan_person_reference() {
+        // validate_backup (FFI path) must also reject a loan referencing a
+        // non-existent positive person_id.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            loans: vec![Loan {
+                id: 1,
+                person_name: "Unknown".into(),
+                person_id: Some(99),
+                loan_type: "DEBTOR".into(),
+                original_amount: 5_000_000,
+                remaining_amount: 3_000_000,
+                description: "test".into(),
+                date: 1710000000000,
+                is_settled: false,
+            }],
+            ..Default::default()
+        };
+        let err = crate::validate_backup(&payload).unwrap_err().to_string();
+        assert!(err.contains("non-existent person"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_validate_backup_fail_fast_accepts_person_only_payload() {
+        // A backup with only well-formed persons must pass both the empty guard
+        // and the person validation in the FFI path.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            persons: vec![Person {
+                id: 1,
+                name: "Ali".into(),
+                normalized_name: "ali".into(),
+                ..person_default()
+            }],
+            ..Default::default()
+        };
+        crate::validate_backup(&payload).unwrap_or_else(|e| {
+            panic!(
+                "person-only payload should be accepted by FFI path, got: {}",
+                e
+            )
+        });
+    }
+
+    fn person_default() -> Person {
+        Person {
+            id: 0,
+            name: "".into(),
+            normalized_name: "".into(),
+            phone: None,
+            notes: None,
+            created_at: 0,
+            is_archived: false,
+        }
     }
 }
