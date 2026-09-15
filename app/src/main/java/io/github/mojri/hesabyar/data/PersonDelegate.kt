@@ -32,35 +32,50 @@ internal class PersonDelegate(
       val key = PersonNameNormalizer.normalize(display)
       require(key.isNotEmpty()) { "Person name normalizes to empty" }
       val existing = personDao.getPersonByNormalizedName(key)
-      val result =
-        if (existing != null) {
-          val merged = existing.copy(phone = person.phone ?: existing.phone, notes = person.notes ?: existing.notes)
-          personDao.updatePerson(merged)
-          merged
-        } else {
-          val candidate =
-            person.copy(
-              id = 0,
-              name = display,
-              normalizedName = key,
-              createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
-            )
-          val id = personDao.insertPerson(candidate)
-          if (id != -1L) {
-            candidate.copy(id = id)
-          } else {
-            val winner = requireNotNull(personDao.getPersonByNormalizedName(key))
-            if (person.phone != null || person.notes != null) {
-              val mergedWinner = winner.copy(phone = person.phone ?: winner.phone, notes = person.notes ?: winner.notes)
-              if (mergedWinner != winner) personDao.updatePerson(mergedWinner)
-              mergedWinner
-            } else {
-              winner
-            }
-          }
-        }
-      result
+      if (existing != null) {
+        mergeWithExisting(existing, person)
+      } else {
+        insertOrResolveCollision(person, display, key)
+      }
     }
+
+  private suspend fun insertOrResolveCollision(
+    person: Person,
+    display: String,
+    key: String
+  ): Person {
+    val candidate =
+      person.copy(
+        id = 0,
+        name = display,
+        normalizedName = key,
+        createdAt = person.createdAt.takeIf { it != 0L } ?: System.currentTimeMillis()
+      )
+    val id = personDao.insertPerson(candidate)
+    if (id != -1L) return candidate.copy(id = id)
+
+    val winner =
+      personDao.getPersonByNormalizedName(key)
+        ?: run {
+          val retryId = personDao.insertPerson(candidate)
+          if (retryId != -1L) candidate.copy(id = retryId) else personDao.getPersonByNormalizedName(key)
+        }
+    return if (winner != null) mergeWithExisting(winner, person) else candidate
+  }
+
+  private suspend fun mergeWithExisting(
+    existing: Person,
+    person: Person
+  ): Person {
+    if (person.phone == null && person.notes == null) return existing
+    val merged =
+      existing.copy(
+        phone = person.phone ?: existing.phone,
+        notes = person.notes ?: existing.notes
+      )
+    if (merged != existing) personDao.updatePerson(merged)
+    return merged
+  }
 
   override suspend fun renamePerson(
     personId: Long,

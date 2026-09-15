@@ -63,8 +63,14 @@ internal class InstallmentDelegate(
     database.withTransaction {
       // Decide from the persisted row, not the caller's object: a stale
       // unpaid snapshot deleting a row that is actually paid would skip the
-      // linked-expense cleanup and strand the money behind a dead row.
-      val existing = installmentDao.getInstallmentById(installment.id) ?: return@withTransaction
+      // linked-expense cleanup and strand the money behind a dead row. A row
+      // already deleted through another path (bank-loan cascade) can still
+      // carry a linked expense behind it — clean it before returning.
+      val existing = installmentDao.getInstallmentById(installment.id)
+      if (existing == null) {
+        transactionLinkDao.deleteTransactionsForInstallment(installment.id)
+        return@withTransaction
+      }
       if (existing.isPaid) {
         transactionLinkDao.deleteTransactionsForInstallment(existing.id)
       }

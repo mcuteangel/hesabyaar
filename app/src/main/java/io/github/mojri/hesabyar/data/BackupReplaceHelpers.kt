@@ -90,7 +90,8 @@ internal fun withRecoveredReferencedPersons(backup: BackupPayload): List<Person>
 
 internal suspend fun backupInsertPersonsForReplace(
   persons: List<Person>,
-  personDao: PersonDao
+  personDao: PersonDao,
+  allowNullIdNameFallback: Boolean
 ): PersonKeyMaps {
   val sourceIdToKey = mutableMapOf<Long, String>()
   val keyToLocalId = mutableMapOf<String, Long>()
@@ -101,7 +102,7 @@ internal suspend fun backupInsertPersonsForReplace(
       if (key.isNotEmpty()) sourceIdToKey[raw.id] = key
     }
   }
-  return PersonKeyMaps(sourceIdToKey, keyToLocalId)
+  return PersonKeyMaps(sourceIdToKey, keyToLocalId, allowNullIdNameFallback)
 }
 
 internal suspend fun backupInsertOnePersonForReplace(

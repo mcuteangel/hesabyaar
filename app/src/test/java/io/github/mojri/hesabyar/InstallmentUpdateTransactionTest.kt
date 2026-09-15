@@ -250,6 +250,48 @@ class InstallmentUpdateTransactionTest {
     }
 
   @Test
+  fun deleteInstallmentForAlreadyDeletedRowStillCleansLinkedExpense() =
+    runTest {
+      val repo = createRepository()
+      seedInstallmentsCategory(repo)
+      val installmentId =
+        repo.insertInstallment(
+          Installment(title = "Car", amount = 8_000_000L, dueDate = 1_700_000_000_000L, isPaid = true, bankLoanId = 55L)
+        )
+      repo.updateInstallment(
+        database.installmentDao().getInstallmentById(installmentId)!!.copy(isPaid = false)
+      )
+      repo.updateInstallment(
+        database.installmentDao().getInstallmentById(installmentId)!!.copy(isPaid = true)
+      )
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      // The row is already gone (deleted through another path, e.g. the
+      // bank-loan cascade or a REPLACE-restore); a queued or stale delete
+      // must still clean the linked expense behind the dead id.
+      database.installmentDao().deleteInstallment(
+        database.installmentDao().getInstallmentById(installmentId)!!
+      )
+
+      repo.deleteInstallment(
+        Installment(
+          title = "Car",
+          amount = 8_000_000L,
+          dueDate = 1_700_000_000_000L,
+          isPaid = true,
+          id = installmentId,
+          bankLoanId = 55L
+        )
+      )
+
+      assertEquals(
+        "the orphaned expense must be cleaned even though the row is already gone",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
+
+  @Test
   fun deleteInstallmentWithStaleUnpaidSnapshotStillRemovesExpense() =
     runTest {
       val repo = createRepository()

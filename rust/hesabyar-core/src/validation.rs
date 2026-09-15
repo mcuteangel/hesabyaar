@@ -553,7 +553,8 @@ fn normalize_person_name(name: &str) -> String {
             // same targets as the base letters so both sides share one key
             // (mirrors the Kotlin map in PersonNameNormalizer.kt).
             '\u{FE80}' => '\u{0621}',
-            '\u{FB50}' | '\u{FB51}' | '\u{FE8D}' | '\u{FE8E}' => '\u{0627}',
+            '\u{FB50}' | '\u{FB51}' | '\u{FE81}' | '\u{FE82}' | '\u{FE83}' | '\u{FE84}'
+            | '\u{FE87}' | '\u{FE88}' | '\u{FE8D}' | '\u{FE8E}' => '\u{0627}',
             '\u{FE8F}' | '\u{FE90}' | '\u{FE91}' | '\u{FE92}' => '\u{0628}',
             '\u{FE95}' | '\u{FE96}' | '\u{FE97}' | '\u{FE98}' => '\u{062A}',
             '\u{FE99}' | '\u{FE9A}' | '\u{FE9B}' | '\u{FE9C}' => '\u{062B}',
@@ -580,17 +581,16 @@ fn normalize_person_name(name: &str) -> String {
             '\u{FE93}' | '\u{FE94}' | '\u{FEE9}' | '\u{FEEA}' | '\u{FEEB}' | '\u{FEEC}' => {
                 '\u{0647}'
             }
-            '\u{FEED}' | '\u{FEEE}' => '\u{0648}',
+            '\u{FE85}' | '\u{FE86}' | '\u{FEED}' | '\u{FEEE}' => '\u{0648}',
             '\u{FB56}' | '\u{FB57}' | '\u{FB58}' | '\u{FB59}' => '\u{067E}',
             '\u{FB7A}' | '\u{FB7B}' | '\u{FB7C}' | '\u{FB7D}' => '\u{0686}',
             '\u{FB8A}' | '\u{FB8B}' => '\u{0698}',
             '\u{FB8E}' | '\u{FB8F}' | '\u{FB90}' | '\u{FB91}' | '\u{FED9}' | '\u{FEDA}'
             | '\u{FEDB}' | '\u{FEDC}' => '\u{06A9}',
             '\u{FB92}' | '\u{FB93}' | '\u{FB94}' | '\u{FB95}' => '\u{06AF}',
-            '\u{FBE8}' | '\u{FBE9}' | '\u{FBFC}' | '\u{FBFD}' | '\u{FBFE}' | '\u{FBFF}'
-            | '\u{FEEF}' | '\u{FEF0}' | '\u{FEF1}' | '\u{FEF2}' | '\u{FEF3}' | '\u{FEF4}' => {
-                '\u{06CC}'
-            }
+            '\u{FBFC}' | '\u{FBFD}' | '\u{FBFE}' | '\u{FBFF}' | '\u{FBE8}' | '\u{FBE9}'
+            | '\u{FE89}' | '\u{FE8A}' | '\u{FE8B}' | '\u{FE8C}' | '\u{FEEF}' | '\u{FEF0}'
+            | '\u{FEF1}' | '\u{FEF2}' | '\u{FEF3}' | '\u{FEF4}' => '\u{06CC}',
             other => other,
         };
         match folded {
@@ -2322,7 +2322,16 @@ mod tests {
         assert_eq!(normalize_person_name("\u{FEEF}"), "\u{06CC}"); // alef maksura isolated -> yeh
         assert_eq!(normalize_person_name("\u{FEF1}"), "\u{06CC}"); // yeh isolated -> yeh
         assert_eq!(normalize_person_name("\u{FB50}"), "\u{0627}"); // alef wasla isolated -> alef
-                                                                   // Kaf presentation forms fold to keheh, matching the base-letter rule.
+                                                                   // Variant base letter presentation forms (FE81-FE8C) fold to the
+                                                                   // same canonical targets as their base variants.
+        assert_eq!(normalize_person_name("\u{FE81}"), "\u{0627}"); // alef with madda isolated
+        assert_eq!(normalize_person_name("\u{FE83}"), "\u{0627}"); // alef with hamza above isolated
+        assert_eq!(normalize_person_name("\u{FE85}"), "\u{0648}"); // waw with hamza isolated
+        assert_eq!(normalize_person_name("\u{FE87}"), "\u{0627}"); // alef with hamza below isolated
+        assert_eq!(normalize_person_name("\u{FE89}"), "\u{06CC}"); // yeh with hamza isolated
+        assert_eq!(normalize_person_name("\u{FE8C}"), "\u{06CC}"); // yeh with hamza medial
+
+        // Kaf presentation forms fold to keheh, matching the base-letter rule.
         assert_eq!(normalize_person_name("\u{FED9}"), "\u{06A9}");
         assert_eq!(normalize_person_name("\u{FEDB}"), "\u{06A9}");
         assert_eq!(normalize_person_name("\u{FB8E}"), "\u{06A9}");

@@ -41,11 +41,11 @@ class PersonNameNormalizerTest {
 
   @Test
   fun normalizeFoldsSingleLetterPresentationFormsToBaseLetters() {
-    // Isolated/final/initial/medial presentation forms of every base letter
-    // used in Persian/Arabic names collapse to the same key as the base
-    // letter. PDF-pasted text carries these shaped glyphs instead of the
-    // base letters; without the fold two visually identical names get
-    // different dedup keys.
+    // Isolated-form sample of every base letter used in Persian/Arabic names
+    // (final/initial/medial variants of the same letters fold through the
+    // same map entries, one test per letter covers the shared rule). PDF-
+    // pasted text carries these shaped glyphs instead of the base letters;
+    // without the fold two visually identical names get different dedup keys.
     val forms =
       listOf(
         0xFB50 to "ا", // alef wasla isolated (folds through the alef-wasla rule)
@@ -79,6 +79,35 @@ class PersonNameNormalizerTest {
         0xFEE9 to "ه", // heh isolated
         0xFEEF to "ی", // alef maksura isolated (folds to yeh)
         0xFEF1 to "ی" // yeh isolated
+      )
+    for ((code, expected) in forms) {
+      assertEquals(
+        "U+" + Integer.toHexString(code) + " must fold to " + expected,
+        expected,
+        PersonNameNormalizer.normalize(String(Character.toChars(code)))
+      )
+    }
+  }
+
+  @Test
+  fun normalizeFoldsVariantBaseLetterPresentationForms() {
+    // Presentation forms of the variant base letters (alef madda/hamza, waw
+    // hamza, yeh hamza) fold to the same targets as their base variants, so
+    // shaped text shares the key with the typed variants.
+    val forms =
+      listOf(
+        0xFE81 to "ا", // alef with madda isolated
+        0xFE82 to "ا", // alef with madda final
+        0xFE83 to "ا", // alef with hamza above isolated
+        0xFE84 to "ا", // alef with hamza above final
+        0xFE85 to "و", // waw with hamza isolated
+        0xFE86 to "و", // waw with hamza final
+        0xFE87 to "ا", // alef with hamza below isolated
+        0xFE88 to "ا", // alef with hamza below final
+        0xFE89 to "ی", // yeh with hamza isolated
+        0xFE8A to "ی", // yeh with hamza final
+        0xFE8B to "ی", // yeh with hamza initial
+        0xFE8C to "ی" // yeh with hamza medial
       )
     for ((code, expected) in forms) {
       assertEquals(

@@ -6,6 +6,8 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.InstallmentDao
@@ -100,6 +102,43 @@ class BankLoanDelegateRollbackTest {
       delegate.deleteInstallmentsByBankLoanId(bankLoanId)
     }
   }
+
+  @Test
+  fun deleteBankLoanRemovesLinkedExpensesOfPaidInstallments() =
+    runTest {
+      // The cascade must not strand the expenses behind paid installments:
+      // deleting the bank loan removes the rows, so their linked money would
+      // otherwise keep showing in reports.
+      val repo = createRepository()
+      database.categoryDao().insertCategory(
+        Category(
+          name = "Installments",
+          key = "Installments",
+          icon = "CreditCard",
+          color = 1,
+          type = CategoryType.EXPENSE
+        )
+      )
+      val loanId =
+        repo.addBankLoanWithInstallments(
+          testBankLoan(),
+          listOf(installment(), installment())
+        )
+      val stored = database.installmentDao().getInstallmentsByBankLoanIdBlocking(loanId)
+      // One paid installment carries a linked expense, the other stays unpaid.
+      repo.updateInstallment(stored.first().copy(isPaid = true))
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      repo.deleteBankLoan(database.bankLoanDao().getAllBankLoansBlocking().single())
+
+      assertEquals("bank loan gone", 0, database.bankLoanDao().getAllBankLoansBlocking().size)
+      assertEquals("installments gone", 0, database.installmentDao().getAllInstallmentsSync().size)
+      assertEquals(
+        "the paid installment's linked expense must die with the cascade",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
 
   @Test
   fun addbankloanwithinstallmentsRollsBackWhenInstallmentInsertFails() =

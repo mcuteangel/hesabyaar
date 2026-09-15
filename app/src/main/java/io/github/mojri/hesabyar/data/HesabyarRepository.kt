@@ -44,7 +44,7 @@ class HesabyarRepository(
     categoryDao,
     database
   ),
-  BankLoanOps by BankLoanDelegate(bankLoanDao, installmentDao, database),
+  BankLoanOps by BankLoanDelegate(bankLoanDao, installmentDao, database.transactionLinkDao(), database),
   BackupOps by BackupDelegate(
     transactionDao,
     loanDao,

@@ -13,7 +13,11 @@ internal suspend fun backupMergeCategories(
     val existing = categoryDao.getCategoryByKey(category.key)
     val savedId =
       if (existing != null) {
-        categoryDao.updateCategory(category.copy(id = existing.id))
+        // The persisted isDefault flag is authoritative (CategoryDelegate
+        // .updateCategory refuses isDefault flips for the same reason): a
+        // backup carrying isDefault=false on the live default row must not
+        // silently unprotect it, or the delete guard becomes bypassable.
+        categoryDao.updateCategory(category.copy(id = existing.id, isDefault = existing.isDefault))
         existing.id
       } else {
         categoryDao.insertCategory(category.copy(id = 0))
@@ -43,14 +47,27 @@ internal suspend fun backupMergeInstallments(
   installments: List<Installment>,
   installmentDao: InstallmentDao,
   bankLoanIdMap: Map<Long, Long>
-): Map<Long, Long> =
-  installments.associate { installment ->
-    val newId =
-      installmentDao.insertInstallment(
-        installment.copy(id = 0, bankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get))
+): Map<Long, Long> {
+  val idMap = mutableMapOf<Long, Long>()
+  for (installment in installments) {
+    val mappedBankLoanId = installment.bankLoanId?.let(bankLoanIdMap::get)
+    if (installment.bankLoanId != null && mappedBankLoanId == null) {
+      // Mirrors backupMergePaymentHistories: an installment whose bankLoanId
+      // does not map to a merged bank loan would otherwise silently drop the
+      // FK (bankLoanId?.let(map::get) yields null). Skip it with a warning
+      // so a malformed backup cannot silently strand orphan installments.
+      AppLogger.w(
+        "HesabyarRepository",
+        "mergeFromBackup: skipping installment=${installment.id} " +
+          "bankLoanId=${installment.bankLoanId} because no merged bank loan matches"
       )
-    installment.id to newId
+      continue
+    }
+    val newId = installmentDao.insertInstallment(installment.copy(id = 0, bankLoanId = mappedBankLoanId))
+    idMap[installment.id] = newId
   }
+  return idMap
+}
 
 internal suspend fun backupMergeAccounts(
   accounts: List<AccountEntity>,

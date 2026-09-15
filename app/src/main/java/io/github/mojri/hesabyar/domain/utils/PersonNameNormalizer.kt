@@ -75,6 +75,22 @@ object PersonNameNormalizer {
       'ﯾ'.code to "ی", // FBFE farsi yeh initial
       'ﯿ'.code to "ی", // FBFF farsi yeh medial
       'ﺀ'.code to "ء", // FE80 hamza isolated
+      // Presentation forms of the variant base letters themselves: the base
+      // (أ إ آ ؤ ئ) already folds through the rules above, so their shaped
+      // forms target the same canonical letters — dedup keys match the
+      // keyboard-typed variants either way.
+      'ﺁ'.code to "ا", // FE81 alef with madda isolated
+      'ﺂ'.code to "ا", // FE82 alef with madda final
+      'ﺃ'.code to "ا", // FE83 alef with hamza above isolated
+      'ﺄ'.code to "ا", // FE84 alef with hamza above final
+      'ﺅ'.code to "و", // FE85 waw with hamza isolated
+      'ﺆ'.code to "و", // FE86 waw with hamza final
+      'ﺇ'.code to "ا", // FE87 alef with hamza below isolated
+      'ﺈ'.code to "ا", // FE88 alef with hamza below final
+      'ﺉ'.code to "ی", // FE89 yeh with hamza isolated
+      'ﺊ'.code to "ی", // FE8A yeh with hamza final
+      'ﺋ'.code to "ی", // FE8B yeh with hamza initial
+      'ﺌ'.code to "ی", // FE8C yeh with hamza medial
       'ﺍ'.code to "ا", // FE8D alef isolated
       'ﺎ'.code to "ا", // FE8E alef final
       'ﺏ'.code to "ب", // FE8F beh isolated

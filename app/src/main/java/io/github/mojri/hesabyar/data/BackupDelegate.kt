@@ -53,7 +53,8 @@ internal class BackupDelegate(
       categoryDao.deleteAllCategories()
       backup.categories.forEach { categoryDao.insertCategory(it) }
       val personsToInsert = withRecoveredReferencedPersons(backup)
-      val personMaps = backupInsertPersonsForReplace(personsToInsert, personDao)
+      val personMaps =
+        backupInsertPersonsForReplace(personsToInsert, personDao, backup.persons.isEmpty())
       backupInsertLoansWithPersonRemap(backup.loans, personMaps, loanDao)
       backupInsertTransactionsWithPersonRemap(backup.transactions, personMaps, transactionDao)
       backup.installments.forEach { installmentDao.insertInstallment(it) }
@@ -91,7 +92,8 @@ internal class BackupDelegate(
       val personMaps =
         PersonKeyMaps(
           sourceIdToKey = sourceIdToKey,
-          keyToLocalId = personKeyToId
+          keyToLocalId = personKeyToId,
+          allowNullIdNameFallback = backup.persons.isEmpty()
         )
 
       fun resolveForMerge(

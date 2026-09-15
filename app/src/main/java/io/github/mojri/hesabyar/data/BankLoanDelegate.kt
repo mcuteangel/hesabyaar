@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.first
 internal class BankLoanDelegate(
   private val bankLoanDao: BankLoanDao,
   private val installmentDao: InstallmentDao,
+  private val transactionLinkDao: TransactionLinkDao,
   private val database: AppDatabase
 ) : BankLoanOps {
   override val allBankLoans: Flow<List<BankLoan>> = bankLoanDao.getAllBankLoans()
@@ -21,6 +22,14 @@ internal class BankLoanDelegate(
 
   override suspend fun deleteBankLoan(bankLoan: BankLoan) {
     database.withTransaction {
+      // A paid installment's linked expense must die with its row, exactly
+      // like InstallmentDelegate.deleteInstallment — deleting the row through
+      // the bank-loan cascade alone would strand the money behind dead
+      // installments (reports keep counting it).
+      installmentDao
+        .getInstallmentsByBankLoanIdBlocking(bankLoan.id)
+        .filter { it.isPaid }
+        .forEach { transactionLinkDao.deleteTransactionsForInstallment(it.id) }
       installmentDao.deleteInstallmentsByBankLoanId(bankLoan.id)
       bankLoanDao.deleteBankLoan(bankLoan)
     }
