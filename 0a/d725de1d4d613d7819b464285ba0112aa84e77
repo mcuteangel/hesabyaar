@@ -1,0 +1,61 @@
+app/src/main/java/io/github/mojri/hesabyar/data/PersonKeyMaps.kt
+  s_7bb8afc9d0cb59::t_5b08ba6cf9ce4e 21-32
+  s_7bb8afc9d0cb59::t_04b1abf4f541c4 7-13
+  s_7bb8afc9d0cb59::t_0891316b4ba603 35
+app/src/test/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizerTest.kt
+  s_7bb8afc9d0cb59::t_907c8736839dcc 93-120
+  s_7bb8afc9d0cb59::t_7547b8a8fd7539 44-48
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_7bb8afc9d0cb59::t_cdab2b53ccc7f4 228-232
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_7bb8afc9d0cb59::t_c4db0c5e47b77a 47
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonNameNormalizer.kt
+  s_7bb8afc9d0cb59::t_d4f501efaf9661 78-93
+rust/Cargo.toml
+  s_7bb8afc9d0cb59::t_35e1b298fbf081 6
+app/src/test/java/io/github/mojri/hesabyar/RepositoryMergeGuardsTest.kt
+  s_7bb8afc9d0cb59::t_4d04ef5fd6cb91 1-195
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_7bb8afc9d0cb59::t_cdfc970a0b275b 29-30
+  s_7bb8afc9d0cb59::t_2b5a53004d5575 10
+  s_7bb8afc9d0cb59::t_afb15c1e39e955 25-28,31-32
+rust/hesabyar-core/src/validation.rs
+  s_7bb8afc9d0cb59::t_6c04286980bae7 556-557,584,591-593
+  s_7bb8afc9d0cb59::t_0dc898fa3030a6 2325-2334
+app/src/main/java/io/github/mojri/hesabyar/data/BackupMergeHelpers.kt
+  s_7bb8afc9d0cb59::t_d55a1bdd0ca84b 16-20
+  s_7bb8afc9d0cb59::t_8ee341c785941b 50-62,64-67,69-70
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_7bb8afc9d0cb59::t_4d958302d2804b 9-10
+  s_7bb8afc9d0cb59::t_ff24276b10eb1b 113-121
+  s_7bb8afc9d0cb59::t_b5293e68f1c538 107-112,122-142
+app/src/main/java/io/github/mojri/hesabyar/data/BackupDelegate.kt
+  s_7bb8afc9d0cb59::t_a1917cbc95b4eb 95-96
+  s_7bb8afc9d0cb59::t_22e73a12da1cc5 56-57
+app/src/main/java/io/github/mojri/hesabyar/data/BackupReplaceHelpers.kt
+  s_7bb8afc9d0cb59::t_419619469ab284 93-94
+  s_7bb8afc9d0cb59::t_8596919b62261e 105
+app/src/test/java/io/github/mojri/hesabyar/InstallmentUpdateTransactionTest.kt
+  s_7bb8afc9d0cb59::t_cdfc970a0b275b 277-284
+  s_7bb8afc9d0cb59::t_4983ec3336da60 253-276,285-293
+app/src/main/java/io/github/mojri/hesabyar/data/PersonDelegate.kt
+  s_7bb8afc9d0cb59::t_fc8f2de351c85a 35-39,42-78
+app/src/main/java/io/github/mojri/hesabyar/data/InstallmentDelegate.kt
+  s_7bb8afc9d0cb59::t_914fe483973478 66-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0ad725de1d4d613d7819b464285ba0112aa84e77",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
