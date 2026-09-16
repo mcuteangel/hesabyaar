@@ -381,16 +381,20 @@ graphify --update
 
 ### Setup
 
-- Graph is built once at `graphify-out/` (gitignored). To provision locally: `pip install graphifyy` then run `/graphify .`.
-- Hook setup (reproducible, run once per clone): `graphify hook install` installs the post-commit/post-checkout hooks that refresh the graph locally. Not tracked in git — each contributor runs this once.
-- Without the hook, code changes are still tracked; doc/image changes need manual `graphify --update`.
+- **Install once (fresh clone):**
+  ```bash
+  pip install graphifyy          # install CLI
+  graphify hook install           # post-commit + post-checkout hooks
+  graphify .                      # build initial graph (takes ~30s)
+  ```
+- **On code changes:** hooks run `graphify --update` automatically.
+- **On doc/image changes:** run `graphify --update` manually.
 
 ### Rules
 
-- Prefer `graphify query` for cross-cutting exploration; prefer Serena `find_symbol`/`find_referencing_symbols` for live symbol lookup. Neither replaces file reads.
-- Trust EXTRACTED edges (AST-confirmed). Verify INFERRED edges (model-reasoned). Flag AMBIGUOUS edges.
+- Use `graphify query` for cross-cutting questions ("why does X connect to Y?"). Use Serena `find_symbol`/`find_referencing_symbols` for live symbol lookup. Neither replaces reading code.
+- Treat community boundaries as hypotheses — verify against actual code dependencies before acting on them.
 - God nodes (highest degree) are central abstractions. Changes to them affect many modules.
-- Community boundaries represent real architectural layers. Cross-community edges are the most interesting signals.
 
 ## Code Intelligence: Serena
 
