@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteException
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -16,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
-import java.io.IOException
 
 @Database(
   entities = [

@@ -9,10 +9,11 @@ Write all agent-facing documentation and code comments in ASD-STE100 (Simplified
 - Use one idea per sentence.
 - Use consistent, precise terms — never switch between synonyms for the same concept.
 - Avoid ambiguous words, jargon, and adverbial qualifiers.
+- Follow this style in every agent contribution unless the Language and Response Policy specifies a different language.
 
 ## Language and Response Policy
 
-Never reply or write responses in Chinese under any circumstances. Responses must match user language (Persian / English). Code comments and documentation must be English. Commit messages and pull request descriptions must be English.
+Do not write replies in Chinese. Match the user language (Persian / English). Write code comments and documentation in English. Write commit messages and pull request descriptions in English.
 
 ## Project Identity
 
