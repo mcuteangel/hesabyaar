@@ -351,70 +351,74 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
         }
     }
 
-    if !payload.accounts.is_empty() {
-        // --- Transaction account reference validation ---
-        // Build the account-id set only when there are declared accounts; for
-        // legacy backups (empty accounts list) this allocation is skipped and
-        // the legacy-default path below handles transactions instead.
-        let account_ids: std::collections::HashSet<i64> =
-            payload.accounts.iter().map(|a| a.id).collect();
+    // --- Transaction account reference + transfer structure validation ---
+    // Single pass over transactions: account references (modern or legacy
+    // default) and Transfer structural invariants are checked together, so a
+    // payload with many transactions is walked once instead of twice. The
+    // account-id set is built only when there are declared accounts; for
+    // legacy backups (empty accounts list) the legacy-default path handles
+    // transactions instead and this allocation is skipped entirely.
+    if !payload.transactions.is_empty() {
+        let account_ids: Option<std::collections::HashSet<i64>> = if !payload.accounts.is_empty() {
+            Some(payload.accounts.iter().map(|a| a.id).collect())
+        } else {
+            None
+        };
 
-        // Modern backup: validate transactions against declared accounts.
         for (i, tx) in payload.transactions.iter().enumerate() {
-            if !account_ids.contains(&tx.account_id) {
-                errors.push(format!(
-                    "Transaction[{}] references non-existent source account {}",
-                    i, tx.account_id
-                ));
-            }
-            if let Some(dest_id) = tx.destination_account_id {
-                if !account_ids.contains(&dest_id) {
+            if let Some(ref ids) = account_ids {
+                // Modern backup: validate against declared accounts.
+                if !ids.contains(&tx.account_id) {
                     errors.push(format!(
-                        "Transaction[{}] references non-existent destination account {}",
-                        i, dest_id
+                        "Transaction[{}] references non-existent source account {}",
+                        i, tx.account_id
                     ));
                 }
-            }
-        }
-    } else if !payload.transactions.is_empty() {
-        // Legacy backup (no accounts list): every transaction must reference
-        // the legacy default account ID. This is the single account that
-        // existed before multi-account support. Rejecting arbitrary IDs here
-        // prevents orphaned balances from tampered old backups.
-        for (i, tx) in payload.transactions.iter().enumerate() {
-            if tx.account_id != DEFAULT_ACCOUNT_ID {
-                errors.push(format!(
-                    "Transaction[{}] references non-legacy account {} (accounts list is empty; expected {})",
-                    i, tx.account_id, DEFAULT_ACCOUNT_ID
-                ));
-            }
-            if let Some(dest_id) = tx.destination_account_id {
-                if dest_id != DEFAULT_ACCOUNT_ID {
+                if let Some(dest_id) = tx.destination_account_id {
+                    if !ids.contains(&dest_id) {
+                        errors.push(format!(
+                            "Transaction[{}] references non-existent destination account {}",
+                            i, dest_id
+                        ));
+                    }
+                }
+            } else {
+                // Legacy backup (no accounts list): every transaction must
+                // reference the legacy default account ID. This is the single
+                // account that existed before multi-account support. Rejecting
+                // arbitrary IDs here prevents orphaned balances from tampered
+                // old backups.
+                if tx.account_id != DEFAULT_ACCOUNT_ID {
                     errors.push(format!(
-                        "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected {})",
-                        i, dest_id, DEFAULT_ACCOUNT_ID
+                        "Transaction[{}] references non-legacy account {} (accounts list is empty; expected {})",
+                        i, tx.account_id, DEFAULT_ACCOUNT_ID
                     ));
                 }
-            }
-        }
-    }
-
-    // --- Transfer structure validation ---
-    // Uses the shared check_transfer_structure helper so these invariants
-    // cannot drift from validate_transaction (the fail-fast FFI path). Each
-    // caller formats its own indexed message.
-    for (i, tx) in payload.transactions.iter().enumerate() {
-        if let Some(issue) = check_transfer_structure(tx) {
-            errors.push(format!(
-                "Transaction[{}] {}",
-                i,
-                match issue {
-                    TransferIssue::MissingDestination =>
-                        "is a Transfer but has no destination_account_id",
-                    TransferIssue::SameSourceAndDestination =>
-                        "Transfer source and destination accounts must differ",
+                if let Some(dest_id) = tx.destination_account_id {
+                    if dest_id != DEFAULT_ACCOUNT_ID {
+                        errors.push(format!(
+                            "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected {})",
+                            i, dest_id, DEFAULT_ACCOUNT_ID
+                        ));
+                    }
                 }
-            ));
+            }
+
+            // Transfer structure uses the shared check_transfer_structure
+            // helper so these invariants cannot drift from validate_transaction
+            // (the fail-fast FFI path). Each caller formats its own message.
+            if let Some(issue) = check_transfer_structure(tx) {
+                errors.push(format!(
+                    "Transaction[{}] {}",
+                    i,
+                    match issue {
+                        TransferIssue::MissingDestination =>
+                            "is a Transfer but has no destination_account_id",
+                        TransferIssue::SameSourceAndDestination =>
+                            "Transfer source and destination accounts must differ",
+                    }
+                ));
+            }
         }
     }
 
