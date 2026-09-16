@@ -2132,6 +2132,153 @@ mod tests {
     }
 
     #[test]
+    fn test_backup_rejects_non_existent_source_account_in_modern_backup() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Expense,
+                category_id: 1,
+                amount: 1000,
+                description: "expense".to_string(),
+                person_name: None,
+                person_id: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 999, // non-existent
+                destination_account_id: None,
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("non-existent source account 999")),
+            "expected non-existent source account error: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_backup_rejects_non_existent_destination_account_in_modern_backup() {
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 1000,
+                description: "transfer".to_string(),
+                person_name: None,
+                person_id: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(888), // non-existent
+            }],
+            ..Default::default()
+        };
+        let result = validate_backup_payload(&payload);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("non-existent destination account 888")),
+            "expected non-existent destination account error: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn test_backup_orders_account_ref_errors_before_transfer_structure_errors() {
+        // In the same pass, account reference errors must be produced before
+        // transfer structure errors so fail-fast FFI (errors.first()) prioritizes
+        // account identity over transfer layout.
+        let payload = BackupPayload {
+            version: 1,
+            timestamp: 1710000000000,
+            app_version: "1.0".to_string(),
+            accounts: vec![Account {
+                id: 1,
+                name: "Main".to_string(),
+                account_type: "BANK".to_string(),
+                bank_name: None,
+                card_number: None,
+                account_number: None,
+                iban: None,
+                initial_balance: 0,
+                color: 0,
+                icon: None,
+                is_archived: false,
+                display_order: 0,
+                created_at: 0,
+                updated_at: 0,
+            }],
+            transactions: vec![Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: 1,
+                amount: 1000,
+                description: "transfer".to_string(),
+                person_name: None,
+                person_id: None,
+                date: 1710000000000,
+                due_date: None,
+                installment_id: None,
+                account_id: 777,              // non-existent
+                destination_account_id: None, // missing dest
+            }],
+            ..Default::default()
+        };
+        let errors = validate_accounts_and_references(&payload);
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].contains("non-existent source account 777"));
+        assert!(errors[1].contains("is a Transfer but has no destination_account_id"));
+    }
+
+    #[test]
     fn test_validate_backup_rejects_blank_and_duplicate_persons() {
         let payload = BackupPayload {
             version: 1,
