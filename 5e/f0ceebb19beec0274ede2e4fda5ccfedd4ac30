@@ -1,0 +1,22 @@
+.gitattributes
+  s_44d7bbadb4e905::t_6de17a73ae9839 24-25
+AGENTS.md
+  s_44d7bbadb4e905::t_f5946f7afb78bd 397
+  s_44d7bbadb4e905::t_dddc6ad8fa7540 384-386,390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ef0ceebb19beec0274ede2e4fda5ccfedd4ac30",
+  "prompts": {},
+  "sessions": {
+    "s_44d7bbadb4e905": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2474cb4-31b5-432f-ad28-bb066c280f55",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
