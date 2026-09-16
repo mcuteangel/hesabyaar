@@ -383,9 +383,9 @@ graphify --update
 
 - **Install once (fresh clone):**
   ```bash
-  pip install graphifyy          # install CLI
-  graphify hook install           # post-commit + post-checkout hooks
-  graphify .                      # build initial graph (takes ~30s)
+  python -m pip install graphifyy  # install CLI (or: uv tool install graphifyy)
+  graphify hook install            # post-commit + post-checkout hooks
+  graphify .                       # build initial graph (takes ~30s)
   ```
 - **On code changes:** hooks run `graphify --update` automatically.
 - **On doc/image changes:** run `graphify --update` manually.
