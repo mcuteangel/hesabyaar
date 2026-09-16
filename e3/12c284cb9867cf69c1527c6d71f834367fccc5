@@ -1,0 +1,21 @@
+AGENTS.md
+  s_7bb8afc9d0cb59::t_c38a6af96e83e2 13-16
+rust/hesabyar-core/src/validation.rs
+  s_7bb8afc9d0cb59::t_eac85e71d2b14a 355-360,368-369,412-413,415,427-428
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e312c284cb9867cf69c1527c6d71f834367fccc5",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "mimo-v2.5-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
