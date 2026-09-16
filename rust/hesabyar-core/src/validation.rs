@@ -30,6 +30,7 @@ impl Default for ValidationResult {
 /// [check_transfer_structure] helper, called from both [validate_transaction]
 /// and [validate_accounts_and_references], so they are not duplicated (or
 /// forgotten) when `validate_backup_payload` runs both paths.
+#[inline(always)]
 fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     if tx.amount <= 0 {
         return Err("Transaction amount must be positive".into());
@@ -63,6 +64,7 @@ enum TransferIssue {
 ///
 /// Returns `Some(issue)` for the first violation found, or `None` for a valid
 /// transaction (including non-Transfer types, which are accepted here).
+#[inline(always)]
 fn check_transfer_structure(tx: &Transaction) -> Option<TransferIssue> {
     if tx.tx_type != TransactionType::Transfer {
         return None;
@@ -79,6 +81,7 @@ fn check_transfer_structure(tx: &Transaction) -> Option<TransferIssue> {
 /// Validate a single transaction.
 ///
 /// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+#[inline(always)]
 pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
     validate_transaction_fields(tx)?;
     // The five non-Transfer types are accepted unconditionally; Transfer
@@ -423,74 +426,102 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 pub fn validate_persons(payload: &BackupPayload) -> Vec<String> {
     let mut errors = Vec::new();
 
-    // Field checks: blank name, blank derived key, duplicate derived key,
-    // and duplicate source IDs. The key is derived from `name` and never
-    // read from the backup-supplied `normalized_name` (mirrors the Kotlin
-    // fallback in BackupJsonValidator so both paths agree).
-    let mut seen_person_keys = std::collections::HashSet::new();
-    for (i, p) in payload.persons.iter().enumerate() {
-        // Mirror Kotlin `p.name.isBlank()` (Character.isWhitespace || isSpaceChar) —
-        // see `is_java_whitespace`. `str::trim` uses Unicode White_Space, which
-        // would diverge, so check every char explicitly.
-        let name_is_blank = p.name.is_empty()
-            || p.name.chars().all(|c| {
-                is_java_whitespace(c)
-                    || matches!(
-                        c,
-                        '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
-                    )
-            });
-        if name_is_blank {
-            errors.push(format!("Person[{}] has a blank name", i));
+    if !payload.persons.is_empty() {
+        // Field checks: blank name, blank derived key, duplicate derived key,
+        // and duplicate source IDs. The key is derived from `name` and never
+        // read from the backup-supplied `normalized_name` (mirrors the Kotlin
+        // fallback in BackupJsonValidator so both paths agree).
+        let mut seen_person_keys = std::collections::HashSet::with_capacity(payload.persons.len());
+        let mut person_id_counts: std::collections::HashMap<i64, usize> =
+            std::collections::HashMap::with_capacity(payload.persons.len());
+
+        for (i, p) in payload.persons.iter().enumerate() {
+            // Mirror Kotlin `p.name.isBlank()` (Character.isWhitespace || isSpaceChar) —
+            // see `is_java_whitespace`. `str::trim` uses Unicode White_Space, which
+            // would diverge, so check every char explicitly.
+            let name_is_blank = p.name.is_empty()
+                || p.name.chars().all(|c| {
+                    is_java_whitespace(c)
+                        || matches!(
+                            c,
+                            '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
+                        )
+                });
+            if name_is_blank {
+                errors.push(format!("Person[{}] has a blank name", i));
+            }
+            let key = normalize_person_name(&p.name);
+            if key.is_empty() {
+                errors.push(format!("Person[{}] has a blank normalizedName", i));
+            } else if !seen_person_keys.insert(key) {
+                errors.push(format!("Person[{}] has a duplicate normalizedName", i));
+            }
+            *person_id_counts.entry(p.id).or_insert(0) += 1;
         }
-        let key = normalize_person_name(&p.name);
-        if key.is_empty() {
-            errors.push(format!("Person[{}] has a blank normalizedName", i));
-        } else if !seen_person_keys.insert(key) {
-            errors.push(format!("Person[{}] has a duplicate normalizedName", i));
+
+        // Duplicate source IDs: the restore path maps source IDs to local rows with
+        // `associate`, so a later entry silently overwrites the earlier mapping and
+        // loans/transactions referencing that ID resolve to the wrong person.
+        let mut duplicate_person_ids: Vec<i64> = person_id_counts
+            .into_iter()
+            .filter(|(_, count)| *count > 1)
+            .map(|(id, _)| id)
+            .collect();
+        // Sort so the reported errors are deterministic across runs.
+        duplicate_person_ids.sort_unstable();
+        for id in duplicate_person_ids {
+            errors.push(format!("Person has a duplicate id {}", id));
         }
-    }
-    // Duplicate source IDs: the restore path maps source IDs to local rows with
-    // `associate`, so a later entry silently overwrites the earlier mapping and
-    // loans/transactions referencing that ID resolve to the wrong person.
-    let mut person_id_counts: std::collections::HashMap<i64, usize> =
-        std::collections::HashMap::new();
-    for p in payload.persons.iter() {
-        *person_id_counts.entry(p.id).or_insert(0) += 1;
-    }
-    let mut duplicate_person_ids: Vec<i64> = person_id_counts
-        .into_iter()
-        .filter(|(_, count)| *count > 1)
-        .map(|(id, _)| id)
-        .collect();
-    // Sort so the reported errors are deterministic across runs.
-    duplicate_person_ids.sort_unstable();
-    for id in duplicate_person_ids {
-        errors.push(format!("Person has a duplicate id {}", id));
-    }
-    // Cross-reference: positive person_id must point to a declared person.
-    // Zero is a legacy default tolerated in all cases.
-    let person_ids: std::collections::HashSet<_> = payload.persons.iter().map(|p| p.id).collect();
-    for (i, loan) in payload.loans.iter().enumerate() {
-        if let Some(pid) = loan.person_id {
-            if pid > 0 && !person_ids.contains(&pid) {
-                errors.push(format!(
-                    "Loan[{}] references non-existent person {}",
-                    i, pid
-                ));
+
+        // Cross-reference: positive person_id must point to a declared person.
+        // Zero is a legacy default tolerated in all cases.
+        let person_ids: std::collections::HashSet<_> =
+            payload.persons.iter().map(|p| p.id).collect();
+        for (i, loan) in payload.loans.iter().enumerate() {
+            if let Some(pid) = loan.person_id {
+                if pid > 0 && !person_ids.contains(&pid) {
+                    errors.push(format!(
+                        "Loan[{}] references non-existent person {}",
+                        i, pid
+                    ));
+                }
+            }
+        }
+        for (i, tx) in payload.transactions.iter().enumerate() {
+            if let Some(pid) = tx.person_id {
+                if pid > 0 && !person_ids.contains(&pid) {
+                    errors.push(format!(
+                        "Transaction[{}] references non-existent person {}",
+                        i, pid
+                    ));
+                }
+            }
+        }
+    } else {
+        // Fast path for legacy or person-free backups: no persons declared, so
+        // any positive person_id in loans or transactions is an orphan.
+        for (i, loan) in payload.loans.iter().enumerate() {
+            if let Some(pid) = loan.person_id {
+                if pid > 0 {
+                    errors.push(format!(
+                        "Loan[{}] references non-existent person {}",
+                        i, pid
+                    ));
+                }
+            }
+        }
+        for (i, tx) in payload.transactions.iter().enumerate() {
+            if let Some(pid) = tx.person_id {
+                if pid > 0 {
+                    errors.push(format!(
+                        "Transaction[{}] references non-existent person {}",
+                        i, pid
+                    ));
+                }
             }
         }
     }
-    for (i, tx) in payload.transactions.iter().enumerate() {
-        if let Some(pid) = tx.person_id {
-            if pid > 0 && !person_ids.contains(&pid) {
-                errors.push(format!(
-                    "Transaction[{}] references non-existent person {}",
-                    i, pid
-                ));
-            }
-        }
-    }
+
     errors
 }
 
