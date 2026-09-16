@@ -27,7 +27,7 @@ internal class BankLoanDelegate(
       // the bank-loan cascade alone would strand the money behind dead
       // installments (reports keep counting it).
       installmentDao
-        .getInstallmentsByBankLoanIdBlocking(bankLoan.id)
+        .getInstallmentsByBankLoanIdSync(bankLoan.id)
         .filter { it.isPaid }
         .forEach { transactionLinkDao.deleteTransactionsForInstallment(it.id) }
       installmentDao.deleteInstallmentsByBankLoanId(bankLoan.id)

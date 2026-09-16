@@ -60,7 +60,10 @@ internal class PersonDelegate(
           val retryId = personDao.insertPerson(candidate)
           if (retryId != -1L) candidate.copy(id = retryId) else personDao.getPersonByNormalizedName(key)
         }
-    return if (winner != null) mergeWithExisting(winner, person) else candidate
+    return winner?.let { mergeWithExisting(it, person) }
+      ?: throw IllegalStateException(
+        "upsertPerson: collision winner disappeared and insert retry lost for normalizedName=$key"
+      )
   }
 
   private suspend fun mergeWithExisting(
@@ -103,12 +106,13 @@ internal class PersonDelegate(
 
   override suspend fun deletePerson(person: Person) {
     database.withTransaction {
+      val persisted = personDao.getPersonById(person.id) ?: return@withTransaction
       // Drop the id references but keep the denormalized personName, so
       // history stays readable and backups never export a personId without
       // a matching persons row (the validator rejects those payloads).
-      loanPersonOpsDao.clearLoanPersonIds(person.id)
-      transactionDao.clearTransactionPersonIds(person.id)
-      personDao.deletePerson(person)
+      loanPersonOpsDao.clearLoanPersonIds(persisted.id)
+      transactionDao.clearTransactionPersonIds(persisted.id)
+      personDao.deletePerson(persisted)
     }
   }
 }

@@ -32,5 +32,14 @@ interface PersonRepositoryInterface {
     newName: String
   ): Boolean
 
+  /**
+   * Deletes a person: clears the personId FK references on its loans and
+   * transactions (keeping the denormalized personName for history)
+   * then removes the row.
+   *
+   * Implementations should verify the person existence before clearing FKs
+   * and deleting, so stale caller-supplied objects cannot orphan unrelated
+   * records.
+   */
   suspend fun deletePerson(person: Person)
 }

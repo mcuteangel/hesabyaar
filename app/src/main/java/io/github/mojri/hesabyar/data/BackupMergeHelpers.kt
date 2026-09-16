@@ -150,40 +150,70 @@ internal suspend fun backupMergeTransactions(
 ) {
   val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
   val localAccountIds = accountDao.getAllAccountsBlocking().map { it.id }.toSet()
-  for (transaction in transactions) {
-    val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
-    val mappedDestinationAccountId = transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
-    val destinationResolved =
-      when (mappedDestinationAccountId) {
-        null -> transaction.destinationAccountId == null
-        else -> localAccountIds.contains(mappedDestinationAccountId)
-      }
-    if (!localAccountIds.contains(mappedAccountId) || !destinationResolved) {
-      AppLogger.w(
-        "HesabyarRepository",
-        "mergeFromBackup: skipping transaction=${transaction.id} " +
-          "accountId=${transaction.accountId}->$mappedAccountId " +
-          "destinationAccountId=${transaction.destinationAccountId}->$mappedDestinationAccountId " +
-          "because no local account matches"
-      )
-      continue
-    }
-    val mappedCategoryId =
-      categoryIdMap[transaction.categoryId]
-        ?: otherCategoryId ?: transaction.categoryId
-    val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
-    val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
-    transactionDao.insertTransaction(
-      transaction.copy(
-        id = 0,
-        categoryId = mappedCategoryId,
-        installmentId = mappedInstallmentId,
-        accountId = mappedAccountId,
-        destinationAccountId = mappedDestinationAccountId,
-        personId = mappedPersonId
-      )
+  transactions.forEach { transaction ->
+    backupMergeOneTransaction(
+      transaction,
+      categoryIdMap,
+      installmentIdMap,
+      accountIdMap,
+      otherCategoryId,
+      localAccountIds,
+      transactionDao,
+      resolvePersonId
     )
   }
+}
+
+private suspend fun backupMergeOneTransaction(
+  transaction: Transaction,
+  categoryIdMap: Map<Long, Long>,
+  installmentIdMap: Map<Long, Long>,
+  accountIdMap: Map<Long, Long>,
+  otherCategoryId: Long?,
+  localAccountIds: Set<Long>,
+  transactionDao: TransactionDao,
+  resolvePersonId: (Long?, String?) -> Long?
+) {
+  val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
+  val mappedDestinationAccountId = transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
+  val destinationResolved =
+    when (mappedDestinationAccountId) {
+      null -> transaction.destinationAccountId == null
+      else -> localAccountIds.contains(mappedDestinationAccountId)
+    }
+  if (!localAccountIds.contains(mappedAccountId) || !destinationResolved) {
+    AppLogger.w(
+      "HesabyarRepository",
+      "mergeFromBackup: skipping transaction=${transaction.id} " +
+        "accountId=${transaction.accountId}->$mappedAccountId " +
+        "destinationAccountId=${transaction.destinationAccountId}->$mappedDestinationAccountId " +
+        "because no local account matches"
+    )
+    return
+  }
+  val mappedCategoryId =
+    categoryIdMap[transaction.categoryId]
+      ?: otherCategoryId ?: transaction.categoryId
+  val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
+  if (transaction.installmentId != null && mappedInstallmentId == null) {
+    AppLogger.w(
+      "HesabyarRepository",
+      "mergeFromBackup: skipping transaction=${transaction.id} " +
+        "installmentId=${transaction.installmentId} because referenced installment was skipped"
+    )
+    return
+  }
+  val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
+  transactionDao.insertTransaction(
+    transaction.copy(
+      id = 0,
+      categoryId = mappedCategoryId,
+      installmentId = mappedInstallmentId,
+      accountId = mappedAccountId,
+      destinationAccountId = mappedDestinationAccountId,
+      personId = mappedPersonId
+    )
+  )
 }
 
 internal suspend fun backupMergePaymentHistories(

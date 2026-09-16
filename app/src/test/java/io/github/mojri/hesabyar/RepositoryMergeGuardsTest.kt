@@ -192,4 +192,37 @@ class RepositoryMergeGuardsTest {
       assertEquals("null bankLoanId inserts normally", "قسط بدون بانک", stored.single().title)
       assertNull("no FK may be silently fabricated", stored.single().bankLoanId)
     }
+
+  @Test
+  fun mergeFromBackupSkipsTransactionsReferencingSkippedInstallments() =
+    runTest {
+      val repo = createRepository()
+      // An installment skipped for an unmapped bankLoanId must NOT leave its
+      // dependent transactions imported as unlinked records (silently losing
+      // the payment linkage). The dependent transaction must be skipped too.
+      repo.mergeFromBackup(
+        BackupPayload(
+          installments =
+            listOf(
+              Installment(
+                id = 100L,
+                title = "قسط با بانک ناموجود",
+                amount = 1_000L,
+                dueDate = 100L,
+                bankLoanId = 999L // unmapped bank loan
+              )
+            ),
+          transactions =
+            listOf(
+              transaction(id = 50L, amount = 1_000L).copy(installmentId = 100L)
+            )
+        )
+      )
+
+      assertEquals(
+        "transaction referencing skipped installment must be skipped too",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
 }

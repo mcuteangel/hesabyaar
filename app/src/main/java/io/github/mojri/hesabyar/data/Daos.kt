@@ -228,7 +228,7 @@ interface InstallmentDao {
   // deleteBankLoan reads the rows before the cascade so linked expenses of
   // paid installments can be removed with them.
   @Query("SELECT * FROM installments WHERE bankLoanId = :bankLoanId ORDER BY dueDate ASC")
-  suspend fun getInstallmentsByBankLoanIdBlocking(bankLoanId: Long): List<Installment>
+  suspend fun getInstallmentsByBankLoanIdSync(bankLoanId: Long): List<Installment>
 
   @Query("SELECT * FROM installments ORDER BY dueDate ASC")
   suspend fun getAllInstallmentsSync(): List<Installment>
