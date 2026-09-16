@@ -353,6 +353,45 @@ If your change makes a class or function cross a threshold (for example, detekt 
 
 If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. Other suppressions are forbidden except the documented `@Suppress("TooGenericExceptionCaught")` cases (Rust FFI rethrow and org.json malformed-JSON access).
 
+## Code Intelligence: Graphify
+
+Graphify builds a persistent knowledge graph of the codebase. It maps code structure (AST), documents, and images into a queryable graph with community detection.
+
+### When to use it
+
+- Before answering "why does X connect to Y?", "what calls Z?", or "trace the data flow".
+- When exploring cross-cutting concerns across multiple modules.
+- When a question requires understanding relationships that span Rust, Kotlin, FFI, and UI layers.
+
+### Quick reference
+
+```bash
+# Ask a question about the codebase
+graphify query "Why does AccountEntity connect 40+ communities?"
+
+# Find shortest path between two concepts
+graphify path "AccountEntity" "RustBridge" --undirected
+
+# Plain-language explanation of a node
+graphify explain "AccountEntity"
+
+# Incremental update (after code changes)
+graphify --update
+```
+
+### Setup
+
+- Graph is built once at `graphify-out/`. Add `graphify-out/` to `.gitignore`.
+- Post-commit hook is installed. After each `git commit`, AST extraction runs automatically.
+- Doc and image changes need manual update: run `graphify --update`.
+
+### Rules
+
+- Prefer `graphify query` over reading files one by one. Graph answers are faster and show cross-module relationships.
+- Trust EXTRACTED edges (AST-confirmed). Verify INFERRED edges (model-reasoned). Flag AMBIGUOUS edges.
+- God nodes (highest degree) are central abstractions. Changes to them affect many modules.
+- Community boundaries represent real architectural layers. Cross-community edges are the most interesting signals.
+
 ## Code Intelligence: Serena
 
 Serena is the code-intelligence backend for this repo. Use it to inspect code. Do not add another indexing server.
