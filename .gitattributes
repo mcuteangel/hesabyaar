@@ -21,4 +21,6 @@
 *.aab binary
 *.ttf binary
 *.otf binary
+# Graphify merge driver — run `graphify hook install` once per clone to register it.
+# Without the driver git falls back to text merge for this JSON file.
 graphify-out/graph.json merge=graphify
