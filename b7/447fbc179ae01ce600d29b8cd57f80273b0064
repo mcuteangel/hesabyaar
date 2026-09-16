@@ -1,0 +1,21 @@
+rust/hesabyar-core/src/validation.rs
+  s_7bb8afc9d0cb59::t_e9b1ebc092b0a9 731-739
+  s_7bb8afc9d0cb59::t_7d337df1a114e1 188
+  s_7bb8afc9d0cb59::t_f7491cf1a60362 337-338,355-361
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b7447fbc179ae01ce600d29b8cd57f80273b0064",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "muse-spark-1.2-contributor-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
