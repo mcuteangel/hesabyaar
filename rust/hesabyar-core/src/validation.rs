@@ -185,6 +185,7 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
 /// (called first by `validate_backup_payload`) covers them via the shared
 /// [check_transfer_structure] helper. Checking them again would produce
 /// duplicate errors for the same violation.
+#[inline]
 pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationResult {
     let mut errors = Vec::new();
     for (i, tx) in transactions.iter().enumerate() {
@@ -333,7 +334,8 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     let mut errors = Vec::new();
 
     // --- Account structural validation ---
-    let mut seen_ids: std::collections::HashSet<i64> = std::collections::HashSet::new();
+    let mut seen_ids: std::collections::HashSet<i64> =
+        std::collections::HashSet::with_capacity(payload.accounts.len());
     for (i, acc) in payload.accounts.iter().enumerate() {
         if acc.name.trim().is_empty() {
             errors.push(format!("Account[{}] has empty name", i));
@@ -349,11 +351,14 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
         }
     }
 
-    // --- Transaction account reference validation ---
-    let account_ids: std::collections::HashSet<i64> =
-        payload.accounts.iter().map(|a| a.id).collect();
-
     if !payload.accounts.is_empty() {
+        // --- Transaction account reference validation ---
+        // Build the account-id set only when there are declared accounts; for
+        // legacy backups (empty accounts list) this allocation is skipped and
+        // the legacy-default path below handles transactions instead.
+        let account_ids: std::collections::HashSet<i64> =
+            payload.accounts.iter().map(|a| a.id).collect();
+
         // Modern backup: validate transactions against declared accounts.
         for (i, tx) in payload.transactions.iter().enumerate() {
             if !account_ids.contains(&tx.account_id) {
@@ -723,13 +728,15 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     errors.extend(validate_persons(payload));
     // PaymentHistory cross-reference: positive loan_id must point to an existing loan.
     // Zero is a legacy default tolerated in all cases.
-    let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
-    for (i, ph) in payload.payment_histories.iter().enumerate() {
-        if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
-            errors.push(format!(
-                "PaymentHistory[{}] references non-existent loan {}",
-                i, ph.loan_id
-            ));
+    if !payload.payment_histories.is_empty() {
+        let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
+        for (i, ph) in payload.payment_histories.iter().enumerate() {
+            if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
+                errors.push(format!(
+                    "PaymentHistory[{}] references non-existent loan {}",
+                    i, ph.loan_id
+                ));
+            }
         }
     }
     ValidationResult {
