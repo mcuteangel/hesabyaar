@@ -274,10 +274,13 @@ class AppDatabaseMigrationTest {
   fun transferPlaintextDataRemapsPersonIdOnNormalizedKeyCollision() =
     runTest {
       // Target already has Reza under a DIFFERENT id than the source uses.
+      // Use explicit id 99 so the target row does not collide with the
+      // auto-generated source ids (Sara=1, Reza=2); only the normalizedName
+      // collision should decide the remap.
       targetDb.personDao().insertAllBlocking(
         listOf(
           Person(
-            id = 0L,
+            id = 99L,
             name = "Reza",
             normalizedName = "reza",
             createdAt = 50L,
@@ -304,6 +307,12 @@ class AppDatabaseMigrationTest {
       // The copied loan must point at the TARGET Reza id, not the source id.
       val loan = targetDb.loanDao().getAllLoansBlocking().single()
       assertEquals("loan personId remapped to the surviving target id", targetRezaId, loan.personId)
+
+      // Non-colliding persons survive the transfer and keep their links.
+      val sara = targetPersons.firstOrNull { it.normalizedName == "sara" }
+      assertNotNull("non-colliding person must survive the transfer", sara)
+      val tx = targetDb.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals("transaction stays linked to Sara", sara?.id, tx.personId)
     }
 
 /**

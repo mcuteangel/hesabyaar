@@ -2,8 +2,10 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 internal class AccountDelegate(
   private val accountDao: AccountDao,
@@ -13,7 +15,13 @@ internal class AccountDelegate(
 
   override suspend fun getActiveAccounts(): List<AccountEntity> = accountDao.getActiveAccounts().first()
 
-  override suspend fun getAllAccounts(): List<AccountEntity> = accountDao.getAllAccountsBlocking()
+  override suspend fun getAllAccounts(): List<AccountEntity> =
+    // The DAO query is blocking (no suspend signature), so hop off the caller's
+    // dispatcher — a Main-dispatcher caller must not run a SQLite read on the
+    // UI thread (ANR/Room assertNotMainThread risk, matching PersonDelegate).
+    withContext(Dispatchers.IO) {
+      accountDao.getAllAccountsBlocking()
+    }
 
   override suspend fun getAccountById(id: Long): AccountEntity? = accountDao.getById(id)
 

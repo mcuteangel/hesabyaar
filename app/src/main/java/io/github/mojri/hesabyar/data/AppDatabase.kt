@@ -575,10 +575,7 @@ abstract class AppDatabase : RoomDatabase() {
         context.getDatabasePath(tempName).delete()
         context.getDatabasePath("$tempName-wal").delete()
         context.getDatabasePath("$tempName-shm").delete()
-      } catch (e: IOException) {
-        restoreTempBackupToLive(context, tempName, dbFile)
-        throw e
-      } catch (e: SQLiteException) {
+      } catch (e: Exception) {
         restoreTempBackupToLive(context, tempName, dbFile)
         throw e
       }
