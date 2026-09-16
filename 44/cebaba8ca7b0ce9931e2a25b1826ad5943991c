@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigrationTest.kt
+  s_7bb8afc9d0cb59::t_aab5b953584831 310-315
+  s_7bb8afc9d0cb59::t_968b8a6751b9eb 277-279,283
+app/src/main/java/io/github/mojri/hesabyar/data/AccountDelegate.kt
+  s_7bb8afc9d0cb59::t_06c1ff5f35bfc5 5,8,18-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "44cebaba8ca7b0ce9931e2a25b1826ad5943991c",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
