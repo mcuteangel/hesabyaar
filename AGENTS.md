@@ -353,9 +353,52 @@ If your change makes a class or function cross a threshold (for example, detekt 
 
 If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. Other suppressions are forbidden except the documented `@Suppress("TooGenericExceptionCaught")` cases (Rust FFI rethrow and org.json malformed-JSON access).
 
+## Code Intelligence: Graphify
+
+Graphify builds a persistent knowledge graph of the codebase. It maps code structure (AST), documents, and images into a queryable graph with community detection.
+
+### When to use it
+
+- Before answering "why does X connect to Y?", "what calls Z?", or "trace the data flow".
+- When exploring cross-cutting concerns across multiple modules.
+- When a question requires understanding relationships that span Rust, Kotlin, FFI, and UI layers.
+
+### Quick reference
+
+```bash
+# Ask a question about the codebase
+graphify query "Why does AccountEntity connect 40+ communities?"
+
+# Find shortest path between two concepts
+graphify path "AccountEntity" "RustBridge" --undirected
+
+# Plain-language explanation of a node
+graphify explain "AccountEntity"
+
+# Incremental update (after code changes)
+graphify --update
+```
+
+### Setup
+
+- **Install once (fresh clone):**
+  ```bash
+  python -m pip install graphifyy  # install CLI (or: uv tool install graphifyy)
+  graphify hook install            # post-commit + post-checkout hooks
+  graphify .                       # build initial graph (takes ~30s)
+  ```
+- **On code changes:** hooks run `graphify --update` automatically.
+- **On doc/image changes:** run `graphify --update` manually.
+
+### Rules
+
+- Use `graphify query` for cross-cutting questions ("why does X connect to Y?"). Use Serena `find_symbol`/`find_referencing_symbols` for live symbol lookup. Neither replaces reading code.
+- Treat community boundaries as hypotheses — verify against actual code dependencies before acting on them.
+- God nodes (highest degree) are central abstractions. Changes to them affect many modules.
+
 ## Code Intelligence: Serena
 
-Serena is the code-intelligence backend for this repo. Use it to inspect code. Do not add another indexing server.
+Serena is the symbol-level code-intelligence backend for this repo. It provides live AST symbol lookups, call hierarchy tracing, and declaration finding without rebuilding any index. Use Graphify for broad architectural and cross-community graph queries, and Serena for concrete symbol and reference lookups. Do not add another indexing server.
 
 ### Project setup
 

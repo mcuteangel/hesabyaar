@@ -85,5 +85,8 @@ app/src/main/java/io/github/mojri/hesabyar/rust/generated/
 .gh_review_state.json
 .kilocode/
 .kilo/
+# Graphify (generated knowledge graph — local only)
+graphify-out/
+
 # SQLite temp files (e.g. .freebuff from database tools)
 .freebuff/
