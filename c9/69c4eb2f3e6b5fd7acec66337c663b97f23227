@@ -1,0 +1,20 @@
+rust/hesabyar-core/src/validation.rs
+  s_7bb8afc9d0cb59::t_9f7160afdf5ff5 33,67,84
+  s_7bb8afc9d0cb59::t_86553658a0376f 429-459,461-473,475-487,490-520,524
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c969c4eb2f3e6b5fd7acec66337c663b97f23227",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
