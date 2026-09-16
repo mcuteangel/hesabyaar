@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_7bb8afc9d0cb59::t_49f61048067c71 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0f287a9ad4f71474a11e13c3ee691bd7da312814",
+  "prompts": {},
+  "sessions": {
+    "s_7bb8afc9d0cb59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0acad66-19f6-4059-b04d-08c5ab3080dd",
+        "model": "muse-spark-1.2-contributor-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
