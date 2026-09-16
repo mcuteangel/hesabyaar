@@ -7,13 +7,21 @@ import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -60,6 +68,7 @@ class RepositoryBackupRestoreTest {
       database.categoryDao(),
       database.bankLoanDao(),
       database.accountDao(),
+      database.personDao(),
       database
     )
 
@@ -218,6 +227,361 @@ class RepositoryBackupRestoreTest {
     accountId = accountId,
     destinationAccountId = destinationAccountId
   )
+
+  @Test
+  fun replaceAllFromBackupPersistsPersonsWithAllFields() =
+    runTest {
+      val repo = createRepository()
+      val persons =
+        listOf(
+          Person(
+            id = 1L,
+            name = "علی رضایی",
+            normalizedName = "علی رضایی",
+            phone = "09120000000",
+            notes = "همکار قدیمی",
+            createdAt = 1000L,
+            isArchived = false
+          ),
+          Person(
+            id = 2L,
+            name = "سارا",
+            normalizedName = "سارا",
+            phone = null,
+            notes = null,
+            createdAt = 2000L,
+            isArchived = true
+          )
+        )
+
+      repo.replaceAllFromBackup(BackupPayload(persons = persons))
+
+      // getAllPersons* excludes archived rows (isArchived = 0); only Ali is visible here,
+      // while Sara is persisted but filtered out of the public list.
+      val stored = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      val visible = database.personDao().getAllPersons().first()
+      assertEquals("Archived person excluded from non-archived list", 1, visible.size)
+      assertEquals("Unfiltered read still surfaces Sara for round-trip integrity", 2, stored.size)
+      val ali =
+        requireNotNull(database.personDao().getPersonById(1L)) {
+          "Ali must be persisted"
+        }
+      assertEquals("علی رضایی", ali.name)
+      assertEquals("علی رضایی", ali.normalizedName)
+      assertEquals("09120000000", ali.phone)
+      assertEquals("همکار قدیمی", ali.notes)
+      assertEquals(1000L, ali.createdAt)
+      assertFalse(ali.isArchived)
+      // The archived row is still persisted and addressable by id.
+      val sara = requireNotNull(database.personDao().getPersonById(2L)) { "Archived person persisted and addressable" }
+      assertEquals("سارا", sara.name)
+      assertEquals("سارا", sara.normalizedName)
+      assertNull(sara.phone)
+      assertEquals(2000L, sara.createdAt)
+      assertTrue(sara.isArchived)
+    }
+
+  @Test
+  fun mergeFromBackupDeduplicatesPersonsByNormalizedNameAndKeepsLocalId() =
+    runTest {
+      val repo = createRepository()
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(
+                id = 1L,
+                name = "علی",
+                normalizedName = "علی",
+                phone = "0912",
+                createdAt = 1000L
+              )
+            )
+        )
+      )
+
+      // Second merge: same normalized name, different display spelling + new phone.
+      repo.mergeFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(
+                id = 99L,
+                name = "علي",
+                normalizedName = "علی",
+                phone = "0919",
+                createdAt = 2000L
+              )
+            )
+        )
+      )
+
+      val stored = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("Normalized names dedup to one row", 1, stored.size)
+      val kept = requireNotNull(stored.single())
+      assertEquals("Local id preserved (backup id ignored on conflict)", 1L, kept.id)
+      assertEquals("Local name preserved on conflict (backup does not overwrite identity)", "علی", kept.name)
+      assertEquals("Normalized key preserved on conflict", "علی", kept.normalizedName)
+      assertEquals("Local createdAt preserved on conflict", 1000L, kept.createdAt)
+      assertEquals("Local phone kept when already present (backup fills blanks only)", "0912", kept.phone)
+    }
+
+  @Test
+  fun mergeFromBackupRecoversPersonsFromLegacyLoanAndTransactionNames() =
+    runTest {
+      val repo = createRepository()
+      // Legacy backup: no persons array, identities only as denormalized names.
+      // Ali appears on a loan AND a transaction; Sara only on a transaction.
+      repo.mergeFromBackup(
+        BackupPayload(
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "علی",
+                type = LoanType.DEBTOR,
+                originalAmount = 1_000L,
+                remainingAmount = 500L,
+                description = "legacy",
+                date = 100L
+              )
+            ),
+          transactions =
+            listOf(
+              Transaction(
+                id = 1L,
+                type = TransactionType.EXPENSE,
+                categoryId = 0L,
+                amount = 100L,
+                description = "legacy tx",
+                personName = "علی",
+                date = 100L,
+                accountId = 1L
+              ),
+              Transaction(
+                id = 2L,
+                type = TransactionType.EXPENSE,
+                categoryId = 0L,
+                amount = 50L,
+                description = "legacy tx",
+                personName = "سارا",
+                date = 100L,
+                accountId = 1L
+              )
+            )
+        )
+      )
+
+      val persons = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("both identities recovered from denormalized names", 2, persons.size)
+      val ali = requireNotNull(persons.first { it.name == "علی" })
+      val sara = requireNotNull(persons.first { it.name == "سارا" })
+      // Every recovered loan/transaction must be linked to the recovered row.
+      assertEquals(
+        ali.id,
+        database
+          .loanDao()
+          .getAllLoansBlocking()
+          .single()
+          .personId
+      )
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(ali.id, txs.first { it.personName == "علی" }.personId)
+      assertEquals(sara.id, txs.first { it.personName == "سارا" }.personId)
+    }
+
+  @Test
+  fun replaceFromLegacyBackupWithoutPersonsRecoversIdentitiesAndLinks() =
+    runTest {
+      val repo = createRepository()
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "رضا",
+                type = LoanType.CREDITOR,
+                originalAmount = 2_000L,
+                remainingAmount = 2_000L,
+                description = "legacy replace",
+                date = 100L
+              )
+            )
+        )
+      )
+
+      val person = requireNotNull(database.personDao().getAllPersonsIncludingArchivedBlocking().single())
+      assertEquals("رضا", person.name)
+      assertEquals("رضا", person.normalizedName)
+      assertEquals(
+        "replace-mode loan re-linked to the recovered person",
+        person.id,
+        database
+          .loanDao()
+          .getAllLoansBlocking()
+          .single()
+          .personId
+      )
+    }
+
+  @Test
+  fun replaceWithNonEmptyPersonsRecoversOnlyReferencedMissingIdentities() =
+    runTest {
+      val repo = createRepository()
+      // Modern payload: persons carries Ali; one transaction references Maryam
+      // by id 77 (missing from persons); the other is name-only with
+      // personId == null — a deliberately unlinked row (deletePerson clears
+      // ids but keeps names), which must NOT resurrect a person of its own.
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(id = 1L, name = "علی", normalizedName = "علی", createdAt = 1L)
+            ),
+          transactions =
+            listOf(
+              transaction(
+                id = 10L,
+                type = TransactionType.EXPENSE,
+                accountId = 1L,
+                amount = 500L
+              ).copy(personName = "مریم", personId = 77L),
+              transaction(
+                id = 11L,
+                type = TransactionType.EXPENSE,
+                accountId = 1L,
+                amount = 700L
+              ).copy(personName = "زهرا", personId = null)
+            )
+        )
+      )
+
+      val stored = database.personDao().getAllPersonsIncludingArchivedBlocking()
+      assertEquals("carried Ali plus only the referenced-by-id Maryam", 2, stored.size)
+      val maryam = requireNotNull(stored.firstOrNull { it.name == "مریم" }) { "referenced identity recovered" }
+      assertEquals(
+        "referenced-by-id transaction linked to the recovered person",
+        maryam.id,
+        database
+          .transactionDao()
+          .getAllTransactionsBlocking()
+          .first { it.amount == 500L }
+          .personId
+      )
+      assertNull(
+        "unlinked name-only row must not gain a personId (no resurrection)",
+        database
+          .transactionDao()
+          .getAllTransactionsBlocking()
+          .first { it.amount == 700L }
+          .personId
+      )
+    }
+
+  @Test
+  fun mergeFromBackupResolvesPersonReferencedByIdButMissingFromPersonsArray() =
+    runTest {
+      val repo = createRepository()
+      // The persons array carries Ali, but the loan references Sara by id 77 —
+      // an id with no persons row (a stripped/legacy payload). sourceIdToKey
+      // maps every REFERENCED id, so Sara's loan resolves by her name.
+      repo.mergeFromBackup(
+        BackupPayload(
+          persons =
+            listOf(
+              Person(id = 1L, name = "علی", normalizedName = "علی", createdAt = 1L)
+            ),
+          loans =
+            listOf(
+              Loan(
+                id = 1L,
+                personName = "علی",
+                personId = 1L,
+                type = LoanType.DEBTOR,
+                originalAmount = 1_000L,
+                remainingAmount = 1_000L,
+                description = "known id",
+                date = 100L
+              ),
+              Loan(
+                id = 2L,
+                personName = "سارا",
+                personId = 77L,
+                type = LoanType.CREDITOR,
+                originalAmount = 3_000L,
+                remainingAmount = 3_000L,
+                description = "referenced id with no persons row",
+                date = 100L
+              )
+            )
+        )
+      )
+
+      val loans = database.loanDao().getAllLoansBlocking()
+      val ali = requireNotNull(database.personDao().getPersonByNormalizedName("علی"))
+      // The known id maps through personsToMerge.
+      assertEquals(ali.id, loans.first { it.personName == "علی" }.personId)
+      // The dangling id falls back to name resolution and still links.
+      val sara = requireNotNull(database.personDao().getPersonByNormalizedName("سارا"))
+      assertEquals(sara.id, loans.first { it.personName == "سارا" }.personId)
+    }
+
+  @Test
+  fun replaceAllFromBackupRemovesStaleLocalCategories() =
+    runTest {
+      val repo = createRepository()
+      // A custom local category (not in the backup) must not survive REPLACE:
+      // restore mirrors the backup exactly.
+      val staleId =
+        database.categoryDao().insertCategory(
+          Category(
+            name = "قدیمی",
+            key = "Stale",
+            icon = "Star",
+            color = 1,
+            type = CategoryType.EXPENSE,
+            isDefault = false
+          )
+        )
+      val keepId =
+        database.categoryDao().insertCategory(
+          Category(
+            name = "خوراک",
+            key = "Food",
+            icon = "Restaurant",
+            color = 1,
+            type = CategoryType.EXPENSE,
+            isDefault = false
+          )
+        )
+
+      repo.replaceAllFromBackup(
+        BackupPayload(
+          categories =
+            listOf(
+              Category(
+                id = keepId,
+                name = "خوراک",
+                key = "Food",
+                icon = "Restaurant",
+                color = 1,
+                type = CategoryType.EXPENSE,
+                isDefault = false
+              )
+            )
+        )
+      )
+
+      val keys =
+        database
+          .categoryDao()
+          .getAllCategoriesBlocking()
+          .map { it.key }
+          .toSet()
+      assertEquals("REPLACE mirrors the backup exactly", setOf("Food"), keys)
+      assertFalse("stale custom category removed", keys.contains("Stale"))
+    }
 
   private fun backupPayload(
     accounts: List<AccountEntity>,
