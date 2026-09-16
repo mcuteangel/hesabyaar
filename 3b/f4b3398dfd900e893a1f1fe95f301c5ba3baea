@@ -1,0 +1,23 @@
+AGENTS.md
+  s_44d7bbadb4e905::t_e02b9e17bc62b8 356-394
+.gitattributes
+  s_44d7bbadb4e905::t_8fd8549d300746 24
+.gitignore
+  s_44d7bbadb4e905::t_8a8bec5ef1a310 88-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3bf4b3398dfd900e893a1f1fe95f301c5ba3baea",
+  "prompts": {},
+  "sessions": {
+    "s_44d7bbadb4e905": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2474cb4-31b5-432f-ad28-bb066c280f55",
+        "model": "mimo-v2.5-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
