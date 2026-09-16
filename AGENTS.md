@@ -10,6 +10,10 @@ Write all agent-facing documentation and code comments in ASD-STE100 (Simplified
 - Use consistent, precise terms — never switch between synonyms for the same concept.
 - Avoid ambiguous words, jargon, and adverbial qualifiers.
 
+## Language and Response Policy
+
+Never reply or write responses in Chinese under any circumstances. Responses must match user language (Persian / English). Code comments and documentation must be English. Commit messages and pull request descriptions must be English.
+
 ## Project Identity
 
 Hesabyar is a personal finance app for Android. It is Persian-first. It works offline. AI support (Gemini/OpenRouter) is optional. It is not part of the main app.

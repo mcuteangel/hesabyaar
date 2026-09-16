@@ -352,18 +352,20 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
     }
 
     // --- Transaction account reference + transfer structure validation ---
-    // Single pass over transactions: account references (modern or legacy
-    // default) and Transfer structural invariants are checked together, so a
-    // payload with many transactions is walked once instead of twice. The
-    // account-id set is built only when there are declared accounts; for
-    // legacy backups (empty accounts list) the legacy-default path handles
-    // transactions instead and this allocation is skipped entirely.
+    // Account-reference errors are collected first; transfer-structure errors
+    // are buffered and appended afterwards so that errors.first() (used by
+    // validate_backup's fail-fast FFI path) sees the same class ordering as
+    // the original two-pass implementation. The two collections are still
+    // produced in a single traversal of the transaction slice — only one
+    // allocation (Option<HashSet>) is skipped when accounts is empty.
     if !payload.transactions.is_empty() {
         let account_ids: Option<std::collections::HashSet<i64>> = if !payload.accounts.is_empty() {
             Some(payload.accounts.iter().map(|a| a.id).collect())
         } else {
             None
         };
+
+        let mut transfer_errors: Vec<String> = Vec::new();
 
         for (i, tx) in payload.transactions.iter().enumerate() {
             if let Some(ref ids) = account_ids {
@@ -407,8 +409,10 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
             // Transfer structure uses the shared check_transfer_structure
             // helper so these invariants cannot drift from validate_transaction
             // (the fail-fast FFI path). Each caller formats its own message.
+            // Errors are buffered and appended after the account-ref loop to
+            // preserve the ordering expected by validate_backup (errors.first()).
             if let Some(issue) = check_transfer_structure(tx) {
-                errors.push(format!(
+                transfer_errors.push(format!(
                     "Transaction[{}] {}",
                     i,
                     match issue {
@@ -420,6 +424,8 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
                 ));
             }
         }
+
+        errors.extend(transfer_errors);
     }
 
     errors
