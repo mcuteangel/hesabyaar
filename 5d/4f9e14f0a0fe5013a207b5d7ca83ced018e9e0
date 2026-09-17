@@ -1,0 +1,25 @@
+.github/workflows/codspeed-rust.yml
+  s_d20148b71f12bf::t_163de94cb3ba4d 28,36,44
+.github/workflows/release.yml
+  s_d20148b71f12bf::t_163de94cb3ba4d 295,306
+.github/workflows/android-ci.yml
+  s_d20148b71f12bf::t_163de94cb3ba4d 75
+.github/workflows/rust-lint.yml
+  s_d20148b71f12bf::t_163de94cb3ba4d 24,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5d4f9e14f0a0fe5013a207b5d7ca83ced018e9e0",
+  "prompts": {},
+  "sessions": {
+    "s_d20148b71f12bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f2fe183-bcb5-4ad2-a3a6-b7bf9f2c2624",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
