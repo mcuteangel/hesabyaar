@@ -32,14 +32,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Fetch issues
         id: issues
-        uses: actions/github-script@v7.0.1
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const issues = await github.paginate(github.rest.issues.listForRepo, {
@@ -135,7 +135,7 @@ jobs:
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         id: gemini
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
@@ -219,7 +219,7 @@ jobs:
 
     steps:
       - name: Checkout with full history
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -365,7 +365,7 @@ jobs:
     steps:
       - name: Extract Parent Context & Diff
         id: pr_context
-        uses: actions/github-script@v7.0.1
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const isReviewComment = context.eventName === 'pull_request_review_comment';
@@ -419,7 +419,7 @@ jobs:
       - name: Generate Issue with Gemini
         id: gen_issue
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}

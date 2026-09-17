@@ -25,12 +25,12 @@ jobs:
       checks: write
     steps:
        - name: Checkout
-         uses: actions/checkout@v4
+         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
          with:
           persist-credentials: false
           
        - name: Download actionlint
-         uses: reviewdog/action-actionlint@v1
+         uses: reviewdog/action-actionlint@ab7138020abfe6cd20b742c82e5b7a9749fb5884 # v1.75.0
          with:
           # این فلگ خطاهای مربوط به shellcheck را مخفی می‌کند مگر اینکه در سطح error باشند
           actionlint_flags: -shellcheck=

@@ -67,8 +67,8 @@ jobs:
       - name: Get PR context
         id: pr-context
         if: github.event_name == 'issue_comment'
-        # v7.1.0 (immutable pin)
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        # v9.0.0 (immutable pin)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const prNumber = context.issue.number;
@@ -93,7 +93,7 @@ jobs:
         id: trusted-rules
         env:
           BASE_SHA: ${{ steps.pr-context.outputs.base_sha || github.event.pull_request.base.sha }}
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const owner = context.repo.owner;
@@ -217,7 +217,7 @@ jobs:
       - name: Run OpenCodeReview
         # v1.9.9 release commit (immutable pin; tag object c95d3907 dereferences
         # to this commit).
-        uses: alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961
+        uses: alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961 # v1.9.9
         with:
           # Pin the CLI to the same reviewed release; the Action default is 'latest'.
           ocr_version: '1.9.9'
@@ -365,7 +365,7 @@ jobs:
           LLM_MODEL: ${{ inputs.llm_model }}
           LLM_USE_ANTHROPIC: ${{ inputs.use_anthropic }}
           LLM_AUTH: ${{ secrets.auth_token }}
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
@@ -966,7 +966,7 @@ jobs:
       # a hidden one).
       - name: Archive superseded OpenCodeReview summaries
         if: env.OCR_EXIT_CODE == '0'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             // MARKER mirrors SUMMARY_MARKER in the pinned upstream helper
