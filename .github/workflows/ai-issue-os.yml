@@ -135,7 +135,7 @@ jobs:
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         id: gemini
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
@@ -419,7 +419,7 @@ jobs:
       - name: Generate Issue with Gemini
         id: gen_issue
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
