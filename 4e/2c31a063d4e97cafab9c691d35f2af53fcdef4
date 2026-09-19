@@ -1,0 +1,124 @@
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageBankLoanUseCase.kt
+  s_759a446dbbf54e::t_656ad23eff847b 87-105,108-165
+  s_759a446dbbf54e::t_d6df68ff4d110a 106-107
+app/src/main/java/io/github/mojri/hesabyar/data/InstallmentDelegate.kt
+  s_759a446dbbf54e::t_bfcfef5ffc6c85 60-65
+  s_759a446dbbf54e::t_dc49e0b8ed4a43 27,34
+  s_759a446dbbf54e::t_b42d98ba362ee4 17-19,29-31,33,35-47,49
+  s_759a446dbbf54e::t_88fd8a181b4937 79-80
+  s_759a446dbbf54e::t_dddb4f8aa1d4c5 20-26,28,32,48
+app/src/test/java/io/github/mojri/hesabyar/LoanRepaymentPersonSyncTest.kt
+  s_759a446dbbf54e::t_3fa2d38ff04015 79-81
+app/src/test/java/io/github/mojri/hesabyar/LoanTrackedRepaymentTest.kt
+  s_759a446dbbf54e::t_d1c21f45289b89 40-42,44-46
+  s_759a446dbbf54e::t_b6a53b571f17ab 155-211
+  s_759a446dbbf54e::t_8c8e40143933db 137-154
+  s_759a446dbbf54e::t_2aaa13c428470f 1-39,47-136,212
+  s_759a446dbbf54e::t_e2d487d8e6fe90 43
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_759a446dbbf54e::t_bc393309f369ce 18-20,35-55,57
+  s_759a446dbbf54e::t_1e02b979c157ea 128-132,134
+  s_759a446dbbf54e::t_7fd5ee4f2d5a63 28-32
+  s_759a446dbbf54e::t_6a5619b8bc391b 21-27,33-34,56
+  s_759a446dbbf54e::t_e7ba5ecdcc1015 133
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_759a446dbbf54e::t_80c7b18961a862 201-206
+  s_759a446dbbf54e::t_7442a05d75c5b2 141-145
+  s_759a446dbbf54e::t_ac479f18315ac9 95-114
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_759a446dbbf54e::t_5d9da9b9ca3869 47-54
+app/src/test/java/io/github/mojri/hesabyar/rust/RustMappersTest.kt
+  s_759a446dbbf54e::t_b66f80333b3f88 258-260,279-281
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_759a446dbbf54e::t_b787a3c2d83174 129-130
+app/src/main/java/io/github/mojri/hesabyar/data/RepositoryOps.kt
+  s_759a446dbbf54e::t_b3bf5286596002 66-70,90-94,107-111
+app/src/test/java/io/github/mojri/hesabyar/InstallmentTrackedAccountingTest.kt
+  s_759a446dbbf54e::t_6155de3dbb8686 132
+  s_759a446dbbf54e::t_82a3167c8762d1 7
+  s_759a446dbbf54e::t_63704e5cba7ebf 53-66
+  s_759a446dbbf54e::t_49fcc5559a75aa 1-6,8-52,67-131,133-263
+rust/hesabyar-core/src/dashboard.rs
+  s_759a446dbbf54e::t_80fb594ba409d3 483-484,498-499
+  s_759a446dbbf54e::t_b076dc0aa7066f 661-662
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_759a446dbbf54e::t_24f30737567fce 501-502
+  s_759a446dbbf54e::t_96f5623e0e8567 31
+  s_759a446dbbf54e::t_acec29408a258b 366-397
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageInstallmentUseCase.kt
+  s_759a446dbbf54e::t_9019915d6d40e0 30-47,51-59,61-63,65
+  s_759a446dbbf54e::t_c9e660b49a9c92 5
+  s_759a446dbbf54e::t_7210b4333f8414 48-50,60,64
+rust/hesabyar-core/src/advisory/budget.rs
+  s_759a446dbbf54e::t_af81aef86c8835 875-876,890-891
+  s_759a446dbbf54e::t_ff2cd5fcefada7 850-851
+  s_759a446dbbf54e::t_8d067e579747b8 824-825
+  s_759a446dbbf54e::t_3d97d04e699f72 925-926
+  s_759a446dbbf54e::t_22f7831e22d445 983-984
+  s_759a446dbbf54e::t_387207cc457eb9 676-677,711-712,731-732,765-766,800-801
+rust/hesabyar-core/src/validation.rs
+  s_759a446dbbf54e::t_d966c5e95413d6 2599-2600,2670-2671,2749-2750,2819-2820
+  s_759a446dbbf54e::t_874d2d05cf061c 790-791,805-806
+  s_759a446dbbf54e::t_90f37e839bba13 1292-1293
+app/src/main/java/io/github/mojri/hesabyar/rust/RustMappers.kt
+  s_759a446dbbf54e::t_4b23eafdfb3cf9 200-202,214-216,231-233
+  s_759a446dbbf54e::t_9499c2387d2787 312-314,326-328,343-345
+rust/hesabyar-core/src/analytics.rs
+  s_759a446dbbf54e::t_6688d8c73b652f 488-489,503-504
+app/src/main/java/io/github/mojri/hesabyar/data/TrackedLedgerHelper.kt
+  s_759a446dbbf54e::t_971e6ffde8130d 4,6,10-15,18-49
+  s_759a446dbbf54e::t_415a99dfed610c 1-3,5,7-9,16-17,50
+app/src/main/java/io/github/mojri/hesabyar/data/Entities.kt
+  s_759a446dbbf54e::t_6d5961d5ec1130 196-199
+  s_759a446dbbf54e::t_9a1354132f2af6 151-156,169-172
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCase.kt
+  s_759a446dbbf54e::t_675c3bc16e897a 32-47,52-63,65
+  s_759a446dbbf54e::t_f664daa46df3f5 48-51,64
+rust/hesabyar-core/benches/parser_bench.rs
+  s_759a446dbbf54e::t_2074470214070e 313-314,328-329,346-347
+app/src/test/java/io/github/mojri/hesabyar/InstallmentUpdateTransactionTest.kt
+  s_759a446dbbf54e::t_f76861fb4b8abb 86-93
+  s_759a446dbbf54e::t_08f58298cab176 137-144,168-175,208-215,244-251,267-274,301-309,333-335,353-360
+app/src/test/java/io/github/mojri/hesabyar/rust/RustBridgeTest.kt
+  s_759a446dbbf54e::t_99d1ab1a93358c 157-159,170-172
+app/src/test/java/io/github/mojri/hesabyar/BankLoanTrackedAccountingTest.kt
+  s_759a446dbbf54e::t_b0af5552fa0bb3 1-186,188-190,205-207,209-211,232,256-257
+  s_759a446dbbf54e::t_7a6270c090b3d8 187,191-204,208,212-231,233-255
+rust/hesabyar-core/src/models/mod.rs
+  s_759a446dbbf54e::t_d284eb313e1cbd 1043-1044
+  s_759a446dbbf54e::t_0351c2541ac878 816-817
+  s_759a446dbbf54e::t_9120cbdc616d93 182-190,208-216,242-250
+  s_759a446dbbf54e::t_4d287268e1e037 1209-1210
+plans/011-personal-loan-ledger-redesign.md
+  s_759a446dbbf54e::t_4355d50c50c329 15-33
+  s_759a446dbbf54e::t_0a86d9bed65290 115-128
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_759a446dbbf54e::t_76789f77148d87 11-12
+  s_759a446dbbf54e::t_7d3e8f5ea79173 52-56,79-82,87-91
+  s_759a446dbbf54e::t_abedc28e165256 65-72,74-78
+  s_759a446dbbf54e::t_c331ab6842f85d 57-64,73,83-86,92
+app/src/test/java/io/github/mojri/hesabyar/ui/InstallmentViewModelTest.kt
+  s_759a446dbbf54e::t_2848921a8a4492 138-142
+  s_759a446dbbf54e::t_e59391b44b3c31 162-167
+  s_759a446dbbf54e::t_45cf7038eaad27 118-122
+app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt
+  s_759a446dbbf54e::t_afa22810bbc930 103-107
+  s_759a446dbbf54e::t_8ced50c507ddeb 127-132
+  s_759a446dbbf54e::t_3fb9b02c4c3f55 83-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4e2c31a063d4e97cafab9c691d35f2af53fcdef4",
+  "prompts": {},
+  "sessions": {
+    "s_759a446dbbf54e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f4c3380e7ffeJtUfEZX1ZZ70ZV",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
