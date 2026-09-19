@@ -217,7 +217,7 @@ jobs:
       - name: Run OpenCodeReview
         # v1.9.9 release commit (immutable pin; tag object c95d3907 dereferences
         # to this commit).
-        uses: alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961 # v1.9.9
+        uses: alibaba/open-code-review@8d023aafcec05f8ba5628fca3eaba88078e5d201 # v1.11.1
         with:
           # Pin the CLI to the same reviewed release; the Action default is 'latest'.
           ocr_version: '1.9.9'
