@@ -83,7 +83,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 2_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 2_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
       val stored = database.installmentDao().getInstallmentById(installmentId)!!
 
@@ -127,7 +134,14 @@ class InstallmentUpdateTransactionTest {
       // No "Installments" category seeded on purpose.
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 1_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 1_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
       val stored = database.installmentDao().getInstallmentById(installmentId)!!
 
@@ -151,7 +165,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 3_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 3_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
       val stored = database.installmentDao().getInstallmentById(installmentId)!!
       repo.updateInstallment(stored.copy(isPaid = true))
@@ -184,7 +205,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 4_000_000L, dueDate = 1_700_000_000_000L, isPaid = true)
+          Installment(
+            title = "Car",
+            amount = 4_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = true,
+            tracked = true,
+            accountId = 1L
+          )
         )
       // Going through updateInstallment keeps the isPaid flip and its expense
       // consistent, mirroring the real user flow.
@@ -213,7 +241,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 5_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 5_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
 
       repo.deleteInstallment(database.installmentDao().getInstallmentById(installmentId)!!)
@@ -229,7 +264,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 6_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 6_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
       val stored = database.installmentDao().getInstallmentById(installmentId)!!
       repo.updateInstallment(stored.copy(isPaid = true))
@@ -256,7 +298,15 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 8_000_000L, dueDate = 1_700_000_000_000L, isPaid = true, bankLoanId = 55L)
+          Installment(
+            title = "Car",
+            amount = 8_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = true,
+            bankLoanId = 55L,
+            tracked = true,
+            accountId = 1L
+          )
         )
       repo.updateInstallment(
         database.installmentDao().getInstallmentById(installmentId)!!.copy(isPaid = false)
@@ -280,7 +330,9 @@ class InstallmentUpdateTransactionTest {
           dueDate = 1_700_000_000_000L,
           isPaid = true,
           id = installmentId,
-          bankLoanId = 55L
+          bankLoanId = 55L,
+          tracked = true,
+          accountId = 1L
         )
       )
 
@@ -298,7 +350,14 @@ class InstallmentUpdateTransactionTest {
       seedInstallmentsCategory(repo)
       val installmentId =
         repo.insertInstallment(
-          Installment(title = "Car", amount = 7_000_000L, dueDate = 1_700_000_000_000L, isPaid = false)
+          Installment(
+            title = "Car",
+            amount = 7_000_000L,
+            dueDate = 1_700_000_000_000L,
+            isPaid = false,
+            tracked = true,
+            accountId = 1L
+          )
         )
       val stale = database.installmentDao().getInstallmentById(installmentId)!!
       // The row becomes paid AFTER the caller captured its unpaid snapshot —

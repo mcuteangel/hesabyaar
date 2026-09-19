@@ -255,7 +255,9 @@ class RustMappersTest {
           isPaid = false,
           reminderEnabled = true,
           notes = "",
-          bankLoanId = 7L
+          bankLoanId = 7L,
+          tracked = false,
+          accountId = null
         )
       )
 
@@ -274,7 +276,9 @@ class RustMappersTest {
           isPaid = true,
           reminderEnabled = false,
           notes = "",
-          bankLoanId = null
+          bankLoanId = null,
+          tracked = false,
+          accountId = null
         )
       )
 

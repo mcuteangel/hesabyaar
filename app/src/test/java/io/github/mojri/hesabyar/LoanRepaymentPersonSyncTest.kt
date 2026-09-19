@@ -76,7 +76,9 @@ class LoanRepaymentPersonSyncTest {
             type = LoanType.DEBTOR,
             originalAmount = 5_000L,
             remainingAmount = 5_000L,
-            description = "test"
+            description = "test",
+            tracked = true,
+            accountId = 1L
           )
         )
 

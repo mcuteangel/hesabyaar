@@ -15,6 +15,46 @@ internal class LoanDelegate(
 
   override suspend fun insertLoan(loan: Loan): Long = loanDao.insertLoan(loan)
 
+  override suspend fun insertLoanWithInitial(
+    loan: Loan,
+    recordInitial: Boolean
+  ): Long {
+    TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
+    val normalizedLoan =
+      loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
+    return database.withTransaction {
+      val loanId = loanDao.insertLoan(normalizedLoan)
+      if (recordInitial && normalizedLoan.tracked) {
+        val loansCategory =
+          categoryDao.getCategoryByKey("Loans")
+            ?: throw IllegalStateException(
+              "Loans category is missing; cannot record the initial loan transaction"
+            )
+        val accountId = TrackedLedgerHelper.resolveAccountId(normalizedLoan.accountId)
+        val stored = loanDao.getLoanById(loanId) ?: normalizedLoan.copy(id = loanId)
+        val isDebt = stored.type == LoanType.CREDITOR
+        transactionDao.insertTransaction(
+          Transaction(
+            type = if (isDebt) TransactionType.EXPENSE else TransactionType.INCOME,
+            categoryId = loansCategory.id,
+            amount = stored.originalAmount,
+            description =
+              if (isDebt) {
+                "دریافت وام از ${stored.personName}"
+              } else {
+                "پرداخت وام به ${stored.personName}"
+              },
+            personName = stored.personName,
+            personId = stored.personId,
+            date = stored.date,
+            accountId = accountId
+          )
+        )
+      }
+      loanId
+    }
+  }
+
   override suspend fun updateLoan(loan: Loan) {
     loanDao.updateLoan(loan)
   }
@@ -85,7 +125,13 @@ internal class LoanDelegate(
       val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
       loanDao.updateLoan(updatedLoan)
       paymentHistoryDao.insertPayment(payment)
-      transactionDao.insertTransaction(tx)
+      // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
+      // and record payment history. Zero transactions are posted.
+      if (loan.tracked) {
+        transactionDao.insertTransaction(
+          tx.copy(accountId = TrackedLedgerHelper.resolveAccountId(loan.accountId))
+        )
+      }
       true
     }
   }

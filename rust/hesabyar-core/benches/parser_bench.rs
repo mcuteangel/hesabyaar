@@ -310,6 +310,8 @@ fn make_loan(id: i64, loan_type: &str, original: i64, remaining: i64, settled: b
         description: String::new(),
         date: 1_710_000_000_000,
         is_settled: settled,
+        tracked: false,
+        account_id: None,
     }
 }
 
@@ -323,6 +325,8 @@ fn make_installment(id: i64, amount: i64, due_ms: i64, paid: bool) -> Installmen
         reminder_enabled: false,
         notes: String::new(),
         bank_loan_id: None,
+        tracked: false,
+        account_id: None,
     }
 }
 
@@ -339,6 +343,8 @@ fn make_bank_loan(id: i64, total_repayable: i64, settled: bool) -> BankLoan {
         start_date: 0,
         description: String::new(),
         is_settled: settled,
+        tracked: false,
+        account_id: None,
     }
 }
 

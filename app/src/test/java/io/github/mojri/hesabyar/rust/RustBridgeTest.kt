@@ -154,7 +154,9 @@ class RustBridgeTest {
         remainingAmount = 1_000_000L,
         description = "test",
         date = 1_700_000_000_000L,
-        isSettled = false
+        isSettled = false,
+        tracked = false,
+        accountId = null
       )
     val installment =
       Installment(
@@ -165,7 +167,9 @@ class RustBridgeTest {
         isPaid = false,
         reminderEnabled = true,
         notes = "",
-        bankLoanId = null
+        bankLoanId = null,
+        tracked = false,
+        accountId = null
       )
     assertTrue(RustBridge.validateTransactionSync(txn))
     assertTrue(RustBridge.validateLoanSync(loan))

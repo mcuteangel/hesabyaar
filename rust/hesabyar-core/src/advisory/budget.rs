@@ -673,6 +673,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // upcoming_sum = 5M → est_balance = (8M/monthly) - 5M → may be positive or negative
@@ -706,6 +708,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         assert!(result.contains("1,000,000 \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}"));
@@ -724,6 +728,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&[], &[], &installments, &[]);
         // Has unpaid installments → not empty, shows forecast
@@ -756,6 +762,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Overdue (past-due) unpaid installment is outside the window → must NOT contribute.
@@ -789,6 +797,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&txs, &[], &installments, &[]);
         // Due 60 days out is outside the 30-day window → must NOT contribute to obligations.
@@ -811,6 +821,8 @@ mod tests {
             start_date: 0,
             description: String::new(),
             is_settled: false,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&[], &[], &[], &bank_loans);
         // An unsettled bank loan means the data is not empty → no "no data" message.
@@ -835,6 +847,8 @@ mod tests {
             start_date: 0,
             description: String::new(),
             is_settled: true,
+            tracked: false,
+            account_id: None,
         }];
         let result = get_offline_forecast(&[], &[], &[], &bank_loans);
         assert!(result.contains("\u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A}"));
@@ -858,6 +872,8 @@ mod tests {
                 start_date: 0,
                 description: String::new(),
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             },
             BankLoan {
                 id: 2,
@@ -871,6 +887,8 @@ mod tests {
                 start_date: 0,
                 description: String::new(),
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             },
         ];
         let result = get_offline_forecast(&[], &[], &[], &bank_loans);
@@ -904,6 +922,8 @@ mod tests {
             description: String::new(),
             date: now,
             is_settled: false,
+            tracked: false,
+            account_id: None,
         }];
         // Must not panic; returns a negative-balance warning (saturated).
         let result = get_offline_forecast(&txs, &loans, &[], &[]);
@@ -960,6 +980,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         };
 
         // --- Case A: recent income exists → low debt ratio → bonus ---

@@ -148,7 +148,12 @@ data class Loan(
   val remainingAmount: Long,
   val description: String,
   val date: Long = System.currentTimeMillis(),
-  val isSettled: Boolean = false
+  val isSettled: Boolean = false,
+  // Phase 2 opt-in ledger link. Default false per migration contract (plans/011):
+  // every pre-existing row backfills to tracked=false, historical transactions
+  // stay untouched, future repayments post only when tracked=true.
+  val tracked: Boolean = false,
+  val accountId: Long? = null
 ) : Serializable
 
 @Entity(tableName = "installments")
@@ -161,7 +166,10 @@ data class Installment(
   val isPaid: Boolean = false,
   val reminderEnabled: Boolean = true,
   val notes: String = "",
-  val bankLoanId: Long? = null
+  val bankLoanId: Long? = null,
+  // Phase 2 opt-in ledger link. Same default/backfill contract as Loan.
+  val tracked: Boolean = false,
+  val accountId: Long? = null
 ) : Serializable
 
 @Entity(tableName = "payment_history")
@@ -185,7 +193,10 @@ data class BankLoan(
   val totalInterest: Long, // Rial
   val startDate: Long, // epoch millis
   val description: String,
-  val isSettled: Boolean = false
+  val isSettled: Boolean = false,
+  // Phase 2 opt-in ledger link. Same default/backfill contract as Loan.
+  val tracked: Boolean = false,
+  val accountId: Long? = null
 ) : Serializable {
   companion object {
     private const val serialVersionUID: Long = 1L

@@ -63,6 +63,11 @@ interface LoanOps {
 
   suspend fun insertLoan(loan: Loan): Long
 
+  suspend fun insertLoanWithInitial(
+    loan: Loan,
+    recordInitial: Boolean
+  ): Long
+
   suspend fun updateLoan(loan: Loan)
 
   suspend fun deleteLoan(loan: Loan)
@@ -82,6 +87,11 @@ interface InstallmentOps {
 
   suspend fun insertInstallment(installment: Installment): Long
 
+  suspend fun insertInstallmentWithInitial(
+    installment: Installment,
+    recordInitial: Boolean
+  ): Long
+
   suspend fun updateInstallment(installment: Installment)
 
   suspend fun deleteInstallment(installment: Installment)
@@ -93,6 +103,12 @@ interface BankLoanOps {
   suspend fun getBankLoanById(id: Long): BankLoan?
 
   suspend fun insertBankLoan(bankLoan: BankLoan): Long
+
+  suspend fun addBankLoanWithInstallmentsAndInitial(
+    bankLoan: BankLoan,
+    installments: List<Installment>,
+    recordInitial: Boolean
+  ): Long
 
   suspend fun updateBankLoan(bankLoan: BankLoan)
 

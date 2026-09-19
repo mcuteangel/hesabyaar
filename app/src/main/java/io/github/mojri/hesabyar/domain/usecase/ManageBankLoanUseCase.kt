@@ -84,6 +84,85 @@ class ManageBankLoanUseCase(
     return repository.addBankLoanWithInstallments(bankLoan, installments)
   }
 
+  /**
+   * Phase 2 atomic create: bank loan + installments + optional one-time
+   * disbursement INCOME post in one withTransaction. tracked=true with
+   * recordInitial=true records receivedAmount to accountId; otherwise
+   * ledger-only. Installment rows keep ledger-only defaults; each
+   * installment's own tracked flag governs its future paid toggles.
+   */
+  suspend fun addTrackedBankLoan(
+    bankName: String,
+    loanName: String,
+    receivedAmount: Long,
+    monthlyInstallmentAmount: Long,
+    numberOfInstallments: Int,
+    startDate: Long,
+    description: String,
+    tracked: Boolean,
+    accountId: Long? = null,
+    recordInitial: Boolean = true
+  ): Long {
+    io.github.mojri.hesabyar.data.TrackedLedgerHelper
+      .validateTrackedAccount(tracked, accountId)
+    require(bankName.isNotBlank()) { "bankName must not be blank" }
+    require(receivedAmount > 0) { "receivedAmount must be positive" }
+    require(monthlyInstallmentAmount > 0) { "monthlyInstallmentAmount must be positive" }
+    require(numberOfInstallments >= 0) { "numberOfInstallments must not be negative" }
+    require(startDate > 0) { "startDate must be positive" }
+    val count = if (numberOfInstallments > 0) numberOfInstallments else 1
+    val totalRepayable = Math.multiplyExact(monthlyInstallmentAmount, count.toLong())
+    val totalInterest = Math.subtractExact(totalRepayable, receivedAmount)
+    val bankLoan =
+      BankLoan(
+        bankName = bankName,
+        loanName = loanName,
+        receivedAmount = receivedAmount,
+        monthlyInstallmentAmount = monthlyInstallmentAmount,
+        numberOfInstallments = count,
+        totalRepayableAmount = totalRepayable,
+        totalInterest = totalInterest,
+        startDate = startDate,
+        description = description,
+        isSettled = false,
+        tracked = tracked,
+        accountId = accountId
+      )
+    val jStart = JalaliCalendarHelper.gregorianToJalali(startDate)
+    val monthsPerYear = 12
+    val installments =
+      (1..count).map { i ->
+        var jYear = jStart.year
+        var jMonth = jStart.month + (i - 1)
+        while (jMonth > monthsPerYear) {
+          jMonth -= monthsPerYear
+          jYear += 1
+        }
+        val dueDay =
+          minOf(
+            jStart.day,
+            JalaliCalendarHelper.getDaysInMonth(jYear, jMonth)
+          )
+        val dueDate =
+          requireNotNull(
+            JalaliCalendarHelper.jalaliToGregorian(jYear, jMonth, dueDay)
+          ).timeInMillis
+        Installment(
+          title = "قسط $i از $count - $loanName",
+          amount = monthlyInstallmentAmount,
+          dueDate = dueDate,
+          reminderEnabled = true,
+          notes = "",
+          bankLoanId = null
+        )
+      }
+    return repository.addBankLoanWithInstallmentsAndInitial(
+      bankLoan,
+      installments,
+      recordInitial = recordInitial && tracked
+    )
+  }
+
   suspend fun updateBankLoan(bankLoan: BankLoan) = repository.updateBankLoan(bankLoan)
 
   suspend fun deleteBankLoan(bankLoan: BankLoan) = repository.deleteBankLoan(bankLoan)

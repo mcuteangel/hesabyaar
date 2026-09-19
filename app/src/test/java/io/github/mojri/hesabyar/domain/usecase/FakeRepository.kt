@@ -92,6 +92,26 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     return id
   }
 
+  override suspend fun insertLoanWithInitial(
+    loan: Loan,
+    recordInitial: Boolean
+  ): Long {
+    val id = insertLoan(loan)
+    if (recordInitial && loan.tracked) {
+      insertTransaction(
+        Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          categoryId = 0L,
+          amount = loan.originalAmount,
+          description = "initial",
+          date = loan.date,
+          accountId = loan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+        )
+      )
+    }
+    return id
+  }
+
   override suspend fun updateLoan(loan: Loan) {
     val current = _allLoans.value
     val idx = current.indexOfFirst { it.id == loan.id }
@@ -117,6 +137,11 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     _allInstallments.value = installments.toList()
     return id
   }
+
+  override suspend fun insertInstallmentWithInitial(
+    installment: Installment,
+    recordInitial: Boolean
+  ): Long = insertInstallment(installment)
 
   override suspend fun updateInstallment(installment: Installment) {
     val idx = installments.indexOfFirst { it.id == installment.id }
@@ -172,6 +197,12 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     _allInstallments.value = installments.toList()
     return id
   }
+
+  override suspend fun addBankLoanWithInstallmentsAndInitial(
+    bankLoan: BankLoan,
+    installmentsToAdd: List<Installment>,
+    recordInitial: Boolean
+  ): Long = addBankLoanWithInstallments(bankLoan, installmentsToAdd)
 
   override suspend fun importBackup(
     transactions: List<Transaction>,

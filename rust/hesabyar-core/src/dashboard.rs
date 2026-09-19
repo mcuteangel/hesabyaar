@@ -480,6 +480,8 @@ mod tests {
             description: String::new(),
             date: 0,
             is_settled: settled,
+            tracked: false,
+            account_id: None,
         }
     }
 
@@ -493,6 +495,8 @@ mod tests {
             reminder_enabled: false,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }
     }
 
@@ -654,6 +658,8 @@ mod tests {
             start_date: 0,
             description: String::new(),
             is_settled: settled,
+            tracked: false,
+            account_id: None,
         }
     }
 

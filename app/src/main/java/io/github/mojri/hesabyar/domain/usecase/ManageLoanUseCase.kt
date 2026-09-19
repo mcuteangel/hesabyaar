@@ -29,6 +29,40 @@ class ManageLoanUseCase(
       )
     )
 
+  /**
+   * Phase 2 atomic create: the loan row and its optional initial-leg
+   * transaction are written in one withTransaction (see LoanDelegate).
+   * Three-state UI maps to (tracked, recordInitial):
+   * recordInitial=true posts the initial INCOME/EXPENSE; false skips it
+   * (already recorded manually); tracked=false is ledger-only.
+   */
+  suspend fun addTrackedLoan(
+    personName: String,
+    type: LoanType,
+    amount: Long,
+    description: String,
+    tracked: Boolean,
+    accountId: Long? = null,
+    recordInitial: Boolean = true,
+    customDate: Long? = null
+  ): Long {
+    io.github.mojri.hesabyar.data.TrackedLedgerHelper
+      .validateTrackedAccount(tracked, accountId)
+    return repository.insertLoanWithInitial(
+      Loan(
+        personName = personName,
+        type = type,
+        originalAmount = amount,
+        remainingAmount = amount,
+        description = description,
+        date = customDate ?: System.currentTimeMillis(),
+        tracked = tracked,
+        accountId = accountId
+      ),
+      recordInitial = recordInitial && tracked
+    )
+  }
+
   suspend fun makeRepayment(
     loanId: Long,
     amount: Long,

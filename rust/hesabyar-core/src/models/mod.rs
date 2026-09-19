@@ -179,6 +179,15 @@ pub struct Loan {
     pub date: i64,
     #[serde(alias = "isSettled")]
     pub is_settled: bool,
+    #[serde(default, alias = "tracked")]
+    pub tracked: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "accountId"
+    )]
+    pub account_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -196,6 +205,15 @@ pub struct Installment {
     pub notes: String,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "bankLoanId")]
     pub bank_loan_id: Option<i64>,
+    #[serde(default, alias = "tracked")]
+    pub tracked: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "accountId"
+    )]
+    pub account_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -221,6 +239,15 @@ pub struct BankLoan {
     pub description: String,
     #[serde(alias = "isSettled")]
     pub is_settled: bool,
+    #[serde(default, alias = "tracked")]
+    pub tracked: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_zero_as_none",
+        alias = "accountId"
+    )]
+    pub account_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
@@ -786,6 +813,8 @@ mod tests {
                 start_date: 1710000000000,
                 description: "".to_string(),
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             }],
             payment_histories: vec![PaymentHistory {
                 id: 7,
@@ -1011,6 +1040,8 @@ mod tests {
             description: "test".to_string(),
             date: 1710000000000,
             is_settled: false,
+            tracked: false,
+            account_id: None,
         };
         let json = serde_json::to_string(&loan).unwrap();
         // The None id must be omitted entirely, never serialized as a sentinel
@@ -1175,6 +1206,8 @@ mod tests {
             description: "x".to_string(),
             date: 0,
             is_settled: false,
+            tracked: false,
+            account_id: None,
         };
         let json = serde_json::to_string(&loan).unwrap();
         assert!(json.contains("\"personId\":7"));

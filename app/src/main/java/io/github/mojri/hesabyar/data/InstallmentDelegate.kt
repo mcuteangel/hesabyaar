@@ -14,6 +14,39 @@ internal class InstallmentDelegate(
 
   override suspend fun insertInstallment(installment: Installment): Long = installmentDao.insertInstallment(installment)
 
+  override suspend fun insertInstallmentWithInitial(
+    installment: Installment,
+    recordInitial: Boolean
+  ): Long {
+    TrackedLedgerHelper.validateTrackedAccount(installment.tracked, installment.accountId)
+    val normalizedInstallment =
+      installment.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(installment.tracked, installment.accountId)
+      )
+    return database.withTransaction {
+      val id = installmentDao.insertInstallment(normalizedInstallment)
+      if (recordInitial && normalizedInstallment.tracked && normalizedInstallment.isPaid) {
+        val category =
+          categoryDao.getCategoryByKey("Installments")
+            ?: throw IllegalStateException(
+              "Installments category is missing from database"
+            )
+        val stored = installmentDao.getInstallmentById(id) ?: normalizedInstallment.copy(id = id)
+        transactionDao.insertTransaction(
+          Transaction(
+            type = TransactionType.EXPENSE,
+            categoryId = category.id,
+            amount = stored.amount,
+            description = "پرداخت قسط: ${stored.title} - ${stored.notes}",
+            installmentId = id,
+            accountId = TrackedLedgerHelper.resolveAccountId(stored.accountId)
+          )
+        )
+      }
+      id
+    }
+  }
+
   override suspend fun updateInstallment(installment: Installment) {
     database.withTransaction {
       // A stale or already-deleted installment updates zero rows and must not
@@ -24,6 +57,12 @@ internal class InstallmentDelegate(
       installmentDao.updateInstallment(installment)
       val justPaid = installment.isPaid && !existing.isPaid
       val justUnpaid = !installment.isPaid && existing.isPaid
+      // Phase 2 opt-in: only tracked rows post or reverse ledger entries.
+      // Untracked rows only flip isPaid; historical transactions stay untouched.
+      if (!installment.tracked) {
+        installmentDao.updateInstallment(installment)
+        return@withTransaction
+      }
       val installmentsCategory = categoryDao.getCategoryByKey("Installments")
       if (justPaid) {
         val category =
@@ -37,7 +76,8 @@ internal class InstallmentDelegate(
             categoryId = category.id,
             amount = installment.amount,
             description = "پرداخت قسط: ${installment.title} - ${installment.notes}",
-            installmentId = installment.id
+            installmentId = installment.id,
+            accountId = TrackedLedgerHelper.resolveAccountId(installment.accountId)
           )
         )
       } else if (justUnpaid) {

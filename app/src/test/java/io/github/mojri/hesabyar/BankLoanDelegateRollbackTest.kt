@@ -126,7 +126,8 @@ class BankLoanDelegateRollbackTest {
         )
       val stored = database.installmentDao().getInstallmentsByBankLoanIdSync(loanId)
       // One paid installment carries a linked expense, the other stays unpaid.
-      repo.updateInstallment(stored.first().copy(isPaid = true))
+      // Must be tracked=true with accountId to post a linked expense per Phase 2.
+      repo.updateInstallment(stored.first().copy(isPaid = true, tracked = true, accountId = 1L))
       assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
 
       repo.deleteBankLoan(database.bankLoanDao().getAllBankLoansBlocking().single())

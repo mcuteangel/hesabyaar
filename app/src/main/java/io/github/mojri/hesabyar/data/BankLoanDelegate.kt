@@ -8,6 +8,8 @@ internal class BankLoanDelegate(
   private val bankLoanDao: BankLoanDao,
   private val installmentDao: InstallmentDao,
   private val transactionLinkDao: TransactionLinkDao,
+  private val transactionDao: TransactionDao,
+  private val categoryDao: CategoryDao,
   private val database: AppDatabase
 ) : BankLoanOps {
   override val allBankLoans: Flow<List<BankLoan>> = bankLoanDao.getAllBankLoans()
@@ -47,4 +49,45 @@ internal class BankLoanDelegate(
       installments.forEach { installmentDao.insertInstallment(it.copy(bankLoanId = loanId)) }
       loanId
     }
+
+  override suspend fun addBankLoanWithInstallmentsAndInitial(
+    bankLoan: BankLoan,
+    installments: List<Installment>,
+    recordInitial: Boolean
+  ): Long {
+    TrackedLedgerHelper.validateTrackedAccount(bankLoan.tracked, bankLoan.accountId)
+    val normalizedBankLoan =
+      bankLoan.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(bankLoan.tracked, bankLoan.accountId)
+      )
+    return database.withTransaction {
+      val loanId = bankLoanDao.insertBankLoan(normalizedBankLoan)
+      // Bank-loan installments strictly inherit ledger-only defaults (enforced);
+      // their own tracked flag governs future paid toggles (see InstallmentDelegate).
+      // The parent tracked flag governs only the one-time disbursement leg below.
+      installments.forEach {
+        installmentDao.insertInstallment(
+          it.copy(bankLoanId = loanId, tracked = false, accountId = null)
+        )
+      }
+      if (recordInitial && normalizedBankLoan.tracked) {
+        val loansCategory =
+          categoryDao.getCategoryByKey("Loans")
+            ?: throw IllegalStateException(
+              "Loans category is missing; cannot record the bank loan disbursement transaction"
+            )
+        transactionDao.insertTransaction(
+          Transaction(
+            type = TransactionType.INCOME,
+            categoryId = loansCategory.id,
+            amount = normalizedBankLoan.receivedAmount,
+            description = "دریافت وام ${normalizedBankLoan.loanName} از ${normalizedBankLoan.bankName}",
+            date = normalizedBankLoan.startDate,
+            accountId = TrackedLedgerHelper.resolveAccountId(normalizedBankLoan.accountId)
+          )
+        )
+      }
+      loanId
+    }
+  }
 }
