@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -52,18 +53,25 @@ internal object BudgetAdviceGenerator {
     val categoryTotals: Map<Long, Long> = emptyMap()
   )
 
-  private fun calculateTransactionTotals(transactions: List<Transaction>): TransactionTotals {
+  private fun calculateTransactionTotals(
+    transactions: List<Transaction>,
+    excludedCategoryIds: List<Long> = emptyList()
+  ): TransactionTotals {
     val cats = mutableMapOf<Long, Long>()
     val (income, expense) =
       transactions.fold(0L to 0L) { (inc, exp), t ->
-        when (t.type) {
-          TransactionType.INCOME -> inc + t.amount to exp
-          TransactionType.EXPENSE -> {
-            cats[t.categoryId] =
-              (cats[t.categoryId] ?: 0L) + t.amount
-            inc to exp + t.amount
+        if (LoansCategoryExclusion.isExcluded(t, excludedCategoryIds)) {
+          inc to exp
+        } else {
+          when (t.type) {
+            TransactionType.INCOME -> inc + t.amount to exp
+            TransactionType.EXPENSE -> {
+              cats[t.categoryId] =
+                (cats[t.categoryId] ?: 0L) + t.amount
+              inc to exp + t.amount
+            }
+            else -> inc to exp
           }
-          else -> inc to exp
         }
       }
     return TransactionTotals(income, expense, cats)
@@ -81,6 +89,7 @@ internal object BudgetAdviceGenerator {
   ): String =
     withContext(Dispatchers.IO) {
       val cfg = config ?: AiProviderConfig()
+      val excludedCategoryIds = LoansCategoryExclusion.resolve(categories, TAG)
       AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
       if (!cfg.isConfigured) {
         AppLogger.w(TAG, "AI not configured, using offline fallback")
@@ -89,7 +98,8 @@ internal object BudgetAdviceGenerator {
           loans,
           installments,
           categories,
-          bankLoans
+          bankLoans,
+          excludedCategoryIds
         )
       }
       // With a configured provider, an empty ledger (no transactions and no unpaid
@@ -105,7 +115,8 @@ internal object BudgetAdviceGenerator {
           loans,
           installments,
           categories,
-          bankLoans
+          bankLoans,
+          excludedCategoryIds
         )
       }
       val summary =
@@ -114,7 +125,8 @@ internal object BudgetAdviceGenerator {
           loans,
           installments,
           categories,
-          bankLoans
+          bankLoans,
+          excludedCategoryIds
         )
       val prompt =
         "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
@@ -131,7 +143,8 @@ internal object BudgetAdviceGenerator {
         loans,
         installments,
         categories,
-        bankLoans
+        bankLoans,
+        excludedCategoryIds
       )
     }
 
@@ -140,9 +153,10 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val totals = calculateTransactionTotals(transactions)
+    val totals = calculateTransactionTotals(transactions, excludedCategoryIds)
     val balance = totals.income - totals.expense
     return StringBuilder()
       .apply {
@@ -240,7 +254,8 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
     val fallback = {
       getBudgetAdviceOffline(
@@ -248,7 +263,8 @@ internal object BudgetAdviceGenerator {
         loans,
         installments,
         categories,
-        bankLoans
+        bankLoans,
+        excludedCategoryIds
       )
     }
     return when (result) {
@@ -303,9 +319,10 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val totals = calculateTransactionTotals(transactions)
+    val totals = calculateTransactionTotals(transactions, excludedCategoryIds)
     val balance = totals.income - totals.expense
     val sb = StringBuilder()
     sb.append("💡 **تحلیلگر و مشاور مالی هوشمند (آفلاین)**\n\n")

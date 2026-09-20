@@ -518,6 +518,20 @@ pub struct CategoryGuess {
     pub subcategory: String,
 }
 
+/// Returns true if the category should be excluded from KPI calculations.
+/// An empty `excluded_category_ids` slice never excludes anything.
+#[inline]
+pub fn is_category_excluded(category_id: i64, excluded_category_ids: &[i64]) -> bool {
+    !excluded_category_ids.is_empty() && excluded_category_ids.contains(&category_id)
+}
+
+/// Returns true if the transaction's category should be excluded from KPI calculations.
+/// An empty `excluded_category_ids` slice never excludes anything.
+#[inline]
+pub fn is_tx_category_excluded(tx: &Transaction, excluded_category_ids: &[i64]) -> bool {
+    is_category_excluded(tx.category_id, excluded_category_ids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1213,5 +1227,38 @@ mod tests {
         assert!(json.contains("\"personId\":7"));
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v.get("personId").and_then(|v| v.as_i64()), Some(7));
+    }
+
+    #[test]
+    fn test_is_category_excluded_with_empty_and_populated_list() {
+        assert!(!is_category_excluded(1, &[]));
+        assert!(!is_category_excluded(6, &[]));
+
+        let excluded = [6, 12];
+        assert!(is_category_excluded(6, &excluded));
+        assert!(is_category_excluded(12, &excluded));
+        assert!(!is_category_excluded(1, &excluded));
+    }
+
+    #[test]
+    fn test_is_tx_category_excluded() {
+        let mut tx = Transaction {
+            id: 1,
+            tx_type: TransactionType::Income,
+            category_id: 6,
+            amount: 1000,
+            description: "test".to_string(),
+            person_name: None,
+            person_id: None,
+            date: 0,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
+        };
+        assert!(!is_tx_category_excluded(&tx, &[]));
+        assert!(is_tx_category_excluded(&tx, &[6]));
+        tx.category_id = 7;
+        assert!(!is_tx_category_excluded(&tx, &[6]));
     }
 }

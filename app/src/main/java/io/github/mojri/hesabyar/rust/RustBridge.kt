@@ -3,30 +3,40 @@ package io.github.mojri.hesabyar.rust
 import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
-import io.github.mojri.hesabyar.data.AccountEntity
-import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
  * Kotlin wrapper around the Rust shared core (hesabyar-core).
  *
- * Not all bridge operations are asynchronous. Async APIs are dispatched on
- * [Dispatchers.Default] (via [rustCall]) to avoid blocking the main thread, while
- * the many synchronous APIs run directly on the caller's thread (via [rustCallSync])
- * with no coroutine hop. If the Rust library failed to load, every function returns
- * a safe fallback.
+ * This object owns the engine state, the [rustCallSync] safe-call helper, and
+ * the [JalaliNativeBridge] calendar calls. Every other FFI domain lives in its
+ * own file as an interface with default safe-call implementations
+ * ([RustBridgeCurrency], [RustBridgeParser], [RustBridgeValidation],
+ * [RustBridgeBudget], [RustBridgeAnalytics], [RustBridgeSearch],
+ * [RustBridgeBackup]). The object inherits those members, so call sites keep
+ * the `RustBridge.fooSync(...)` form.
  *
- * Maintainers: inspect whether you are calling a `suspend`/async variant or a
- * synchronous `*Sync` variant, and handle threading appropriately — synchronous
- * calls can block the calling thread (e.g. the main thread) if invoked from UI code.
+ * Bridge calls are synchronous: they run on the caller's thread through
+ * [rustCallSync], with no coroutine hop. A synchronous call can block the
+ * calling thread (e.g. the main thread) if invoked from UI code. If the Rust
+ * library failed to load, every function returns a safe fallback. The two
+ * `suspend` members ([RustBridgeValidation.validateAiAdvice],
+ * [RustBridgeValidation.validateBackup]) dispatch on Dispatchers.Default.
  *
  * Naming convention: functions mirror the Rust API 1:1.
  * Generated UniFFI bindings live under [HesabyarCore].
  */
-object RustBridge : JalaliNativeBridge {
+internal object RustBridge :
+  JalaliNativeBridge,
+  RustBridgeCore,
+  RustBridgeCurrency,
+  RustBridgeParser,
+  RustBridgeValidation,
+  RustBridgeBudget,
+  RustBridgeAnalytics,
+  RustBridgeSearch,
+  RustBridgeBackup {
   private const val TAG = "RustBridge"
 
   private val available: Boolean
@@ -34,19 +44,11 @@ object RustBridge : JalaliNativeBridge {
 
   /** Public view of [available] so callers can decide whether a local
    *  validation result reflects a real check or merely an uninitialized engine. */
-  val isAvailable: Boolean get() = available
-
-  private suspend fun <T> rustCall(
-    fallback: T,
-    block: () -> T
-  ): T {
-    if (!available) return fallback
-    return withContext(Dispatchers.Default) { block() }
-  }
+  override val isAvailable: Boolean get() = available
 
   @Suppress("Detekt.ThrowsCount", "TooGenericExceptionCaught")
   @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-  internal fun <T> rustCallSync(
+  override fun <T> rustCallSync(
     fallback: T,
     block: () -> T
   ): T {
@@ -67,14 +69,6 @@ object RustBridge : JalaliNativeBridge {
       fallback
     }
   }
-
-  // Runs a Unit-returning Rust validator; returns true if it completes without
-  // throwing (i.e. valid), false if Rust is unavailable or validation fails.
-  private fun validateBoolean(block: () -> Unit): Boolean =
-    rustCallSync(false) {
-      block()
-      true
-    }
 
   // ===========================================================================
   // Calendar
@@ -101,264 +95,4 @@ object RustBridge : JalaliNativeBridge {
   ): Int = rustCallSync(-1) { HesabyarCore.getJalaliDaysInMonth(year, month) }
 
   override fun isJalaliLeapYearSync(year: Int): Boolean = rustCallSync(false) { HesabyarCore.isJalaliLeapYear(year) }
-
-  // ===========================================================================
-  // Currency
-  // ===========================================================================
-
-  fun formatCurrencySync(
-    rial: Long,
-    unit: CurrencyUnit
-  ): String = rustCallSync("") { HesabyarCore.formatCurrency(rial, unit) }
-
-  fun toRialSync(
-    displayValue: Long,
-    unit: CurrencyUnit
-  ): Long = rustCallSync(0L) { HesabyarCore.toRial(displayValue, unit) }
-
-  fun fromRialSync(
-    rial: Long,
-    unit: CurrencyUnit
-  ): Long = rustCallSync(0L) { HesabyarCore.fromRial(rial, unit) }
-
-  fun formatNumberSync(value: Long): String = rustCallSync("") { HesabyarCore.formatNumber(value) }
-
-  // ===========================================================================
-  // Parser
-  // ===========================================================================
-
-  fun parseSentenceOfflineSync(rawSentence: String): ParsedResult? =
-    parseSentenceOfflineSync(rawSentence, System.currentTimeMillis())
-
-  fun parseSentenceOfflineSync(
-    rawSentence: String,
-    nowMs: Long,
-  ): ParsedResult? = rustCallSync(null) { HesabyarCore.parseSentenceOfflineAt(rawSentence, nowMs) }
-
-  fun inferExpenseCategorySync(sentence: String): CategoryGuess =
-    rustCallSync(CategoryGuess(category = "Other", subcategory = "")) {
-      HesabyarCore.inferExpenseCategory(sentence)
-    }
-
-  fun containsMoneySync(sentence: String): Boolean = rustCallSync(false) { HesabyarCore.containsMoney(sentence) }
-
-  fun normalizeMoneyTextSync(text: String): String = rustCallSync(text) { HesabyarCore.normalizeMoneyText(text) }
-
-  fun parsePersianAmountSync(sentence: String): Long = rustCallSync(0L) { HesabyarCore.parsePersianAmount(sentence) }
-
-  fun preprocessPersianTextSync(text: String): String = rustCallSync(text) { HesabyarCore.preprocessPersianText(text) }
-
-  // ===========================================================================
-  // AI validation
-  // ===========================================================================
-
-  @Suppress("TooGenericExceptionCaught")
-  suspend fun validateAiAdvice(text: String): AdviceValidation {
-    if (!available) {
-      return AdviceValidation(
-        isValid = false,
-        sanitizedText = text,
-        warnings = listOf("Rust not available"),
-        wasTruncated = false,
-      )
-    }
-    return try {
-      withContext(Dispatchers.Default) { HesabyarCore.validateAiAdvice(text) }
-    } catch (e: Exception) {
-      if (e is CancellationException) throw e
-      AdviceValidation(
-        isValid = false,
-        sanitizedText = text,
-        warnings = listOf("Rust validation failed"),
-        wasTruncated = false,
-      )
-    }
-  }
-
-  fun parseAiTransactionJsonSync(json: String): AiParsedTransaction? =
-    rustCallSync(null) { HesabyarCore.parseAiTransactionJson(json) }
-
-  // ===========================================================================
-  // Validation (all throw on error)
-  // ===========================================================================
-
-  fun validateTransactionSync(transaction: Transaction): Boolean =
-    validateBoolean { HesabyarCore.validateTransaction(transaction) }
-
-  fun validateLoanSync(loan: Loan): Boolean = validateBoolean { HesabyarCore.validateLoan(loan) }
-
-  fun validateInstallmentSync(installment: Installment): Boolean =
-    validateBoolean { HesabyarCore.validateInstallment(installment) }
-
-  fun validateParsedResultSync(result: ParsedResult): Boolean =
-    validateBoolean { HesabyarCore.validateParsedResult(result) }
-
-  // ===========================================================================
-  // Budget
-  // ===========================================================================
-
-  fun getOfflineBudgetAdviceSync(
-    transactions: List<Transaction>,
-    categories: List<Category>
-  ): String = rustCallSync("") { HesabyarCore.getOfflineBudgetAdvice(transactions, categories) }
-
-  fun getOfflineForecastSync(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    bankLoans: List<BankLoan> = emptyList()
-  ): String =
-    rustCallSync("") {
-      HesabyarCore.getOfflineForecast(
-        transactions,
-        loans,
-        installments,
-        RustMappers.mapBankLoans(bankLoans)
-      )
-    }
-
-  fun calculateDebtToIncomeRatioSync(
-    loans: List<Loan>,
-    installments: List<Installment>,
-    monthlyIncome: Long,
-    bankLoans: List<BankLoan> = emptyList()
-  ): Double =
-    rustCallSync(0.0) {
-      HesabyarCore.calculateDebtToIncomeRatio(
-        loans,
-        installments,
-        monthlyIncome,
-        RustMappers.mapBankLoans(bankLoans)
-      )
-    }
-
-  fun predictTimeToGoalSync(
-    currentSavings: Long,
-    monthlySavings: Long,
-    goalAmount: Long
-  ): Int = rustCallSync(0) { HesabyarCore.predictTimeToGoal(currentSavings, monthlySavings, goalAmount) }
-
-  fun calculateFinancialHealthScoreSync(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
-  ): Int =
-    rustCallSync(0) {
-      HesabyarCore.calculateFinancialHealthScore(
-        transactions,
-        loans,
-        installments,
-        categories,
-        RustMappers.mapBankLoans(bankLoans)
-      )
-    }
-
-  // ===========================================================================
-  // Analytics
-  // ===========================================================================
-
-  fun computeAnalyticsSync(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList(),
-    accounts: List<AccountEntity> = emptyList(),
-    accountId: Long? = null,
-    includeArchived: Boolean = false,
-  ): AnalyticsData? =
-    rustCallSync(null) {
-      HesabyarCore.computeAnalytics(
-        transactions,
-        loans,
-        installments,
-        categories,
-        RustMappers.mapBankLoans(bankLoans),
-        RustMappers.mapAccounts(accounts),
-        accountId,
-        includeArchived,
-      )
-    }
-
-  fun computeDashboardDataSync(
-    transactions: List<Transaction>,
-    loans: List<Loan>,
-    installments: List<Installment>,
-    bankLoans: List<BankLoan> = emptyList(),
-    accounts: List<AccountEntity> = emptyList(),
-    accountId: Long? = null,
-    includeArchived: Boolean = false,
-    nowMs: Long = System.currentTimeMillis(),
-  ): DashboardData? =
-    rustCallSync(null) {
-      HesabyarCore.computeDashboardData(
-        transactions,
-        loans,
-        installments,
-        RustMappers.mapBankLoans(bankLoans),
-        RustMappers.mapAccounts(accounts),
-        accountId,
-        includeArchived,
-        nowMs,
-      )
-    }
-
-  // ===========================================================================
-  // Search
-  // ===========================================================================
-
-  fun searchTransactionsSync(
-    transactions: List<Transaction>,
-    query: SearchQuery
-  ): SearchResponse =
-    rustCallSync(
-      SearchResponse(results = emptyList(), totalCount = 0L, totalAmount = 0L)
-    ) { HesabyarCore.searchTransactions(transactions, query) }
-
-  // ===========================================================================
-  // Backup
-  // ===========================================================================
-
-  fun parseBackupJsonSync(json: String): BackupPayload? = rustCallSync(null) { HesabyarCore.parseBackupJson(json) }
-
-  fun validateBackupPayloadSync(payload: BackupPayload): ValidationResult =
-    rustCallSync(ValidationResult(isValid = false, errors = emptyList())) {
-      HesabyarCore.validateBackupPayload(payload)
-    }
-
-  @Suppress("TooGenericExceptionCaught")
-  suspend fun validateBackup(payload: BackupPayload) {
-    if (!available) return
-    try {
-      withContext(Dispatchers.Default) {
-        HesabyarCore.validateBackup(payload)
-      }
-    } catch (e: Exception) {
-      // Swallow non-cancellation failures so a Rust/FFI error doesn't break the
-      // calling coroutine. A failed validation simply means "not validated".
-      if (e is CancellationException) throw e
-      AppLogger.e(TAG, "Rust backup validation failed (non-fatal, treated as not validated)", e)
-    }
-  }
-
-  fun exportBackupJsonSync(payload: BackupPayload): String = rustCallSync("") { HesabyarCore.exportBackupJson(payload) }
-
-  // ===========================================================================
-  // Checksums
-  // ===========================================================================
-
-  fun computeChecksumSync(data: ByteArray): String = rustCallSync("") { HesabyarCore.computeChecksum(data) }
-
-  fun verifyChecksumSync(
-    data: ByteArray,
-    expected: String
-  ): Boolean = rustCallSync(false) { HesabyarCore.verifyChecksum(data, expected) }
-
-  // ===========================================================================
-  // Excel export
-  // ===========================================================================
-
-  fun generateExcel(workbook: WorkbookData): ByteArray? = rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
 }

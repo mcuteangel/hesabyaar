@@ -95,7 +95,6 @@
     <ID>LongMethod:AppDatabase.kt:AppDatabase.Companion$private fun migratePlaintextToEncryptedIfNeeded</ID>
     <ID>LongMethod:BalanceCard.kt:@Composable fun BalanceCard</ID>
     <ID>LongMethod:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
-    <ID>LongMethod:BudgetAdvisor.kt:BudgetAdvisor$suspend fun getBudgetForecast: String</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun CategoryManagementScreen</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable private fun CategoryDialog</ID>
@@ -111,7 +110,6 @@
     <ID>LongMethod:DashboardComponents.kt:@Composable internal fun IncomeExpenseCards</ID>
     <ID>LongMethod:DashboardComponents.kt:@Composable internal fun KpiCards</ID>
     <ID>LongMethod:DashboardComponents.kt:@Composable internal fun DebtorCreditorCards</ID>
-    <ID>LongMethod:GetAnalyticsUseCase.kt:GetAnalyticsUseCase$fun computeAnalytics: AnalyticsData</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentListItem</ID>
     <ID>LongMethod:InstallmentScreen.kt:@Composable fun InstallmentScreen</ID>
     <ID>LongMethod:JalaliDatePickerDialog.kt:@Composable fun JalaliDatePickerDialog</ID>
@@ -138,10 +136,6 @@
     <ID>MagicNumber:AnalyticsScreen.kt:8f</ID>
     <ID>MagicNumber:AuthManager.kt:AuthManager$1000L</ID>
     <ID>MagicNumber:AuthManager.kt:AuthManager$60</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$0.3</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$0.4</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$100</ID>
-    <ID>MagicNumber:BudgetAdvisor.kt:BudgetAdvisor$3</ID>
     <ID>MagicNumber:CategoryChip.kt:0.179f</ID>
     <ID>MagicNumber:CategoryChip.kt:0.5f</ID>
     <ID>MagicNumber:CategoryManagementScreen.kt:7</ID>
@@ -168,7 +162,6 @@
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$1_000</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$1_000_000</ID>
     <ID>MagicNumber:GeminiParser.kt:GeminiParser$2</ID>
-    <ID>MagicNumber:GetAnalyticsUseCase.kt:GetAnalyticsUseCase$6</ID>
     <ID>MagicNumber:InstallmentReminderWorker.kt:InstallmentReminderWorker$7</ID>
     <ID>MagicNumber:JalaliCalendarHelper.kt:JalaliCalendarHelper$100</ID>
     <ID>MagicNumber:JalaliCalendarHelper.kt:JalaliCalendarHelper$11</ID>
@@ -253,7 +246,6 @@
     <ID>TooGenericExceptionThrown:DatabaseKeyManager.kt:DatabaseKeyManager$throw RuntimeException("Failed to create encrypted preferences", e)</ID>
     <ID>TooManyFunctions:AiAssistantViewModel.kt:AiAssistantViewModel : ViewModel</ID>
     <ID>TooManyFunctions:AiProviderConfig.kt:AiConfigManager</ID>
-    <ID>TooManyFunctions:BudgetAdvisor.kt:BudgetAdvisor</ID>
     <ID>TooManyFunctions:ExcelExporter.kt:ExcelExporter</ID>
     <ID>TooManyFunctions:CurrencyFormatter.kt:CurrencyFormatter</ID>
     <ID>TooManyFunctions:GeminiParser.kt:GeminiParser</ID>
@@ -261,7 +253,6 @@
     <ID>TooManyFunctions:JalaliCalendarHelper.kt:JalaliCalendarHelper</ID>
     <ID>TooManyFunctions:ManageAiConfigUseCase.kt:ManageAiConfigUseCase</ID>
     <ID>LargeClass:GetDashboardDataUseCaseTest.kt:GetDashboardDataUseCaseTest</ID>
-    <ID>TooManyFunctions:RustBridge.kt:RustBridge : JalaliNativeBridge</ID>
     <ID>TooManyFunctions:RustMappers.kt:RustMappers</ID>
     <ID>TooManyFunctions:UseCaseModule.kt:UseCaseModule</ID>
     <ID>UnnecessaryParentheses:AnalyticsScreen.kt:(item.total.toFloat() / total)</ID>
@@ -273,7 +264,6 @@
     <ID>UnnecessaryParentheses:ParseTransactionUseCase.kt:ParseTransactionUseCase$(System.currentTimeMillis() + (days * 24L * 60L * 60L * 1000L))</ID>
     <ID>UnnecessaryParentheses:ParseTransactionUseCase.kt:ParseTransactionUseCase$(days * 24L * 60L * 60L * 1000L)</ID>
     <ID>UnnecessaryParentheses:ReportsScreen.kt:(now % (24L * 60 * 60 * 1000))</ID>
-    <ID>UnusedParameter:BudgetAdvisor.kt:BudgetAdvisor$categories: List&lt;Category&gt;</ID>
     <ID>UnusedParameter:SettingsScreen.kt:settingsViewModel: SettingsViewModel</ID>
     <ID>WildcardImport:AiAssistantViewModel.kt:import io.github.mojri.hesabyar.data.*</ID>
     <ID>WildcardImport:AiAssistantViewModel.kt:import kotlinx.coroutines.flow.*</ID>
@@ -283,7 +273,6 @@
     <ID>WildcardImport:AnalyticsScreen.kt:import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AnalyticsScreen.kt:import androidx.compose.runtime.*</ID>
     <ID>WildcardImport:AnalyticsScreen.kt:import io.github.mojri.hesabyar.ui.*</ID>
-    <ID>WildcardImport:AnalyticsViewModel.kt:import kotlinx.coroutines.flow.*</ID>
     <ID>WildcardImport:BalanceCard.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:CategoryChip.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:CategoryManagementScreen.kt:import androidx.compose.animation.*</ID>
@@ -305,7 +294,6 @@
     <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.material.icons.filled.*</ID>
     <ID>WildcardImport:DashboardComponents.kt:import androidx.compose.material3.*</ID>
-    <ID>WildcardImport:DashboardViewModel.kt:import kotlinx.coroutines.flow.*</ID>
     <ID>WildcardImport:EmptyState.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:InstallmentItem.kt:import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:InstallmentScreen.kt:import androidx.compose.animation.*</ID>

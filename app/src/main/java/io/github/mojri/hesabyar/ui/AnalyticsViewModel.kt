@@ -13,8 +13,16 @@ import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.GetAnalyticsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
@@ -75,6 +83,11 @@ class AnalyticsViewModel
           Pair(accList, selectedId)
         }
       ) { data, (accList, selectedId) ->
+        val excludedCategoryIds =
+          LoansCategoryExclusion.resolve(
+            categories = data.fourth,
+            logTag = "AnalyticsViewModel"
+          )
         getAnalyticsUseCase.computeAnalytics(
           data.first,
           data.second,
@@ -83,6 +96,7 @@ class AnalyticsViewModel
           data.fifth,
           accList,
           selectedId,
+          excludedCategoryIds = excludedCategoryIds,
         )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()

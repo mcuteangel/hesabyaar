@@ -66,9 +66,16 @@ where
 pub fn get_offline_budget_advice(
     transactions: Vec<Transaction>,
     categories: Vec<Category>,
+    excluded_category_ids: Vec<i64>,
 ) -> String {
-    catch_unwind_safe(|| crate::advisory::get_offline_budget_advice(&transactions, &categories))
-        .unwrap_or_default()
+    catch_unwind_safe(|| {
+        crate::advisory::get_offline_budget_advice(
+            &transactions,
+            &categories,
+            &excluded_category_ids,
+        )
+    })
+    .unwrap_or_default()
 }
 
 /// Get offline budget forecast.
@@ -78,9 +85,16 @@ pub fn get_offline_forecast(
     loans: Vec<Loan>,
     installments: Vec<Installment>,
     bank_loans: Vec<BankLoan>,
+    excluded_category_ids: Vec<i64>,
 ) -> String {
     catch_unwind_safe(|| {
-        crate::advisory::get_offline_forecast(&transactions, &loans, &installments, &bank_loans)
+        crate::advisory::get_offline_forecast(
+            &transactions,
+            &loans,
+            &installments,
+            &bank_loans,
+            &excluded_category_ids,
+        )
     })
     .unwrap_or_default()
 }
@@ -121,6 +135,7 @@ pub fn calculate_financial_health_score(
     installments: Vec<Installment>,
     bank_loans: Vec<BankLoan>,
     categories: Vec<Category>,
+    excluded_category_ids: Vec<i64>,
 ) -> i32 {
     catch_unwind_safe(|| {
         crate::advisory::calculate_financial_health_score(
@@ -129,6 +144,7 @@ pub fn calculate_financial_health_score(
             &installments,
             &bank_loans,
             &categories,
+            &excluded_category_ids,
         )
     })
     .unwrap_or(0)
@@ -152,6 +168,7 @@ pub fn compute_analytics(
     accounts: Vec<Account>,
     account_id: Option<i64>,
     include_archived: bool,
+    excluded_category_ids: Vec<i64>,
 ) -> Option<AnalyticsData> {
     catch_unwind_safe(|| {
         crate::analytics::compute_analytics(
@@ -163,6 +180,7 @@ pub fn compute_analytics(
             &accounts,
             account_id,
             include_archived,
+            &excluded_category_ids,
         )
     })
     .ok()
@@ -186,6 +204,7 @@ pub fn compute_dashboard_data(
     account_id: Option<i64>,
     include_archived: bool,
     now_ms: i64,
+    excluded_category_ids: Vec<i64>,
 ) -> Option<DashboardData> {
     catch_unwind_safe(|| {
         crate::dashboard::compute_dashboard_data(
@@ -197,6 +216,7 @@ pub fn compute_dashboard_data(
             account_id,
             include_archived,
             now_ms,
+            &excluded_category_ids,
         )
     })
     .ok()

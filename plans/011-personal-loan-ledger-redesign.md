@@ -87,7 +87,11 @@ Kotlin mirrors that must stay consistent:
   `computeAccountSummaries`
 - `GetAnalyticsUseCase` fallback path
 - `BudgetAdvisor.kt` local totals, local debt-to-income, local health score
-- `BudgetAdviceGenerator.kt` prompt summary (audit during implementation)
+- `BudgetAdviceGenerator.kt` advice-prompt summary
+- `BudgetForecastPrompt.kt` forecast-prompt facts (`ForecastFacts.of`, fed by
+  the exclusion resolved in `BudgetAdvisor.getBudgetForecast`; decision
+  2026-09-19: both AI prompts report filtered KPI totals, so advice and
+  forecast never disagree about "real" income or expense)
 
 Kept untouched on purpose: `ExcelExporter` sheets and the transaction list —
 they are cash-movement ledgers, not KPIs.

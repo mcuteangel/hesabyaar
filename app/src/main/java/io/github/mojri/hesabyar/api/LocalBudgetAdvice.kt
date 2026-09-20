@@ -1,0 +1,108 @@
+package io.github.mojri.hesabyar.api
+
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+
+// Kotlin fallback text builders for the offline budget advice.
+//
+// BudgetAdvisor keeps the public API and the Rust-first dispatch. This object
+// holds the dependency-free local rendering used when the Rust core is
+// unavailable, so BudgetAdvisor stays a thin orchestrator.
+
+/** Income, expense, and balance totals for a set of transactions. */
+internal data class LocalTxSummary(
+  val income: Long,
+  val expense: Long
+) {
+  val balance: Long get() = income - expense
+}
+
+internal object LocalBudgetAdvice {
+  private const val IDEAL_SAVINGS_DENOMINATOR = 5
+  private const val UNCATEGORIZED_LABEL = "سایر"
+
+  /** Formats a Rial amount for display. */
+  fun formatAmount(amount: Long): String = CurrencyFormatter.format(amount)
+
+  /** Totals for income and expense, skipping excluded category ids. */
+  fun summarize(
+    transactions: List<Transaction>,
+    excludedCategoryIds: List<Long> = emptyList()
+  ): LocalTxSummary {
+    val income =
+      transactions
+        .filter {
+          it.type == TransactionType.INCOME &&
+            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
+        }.sumOf { it.amount }
+    val expense =
+      transactions
+        .filter {
+          it.type == TransactionType.EXPENSE &&
+            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
+        }.sumOf { it.amount }
+    return LocalTxSummary(income, expense)
+  }
+
+  /** One Markdown line per expense category with its total. */
+  fun categoryReport(
+    transactions: List<Transaction>,
+    categories: List<Category>,
+    excludedCategoryIds: List<Long> = emptyList()
+  ): String {
+    val categoriesGroup =
+      transactions
+        .filter {
+          it.type == TransactionType.EXPENSE &&
+            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
+        }.groupBy { it.categoryId }
+        .mapValues { it.value.sumOf { tx -> tx.amount } }
+
+    return categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
+      val cat = categories.find { it.id == catId }
+      "- ${cat?.name ?: UNCATEGORIZED_LABEL}: ${formatAmount(sum)}"
+    }
+  }
+
+  /** Local, dependency-free budget advice used when the Rust core is unavailable. */
+  fun offlineAdvice(
+    transactions: List<Transaction>,
+    categories: List<Category>,
+    excludedCategoryIds: List<Long> = emptyList()
+  ): String {
+    if (transactions.isEmpty()) {
+      return "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا تحلیل بودجه انجام شود."
+    }
+    val summary = summarize(transactions, excludedCategoryIds)
+    val report = categoryReport(transactions, categories, excludedCategoryIds)
+
+    val sb = StringBuilder()
+    sb.appendLine("### 📊 تحلیل بودجه محلی (آفلاین)")
+    sb.appendLine()
+    sb.appendLine("**کل درآمد:** ${formatAmount(summary.income)}")
+    sb.appendLine("**کل هزینه‌ها:** ${formatAmount(summary.expense)}")
+    sb.appendLine("**تراز باقیمانده:** ${formatAmount(summary.balance)}")
+    if (report.isNotEmpty()) {
+      sb.appendLine()
+      sb.appendLine("**هزینه‌ها به تفکیک دسته‌بندی:**")
+      sb.appendLine(report)
+    }
+    sb.appendLine()
+    sb.appendLine(statusLine(summary))
+    return sb.toString()
+  }
+
+  /** Advice status sentence for a summary. */
+  private fun statusLine(summary: LocalTxSummary): String =
+    when {
+      summary.expense > summary.income ->
+        "🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود."
+      summary.income > 0 && summary.balance > summary.income / IDEAL_SAVINGS_DENOMINATOR ->
+        "✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود."
+      else ->
+        "⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید."
+    }
+}

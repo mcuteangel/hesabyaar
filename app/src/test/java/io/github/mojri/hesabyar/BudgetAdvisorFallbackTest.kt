@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.api.LocalBudgetMetrics
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -258,7 +259,7 @@ class BudgetAdvisorFallbackTest {
         9_007_199_254_740_993L, // 2^53 + 1 — not exactly representable as f64.
         date = nowMs - 45 * dayMs
       )
-    val result = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), nowMs)
+    val result = LocalBudgetMetrics.monthlyIncomeBaseline(listOf(tx), nowMs)
     // Rust: (9_007_199_254_740_993 * 30) / 45 = 6_004_799_503_160_662.
     assertEquals(6_004_799_503_160_662L, result)
   }
@@ -276,7 +277,7 @@ class BudgetAdvisorFallbackTest {
         1_000_000_000_000_000_000L, // 10^18 — exceeds Long.MAX_VALUE / 30.
         date = nowMs - 45 * dayMs
       )
-    val result = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), nowMs)
+    val result = LocalBudgetMetrics.monthlyIncomeBaseline(listOf(tx), nowMs)
     // Rust: (1_000_000_000_000_000_000 * 30) / 45 = 666_666_666_666_666_666.
     assertEquals(666_666_666_666_666_666L, result)
   }
@@ -294,7 +295,7 @@ class BudgetAdvisorFallbackTest {
         createTransaction(TransactionType.INCOME, halfMaxPlusOne, date = nowMs - 30 * dayMs),
         createTransaction(TransactionType.INCOME, halfMaxPlusOne, date = nowMs - 20 * dayMs),
       )
-    val result = BudgetAdvisor.localMonthlyIncomeBaseline(txs, nowMs)
+    val result = LocalBudgetMetrics.monthlyIncomeBaseline(txs, nowMs)
     // Sum = Long.MAX_VALUE + 1; baseline = (sum * 30) / 30 = Long.MAX_VALUE + 1,
     // clamped to Long.MAX_VALUE. It must never wrap to a negative value.
     assertEquals(Long.MAX_VALUE, result)
@@ -312,7 +313,7 @@ class BudgetAdvisorFallbackTest {
         createTransaction(TransactionType.INCOME, halfMax + 500, date = nowMs - 60 * dayMs),
         createTransaction(TransactionType.INCOME, halfMax + 500, date = nowMs - 30 * dayMs),
       )
-    val result = BudgetAdvisor.localMonthlyIncomeBaseline(txs, nowMs)
+    val result = LocalBudgetMetrics.monthlyIncomeBaseline(txs, nowMs)
     val expected = Long.MAX_VALUE / 2
     assertEquals("Kotlin must saturate sum like Rust's saturating_add", expected, result)
   }

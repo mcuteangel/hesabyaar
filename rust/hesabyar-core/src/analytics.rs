@@ -46,6 +46,7 @@ pub fn compute_analytics(
     accounts: &[Account],
     account_id: Option<i64>,
     include_archived: bool,
+    excluded_category_ids: &[i64],
 ) -> AnalyticsData {
     let category_map: HashMap<i64, &Category> = categories.iter().map(|c| (c.id, c)).collect();
 
@@ -87,6 +88,9 @@ pub fn compute_analytics(
     let mut monthly_income: HashMap<(i32, i32), i64> = HashMap::new();
 
     for tx in &filtered_txs {
+        if is_tx_category_excluded(tx, excluded_category_ids) {
+            continue;
+        }
         if let Ok(jdate) = gregorian_to_jalali(tx.date) {
             let key = (jdate.year, jdate.month);
             match tx.tx_type {
@@ -250,11 +254,17 @@ pub fn compute_analytics(
                 .cloned()
                 .collect::<Vec<_>>(),
             categories,
+            excluded_category_ids,
         )
         .into_iter()
         .filter(|a| a.category_breakdown.iter().map(|c| c.total).sum::<i64>() > 0)
         .collect(),
-        None => compute_account_analytics(&non_archived_txs, accounts, categories),
+        None => compute_account_analytics(
+            &non_archived_txs,
+            accounts,
+            categories,
+            excluded_category_ids,
+        ),
     };
 
     AnalyticsData {
@@ -278,6 +288,7 @@ fn compute_account_analytics(
     transactions: &[&Transaction],
     accounts: &[Account],
     categories: &[Category],
+    excluded_category_ids: &[i64],
 ) -> Vec<AccountAnalytics> {
     let category_map: HashMap<i64, &Category> = categories.iter().map(|c| (c.id, c)).collect();
 
@@ -298,6 +309,9 @@ fn compute_account_analytics(
             let mut monthly_income: HashMap<(i32, i32), i64> = HashMap::new();
 
             for tx in &account_txs {
+                if is_tx_category_excluded(tx, excluded_category_ids) {
+                    continue;
+                }
                 if let Ok(jdate) = gregorian_to_jalali(tx.date) {
                     let key = (jdate.year, jdate.month);
                     match tx.tx_type {
@@ -518,7 +532,7 @@ mod tests {
 
     #[test]
     fn test_empty_all() {
-        let result = compute_analytics(&[], &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &[], &[], &[], &[], &[], None, false, &[]);
         assert!(result.monthly_spending.is_empty());
         assert!(result.monthly_income.is_empty());
         assert!(result.category_breakdown.is_empty());
@@ -542,7 +556,7 @@ mod tests {
             tx(1, TransactionType::Expense, 100_000, now, 1),
             tx(2, TransactionType::Expense, 200_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         // Both transactions are in the current Jalali month → single MonthlyData
         assert_eq!(result.monthly_spending.len(), 1);
         assert_eq!(result.monthly_spending[0].expense, 300_000);
@@ -555,7 +569,7 @@ mod tests {
             tx(1, TransactionType::Income, 1_000_000, now, 1),
             tx(2, TransactionType::Expense, 400_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         assert_eq!(result.monthly_spending.len(), 1);
         assert_eq!(result.monthly_spending[0].income, 1_000_000);
         assert_eq!(result.monthly_spending[0].expense, 400_000);
@@ -570,7 +584,7 @@ mod tests {
             tx(3, TransactionType::LoanCreditor, 200_000, now, 1),
             tx(4, TransactionType::Installment, 100_000, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         // Only Income contributes to monthly_income
         assert_eq!(result.monthly_spending[0].income, 500_000);
         assert_eq!(result.monthly_spending[0].expense, 0);
@@ -580,7 +594,7 @@ mod tests {
     fn test_monthly_label_includes_jalali_month_days() {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 100, now, 1)];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         let label = &result.monthly_spending[0].label;
         // Label should be like "1404/4 (31 days)"
         assert!(
@@ -604,7 +618,7 @@ mod tests {
             tx(3, TransactionType::Expense, 200_000, now, 2),
             tx(4, TransactionType::Income, 500_000, now, 1), // income — excluded
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false, &[]);
         assert_eq!(result.category_breakdown.len(), 2);
 
         // Food: 300k + 100k = 400k, Transport: 200k
@@ -631,7 +645,7 @@ mod tests {
             tx(2, TransactionType::Expense, 300, now, 2),
             tx(3, TransactionType::Expense, 200, now, 3),
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false, &[]);
         let total_pct: f32 = result.category_breakdown.iter().map(|c| c.percentage).sum();
         assert!(
             (total_pct - 100.0).abs() < 0.01,
@@ -644,7 +658,7 @@ mod tests {
     fn test_category_unknown_id_gets_empty_name() {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 500, now, 999)];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         assert_eq!(result.category_breakdown.len(), 1);
         assert_eq!(result.category_breakdown[0].category_name, "");
         assert_eq!(result.category_breakdown[0].category_id, 999);
@@ -658,7 +672,7 @@ mod tests {
             tx(1, TransactionType::Expense, 100, now, 2),
             tx(2, TransactionType::Expense, 500, now, 1),
         ];
-        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false, &[]);
         assert_eq!(result.category_breakdown[0].total, 500);
         assert_eq!(result.category_breakdown[1].total, 100);
     }
@@ -666,7 +680,7 @@ mod tests {
     #[test]
     fn test_zero_total_expense_gives_zero_percentages() {
         let txs = vec![tx(1, TransactionType::Income, 1000, now_ms(), 1)];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &[], None, false, &[]);
         // No expenses → category_breakdown is empty
         assert!(result.category_breakdown.is_empty());
     }
@@ -681,7 +695,7 @@ mod tests {
             loan(1, "DEBTOR", "Ali", 1_000_000, 400_000),
             loan(2, "CREDITOR", "Reza", 2_000_000, 1_000_000),
         ];
-        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false, &[]);
         assert_eq!(result.debtors.len(), 1);
         assert_eq!(result.creditors.len(), 1);
         assert_eq!(result.total_debt, 400_000);
@@ -692,7 +706,7 @@ mod tests {
     fn test_debt_progress_calculation() {
         // Original 1M, remaining 400k → paid 600k → progress = 60%
         let loans = vec![loan(1, "DEBTOR", "Ali", 1_000_000, 400_000)];
-        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false, &[]);
         let d = &result.debtors[0];
         assert!((d.progress - 0.6).abs() < 1e-5);
     }
@@ -700,7 +714,7 @@ mod tests {
     #[test]
     fn test_zero_original_amount_gives_zero_progress() {
         let loans = vec![loan(1, "DEBTOR", "Ali", 0, 0)];
-        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &loans, &[], &[], &[], &[], None, false, &[]);
         assert_eq!(result.debtors[0].progress, 0.0);
     }
 
@@ -715,14 +729,14 @@ mod tests {
             installment(2, 200_000, false),
             installment(3, 300_000, true),
         ];
-        let result = compute_analytics(&[], &[], &installments, &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &[], &installments, &[], &[], &[], None, false, &[]);
         assert_eq!(result.total_installments, 3);
         assert_eq!(result.paid_installments, 2);
     }
 
     #[test]
     fn test_empty_installments() {
-        let result = compute_analytics(&[], &[], &[], &[], &[], &[], None, false);
+        let result = compute_analytics(&[], &[], &[], &[], &[], &[], None, false, &[]);
         assert_eq!(result.total_installments, 0);
         assert_eq!(result.paid_installments, 0);
     }
@@ -737,7 +751,7 @@ mod tests {
         let now = now_ms();
         let txs = vec![tx(1, TransactionType::Expense, 42, now, 1)];
         let cats = vec![category(1, "Test")];
-        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false, &[]);
         assert_eq!(result.category_breakdown[0].total, 42);
         assert_eq!(result.monthly_spending[0].expense, 42);
     }
@@ -762,7 +776,7 @@ mod tests {
         let cats: Vec<Category> = (1..=5)
             .map(|id| category(id, &format!("Cat{}", id)))
             .collect();
-        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false);
+        let result = compute_analytics(&txs, &[], &[], &cats, &[], &[], None, false, &[]);
         assert_eq!(result.category_breakdown.len(), 5);
         // Percentages should still sum to ~100
         let total_pct: f32 = result.category_breakdown.iter().map(|c| c.percentage).sum();
@@ -786,7 +800,7 @@ mod tests {
             tx(3, TransactionType::Income, 200_000, now, 1),
             tx_on(4, TransactionType::Income, 30_000, now, 1, 2),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         // Archived account transactions must not leak into all-accounts totals
         assert_eq!(result.monthly_spending[0].expense, 100_000);
         assert_eq!(result.monthly_spending[0].income, 200_000);
@@ -821,7 +835,7 @@ mod tests {
             destination_account_id: Some(2),
         };
         let txs = vec![transfer, tx(6, TransactionType::Expense, 100_000, now, 1)];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         // Transfers are neutral in all-accounts totals
         assert_eq!(result.monthly_spending[0].expense, 100_000);
         // The active account must not count the transfer-out either
@@ -864,7 +878,7 @@ mod tests {
 
         // account_id=Some(1), include_archived=false: the archived-destination
         // filter runs first, removing the transfer before the account_id filter.
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
 
         // Account 1's view shows only the 100k expense — the 400k transfer-out
         // was dropped because its destination (account 2) is archived.
@@ -883,7 +897,7 @@ mod tests {
             tx(1, TransactionType::Expense, 100_000, now, 1),
             tx_on(2, TransactionType::Expense, 50_000, now, 1, 2),
         ];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, true);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, true, &[]);
         assert_eq!(result.monthly_spending[0].expense, 150_000);
         // Per-account analytics still never lists archived accounts
         assert_eq!(result.accounts.len(), 1);
@@ -912,7 +926,7 @@ mod tests {
             account_id: 1,
             destination_account_id: Some(2),
         }];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         assert!(result.monthly_spending.is_empty());
     }
 
@@ -935,7 +949,7 @@ mod tests {
             account_id: 1,
             destination_account_id: Some(2),
         }];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert_eq!(result.monthly_spending[0].expense, 500_000);
         assert_eq!(result.monthly_spending[0].income, 0);
     }
@@ -959,7 +973,7 @@ mod tests {
             account_id: 1,
             destination_account_id: Some(2),
         }];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(2), false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(2), false, &[]);
         assert_eq!(result.monthly_spending[0].income, 500_000);
         assert_eq!(result.monthly_spending[0].expense, 0);
     }
@@ -987,7 +1001,7 @@ mod tests {
             account_id: 1,
             destination_account_id: Some(2),
         }];
-        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(3), false);
+        let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(3), false, &[]);
         assert!(result.monthly_spending.is_empty());
     }
 
@@ -1008,11 +1022,11 @@ mod tests {
         ];
 
         // All-accounts view reports both active accounts.
-        let all = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false);
+        let all = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         assert_eq!(all.accounts.len(), 2);
 
         // Selected-account view reports only the selected account.
-        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert_eq!(
             selected.accounts.len(),
             1,
@@ -1034,7 +1048,7 @@ mod tests {
             tx_on(2, TransactionType::Expense, 200_000, now, 1, 2),
         ];
 
-        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert!(
             selected.accounts.is_empty(),
             "no expenses → no account segments"
@@ -1054,7 +1068,7 @@ mod tests {
         // Single expense with amount = 0 — cat_totals = {1: 0}, non-empty but
         // sum is zero. Rust must filter it out to match the Kotlin fallback.
         let txs = vec![tx_on(1, TransactionType::Expense, 0, now, 1, 1)];
-        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert!(
             selected.accounts.is_empty(),
             "zero-total expenses should filter out the account, got: {:?}",
@@ -1068,11 +1082,53 @@ mod tests {
         let now = now_ms();
         let accounts = vec![account(1, "A", "BANK")];
         let txs = vec![tx_on(1, TransactionType::Expense, 100_000, now, 1, 1)];
-        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false);
+        let selected = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert_eq!(
             selected.accounts.len(),
             1,
             "positive expenses must keep the account"
         );
+    }
+
+    // =====================================================================
+    // Category exclusion tests (Part B)
+    // =====================================================================
+
+    #[test]
+    fn test_compute_analytics_category_exclusion_empty_vs_populated() {
+        let now = now_ms();
+        let loan_cat_id = 999;
+        let food_cat_id = 10;
+        let salary_cat_id = 20;
+
+        let accounts = vec![account(1, "Main", "BANK")];
+        let txs = vec![
+            tx_on(1, TransactionType::Income, 1_000_000, now, salary_cat_id, 1),
+            tx_on(2, TransactionType::Income, 500_000, now, loan_cat_id, 1),
+            tx_on(3, TransactionType::Expense, 300_000, now, food_cat_id, 1),
+            tx_on(4, TransactionType::Expense, 200_000, now, loan_cat_id, 1),
+        ];
+
+        // 1. Empty excluded_category_ids: all income and expense reflected in monthly spending trend
+        let unfiltered = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
+        assert_eq!(unfiltered.monthly_spending.len(), 1);
+        assert_eq!(unfiltered.monthly_spending[0].income, 1_500_000);
+        assert_eq!(unfiltered.monthly_spending[0].expense, 500_000);
+
+        // 2. Populated excluded_category_ids with Loans category ID
+        let filtered = compute_analytics(
+            &txs,
+            &[],
+            &[],
+            &[],
+            &[],
+            &accounts,
+            None,
+            false,
+            &[loan_cat_id],
+        );
+        assert_eq!(filtered.monthly_spending.len(), 1);
+        assert_eq!(filtered.monthly_spending[0].income, 1_000_000);
+        assert_eq!(filtered.monthly_spending[0].expense, 300_000);
     }
 }

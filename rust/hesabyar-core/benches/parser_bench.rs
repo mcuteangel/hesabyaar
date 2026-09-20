@@ -75,11 +75,11 @@ fn bench_budget_advice(c: &mut Criterion) {
         .collect();
 
     c.bench_function("offline_budget_advice_100tx", |b| {
-        b.iter(|| get_offline_budget_advice(&transactions, &categories))
+        b.iter(|| get_offline_budget_advice(&transactions, &categories, &[]))
     });
 
     c.bench_function("financial_health_score_100tx", |b| {
-        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories))
+        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories, &[]))
     });
 }
 
@@ -441,6 +441,7 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(None),
                 black_box(false),
                 black_box(now_ms),
+                black_box(&[]),
             )
         })
     });
@@ -456,6 +457,7 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(None),
                 black_box(false),
                 black_box(now_ms),
+                black_box(&[]),
             )
         })
     });
@@ -530,6 +532,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });
@@ -545,6 +548,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });
@@ -579,6 +583,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });

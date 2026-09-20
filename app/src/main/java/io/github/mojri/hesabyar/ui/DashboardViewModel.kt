@@ -10,8 +10,16 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
@@ -53,13 +61,24 @@ class DashboardViewModel
 
     val dashboardState: StateFlow<DashboardData> =
       combine(
-        combine(transactions, loans, installments, bankLoans) { trans, loanList, instList, bankLoanList ->
-          DashboardCoreData(trans, loanList, instList, bankLoanList)
+        combine(
+          transactions,
+          loans,
+          installments,
+          bankLoans,
+          categories
+        ) { trans, loanList, instList, bankLoanList, catList ->
+          DashboardCoreData(trans, loanList, instList, bankLoanList, catList)
         },
         combine(accounts, _selectedAccountId) { accList, selectedId ->
           Pair(accList, selectedId)
         }
       ) { core, (accList, selectedId) ->
+        val excludedCategoryIds =
+          LoansCategoryExclusion.resolve(
+            categories = core.categories,
+            logTag = "DashboardViewModel"
+          )
         getDashboardDataUseCase.computeDashboardData(
           core.transactions,
           core.loans,
@@ -68,6 +87,7 @@ class DashboardViewModel
           accList,
           selectedId,
           includeArchived = false,
+          excludedCategoryIds = excludedCategoryIds,
         )
       }.flowOn(Dispatchers.Default)
         .distinctUntilChanged()
@@ -77,6 +97,7 @@ class DashboardViewModel
       val transactions: List<Transaction>,
       val loans: List<Loan>,
       val installments: List<Installment>,
-      val bankLoans: List<BankLoan>
+      val bankLoans: List<BankLoan>,
+      val categories: List<Category>
     )
   }
