@@ -8,7 +8,7 @@ import io.github.mojri.hesabyar.data.BankLoan
 
 /** Aggregation calls behind the dashboard and analytics screens. */
 internal interface RustBridgeAnalytics : RustBridgeCore {
-  /** Computes the analytics view model. Null when Rust is unavailable. */
+  /** Computes the analytics view model. Null when Rust is unavailable or the native computation failed. */
   fun computeAnalyticsSync(
     transactions: List<Transaction>,
     loans: List<Loan>,
@@ -34,7 +34,7 @@ internal interface RustBridgeAnalytics : RustBridgeCore {
       )
     }
 
-  /** Computes the dashboard view model. Null when Rust is unavailable. */
+  /** Computes the dashboard view model. Null when Rust is unavailable or the native computation failed. */
   fun computeDashboardDataSync(
     transactions: List<Transaction>,
     loans: List<Loan>,

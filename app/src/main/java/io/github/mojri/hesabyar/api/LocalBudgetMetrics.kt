@@ -73,7 +73,14 @@ internal object LocalBudgetMetrics {
     goalAmount: Long
   ): Int {
     if (monthlySavings <= 0) return -1
-    val remaining = goalAmount - currentSavings
+    // Saturate like the Rust predict_time_to_goal's saturating_sub: an extreme
+    // goal/current pair wraps in plain Long subtraction, Rust clamps instead.
+    val remaining =
+      when {
+        currentSavings < 0 && goalAmount > Long.MAX_VALUE + currentSavings -> Long.MAX_VALUE
+        currentSavings > 0 && goalAmount < Long.MIN_VALUE + currentSavings -> Long.MIN_VALUE
+        else -> goalAmount - currentSavings
+      }
     return if (remaining > 0) {
       val months = (remaining - 1) / monthlySavings + 1L
       months.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
@@ -94,10 +101,11 @@ internal object LocalBudgetMetrics {
     excludedCategoryIds: List<Long> = emptyList(),
     nowMs: Long = System.currentTimeMillis(),
   ): Int {
-    if (transactions.isEmpty()) return SCORE_MIN
-
     val filteredTransactions =
       LoansCategoryExclusion.filterTransactions(transactions, excludedCategoryIds)
+    // Plan 011 D2 parity with Rust: no included transactions means no data to
+    // score, not a zero-budget snapshot of raw rows that are all excluded.
+    if (filteredTransactions.isEmpty()) return SCORE_MIN
     val totalIncome = filteredTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
     val totalExpense = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     val balance = totalIncome - totalExpense

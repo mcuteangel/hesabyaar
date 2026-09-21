@@ -121,7 +121,10 @@ empty-list case (Rust helper + each Kotlin mirror).
 For entity creation paths with an initial transaction leg (`Loan` and `BankLoan`):
 - When `tracked = true` and `recordInitial = true`, the creation logic requires resolving
   the default `"Loans"` category. If the category cannot be resolved from the database,
-  the operation throws `IllegalStateException("Loans category is missing from database")`
+  the operation throws `IllegalStateException` with a per-context message —
+  `"Loans category is missing; cannot record the initial loan transaction"`
+  (LoanDelegate) and `"Loans category is missing; cannot record the bank loan
+  disbursement transaction"` (BankLoanDelegate) —
   within `withTransaction { }`. This guarantees full atomic rollback with zero rows written
   (zero loans/bank loans, zero installments, zero transactions).
 - When `tracked = false` or `recordInitial = false`, no initial transaction is posted.

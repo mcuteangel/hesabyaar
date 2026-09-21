@@ -35,7 +35,10 @@ internal class LoanDelegate(
         val isDebt = stored.type == LoanType.CREDITOR
         transactionDao.insertTransaction(
           Transaction(
-            type = if (isDebt) TransactionType.EXPENSE else TransactionType.INCOME,
+            // CREDITOR = "I owe": receiving the money is an inflow, and the
+            // description ("دریافت وام") proves it. DEBTOR = "owed to me":
+            // handing the money out is the outflow.
+            type = if (isDebt) TransactionType.INCOME else TransactionType.EXPENSE,
             categoryId = loansCategory.id,
             amount = stored.originalAmount,
             description =
@@ -61,6 +64,9 @@ internal class LoanDelegate(
 
   override suspend fun deleteLoan(loan: Loan) {
     database.withTransaction {
+      // Decide from the persisted row when available: the caller may hold a
+      // stale snapshot whose tracked flag no longer matches the database.
+      val existing = loanDao.getLoanById(loan.id) ?: loan
       // Payments made through addPaymentToLoan each created a standalone
       // expense/income Transaction. Delete them together with the payment
       // history, or reports keep counting money for a loan that no longer
@@ -78,6 +84,18 @@ internal class LoanDelegate(
               date = payment.date
             )
           }
+        // insertLoanWithInitial posted a tracked initial leg with the loan's
+        // own amount and date and no link row to find it by; delete it with
+        // the same field-match strategy, or it keeps counting in reports
+        // behind a dead loan. Untracked loans never posted one (a no-op here).
+        if (existing.tracked) {
+          transactionLinkDao.deleteLoanPaymentTransaction(
+            personName = loan.personName,
+            categoryId = loansCategoryId,
+            amount = existing.originalAmount,
+            date = existing.date
+          )
+        }
       }
       paymentHistoryDao.deletePaymentHistoryForLoan(loan.id)
       loanDao.deleteLoan(loan)
@@ -96,7 +114,6 @@ internal class LoanDelegate(
     if (amount <= 0L) return false
     return database.withTransaction {
       val loan = loanDao.getLoanById(loanId) ?: return@withTransaction false
-      val loansCategory = categoryDao.getCategoryByKey("Loans") ?: return@withTransaction false
       // A settled loan must never accept further repayment: a positive
       // remainingAmount on a settled row is stale data, and paying it would
       // resurrect the loan by flipping isSettled back to false.
@@ -106,30 +123,32 @@ internal class LoanDelegate(
       val isSettled = newRemaining == 0L
       val date = customDate ?: System.currentTimeMillis()
       val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
-      val desc =
-        if (loan.type == LoanType.CREDITOR) {
-          "بازپرداخت بدهی به ${loan.personName} - $notes"
-        } else {
-          "دریافت بازپرداخت از ${loan.personName} - $notes"
-        }
-      val tx =
-        Transaction(
-          type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
-          categoryId = loansCategory.id,
-          amount = amount,
-          description = desc,
-          personName = loan.personName,
-          personId = loan.personId,
-          date = date
-        )
       val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
       loanDao.updateLoan(updatedLoan)
       paymentHistoryDao.insertPayment(payment)
       // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
-      // and record payment history. Zero transactions are posted.
+      // and record payment history. Zero transactions are posted — and the
+      // Loans category is only required on the tracked path, so untracked
+      // repayments keep working after the category was deleted (plan 011 D2).
       if (loan.tracked) {
+        val loansCategory = categoryDao.getCategoryByKey("Loans") ?: return@withTransaction false
+        val desc =
+          if (loan.type == LoanType.CREDITOR) {
+            "بازپرداخت بدهی به ${loan.personName} - $notes"
+          } else {
+            "دریافت بازپرداخت از ${loan.personName} - $notes"
+          }
         transactionDao.insertTransaction(
-          tx.copy(accountId = TrackedLedgerHelper.resolveAccountId(loan.accountId))
+          Transaction(
+            type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
+            categoryId = loansCategory.id,
+            amount = amount,
+            description = desc,
+            personName = loan.personName,
+            personId = loan.personId,
+            date = date,
+            accountId = TrackedLedgerHelper.resolveAccountId(loan.accountId)
+          )
         )
       }
       true

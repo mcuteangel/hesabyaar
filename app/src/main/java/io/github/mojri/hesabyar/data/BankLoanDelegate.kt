@@ -24,6 +24,9 @@ internal class BankLoanDelegate(
 
   override suspend fun deleteBankLoan(bankLoan: BankLoan) {
     database.withTransaction {
+      // Decide from the persisted row when available: the caller may hold a
+      // stale snapshot whose tracked flag no longer matches the database.
+      val existing = bankLoanDao.getBankLoanById(bankLoan.id) ?: bankLoan
       // A paid installment's linked expense must die with its row, exactly
       // like InstallmentDelegate.deleteInstallment — deleting the row through
       // the bank-loan cascade alone would strand the money behind dead
@@ -32,6 +35,20 @@ internal class BankLoanDelegate(
         .getInstallmentsByBankLoanIdSync(bankLoan.id)
         .filter { it.isPaid }
         .forEach { transactionLinkDao.deleteTransactionsForInstallment(it.id) }
+      // addBankLoanWithInstallmentsAndInitial posted a tracked disbursement
+      // income with no link row to find it by; delete it with the same
+      // field-match strategy the creator's fields allow, or it keeps counting
+      // in reports behind a dead bank loan. Untracked loans never posted one.
+      if (existing.tracked) {
+        val loansCategoryId = categoryDao.getCategoryByKey("Loans")?.id
+        if (loansCategoryId != null) {
+          transactionLinkDao.deleteBankLoanDisbursementTransaction(
+            categoryId = loansCategoryId,
+            amount = existing.receivedAmount,
+            date = existing.startDate
+          )
+        }
+      }
       installmentDao.deleteInstallmentsByBankLoanId(bankLoan.id)
       bankLoanDao.deleteBankLoan(bankLoan)
     }

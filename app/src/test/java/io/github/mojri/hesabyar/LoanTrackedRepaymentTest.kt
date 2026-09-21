@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -208,5 +209,124 @@ class LoanTrackedRepaymentTest {
       assertEquals(1, allLoans.size)
       val allTx = database.transactionDao().getAllTransactionsBlocking()
       assertEquals("untracked loan produces zero transactions", 0, allTx.size)
+    }
+
+  @Test
+  fun trackedLoanWithRecordInitialFalsePostsNoTransaction() =
+    runTest {
+      val repo = createRepository()
+      repo.insertCategory(
+        Category(name = "Loans", key = "Loans", icon = "HistoryEdu", color = 0xFF4CAF50L, type = CategoryType.BOTH)
+      )
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Nima",
+            type = LoanType.CREDITOR,
+            originalAmount = 4_000_000L,
+            remainingAmount = 4_000_000L,
+            description = "tracked, history only",
+            tracked = true,
+            accountId = 2L
+          ),
+          recordInitial = false
+        )
+      assertTrue(loanId > 0)
+      val allTx = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals("recordInitial=false must post zero transactions even when tracked", 0, allTx.size)
+    }
+
+  @Test
+  fun creditorInitialLegPostsIncomeAndDebtorInitialLegPostsExpense() =
+    runTest {
+      val repo = createRepository()
+      repo.insertCategory(
+        Category(name = "Loans", key = "Loans", icon = "HistoryEdu", color = 0xFF4CAF50L, type = CategoryType.BOTH)
+      )
+      // CREDITOR = "I owe": receiving the loan money is an inflow (INCOME).
+      repo.insertLoanWithInitial(
+        Loan(
+          personName = "Ali",
+          type = LoanType.CREDITOR,
+          originalAmount = 6_000_000L,
+          remainingAmount = 6_000_000L,
+          description = "i owe",
+          tracked = true,
+          accountId = 2L
+        ),
+        recordInitial = true
+      )
+      // DEBTOR = "owed to me": lending the money out is an outflow (EXPENSE).
+      repo.insertLoanWithInitial(
+        Loan(
+          personName = "Bita",
+          type = LoanType.DEBTOR,
+          originalAmount = 7_000_000L,
+          remainingAmount = 7_000_000L,
+          description = "owed to me",
+          tracked = true,
+          accountId = 2L
+        ),
+        recordInitial = true
+      )
+      val creditorTx =
+        database.transactionDao().getAllTransactionsBlocking().single { it.personName == "Ali" }
+      assertEquals(TransactionType.INCOME, creditorTx.type)
+      assertEquals(6_000_000L, creditorTx.amount)
+      val debtorTx =
+        database.transactionDao().getAllTransactionsBlocking().single { it.personName == "Bita" }
+      assertEquals(TransactionType.EXPENSE, debtorTx.type)
+      assertEquals(7_000_000L, debtorTx.amount)
+    }
+
+  @Test
+  fun untrackedRepaymentSucceedsWithoutLoansCategory() =
+    runTest {
+      val repo = createRepository()
+      // Notice: NO "Loans" category is seeded — the category is only needed
+      // when a repayment actually posts a transaction (plan 011 D2).
+      val loanId =
+        repo.insertLoan(
+          Loan(
+            personName = "Omid",
+            type = LoanType.CREDITOR,
+            originalAmount = 5_000_000L,
+            remainingAmount = 5_000_000L,
+            description = "untracked no category",
+            tracked = false,
+            accountId = null
+          )
+        )
+      val success = repo.addPaymentToLoan(loanId, 1_000_000L, "partial", null)
+      assertTrue("untracked repayment must not depend on the Loans category", success)
+      assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
+      assertEquals(1, repo.getPaymentHistoryForLoan(loanId).first().size)
+    }
+
+  @Test
+  fun deleteLoanRemovesTrackedInitialLegTransaction() =
+    runTest {
+      val repo = createRepository()
+      repo.insertCategory(
+        Category(name = "Loans", key = "Loans", icon = "HistoryEdu", color = 0xFF4CAF50L, type = CategoryType.BOTH)
+      )
+      val loan =
+        Loan(
+          personName = "Kian",
+          type = LoanType.CREDITOR,
+          originalAmount = 9_000_000L,
+          remainingAmount = 9_000_000L,
+          description = "initial leg cleanup",
+          tracked = true,
+          accountId = 2L
+        )
+      val loanId = repo.insertLoanWithInitial(loan, recordInitial = true)
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+      repo.deleteLoan(loan.copy(id = loanId))
+      assertEquals(
+        "deleting a tracked loan must remove its initial-leg transaction too",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
     }
 }

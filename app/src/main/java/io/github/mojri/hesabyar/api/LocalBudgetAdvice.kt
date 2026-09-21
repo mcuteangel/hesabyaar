@@ -21,7 +21,9 @@ internal data class LocalTxSummary(
 }
 
 internal object LocalBudgetAdvice {
-  private const val IDEAL_SAVINGS_DENOMINATOR = 5
+  // 1/10 = the 10% savings-rate threshold the Rust offline advice uses for
+  // its positive verdict; multiplication (not division) avoids truncation.
+  private const val MIN_SAVINGS_RATE_DENOMINATOR = 10
   private const val UNCATEGORIZED_LABEL = "سایر"
 
   /** Formats a Rial amount for display. */
@@ -73,7 +75,10 @@ internal object LocalBudgetAdvice {
     categories: List<Category>,
     excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    if (transactions.isEmpty()) {
+    // Plan 011 D2: gate on the filtered set so a wallet whose only
+    // transactions are excluded (e.g. Loans-only history) gets the no-data
+    // message instead of a zero-budget analysis.
+    if (transactions.all { LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) }) {
       return "هنوز تراکنشی در حسابیار ثبت نشده است. لطفا چند تراکنش ثبت کنید تا تحلیل بودجه انجام شود."
     }
     val summary = summarize(transactions, excludedCategoryIds)
@@ -100,7 +105,8 @@ internal object LocalBudgetAdvice {
     when {
       summary.expense > summary.income ->
         "🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود."
-      summary.income > 0 && summary.balance > summary.income / IDEAL_SAVINGS_DENOMINATOR ->
+      // Mirror the Rust advice threshold: savings rate >= 10% is مطلوب.
+      summary.income > 0 && summary.balance * MIN_SAVINGS_RATE_DENOMINATOR >= summary.income ->
         "✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود."
       else ->
         "⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید."

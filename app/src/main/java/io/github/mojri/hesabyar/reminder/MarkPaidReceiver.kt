@@ -5,9 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import io.github.mojri.hesabyar.data.AppDatabase
+import io.github.mojri.hesabyar.data.HesabyarRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MarkPaidReceiver : BroadcastReceiver() {
   override fun onReceive(
@@ -20,16 +22,31 @@ class MarkPaidReceiver : BroadcastReceiver() {
     val pendingResult = goAsync()
     CoroutineScope(Dispatchers.IO).launch {
       try {
-        val database = AppDatabase.getDatabase(context)
+        val appContext = context.applicationContext
+        val database = withContext(Dispatchers.IO) { AppDatabase.getDatabase(appContext) }
+        // Route the paid-mark through the repository so the ledger delegate
+        // posts the tracked installment expense exactly like the in-app
+        // toggle does. A raw DAO update bypassed that and left tracked rows
+        // marked paid with no transaction behind them.
+        val repository =
+          HesabyarRepository(
+            transactionDao = database.transactionDao(),
+            loanDao = database.loanDao(),
+            installmentDao = database.installmentDao(),
+            paymentHistoryDao = database.paymentHistoryDao(),
+            categoryDao = database.categoryDao(),
+            bankLoanDao = database.bankLoanDao(),
+            accountDao = database.accountDao(),
+            personDao = database.personDao(),
+            database = database
+          )
         val installment =
           database
             .installmentDao()
             .getAllInstallmentsSync()
             .firstOrNull { it.id == installmentId }
         if (installment != null && !installment.isPaid) {
-          database.installmentDao().updateInstallment(
-            installment.copy(isPaid = true)
-          )
+          repository.updateInstallment(installment.copy(isPaid = true))
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(installmentId.toInt())

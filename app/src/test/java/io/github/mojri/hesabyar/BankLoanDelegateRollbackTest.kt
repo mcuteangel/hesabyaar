@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
+import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.InstallmentDao
@@ -127,7 +128,9 @@ class BankLoanDelegateRollbackTest {
       val stored = database.installmentDao().getInstallmentsByBankLoanIdSync(loanId)
       // One paid installment carries a linked expense, the other stays unpaid.
       // Must be tracked=true with accountId to post a linked expense per Phase 2.
-      repo.updateInstallment(stored.first().copy(isPaid = true, tracked = true, accountId = 1L))
+      repo.updateInstallment(
+        stored.first().copy(isPaid = true, tracked = true, accountId = DEFAULT_ACCOUNT_ID)
+      )
       assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
 
       repo.deleteBankLoan(database.bankLoanDao().getAllBankLoansBlocking().single())

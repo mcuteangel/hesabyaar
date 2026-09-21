@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 
 // Kotlin fallback forecast builder for the offline budget advisor.
@@ -34,10 +35,18 @@ internal object LocalBudgetForecast {
     val windowEndMs = jalaliPlusDaysMs(nowMs, FORECAST_WINDOW_DAYS)
     val upcomingInstallments =
       installments.filter { !it.isPaid && it.dueDate >= nowMs && it.dueDate < windowEndMs }
-    val totalUpcoming = upcomingInstallments.sumOf { it.amount }
+    // Saturating fold matching the Rust forecast's saturating_add.
+    val totalUpcoming =
+      upcomingInstallments.fold(0L) { total, installment ->
+        saturatingAdd(total, installment.amount)
+      }
     val activeBankLoans = bankLoans.filter { !it.isSettled }
     val activeLoans = loans.filter { !it.isSettled }
-    val totalDebt = activeLoans.sumOf { it.remainingAmount } + activeBankLoans.sumOf { it.totalRepayableAmount }
+    val totalDebt =
+      saturatingAdd(
+        activeLoans.fold(0L) { total, loan -> saturatingAdd(total, loan.remainingAmount) },
+        activeBankLoans.fold(0L) { total, bankLoan -> saturatingAdd(total, bankLoan.totalRepayableAmount) }
+      )
     val activeDebtCount = activeLoans.size + activeBankLoans.size
 
     // Parity with the Rust guard (get_offline_forecast): only unsettled CREDITOR
@@ -52,7 +61,9 @@ internal object LocalBudgetForecast {
           if (monthly > 0L && total > Long.MAX_VALUE - monthly) Long.MAX_VALUE else total + monthly
         }
     val hasNoData =
-      transactions.isEmpty() &&
+      // Parity with the Rust guard: transactions counts only once the excluded
+      // categories are dropped (plan 011 D2), not the raw table size.
+      transactions.none { !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) } &&
         upcomingInstallments.isEmpty() &&
         unsettledCreditorMonthlyObligation == 0L &&
         activeBankLoans.isEmpty()
@@ -60,7 +71,10 @@ internal object LocalBudgetForecast {
       return "تراکنش یا قسطی برای پیش‌بینی ثبت نشده است. لطفا اطلاعات مالی خود را وارد کنید."
     }
 
-    val projectedBalance = summary.balance - totalUpcoming
+    // The Rust forecast nets both upcoming installments and the monthly
+    // creditor-loan obligation out of the balance; omitting the obligation
+    // here made the two paths diverge whenever creditor loans existed.
+    val projectedBalance = summary.balance - totalUpcoming - unsettledCreditorMonthlyObligation
     val sb = StringBuilder()
     sb.appendLine("### 🔮 پیش‌بینی بودجه محلی (آفلاین)")
     sb.appendLine()
@@ -86,6 +100,18 @@ internal object LocalBudgetForecast {
     )
     return sb.toString()
   }
+
+  private fun saturatingAdd(
+    total: Long,
+    amount: Long
+  ): Long =
+    if (amount > 0L && total > Long.MAX_VALUE - amount) {
+      Long.MAX_VALUE
+    } else if (amount < 0L && total < Long.MIN_VALUE - amount) {
+      Long.MIN_VALUE
+    } else {
+      total + amount
+    }
 
   // Adds [days] Jalali days to the date represented by [fromMs] and returns the
   // resulting day's local-midnight timestamp. Uses JalaliCalendarHelper for all

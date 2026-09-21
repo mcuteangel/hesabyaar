@@ -19,6 +19,9 @@ internal data class ForecastFacts(
   val categoryReport: String
 ) {
   companion object {
+    /** 30-day upcoming-obligation window, matching the Rust offline forecast. */
+    private const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1000L
+
     /**
      * Builds the prompt facts. The income, expense, and category figures are
      * KPI aggregates, so they drop [excludedCategoryIds] exactly like the
@@ -32,7 +35,16 @@ internal data class ForecastFacts(
       bankLoans: List<BankLoan>,
       excludedCategoryIds: List<Long> = emptyList()
     ): ForecastFacts {
-      val upcomingInstallments = installments.filter { !it.isPaid }
+      // Mirror the Rust offline forecast's 30-day window so the model sees
+      // "upcoming" obligations the same way, and sort by due date so the
+      // 15-line cap below lists the nearest installments instead of an
+      // arbitrary slice of the unpaid backlog.
+      val nowMs = System.currentTimeMillis()
+      val windowEndMs = nowMs + THIRTY_DAYS_MS
+      val upcomingInstallments =
+        installments
+          .filter { !it.isPaid && it.dueDate >= nowMs && it.dueDate <= windowEndMs }
+          .sortedBy { it.dueDate }
       val totals = LocalBudgetAdvice.summarize(transactions, excludedCategoryIds)
       return ForecastFacts(
         totalIncome = totals.income,

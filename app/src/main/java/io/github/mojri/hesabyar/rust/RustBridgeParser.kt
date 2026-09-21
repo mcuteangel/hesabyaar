@@ -27,7 +27,7 @@ internal interface RustBridgeParser : RustBridgeCore {
   /** Normalizes Persian money text before amount extraction. */
   fun normalizeMoneyTextSync(text: String): String = rustCallSync(text) { HesabyarCore.normalizeMoneyText(text) }
 
-  /** Extracts the Rial amount written in a Persian sentence. Zero when absent. */
+  /** Extracts the Toman amount written in a Persian sentence. Zero when absent. */
   fun parsePersianAmountSync(sentence: String): Long = rustCallSync(0L) { HesabyarCore.parsePersianAmount(sentence) }
 
   /** Applies the parser text pre-processing pipeline. */

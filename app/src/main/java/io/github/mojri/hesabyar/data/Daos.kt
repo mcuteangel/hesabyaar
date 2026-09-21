@@ -121,6 +121,18 @@ interface TransactionLinkDao {
   // gone when the deletion happens, e.g. after a REPLACE-restore).
   @Query("DELETE FROM transactions WHERE installmentId = :installmentId")
   suspend fun deleteTransactionsForInstallment(installmentId: Long)
+
+  // Bank-loan disbursement income created by addBankLoanWithInstallmentsAndInitial:
+  // identified by the same fields the creator used (Loans category, received
+  // amount, start date), mirroring deleteLoanPaymentTransaction above.
+  @Query(
+    "DELETE FROM transactions WHERE categoryId = :categoryId AND amount = :amount AND date = :date"
+  )
+  suspend fun deleteBankLoanDisbursementTransaction(
+    categoryId: Long,
+    amount: Long,
+    date: Long
+  )
 }
 
 @Dao

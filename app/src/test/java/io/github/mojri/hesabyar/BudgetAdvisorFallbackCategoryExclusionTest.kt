@@ -24,6 +24,10 @@ class BudgetAdvisorFallbackCategoryExclusionTest {
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(false)
+    // CurrencyFormatter.currentUnit is a mutable global; pin it so the
+    // Toman-scaled literals below never depend on test ordering.
+    io.github.mojri.hesabyar.ui.CurrencyFormatter
+      .setUnit(io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN)
   }
 
   private val regularIncomeCategory = 10L

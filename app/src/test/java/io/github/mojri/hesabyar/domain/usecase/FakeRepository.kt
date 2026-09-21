@@ -98,9 +98,16 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   ): Long {
     val id = insertLoan(loan)
     if (recordInitial && loan.tracked) {
+      // Mirror LoanDelegate.insertLoanWithInitial: CREDITOR (I owe) receives
+      // the money → INCOME; DEBTOR (owed to me) lends it out → EXPENSE.
       insertTransaction(
         Transaction(
-          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          type =
+            if (loan.type == io.github.mojri.hesabyar.data.LoanType.CREDITOR) {
+              io.github.mojri.hesabyar.data.TransactionType.INCOME
+            } else {
+              io.github.mojri.hesabyar.data.TransactionType.EXPENSE
+            },
           categoryId = 0L,
           amount = loan.originalAmount,
           description = "initial",

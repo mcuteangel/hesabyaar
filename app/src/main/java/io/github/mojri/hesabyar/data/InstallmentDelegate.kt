@@ -54,17 +54,25 @@ internal class InstallmentDelegate(
       val existing =
         installmentDao.getInstallmentById(installment.id)
           ?: return@withTransaction
-      installmentDao.updateInstallment(installment)
-      val justPaid = installment.isPaid && !existing.isPaid
-      val justUnpaid = !installment.isPaid && existing.isPaid
+      // Enforce the ledger invariants on the incoming row before persisting,
+      // exactly like insert does: untracked rows carry no account, tracked
+      // rows require a positive one. Then write exactly once.
+      TrackedLedgerHelper.validateTrackedAccount(installment.tracked, installment.accountId)
+      val normalized =
+        installment.copy(
+          accountId = TrackedLedgerHelper.normalizeAccountId(installment.tracked, installment.accountId)
+        )
+      installmentDao.updateInstallment(normalized)
+      val justPaid = normalized.isPaid && !existing.isPaid
+      val justUnpaid = !normalized.isPaid && existing.isPaid
       // Phase 2 opt-in: only tracked rows post or reverse ledger entries.
       // Untracked rows only flip isPaid; historical transactions stay untouched.
-      if (!installment.tracked) {
-        installmentDao.updateInstallment(installment)
-        return@withTransaction
-      }
+      // A new expense is posted per the final state, while a reversal keys on
+      // the persisted state: an expense could only have been posted while the
+      // row was tracked, so an opt-out (tracked true → false) combined with a
+      // paid → unpaid flip still reverses it instead of stranding the money.
       val installmentsCategory = categoryDao.getCategoryByKey("Installments")
-      if (justPaid) {
+      if (justPaid && normalized.tracked) {
         val category =
           installmentsCategory
             ?: throw IllegalStateException(
@@ -74,13 +82,13 @@ internal class InstallmentDelegate(
           Transaction(
             type = TransactionType.EXPENSE,
             categoryId = category.id,
-            amount = installment.amount,
-            description = "پرداخت قسط: ${installment.title} - ${installment.notes}",
-            installmentId = installment.id,
-            accountId = TrackedLedgerHelper.resolveAccountId(installment.accountId)
+            amount = normalized.amount,
+            description = "پرداخت قسط: ${normalized.title} - ${normalized.notes}",
+            installmentId = normalized.id,
+            accountId = TrackedLedgerHelper.resolveAccountId(normalized.accountId)
           )
         )
-      } else if (justUnpaid) {
+      } else if (justUnpaid && existing.tracked) {
         // Reverse the expense recorded when the installment was first paid, so
         // toggling paid → unpaid → paid never double-counts the money. A
         // missing category aborts the whole update — the paid→unpaid flip rolls
@@ -92,7 +100,7 @@ internal class InstallmentDelegate(
               "Installments category is missing; cannot reverse the paid installment expense"
             )
         transactionLinkDao.deleteTransactionForInstallment(
-          installmentId = installment.id,
+          installmentId = normalized.id,
           categoryId = category.id
         )
       }

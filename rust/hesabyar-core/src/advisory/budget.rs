@@ -38,7 +38,12 @@ pub fn get_offline_budget_advice(
     let mut sb = String::new();
     sb.push_str("### \u{1F4A1} \u{062A}\u{0648}\u{0635}\u{06CC}\u{0647}\u{0647}\u{0627}\u{06CC} \u{0647}\u{0648}\u{0634}\u{0645}\u{0646}\u{062F} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} (\u{062A}\u{062D}\u{0644}\u{06CC}\u{0644} \u{0627}\u{0633}\u{062A}\u{0641}\u{0627}\u{062F}\u{0647} \u{0645}\u{062D}\u{0644}\u{06CC})\n\n");
 
-    if transactions.is_empty() {
+    // Plan 011 D2: gate on the filtered set, so a wallet whose transactions
+    // are all excluded gets the no-data message instead of a zero analysis.
+    if transactions
+        .iter()
+        .all(|t| is_tx_category_excluded(t, excluded_category_ids))
+    {
         sb.push_str("\u{0634}\u{0645}\u{0627} \u{0647}\u{0646}\u{0648}\u{0632} \u{0647}\u{06CC}\u{0686} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0646}\u{06A9}\u{0631}\u{062F}\u{0647}\u{0627}\u{06CC}\u{062F}. \u{0628}\u{0631}\u{0627}\u{06CC} \u{062F}\u{0631}\u{06CC}\u{0627}\u{0641}\u{062A} \u{062A}\u{062D}\u{0644}\u{06CC}\u{0644} \u{0648}\u{0636}\u{0639}\u{06CC}\u{062A} \u{0628}\u{0648}\u{062F}\u{062C}\u{0647} \u{0627}\u{0632} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634}\u{0647}\u{0627}\u{06CC} \u{062B}\u{0628}\u{062A} \u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}.");
         return sb;
     }
@@ -122,7 +127,12 @@ pub fn get_offline_forecast(
             (count + 1, debt.saturating_add(b.total_repayable_amount))
         });
 
-    if transactions.is_empty() && total_obligations == 0 && active_bank_loan_count == 0 {
+    // Plan 011 D2: "no data" means nothing left to forecast from once the
+    // excluded categories are dropped, not merely an empty raw table.
+    let has_included_txs = transactions
+        .iter()
+        .any(|t| !is_tx_category_excluded(t, excluded_category_ids));
+    if !has_included_txs && total_obligations == 0 && active_bank_loan_count == 0 {
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
@@ -307,7 +317,13 @@ pub fn calculate_financial_health_score(
         .unwrap_or_default()
         .as_millis() as i64;
 
-    if transactions.is_empty() {
+    // Plan 011 D2: score a wallet with no included transactions as 0 (no
+    // data) instead of scoring a zero-budget snapshot of raw rows that are
+    // all excluded from every KPI.
+    if transactions
+        .iter()
+        .all(|t| is_tx_category_excluded(t, excluded_category_ids))
+    {
         return 0;
     }
 

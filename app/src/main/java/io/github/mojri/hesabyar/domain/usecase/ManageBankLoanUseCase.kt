@@ -33,9 +33,12 @@ class ManageBankLoanUseCase(
 
     // A count of 0 is an interest-free single-payment loan; fall back to one installment.
     val count = if (numberOfInstallments > 0) numberOfInstallments else 1
-    // Checked arithmetic so an overflowed repayable/interest amount can never be persisted.
+    // Checked multiplication so an overflowed repayable amount can never be
+    // persisted; the interest subtraction is plain (negative = subsidized loan).
     val totalRepayable = Math.multiplyExact(monthlyInstallmentAmount, count.toLong())
-    val totalInterest = Math.subtractExact(totalRepayable, receivedAmount)
+    // Plain subtraction: receivedAmount above total repayable (a negative
+    // interest, i.e. a subsidized loan) is domain-legal data, not a crash.
+    val totalInterest = totalRepayable - receivedAmount
     val bankLoan =
       BankLoan(
         bankName = bankName,
@@ -112,7 +115,7 @@ class ManageBankLoanUseCase(
     require(startDate > 0) { "startDate must be positive" }
     val count = if (numberOfInstallments > 0) numberOfInstallments else 1
     val totalRepayable = Math.multiplyExact(monthlyInstallmentAmount, count.toLong())
-    val totalInterest = Math.subtractExact(totalRepayable, receivedAmount)
+    val totalInterest = totalRepayable - receivedAmount
     val bankLoan =
       BankLoan(
         bankName = bankName,

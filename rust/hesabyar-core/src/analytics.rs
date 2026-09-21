@@ -161,14 +161,22 @@ pub fn compute_analytics(
         .collect();
 
     // --- Category breakdown (expenses only) ---
-    let total_expense: i64 = filtered_txs
+    // Excluded categories (plan 011 D2) drop out here too, so the breakdown
+    // and its percentages match the monthly aggregates and the Kotlin
+    // fallback, which both already filter before summing.
+    let breakdown_txs: Vec<&Transaction> = filtered_txs
+        .iter()
+        .filter(|t| !is_tx_category_excluded(t, excluded_category_ids))
+        .copied()
+        .collect();
+    let total_expense: i64 = breakdown_txs
         .iter()
         .filter(|t| t.tx_type == TransactionType::Expense)
         .map(|t| t.amount)
         .sum();
 
     let mut cat_totals: HashMap<i64, i64> = HashMap::new();
-    for tx in filtered_txs
+    for tx in breakdown_txs
         .iter()
         .filter(|t| t.tx_type == TransactionType::Expense)
     {
@@ -364,18 +372,25 @@ fn compute_account_analytics(
                 })
                 .collect();
 
-            // Category breakdown for this account (expenses only, excluding transfers)
+            // Category breakdown for this account (expenses only, excluding
+            // transfers and excluded categories — plan 011 D2, matching the
+            // monthly loop above and the Kotlin fallback).
             let total_expense: i64 = account_txs
                 .iter()
-                .filter(|t| t.tx_type == TransactionType::Expense && t.account_id == account.id)
+                .filter(|t| {
+                    t.tx_type == TransactionType::Expense
+                        && t.account_id == account.id
+                        && !is_tx_category_excluded(t, excluded_category_ids)
+                })
                 .map(|t| t.amount)
                 .sum();
 
             let mut cat_totals: HashMap<i64, i64> = HashMap::new();
-            for tx in account_txs
-                .iter()
-                .filter(|t| t.tx_type == TransactionType::Expense && t.account_id == account.id)
-            {
+            for tx in account_txs.iter().filter(|t| {
+                t.tx_type == TransactionType::Expense
+                    && t.account_id == account.id
+                    && !is_tx_category_excluded(t, excluded_category_ids)
+            }) {
                 *cat_totals.entry(tx.category_id).or_insert(0) += tx.amount;
             }
 
@@ -1109,11 +1124,33 @@ mod tests {
             tx_on(4, TransactionType::Expense, 200_000, now, loan_cat_id, 1),
         ];
 
-        // 1. Empty excluded_category_ids: all income and expense reflected in monthly spending trend
+        // 1. Empty excluded_category_ids: all income and expense reflected in
+        // monthly spending trend, and the Loans expense shows in both the
+        // global and the per-account category breakdowns.
         let unfiltered = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         assert_eq!(unfiltered.monthly_spending.len(), 1);
         assert_eq!(unfiltered.monthly_spending[0].income, 1_500_000);
         assert_eq!(unfiltered.monthly_spending[0].expense, 500_000);
+        assert!(unfiltered
+            .category_breakdown
+            .iter()
+            .any(|b| b.category_id == loan_cat_id));
+        let unfiltered_loan_share = unfiltered
+            .category_breakdown
+            .iter()
+            .find(|b| b.category_id == loan_cat_id)
+            .map(|b| b.percentage)
+            .unwrap_or(0.0);
+        assert!((unfiltered_loan_share - 40.0).abs() < 0.01);
+        let unfiltered_account = unfiltered
+            .accounts
+            .iter()
+            .find(|a| a.account_id == 1)
+            .expect("account analytics for Main");
+        assert!(unfiltered_account
+            .category_breakdown
+            .iter()
+            .any(|b| b.category_id == loan_cat_id));
 
         // 2. Populated excluded_category_ids with Loans category ID
         let filtered = compute_analytics(
@@ -1130,5 +1167,24 @@ mod tests {
         assert_eq!(filtered.monthly_spending.len(), 1);
         assert_eq!(filtered.monthly_spending[0].income, 1_000_000);
         assert_eq!(filtered.monthly_spending[0].expense, 300_000);
+        // Plan 011 D2 parity: the breakdown must drop the excluded category
+        // and renormalize the remaining percentages (the Kotlin fallback
+        // already does this).
+        assert!(!filtered
+            .category_breakdown
+            .iter()
+            .any(|b| b.category_id == loan_cat_id));
+        assert_eq!(filtered.category_breakdown.len(), 1);
+        assert_eq!(filtered.category_breakdown[0].category_id, food_cat_id);
+        assert!((filtered.category_breakdown[0].percentage - 100.0).abs() < f32::EPSILON);
+        let filtered_account = filtered
+            .accounts
+            .iter()
+            .find(|a| a.account_id == 1)
+            .expect("account analytics for Main");
+        assert!(!filtered_account
+            .category_breakdown
+            .iter()
+            .any(|b| b.category_id == loan_cat_id));
     }
 }

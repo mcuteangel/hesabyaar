@@ -47,6 +47,13 @@ class ManageInstallmentUseCase(
     bankLoanId: Long? = null
   ): Long {
     TrackedLedgerHelper.validateTrackedAccount(tracked, accountId)
+    // Plan 011 DECISION 2: a bank-loan installment is forced ledger-only
+    // (tracked=false, accountId=null) so the parent's disbursement leg stays
+    // the single ledger entry for that loan; reject the combination here too
+    // instead of letting it silently contradict the delegate's invariant.
+    require(!(tracked && bankLoanId != null)) {
+      "Bank-loan installments must stay untracked (plan 011 DECISION 2)"
+    }
     return repository.insertInstallmentWithInitial(
       Installment(
         title = title,

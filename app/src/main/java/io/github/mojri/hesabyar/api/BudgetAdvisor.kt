@@ -113,7 +113,13 @@ object BudgetAdvisor {
         return@withContext getOfflineForecast(transactions, loans, installments, bankLoans, excludedCategoryIds)
       }
 
-      if (transactions.isEmpty() && installments.isEmpty()) {
+      // "No data" must also respect unsettled obligations: the offline
+      // substitute renders loan/bank-loan debt lines, so suppressing them
+      // here with a NO_DATA message would diverge from the offline path for
+      // a user whose only records are loans.
+      val hasNoActivities = transactions.isEmpty() && installments.isEmpty()
+      val hasNoUnsettled = loans.none { !it.isSettled } && bankLoans.none { !it.isSettled }
+      if (hasNoActivities && hasNoUnsettled) {
         return@withContext BudgetForecastPrompt.NO_DATA_MESSAGE
       }
 
