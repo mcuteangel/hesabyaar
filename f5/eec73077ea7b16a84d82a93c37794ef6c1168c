@@ -1,0 +1,92 @@
+app/src/main/java/io/github/mojri/hesabyar/data/InstallmentDelegate.kt
+  s_c7bce9663cca8f::t_c95406e1bc0ce5 57-67,70-73,75,85-88,91,103
+app/src/main/java/io/github/mojri/hesabyar/reminder/MarkPaidReceiver.kt
+  s_c7bce9663cca8f::t_922e18568e8511 8,12,25-42,49
+app/src/test/java/io/github/mojri/hesabyar/rust/RustMappersTest.kt
+  s_c7bce9663cca8f::t_d5453e1791d049 299-301,308-310
+app/src/main/java/io/github/mojri/hesabyar/api/BudgetForecastPrompt.kt
+  s_c7bce9663cca8f::t_25cb09b399b933 22-24
+  s_c7bce9663cca8f::t_883db6f309d5d2 38-47
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_c7bce9663cca8f::t_b6123d68389ef5 27-29,38-51
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetAdvice.kt
+  s_c7bce9663cca8f::t_fb47d6f416dbac 78-81
+  s_c7bce9663cca8f::t_b1edbefdaaac90 108
+  s_c7bce9663cca8f::t_dbfc3d34ae2467 24-26
+  s_c7bce9663cca8f::t_a67b46d2323282 109
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetForecast.kt
+  s_c7bce9663cca8f::t_498ab90e741f22 64-65,74-77
+  s_c7bce9663cca8f::t_67ed2d76f2ba9a 38-42,45,48
+  s_c7bce9663cca8f::t_bdcc7f58815cb4 104-107,115
+  s_c7bce9663cca8f::t_4039df3a30f791 8
+  s_c7bce9663cca8f::t_255c985ebade85 108-114
+  s_c7bce9663cca8f::t_20587143af666f 66
+  s_c7bce9663cca8f::t_5c2d409d14fc6d 46-47,49
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_c7bce9663cca8f::t_89500b07f4abab 124-135
+rust/hesabyar-core/src/analytics.rs
+  s_c7bce9663cca8f::t_8af4aa672c726c 375-377,380-384,389-393
+  s_c7bce9663cca8f::t_6a60ee301b036d 1144
+  s_c7bce9663cca8f::t_3d9b7bbf53c967 1127-1129,1134-1143,1145-1153,1170-1188
+  s_c7bce9663cca8f::t_2a6c3abee95b5c 164-172,179
+app/src/main/java/io/github/mojri/hesabyar/api/BudgetAdvisor.kt
+  s_c7bce9663cca8f::t_eee97d3945f792 116-119
+  s_c7bce9663cca8f::t_47f907dc076434 120-122
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgeAnalytics.kt
+  s_c7bce9663cca8f::t_f5edf6ef8e1dd7 11
+  s_c7bce9663cca8f::t_4f5b9d1afcbe65 37
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_c7bce9663cca8f::t_e938c713e7a82d 101-102,105-110
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_c7bce9663cca8f::t_c9b2a0e1a1a9f7 131-133
+  s_c7bce9663cca8f::t_255c985ebade85 11
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgeParser.kt
+  s_c7bce9663cca8f::t_abf88b2767a427 30
+rust/hesabyar-core/src/advisory/budget.rs
+  s_c7bce9663cca8f::t_fb797f104cc2cb 130-135
+  s_c7bce9663cca8f::t_f9b28c4492470c 320-326
+  s_c7bce9663cca8f::t_025a8f1477c750 41-46
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageInstallmentUseCase.kt
+  s_c7bce9663cca8f::t_6d2ba63153dc1c 50-56
+app/src/test/java/io/github/mojri/hesabyar/BudgetAdvisorFallbackCategoryExclusionTest.kt
+  s_c7bce9663cca8f::t_929fefd8d64ad8 27-28
+  s_c7bce9663cca8f::t_255c985ebade85 29-30
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_c7bce9663cca8f::t_20843f25b90572 67-69,87-98
+  s_c7bce9663cca8f::t_403dd24ea8f2d8 130-132,134-140,142-151
+  s_c7bce9663cca8f::t_b56e28ebdcd9cf 38-41
+plans/011-personal-loan-ledger-redesign.md
+  s_c7bce9663cca8f::t_7a30e6e94cc944 124-127
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetMetrics.kt
+  s_c7bce9663cca8f::t_74de5b9e1840dc 76-77,79-82
+  s_c7bce9663cca8f::t_e01a8550668027 78,83
+  s_c7bce9663cca8f::t_7de76cf9e311cd 106-108
+app/src/test/java/io/github/mojri/hesabyar/LoanTrackedRepaymentTest.kt
+  s_c7bce9663cca8f::t_bc2ef6f3daf2fb 13
+  s_c7bce9663cca8f::t_b7bd176afed49f 213-331
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageBankLoanUseCase.kt
+  s_c7bce9663cca8f::t_ac9ee99803d7f3 39-41
+  s_c7bce9663cca8f::t_ac4eb2b7416da2 36-37
+  s_c7bce9663cca8f::t_2dc7fa065f7b24 118
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigrationTest.kt
+  s_c7bce9663cca8f::t_961354e2937b3a 480-481,483
+  s_c7bce9663cca8f::t_2b445bc46e1c9f 506-508,510,518-521
+  s_c7bce9663cca8f::t_20dda775d7143c 491
+  s_c7bce9663cca8f::t_8f8c8a91c0f2f6 497
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f5eec73077ea7b16a84d82a93c37794ef6c1168c",
+  "prompts": {},
+  "sessions": {
+    "s_c7bce9663cca8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd20243-6db6-41a3-91a3-2740f5aefd30",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
