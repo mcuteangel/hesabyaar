@@ -44,7 +44,15 @@ internal object TrackedLedgerHelper {
       null
     }
 
-  /** Resolve the posting account for a tracked write. Fails fast if accountId is missing. */
-  fun resolveAccountId(accountId: Long?): Long =
-    requireNotNull(accountId) { "Cannot resolve posting account: tracked entity has null accountId" }
+  /**
+   * Resolve the posting account for a tracked write. Enforces the same
+   * positive-ID invariant as [validateTrackedAccount] so every posting path is
+   * governed by one contract, not just the entry points that normalize first.
+   */
+  fun resolveAccountId(accountId: Long?): Long {
+    require(accountId != null && accountId > 0L) {
+      "Cannot resolve posting account: tracked entity requires a valid non-null accountId (> 0)"
+    }
+    return accountId
+  }
 }

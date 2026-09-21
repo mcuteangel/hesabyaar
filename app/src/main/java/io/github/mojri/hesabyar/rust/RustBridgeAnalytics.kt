@@ -22,15 +22,15 @@ internal interface RustBridgeAnalytics : RustBridgeCore {
   ): AnalyticsData? =
     rustCallSync(null) {
       HesabyarCore.computeAnalytics(
-        transactions,
-        loans,
-        installments,
-        categories,
-        RustMappers.mapBankLoans(bankLoans),
-        RustMappers.mapAccounts(accounts),
-        accountId,
-        includeArchived,
-        excludedCategoryIds,
+        transactions = transactions,
+        loans = loans,
+        installments = installments,
+        categories = categories,
+        bankLoans = RustMappers.mapBankLoans(bankLoans),
+        accounts = RustMappers.mapAccounts(accounts),
+        accountId = accountId,
+        includeArchived = includeArchived,
+        excludedCategoryIds = excludedCategoryIds,
       )
     }
 
@@ -48,15 +48,15 @@ internal interface RustBridgeAnalytics : RustBridgeCore {
   ): DashboardData? =
     rustCallSync(null) {
       HesabyarCore.computeDashboardData(
-        transactions,
-        loans,
-        installments,
-        RustMappers.mapBankLoans(bankLoans),
-        RustMappers.mapAccounts(accounts),
-        accountId,
-        includeArchived,
-        nowMs,
-        excludedCategoryIds,
+        transactions = transactions,
+        loans = loans,
+        installments = installments,
+        bankLoans = RustMappers.mapBankLoans(bankLoans),
+        accounts = RustMappers.mapAccounts(accounts),
+        accountId = accountId,
+        includeArchived = includeArchived,
+        nowMs = nowMs,
+        excludedCategoryIds = excludedCategoryIds,
       )
     }
 }
