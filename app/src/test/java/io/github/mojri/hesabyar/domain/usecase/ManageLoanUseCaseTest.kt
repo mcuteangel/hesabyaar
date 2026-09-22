@@ -13,7 +13,7 @@ class ManageLoanUseCaseTest {
   private val useCase = ManageLoanUseCase(fake)
 
   @Test
-  fun `addLoan with personName upserts and links personId`() =
+  fun addLoanWithPersonNameUpsertsAndLinksPersonId() =
     runTest {
       val loanId =
         useCase.addLoan(
@@ -32,7 +32,7 @@ class ManageLoanUseCaseTest {
     }
 
   @Test
-  fun `addLoan with explicit personId preserves provided personId`() =
+  fun addLoanWithExplicitPersonIdPreservesProvidedPersonId() =
     runTest {
       val explicitPersonId = 99L
       val loanId =
@@ -48,7 +48,7 @@ class ManageLoanUseCaseTest {
     }
 
   @Test
-  fun `addTrackedLoan with personName upserts and links personId`() =
+  fun addTrackedLoanWithPersonNameUpsertsAndLinksPersonId() =
     runTest {
       val loanId =
         useCase.addTrackedLoan(
@@ -67,7 +67,7 @@ class ManageLoanUseCaseTest {
     }
 
   @Test
-  fun `addTrackedLoan with explicit personId preserves provided personId`() =
+  fun addTrackedLoanWithExplicitPersonIdPreservesProvidedPersonId() =
     runTest {
       val explicitPersonId = 77L
       val loanId =
@@ -85,7 +85,7 @@ class ManageLoanUseCaseTest {
     }
 
   @Test
-  fun `addTrackedLoan requires valid accountId when tracked`() =
+  fun addTrackedLoanRequiresValidAccountIdWhenTracked() =
     runTest {
       try {
         useCase.addTrackedLoan(

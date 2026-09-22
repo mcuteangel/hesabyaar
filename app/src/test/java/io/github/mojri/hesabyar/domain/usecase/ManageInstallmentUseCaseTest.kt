@@ -14,7 +14,7 @@ class ManageInstallmentUseCaseTest {
   private val useCase = ManageInstallmentUseCase(fake)
 
   @Test
-  fun `addTrackedInstallment normalizes untracked installment accountId to null`() =
+  fun addTrackedInstallmentNormalizesUntrackedInstallmentAccountIdToNull() =
     runTest {
       val id =
         useCase.addTrackedInstallment(
@@ -32,7 +32,7 @@ class ManageInstallmentUseCaseTest {
     }
 
   @Test
-  fun `addTrackedInstallment preserves valid accountId when tracked`() =
+  fun addTrackedInstallmentPreservesValidAccountIdWhenTracked() =
     runTest {
       val id =
         useCase.addTrackedInstallment(
@@ -50,7 +50,7 @@ class ManageInstallmentUseCaseTest {
     }
 
   @Test
-  fun `addTrackedInstallment throws when tracked but bankLoanId is present`() =
+  fun addTrackedInstallmentThrowsWhenTrackedButBankLoanIdIsPresent() =
     runTest {
       try {
         useCase.addTrackedInstallment(
