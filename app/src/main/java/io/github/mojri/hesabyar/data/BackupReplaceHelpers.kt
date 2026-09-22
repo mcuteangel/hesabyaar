@@ -153,7 +153,12 @@ internal suspend fun backupInsertTransactionsWithPersonRemap(
 }
 
 internal fun normalizeInstallmentForRestore(installment: Installment): Installment {
-  val isValidTracked = installment.tracked && installment.accountId != null && installment.accountId > 0L
+  val isBankLoanInstallment = installment.bankLoanId != null
+  val isValidTracked =
+    !isBankLoanInstallment &&
+      installment.tracked &&
+      installment.accountId != null &&
+      installment.accountId > 0L
   return if (isValidTracked) {
     installment
   } else {

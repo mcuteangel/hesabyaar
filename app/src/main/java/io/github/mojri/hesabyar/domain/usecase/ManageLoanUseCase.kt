@@ -13,6 +13,7 @@ class ManageLoanUseCase(
 ) {
   val allLoans: Flow<List<Loan>> = repository.allLoans
 
+  @Suppress("TooGenericExceptionCaught")
   suspend fun addLoan(
     personName: String,
     type: LoanType,
@@ -21,18 +22,23 @@ class ManageLoanUseCase(
     customDate: Long? = null,
     personId: Long? = null
   ): Long {
-    val resolvedPersonId = resolvePersonId(personName, personId)
-    return repository.insertLoan(
-      Loan(
-        personName = personName,
-        type = type,
-        originalAmount = amount,
-        remainingAmount = amount,
-        description = description,
-        date = customDate ?: System.currentTimeMillis(),
-        personId = resolvedPersonId
+    val resolved = resolvePerson(personName, personId)
+    return try {
+      repository.insertLoan(
+        Loan(
+          personName = personName,
+          type = type,
+          originalAmount = amount,
+          remainingAmount = amount,
+          description = description,
+          date = customDate ?: System.currentTimeMillis(),
+          personId = resolved.personId
+        )
       )
-    )
+    } catch (e: Exception) {
+      rollbackCreatedPerson(resolved.newlyCreatedPerson)
+      throw e
+    }
   }
 
   /**
@@ -42,6 +48,7 @@ class ManageLoanUseCase(
    * recordInitial=true posts the initial INCOME/EXPENSE; false skips it
    * (already recorded manually); tracked=false is ledger-only.
    */
+  @Suppress("TooGenericExceptionCaught")
   suspend fun addTrackedLoan(
     personName: String,
     type: LoanType,
@@ -55,36 +62,66 @@ class ManageLoanUseCase(
   ): Long {
     io.github.mojri.hesabyar.data.TrackedLedgerHelper
       .validateTrackedAccount(tracked, accountId)
-    val resolvedPersonId = resolvePersonId(personName, personId)
-    return repository.insertLoanWithInitial(
-      Loan(
-        personName = personName,
-        type = type,
-        originalAmount = amount,
-        remainingAmount = amount,
-        description = description,
-        date = customDate ?: System.currentTimeMillis(),
-        tracked = tracked,
-        accountId = accountId,
-        personId = resolvedPersonId
-      ),
-      recordInitial = recordInitial && tracked
-    )
-  }
-
-  private suspend fun resolvePersonId(
-    personName: String,
-    explicitPersonId: Long?
-  ): Long? {
-    if (explicitPersonId != null) return explicitPersonId
-    val display = PersonNameNormalizer.displayForm(personName)
-    val key = PersonNameNormalizer.normalize(display)
-    return if (key.isNotEmpty()) {
-      repository.upsertPerson(Person(name = display, normalizedName = key)).id
-    } else {
-      null
+    val resolved = resolvePerson(personName, personId)
+    return try {
+      repository.insertLoanWithInitial(
+        Loan(
+          personName = personName,
+          type = type,
+          originalAmount = amount,
+          remainingAmount = amount,
+          description = description,
+          date = customDate ?: System.currentTimeMillis(),
+          tracked = tracked,
+          accountId = accountId,
+          personId = resolved.personId
+        ),
+        recordInitial = recordInitial && tracked
+      )
+    } catch (e: Exception) {
+      rollbackCreatedPerson(resolved.newlyCreatedPerson)
+      throw e
     }
   }
+
+  private suspend fun resolvePerson(
+    personName: String,
+    explicitPersonId: Long?
+  ): ResolvedPerson {
+    if (explicitPersonId != null) return ResolvedPerson(explicitPersonId)
+    val display = PersonNameNormalizer.displayForm(personName)
+    val key = PersonNameNormalizer.normalize(display)
+    val existing =
+      if (key.isNotEmpty()) {
+        repository.getAllPersonsIncludingArchived().firstOrNull { it.normalizedName == key }
+      } else {
+        null
+      }
+    return when {
+      key.isEmpty() -> ResolvedPerson(null)
+      existing != null -> ResolvedPerson(existing.id)
+      else -> {
+        val created = repository.upsertPerson(Person(name = display, normalizedName = key))
+        ResolvedPerson(created.id, created)
+      }
+    }
+  }
+
+  @Suppress("TooGenericExceptionCaught")
+  private suspend fun rollbackCreatedPerson(person: Person?) {
+    if (person != null) {
+      try {
+        repository.deletePerson(person)
+      } catch (_: Exception) {
+        // Best-effort cleanup
+      }
+    }
+  }
+
+  private data class ResolvedPerson(
+    val personId: Long?,
+    val newlyCreatedPerson: Person? = null
+  )
 
   suspend fun makeRepayment(
     loanId: Long,

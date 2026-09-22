@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BackupPayload
+import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
@@ -109,6 +110,34 @@ class BackupTrackedLedgerRestoreNormalizationTest {
     }
 
   @Test
+  fun replaceAllFromBackupNormalizesBankLoanInstallmentToUntracked() =
+    runTest {
+      val repo = createRepository()
+      val payload =
+        BackupPayload(
+          installments =
+            listOf(
+              Installment(
+                id = 5L,
+                title = "Bank loan installment",
+                amount = 1_500_000L,
+                dueDate = 1000L,
+                bankLoanId = 10L,
+                tracked = true,
+                accountId = DEFAULT_ACCOUNT_ID
+              )
+            )
+        )
+
+      repo.replaceAllFromBackup(payload)
+
+      val stored = database.installmentDao().getAllInstallmentsSync()
+      val inst = stored.first { it.title == "Bank loan installment" }
+      assertFalse("bank loan installment must be normalized to untracked", inst.tracked)
+      assertNull(inst.accountId)
+    }
+
+  @Test
   fun mergeFromBackupNormalizesTrackedInstallmentWithInvalidAccountId() =
     runTest {
       val repo = createRepository()
@@ -176,6 +205,17 @@ class BackupTrackedLedgerRestoreNormalizationTest {
                 date = 1000L,
                 tracked = false,
                 accountId = 88L
+              ),
+              Loan(
+                id = 3L,
+                personName = "Hassan",
+                type = LoanType.CREDITOR,
+                originalAmount = 3_000_000L,
+                remainingAmount = 3_000_000L,
+                description = "",
+                date = 1000L,
+                tracked = true,
+                accountId = DEFAULT_ACCOUNT_ID
               )
             )
         )
@@ -190,5 +230,106 @@ class BackupTrackedLedgerRestoreNormalizationTest {
       val staleLoan = stored.first { it.personName == "Reza" }
       assertFalse(staleLoan.tracked)
       assertNull(staleLoan.accountId)
+
+      val validLoan = stored.first { it.personName == "Hassan" }
+      assertTrue(validLoan.tracked)
+      assertEquals(DEFAULT_ACCOUNT_ID, validLoan.accountId)
     }
+
+  @Test
+  fun mergeFromBackupNormalizesTrackedLoanWithInvalidAccountId() =
+    runTest {
+      val repo = createRepository()
+      val payload =
+        BackupPayload(
+          loans =
+            listOf(
+              Loan(
+                id = 10L,
+                personName = "Sara",
+                type = LoanType.DEBTOR,
+                originalAmount = 1_000_000L,
+                remainingAmount = 1_000_000L,
+                description = "",
+                date = 1000L,
+                tracked = true,
+                accountId = 0L
+              )
+            )
+        )
+
+      repo.mergeFromBackup(payload)
+
+      val stored = database.loanDao().getAllLoansSync()
+      val loan = stored.first { it.personName == "Sara" }
+      assertFalse(loan.tracked)
+      assertNull(loan.accountId)
+    }
+
+  @Test
+  fun replaceAllFromBackupNormalizesTrackedBankLoanWithInvalidAccountId() =
+    runTest {
+      val repo = createRepository()
+      val payload =
+        BackupPayload(
+          bankLoans =
+            listOf(
+              createTestBankLoan(1L, "Bank A", tracked = true, accountId = null),
+              createTestBankLoan(2L, "Bank B", tracked = false, accountId = 77L),
+              createTestBankLoan(3L, "Bank C", tracked = true, accountId = DEFAULT_ACCOUNT_ID)
+            )
+        )
+
+      repo.replaceAllFromBackup(payload)
+
+      val stored = database.bankLoanDao().getAllBankLoansBlocking()
+      val invalidBankLoan = stored.first { it.bankName == "Bank A" }
+      assertFalse(invalidBankLoan.tracked)
+      assertNull(invalidBankLoan.accountId)
+
+      val staleBankLoan = stored.first { it.bankName == "Bank B" }
+      assertFalse(staleBankLoan.tracked)
+      assertNull(staleBankLoan.accountId)
+
+      val validBankLoan = stored.first { it.bankName == "Bank C" }
+      assertTrue(validBankLoan.tracked)
+      assertEquals(DEFAULT_ACCOUNT_ID, validBankLoan.accountId)
+    }
+
+  @Test
+  fun mergeFromBackupNormalizesTrackedBankLoanWithInvalidAccountId() =
+    runTest {
+      val repo = createRepository()
+      val payload =
+        BackupPayload(
+          bankLoans = listOf(createTestBankLoan(10L, "Bank M", tracked = true, accountId = 0L))
+        )
+
+      repo.mergeFromBackup(payload)
+
+      val stored = database.bankLoanDao().getAllBankLoansBlocking()
+      val bankLoan = stored.first { it.bankName == "Bank M" }
+      assertFalse(bankLoan.tracked)
+      assertNull(bankLoan.accountId)
+    }
+
+  private fun createTestBankLoan(
+    id: Long,
+    bankName: String,
+    tracked: Boolean,
+    accountId: Long?
+  ) = BankLoan(
+    id = id,
+    bankName = bankName,
+    loanName = "Test Loan",
+    receivedAmount = 50_000_000L,
+    totalRepayableAmount = 60_000_000L,
+    totalInterest = 10_000_000L,
+    monthlyInstallmentAmount = 5_000_000L,
+    numberOfInstallments = 12,
+    startDate = 1000L,
+    description = "",
+    tracked = tracked,
+    accountId = accountId
+  )
 }

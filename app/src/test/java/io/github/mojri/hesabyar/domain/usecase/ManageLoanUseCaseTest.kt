@@ -1,10 +1,13 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
+import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -60,10 +63,32 @@ class ManageLoanUseCaseTest {
           accountId = 1L
         )
       val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertTrue(storedLoan.tracked)
+      assertEquals(1L, storedLoan.accountId)
       assertNotNull(storedLoan.personId)
       val person = fake.getPersonById(storedLoan.personId!!)
       assertNotNull(person)
       assertEquals("Mohammad", person!!.name)
+    }
+
+  @Test
+  fun addTrackedLoanWithRecordInitialFalsePersistsTrackedStateWithoutInitialTransaction() =
+    runTest {
+      val loanId =
+        useCase.addTrackedLoan(
+          personName = "Reza",
+          type = LoanType.CREDITOR,
+          amount = 30_000_000L,
+          description = "ledger only",
+          tracked = true,
+          accountId = 2L,
+          recordInitial = false
+        )
+      val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertTrue(storedLoan.tracked)
+      assertEquals(2L, storedLoan.accountId)
+      val transactions = fake.allTransactions.first()
+      assertEquals("no initial transaction must be recorded when recordInitial is false", 0, transactions.size)
     }
 
   @Test
@@ -85,20 +110,87 @@ class ManageLoanUseCaseTest {
     }
 
   @Test
-  fun addTrackedLoanRequiresValidAccountIdWhenTracked() =
+  fun addLoanWithEmptyPersonNameLeavesPersonIdNullWithoutUpsertingPerson() =
     runTest {
-      try {
+      val loanId =
+        useCase.addLoan(
+          personName = "   ",
+          type = LoanType.DEBTOR,
+          amount = 1_000_000L,
+          description = "no person"
+        )
+      val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertEquals(null, storedLoan.personId)
+      assertEquals(0, fake.getAllPersonsIncludingArchived().size)
+    }
+
+  @Test
+  fun addTrackedLoanWithEmptyPersonNameLeavesPersonIdNullWithoutUpsertingPerson() =
+    runTest {
+      val loanId =
         useCase.addTrackedLoan(
-          personName = "Test",
+          personName = "",
           type = LoanType.CREDITOR,
           amount = 1_000_000L,
-          description = "",
+          description = "no person tracked",
           tracked = true,
-          accountId = null
+          accountId = 1L
         )
-        fail("tracked loan with null accountId must throw IllegalArgumentException")
-      } catch (expected: IllegalArgumentException) {
-        // Expected
+      val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertEquals(null, storedLoan.personId)
+      assertEquals(0, fake.getAllPersonsIncludingArchived().size)
+    }
+
+  @Test
+  fun addTrackedLoanCleansUpNewlyCreatedPersonWhenInsertFails() =
+    runTest {
+      val failingFake =
+        object : HesabyarRepositoryInterface by fake {
+          override suspend fun insertLoanWithInitial(
+            loan: Loan,
+            recordInitial: Boolean
+          ): Long = throw IllegalStateException("Loans category is missing")
+        }
+      val failingUseCase = ManageLoanUseCase(failingFake)
+
+      try {
+        failingUseCase.addTrackedLoan(
+          personName = "Orphan Candidate",
+          type = LoanType.CREDITOR,
+          amount = 5_000_000L,
+          description = "fails",
+          tracked = true,
+          accountId = 1L
+        )
+        fail("insertLoanWithInitial failure must propagate")
+      } catch (expected: IllegalStateException) {
+        assertEquals("Loans category is missing", expected.message)
+      }
+
+      assertEquals(
+        "newly created person must be rolled back on insert failure",
+        0,
+        failingFake.getAllPersonsIncludingArchived().size
+      )
+    }
+
+  @Test
+  fun addTrackedLoanRequiresValidAccountIdWhenTracked() =
+    runTest {
+      listOf(null, 0L, -5L).forEach { invalidAccountId ->
+        try {
+          useCase.addTrackedLoan(
+            personName = "Test",
+            type = LoanType.CREDITOR,
+            amount = 1_000_000L,
+            description = "",
+            tracked = true,
+            accountId = invalidAccountId
+          )
+          fail("tracked loan with accountId=$invalidAccountId must throw IllegalArgumentException")
+        } catch (expected: IllegalArgumentException) {
+          // Expected
+        }
       }
     }
 }

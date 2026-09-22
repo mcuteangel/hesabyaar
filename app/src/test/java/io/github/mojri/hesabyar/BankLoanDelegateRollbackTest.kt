@@ -267,4 +267,41 @@ class BankLoanDelegateRollbackTest {
       assertEquals("Ali", allTxAfter.single().personName)
       assertEquals(sharedAmount, allTxAfter.single().amount)
     }
+
+  @Test
+  fun addBankLoanWithInstallmentsRejectsTrackedWithoutValidAccountAndPersistsNothing() =
+    runTest {
+      val repo = createRepository()
+      val invalidTrackedLoan =
+        testBankLoan().copy(
+          tracked = true,
+          accountId = null
+        )
+      try {
+        repo.addBankLoanWithInstallments(invalidTrackedLoan, listOf(installment()))
+        org.junit.Assert.fail("addBankLoanWithInstallments with tracked=true and accountId=null must throw")
+      } catch (expected: IllegalArgumentException) {
+        // Expected
+      }
+
+      assertEquals(0, database.bankLoanDao().getAllBankLoansBlocking().size)
+      assertEquals(0, database.installmentDao().getAllInstallmentsBlocking().size)
+    }
+
+  @Test
+  fun addBankLoanWithInstallmentsForcesInstallmentsUntrackedAndAccountIdNull() =
+    runTest {
+      val repo = createRepository()
+      val inputInstallment =
+        installment().copy(
+          tracked = true,
+          accountId = 5L
+        )
+      val loanId = repo.addBankLoanWithInstallments(testBankLoan(), listOf(inputInstallment))
+      val storedInstallments = database.installmentDao().getInstallmentsByBankLoanIdSync(loanId)
+      assertEquals(1, storedInstallments.size)
+      val stored = storedInstallments.single()
+      org.junit.Assert.assertFalse("bank loan installment must be forced to untracked", stored.tracked)
+      org.junit.Assert.assertNull("bank loan installment must have null accountId", stored.accountId)
+    }
 }
