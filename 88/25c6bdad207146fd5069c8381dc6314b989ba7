@@ -1,0 +1,21 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageInstallmentUseCaseTest.kt
+  s_c7bce9663cca8f::t_b94a127c4709aa 17,35,53
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCaseTest.kt
+  s_c7bce9663cca8f::t_99dfa833906169 16,35,51,70,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8825c6bdad207146fd5069c8381dc6314b989ba7",
+  "prompts": {},
+  "sessions": {
+    "s_c7bce9663cca8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd20243-6db6-41a3-91a3-2740f5aefd30",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
