@@ -1,0 +1,48 @@
+app/src/test/java/io/github/mojri/hesabyar/InstallmentUpdateTransactionTest.kt
+  s_c7bce9663cca8f::t_1cc2ccc18fca6c 381-441
+app/src/main/java/io/github/mojri/hesabyar/data/InstallmentDelegate.kt
+  s_c7bce9663cca8f::t_a8245f08db9c6f 15-22
+  s_c7bce9663cca8f::t_bc0fbbfe4b42e1 83,104
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_c7bce9663cca8f::t_1fab087588cb6c 16-21,41,47,68-71
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_c7bce9663cca8f::t_8c543f42cb95e1 15-16
+  s_c7bce9663cca8f::t_4d4acd28f87d2e 215-269
+app/src/test/java/io/github/mojri/hesabyar/BackupTrackedLedgerRestoreNormalizationTest.kt
+  s_c7bce9663cca8f::t_4370c0aac0e02c 1-194
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCase.kt
+  s_c7bce9663cca8f::t_4add48b0179fb6 7-8,21-25,32-33,36,53-54,58,68-69,75-86
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCaseTest.kt
+  s_c7bce9663cca8f::t_7c390844e6b98d 1-104
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageInstallmentUseCase.kt
+  s_c7bce9663cca8f::t_d7d8eda0202f04 56,67
+app/src/main/java/io/github/mojri/hesabyar/data/BackupReplaceHelpers.kt
+  s_c7bce9663cca8f::t_723721697dcbc1 140,154-155,157-164,166-173,175-180
+  s_c7bce9663cca8f::t_4c964824a5a7cb 156,165,174
+app/src/main/java/io/github/mojri/hesabyar/data/BackupMergeHelpers.kt
+  s_c7bce9663cca8f::t_5da80bfa517050 38,44-47,69-70
+app/src/main/java/io/github/mojri/hesabyar/data/BackupDelegate.kt
+  s_c7bce9663cca8f::t_d0b56a15f9cea2 30-31,33,60,62
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageInstallmentUseCaseTest.kt
+  s_c7bce9663cca8f::t_ebe45f087e1473 1-71
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_c7bce9663cca8f::t_1b1058cd591b0c 128-129,131-132
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_c7bce9663cca8f::t_e70afb3d794b00 63-75,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b4162fcc7961999b509a475935e7370fec8a9e2b",
+  "prompts": {},
+  "sessions": {
+    "s_c7bce9663cca8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd20243-6db6-41a3-91a3-2740f5aefd30",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
