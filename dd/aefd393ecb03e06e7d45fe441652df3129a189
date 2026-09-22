@@ -1,0 +1,33 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCaseTest.kt
+  s_c7bce9663cca8f::t_b4ed7641dd6000 148
+  s_c7bce9663cca8f::t_5d3f94f3886415 4,10
+  s_c7bce9663cca8f::t_070ef000529eef 66-67,74-93,113,115-130,132,135,137,139-147,149-193
+  s_c7bce9663cca8f::t_392412bc1fb999 3
+app/src/main/java/io/github/mojri/hesabyar/data/BackupReplaceHelpers.kt
+  s_c7bce9663cca8f::t_ef23323ca73b81 156-161
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCase.kt
+  s_c7bce9663cca8f::t_d7dc11cea29903 25-36,39-41,65-80,82-84,87,90-91,111-114,116-124
+  s_c7bce9663cca8f::t_d193548e005a82 16,38,51,81,94-106,110,115
+app/src/test/java/io/github/mojri/hesabyar/BackupTrackedLedgerRestoreNormalizationTest.kt
+  s_c7bce9663cca8f::t_544465b11126a7 277-279,305,315-334
+  s_c7bce9663cca8f::t_c18dc871f20e49 9
+  s_c7bce9663cca8f::t_cfd082c51618ee 113-139,208-218,233-236,238-276,280-304,306-313
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_c7bce9663cca8f::t_8fcce3f5112ad1 270-306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ddaefd393ecb03e06e7d45fe441652df3129a189",
+  "prompts": {},
+  "sessions": {
+    "s_c7bce9663cca8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd20243-6db6-41a3-91a3-2740f5aefd30",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
