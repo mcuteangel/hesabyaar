@@ -12,7 +12,14 @@ internal class InstallmentDelegate(
 ) : InstallmentOps {
   override val allInstallments: Flow<List<Installment>> = installmentDao.getAllInstallments()
 
-  override suspend fun insertInstallment(installment: Installment): Long = installmentDao.insertInstallment(installment)
+  override suspend fun insertInstallment(installment: Installment): Long {
+    TrackedLedgerHelper.validateTrackedAccount(installment.tracked, installment.accountId)
+    val normalizedInstallment =
+      installment.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(installment.tracked, installment.accountId)
+      )
+    return installmentDao.insertInstallment(normalizedInstallment)
+  }
 
   override suspend fun insertInstallmentWithInitial(
     installment: Installment,
@@ -71,10 +78,9 @@ internal class InstallmentDelegate(
       // the persisted state: an expense could only have been posted while the
       // row was tracked, so an opt-out (tracked true → false) combined with a
       // paid → unpaid flip still reverses it instead of stranding the money.
-      val installmentsCategory = categoryDao.getCategoryByKey("Installments")
       if (justPaid && normalized.tracked) {
         val category =
-          installmentsCategory
+          categoryDao.getCategoryByKey("Installments")
             ?: throw IllegalStateException(
               "Installments category is missing; cannot record the paid installment expense"
             )
@@ -95,7 +101,7 @@ internal class InstallmentDelegate(
         // back with the transaction — instead of leaving the expense behind an
         // unpaid row.
         val category =
-          installmentsCategory
+          categoryDao.getCategoryByKey("Installments")
             ?: throw IllegalStateException(
               "Installments category is missing; cannot reverse the paid installment expense"
             )

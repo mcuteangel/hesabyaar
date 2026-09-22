@@ -125,8 +125,11 @@ interface TransactionLinkDao {
   // Bank-loan disbursement income created by addBankLoanWithInstallmentsAndInitial:
   // identified by the same fields the creator used (Loans category, received
   // amount, start date), mirroring deleteLoanPaymentTransaction above.
+  // Matched strictly with personName IS NULL and personId IS NULL so personal-loan
+  // initial transactions sharing the same amount and date are never deleted.
   @Query(
-    "DELETE FROM transactions WHERE categoryId = :categoryId AND amount = :amount AND date = :date"
+    "DELETE FROM transactions WHERE categoryId = :categoryId AND amount = :amount " +
+      "AND date = :date AND personName IS NULL AND personId IS NULL"
   )
   suspend fun deleteBankLoanDisbursementTransaction(
     categoryId: Long,

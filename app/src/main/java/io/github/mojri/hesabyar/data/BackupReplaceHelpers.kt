@@ -137,7 +137,7 @@ internal suspend fun backupInsertLoansWithPersonRemap(
 ) {
   for (loan in loans) {
     val mappedPersonId = resolvePersonId(loan.personId, loan.personName, maps)
-    loanDao.insertLoan(loan.copy(personId = mappedPersonId))
+    loanDao.insertLoan(normalizeLoanForRestore(loan.copy(personId = mappedPersonId)))
   }
 }
 
@@ -149,5 +149,32 @@ internal suspend fun backupInsertTransactionsWithPersonRemap(
   for (tx in transactions) {
     val mappedPersonId = resolvePersonId(tx.personId, tx.personName, maps)
     transactionDao.insertTransaction(tx.copy(personId = mappedPersonId))
+  }
+}
+
+internal fun normalizeInstallmentForRestore(installment: Installment): Installment {
+  val isValidTracked = installment.tracked && installment.accountId != null && installment.accountId > 0L
+  return if (isValidTracked) {
+    installment
+  } else {
+    installment.copy(tracked = false, accountId = null)
+  }
+}
+
+internal fun normalizeLoanForRestore(loan: Loan): Loan {
+  val isValidTracked = loan.tracked && loan.accountId != null && loan.accountId > 0L
+  return if (isValidTracked) {
+    loan
+  } else {
+    loan.copy(tracked = false, accountId = null)
+  }
+}
+
+internal fun normalizeBankLoanForRestore(bankLoan: BankLoan): BankLoan {
+  val isValidTracked = bankLoan.tracked && bankLoan.accountId != null && bankLoan.accountId > 0L
+  return if (isValidTracked) {
+    bankLoan
+  } else {
+    bankLoan.copy(tracked = false, accountId = null)
   }
 }

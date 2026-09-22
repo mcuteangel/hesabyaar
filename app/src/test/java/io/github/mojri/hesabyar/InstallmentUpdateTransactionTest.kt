@@ -378,4 +378,65 @@ class InstallmentUpdateTransactionTest {
         database.transactionDao().getAllTransactionsBlocking().size
       )
     }
+
+  @Test
+  fun insertInstallmentWithTrackedTrueAndNullAccountIdThrows() =
+    runTest {
+      val repo = createRepository()
+      try {
+        repo.insertInstallment(
+          Installment(
+            title = "Car",
+            amount = 1_000_000L,
+            dueDate = 1_700_000_000_000L,
+            tracked = true,
+            accountId = null
+          )
+        )
+        fail("insertInstallment with tracked=true and null accountId must throw")
+      } catch (expected: IllegalArgumentException) {
+        // Expected
+      }
+    }
+
+  @Test
+  fun insertInstallmentWithTrackedFalseNormalizesAccountIdToNull() =
+    runTest {
+      val repo = createRepository()
+      val id =
+        repo.insertInstallment(
+          Installment(
+            title = "Car",
+            amount = 1_000_000L,
+            dueDate = 1_700_000_000_000L,
+            tracked = false,
+            accountId = 5L
+          )
+        )
+      val stored = database.installmentDao().getInstallmentById(id)!!
+      assertFalse(stored.tracked)
+      assertEquals(null, stored.accountId)
+    }
+
+  @Test
+  fun updateInstallmentWithoutPaidFlipDoesNotRequireInstallmentsCategory() =
+    runTest {
+      val repo = createRepository()
+      val id =
+        repo.insertInstallment(
+          Installment(
+            title = "Car",
+            amount = 1_000_000L,
+            dueDate = 1_700_000_000_000L,
+            tracked = false
+          )
+        )
+      val stored = database.installmentDao().getInstallmentById(id)!!
+      // Ensure categories table is empty: updating title or notes without flipping isPaid
+      // must succeed without querying or needing the "Installments" category.
+      database.categoryDao().deleteAllCategories()
+      repo.updateInstallment(stored.copy(notes = "updated note"))
+      val updated = database.installmentDao().getInstallmentById(id)!!
+      assertEquals("updated note", updated.notes)
+    }
 }

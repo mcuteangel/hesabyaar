@@ -27,10 +27,10 @@ internal class BackupDelegate(
     paymentHistoryDao.deleteAllPaymentHistory()
     bankLoanDao.deleteAllBankLoans()
     transactions.forEach { transactionDao.insertTransaction(it) }
-    loans.forEach { loanDao.insertLoan(it) }
-    installments.forEach { installmentDao.insertInstallment(it) }
+    loans.forEach { loanDao.insertLoan(normalizeLoanForRestore(it)) }
+    installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
     paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
-    bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
+    bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }
   }
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
@@ -57,9 +57,9 @@ internal class BackupDelegate(
         backupInsertPersonsForReplace(personsToInsert, personDao, backup.persons.isEmpty())
       backupInsertLoansWithPersonRemap(backup.loans, personMaps, loanDao)
       backupInsertTransactionsWithPersonRemap(backup.transactions, personMaps, transactionDao)
-      backup.installments.forEach { installmentDao.insertInstallment(it) }
+      backup.installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
-      backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
+      backup.bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }
       backup.accounts.forEach { accountDao.insert(it) }
     }
 

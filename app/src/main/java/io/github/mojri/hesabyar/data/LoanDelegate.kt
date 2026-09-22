@@ -13,7 +13,12 @@ internal class LoanDelegate(
 ) : LoanOps {
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
 
-  override suspend fun insertLoan(loan: Loan): Long = loanDao.insertLoan(loan)
+  override suspend fun insertLoan(loan: Loan): Long {
+    TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
+    val normalizedLoan =
+      loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
+    return loanDao.insertLoan(normalizedLoan)
+  }
 
   override suspend fun insertLoanWithInitial(
     loan: Loan,
@@ -33,12 +38,13 @@ internal class LoanDelegate(
         val accountId = TrackedLedgerHelper.resolveAccountId(normalizedLoan.accountId)
         val stored = loanDao.getLoanById(loanId) ?: normalizedLoan.copy(id = loanId)
         val isDebt = stored.type == LoanType.CREDITOR
+        val transactionType = if (isDebt) TransactionType.INCOME else TransactionType.EXPENSE
         transactionDao.insertTransaction(
           Transaction(
             // CREDITOR = "I owe": receiving the money is an inflow, and the
             // description ("دریافت وام") proves it. DEBTOR = "owed to me":
             // handing the money out is the outflow.
-            type = if (isDebt) TransactionType.INCOME else TransactionType.EXPENSE,
+            type = transactionType,
             categoryId = loansCategory.id,
             amount = stored.originalAmount,
             description =
@@ -59,7 +65,10 @@ internal class LoanDelegate(
   }
 
   override suspend fun updateLoan(loan: Loan) {
-    loanDao.updateLoan(loan)
+    TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
+    val normalizedLoan =
+      loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
+    loanDao.updateLoan(normalizedLoan)
   }
 
   override suspend fun deleteLoan(loan: Loan) {

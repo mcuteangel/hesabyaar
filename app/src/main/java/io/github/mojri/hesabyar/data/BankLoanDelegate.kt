@@ -60,12 +60,22 @@ internal class BankLoanDelegate(
   override suspend fun addBankLoanWithInstallments(
     bankLoan: BankLoan,
     installments: List<Installment>
-  ): Long =
-    database.withTransaction {
-      val loanId = bankLoanDao.insertBankLoan(bankLoan)
-      installments.forEach { installmentDao.insertInstallment(it.copy(bankLoanId = loanId)) }
+  ): Long {
+    TrackedLedgerHelper.validateTrackedAccount(bankLoan.tracked, bankLoan.accountId)
+    val normalizedBankLoan =
+      bankLoan.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(bankLoan.tracked, bankLoan.accountId)
+      )
+    return database.withTransaction {
+      val loanId = bankLoanDao.insertBankLoan(normalizedBankLoan)
+      installments.forEach {
+        installmentDao.insertInstallment(
+          it.copy(bankLoanId = loanId, tracked = false, accountId = null)
+        )
+      }
       loanId
     }
+  }
 
   override suspend fun addBankLoanWithInstallmentsAndInitial(
     bankLoan: BankLoan,

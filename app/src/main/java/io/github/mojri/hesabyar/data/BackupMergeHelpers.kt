@@ -35,13 +35,16 @@ internal suspend fun backupMergeLoans(
 ): Map<Long, Long> =
   loans.associate { loan ->
     val mappedPersonId = resolvePersonId(loan.personId, loan.personName)
-    loan.id to loanDao.insertLoan(loan.copy(id = 0, personId = mappedPersonId))
+    loan.id to loanDao.insertLoan(normalizeLoanForRestore(loan.copy(id = 0, personId = mappedPersonId)))
   }
 
 internal suspend fun backupMergeBankLoans(
   bankLoans: List<BankLoan>,
   bankLoanDao: BankLoanDao
-): Map<Long, Long> = bankLoans.associate { it.id to bankLoanDao.insertBankLoan(it.copy(id = 0)) }
+): Map<Long, Long> =
+  bankLoans.associate {
+    it.id to bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it.copy(id = 0)))
+  }
 
 internal suspend fun backupMergeInstallments(
   installments: List<Installment>,
@@ -63,7 +66,8 @@ internal suspend fun backupMergeInstallments(
       )
       continue
     }
-    val newId = installmentDao.insertInstallment(installment.copy(id = 0, bankLoanId = mappedBankLoanId))
+    val candidate = installment.copy(id = 0, bankLoanId = mappedBankLoanId)
+    val newId = installmentDao.insertInstallment(normalizeInstallmentForRestore(candidate))
     idMap[installment.id] = newId
   }
   return idMap

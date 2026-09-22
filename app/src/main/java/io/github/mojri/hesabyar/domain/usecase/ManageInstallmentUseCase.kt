@@ -46,7 +46,6 @@ class ManageInstallmentUseCase(
     isPaid: Boolean = false,
     bankLoanId: Long? = null
   ): Long {
-    TrackedLedgerHelper.validateTrackedAccount(tracked, accountId)
     // Plan 011 DECISION 2: a bank-loan installment is forced ledger-only
     // (tracked=false, accountId=null) so the parent's disbursement leg stays
     // the single ledger entry for that loan; reject the combination here too
@@ -54,6 +53,7 @@ class ManageInstallmentUseCase(
     require(!(tracked && bankLoanId != null)) {
       "Bank-loan installments must stay untracked (plan 011 DECISION 2)"
     }
+    val normalizedAccountId = TrackedLedgerHelper.normalizeAccountId(tracked, accountId)
     return repository.insertInstallmentWithInitial(
       Installment(
         title = title,
@@ -64,7 +64,7 @@ class ManageInstallmentUseCase(
         notes = notes,
         bankLoanId = bankLoanId,
         tracked = tracked,
-        accountId = TrackedLedgerHelper.normalizeAccountId(tracked, accountId)
+        accountId = normalizedAccountId
       ),
       recordInitial = recordInitial && tracked && isPaid
     )

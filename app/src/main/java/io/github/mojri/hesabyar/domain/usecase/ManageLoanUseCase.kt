@@ -4,6 +4,8 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
+import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import kotlinx.coroutines.flow.Flow
 
 class ManageLoanUseCase(
@@ -16,18 +18,22 @@ class ManageLoanUseCase(
     type: LoanType,
     amount: Long,
     description: String,
-    customDate: Long? = null
-  ): Long =
-    repository.insertLoan(
+    customDate: Long? = null,
+    personId: Long? = null
+  ): Long {
+    val resolvedPersonId = resolvePersonId(personName, personId)
+    return repository.insertLoan(
       Loan(
         personName = personName,
         type = type,
         originalAmount = amount,
         remainingAmount = amount,
         description = description,
-        date = customDate ?: System.currentTimeMillis()
+        date = customDate ?: System.currentTimeMillis(),
+        personId = resolvedPersonId
       )
     )
+  }
 
   /**
    * Phase 2 atomic create: the loan row and its optional initial-leg
@@ -44,10 +50,12 @@ class ManageLoanUseCase(
     tracked: Boolean,
     accountId: Long? = null,
     recordInitial: Boolean = true,
-    customDate: Long? = null
+    customDate: Long? = null,
+    personId: Long? = null
   ): Long {
     io.github.mojri.hesabyar.data.TrackedLedgerHelper
       .validateTrackedAccount(tracked, accountId)
+    val resolvedPersonId = resolvePersonId(personName, personId)
     return repository.insertLoanWithInitial(
       Loan(
         personName = personName,
@@ -57,10 +65,25 @@ class ManageLoanUseCase(
         description = description,
         date = customDate ?: System.currentTimeMillis(),
         tracked = tracked,
-        accountId = accountId
+        accountId = accountId,
+        personId = resolvedPersonId
       ),
       recordInitial = recordInitial && tracked
     )
+  }
+
+  private suspend fun resolvePersonId(
+    personName: String,
+    explicitPersonId: Long?
+  ): Long? {
+    if (explicitPersonId != null) return explicitPersonId
+    val display = PersonNameNormalizer.displayForm(personName)
+    val key = PersonNameNormalizer.normalize(display)
+    return if (key.isNotEmpty()) {
+      repository.upsertPerson(Person(name = display, normalizedName = key)).id
+    } else {
+      null
+    }
   }
 
   suspend fun makeRepayment(

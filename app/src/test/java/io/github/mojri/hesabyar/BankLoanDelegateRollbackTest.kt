@@ -12,6 +12,8 @@ import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.InstallmentDao
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -209,5 +211,60 @@ class BankLoanDelegateRollbackTest {
         database.installmentDao().getAllInstallmentsBlocking().size
       )
       assertTrue(loanId > 0)
+    }
+
+  @Test
+  fun deleteBankLoanWithInitialDisbursementDoesNotDeleteMatchingPersonalLoanTransaction() =
+    runTest {
+      val repo = createRepository()
+      repo.insertCategory(
+        Category(
+          name = "Loans",
+          key = "Loans",
+          icon = "HistoryEdu",
+          color = 1,
+          type = CategoryType.BOTH
+        )
+      )
+      val sharedDate = 1_700_000_000_000L
+      val sharedAmount = 50_000_000L
+
+      repo.insertLoanWithInitial(
+        Loan(
+          personName = "Ali",
+          type = LoanType.CREDITOR,
+          originalAmount = sharedAmount,
+          remainingAmount = sharedAmount,
+          description = "personal loan",
+          date = sharedDate,
+          tracked = true,
+          accountId = DEFAULT_ACCOUNT_ID
+        ),
+        recordInitial = true
+      )
+
+      val bankLoan =
+        testBankLoan().copy(
+          receivedAmount = sharedAmount,
+          startDate = sharedDate,
+          tracked = true,
+          accountId = DEFAULT_ACCOUNT_ID
+        )
+      repo.addBankLoanWithInstallmentsAndInitial(
+        bankLoan,
+        listOf(installment()),
+        recordInitial = true
+      )
+
+      val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(2, allTxBefore.size)
+
+      val storedBankLoan = database.bankLoanDao().getAllBankLoansBlocking().single()
+      repo.deleteBankLoan(storedBankLoan)
+
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, allTxAfter.size)
+      assertEquals("Ali", allTxAfter.single().personName)
+      assertEquals(sharedAmount, allTxAfter.single().amount)
     }
 }
