@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
   private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
   private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
+  private val _allCategories = MutableStateFlow<List<Category>>(emptyList())
   val accountsList = mutableListOf<AccountEntity>()
 
   // --- Failure simulation (used by AccountViewModelTest error-path tests) ---
@@ -47,7 +49,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
   override val allLoans: Flow<List<Loan>> = _allLoans.asStateFlow()
   override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
-  override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+  override val allCategories: Flow<List<Category>> = _allCategories.asStateFlow()
   override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
   override val allAccounts: Flow<List<AccountEntity>> = _allAccounts.asStateFlow()
 
@@ -58,15 +60,28 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
 
-  override suspend fun getCategoryById(id: Long): Category? = null
+  override suspend fun getCategoryById(id: Long): Category? = _allCategories.value.firstOrNull { it.id == id }
 
-  override suspend fun getCategoryByKey(key: String): Category? = null
+  override suspend fun getCategoryByKey(key: String): Category? = _allCategories.value.firstOrNull { it.key == key }
 
-  override suspend fun insertCategory(category: Category): Long = 0L
+  override suspend fun insertCategory(category: Category): Long {
+    val id = if (category.id != 0L) category.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    _allCategories.value = _allCategories.value + category.copy(id = id)
+    return id
+  }
 
-  override suspend fun updateCategory(category: Category) {}
+  override suspend fun updateCategory(category: Category) {
+    val current = _allCategories.value
+    val idx = current.indexOfFirst { it.id == category.id }
+    if (idx >= 0) {
+      _allCategories.value = current.toMutableList().also { it[idx] = category }
+    }
+  }
 
-  override suspend fun deleteCategory(category: Category) {}
+  override suspend fun deleteCategory(category: Category) {
+    _allCategories.value = _allCategories.value.filter { it.id != category.id }
+  }
 
   override suspend fun insertTransaction(transaction: Transaction): Long {
     val id = if (transaction.id != 0L) transaction.id else nextId++
@@ -98,6 +113,8 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   ): Long {
     val id = insertLoan(loan)
     if (recordInitial && loan.tracked) {
+      val loansCategory =
+        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
       // Mirror LoanDelegate.insertLoanWithInitial: CREDITOR (I owe) receives
       // the money → INCOME; DEBTOR (owed to me) lends it out → EXPENSE.
       insertTransaction(
@@ -108,9 +125,9 @@ internal class FakeRepository : HesabyarRepositoryInterface {
             } else {
               io.github.mojri.hesabyar.data.TransactionType.EXPENSE
             },
-          categoryId = 0L,
+          categoryId = loansCategory?.id ?: 0L,
           amount = loan.originalAmount,
-          description = "initial",
+          description = loan.description.ifBlank { loan.personName },
           date = loan.date,
           accountId = loan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
         )
@@ -148,7 +165,24 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun insertInstallmentWithInitial(
     installment: Installment,
     recordInitial: Boolean
-  ): Long = insertInstallment(installment)
+  ): Long {
+    val id = insertInstallment(installment)
+    if (recordInitial && installment.tracked && installment.isPaid) {
+      val loansCategory =
+        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+      insertTransaction(
+        Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.EXPENSE,
+          categoryId = loansCategory?.id ?: 0L,
+          amount = installment.amount,
+          description = installment.title,
+          date = installment.dueDate,
+          accountId = installment.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+        )
+      )
+    }
+    return id
+  }
 
   override suspend fun updateInstallment(installment: Installment) {
     val idx = installments.indexOfFirst { it.id == installment.id }

@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar
 
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.api.LocalBudgetAdvice
 import io.github.mojri.hesabyar.api.LocalBudgetMetrics
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
@@ -316,5 +317,52 @@ class BudgetAdvisorFallbackTest {
     val result = LocalBudgetMetrics.monthlyIncomeBaseline(txs, nowMs)
     val expected = Long.MAX_VALUE / 2
     assertEquals("Kotlin must saturate sum like Rust's saturating_add", expected, result)
+  }
+
+  @Test
+  fun debtToIncomeRatioOverflowingObligationsWithZeroIncomeYieldsCappedRatio() {
+    val largeInstallment =
+      Installment(
+        id = 1L,
+        title = "inst",
+        amount = Long.MAX_VALUE,
+        dueDate = System.currentTimeMillis(),
+        isPaid = false
+      )
+    val largeCreditorLoan =
+      Loan(
+        personName = "creditor",
+        type = LoanType.CREDITOR,
+        originalAmount = Long.MAX_VALUE,
+        remainingAmount = Long.MAX_VALUE,
+        description = "loan",
+        isSettled = false
+      )
+
+    val ratio =
+      LocalBudgetMetrics.debtToIncomeRatio(
+        loans = listOf(largeCreditorLoan),
+        installments = listOf(largeInstallment),
+        monthlyIncome = 0L
+      )
+    assertEquals(
+      "When debt obligations overflow Long.MAX_VALUE, zero income must still return capped ratio 1.0",
+      1.0,
+      ratio,
+      1e-10
+    )
+  }
+
+  @Test
+  fun summarizeOverflowingTransactionsSaturatesIncomeAndExpense() {
+    val tx1 = createTransaction(TransactionType.INCOME, Long.MAX_VALUE)
+    val tx2 = createTransaction(TransactionType.INCOME, 100L)
+    val tx3 = createTransaction(TransactionType.EXPENSE, Long.MAX_VALUE)
+    val tx4 = createTransaction(TransactionType.EXPENSE, 200L)
+
+    val summary = LocalBudgetAdvice.summarize(listOf(tx1, tx2, tx3, tx4))
+    assertEquals("Income sum must clamp to Long.MAX_VALUE on overflow", Long.MAX_VALUE, summary.income)
+    assertEquals("Expense sum must clamp to Long.MAX_VALUE on overflow", Long.MAX_VALUE, summary.expense)
+    assertEquals("Saturated balance must be 0", 0L, summary.balance)
   }
 }

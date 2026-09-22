@@ -74,12 +74,31 @@ fn bench_budget_advice(c: &mut Criterion) {
         })
         .collect();
 
+    let excluded_cat_ids = vec![1, 3];
+
     c.bench_function("offline_budget_advice_100tx", |b| {
         b.iter(|| get_offline_budget_advice(&transactions, &categories, &[]))
     });
 
+    c.bench_function("offline_budget_advice_100tx_filtered", |b| {
+        b.iter(|| get_offline_budget_advice(&transactions, &categories, &excluded_cat_ids))
+    });
+
     c.bench_function("financial_health_score_100tx", |b| {
         b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories, &[]))
+    });
+
+    c.bench_function("financial_health_score_100tx_filtered", |b| {
+        b.iter(|| {
+            calculate_financial_health_score(
+                &transactions,
+                &[],
+                &[],
+                &[],
+                &categories,
+                &excluded_cat_ids,
+            )
+        })
     });
 }
 

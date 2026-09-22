@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.api
 
+import io.github.mojri.hesabyar.core.MathUtils
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
@@ -17,7 +18,7 @@ internal data class LocalTxSummary(
   val income: Long,
   val expense: Long
 ) {
-  val balance: Long get() = income - expense
+  val balance: Long get() = MathUtils.saturatingSub(income, expense)
 }
 
 internal object LocalBudgetAdvice {
@@ -34,18 +35,17 @@ internal object LocalBudgetAdvice {
     transactions: List<Transaction>,
     excludedCategoryIds: List<Long> = emptyList()
   ): LocalTxSummary {
-    val income =
-      transactions
-        .filter {
-          it.type == TransactionType.INCOME &&
-            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
-        }.sumOf { it.amount }
-    val expense =
-      transactions
-        .filter {
-          it.type == TransactionType.EXPENSE &&
-            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
-        }.sumOf { it.amount }
+    var income = 0L
+    var expense = 0L
+    for (tx in transactions) {
+      if (!LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)) {
+        when (tx.type) {
+          TransactionType.INCOME -> income = MathUtils.saturatingAdd(income, tx.amount)
+          TransactionType.EXPENSE -> expense = MathUtils.saturatingAdd(expense, tx.amount)
+          else -> Unit
+        }
+      }
+    }
     return LocalTxSummary(income, expense)
   }
 
@@ -55,15 +55,15 @@ internal object LocalBudgetAdvice {
     categories: List<Category>,
     excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val categoriesGroup =
-      transactions
-        .filter {
-          it.type == TransactionType.EXPENSE &&
-            !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds)
-        }.groupBy { it.categoryId }
-        .mapValues { it.value.sumOf { tx -> tx.amount } }
+    val categoryTotals = LinkedHashMap<Long, Long>()
+    for (tx in transactions) {
+      if (tx.type == TransactionType.EXPENSE && !LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)) {
+        val current = categoryTotals[tx.categoryId] ?: 0L
+        categoryTotals[tx.categoryId] = MathUtils.saturatingAdd(current, tx.amount)
+      }
+    }
 
-    return categoriesGroup.entries.joinToString("\n") { (catId, sum) ->
+    return categoryTotals.entries.joinToString("\n") { (catId, sum) ->
       val cat = categories.find { it.id == catId }
       "- ${cat?.name ?: UNCATEGORIZED_LABEL}: ${formatAmount(sum)}"
     }

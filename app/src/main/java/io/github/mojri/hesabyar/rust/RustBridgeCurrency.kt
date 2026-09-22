@@ -22,6 +22,6 @@ internal interface RustBridgeCurrency : RustBridgeCore {
     unit: CurrencyUnit
   ): Long = rustCallSync(0L) { HesabyarCore.fromRial(rial, unit) }
 
-  /** Formats a number with Persian digits and grouping. Empty string on failure. */
+  /** Formats a number with Western digits and grouping. Empty string on failure. */
   fun formatNumberSync(value: Long): String = rustCallSync("") { HesabyarCore.formatNumber(value) }
 }

@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.rust
 
-import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.HesabyarApp
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.ui.JalaliNativeBridge
@@ -47,7 +46,6 @@ internal object RustBridge :
   override val isAvailable: Boolean get() = available
 
   @Suppress("Detekt.ThrowsCount", "TooGenericExceptionCaught")
-  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
   override fun <T> rustCallSync(
     fallback: T,
     block: () -> T

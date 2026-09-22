@@ -100,10 +100,16 @@ internal class BackupDelegate(
         sourcePersonId: Long?,
         fallbackName: String?
       ): Long? = resolvePersonId(sourcePersonId, fallbackName, personMaps)
-      val loanIdMap = backupMergeLoans(backup.loans, loanDao, ::resolveForMerge)
-      val bankLoanIdMap = backupMergeBankLoans(backup.bankLoans, bankLoanDao)
-      val installmentIdMap = backupMergeInstallments(backup.installments, installmentDao, bankLoanIdMap)
       val accountIdMap = backupMergeAccounts(backup.accounts, accountDao)
+      val loanIdMap = backupMergeLoans(backup.loans, loanDao, accountIdMap, ::resolveForMerge)
+      val bankLoanIdMap = backupMergeBankLoans(backup.bankLoans, bankLoanDao, accountIdMap)
+      val installmentIdMap =
+        backupMergeInstallments(
+          backup.installments,
+          installmentDao,
+          bankLoanIdMap,
+          accountIdMap
+        )
       backupMergeTransactions(
         backup.transactions,
         categoryIdMap,

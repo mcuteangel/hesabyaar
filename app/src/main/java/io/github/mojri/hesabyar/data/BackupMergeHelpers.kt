@@ -31,25 +31,47 @@ internal suspend fun backupMergeCategories(
 internal suspend fun backupMergeLoans(
   loans: List<Loan>,
   loanDao: LoanDao,
+  accountIdMap: Map<Long, Long> = emptyMap(),
   resolvePersonId: (Long?, String?) -> Long?
 ): Map<Long, Long> =
   loans.associate { loan ->
     val mappedPersonId = resolvePersonId(loan.personId, loan.personName)
-    loan.id to loanDao.insertLoan(normalizeLoanForRestore(loan.copy(id = 0, personId = mappedPersonId)))
+    val mappedAccountId = loan.accountId?.let { accountIdMap[it] ?: it }
+    loan.id to
+      loanDao.insertLoan(
+        normalizeLoanForRestore(
+          loan.copy(
+            id = 0,
+            personId = mappedPersonId,
+            accountId = mappedAccountId
+          )
+        )
+      )
   }
 
 internal suspend fun backupMergeBankLoans(
   bankLoans: List<BankLoan>,
-  bankLoanDao: BankLoanDao
+  bankLoanDao: BankLoanDao,
+  accountIdMap: Map<Long, Long> = emptyMap()
 ): Map<Long, Long> =
   bankLoans.associate {
-    it.id to bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it.copy(id = 0)))
+    val mappedAccountId = it.accountId?.let { id -> accountIdMap[id] ?: id }
+    it.id to
+      bankLoanDao.insertBankLoan(
+        normalizeBankLoanForRestore(
+          it.copy(
+            id = 0,
+            accountId = mappedAccountId
+          )
+        )
+      )
   }
 
 internal suspend fun backupMergeInstallments(
   installments: List<Installment>,
   installmentDao: InstallmentDao,
-  bankLoanIdMap: Map<Long, Long>
+  bankLoanIdMap: Map<Long, Long>,
+  accountIdMap: Map<Long, Long> = emptyMap()
 ): Map<Long, Long> {
   val idMap = mutableMapOf<Long, Long>()
   for (installment in installments) {
@@ -66,7 +88,8 @@ internal suspend fun backupMergeInstallments(
       )
       continue
     }
-    val candidate = installment.copy(id = 0, bankLoanId = mappedBankLoanId)
+    val mappedAccountId = installment.accountId?.let { accountIdMap[it] ?: it }
+    val candidate = installment.copy(id = 0, bankLoanId = mappedBankLoanId, accountId = mappedAccountId)
     val newId = installmentDao.insertInstallment(normalizeInstallmentForRestore(candidate))
     idMap[installment.id] = newId
   }

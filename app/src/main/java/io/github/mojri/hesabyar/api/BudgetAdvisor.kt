@@ -69,13 +69,15 @@ object BudgetAdvisor {
     categories: List<Category>,
     excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val rustResult =
-      RustBridge.getOfflineBudgetAdviceSync(
-        RustMappers.mapTransactions(transactions),
-        RustMappers.mapCategories(categories),
-        excludedCategoryIds
-      )
-    if (rustResult.isNotEmpty()) return rustResult
+    if (RustBridge.isAvailable) {
+      val rustResult =
+        RustBridge.getOfflineBudgetAdviceSync(
+          RustMappers.mapTransactions(transactions),
+          RustMappers.mapCategories(categories),
+          excludedCategoryIds
+        )
+      if (rustResult.isNotEmpty()) return rustResult
+    }
 
     // Rust unavailable: serve a local, data-driven fallback instead of a false empty-state.
     return LocalBudgetAdvice.offlineAdvice(transactions, categories, excludedCategoryIds)
@@ -174,15 +176,17 @@ object BudgetAdvisor {
     bankLoans: List<BankLoan> = emptyList(),
     excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val rustResult =
-      RustBridge.getOfflineForecastSync(
-        RustMappers.mapTransactions(transactions),
-        RustMappers.mapLoans(loans),
-        RustMappers.mapInstallments(installments),
-        bankLoans,
-        excludedCategoryIds
-      )
-    if (rustResult.isNotEmpty()) return rustResult
+    if (RustBridge.isAvailable) {
+      val rustResult =
+        RustBridge.getOfflineForecastSync(
+          RustMappers.mapTransactions(transactions),
+          RustMappers.mapLoans(loans),
+          RustMappers.mapInstallments(installments),
+          bankLoans,
+          excludedCategoryIds
+        )
+      if (rustResult.isNotEmpty()) return rustResult
+    }
 
     // Rust unavailable: serve a baseline forecast from local data instead of a false "insufficient data" message.
     return LocalBudgetForecast.forecast(transactions, loans, installments, bankLoans, excludedCategoryIds)

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.api
 
+import io.github.mojri.hesabyar.core.MathUtils
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -56,9 +57,17 @@ internal object LocalBudgetMetrics {
     installments: List<Installment>,
     monthlyIncome: Long
   ): Double {
-    val monthlyDebtPayments =
-      installments.filter { !it.isPaid }.sumOf { it.amount } +
-        loans.filter { !it.isSettled && it.type == LoanType.CREDITOR }.sumOf { it.remainingAmount / MONTHS_PER_YEAR }
+    val unpaidInstallmentsSum =
+      installments
+        .filter { !it.isPaid }
+        .fold(0L) { acc, inst -> MathUtils.saturatingAdd(acc, inst.amount) }
+    val unpaidCreditorLoansSum =
+      loans
+        .filter { !it.isSettled && it.type == LoanType.CREDITOR }
+        .fold(0L) { acc, loan ->
+          MathUtils.saturatingAdd(acc, loan.remainingAmount / MONTHS_PER_YEAR)
+        }
+    val monthlyDebtPayments = MathUtils.saturatingAdd(unpaidInstallmentsSum, unpaidCreditorLoansSum)
     return when {
       monthlyIncome <= 0 && monthlyDebtPayments > 0 -> MAX_DEBT_TO_INCOME_RATIO
       monthlyIncome <= 0 -> 0.0
@@ -106,9 +115,16 @@ internal object LocalBudgetMetrics {
     // Plan 011 D2 parity with Rust: no included transactions means no data to
     // score, not a zero-budget snapshot of raw rows that are all excluded.
     if (filteredTransactions.isEmpty()) return SCORE_MIN
-    val totalIncome = filteredTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-    val totalExpense = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-    val balance = totalIncome - totalExpense
+    var totalIncome = 0L
+    var totalExpense = 0L
+    for (tx in filteredTransactions) {
+      when (tx.type) {
+        TransactionType.INCOME -> totalIncome = MathUtils.saturatingAdd(totalIncome, tx.amount)
+        TransactionType.EXPENSE -> totalExpense = MathUtils.saturatingAdd(totalExpense, tx.amount)
+        else -> Unit
+      }
+    }
+    val balance = MathUtils.saturatingSub(totalIncome, totalExpense)
 
     val debtRatio =
       BudgetAdvisor.calculateDebtToIncomeRatio(

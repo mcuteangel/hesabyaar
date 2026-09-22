@@ -1897,4 +1897,159 @@ mod tests {
         // Lifetime balance is preserved
         assert_eq!(filtered.current_balance, 1_000_000);
     }
+
+    #[test]
+    fn test_compute_dashboard_data_transfer_category_exclusion_when_account_selected() {
+        let now_ms = now_jalali_month_ms();
+        let loan_cat_id = 999;
+        let regular_cat_id = 10;
+
+        let accounts = vec![
+            account(1, "Account 1", "BANK"),
+            account(2, "Account 2", "CASH_WALLET"),
+        ];
+
+        let txs = vec![
+            // Transfer 1 under loan category: 500,000 from Acc 1 to Acc 2
+            Transaction {
+                id: 1,
+                tx_type: TransactionType::Transfer,
+                category_id: loan_cat_id,
+                amount: 500_000,
+                description: "Loan payment transfer".to_string(),
+                person_name: None,
+                person_id: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2),
+            },
+            // Transfer 2 under regular category: 300,000 from Acc 1 to Acc 2
+            Transaction {
+                id: 2,
+                tx_type: TransactionType::Transfer,
+                category_id: regular_cat_id,
+                amount: 300_000,
+                description: "Regular transfer".to_string(),
+                person_name: None,
+                person_id: None,
+                date: now_ms,
+                due_date: None,
+                installment_id: None,
+                account_id: 1,
+                destination_account_id: Some(2),
+            },
+        ];
+
+        // 1. With excluded_category_ids = &[loan_cat_id]:
+        // When Account 1 is selected: only regular transfer (300k) counts as monthly expense;
+        // loan transfer is excluded from monthly KPI expense.
+        let source_filtered = compute_dashboard_data(
+            &txs,
+            &[],
+            &[],
+            &[],
+            &accounts,
+            Some(1),
+            true,
+            now_ms,
+            &[loan_cat_id],
+        );
+        assert_eq!(source_filtered.monthly_expenses, 300_000);
+        assert_eq!(source_filtered.monthly_income, 0);
+        // Lifetime balance reflects all transactions (-500k -300k = -800k)
+        assert_eq!(source_filtered.current_balance, -800_000);
+
+        // When Account 2 is selected: only regular transfer (300k) counts as monthly income.
+        let dest_filtered = compute_dashboard_data(
+            &txs,
+            &[],
+            &[],
+            &[],
+            &accounts,
+            Some(2),
+            true,
+            now_ms,
+            &[loan_cat_id],
+        );
+        assert_eq!(dest_filtered.monthly_income, 300_000);
+        assert_eq!(dest_filtered.monthly_expenses, 0);
+        assert_eq!(dest_filtered.current_balance, 800_000);
+
+        // 2. Unfiltered baseline (&[]): both transfers count toward monthly KPIs
+        let source_unfiltered =
+            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
+        assert_eq!(source_unfiltered.monthly_expenses, 800_000);
+        assert_eq!(source_unfiltered.monthly_income, 0);
+
+        let dest_unfiltered =
+            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
+        assert_eq!(dest_unfiltered.monthly_income, 800_000);
+        assert_eq!(dest_unfiltered.monthly_expenses, 0);
+    }
+
+    #[test]
+    fn test_compute_dashboard_data_previous_month_category_exclusion_monthly_delta() {
+        let now_ms = now_jalali_month_ms();
+        let prev_ms = {
+            let jd = gregorian_to_jalali(now_ms).unwrap();
+            let (pjy, pjm) = if jd.month == 1 {
+                (jd.year - 1, 12)
+            } else {
+                (jd.year, jd.month - 1)
+            };
+            jalali_month_mid_ms(pjy, pjm)
+        };
+
+        let loan_cat_id = 999;
+        let salary_cat_id = 20;
+        let accounts = vec![account(1, "Main", "BANK")];
+
+        let txs = vec![
+            // Current month: income = 1,000,000 (net = +1M)
+            tx(1, TransactionType::Income, 1_000_000, now_ms, salary_cat_id),
+            // Previous month: regular income = 500,000
+            tx(2, TransactionType::Income, 500_000, prev_ms, salary_cat_id),
+            // Previous month: loan income = 500,000 under loan_cat_id
+            tx(3, TransactionType::Income, 500_000, prev_ms, loan_cat_id),
+        ];
+
+        // 1. With excluded_category_ids = &[loan_cat_id]:
+        // Previous month excluded income (500k) is ignored -> prev_income = 500,000, prev_net = 500,000.
+        // current_net = 1,000,000.
+        // monthly_delta = (1,000,000 - 500,000) / 500,000 = +1.0 (+100%)
+        let filtered = compute_dashboard_data(
+            &txs,
+            &[],
+            &[],
+            &[],
+            &accounts,
+            None,
+            true,
+            now_ms,
+            &[loan_cat_id],
+        );
+        let acc = filtered
+            .accounts
+            .iter()
+            .find(|a| a.account_id == 1)
+            .unwrap();
+        assert_eq!(acc.monthly_income, 1_000_000);
+        assert!((acc.monthly_delta - 1.0).abs() < 1e-10);
+
+        // 2. Unfiltered baseline (&[]):
+        // prev_income = 1,000,000, prev_net = 1,000,000.
+        // current_net = 1,000,000.
+        // monthly_delta = (1,000,000 - 1,000,000) / 1,000,000 = 0.0
+        let unfiltered =
+            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let acc_unfiltered = unfiltered
+            .accounts
+            .iter()
+            .find(|a| a.account_id == 1)
+            .unwrap();
+        assert_eq!(acc_unfiltered.monthly_income, 1_000_000);
+        assert_eq!(acc_unfiltered.monthly_delta, 0.0);
+    }
 }

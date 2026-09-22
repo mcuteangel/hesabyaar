@@ -358,30 +358,30 @@ internal object AnalyticsFallback {
     transactions: List<Transaction>,
     accountId: Long?,
   ): MonthlyTotals {
-    val transferExpense =
-      if (accountId != null) {
-        transactions
-          .filter { it.type == TransactionType.TRANSFER && it.accountId == accountId }
-          .sumOf { it.amount }
-      } else {
-        0L
+    var regularIncome = 0L
+    var breakdownExpense = 0L
+    var transferIncome = 0L
+    var transferExpense = 0L
+
+    for (tx in transactions) {
+      when (tx.type) {
+        TransactionType.INCOME -> regularIncome += tx.amount
+        TransactionType.EXPENSE -> breakdownExpense += tx.amount
+        TransactionType.TRANSFER -> {
+          if (accountId != null) {
+            if (tx.accountId == accountId) {
+              transferExpense += tx.amount
+            }
+            if (tx.destinationAccountId == accountId) {
+              transferIncome += tx.amount
+            }
+          }
+        }
+        else -> Unit
       }
-    val transferIncome =
-      if (accountId != null) {
-        transactions
-          .filter { it.type == TransactionType.TRANSFER && it.destinationAccountId == accountId }
-          .sumOf { it.amount }
-      } else {
-        0L
-      }
-    val income =
-      transactions
-        .filter { it.type == TransactionType.INCOME }
-        .sumOf { it.amount } + transferIncome
-    val breakdownExpense =
-      transactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .sumOf { it.amount }
+    }
+
+    val income = regularIncome + transferIncome
     val expense = breakdownExpense + transferExpense
     return MonthlyTotals(income, expense, breakdownExpense)
   }

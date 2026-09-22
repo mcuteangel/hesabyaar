@@ -27,5 +27,9 @@ internal interface RustBridgeBackup : RustBridgeCore {
   ): Boolean = rustCallSync(false) { HesabyarCore.verifyChecksum(data, expected) }
 
   /** Builds an XLSX workbook. Null when Rust is unavailable. */
-  fun generateExcel(workbook: WorkbookData): ByteArray? = rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
+  fun generateExcelSync(workbook: WorkbookData): ByteArray? =
+    rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
+
+  /** Builds an XLSX workbook. Kept for backwards compatibility; prefer [generateExcelSync]. */
+  fun generateExcel(workbook: WorkbookData): ByteArray? = generateExcelSync(workbook)
 }

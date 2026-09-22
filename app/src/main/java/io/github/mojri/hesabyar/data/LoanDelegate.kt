@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.flow.Flow
 
 internal class LoanDelegate(
@@ -31,7 +32,7 @@ internal class LoanDelegate(
       val loanId = loanDao.insertLoan(normalizedLoan)
       if (recordInitial && normalizedLoan.tracked) {
         val loansCategory =
-          categoryDao.getCategoryByKey("Loans")
+          categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)
             ?: throw IllegalStateException(
               "Loans category is missing; cannot record the initial loan transaction"
             )
@@ -81,13 +82,13 @@ internal class LoanDelegate(
       // history, or reports keep counting money for a loan that no longer
       // exists. Each generated row is identified by the same fields the
       // creator used: personName, Loans category, amount and date.
-      val loansCategoryId = categoryDao.getCategoryByKey("Loans")?.id
+      val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
       if (loansCategoryId != null) {
         paymentHistoryDao
           .getPaymentHistoriesForLoanSync(loan.id)
           .forEach { payment ->
             transactionLinkDao.deleteLoanPaymentTransaction(
-              personName = loan.personName,
+              personName = existing.personName,
               categoryId = loansCategoryId,
               amount = payment.amount,
               date = payment.date
@@ -99,7 +100,7 @@ internal class LoanDelegate(
         // behind a dead loan. Untracked loans never posted one (a no-op here).
         if (existing.tracked) {
           transactionLinkDao.deleteLoanPaymentTransaction(
-            personName = loan.personName,
+            personName = existing.personName,
             categoryId = loansCategoryId,
             amount = existing.originalAmount,
             date = existing.date

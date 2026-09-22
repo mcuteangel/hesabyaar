@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -99,7 +100,7 @@ internal class BankLoanDelegate(
       }
       if (recordInitial && normalizedBankLoan.tracked) {
         val loansCategory =
-          categoryDao.getCategoryByKey("Loans")
+          categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)
             ?: throw IllegalStateException(
               "Loans category is missing; cannot record the bank loan disbursement transaction"
             )
