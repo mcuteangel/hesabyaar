@@ -1,0 +1,88 @@
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_0c8597e9ce763e::t_ce5d18c47c0e8a 55,66,71,77-96
+  s_0c8597e9ce763e::t_4e787aab935c62 58-65,67-70,72-76
+  s_0c8597e9ce763e::t_7b00d6711c4235 20-27,30-35
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_0c8597e9ce763e::t_9701c5bdfa4e41 149-164
+  s_bf2a39948d9fab::t_a4752751f6247d 87-94,96,102-116
+app/src/test/java/io/github/mojri/hesabyar/rust/RustBridgeTest.kt
+  s_bf2a39948d9fab::t_2407b9af50fd67 294
+app/src/main/java/io/github/mojri/hesabyar/ui/JalaliCalendarHelper.kt
+  s_bf2a39948d9fab::t_de4b9513d8ceef 248,253,257,262
+  s_bf2a39948d9fab::t_b65a05b63302ee 3
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetForecast.kt
+  s_bf2a39948d9fab::t_6dab991a0f41dc 38
+  s_bf2a39948d9fab::t_39fa04605c58ab 42,45,60-96,100,102
+  s_bf2a39948d9fab::t_4bc44acb2022c9 3
+  s_0c8597e9ce763e::t_d56b846ff43cb3 55-59
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_0c8597e9ce763e::t_93550b14229730 131-135,140-141
+app/src/main/java/io/github/mojri/hesabyar/reminder/MarkPaidReceiver.kt
+  s_0c8597e9ce763e::t_0f899023d571a5 26,54
+  s_0c8597e9ce763e::t_a79493ed8f25a2 53,55-58
+  s_0c8597e9ce763e::t_20366fce235535 7
+app/src/test/java/io/github/mojri/hesabyar/LoanTrackedRepaymentTest.kt
+  s_0c8597e9ce763e::t_119aa31aa8f04f 332-367
+app/src/test/java/io/github/mojri/hesabyar/ui/DashboardViewModelCategoryExclusionTest.kt
+  s_bf2a39948d9fab::t_00327fc77c621d 163,227
+  s_bf2a39948d9fab::t_5261151a497d48 85,90-117,159-162,172,221-226
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_0c8597e9ce763e::t_252117cfbab2de 114-115,120-124
+  s_bf2a39948d9fab::t_832d93c91277d2 117-119,135
+  s_0c8597e9ce763e::t_9f869c0b77c181 176-177,180-182,184,192-193
+  s_0c8597e9ce763e::t_c4819537617116 259-283
+  s_bf2a39948d9fab::t_720538c252d406 178-179,188
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgeCore.kt
+  s_0c8597e9ce763e::t_a0ec94460eaaba 3-4
+  s_0c8597e9ce763e::t_dc9061ee483c34 31-42
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetAdvice.kt
+  s_0c8597e9ce763e::t_034f48717e52b2 27
+  s_0c8597e9ce763e::t_a0c57054791800 110-111
+  s_0c8597e9ce763e::t_21e6bc04ea2260 25-26
+  s_0c8597e9ce763e::t_2e2a0cb1ed2b0d 66,68
+  s_0c8597e9ce763e::t_fc3c97a2f9acef 112
+app/src/test/java/io/github/mojri/hesabyar/core/MathUtilsTest.kt
+  s_bf2a39948d9fab::t_81b7bbdd627923 76-84
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCaseTest.kt
+  s_bf2a39948d9fab::t_6b7cfaf29440a1 132-153
+  s_bf2a39948d9fab::t_57105f06997133 92-93
+  s_bf2a39948d9fab::t_19cd049c499abb 3-4,8,15,21-36
+app/src/test/java/io/github/mojri/hesabyar/BudgetAdvisorFallbackCategoryExclusionTest.kt
+  s_0c8597e9ce763e::t_6f23714f6d2a18 27-28,32,35-40
+  s_0c8597e9ce763e::t_02b616476c67fd 11-12,14
+rust/hesabyar-core/src/advisory/budget.rs
+  s_bf2a39948d9fab::t_ba179c80fdd330 17-18,29-30
+  s_bf2a39948d9fab::t_9e2a4b4682e38e 55-56
+  s_bf2a39948d9fab::t_834da1ad08dcc1 450-458,460,462-470,472,474-496
+  s_bf2a39948d9fab::t_3df67f068cea05 459,461,471,473
+  s_bf2a39948d9fab::t_3d794d2972437e 261,264-269
+app/src/test/java/io/github/mojri/hesabyar/ui/AnalyticsViewModelCategoryExclusionTest.kt
+  s_bf2a39948d9fab::t_f8e0a5df8a3dda 89
+  s_bf2a39948d9fab::t_7f762fed48618c 174
+rust/hesabyar-core/src/dashboard.rs
+  s_bf2a39948d9fab::t_6e44553de1b620 156,161,172,175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "68efd552aa1988b05e16e2f651baeb18df00eff8",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    },
+    "s_bf2a39948d9fab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08a850c8-6bd7-4081-9899-a53caedc3660",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
