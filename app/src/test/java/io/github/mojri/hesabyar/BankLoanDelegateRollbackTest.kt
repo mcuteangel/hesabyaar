@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.BankLoan
+import io.github.mojri.hesabyar.data.BankLoanDelegate
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
@@ -15,6 +16,7 @@ import io.github.mojri.hesabyar.data.InstallmentDao
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionLinkDao
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -107,6 +109,46 @@ class BankLoanDelegateRollbackTest {
       delegate.deleteInstallmentsByBankLoanId(bankLoanId)
     }
   }
+
+  /** Decorator that can force specific transaction link operations to throw. */
+  private class FailingTransactionLinkDao(
+    private val delegate: TransactionLinkDao
+  ) : TransactionLinkDao by delegate {
+    var failOnDeleteBankLoanDisbursement = false
+    var failOnDeleteTransactionsForInstallment = false
+
+    override suspend fun deleteBankLoanDisbursementTransaction(
+      categoryId: Long,
+      amount: Long,
+      date: Long,
+      description: String?
+    ): Int {
+      if (failOnDeleteBankLoanDisbursement) {
+        throw IllegalStateException("forced disbursement cleanup failure")
+      }
+      return delegate.deleteBankLoanDisbursementTransaction(categoryId, amount, date, description)
+    }
+
+    override suspend fun deleteTransactionsForInstallment(installmentId: Long) {
+      if (failOnDeleteTransactionsForInstallment) {
+        throw IllegalStateException("forced installment transaction cleanup failure")
+      }
+      delegate.deleteTransactionsForInstallment(installmentId)
+    }
+  }
+
+  private fun createBankLoanDelegate(
+    installmentDao: InstallmentDao = database.installmentDao(),
+    transactionLinkDao: TransactionLinkDao = database.transactionLinkDao()
+  ): BankLoanDelegate =
+    BankLoanDelegate(
+      database.bankLoanDao(),
+      installmentDao,
+      transactionLinkDao,
+      database.transactionDao(),
+      database.categoryDao(),
+      database
+    )
 
   @Test
   fun deleteBankLoanRemovesLinkedExpensesOfPaidInstallments() =
@@ -523,5 +565,137 @@ class BankLoanDelegateRollbackTest {
         survivingTx.description
       )
       assertEquals("surviving transaction amount matches", sharedAmount, survivingTx.amount)
+    }
+
+  private suspend fun seedTrackedBankLoanWithDisbursement(
+    repo: HesabyarRepository,
+    amount: Long = 80_000_000L,
+    date: Long = 1_700_000_000_000L
+  ): BankLoan {
+    repo.insertCategory(
+      Category(name = "Loans", key = "Loans", icon = "HistoryEdu", color = 1, type = CategoryType.BOTH)
+    )
+    val bankLoan =
+      testBankLoan().copy(
+        receivedAmount = amount,
+        startDate = date,
+        tracked = true,
+        accountId = DEFAULT_ACCOUNT_ID
+      )
+    repo.addBankLoanWithInstallmentsAndInitial(
+      bankLoan,
+      listOf(installment(), installment()),
+      recordInitial = true
+    )
+    return database.bankLoanDao().getAllBankLoansBlocking().single()
+  }
+
+  @Test
+  fun deleteBankLoanRollsBackWhenDisbursementTransactionCleanupFails() =
+    runTest {
+      val repo = createRepository()
+      val storedLoan = seedTrackedBankLoanWithDisbursement(repo)
+      assertEquals(
+        "disbursement transaction must be seeded",
+        1,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+      assertEquals(
+        "installments must be seeded",
+        2,
+        database.installmentDao().getAllInstallmentsBlocking().size
+      )
+
+      val failingLinkDao =
+        FailingTransactionLinkDao(database.transactionLinkDao()).apply {
+          failOnDeleteBankLoanDisbursement = true
+        }
+      val failingDelegate = createBankLoanDelegate(transactionLinkDao = failingLinkDao)
+
+      val threw =
+        try {
+          failingDelegate.deleteBankLoan(storedLoan)
+          false
+        } catch (expected: IllegalStateException) {
+          true
+        }
+
+      assertTrue("forced disbursement cleanup failure must propagate", threw)
+      assertEquals(
+        "bank loan must survive the failed cleanup",
+        1,
+        database.bankLoanDao().getAllBankLoansBlocking().size
+      )
+      assertEquals(
+        "installments must survive the failed cleanup",
+        2,
+        database.installmentDao().getAllInstallmentsBlocking().size
+      )
+      assertEquals(
+        "disbursement transaction must survive the failed cleanup",
+        1,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
+
+  @Test
+  fun deleteBankLoanRollsBackWhenPaidInstallmentExpenseCleanupFails() =
+    runTest {
+      val repo = createRepository()
+      repo.insertCategory(
+        Category(
+          name = "Installments",
+          key = "Installments",
+          icon = "CreditCard",
+          color = 1,
+          type = CategoryType.EXPENSE
+        )
+      )
+      val loanId =
+        repo.addBankLoanWithInstallments(
+          testBankLoan(),
+          listOf(installment(), installment())
+        )
+      val stored = database.installmentDao().getInstallmentsByBankLoanIdSync(loanId)
+      repo.updateInstallment(
+        stored.first().copy(isPaid = true, tracked = true, accountId = DEFAULT_ACCOUNT_ID)
+      )
+      assertEquals(
+        "one linked expense transaction must exist",
+        1,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+
+      val failingLinkDao =
+        FailingTransactionLinkDao(database.transactionLinkDao()).apply {
+          failOnDeleteTransactionsForInstallment = true
+        }
+      val failingDelegate = createBankLoanDelegate(transactionLinkDao = failingLinkDao)
+
+      val storedLoan = database.bankLoanDao().getAllBankLoansBlocking().single()
+      val threw =
+        try {
+          failingDelegate.deleteBankLoan(storedLoan)
+          false
+        } catch (expected: IllegalStateException) {
+          true
+        }
+
+      assertTrue("forced installment expense cleanup failure must propagate", threw)
+      assertEquals(
+        "bank loan must survive failed installment expense cleanup",
+        1,
+        database.bankLoanDao().getAllBankLoansBlocking().size
+      )
+      assertEquals(
+        "installments must survive failed installment expense cleanup",
+        2,
+        database.installmentDao().getAllInstallmentsBlocking().size
+      )
+      assertEquals(
+        "linked expense transaction must survive failed installment expense cleanup",
+        1,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
     }
 }
