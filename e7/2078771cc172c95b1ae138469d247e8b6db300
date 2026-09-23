@@ -1,0 +1,33 @@
+app/src/main/java/io/github/mojri/hesabyar/data/TrackedLedgerHelper.kt
+  s_0c8597e9ce763e::t_370a02e2dfb39a 52-61
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgeSearch.kt
+  s_0c8597e9ce763e::t_6701ee01a4956a 3-4,11,16
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_0c8597e9ce763e::t_ea8ebd464b6b84 533
+app/src/main/java/io/github/mojri/hesabyar/data/BankLoanDelegate.kt
+  s_0c8597e9ce763e::t_baa308526b10a2 55,79,82-88,90-91
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_0c8597e9ce763e::t_1d17b5001a26d1 164,180
+  s_0c8597e9ce763e::t_dd171d32a35043 102
+app/src/test/java/io/github/mojri/hesabyar/reminder/MarkPaidReceiverTest.kt
+  s_0c8597e9ce763e::t_ef1a9a18ab5a4b 187-191
+  s_0c8597e9ce763e::t_6a0beb29834c18 103-110,123,143-146,150-152,159-163,166-173,179-180
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_0c8597e9ce763e::t_1ece7d602133b6 142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e72078771cc172c95b1ae138469d247e8b6db300",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
