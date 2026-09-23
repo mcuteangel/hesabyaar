@@ -29,8 +29,6 @@ object MathUtils {
     b: Long
   ): Long {
     if (b == Long.MIN_VALUE) {
-      // a - Long.MIN_VALUE overflows for every a. Rewrite as a + Long.MAX_VALUE,
-      // then add 1 when that did not already saturate (i.e. a was not negative).
       val addMax = saturatingAdd(a, Long.MAX_VALUE)
       return if (addMax == Long.MAX_VALUE) addMax else addMax + 1
     }

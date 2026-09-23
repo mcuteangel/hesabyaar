@@ -533,7 +533,7 @@ abstract class AppDatabase : RoomDatabase() {
     internal fun setDatabaseForTesting(db: AppDatabase?) {
       synchronized(this) {
         val prev = instance
-        if (db != null && prev !== db) {
+        if (prev !== db) {
           if (prev?.isOpen == true) {
             prev.close()
           }
