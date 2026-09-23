@@ -1,0 +1,19 @@
+benchmarks/build.gradle.kts
+  s_0c8597e9ce763e::t_769d76405ee077 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4ca63f96ce6eb1944dd9c4838d5ad7dd85c71d8f",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
