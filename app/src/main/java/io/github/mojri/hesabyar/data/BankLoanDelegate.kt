@@ -52,7 +52,7 @@ internal class BankLoanDelegate(
       // income with no link row to find it by; delete it with the same
       // field-match strategy the creator's fields allow, or it keeps counting
       // in reports behind a dead bank loan. Untracked loans never posted one.
-      if (existing.tracked || bankLoan.tracked) {
+      if (existing.tracked) {
         val loansCategoryId = categoryDao.getCategoryByKey("Loans")?.id
         if (loansCategoryId != null) {
           val descriptions =
@@ -76,16 +76,19 @@ internal class BankLoanDelegate(
             }
           for (amount in amounts) {
             for (date in dates) {
+              var deleted = 0
               if (descriptions.isNotEmpty()) {
                 for (desc in descriptions) {
-                  transactionLinkDao.deleteBankLoanDisbursementTransaction(
-                    categoryId = loansCategoryId,
-                    amount = amount,
-                    date = date,
-                    description = desc
-                  )
+                  deleted +=
+                    transactionLinkDao.deleteBankLoanDisbursementTransaction(
+                      categoryId = loansCategoryId,
+                      amount = amount,
+                      date = date,
+                      description = desc
+                    )
                 }
-              } else {
+              }
+              if (deleted == 0) {
                 transactionLinkDao.deleteBankLoanDisbursementTransaction(
                   categoryId = loansCategoryId,
                   amount = amount,

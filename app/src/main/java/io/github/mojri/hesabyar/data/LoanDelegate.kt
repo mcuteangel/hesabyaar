@@ -99,7 +99,7 @@ internal class LoanDelegate(
               date = payment.date
             )
           }
-          if (existing.tracked || loan.tracked) {
+          if (existing.tracked) {
             transactionLinkDao.deleteLoanPaymentTransaction(
               personName = name,
               categoryId = loansCategoryId,
@@ -161,7 +161,7 @@ internal class LoanDelegate(
       val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
       loanDao.updateLoan(updatedLoan)
       paymentHistoryDao.insertPayment(payment)
-      if (loansCategory != null) {
+      if (loan.tracked && loansCategory != null) {
         val desc =
           if (loan.type == LoanType.CREDITOR) {
             "بازپرداخت بدهی به ${loan.personName} - $notes"
@@ -177,7 +177,7 @@ internal class LoanDelegate(
             personName = loan.personName,
             personId = loan.personId,
             date = date,
-            accountId = TrackedLedgerHelper.resolveAccountId(loan.accountId)
+            accountId = TrackedLedgerHelper.resolveAccountId(loan.tracked, loan.accountId)
           )
         )
       }

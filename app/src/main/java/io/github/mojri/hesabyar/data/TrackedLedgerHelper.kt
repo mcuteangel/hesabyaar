@@ -49,7 +49,16 @@ internal object TrackedLedgerHelper {
    * positive-ID invariant as [validateTrackedAccount] so every posting path is
    * governed by one contract, not just the entry points that normalize first.
    */
-  fun resolveAccountId(accountId: Long?): Long {
+  fun resolveAccountId(accountId: Long?): Long = resolveAccountId(tracked = true, accountId = accountId)
+
+  /**
+   * Overload that verifies the entity is [tracked] before asserting a valid non-null [accountId].
+   */
+  fun resolveAccountId(
+    tracked: Boolean,
+    accountId: Long?
+  ): Long {
+    require(tracked) { "Cannot resolve posting account for untracked entity" }
     require(accountId != null && accountId > 0L) {
       "Cannot resolve posting account: tracked entity requires a valid non-null accountId (> 0)"
     }

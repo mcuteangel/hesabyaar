@@ -100,11 +100,14 @@ class MarkPaidReceiverTest {
     receiver.onReceive(context, intent)
 
     awaitCondition {
-      database
-        .installmentDao()
-        .getAllInstallmentsBlocking()
-        .firstOrNull { it.id == installmentId }
-        ?.isPaid == true
+      val isPaid =
+        database
+          .installmentDao()
+          .getAllInstallmentsBlocking()
+          .firstOrNull { it.id == installmentId }
+          ?.isPaid == true
+      val notificationDismissed = shadowNotificationManager.allNotifications.isEmpty()
+      isPaid && notificationDismissed
     }
 
     val updated = database.installmentDao().getAllInstallmentsBlocking().first { it.id == installmentId }
@@ -117,6 +120,7 @@ class MarkPaidReceiverTest {
     assertEquals(TransactionType.EXPENSE, tx.type)
     assertEquals(1_500_000L, tx.amount)
     assertEquals(installmentId, tx.installmentId)
+    assertEquals(1L, tx.accountId)
   }
 
   @Test
@@ -136,30 +140,54 @@ class MarkPaidReceiverTest {
       )
     )
 
+    val notification = Notification.Builder(context, "test_channel").build()
+    notificationManager.notify(installmentId.toInt(), notification)
+    assertEquals(1, shadowNotificationManager.allNotifications.size)
+
     val intent = MarkPaidReceiver.createIntent(context, installmentId)
     receiver.onReceive(context, intent)
 
-    Thread.sleep(100)
+    awaitCondition {
+      shadowNotificationManager.allNotifications.isEmpty()
+    }
     val transactions = database.transactionDao().getAllTransactionsBlocking()
     assertEquals("already paid installment must not generate transactions", 0, transactions.size)
   }
 
   @Test
   fun markPaidReceiverIgnoresInvalidInstallmentId() {
+    val dummyNotificationId = 777
+    val notification = Notification.Builder(context, "test_channel").build()
+    notificationManager.notify(dummyNotificationId, notification)
+    assertEquals(1, shadowNotificationManager.allNotifications.size)
+
     val intent = MarkPaidReceiver.createIntent(context, -1L)
     receiver.onReceive(context, intent)
-    Thread.sleep(50)
-    assertEquals(0, shadowNotificationManager.allNotifications.size)
+
+    assertEquals(
+      "invalid ID must not dismiss existing notifications",
+      1,
+      shadowNotificationManager.allNotifications.size
+    )
+    val transactions = database.transactionDao().getAllTransactionsBlocking()
+    assertEquals("invalid ID must not record any transactions", 0, transactions.size)
   }
 
   @Test
   fun markPaidReceiverHandlesDatabaseFailureGracefully() {
     val installmentId = 999L
+    val notification = Notification.Builder(context, "test_channel").build()
+    notificationManager.notify(installmentId.toInt(), notification)
     database.close() // force exception on DB access
 
     val intent = MarkPaidReceiver.createIntent(context, installmentId)
     // Receiver must catch the exception internally without crashing the caller
     receiver.onReceive(context, intent)
     Thread.sleep(100)
+    assertEquals(
+      "failed DB operation must not cancel notification",
+      1,
+      shadowNotificationManager.allNotifications.size
+    )
   }
 }

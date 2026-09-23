@@ -139,7 +139,7 @@ interface TransactionLinkDao {
     amount: Long,
     date: Long,
     description: String? = null
-  )
+  ): Int
 }
 
 @Dao
