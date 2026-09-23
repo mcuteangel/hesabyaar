@@ -82,11 +82,38 @@ class DashboardViewModelCategoryExclusionTest {
   @Test
   fun dashboardStateExcludesLoansCategoryWhenCategoryIsEmitted() =
     runTest(testDispatcher) {
-      val now = System.currentTimeMillis()
-      val dateInMonth = now - 1000L
+      val dateInMonth = System.currentTimeMillis()
 
       val account = AccountEntity(id = 1L, name = "Main", type = AccountType.BANK)
       fakeRepo.accFlow.value = listOf(account)
+
+      fakeRepo.catFlow.value =
+        listOf(
+          Category(
+            id = loansCatId,
+            name = "Loans",
+            key = LoansCategoryExclusion.CATEGORY_KEY,
+            icon = "loan",
+            color = 1L,
+            type = CategoryType.BOTH
+          ),
+          Category(
+            id = regularIncomeCatId,
+            name = "Salary",
+            key = "salary",
+            icon = "money",
+            color = 2L,
+            type = CategoryType.INCOME
+          ),
+          Category(
+            id = regularExpenseCatId,
+            name = "Food",
+            key = "food",
+            icon = "food",
+            color = 3L,
+            type = CategoryType.EXPENSE
+          )
+        )
 
       fakeRepo.txFlow.value =
         listOf(
@@ -124,41 +151,16 @@ class DashboardViewModelCategoryExclusionTest {
           )
         )
 
-      fakeRepo.catFlow.value =
-        listOf(
-          Category(
-            id = loansCatId,
-            name = "Loans",
-            key = LoansCategoryExclusion.CATEGORY_KEY,
-            icon = "loan",
-            color = 1L,
-            type = CategoryType.BOTH
-          ),
-          Category(
-            id = regularIncomeCatId,
-            name = "Salary",
-            key = "salary",
-            icon = "money",
-            color = 2L,
-            type = CategoryType.INCOME
-          ),
-          Category(
-            id = regularExpenseCatId,
-            name = "Food",
-            key = "food",
-            icon = "food",
-            color = 3L,
-            type = CategoryType.EXPENSE
-          )
-        )
-
       backgroundScope.launch { viewModel.dashboardState.collect {} }
       advanceUntilIdle()
 
       val state =
         viewModel.dashboardState
-          .filter { it.accounts.isNotEmpty() && (it.monthlyIncome > 0 || it.monthlyExpenses > 0) }
-          .first()
+          .filter {
+            it.accounts.isNotEmpty() &&
+              it.monthlyIncome == regularIncomeAmount &&
+              it.monthlyExpenses == regularExpenseAmount
+          }.first()
       assertEquals("monthly income must exclude loans category", regularIncomeAmount, state.monthlyIncome)
       assertEquals("monthly expense must exclude loans category", regularExpenseAmount, state.monthlyExpenses)
     }
@@ -167,8 +169,7 @@ class DashboardViewModelCategoryExclusionTest {
   @Test
   fun dashboardStateIncludesAllTransactionsWhenCategoriesEmpty() =
     runTest(testDispatcher) {
-      val now = System.currentTimeMillis()
-      val dateInMonth = now - 1000L
+      val dateInMonth = System.currentTimeMillis()
 
       val account = AccountEntity(id = 1L, name = "Main", type = AccountType.BANK)
       fakeRepo.accFlow.value = listOf(account)
@@ -215,12 +216,15 @@ class DashboardViewModelCategoryExclusionTest {
       backgroundScope.launch { viewModel.dashboardState.collect {} }
       advanceUntilIdle()
 
-      val state =
-        viewModel.dashboardState
-          .filter { it.accounts.isNotEmpty() && (it.monthlyIncome > 0 || it.monthlyExpenses > 0) }
-          .first()
       val totalIncome = regularIncomeAmount + loanIncomeAmount
       val totalExpense = regularExpenseAmount + loanExpenseAmount
+      val state =
+        viewModel.dashboardState
+          .filter {
+            it.accounts.isNotEmpty() &&
+              it.monthlyIncome == totalIncome &&
+              it.monthlyExpenses == totalExpense
+          }.first()
       assertEquals(
         "monthly income must include all transactions when no category excluded",
         totalIncome,

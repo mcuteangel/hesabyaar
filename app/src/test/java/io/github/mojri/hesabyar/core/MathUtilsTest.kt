@@ -73,4 +73,13 @@ class MathUtilsTest {
       MathUtils.saturatingSub(Long.MIN_VALUE, Long.MAX_VALUE)
     )
   }
+
+  @Test
+  fun saturatingSubWithLongMinValue() {
+    assertEquals(Long.MAX_VALUE, MathUtils.saturatingSub(5L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE, MathUtils.saturatingSub(0L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE, MathUtils.saturatingSub(-1L, Long.MIN_VALUE))
+    assertEquals(Long.MAX_VALUE - 4, MathUtils.saturatingSub(-5L, Long.MIN_VALUE))
+    assertEquals(0L, MathUtils.saturatingSub(Long.MIN_VALUE, Long.MIN_VALUE))
+  }
 }

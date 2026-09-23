@@ -84,27 +84,37 @@ internal class LoanDelegate(
       // creator used: personName, Loans category, amount and date.
       val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
       if (loansCategoryId != null) {
-        paymentHistoryDao
-          .getPaymentHistoriesForLoanSync(loan.id)
-          .forEach { payment ->
+        val namesToClean =
+          buildSet {
+            if (existing.personName.isNotBlank()) add(existing.personName)
+            if (loan.personName.isNotBlank()) add(loan.personName)
+          }
+        val payments = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id)
+        for (name in namesToClean) {
+          payments.forEach { payment ->
             transactionLinkDao.deleteLoanPaymentTransaction(
-              personName = existing.personName,
+              personName = name,
               categoryId = loansCategoryId,
               amount = payment.amount,
               date = payment.date
             )
           }
-        // insertLoanWithInitial posted a tracked initial leg with the loan's
-        // own amount and date and no link row to find it by; delete it with
-        // the same field-match strategy, or it keeps counting in reports
-        // behind a dead loan. Untracked loans never posted one (a no-op here).
-        if (existing.tracked) {
-          transactionLinkDao.deleteLoanPaymentTransaction(
-            personName = existing.personName,
-            categoryId = loansCategoryId,
-            amount = existing.originalAmount,
-            date = existing.date
-          )
+          if (existing.tracked || loan.tracked) {
+            transactionLinkDao.deleteLoanPaymentTransaction(
+              personName = name,
+              categoryId = loansCategoryId,
+              amount = existing.originalAmount,
+              date = existing.date
+            )
+            if (loan.originalAmount != existing.originalAmount || loan.date != existing.date) {
+              transactionLinkDao.deleteLoanPaymentTransaction(
+                personName = name,
+                categoryId = loansCategoryId,
+                amount = loan.originalAmount,
+                date = loan.date
+              )
+            }
+          }
         }
       }
       paymentHistoryDao.deletePaymentHistoryForLoan(loan.id)
@@ -132,16 +142,26 @@ internal class LoanDelegate(
       val newRemaining = loan.remainingAmount - amount
       val isSettled = newRemaining == 0L
       val date = customDate ?: System.currentTimeMillis()
-      val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
-      val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
-      loanDao.updateLoan(updatedLoan)
-      paymentHistoryDao.insertPayment(payment)
       // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
       // and record payment history. Zero transactions are posted — and the
       // Loans category is only required on the tracked path, so untracked
       // repayments keep working after the category was deleted (plan 011 D2).
-      if (loan.tracked) {
-        val loansCategory = categoryDao.getCategoryByKey("Loans") ?: return@withTransaction false
+      // For tracked loans, require the category up front so missing category
+      // aborts the transaction cleanly before writing loan/payment mutations.
+      val loansCategory =
+        if (loan.tracked) {
+          categoryDao.getCategoryByKey("Loans")
+            ?: throw IllegalStateException(
+              "Loans category is missing; cannot record the loan repayment transaction"
+            )
+        } else {
+          null
+        }
+      val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
+      val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
+      loanDao.updateLoan(updatedLoan)
+      paymentHistoryDao.insertPayment(payment)
+      if (loansCategory != null) {
         val desc =
           if (loan.type == LoanType.CREDITOR) {
             "بازپرداخت بدهی به ${loan.personName} - $notes"

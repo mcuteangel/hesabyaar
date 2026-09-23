@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.rust
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * Contract every RustBridge domain interface builds on.
  *
@@ -26,8 +28,17 @@ internal interface RustBridgeCore {
 
   /** Runs a Unit-returning Rust validator; true when it completes without throwing. */
   fun validateBoolean(block: () -> Unit): Boolean =
-    rustCallSync(false) {
-      block()
-      true
+    try {
+      rustCallSync(false) {
+        block()
+        true
+      }
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      throw e
+    } catch (_: Exception) {
+      false
     }
 }

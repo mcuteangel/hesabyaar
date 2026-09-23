@@ -1,1 +1,1 @@
-See AGENTS.md for agent guidance.
+@AGENTS.md

@@ -14,8 +14,8 @@ pub fn get_offline_budget_advice(
         .iter()
         .filter(|t| !is_tx_category_excluded(t, excluded_category_ids))
         .fold((0i64, 0i64), |(income, expense), t| match t.tx_type {
-            TransactionType::Income => (income + t.amount, expense),
-            TransactionType::Expense => (income, expense + t.amount),
+            TransactionType::Income => (income.saturating_add(t.amount), expense),
+            TransactionType::Expense => (income, expense.saturating_add(t.amount)),
             _ => (income, expense),
         });
 
@@ -26,7 +26,8 @@ pub fn get_offline_budget_advice(
                 && !is_tx_category_excluded(t, excluded_category_ids)
         })
         .fold(std::collections::HashMap::new(), |mut acc, t| {
-            *acc.entry(t.category_id).or_insert(0) += t.amount;
+            let total = acc.entry(t.category_id).or_insert(0);
+            *total = total.saturating_add(t.amount);
             acc
         });
 
@@ -51,7 +52,8 @@ pub fn get_offline_budget_advice(
     sb.push_str("\u{0628}\u{0631} \u{0627}\u{0633}\u{0627}\u{0633} \u{062A}\u{062D}\u{0644}\u{06CC}\u{0644} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634}\u{0647}\u{0627}\u{06CC} \u{062B}\u{0628}\u{062A} \u{0634}\u{062F}\u{0647} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{06AF}\u{0632}\u{0627}\u{0631}\u{0634} \u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}:\n\n");
 
     if total_income > 0 {
-        let saving_rate = (total_income - total_expense) as f64 / total_income as f64 * 100.0;
+        let saving_rate =
+            (total_income.saturating_sub(total_expense)) as f64 / total_income as f64 * 100.0;
         if saving_rate < 0.0 {
             sb.push_str(&format!(
                 "\u{26A0}\u{FE0F} **\u{06A9}\u{0646}\u{062A}\u{0631}\u{0644} \u{062A}\u{0631}\u{0627}\u{0632} \u{0645}\u{062E}\u{0627}\u{0631}\u{062C}:** \u{0645}\u{062A}\u{0627}\u{0633}\u{0641}\u{0627}\u{0646}\u{0647} \u{0645}\u{062E}\u{0627}\u{0631}\u{062C} \u{0634}\u{0645}\u{0627} \u{062F}\u{0631} \u{0627}\u{06CC}\u{0646} \u{062F}\u{0648}\u{0631}\u{0647} \u{0628}\u{06CC}\u{0634} \u{0627}\u{0632} \u{062F}\u{0631}\u{0627}\u{0645}\u{062F}\u{062A}\u{0627}\u{0646} \u{0628}\u{0648}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A} ({:.1}\u{066C} \u{06A9}\u{0633}\u{0631}\u{06CC}).\n\n",
@@ -256,16 +258,15 @@ pub fn calculate_debt_to_income_ratio(
     _bank_loans: &[BankLoan],
     monthly_income: i64,
 ) -> f64 {
-    let monthly_debt_payments: i64 = installments
+    let unpaid_installments: i64 = installments
         .iter()
         .filter(|i| !i.is_paid)
-        .map(|i| i.amount)
-        .sum::<i64>()
-        + loans
-            .iter()
-            .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
-            .map(|l| l.remaining_amount / 12)
-            .sum::<i64>();
+        .fold(0i64, |acc, i| acc.saturating_add(i.amount));
+    let unpaid_creditors: i64 = loans
+        .iter()
+        .filter(|l| !l.is_settled && l.loan_type == "CREDITOR")
+        .fold(0i64, |acc, l| acc.saturating_add(l.remaining_amount / 12));
+    let monthly_debt_payments: i64 = unpaid_installments.saturating_add(unpaid_creditors);
 
     if monthly_income <= 0 && monthly_debt_payments > 0 {
         return 1.0;
@@ -444,6 +445,53 @@ mod tests {
     fn test_debt_to_income_ratio() {
         assert_eq!(calculate_debt_to_income_ratio(&[], &[], &[], 0), 0.0);
         assert_eq!(calculate_debt_to_income_ratio(&[], &[], &[], 100000), 0.0);
+    }
+
+    #[test]
+    fn test_debt_to_income_ratio_saturating_overflow() {
+        let installments = vec![
+            Installment {
+                id: 1,
+                title: "huge1".into(),
+                amount: i64::MAX - 10,
+                due_date: 0,
+                is_paid: false,
+                reminder_enabled: false,
+                notes: "".into(),
+                bank_loan_id: None,
+                account_id: None,
+                tracked: false,
+            },
+            Installment {
+                id: 2,
+                title: "huge2".into(),
+                amount: 100,
+                due_date: 0,
+                is_paid: false,
+                reminder_enabled: false,
+                notes: "".into(),
+                bank_loan_id: None,
+                account_id: None,
+                tracked: false,
+            },
+        ];
+        // Must saturate at i64::MAX without wrapping or panicking
+        let ratio = calculate_debt_to_income_ratio(&[], &installments, &[], 1_000_000);
+        assert!(ratio > 0.0);
+        assert_eq!(ratio, i64::MAX as f64 / 1_000_000.0);
+    }
+
+    #[test]
+    fn test_offline_budget_advice_saturating_overflow() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, i64::MAX - 5, 0),
+            sample_tx(2, TransactionType::Income, 10, 0),
+            sample_tx(3, TransactionType::Expense, i64::MAX - 2, 0),
+            sample_tx(4, TransactionType::Expense, 5, 0),
+        ];
+        // Must saturate totals without panic or overflow wrap
+        let result = get_offline_budget_advice(&txs, &[], &[]);
+        assert!(!result.is_empty());
     }
 
     fn now_ms() -> i64 {

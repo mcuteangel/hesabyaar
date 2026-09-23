@@ -291,7 +291,7 @@ class RustBridgeTest {
   fun checksumAndExcelSyncCallsDelegateToTheNativeCore() {
     assertTrue(RustBridge.computeChecksumSync(byteArrayOf(1, 2, 3)).isNotEmpty())
     assertFalse(RustBridge.verifyChecksumSync(byteArrayOf(1), "abc"))
-    assertNotNull(RustBridge.generateExcel(WorkbookData(emptyList())))
+    assertNotNull(RustBridge.generateExcelSync(WorkbookData(emptyList())))
   }
 
   private fun emptyBackupPayload(): BackupPayload =

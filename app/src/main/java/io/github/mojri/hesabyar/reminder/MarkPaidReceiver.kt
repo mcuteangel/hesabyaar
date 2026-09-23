@@ -4,12 +4,12 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.AppDatabase
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MarkPaidReceiver : BroadcastReceiver() {
   override fun onReceive(
@@ -23,7 +23,7 @@ class MarkPaidReceiver : BroadcastReceiver() {
     CoroutineScope(Dispatchers.IO).launch {
       try {
         val appContext = context.applicationContext
-        val database = withContext(Dispatchers.IO) { AppDatabase.getDatabase(appContext) }
+        val database = AppDatabase.getDatabase(appContext)
         // Route the paid-mark through the repository so the ledger delegate
         // posts the tracked installment expense exactly like the in-app
         // toggle does. A raw DAO update bypassed that and left tracked rows
@@ -50,6 +50,12 @@ class MarkPaidReceiver : BroadcastReceiver() {
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(installmentId.toInt())
+      } catch (e: IllegalStateException) {
+        AppLogger.e("MarkPaidReceiver", "Failed to mark installment $installmentId as paid", e)
+      } catch (e: IllegalArgumentException) {
+        AppLogger.e("MarkPaidReceiver", "Failed to mark installment $installmentId as paid", e)
+      } catch (e: android.database.SQLException) {
+        AppLogger.e("MarkPaidReceiver", "Database error while marking installment $installmentId as paid", e)
       } finally {
         pendingResult.finish()
       }

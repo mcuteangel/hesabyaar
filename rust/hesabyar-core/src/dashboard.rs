@@ -153,12 +153,12 @@ pub fn compute_dashboard_data(
         match tx.tx_type {
             TransactionType::Income => {
                 if in_month && !is_excluded {
-                    monthly_income += tx.amount;
+                    monthly_income = monthly_income.saturating_add(tx.amount);
                 }
             }
             TransactionType::Expense => {
                 if in_month && !is_excluded {
-                    monthly_expenses += tx.amount;
+                    monthly_expenses = monthly_expenses.saturating_add(tx.amount);
                 }
             }
             // Transfer is balance-neutral only for the all-accounts view (money
@@ -169,10 +169,10 @@ pub fn compute_dashboard_data(
                 if let Some(acc_id) = account_id {
                     if in_month && !is_excluded {
                         if tx.account_id == acc_id {
-                            monthly_expenses += tx.amount;
+                            monthly_expenses = monthly_expenses.saturating_add(tx.amount);
                         }
                         if tx.destination_account_id == Some(acc_id) {
-                            monthly_income += tx.amount;
+                            monthly_income = monthly_income.saturating_add(tx.amount);
                         }
                     }
                 }

@@ -111,10 +111,17 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     loan: Loan,
     recordInitial: Boolean
   ): Long {
-    val id = insertLoan(loan)
-    if (recordInitial && loan.tracked) {
-      val loansCategory =
+    val loansCategory =
+      if (recordInitial && loan.tracked) {
         _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+          ?: throw IllegalStateException(
+            "Loans category is missing; cannot record the initial loan transaction"
+          )
+      } else {
+        null
+      }
+    val id = insertLoan(loan)
+    if (loansCategory != null) {
       // Mirror LoanDelegate.insertLoanWithInitial: CREDITOR (I owe) receives
       // the money → INCOME; DEBTOR (owed to me) lends it out → EXPENSE.
       insertTransaction(
@@ -125,7 +132,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
             } else {
               io.github.mojri.hesabyar.data.TransactionType.EXPENSE
             },
-          categoryId = loansCategory?.id ?: 0L,
+          categoryId = loansCategory.id,
           amount = loan.originalAmount,
           description = loan.description.ifBlank { loan.personName },
           date = loan.date,
@@ -166,18 +173,24 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     installment: Installment,
     recordInitial: Boolean
   ): Long {
+    val installmentsCategory =
+      if (recordInitial && installment.tracked && installment.isPaid) {
+        _allCategories.value.firstOrNull { it.key == "Installments" }
+          ?: throw IllegalStateException("Installments category is missing from database")
+      } else {
+        null
+      }
     val id = insertInstallment(installment)
-    if (recordInitial && installment.tracked && installment.isPaid) {
-      val loansCategory =
-        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+    if (installmentsCategory != null) {
       insertTransaction(
         Transaction(
           type = io.github.mojri.hesabyar.data.TransactionType.EXPENSE,
-          categoryId = loansCategory?.id ?: 0L,
+          categoryId = installmentsCategory.id,
           amount = installment.amount,
           description = installment.title,
           date = installment.dueDate,
-          accountId = installment.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+          accountId = installment.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+          installmentId = id
         )
       )
     }
@@ -243,7 +256,31 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     bankLoan: BankLoan,
     installmentsToAdd: List<Installment>,
     recordInitial: Boolean
-  ): Long = addBankLoanWithInstallments(bankLoan, installmentsToAdd)
+  ): Long {
+    val loansCategory =
+      if (recordInitial && bankLoan.tracked) {
+        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+          ?: throw IllegalStateException(
+            "Loans category is missing; cannot record the bank loan disbursement transaction"
+          )
+      } else {
+        null
+      }
+    val id = addBankLoanWithInstallments(bankLoan, installmentsToAdd)
+    if (loansCategory != null) {
+      insertTransaction(
+        Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          categoryId = loansCategory.id,
+          amount = bankLoan.receivedAmount,
+          description = "دریافت وام ${bankLoan.loanName} از ${bankLoan.bankName}",
+          date = bankLoan.startDate,
+          accountId = bankLoan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+        )
+      )
+    }
+    return id
+  }
 
   override suspend fun importBackup(
     transactions: List<Transaction>,

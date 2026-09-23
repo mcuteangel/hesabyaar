@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui
 
+import io.github.mojri.hesabyar.core.MathUtils
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -244,42 +245,21 @@ object JalaliCalendarHelper {
 
   /**
    * Saturating `a + b` that clamps to [Long.MIN_VALUE]/[Long.MAX_VALUE] instead of
-   * wrapping, so extreme timestamps keep an ordered, bounded range in the
-   * month-boundary fallbacks above.
+   * wrapping, delegating to [MathUtils.saturatingAdd].
    */
   internal fun saturatingAdd(
     a: Long,
     b: Long
-  ): Long =
-    if (b > 0 && a > Long.MAX_VALUE - b) {
-      Long.MAX_VALUE
-    } else if (b < 0 && a < Long.MIN_VALUE - b) {
-      Long.MIN_VALUE
-    } else {
-      a + b
-    }
+  ): Long = MathUtils.saturatingAdd(a, b)
 
   /**
    * Saturating `a - b` that clamps to [Long.MIN_VALUE]/[Long.MAX_VALUE] instead of
-   * wrapping. Implemented via [saturatingAdd] so the overflow logic lives in one
-   * place.
+   * wrapping, delegating to [MathUtils.saturatingSub].
    */
   internal fun saturatingSubtract(
     a: Long,
     b: Long
-  ): Long {
-    if (b == Long.MIN_VALUE) {
-      // `-b` would itself overflow (Long.MIN_VALUE negated wraps back to
-      // Long.MIN_VALUE), inverting the saturation direction for extreme
-      // month-boundary fallbacks. `a - Long.MIN_VALUE == a + Long.MAX_VALUE + 1`.
-      // saturatingAdd(a, Long.MAX_VALUE) yields `a + Long.MAX_VALUE`; the final
-      // `+1` is added unless the result already saturated to Long.MAX_VALUE (in
-      // which case adding 1 would overflow the other way).
-      val r = saturatingAdd(a, Long.MAX_VALUE)
-      return if (r == Long.MAX_VALUE) r else r + 1
-    }
-    return saturatingAdd(a, -b)
-  }
+  ): Long = MathUtils.saturatingSub(a, b)
 
   /**
    * UTC half-open `[start, nextMonthStart)` boundaries of the Jalali month

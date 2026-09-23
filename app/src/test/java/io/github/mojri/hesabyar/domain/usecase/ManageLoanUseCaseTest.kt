@@ -1,19 +1,39 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Test
 
 class ManageLoanUseCaseTest {
   private val fake = FakeRepository()
   private val useCase = ManageLoanUseCase(fake)
+  private val loansCategoryId = 100L
+
+  @Before
+  fun setUp() =
+    runTest {
+      fake.insertCategory(
+        Category(
+          id = loansCategoryId,
+          name = "Loans",
+          key = LoansCategoryExclusion.CATEGORY_KEY,
+          icon = "loan",
+          color = 1L,
+          type = CategoryType.BOTH
+        )
+      )
+    }
 
   @Test
   fun addLoanWithPersonNameUpsertsAndLinksPersonId() =
@@ -69,6 +89,8 @@ class ManageLoanUseCaseTest {
       val person = fake.getPersonById(storedLoan.personId!!)
       assertNotNull(person)
       assertEquals("Mohammad", person!!.name)
+      val initialTx = fake.allTransactions.first().first { it.amount == 20_000_000L }
+      assertEquals(loansCategoryId, initialTx.categoryId)
     }
 
   @Test
@@ -107,6 +129,28 @@ class ManageLoanUseCaseTest {
         )
       val storedLoan = fake.allLoans.first().first { it.id == loanId }
       assertEquals(explicitPersonId, storedLoan.personId)
+      val initialTx = fake.allTransactions.first().first { it.amount == 15_000_000L }
+      assertEquals(loansCategoryId, initialTx.categoryId)
+    }
+
+  @Test
+  fun addTrackedLoanThrowsWhenLoansCategoryMissing() =
+    runTest {
+      val unseededFake = FakeRepository()
+      val unseededUseCase = ManageLoanUseCase(unseededFake)
+      try {
+        unseededUseCase.addTrackedLoan(
+          personName = "Missing Cat",
+          type = LoanType.CREDITOR,
+          amount = 5_000_000L,
+          description = "test missing category",
+          tracked = true,
+          accountId = 1L
+        )
+        fail("Expected IllegalStateException when loans category is missing")
+      } catch (e: IllegalStateException) {
+        assertTrue(e.message!!.contains("Loans category is missing"))
+      }
     }
 
   @Test

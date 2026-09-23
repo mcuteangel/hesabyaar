@@ -86,8 +86,7 @@ class AnalyticsViewModelCategoryExclusionTest {
   @Test
   fun analyticsDataExcludesLoansCategoryWhenCategoryIsEmitted() =
     runTest(testDispatcher) {
-      val now = System.currentTimeMillis()
-      val dateInMonth = now - 1000L
+      val dateInMonth = System.currentTimeMillis()
 
       val account = AccountEntity(id = 1L, name = "Main", type = AccountType.BANK)
       fakeRepo.accFlow.value = listOf(account)
@@ -172,8 +171,7 @@ class AnalyticsViewModelCategoryExclusionTest {
   @Test
   fun analyticsDataIncludesAllTransactionsWhenCategoriesEmpty() =
     runTest(testDispatcher) {
-      val now = System.currentTimeMillis()
-      val dateInMonth = now - 1000L
+      val dateInMonth = System.currentTimeMillis()
 
       val account = AccountEntity(id = 1L, name = "Main", type = AccountType.BANK)
       fakeRepo.accFlow.value = listOf(account)

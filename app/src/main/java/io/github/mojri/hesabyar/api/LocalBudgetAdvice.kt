@@ -22,9 +22,9 @@ internal data class LocalTxSummary(
 }
 
 internal object LocalBudgetAdvice {
-  // 1/10 = the 10% savings-rate threshold the Rust offline advice uses for
-  // its positive verdict; multiplication (not division) avoids truncation.
-  private const val MIN_SAVINGS_RATE_DENOMINATOR = 10
+  // The 10% savings-rate threshold matching Rust's offline advice (budget.rs saving_rate >= 10.0).
+  private const val MIN_SAVINGS_RATE_PERCENT = 10.0
+  private const val PERCENT_MULTIPLIER = 100.0
   private const val UNCATEGORIZED_LABEL = "سایر"
 
   /** Formats a Rial amount for display. */
@@ -63,8 +63,9 @@ internal object LocalBudgetAdvice {
       }
     }
 
+    val categoryIndex = categories.associateBy { it.id }
     return categoryTotals.entries.joinToString("\n") { (catId, sum) ->
-      val cat = categories.find { it.id == catId }
+      val cat = categoryIndex[catId]
       "- ${cat?.name ?: UNCATEGORIZED_LABEL}: ${formatAmount(sum)}"
     }
   }
@@ -106,7 +107,9 @@ internal object LocalBudgetAdvice {
       summary.expense > summary.income ->
         "🚨 **کسری بودجه:** مخارج شما بیش از درآمد است. کاهش هزینه‌های غیرضروری توصیه می‌شود."
       // Mirror the Rust advice threshold: savings rate >= 10% is مطلوب.
-      summary.income > 0 && summary.balance * MIN_SAVINGS_RATE_DENOMINATOR >= summary.income ->
+      summary.income > 0 &&
+        summary.balance >= 0 &&
+        summary.balance.toDouble() / summary.income.toDouble() * PERCENT_MULTIPLIER >= MIN_SAVINGS_RATE_PERCENT ->
         "✅ **وضعیت مطلوب:** نرخ پس‌انداز شما مناسب است. ادامه این روند توصیه می‌شود."
       else ->
         "⚖️ **وضعیت متعادل:** تلاش کنید نرخ پس‌انداز خود را افزایش دهید."

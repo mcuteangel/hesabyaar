@@ -17,10 +17,22 @@ internal class BankLoanDelegate(
 
   override suspend fun getBankLoanById(id: Long): BankLoan? = bankLoanDao.getBankLoanById(id)
 
-  override suspend fun insertBankLoan(bankLoan: BankLoan): Long = bankLoanDao.insertBankLoan(bankLoan)
+  override suspend fun insertBankLoan(bankLoan: BankLoan): Long {
+    TrackedLedgerHelper.validateTrackedAccount(bankLoan.tracked, bankLoan.accountId)
+    val normalized =
+      bankLoan.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(bankLoan.tracked, bankLoan.accountId)
+      )
+    return bankLoanDao.insertBankLoan(normalized)
+  }
 
   override suspend fun updateBankLoan(bankLoan: BankLoan) {
-    bankLoanDao.updateBankLoan(bankLoan)
+    TrackedLedgerHelper.validateTrackedAccount(bankLoan.tracked, bankLoan.accountId)
+    val normalized =
+      bankLoan.copy(
+        accountId = TrackedLedgerHelper.normalizeAccountId(bankLoan.tracked, bankLoan.accountId)
+      )
+    bankLoanDao.updateBankLoan(normalized)
   }
 
   override suspend fun deleteBankLoan(bankLoan: BankLoan) {
@@ -40,14 +52,48 @@ internal class BankLoanDelegate(
       // income with no link row to find it by; delete it with the same
       // field-match strategy the creator's fields allow, or it keeps counting
       // in reports behind a dead bank loan. Untracked loans never posted one.
-      if (existing.tracked) {
+      if (existing.tracked || bankLoan.tracked) {
         val loansCategoryId = categoryDao.getCategoryByKey("Loans")?.id
         if (loansCategoryId != null) {
-          transactionLinkDao.deleteBankLoanDisbursementTransaction(
-            categoryId = loansCategoryId,
-            amount = existing.receivedAmount,
-            date = existing.startDate
-          )
+          val descriptions =
+            buildSet {
+              if (existing.loanName.isNotBlank() && existing.bankName.isNotBlank()) {
+                add("دریافت وام ${existing.loanName} از ${existing.bankName}")
+              }
+              if (bankLoan.loanName.isNotBlank() && bankLoan.bankName.isNotBlank()) {
+                add("دریافت وام ${bankLoan.loanName} از ${bankLoan.bankName}")
+              }
+            }
+          val amounts =
+            buildSet {
+              add(existing.receivedAmount)
+              add(bankLoan.receivedAmount)
+            }
+          val dates =
+            buildSet {
+              add(existing.startDate)
+              add(bankLoan.startDate)
+            }
+          for (amount in amounts) {
+            for (date in dates) {
+              if (descriptions.isNotEmpty()) {
+                for (desc in descriptions) {
+                  transactionLinkDao.deleteBankLoanDisbursementTransaction(
+                    categoryId = loansCategoryId,
+                    amount = amount,
+                    date = date,
+                    description = desc
+                  )
+                }
+              } else {
+                transactionLinkDao.deleteBankLoanDisbursementTransaction(
+                  categoryId = loansCategoryId,
+                  amount = amount,
+                  date = date
+                )
+              }
+            }
+          }
         }
       }
       installmentDao.deleteInstallmentsByBankLoanId(bankLoan.id)

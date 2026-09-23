@@ -128,13 +128,17 @@ interface TransactionLinkDao {
   // Matched strictly with personName IS NULL and personId IS NULL so personal-loan
   // initial transactions sharing the same amount and date are never deleted.
   @Query(
-    "DELETE FROM transactions WHERE categoryId = :categoryId AND amount = :amount " +
-      "AND date = :date AND personName IS NULL AND personId IS NULL"
+    "DELETE FROM transactions WHERE id IN (" +
+      "SELECT id FROM transactions WHERE categoryId = :categoryId AND amount = :amount " +
+      "AND date = :date AND personName IS NULL AND personId IS NULL " +
+      "AND (:description IS NULL OR description = :description) LIMIT 1" +
+      ")"
   )
   suspend fun deleteBankLoanDisbursementTransaction(
     categoryId: Long,
     amount: Long,
-    date: Long
+    date: Long,
+    description: String? = null
   )
 }
 

@@ -8,7 +8,10 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.CurrencyUnit
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -21,13 +24,20 @@ class BudgetAdvisorFallbackCategoryExclusionTest {
   @JvmField
   val rustIsolationRule = RustIsolationRule()
 
+  private var previousUnit: CurrencyUnit? = null
+
   @Before
   fun setUp() {
     HesabyarApp.setRustInitializedForTesting(false)
+    previousUnit = CurrencyFormatter.currentUnit
     // CurrencyFormatter.currentUnit is a mutable global; pin it so the
     // Toman-scaled literals below never depend on test ordering.
-    io.github.mojri.hesabyar.ui.CurrencyFormatter
-      .setUnit(io.github.mojri.hesabyar.ui.CurrencyUnit.TOMAN)
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+  }
+
+  @After
+  fun tearDown() {
+    previousUnit?.let { CurrencyFormatter.setUnit(it) }
   }
 
   private val regularIncomeCategory = 10L

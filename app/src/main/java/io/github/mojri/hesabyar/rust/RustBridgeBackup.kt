@@ -29,7 +29,4 @@ internal interface RustBridgeBackup : RustBridgeCore {
   /** Builds an XLSX workbook. Null when Rust is unavailable. */
   fun generateExcelSync(workbook: WorkbookData): ByteArray? =
     rustCallSync(null) { HesabyarCore.generateExcel(workbook) }
-
-  /** Builds an XLSX workbook. Kept for backwards compatibility; prefer [generateExcelSync]. */
-  fun generateExcel(workbook: WorkbookData): ByteArray? = generateExcelSync(workbook)
 }
