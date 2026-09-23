@@ -492,6 +492,23 @@ mod tests {
         // Must saturate totals without panic or overflow wrap
         let result = get_offline_budget_advice(&txs, &[], &[]);
         assert!(!result.is_empty());
+        // Clamped totals result in balanced 0.0% saving rate rather than wrapped corrupted branch
+        assert!(result.contains("\u{1F4C9}") || result.contains("0.0"));
+    }
+
+    #[test]
+    fn test_offline_budget_advice_saturating_deficit() {
+        let txs = vec![
+            sample_tx(1, TransactionType::Income, 100, 0),
+            sample_tx(2, TransactionType::Expense, i64::MAX - 2, 0),
+            sample_tx(3, TransactionType::Expense, 10, 0),
+        ];
+        // Saturating subtraction must report deficit branch without wrapping
+        let result = get_offline_budget_advice(&txs, &[], &[]);
+        assert!(
+            result.contains("\u{26A0}\u{FE0F}")
+                || result.contains("\u{06A9}\u{0633}\u{0631}\u{06CC}")
+        );
     }
 
     fn now_ms() -> i64 {

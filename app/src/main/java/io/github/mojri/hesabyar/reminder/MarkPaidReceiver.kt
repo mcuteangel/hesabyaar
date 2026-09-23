@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MarkPaidReceiver : BroadcastReceiver() {
+  @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
   override fun onReceive(
     context: Context,
     intent: Intent
@@ -50,14 +51,12 @@ class MarkPaidReceiver : BroadcastReceiver() {
         }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(installmentId.toInt())
-      } catch (e: IllegalStateException) {
+      } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+      } catch (e: Exception) {
         AppLogger.e("MarkPaidReceiver", "Failed to mark installment $installmentId as paid", e)
-      } catch (e: IllegalArgumentException) {
-        AppLogger.e("MarkPaidReceiver", "Failed to mark installment $installmentId as paid", e)
-      } catch (e: android.database.SQLException) {
-        AppLogger.e("MarkPaidReceiver", "Database error while marking installment $installmentId as paid", e)
       } finally {
-        pendingResult.finish()
+        pendingResult?.finish()
       }
     }
   }

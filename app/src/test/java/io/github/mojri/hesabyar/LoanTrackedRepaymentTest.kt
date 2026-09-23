@@ -331,7 +331,7 @@ class LoanTrackedRepaymentTest {
     }
 
   @Test
-  fun addPaymentToTrackedLoanThrowsAndRollsBackWhenLoansCategoryMissing() =
+  fun addPaymentToTrackedLoanThrowsAndLeavesStateUnchangedWhenLoansCategoryMissing() =
     runTest {
       val repo = createRepository()
       // Seed tracked loan directly without Loans category
@@ -342,7 +342,7 @@ class LoanTrackedRepaymentTest {
             type = LoanType.CREDITOR,
             originalAmount = 5_000_000L,
             remainingAmount = 5_000_000L,
-            description = "test repayment rollback",
+            description = "test repayment rejection",
             tracked = true,
             accountId = 2L
           )
@@ -357,7 +357,7 @@ class LoanTrackedRepaymentTest {
       assertTrue("must throw IllegalStateException when Loans category is missing", threw)
 
       val storedLoan = database.loanDao().getLoanById(loanId)
-      assertEquals("loan remainingAmount must not change on rollback", 5_000_000L, storedLoan?.remainingAmount)
+      assertEquals("loan remainingAmount must remain unchanged", 5_000_000L, storedLoan?.remainingAmount)
       assertEquals(
         "zero payment histories must be written",
         0,

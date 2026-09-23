@@ -86,8 +86,8 @@ internal class LoanDelegate(
       if (loansCategoryId != null) {
         val namesToClean =
           buildSet {
-            if (existing.personName.isNotBlank()) add(existing.personName)
-            if (loan.personName.isNotBlank()) add(loan.personName)
+            add(existing.personName)
+            add(loan.personName)
           }
         val payments = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id)
         for (name in namesToClean) {

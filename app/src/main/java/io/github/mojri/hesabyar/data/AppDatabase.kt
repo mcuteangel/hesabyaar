@@ -529,6 +529,13 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    @androidx.annotation.VisibleForTesting
+    fun setDatabaseForTesting(db: AppDatabase?) {
+      synchronized(this) {
+        instance = db
+      }
+    }
+
     private fun isPlaintextDb(dbFile: File): Boolean {
       if (!dbFile.exists()) return false
       return try {

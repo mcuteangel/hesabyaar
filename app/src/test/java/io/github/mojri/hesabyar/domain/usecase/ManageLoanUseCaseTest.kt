@@ -5,11 +5,14 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -91,6 +94,29 @@ class ManageLoanUseCaseTest {
       assertEquals("Mohammad", person!!.name)
       val initialTx = fake.allTransactions.first().first { it.amount == 20_000_000L }
       assertEquals(loansCategoryId, initialTx.categoryId)
+      assertEquals(TransactionType.INCOME, initialTx.type)
+      assertEquals(1L, initialTx.accountId)
+    }
+
+  @Test
+  fun addLoanUntrackedPostsNoTransactionAndSucceedsWithoutLoansCategory() =
+    runTest {
+      val category = fake.getCategoryById(loansCategoryId)
+      if (category != null) {
+        fake.deleteCategory(category)
+      }
+      val loanId =
+        useCase.addLoan(
+          personName = "Ali",
+          type = LoanType.DEBTOR,
+          amount = 10_000_000L,
+          description = "untracked loan"
+        )
+      val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertFalse(storedLoan.tracked)
+      assertNull(storedLoan.accountId)
+      val transactions = fake.allTransactions.first()
+      assertEquals("no initial transaction must be recorded for untracked loan", 0, transactions.size)
     }
 
   @Test

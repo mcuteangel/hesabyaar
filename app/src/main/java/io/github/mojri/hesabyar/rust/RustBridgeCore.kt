@@ -27,6 +27,7 @@ internal interface RustBridgeCore {
   ): T
 
   /** Runs a Unit-returning Rust validator; true when it completes without throwing. */
+  @Suppress("TooGenericExceptionCaught") // Safety net: the Rust FFI layer can throw unchecked runtime errors.
   fun validateBoolean(block: () -> Unit): Boolean =
     try {
       rustCallSync(false) {
@@ -37,6 +38,8 @@ internal interface RustBridgeCore {
       throw e
     } catch (e: InterruptedException) {
       Thread.currentThread().interrupt()
+      throw e
+    } catch (e: RuntimeException) {
       throw e
     } catch (_: Exception) {
       false
