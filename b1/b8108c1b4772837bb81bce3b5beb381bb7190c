@@ -1,0 +1,48 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCaseTest.kt
+  s_0c8597e9ce763e::t_1bb34458493d28 266-289
+app/src/main/java/io/github/mojri/hesabyar/api/LocalBudgetAdvice.kt
+  s_0c8597e9ce763e::t_961e94a7f912ca 40-44,57-58
+rust/hesabyar-core/src/dashboard.rs
+  s_0c8597e9ce763e::t_b22c7004df8060 263-268,270-283,285
+  s_0c8597e9ce763e::t_05111fc10e0229 1-2
+  s_0c8597e9ce763e::t_d8bac0b6457faa 269
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/ArchivedTransactionFilter.kt
+  s_0c8597e9ce763e::t_217e77ac611512 1-21,31-33
+  s_0c8597e9ce763e::t_d7d705135f6e4d 22-30
+app/src/test/java/io/github/mojri/hesabyar/rust/RustBridgeCategoryExclusionTest.kt
+  s_0c8597e9ce763e::t_f338ddefb2295b 65-79,83,120-121,153-154
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetDashboardDataUseCase.kt
+  s_0c8597e9ce763e::t_9785de36ca8cdf 204,209
+  s_0c8597e9ce763e::t_4a2509db9919b1 398-401,404,406
+  s_0c8597e9ce763e::t_adb78c3b2bbd3a 276,322-333,335-340
+  s_0c8597e9ce763e::t_786a74709f17ba 303-309,320
+  s_0c8597e9ce763e::t_4a2412046e73f0 12
+  s_0c8597e9ce763e::t_d6fcc1e070b9ee 274-275,277-302,312-319,321
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCase.kt
+  s_0c8597e9ce763e::t_d8efc0d1f7948d 65,67-68,72-79,82,90-113
+  s_0c8597e9ce763e::t_4cb10e2084d315 11-23
+app/src/test/java/io/github/mojri/hesabyar/GetDashboardDataUseCaseCategoryExclusionTest.kt
+  s_0c8597e9ce763e::t_581e75fc53734f 38-45,51,76
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetAnalyticsUseCase.kt
+  s_0c8597e9ce763e::t_3bc29e72d66cc7 345-346
+  s_0c8597e9ce763e::t_0ae843ab60c6a6 10
+rust/hesabyar-core/src/analytics.rs
+  s_0c8597e9ce763e::t_aca44cf37b0818 308
+  s_0c8597e9ce763e::t_f1f9ee67a37e87 302-304,306-307,309-322,324,330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b1b8108c1b4772837bb81bce3b5beb381bb7190c",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
