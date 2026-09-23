@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/BankLoanDelegateRollbackTest.kt
+  s_0c8597e9ce763e::t_f6ca1dea5a4c06 113-152
+  s_0c8597e9ce763e::t_70ada1eff7bd5a 570-592,597
+  s_0c8597e9ce763e::t_1add1dc8af801b 569,593-596,598-700
+  s_0c8597e9ce763e::t_9c104a23aba905 9,19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a398e21e42fcfb621f571e873786547f1aed9bf7",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
