@@ -55,47 +55,32 @@ internal class BankLoanDelegate(
       if (existing.tracked) {
         val loansCategoryId = categoryDao.getCategoryByKey("Loans")?.id
         if (loansCategoryId != null) {
-          val descriptions =
-            buildSet {
-              if (existing.loanName.isNotBlank() && existing.bankName.isNotBlank()) {
-                add("دریافت وام ${existing.loanName} از ${existing.bankName}")
-              }
-              if (bankLoan.loanName.isNotBlank() && bankLoan.bankName.isNotBlank()) {
-                add("دریافت وام ${bankLoan.loanName} از ${bankLoan.bankName}")
-              }
+          // The disbursement was created from the *persisted* row values
+          // (see addBankLoanWithInstallmentsAndInitial). Use only `existing`
+          // so a stale caller-supplied snapshot cannot miss the real transaction
+          // or delete an unrelated same-shaped INCOME entry.
+          val description =
+            if (existing.loanName.isNotBlank() && existing.bankName.isNotBlank()) {
+              "دریافت وام ${existing.loanName} از ${existing.bankName}"
+            } else {
+              null
             }
-          val amounts =
-            buildSet {
-              add(existing.receivedAmount)
-              add(bankLoan.receivedAmount)
-            }
-          val dates =
-            buildSet {
-              add(existing.startDate)
-              add(bankLoan.startDate)
-            }
-          for (amount in amounts) {
-            for (date in dates) {
-              var deleted = 0
-              if (descriptions.isNotEmpty()) {
-                for (desc in descriptions) {
-                  deleted +=
-                    transactionLinkDao.deleteBankLoanDisbursementTransaction(
-                      categoryId = loansCategoryId,
-                      amount = amount,
-                      date = date,
-                      description = desc
-                    )
-                }
-              }
-              if (deleted == 0) {
-                transactionLinkDao.deleteBankLoanDisbursementTransaction(
-                  categoryId = loansCategoryId,
-                  amount = amount,
-                  date = date
-                )
-              }
-            }
+          var deleted = 0
+          if (description != null) {
+            deleted =
+              transactionLinkDao.deleteBankLoanDisbursementTransaction(
+                categoryId = loansCategoryId,
+                amount = existing.receivedAmount,
+                date = existing.startDate,
+                description = description
+              )
+          }
+          if (deleted == 0) {
+            transactionLinkDao.deleteBankLoanDisbursementTransaction(
+              categoryId = loansCategoryId,
+              amount = existing.receivedAmount,
+              date = existing.startDate
+            )
           }
         }
       }

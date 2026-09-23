@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -77,6 +78,10 @@ internal object BudgetAdviceGenerator {
     return TransactionTotals(income, expense, cats)
   }
 
+  // Safety net: unexpected AI generation, network, or serialization failures must
+  // fall back to offline advice instead of crashing to the caller.
+  // CancellationException is rethrown to preserve structured concurrency.
+  @Suppress("TooGenericExceptionCaught")
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
     loans: List<Loan>,
@@ -90,10 +95,52 @@ internal object BudgetAdviceGenerator {
     withContext(Dispatchers.IO) {
       val cfg = config ?: AiProviderConfig()
       val excludedCategoryIds = LoansCategoryExclusion.resolve(categories, TAG)
-      AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
-      if (!cfg.isConfigured) {
-        AppLogger.w(TAG, "AI not configured, using offline fallback")
-        return@withContext getBudgetAdviceOffline(
+      try {
+        AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
+        val hasDebts =
+          loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
+        if (!cfg.isConfigured || transactions.isEmpty() && !hasDebts) {
+          return@withContext getBudgetAdviceOffline(
+            transactions,
+            loans,
+            installments,
+            categories,
+            bankLoans,
+            excludedCategoryIds
+          )
+        }
+        val summary =
+          buildDataSummary(
+            transactions,
+            loans,
+            installments,
+            categories,
+            bankLoans,
+            excludedCategoryIds
+          )
+        val prompt =
+          "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
+        val result =
+          aiGenerate(
+            cfg,
+            prompt,
+            ADVICE_SYSTEM_PROMPT,
+            0.6
+          )
+        handleAdviceResult(
+          result,
+          transactions,
+          loans,
+          installments,
+          categories,
+          bankLoans,
+          excludedCategoryIds
+        )
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e(TAG, "getBudgetAdvice failed, falling back to offline", e)
+        getBudgetAdviceOffline(
           transactions,
           loans,
           installments,
@@ -102,50 +149,6 @@ internal object BudgetAdviceGenerator {
           excludedCategoryIds
         )
       }
-      // With a configured provider, an empty ledger (no transactions and no unpaid
-      // obligations) must surface the empty-state message directly instead of
-      // burning a paid network/AI request on nothing. Unpaid loans/installments are
-      // still worth analyzing, so the generator path is retained for those.
-      val hasUnpaidObligations =
-        loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
-      if (transactions.isEmpty() && !hasUnpaidObligations) {
-        AppLogger.d(TAG, "getBudgetAdvice: empty ledger, returning empty-state without AI call")
-        return@withContext getBudgetAdviceOffline(
-          transactions,
-          loans,
-          installments,
-          categories,
-          bankLoans,
-          excludedCategoryIds
-        )
-      }
-      val summary =
-        buildDataSummary(
-          transactions,
-          loans,
-          installments,
-          categories,
-          bankLoans,
-          excludedCategoryIds
-        )
-      val prompt =
-        "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
-      val result =
-        aiGenerate(
-          cfg,
-          prompt,
-          ADVICE_SYSTEM_PROMPT,
-          0.6
-        )
-      handleAdviceResult(
-        result,
-        transactions,
-        loans,
-        installments,
-        categories,
-        bankLoans,
-        excludedCategoryIds
-      )
     }
 
   internal fun buildDataSummary(

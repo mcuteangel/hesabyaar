@@ -181,4 +181,64 @@ class BudgetAdviceGeneratorTest {
       summary.contains("10000000 تومان")
     )
   }
+
+  @Test
+  fun getBudgetAdviceExceptionDuringAiGenerateFallsBackToOffline() =
+    runTest {
+      val config =
+        io.github.mojri.hesabyar.api
+          .AiProviderConfig(apiKey = "valid_key")
+      val tx =
+        io.github.mojri.hesabyar.data.Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          amount = 10_000_000L,
+          categoryId = 1L,
+          description = "income"
+        )
+      val expectedOffline =
+        BudgetAdviceGenerator.getBudgetAdviceOffline(
+          listOf(tx),
+          emptyList(),
+          emptyList(),
+          emptyList()
+        )
+      val result =
+        BudgetAdviceGenerator.getBudgetAdvice(
+          transactions = listOf(tx),
+          loans = emptyList(),
+          installments = emptyList(),
+          categories = emptyList(),
+          config = config,
+          aiGenerate = { _, _, _, _ -> throw java.io.IOException("Simulated network failure") }
+        )
+      assertEquals("exception in aiGenerate must trigger offline advice fallback", expectedOffline, result)
+    }
+
+  @Test
+  fun getBudgetAdviceCancellationExceptionIsRethrown() =
+    runTest {
+      val config =
+        io.github.mojri.hesabyar.api
+          .AiProviderConfig(apiKey = "valid_key")
+      val tx =
+        io.github.mojri.hesabyar.data.Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          amount = 10_000_000L,
+          categoryId = 1L,
+          description = "income"
+        )
+      try {
+        BudgetAdviceGenerator.getBudgetAdvice(
+          transactions = listOf(tx),
+          loans = emptyList(),
+          installments = emptyList(),
+          categories = emptyList(),
+          config = config,
+          aiGenerate = { _, _, _, _ -> throw kotlinx.coroutines.CancellationException("Simulated cancellation") }
+        )
+        org.junit.Assert.fail("CancellationException must be rethrown")
+      } catch (e: kotlinx.coroutines.CancellationException) {
+        assertEquals("Simulated cancellation", e.message)
+      }
+    }
 }

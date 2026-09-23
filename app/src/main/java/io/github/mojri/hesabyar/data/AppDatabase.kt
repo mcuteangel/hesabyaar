@@ -532,6 +532,12 @@ abstract class AppDatabase : RoomDatabase() {
     @androidx.annotation.VisibleForTesting
     internal fun setDatabaseForTesting(db: AppDatabase?) {
       synchronized(this) {
+        val prev = instance
+        if (db != null && prev !== db) {
+          if (prev?.isOpen == true) {
+            prev.close()
+          }
+        }
         instance = db
       }
     }

@@ -28,12 +28,20 @@ object MathUtils {
     a: Long,
     b: Long
   ): Long {
+    if (b == Long.MIN_VALUE) {
+      // a - Long.MIN_VALUE overflows for every a. Rewrite as a + Long.MAX_VALUE,
+      // then add 1 when that did not already saturate (i.e. a was not negative).
+      val addMax = saturatingAdd(a, Long.MAX_VALUE)
+      return if (addMax == Long.MAX_VALUE) addMax else addMax + 1
+    }
     val res = a - b
     val diffSigns = a xor b
     val resultDiff = a xor res
-    if (diffSigns and resultDiff < 0) {
-      return if (a >= 0) Long.MAX_VALUE else Long.MIN_VALUE
+    val overflowed = diffSigns and resultDiff < 0
+    return when {
+      !overflowed -> res
+      a >= 0 -> Long.MAX_VALUE
+      else -> Long.MIN_VALUE
     }
-    return res
   }
 }
