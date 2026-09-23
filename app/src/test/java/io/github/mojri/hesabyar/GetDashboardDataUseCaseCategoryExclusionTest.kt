@@ -35,18 +35,20 @@ class GetDashboardDataUseCaseCategoryExclusionTest {
     accountId = 1L,
   )
 
+  private fun sampleTransactions(date: Long): List<Transaction> =
+    listOf(
+      tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, date),
+      tx(TransactionType.INCOME, 5_000_000L, loansCategory, date),
+      tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, date),
+      tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, date),
+    )
+
   @Test
   fun computeFallbackDashboardDataEmptyExclusionIncludesLoansCategory() {
     val now = System.currentTimeMillis()
     val (monthStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
     val date = monthStart + 1L
-    val transactions =
-      listOf(
-        tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, date),
-        tx(TransactionType.INCOME, 5_000_000L, loansCategory, date),
-        tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, date),
-        tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, date),
-      )
+    val transactions = sampleTransactions(date)
 
     val result =
       GetDashboardDataUseCase.computeFallbackDashboardData(
@@ -71,13 +73,7 @@ class GetDashboardDataUseCaseCategoryExclusionTest {
     val now = System.currentTimeMillis()
     val (monthStart, _) = JalaliCalendarHelper.getUtcJalaliMonthBoundaries(now)
     val date = monthStart + 1L
-    val transactions =
-      listOf(
-        tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, date),
-        tx(TransactionType.INCOME, 5_000_000L, loansCategory, date),
-        tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, date),
-        tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, date),
-      )
+    val transactions = sampleTransactions(date)
 
     val result =
       GetDashboardDataUseCase.computeFallbackDashboardData(

@@ -299,24 +299,35 @@ fn compute_account_analytics(
     excluded_category_ids: &[i64],
 ) -> Vec<AccountAnalytics> {
     let category_map: HashMap<i64, &Category> = categories.iter().map(|c| (c.id, c)).collect();
+    let active_accounts: Vec<&Account> = accounts.iter().filter(|a| !a.is_archived).collect();
+    let active_account_ids: std::collections::HashSet<i64> =
+        active_accounts.iter().map(|a| a.id).collect();
 
-    accounts
-        .iter()
-        .filter(|a| !a.is_archived)
+    // Single-pass transaction pre-indexing by account ID (O(T + A) instead of O(T * A))
+    let mut txs_by_account: HashMap<i64, Vec<&Transaction>> = HashMap::new();
+    for &tx in transactions {
+        if active_account_ids.contains(&tx.account_id) {
+            txs_by_account.entry(tx.account_id).or_default().push(tx);
+        }
+        if let Some(dst_id) = tx.destination_account_id {
+            if active_account_ids.contains(&dst_id) && dst_id != tx.account_id {
+                txs_by_account.entry(dst_id).or_default().push(tx);
+            }
+        }
+    }
+
+    let empty_vec: Vec<&Transaction> = Vec::new();
+
+    active_accounts
+        .into_iter()
         .map(|account| {
-            // Collect transactions where this account is the source OR the destination
-            let account_txs: Vec<&&Transaction> = transactions
-                .iter()
-                .filter(|tx| {
-                    tx.account_id == account.id || tx.destination_account_id == Some(account.id)
-                })
-                .collect();
+            let account_txs = txs_by_account.get(&account.id).unwrap_or(&empty_vec);
 
             // Monthly aggregation
             let mut monthly_expense: HashMap<(i32, i32), i64> = HashMap::new();
             let mut monthly_income: HashMap<(i32, i32), i64> = HashMap::new();
 
-            for tx in &account_txs {
+            for tx in account_txs {
                 if is_tx_category_excluded(tx, excluded_category_ids) {
                     continue;
                 }

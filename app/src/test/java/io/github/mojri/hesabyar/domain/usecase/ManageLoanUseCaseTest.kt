@@ -263,4 +263,28 @@ class ManageLoanUseCaseTest {
         }
       }
     }
+
+  @Test
+  fun addTrackedLoanWithRequestDataClassInsertsTrackedLoanSuccessfully() =
+    runTest {
+      val request =
+        TrackedLoanRequest(
+          personName = "Khosrow",
+          type = LoanType.CREDITOR,
+          amount = 15_000_000L,
+          description = "request data class test",
+          tracked = true,
+          accountId = 1L
+        )
+      val loanId = useCase.addTrackedLoan(request)
+      val storedLoan = fake.allLoans.first().first { it.id == loanId }
+      assertTrue("loan must be tracked", storedLoan.tracked)
+      assertEquals(1L, storedLoan.accountId)
+      assertEquals("Khosrow", storedLoan.personName)
+      assertEquals(15_000_000L, storedLoan.originalAmount)
+      val txs = fake.allTransactions.first()
+      assertEquals("initial transaction must be recorded", 1, txs.size)
+      assertEquals(15_000_000L, txs.single().amount)
+      assertEquals(1L, txs.single().accountId)
+    }
 }

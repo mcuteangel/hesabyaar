@@ -37,13 +37,11 @@ internal object LocalBudgetAdvice {
   ): LocalTxSummary {
     var income = 0L
     var expense = 0L
-    for (tx in transactions) {
-      if (!LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)) {
-        when (tx.type) {
-          TransactionType.INCOME -> income = MathUtils.saturatingAdd(income, tx.amount)
-          TransactionType.EXPENSE -> expense = MathUtils.saturatingAdd(expense, tx.amount)
-          else -> Unit
-        }
+    for (tx in LoansCategoryExclusion.filterTransactions(transactions, excludedCategoryIds)) {
+      when (tx.type) {
+        TransactionType.INCOME -> income = MathUtils.saturatingAdd(income, tx.amount)
+        TransactionType.EXPENSE -> expense = MathUtils.saturatingAdd(expense, tx.amount)
+        else -> Unit
       }
     }
     return LocalTxSummary(income, expense)
@@ -56,8 +54,8 @@ internal object LocalBudgetAdvice {
     excludedCategoryIds: List<Long> = emptyList()
   ): String {
     val categoryTotals = LinkedHashMap<Long, Long>()
-    for (tx in transactions) {
-      if (tx.type == TransactionType.EXPENSE && !LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)) {
+    for (tx in LoansCategoryExclusion.filterTransactions(transactions, excludedCategoryIds)) {
+      if (tx.type == TransactionType.EXPENSE) {
         val current = categoryTotals[tx.categoryId] ?: 0L
         categoryTotals[tx.categoryId] = MathUtils.saturatingAdd(current, tx.amount)
       }

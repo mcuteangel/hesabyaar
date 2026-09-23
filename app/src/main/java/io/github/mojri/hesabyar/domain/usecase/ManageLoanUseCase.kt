@@ -8,6 +8,19 @@ import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
 import kotlinx.coroutines.flow.Flow
 
+/** Request configuration data class for tracked and untracked loan creation. */
+data class TrackedLoanRequest(
+  val personName: String,
+  val type: LoanType,
+  val amount: Long,
+  val description: String = "",
+  val tracked: Boolean = false,
+  val accountId: Long? = null,
+  val recordInitial: Boolean = true,
+  val customDate: Long? = null,
+  val personId: Long? = null,
+)
+
 class ManageLoanUseCase(
   private val repository: HesabyarRepositoryInterface
 ) {
@@ -49,6 +62,31 @@ class ManageLoanUseCase(
    * (already recorded manually); tracked=false is ledger-only.
    */
   @Suppress("TooGenericExceptionCaught")
+  suspend fun addTrackedLoan(request: TrackedLoanRequest): Long {
+    io.github.mojri.hesabyar.data.TrackedLedgerHelper
+      .validateTrackedAccount(request.tracked, request.accountId)
+    val resolved = resolvePerson(request.personName, request.personId)
+    return try {
+      repository.insertLoanWithInitial(
+        Loan(
+          personName = request.personName,
+          type = request.type,
+          originalAmount = request.amount,
+          remainingAmount = request.amount,
+          description = request.description,
+          date = request.customDate ?: System.currentTimeMillis(),
+          tracked = request.tracked,
+          accountId = request.accountId,
+          personId = resolved.personId
+        ),
+        recordInitial = request.recordInitial && request.tracked
+      )
+    } catch (e: Exception) {
+      rollbackCreatedPerson(resolved.newlyCreatedPerson)
+      throw e
+    }
+  }
+
   suspend fun addTrackedLoan(
     personName: String,
     type: LoanType,
@@ -59,30 +97,20 @@ class ManageLoanUseCase(
     recordInitial: Boolean = true,
     customDate: Long? = null,
     personId: Long? = null
-  ): Long {
-    io.github.mojri.hesabyar.data.TrackedLedgerHelper
-      .validateTrackedAccount(tracked, accountId)
-    val resolved = resolvePerson(personName, personId)
-    return try {
-      repository.insertLoanWithInitial(
-        Loan(
-          personName = personName,
-          type = type,
-          originalAmount = amount,
-          remainingAmount = amount,
-          description = description,
-          date = customDate ?: System.currentTimeMillis(),
-          tracked = tracked,
-          accountId = accountId,
-          personId = resolved.personId
-        ),
-        recordInitial = recordInitial && tracked
+  ): Long =
+    addTrackedLoan(
+      TrackedLoanRequest(
+        personName = personName,
+        type = type,
+        amount = amount,
+        description = description,
+        tracked = tracked,
+        accountId = accountId,
+        recordInitial = recordInitial,
+        customDate = customDate,
+        personId = personId
       )
-    } catch (e: Exception) {
-      rollbackCreatedPerson(resolved.newlyCreatedPerson)
-      throw e
-    }
-  }
+    )
 
   private suspend fun resolvePerson(
     personName: String,

@@ -62,16 +62,25 @@ class RustBridgeCategoryExclusionTest {
       type = CategoryType.BOTH,
     )
 
+  private fun sampleTransactions(date: Long): List<Transaction> =
+    listOf(
+      tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, date),
+      tx(TransactionType.INCOME, 5_000_000L, loansCategory, date),
+      tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, date),
+      tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, date),
+    )
+
+  private fun sampleCategories(): List<Category> =
+    listOf(
+      category(regularIncomeCategory),
+      category(regularExpenseCategory),
+      category(loansCategory)
+    )
+
   @Test
   fun computeDashboardDataForwardsExcludedCategoryIds() {
     val now = System.currentTimeMillis()
-    val transactions =
-      listOf(
-        tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, now),
-        tx(TransactionType.INCOME, 5_000_000L, loansCategory, now),
-        tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, now),
-        tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, now),
-      )
+    val transactions = sampleTransactions(now)
     val accounts = listOf(account())
 
     val unfiltered =
@@ -108,14 +117,8 @@ class RustBridgeCategoryExclusionTest {
   @Test
   fun computeAnalyticsForwardsExcludedCategoryIds() {
     val now = System.currentTimeMillis()
-    val transactions =
-      listOf(
-        tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, now),
-        tx(TransactionType.INCOME, 5_000_000L, loansCategory, now),
-        tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, now),
-        tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, now),
-      )
-    val categories = listOf(category(regularIncomeCategory), category(regularExpenseCategory), category(loansCategory))
+    val transactions = sampleTransactions(now)
+    val categories = sampleCategories()
 
     val unfiltered =
       RustBridge.computeAnalyticsSync(
@@ -147,14 +150,8 @@ class RustBridgeCategoryExclusionTest {
 
   @Test
   fun offlineBudgetAdviceForwardsExcludedCategoryIds() {
-    val transactions =
-      listOf(
-        tx(TransactionType.INCOME, 10_000_000L, regularIncomeCategory, 0L),
-        tx(TransactionType.INCOME, 5_000_000L, loansCategory, 0L),
-        tx(TransactionType.EXPENSE, 9_000_000L, regularExpenseCategory, 0L),
-        tx(TransactionType.EXPENSE, 3_000_000L, loansCategory, 0L),
-      )
-    val categories = listOf(category(regularIncomeCategory), category(regularExpenseCategory), category(loansCategory))
+    val transactions = sampleTransactions(0L)
+    val categories = sampleCategories()
 
     val unfiltered =
       RustBridge.getOfflineBudgetAdviceSync(

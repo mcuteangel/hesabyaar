@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.ArchivedTransactionFilter
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import io.github.mojri.hesabyar.ui.AnalyticsData
 import io.github.mojri.hesabyar.ui.MonthlyData
@@ -341,8 +342,8 @@ internal object AnalyticsFallback {
         ?.timeInMillis
         ?: now - FALLBACK_WINDOW_DAYS * MILLIS_PER_DAY
     val monthlyTx =
-      GetDashboardDataUseCase
-        .filterArchivedTransactions(transactions, accounts, includeArchived)
+      ArchivedTransactionFilter
+        .filter(transactions, accounts, includeArchived)
         .filter { it.date in jalaliMonthStart..now }
         .let { txs ->
           if (accountId != null) {

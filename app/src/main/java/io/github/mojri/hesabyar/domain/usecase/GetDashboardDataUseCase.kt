@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.ArchivedTransactionFilter
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.AccountDashboardSummary
@@ -200,20 +201,12 @@ class GetDashboardDataUseCase(
         }
 
     /** Excludes transactions whose source or destination account is archived
-     *  unless [includeArchived] is true. Shared with the analytics fallback so
-     *  both views agree on what an archived account's money counts toward. */
+     *  unless [includeArchived] is true. Delegated to [ArchivedTransactionFilter]. */
     internal fun filterArchivedTransactions(
       transactions: List<Transaction>,
       accounts: List<AccountEntity>,
       includeArchived: Boolean,
-    ): List<Transaction> {
-      if (includeArchived) return transactions
-      val archivedIds = accounts.filter { it.isArchived }.map { it.id }.toSet()
-      return transactions.filter { tx ->
-        tx.accountId !in archivedIds &&
-          (tx.destinationAccountId == null || tx.destinationAccountId !in archivedIds)
-      }
-    }
+    ): List<Transaction> = ArchivedTransactionFilter.filter(transactions, accounts, includeArchived)
 
     /** Sum of initial balances for the selected account, or all accounts when
      *  [accountId] is null, applying the same archive gate as the Rust core:
@@ -274,64 +267,77 @@ class GetDashboardDataUseCase(
     ): List<AccountDashboardSummary> {
       if (accounts.isEmpty()) return emptyList()
 
-      // Previous Jalali month boundaries for delta computation, matching the
-      // Rust core's jalali month arithmetic.
       val (prevMonthStart, prevMonthEnd) =
         io.github.mojri.hesabyar.ui.JalaliCalendarHelper
           .getUtcJalaliPreviousMonthBoundaries(monthStartMs)
 
-      return accounts
-        .filter { !it.isArchived }
-        .map { account ->
-          val accountTxs =
-            transactions.filter {
-              it.accountId == account.id || it.destinationAccountId == account.id
-            }
-          var balance = account.initialBalance
-          var monthlyIncome = 0L
-          var monthlyExpenses = 0L
-          var prevIncome = 0L
-          var prevExpenses = 0L
-          for (tx in accountTxs) {
-            val inMonth = tx.date >= monthStartMs && tx.date < monthEndMs
-            val inPrev = tx.date >= prevMonthStart && tx.date < prevMonthEnd
-            val delta = balanceDeltaForAccount(tx, account.id)
-            balance += delta.balanceDelta
-            val isExcluded = LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)
-            if (inMonth && !isExcluded) {
-              monthlyIncome += delta.incomeDelta
-              monthlyExpenses += delta.expenseDelta
-            }
-            if (inPrev && !isExcluded) {
-              prevIncome += delta.incomeDelta
-              prevExpenses += delta.expenseDelta
-            }
+      val activeAccounts = accounts.filter { !it.isArchived }
+      val activeAccountIds = activeAccounts.map { it.id }.toSet()
+      val txsByAccount = indexTransactionsByAccount(transactions, activeAccountIds)
+      val eligibleTxs =
+        LoansCategoryExclusion.filterTransactions(transactions, excludedCategoryIds).toSet()
+
+      return activeAccounts.map { account ->
+        val accountTxs = txsByAccount[account.id] ?: emptyList()
+        var balance = account.initialBalance
+        var monthlyIncome = 0L
+        var monthlyExpenses = 0L
+        var prevIncome = 0L
+        var prevExpenses = 0L
+        for (tx in accountTxs) {
+          val inMonth = tx.date >= monthStartMs && tx.date < monthEndMs
+          val inPrev = tx.date >= prevMonthStart && tx.date < prevMonthEnd
+          val delta = balanceDeltaForAccount(tx, account.id)
+          balance += delta.balanceDelta
+          val isEligible = tx in eligibleTxs
+          if (inMonth && isEligible) {
+            monthlyIncome += delta.incomeDelta
+            monthlyExpenses += delta.expenseDelta
+          }
+          if (inPrev && isEligible) {
+            prevIncome += delta.incomeDelta
+            prevExpenses += delta.expenseDelta
+          }
+        }
+
+        val currentNet = monthlyIncome - monthlyExpenses
+        val prevNet = prevIncome - prevExpenses
+        val monthlyDelta =
+          if (prevNet == 0L || kotlin.math.abs(prevNet) < DELTA_PREV_NET_THRESHOLD) {
+            0.0
+          } else {
+            (currentNet - prevNet).toDouble() / kotlin.math.abs(prevNet).toDouble()
           }
 
-          // Month-over-month delta: (currentNet - prevNet) / abs(prevNet)
-          // Guard: prevNet == 0 to prevent division by zero;
-          // below noise threshold to avoid misleading percentages near zero
-          // (e.g. +8000000%).
-          val currentNet = monthlyIncome - monthlyExpenses
-          val prevNet = prevIncome - prevExpenses
-          val monthlyDelta =
-            if (prevNet == 0L || kotlin.math.abs(prevNet) < DELTA_PREV_NET_THRESHOLD) {
-              0.0
-            } else {
-              (currentNet - prevNet).toDouble() / kotlin.math.abs(prevNet).toDouble()
-            }
+        AccountDashboardSummary(
+          accountId = account.id,
+          accountName = account.name,
+          accountType = account.type,
+          balance = balance,
+          monthlyIncome = monthlyIncome,
+          monthlyExpenses = monthlyExpenses,
+          accountColor = account.color,
+          monthlyDelta = monthlyDelta
+        )
+      }
+    }
 
-          AccountDashboardSummary(
-            accountId = account.id,
-            accountName = account.name,
-            accountType = account.type,
-            balance = balance,
-            monthlyIncome = monthlyIncome,
-            monthlyExpenses = monthlyExpenses,
-            accountColor = account.color,
-            monthlyDelta = monthlyDelta
-          )
+    private fun indexTransactionsByAccount(
+      transactions: List<Transaction>,
+      activeAccountIds: Set<Long>
+    ): Map<Long, List<Transaction>> {
+      val map = mutableMapOf<Long, MutableList<Transaction>>()
+      for (tx in transactions) {
+        val srcId = tx.accountId
+        if (srcId != null && srcId in activeAccountIds) {
+          map.getOrPut(srcId) { mutableListOf() }.add(tx)
         }
+        val dstId = tx.destinationAccountId
+        if (dstId != null && dstId in activeAccountIds && dstId != srcId) {
+          map.getOrPut(dstId) { mutableListOf() }.add(tx)
+        }
+      }
+      return map
     }
 
     /** Per-transaction debit/credit deltas for the dashboard header aggregates.
@@ -389,14 +395,15 @@ class GetDashboardDataUseCase(
       monthStartMs: Long,
       monthEndMs: Long,
       excludedCategoryIds: List<Long> = emptyList(),
-    ): List<BalanceDelta> =
-      transactions
+    ): List<BalanceDelta> {
+      val eligible =
+        LoansCategoryExclusion.filterTransactions(transactions, excludedCategoryIds).toSet()
+      return transactions
         .zip(deltas)
         .filter { (tx, _) ->
-          val inMonth = tx.date >= monthStartMs && tx.date < monthEndMs
-          val isExcluded = LoansCategoryExclusion.isExcluded(tx, excludedCategoryIds)
-          inMonth && !isExcluded
+          tx in eligible && tx.date >= monthStartMs && tx.date < monthEndMs
         }.map { it.second }
+    }
 
     private data class BalanceDelta(
       val balanceDelta: Long,
