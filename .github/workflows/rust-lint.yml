@@ -46,14 +46,14 @@ jobs:
         working-directory: rust
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Install cargo-llvm-cov
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@7623a79cdfecb99d681017af368ca353d9f49bb5 # v2.87.19
         with:
-          tool: cargo-llvm-cov
+          tool: cargo-llvm-cov,cargo-nextest
 
       - name: Run tests and generate coverage
         working-directory: rust
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov nextest --workspace --lcov --output-path lcov.info --junit-path junit.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
@@ -69,3 +69,20 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: rust/lcov.info
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: rust/junit.xml
+          fail_ci_if_error: false
+
+      - name: Upload test results to BuildPulse
+        if: always()
+        uses: BuildPulseLLC/test-reporter-action@329c479061feca84382766b3a342a7368a6d8f4c # v3.1.0
+        continue-on-error: true
+        with:
+          api-token: ${{ secrets.BUILDPULSE_API_TOKEN }}
+          path: rust/junit.xml
+          coverage-files: rust/lcov.info

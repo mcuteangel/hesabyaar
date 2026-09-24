@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run OCR resolver tests with coverage
-        run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
+        run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-ocr.xml --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
@@ -43,3 +43,20 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: coverage-ocr.lcov
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit-ocr.xml
+          fail_ci_if_error: false
+
+      - name: Upload test results to BuildPulse
+        if: always()
+        uses: BuildPulseLLC/test-reporter-action@329c479061feca84382766b3a342a7368a6d8f4c # v3.1.0
+        continue-on-error: true
+        with:
+          api-token: ${{ secrets.BUILDPULSE_API_TOKEN }}
+          path: junit-ocr.xml
+          coverage-files: coverage-ocr.lcov
