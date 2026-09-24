@@ -23,7 +23,6 @@ runs:
 
         tar -xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "${RUNNER_TEMP}/deepsource-bin"
         chmod +x "${RUNNER_TEMP}/deepsource-bin/deepsource"
-        # zizmor: ignore[github-env]
         # The path is fixed above and the binary is checksum verified
         # before this entry reaches $GITHUB_PATH.
-        echo "${RUNNER_TEMP}/deepsource-bin" >> "$GITHUB_PATH"
+        echo "${RUNNER_TEMP}/deepsource-bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
