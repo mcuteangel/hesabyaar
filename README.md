@@ -1,11 +1,11 @@
 # حسابیار (Hesabyar)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Platform">
-  <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin">
-  <img src="https://img.shields.io/badge/Rust-E74C3C?logo=rust&logoColor=white" alt="Rust">
-  <img src="https://img.shields.io/badge/Calendar-Jalali-4CAF50" alt="Jalali Calendar">
-  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Platform: Android">
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Language: Kotlin">
+  <img src="https://img.shields.io/badge/Rust-E74C3C?logo=rust&logoColor=white" alt="Language: Rust">
+  <img src="https://img.shields.io/badge/Calendar-Jalali-4CAF50" alt="Calendar: Jalali">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT">
 </p>
 
 <p align="center">
