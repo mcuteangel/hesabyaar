@@ -300,7 +300,7 @@ cargo bench
 وضعیت و ساختار پوشش آزمون‌ها به‌صورت زنده توسط **Codecov** تحلیل می‌شود.
 
 <details>
-<summary><b>نمایش نمودار تعاملی ساختار پوشش آزمون‌ها (Sunburst Graph)</b></summary>
+<summary><b>نمایش نمودار ساختار پوشش آزمون‌ها (Sunburst Graph)</b></summary>
 
 <p align="center">
   <br>
