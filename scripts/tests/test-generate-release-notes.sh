@@ -67,6 +67,18 @@ case "$stdout_content" in
     ;;
 esac
 
+# Assert commit short-hash suffix was stripped
+case "$stdout_content" in
+  *"feat: add export feature ("*)
+    echo "FAIL commit hash was not stripped: $stdout_content"
+    fail=$((fail + 1))
+    ;;
+  *)
+    echo "PASS commit hash stripped from fallback bullet"
+    pass=$((pass + 1))
+    ;;
+esac
+
 # Assert stdout does NOT contain WARNING lines
 case "$stdout_content" in
   *"WARNING:"*)
@@ -196,6 +208,92 @@ case "$t3_out" in
     fail=$((fail + 1))
     ;;
 esac
+
+# --- Test 4: Successful API response output ---
+new_repo
+git checkout -q -b api-success-branch main
+echo "feature" > feat.txt; git add feat.txt; git commit -qm "feat: new AI features"
+
+mock_bin_success="$TMP/mock_bin_success"
+mkdir -p "$mock_bin_success"
+cat << 'EOF' > "$mock_bin_success/curl"
+#!/usr/bin/env sh
+printf '{"candidates": [{"content": {"parts": [{"text": "نسخه 0.8.0 حساب‌یار با موفقیت تولید شد."}]}}]}\n200'
+EOF
+chmod +x "$mock_bin_success/curl"
+
+t4_stdout="$TMP/t4_stdout.md"
+t4_stderr="$TMP/t4_stderr.log"
+
+set +e
+PATH="$mock_bin_success:$PATH" GEMINI_API_KEY="test-valid-key" bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t4_stdout" 2> "$t4_stderr"
+t4_exit=$?
+set -e
+
+if [ "$t4_exit" -eq 0 ]; then
+  echo "PASS generator exits with status 0 on successful API response"
+  pass=$((pass + 1))
+else
+  echo "FAIL generator failed on successful API response with exit $t4_exit"
+  fail=$((fail + 1))
+fi
+
+t4_out=$(cat "$t4_stdout")
+if [ "$t4_out" = "نسخه 0.8.0 حساب‌یار با موفقیت تولید شد." ]; then
+  echo "PASS valid AI response emitted cleanly to stdout"
+  pass=$((pass + 1))
+else
+  echo "FAIL unexpected stdout on successful API response: $t4_out"
+  fail=$((fail + 1))
+fi
+
+# --- Test 5: Model fallback when primary model returns empty content ---
+new_repo
+git checkout -q -b model-fallback-branch main
+echo "feature" > feat.txt; git add feat.txt; git commit -qm "feat: resilient models"
+
+mock_bin_fb="$TMP/mock_bin_fb"
+mkdir -p "$mock_bin_fb"
+cat << 'EOF' > "$mock_bin_fb/curl"
+#!/usr/bin/env sh
+case "$*" in
+  *"primary-test-model"*)
+    # Simulate blocked or empty candidate from primary model
+    printf '{"candidates": [{"content": {"parts": []}}]}\n200'
+    ;;
+  *)
+    # Fallback model succeeds
+    printf '{"candidates": [{"content": {"parts": [{"text": "یادداشت مدل جایگزین"}]}}]}\n200'
+    ;;
+esac
+EOF
+chmod +x "$mock_bin_fb/curl"
+
+t5_stdout="$TMP/t5_stdout.md"
+t5_stderr="$TMP/t5_stderr.log"
+
+set +e
+PATH="$mock_bin_fb:$PATH" GEMINI_API_KEY="test-key" GEMINI_MODEL="primary-test-model" \
+  bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t5_stdout" 2> "$t5_stderr"
+t5_exit=$?
+set -e
+
+if [ "$t5_exit" -eq 0 ]; then
+  echo "PASS generator exits with status 0 on model fallback"
+  pass=$((pass + 1))
+else
+  echo "FAIL generator failed on model fallback with exit $t5_exit"
+  fail=$((fail + 1))
+fi
+
+t5_out=$(cat "$t5_stdout")
+if [ "$t5_out" = "یادداشت مدل جایگزین" ]; then
+  echo "PASS model fallback produces output when primary model candidate is empty"
+  pass=$((pass + 1))
+else
+  echo "FAIL unexpected stdout on model fallback: $t5_out"
+  fail=$((fail + 1))
+fi
 
 echo ""
 echo "$pass passed, $fail failed"

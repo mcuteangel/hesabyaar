@@ -34,6 +34,8 @@ generate_fallback_notes() {
     case "$msg" in
       "Merge "*) continue ;;
     esac
+    # Strip trailing commit short-hash suffix like " (8fa7dc0)"
+    msg="${msg% (*)}"
 
     case "$msg" in
       feat*|Feat*)
@@ -176,7 +178,7 @@ call_gemini_api() {
     fi
 
     case "$http_code" in
-      429|500|502|503|504|"")
+      429|500|502|503|504|000|"")
         if [ "$attempt" -lt "$max_attempts" ]; then
           echo "Retrying in ${delay}s..." >&2
           sleep "$delay"
@@ -194,38 +196,6 @@ call_gemini_api() {
   return 1
 }
 
-# Determine candidate models to try
-models_to_try=("$GEMINI_MODEL")
-if [ "$GEMINI_MODEL" != "gemini-2.0-flash" ]; then
-  models_to_try+=("gemini-2.0-flash")
-fi
-if [ "$GEMINI_MODEL" != "gemini-1.5-flash" ]; then
-  models_to_try+=("gemini-1.5-flash")
-fi
-
-gemini_body=""
-for i in "${!models_to_try[@]}"; do
-  model_cand="${models_to_try[$i]}"
-  echo "Attempting release note generation with Gemini model: $model_cand" >&2
-  # Primary model gets 2 attempts (1 retry), subsequent fallback models get 1 attempt each
-  attempts=1
-  if [ "$i" -eq 0 ]; then
-    attempts=2
-  fi
-  if gemini_body=$(call_gemini_api "$model_cand" "$attempts"); then
-    break
-  fi
-done
-
-if [ -z "$gemini_body" ]; then
-  echo "WARNING: All Gemini API attempts failed, falling back to structured commit notes" >&2
-  generate_fallback_notes
-  exit 0
-fi
-
-# Extract text from Gemini response safely
-notes=""
-
 extract_text_script='
 import sys, json
 try:
@@ -240,20 +210,51 @@ except Exception:
     pass
 '
 
-if [ -z "$notes" ] && [ -n "$PYTHON_CMD" ]; then
-  notes=$(echo "$gemini_body" | $PYTHON_CMD -c "$extract_text_script" 2>/dev/null || echo "")
+extract_gemini_text() {
+  local json_str="$1"
+  local parsed=""
+  if [ -n "$PYTHON_CMD" ]; then
+    parsed=$(echo "$json_str" | $PYTHON_CMD -c "$extract_text_script" 2>/dev/null || echo "")
+  fi
+  if [ -z "$parsed" ] && command -v jq >/dev/null 2>&1; then
+    parsed=$(echo "$json_str" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || echo "")
+  fi
+  echo "$parsed"
+}
+
+# Determine candidate models to try
+models_to_try=("$GEMINI_MODEL")
+if [ "$GEMINI_MODEL" != "gemini-2.0-flash" ]; then
+  models_to_try+=("gemini-2.0-flash")
+fi
+if [ "$GEMINI_MODEL" != "gemini-1.5-flash" ]; then
+  models_to_try+=("gemini-1.5-flash")
 fi
 
-if [ -z "$notes" ] && command -v jq >/dev/null 2>&1; then
-  notes=$(echo "$gemini_body" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || echo "")
-fi
+notes=""
+for i in "${!models_to_try[@]}"; do
+  model_cand="${models_to_try[$i]}"
+  echo "Attempting release note generation with Gemini model: $model_cand" >&2
+  # Primary model gets 2 attempts (1 retry), subsequent fallback models get 1 attempt each
+  attempts=1
+  if [ "$i" -eq 0 ]; then
+    attempts=2
+  fi
+  if gemini_body=$(call_gemini_api "$model_cand" "$attempts"); then
+    notes=$(extract_gemini_text "$gemini_body")
+    if [ -n "$notes" ]; then
+      break
+    fi
+    echo "Response from model $model_cand contained no extractable text, trying next model" >&2
+  fi
+done
 
 if [ -z "$notes" ]; then
   if [ -z "$PYTHON_CMD" ] && ! command -v jq >/dev/null 2>&1; then
-    echo "ERROR: A JSON parser (python3, py -3, or jq) is required to extract Gemini response text" >&2
-    exit 1
+    echo "WARNING: A JSON parser (python3 or jq) is needed to extract AI response; falling back to structured commit notes" >&2
+  else
+    echo "WARNING: All Gemini API attempts failed or returned empty content, falling back to structured commit notes" >&2
   fi
-  echo "WARNING: Empty or blocked response from Gemini, falling back to structured commit notes" >&2
   generate_fallback_notes
   exit 0
 fi

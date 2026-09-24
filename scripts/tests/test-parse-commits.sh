@@ -47,7 +47,8 @@ parse_json_field() {
   elif [ -n "$PYTHON_CMD" ]; then
     res=$(printf '%s' "$json_input" | $PYTHON_CMD -c "import sys, json; sys.stdout.write(json.load(sys.stdin).get('$field_name', ''))")
   else
-    res=$(printf '%s' "$json_input" | sed -n 's/.*"'"$field_name"'":"\([^"]*\)".*/\1/p')
+    raw=$(printf '%s' "$json_input" | sed -n 's/.*"'"$field_name"'":"\([^"]*\)".*/\1/p')
+    res=$(printf '%b' "$raw")
   fi
   printf '%s' "$res" | tr -d '\r'
 }

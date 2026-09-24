@@ -73,14 +73,16 @@ fi
 # Trim summary to 20 lines, format as bulleted list
 summary_lines=$(printf '%s\n' "$summary_lines" | sed '/^$/d' | head -20 || true)
 summary_bullets=""
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  if [ -z "$summary_bullets" ]; then
-    summary_bullets="- $line"
-  else
-    summary_bullets="$summary_bullets"$'\n'"- $line"
-  fi
-done <<< "$summary_lines"
+if [ -n "$summary_lines" ]; then
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    if [ -z "$summary_bullets" ]; then
+      summary_bullets="- $line"
+    else
+      summary_bullets="$summary_bullets"$'\n'"- $line"
+    fi
+  done <<< "$summary_lines"
+fi
 
 # Detect Python interpreter
 PYTHON_CMD=""
