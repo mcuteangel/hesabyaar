@@ -43,13 +43,17 @@ pub fn compute_dashboard_data(
             .filter(|a| a.is_archived)
             .map(|a| a.id)
             .collect();
-        transactions
-            .iter()
-            .filter(|tx| {
-                !archived_ids.contains(&tx.account_id)
-                    && !archived_ids.contains(&tx.destination_account_id.unwrap_or(-1))
-            })
-            .collect()
+        if archived_ids.is_empty() {
+            transactions.iter().collect()
+        } else {
+            transactions
+                .iter()
+                .filter(|tx| {
+                    !archived_ids.contains(&tx.account_id)
+                        && !archived_ids.contains(&tx.destination_account_id.unwrap_or(-1))
+                })
+                .collect()
+        }
     };
 
     // Filter by account_id if provided. Use iter() to keep non_archived_txs
@@ -261,6 +265,9 @@ fn compute_account_summaries(
     excluded_category_ids: &[i64],
 ) -> Vec<AccountDashboardSummary> {
     let active_accounts: Vec<&Account> = accounts.iter().filter(|a| !a.is_archived).collect();
+    if active_accounts.is_empty() {
+        return Vec::new();
+    }
     let active_account_ids: std::collections::HashSet<i64> =
         active_accounts.iter().map(|a| a.id).collect();
 
