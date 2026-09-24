@@ -53,6 +53,8 @@ ignore:
   - "**/test/**"
   - "**/tests/**"
   - "**/androidTest/**"
+  - "**/*.test.*"
+  - "**/test-*.*"
   - "app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt" # Generated UniFFI Kotlin bindings
   - "rust/hesabyar-core/src/generated/**" # Generated core version
   - "rust/uniffi-gen/**"
