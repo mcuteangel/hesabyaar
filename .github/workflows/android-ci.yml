@@ -105,6 +105,15 @@ jobs:
           files: app/build/test-results/**/*.xml
           fail_ci_if_error: false
 
+      - name: Upload test results to BuildPulse
+        if: always()
+        uses: BuildPulseLLC/test-reporter-action@329c479061feca84382766b3a342a7368a6d8f4c # v3.1.0
+        continue-on-error: true
+        with:
+          api-token: ${{ secrets.BUILDPULSE_API_TOKEN }}
+          path: app/build/test-results
+          coverage-files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
