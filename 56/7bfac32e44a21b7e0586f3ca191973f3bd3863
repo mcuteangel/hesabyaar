@@ -1,0 +1,19 @@
+.github/workflows/summary.yml
+  s_0ff850e4f87ac4::t_730730008ee013 92-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "567bfac32e44a21b7e0586f3ca191973f3bd3863",
+  "prompts": {},
+  "sessions": {
+    "s_0ff850e4f87ac4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c80b953-c280-4f98-befb-2a9ab2750860",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
