@@ -20,6 +20,8 @@ jobs:
     name: Format, Clippy, Test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -83,12 +85,12 @@ jobs:
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}

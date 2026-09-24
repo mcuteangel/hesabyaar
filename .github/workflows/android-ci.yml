@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -111,12 +113,12 @@ jobs:
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}

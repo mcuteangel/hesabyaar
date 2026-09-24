@@ -24,6 +24,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run OCR resolver tests with coverage
@@ -56,12 +58,12 @@ jobs:
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
-        if: ${{ secrets.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}

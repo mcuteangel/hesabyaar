@@ -15,6 +15,8 @@ jobs:
   actionlint:
     name: Run actionlint
     runs-on: ubuntu-latest
+    env:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
     permissions:
       # Read repository content. Report lint results through the Checks API.
       contents: read
@@ -73,12 +75,12 @@ jobs:
 
        - name: Set up DeepSource CLI
          id: setup-deepsource
-         if: ${{ secrets.DEEPSOURCE_DSN != '' }}
+         if: ${{ env.DEEPSOURCE_DSN != '' }}
          continue-on-error: true
          uses: ./.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
-         if: ${{ secrets.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
          continue-on-error: true
          env:
            DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
