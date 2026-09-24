@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed" /></a>
-  <a href="https://codecov.io/gh/mcuteangel/hesabyaar"><img src="https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg?token=KL85HP6U8J" alt="Codecov" /></a>
+  <a href="https://codecov.io/gh/mcuteangel/hesabyaar"><img src="https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg" alt="Codecov" /></a>
   <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade" /></a>
   <a href="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar"><img src="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge" alt="CodeFactor" /></a>
 </p>
@@ -305,7 +305,7 @@ cargo bench
 <p align="center">
   <br>
   <a href="https://codecov.io/gh/mcuteangel/hesabyaar">
-    <img src="https://codecov.io/gh/mcuteangel/hesabyaar/graphs/sunburst.svg?token=KL85HP6U8J" alt="Codecov Sunburst Graph" width="450" />
+    <img src="https://codecov.io/gh/mcuteangel/hesabyaar/graphs/sunburst.svg" alt="Codecov Sunburst Graph" width="450" />
   </a>
 </p>
 
