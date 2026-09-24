@@ -204,4 +204,23 @@ class BudgetAdviceGeneratorCategoryExclusionTest {
         },
       )
     }
+
+  @Test
+  fun getBudgetAdviceOfflineAllTransactionsExcludedShowsEmptyTransactionsMessage() {
+    val onlyLoansTransactions =
+      listOf(
+        tx(TransactionType.INCOME, 5_000_000L, loansCategory),
+        tx(TransactionType.EXPENSE, 9_000_000L, loansCategory),
+      )
+    val advice =
+      BudgetAdviceGenerator.getBudgetAdviceOffline(
+        transactions = onlyLoansTransactions,
+        loans = emptyList(),
+        installments = emptyList(),
+        categories = categories(),
+        excludedCategoryIds = listOf(loansCategory),
+      )
+
+    assertTrue("expected empty transactions message when all tx are excluded", advice.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید"))
+  }
 }

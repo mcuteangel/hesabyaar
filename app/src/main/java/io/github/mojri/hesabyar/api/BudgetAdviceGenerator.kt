@@ -99,7 +99,8 @@ internal object BudgetAdviceGenerator {
         AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
         val hasDebts =
           loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
-        if (!cfg.isConfigured || transactions.isEmpty() && !hasDebts) {
+        val hasIncludedTx = transactions.any { !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) }
+        if (!cfg.isConfigured || !hasIncludedTx && !hasDebts) {
           return@withContext getBudgetAdviceOffline(
             transactions,
             loans,
@@ -329,7 +330,9 @@ internal object BudgetAdviceGenerator {
     val balance = totals.income - totals.expense
     val sb = StringBuilder()
     sb.append("💡 **تحلیلگر و مشاور مالی هوشمند (آفلاین)**\n\n")
-    if (transactions.isEmpty()) {
+    val hasIncludedTransactions =
+      transactions.any { !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) }
+    if (!hasIncludedTransactions) {
       sb.append(EMPTY_TRANSACTIONS_MSG)
       // Retain debt-related advice when the ledger is empty but the user still
       // has active unpaid obligations (loans or installments). Only return early

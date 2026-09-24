@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -152,6 +153,7 @@ data class Loan(
   // Phase 2 opt-in ledger link. Default false per migration contract (plans/011):
   // every pre-existing row backfills to tracked=false, historical transactions
   // stay untouched, future repayments post only when tracked=true.
+  @ColumnInfo(defaultValue = "0")
   val tracked: Boolean = false,
   val accountId: Long? = null
 ) : Serializable
@@ -168,6 +170,7 @@ data class Installment(
   val notes: String = "",
   val bankLoanId: Long? = null,
   // Phase 2 opt-in ledger link. Same default/backfill contract as Loan.
+  @ColumnInfo(defaultValue = "0")
   val tracked: Boolean = false,
   val accountId: Long? = null
 ) : Serializable
@@ -195,6 +198,7 @@ data class BankLoan(
   val description: String,
   val isSettled: Boolean = false,
   // Phase 2 opt-in ledger link. Same default/backfill contract as Loan.
+  @ColumnInfo(defaultValue = "0")
   val tracked: Boolean = false,
   val accountId: Long? = null
 ) : Serializable {
