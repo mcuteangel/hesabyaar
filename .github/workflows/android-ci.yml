@@ -73,6 +73,7 @@ jobs:
 
       - name: Run Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
+        continue-on-error: true
         env:
           CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
           CODACY_ORGANIZATION_PROVIDER: gh
@@ -80,6 +81,22 @@ jobs:
           CODACY_PROJECT_NAME: hesabyaar
         with:
           coverage-reports: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          flags: android
+          fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: app/build/test-results/**/*.xml
+          fail_ci_if_error: false
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
