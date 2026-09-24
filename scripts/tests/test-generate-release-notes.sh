@@ -40,9 +40,19 @@ echo "chore" > chore.txt; git add chore.txt; git commit -qm "perf: speed up quer
 stdout_file="$TMP/t1_stdout.md"
 stderr_file="$TMP/t1_stderr.log"
 
-GEMINI_API_KEY="" bash "$GENERATE" "0.8.0" "main" "HEAD" > "$stdout_file" 2> "$stderr_file" || true
+set +e
+GEMINI_API_KEY="" bash "$GENERATE" "0.8.0" "main" "HEAD" > "$stdout_file" 2> "$stderr_file"
+t1_exit=$?
+set -e
 
-# Assert stdout contains Persian headers and commits
+if [ "$t1_exit" -eq 0 ]; then
+  echo "PASS generator exits with status 0 on missing key"
+  pass=$((pass + 1))
+else
+  echo "FAIL generator exited with non-zero status $t1_exit"
+  fail=$((fail + 1))
+fi
+
 stdout_content=$(cat "$stdout_file")
 stderr_content=$(cat "$stderr_file")
 
@@ -81,17 +91,36 @@ case "$stderr_content" in
     ;;
 esac
 
-# --- Test 2: Resilient fallback when API call fails ---
+# --- Test 2: Resilient fallback when API call fails (mocked curl) ---
 new_repo
 git checkout -q -b fail-branch main
 echo "feature" > feat.txt; git add feat.txt; git commit -qm "feat: new dashboard"
 
+mock_bin="$TMP/mock_bin"
+mkdir -p "$mock_bin"
+cat << 'EOF' > "$mock_bin/curl"
+#!/usr/bin/env sh
+# Mock curl returning HTTP 503 to simulate transient service overload deterministically
+printf '{"error": {"code": 503, "message": "The model is overloaded. Please try again later."}}\n503'
+EOF
+chmod +x "$mock_bin/curl"
+
 t2_stdout="$TMP/t2_stdout.md"
 t2_stderr="$TMP/t2_stderr.log"
 
-# Pass a dummy key and invalid model so the API fails
-GEMINI_API_KEY="invalid-key-for-test" GEMINI_MODEL="invalid-model-xyz" \
-  bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t2_stdout" 2> "$t2_stderr" || true
+set +e
+PATH="$mock_bin:$PATH" GEMINI_API_KEY="test-key" GEMINI_MODEL="gemini-2.0-flash" \
+  bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t2_stdout" 2> "$t2_stderr"
+t2_exit=$?
+set -e
+
+if [ "$t2_exit" -eq 0 ]; then
+  echo "PASS generator exits with status 0 on API fallback"
+  pass=$((pass + 1))
+else
+  echo "FAIL generator exited with non-zero status $t2_exit"
+  fail=$((fail + 1))
+fi
 
 t2_out=$(cat "$t2_stdout")
 t2_err=$(cat "$t2_stderr")
@@ -118,6 +147,17 @@ case "$t2_out" in
     ;;
 esac
 
+case "$t2_err" in
+  *"WARNING: All Gemini API attempts failed"*|*"Attempting release note generation"*)
+    echo "PASS stderr records retry and fallback diagnostics"
+    pass=$((pass + 1))
+    ;;
+  *)
+    echo "FAIL stderr missing expected diagnostics: $t2_err"
+    fail=$((fail + 1))
+    ;;
+esac
+
 # --- Test 3: Merge commits are excluded from fallback notes ---
 new_repo
 git checkout -q -b merge-branch main
@@ -127,7 +167,19 @@ git commit --allow-empty -qm "Merge pull request #100 from user/branch"
 t3_stdout="$TMP/t3_stdout.md"
 t3_stderr="$TMP/t3_stderr.log"
 
-GEMINI_API_KEY="" bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t3_stdout" 2> "$t3_stderr" || true
+set +e
+GEMINI_API_KEY="" bash "$GENERATE" "0.8.0" "main" "HEAD" > "$t3_stdout" 2> "$t3_stderr"
+t3_exit=$?
+set -e
+
+if [ "$t3_exit" -eq 0 ]; then
+  echo "PASS generator exits with status 0 on merge commit test"
+  pass=$((pass + 1))
+else
+  echo "FAIL generator exited with non-zero status $t3_exit"
+  fail=$((fail + 1))
+fi
+
 t3_out=$(cat "$t3_stdout")
 
 case "$t3_out" in

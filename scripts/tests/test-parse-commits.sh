@@ -12,8 +12,15 @@ trap 'cd "$HERE" && rm -rf "$TMP" 2>/dev/null || true' EXIT
 
 pass=0
 fail=0
-
 test_id=0
+
+# Detect available Python interpreter
+PYTHON_CMD=""
+if python3 --version >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+elif py -3 --version >/dev/null 2>&1; then
+  PYTHON_CMD="py -3"
+fi
 
 new_repo() {
   test_id=$((test_id + 1))
@@ -31,28 +38,38 @@ new_repo() {
   git commit -qm "initial commit"
 }
 
+parse_json_field() {
+  json_input="$1"
+  field_name="$2"
+  res=""
+  if command -v jq >/dev/null 2>&1; then
+    res=$(printf '%s' "$json_input" | jq -r --arg f "$field_name" '.[$f]')
+  elif [ -n "$PYTHON_CMD" ]; then
+    res=$(printf '%s' "$json_input" | $PYTHON_CMD -c "import sys, json; sys.stdout.write(json.load(sys.stdin).get('$field_name', ''))")
+  else
+    res=$(printf '%s' "$json_input" | sed -n 's/.*"'"$field_name"'":"\([^"]*\)".*/\1/p')
+  fi
+  printf '%s' "$res" | tr -d '\r'
+}
+
 check() {
   name=$1
   want_bump=$2
   want_summary_sub=$3
 
+  set +e
   output=$(bash "$PARSE" main HEAD)
+  exit_status=$?
+  set -e
 
-  # Extract bump_type and summary
-  if command -v jq >/dev/null 2>&1; then
-    got_bump=$(printf '%s' "$output" | jq -r '.bump_type')
-    got_summary=$(printf '%s' "$output" | jq -r '.summary')
-  elif python3 --version >/dev/null 2>&1; then
-    got_bump=$(printf '%s' "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["bump_type"])')
-    got_summary=$(printf '%s' "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-  elif py -3 --version >/dev/null 2>&1; then
-    got_bump=$(printf '%s' "$output" | py -3 -c 'import sys, json; print(json.load(sys.stdin)["bump_type"])')
-    got_summary=$(printf '%s' "$output" | py -3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-  else
-    echo "FAIL $name (no jq or python available to parse JSON output)"
+  if [ "$exit_status" -ne 0 ]; then
+    echo "FAIL $name (parse-commits exited with status $exit_status)"
     fail=$((fail + 1))
     return
   fi
+
+  got_bump=$(parse_json_field "$output" "bump_type")
+  got_summary=$(parse_json_field "$output" "summary")
 
   if [ "$got_bump" != "$want_bump" ]; then
     echo "FAIL $name: expected bump_type='$want_bump', got '$got_bump'"
@@ -104,23 +121,25 @@ git add break.txt
 git commit -qm "refactor: reorganize database models" -m "BREAKING CHANGE: drops legacy v1 table"
 check "breaking change body yields major bump" "major" "- refactor: reorganize database models"
 
-# --- Test 5: merge commits are excluded from summary ---
+# --- Test 5: merge commits (real 2-parent merges) are excluded from summary ---
 new_repo
 git checkout -q -b feat-branch main
 echo "work" > work.txt
 git add work.txt
 git commit -qm "feat: add export feature"
-git commit --allow-empty -qm "Merge pull request #99 from user/feature"
+# Create a side branch and make a real 2-parent merge commit
+git checkout -q -b side-branch main
+echo "side" > side.txt
+git add side.txt
+git commit -qm "chore: side work"
+git checkout -q feat-branch
+git merge -q --no-ff -m "Merge branch 'side-branch' into feat-branch" side-branch
+
 output=$(bash "$PARSE" main HEAD)
-if py -3 --version >/dev/null 2>&1; then
-  summary=$(printf '%s' "$output" | py -3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-elif command -v jq >/dev/null 2>&1; then
-  summary=$(printf '%s' "$output" | jq -r '.summary')
-else
-  summary=$(printf '%s' "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-fi
+summary=$(parse_json_field "$output" "summary")
+
 case "$summary" in
-  *"Merge pull request"*)
+  *"Merge branch"*|*"Merge pull request"*)
     echo "FAIL merge commit was included in summary: $summary"
     fail=$((fail + 1))
     ;;
@@ -134,31 +153,24 @@ case "$summary" in
     ;;
 esac
 
-# --- Test 6: bullet format preservation (not single flattened line) ---
+# --- Test 6: bullet format preservation with exact newline assertion ---
 new_repo
 git checkout -q -b multi-branch main
 echo "1" > 1.txt; git add 1.txt; git commit -qm "feat: first feature"
 echo "2" > 2.txt; git add 2.txt; git commit -qm "fix: second fix"
 output=$(bash "$PARSE" main HEAD)
-if py -3 --version >/dev/null 2>&1; then
-  summary=$(printf '%s' "$output" | py -3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-elif command -v jq >/dev/null 2>&1; then
-  summary=$(printf '%s' "$output" | jq -r '.summary')
-else
-  summary=$(printf '%s' "$output" | python3 -c 'import sys, json; print(json.load(sys.stdin)["summary"])')
-fi
+summary=$(parse_json_field "$output" "summary")
 
-# Ensure summary contains bullet on separate lines (newest commit first)
-case "$summary" in
-  *"- fix: second fix"*"- feat: first feature"*)
-    echo "PASS multi-commit bullet list preserved"
-    pass=$((pass + 1))
-    ;;
-  *)
-    echo "FAIL multi-commit bullet list not preserved: $summary"
-    fail=$((fail + 1))
-    ;;
-esac
+expected_summary="- fix: second fix
+- feat: first feature"
+
+if [ "$summary" = "$expected_summary" ]; then
+  echo "PASS multi-commit bullet list preserved with exact newlines"
+  pass=$((pass + 1))
+else
+  echo "FAIL multi-commit bullet list not preserved: $summary"
+  fail=$((fail + 1))
+fi
 
 echo ""
 echo "$pass passed, $fail failed"

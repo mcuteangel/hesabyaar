@@ -37,11 +37,14 @@ jobs:
        - name: Run Actions pin manager tests
          run: node --test scripts/test-github-actions-pin-manager.mjs
 
-       - name: Run release script regression tests
-         run: |
-           bash scripts/tests/test-detect-changes.sh
-           bash scripts/tests/test-parse-commits.sh
-           bash scripts/tests/test-generate-release-notes.sh
+       - name: Run change-detection regression tests
+         run: bash scripts/tests/test-detect-changes.sh
+
+       - name: Run parse-commits regression tests
+         run: bash scripts/tests/test-parse-commits.sh
+
+       - name: Run release-notes regression tests
+         run: bash scripts/tests/test-generate-release-notes.sh
 
        - name: Run Actions pin audit
          # Informational. The audit never fails CI on its findings; it
