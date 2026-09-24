@@ -6,29 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.8.0] - 2026-09-24
-WARNING: Gemini API call failed (HTTP 503), falling back to raw commit list
-- Merge pull request #261 from mcuteangel/feat/phase-2-tracked-loans-kpi-exclusion (8fa7dc0)
-- fix(bankloan): scope disbursement deletion to account and transaction type (b19bc6d)
-- fix: filter empty-ledger check by Loans exclusion and add ColumnInfo default for tracked (14af164)
-- perf(core): short-circuit archived and active accounts in dashboard computation (b49a77d)
-- fix: close open instance on reset in setDatabaseForTesting and clean MathUtils comment (0e306e6)
-- fix: address OCR review comments on BankLoanDelegate disbursement deletion and MathUtils saturatingSub (7def9a9)
-- refactor: optimize account aggregations to single pass, decouple use cases, and introduce TrackedLoanRequest (b1b8108)
-- test: add rollback coverage for BankLoanDelegate disbursement and installment cleanup (a398e21)
-- test: add edge path coverage for BankLoanDelegate deletion and disbursement cleanup (2910a25)
-- fix: address review comments on ledger deletion scoping, mapping, and test observables (e720787)
-- fix: address bot review feedback on exception safety, loan cleanup, and test coverage (4ee5610)
-- build(benchmarks): include MathUtils in benchmark source set (4ca63f9)
-- fix: address review feedback across arithmetic parity, delegates, and test fidelity (68efd55)
-- fix: address bot review feedback across backup restore, arithmetic, and Java 24 test compatibility (7b7b298)
-- fix: force bank loan installments untracked on restore and rollback created persons on loan failure (ddaefd3)
-- test: rename test functions to camelCase conforming to naming pattern (8825c6b)
-- fix: narrow bank loan disbursement deletion, normalize restore payloads, and link persons on loan creation (b4162fc)
-- fix: address review feedback across tracked ledger, KPI exclusion, and delegates (f5eec73)
-- fix: enforce positive-id invariant in resolveAccountId and use named FFI args (4035851)
-- feat(kpi): exclude Loans category from aggregate KPIs (plan 011 D2) (f72e312)
-- feat(ledger): implement Phase 2 tracked ledger schema, use cases, and MIGRATION_8_9 (4e2c31a)
-- chore: remove codegraph configuration (136fad0)
+نسخه ۰.۸.۰ حساب‌یار با پشتیبانی از دفترکل ردیابی‌شده (Tracked Ledger)، تفکیک وام‌ها از شاخص‌های کلیدی مالی (KPI) و بهبود قابلیت اطمینان وام‌های بانکی منتشر شد.
+
+### امکانات جدید
+* **دفترکل ردیابی‌شده (فاز ۲):** پیاده‌سازی زیرساخت و شِمای دفترکل ردیابی‌شده به همراه موارد کاربرد و مهاجرت داده‌ها (Migration 8 to 9).
+* **تفکیک دسته وام‌ها از شاخص‌های کلی (KPI):** حذف حساب‌های دستهٔ وام‌ها از محاسبات تجمیعی داشبورد برای نمایش دقیق‌تر دارایی‌ها و تعهدات.
+
+### بهبودها
+* **بهینه‌سازی محاسبات داشبورد:** تجمیع سریع‌تر حساب‌ها در یک پیمایش واحد و جداسازی موارد کاربرد مرتبط در سطح هسته و کاتلین.
+* **تقویت ابزارهای محاسباتی و نگاشت‌ها:** بازنویسی و ایمن‌سازی توابع ریاضیاتی و نگاشت‌های داده‌ای وام بانکی و اشخاص.
+
+### رفع مشکلات
+* **مدیریت وام‌های بانکی:** بهبود حذف پرداخت اولیه وام، بازگشت تراکنش‌ها در صورت بروز خطا و مدیریت ایمن اقساط در زمان بازیابی نسخه پشتیبان.
 ## [0.7.6] - 2026-09-16
 نسخه ۰.۷.۶ حساب‌یار با تمرکز بر مدیریت دقیق‌تر وام‌های شخصی و بهبود پایداری سیستم منتشر شد.
 

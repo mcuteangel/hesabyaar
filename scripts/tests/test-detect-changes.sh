@@ -8,14 +8,15 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DETECT="$HERE/../detect-changes.sh"
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+trap 'cd "$HERE" && rm -rf "$TMP" 2>/dev/null || true' EXIT
 
 pass=0
 fail=0
+test_id=0
 
 new_repo() {
-  REPO="$TMP/repo"
-  rm -rf "$REPO"
+  test_id=$((test_id + 1))
+  REPO="$TMP/repo-$test_id"
   mkdir -p "$REPO/rust/hesabyar-core" "$REPO/gradle" "$REPO/app"
   cd "$REPO"
   # Portable init: -b needs Git >= 2.28; set HEAD explicitly instead.
