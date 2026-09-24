@@ -65,6 +65,7 @@ internal class BankLoanDelegate(
             } else {
               null
             }
+          val targetAccountId = TrackedLedgerHelper.resolveAccountId(existing.accountId)
           var deleted = 0
           if (description != null) {
             deleted =
@@ -72,6 +73,7 @@ internal class BankLoanDelegate(
                 categoryId = loansCategoryId,
                 amount = existing.receivedAmount,
                 date = existing.startDate,
+                accountId = targetAccountId,
                 description = description
               )
           }
@@ -79,7 +81,8 @@ internal class BankLoanDelegate(
             transactionLinkDao.deleteBankLoanDisbursementTransaction(
               categoryId = loansCategoryId,
               amount = existing.receivedAmount,
-              date = existing.startDate
+              date = existing.startDate,
+              accountId = targetAccountId
             )
           }
         }

@@ -221,6 +221,9 @@ class BudgetAdviceGeneratorCategoryExclusionTest {
         excludedCategoryIds = listOf(loansCategory),
       )
 
-    assertTrue("expected empty transactions message when all tx are excluded", advice.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید"))
+    assertTrue(
+      "expected empty transactions message when all tx are excluded",
+      advice.contains("هنوز هیچ تراکنشی ثبت نکرده‌اید")
+    )
   }
 }

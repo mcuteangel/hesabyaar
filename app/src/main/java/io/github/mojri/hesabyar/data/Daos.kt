@@ -1,6 +1,11 @@
 package io.github.mojri.hesabyar.data
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -124,13 +129,15 @@ interface TransactionLinkDao {
 
   // Bank-loan disbursement income created by addBankLoanWithInstallmentsAndInitial:
   // identified by the same fields the creator used (Loans category, received
-  // amount, start date), mirroring deleteLoanPaymentTransaction above.
-  // Matched strictly with personName IS NULL and personId IS NULL so personal-loan
-  // initial transactions sharing the same amount and date are never deleted.
+  // amount, start date, target account, and INCOME type), mirroring
+  // deleteLoanPaymentTransaction above. Matched strictly with personName IS NULL
+  // and personId IS NULL so personal-loan initial transactions sharing the same
+  // amount and date are never deleted.
   @Query(
     "DELETE FROM transactions WHERE id IN (" +
       "SELECT id FROM transactions WHERE categoryId = :categoryId AND amount = :amount " +
-      "AND date = :date AND personName IS NULL AND personId IS NULL " +
+      "AND date = :date AND accountId = :accountId AND type = 'INCOME' " +
+      "AND personName IS NULL AND personId IS NULL " +
       "AND (:description IS NULL OR description = :description) LIMIT 1" +
       ")"
   )
@@ -138,6 +145,7 @@ interface TransactionLinkDao {
     categoryId: Long,
     amount: Long,
     date: Long,
+    accountId: Long,
     description: String? = null
   ): Int
 }
