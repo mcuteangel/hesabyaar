@@ -829,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_forecast_only_installments_no_transactions() {
-        let now = now_ms();
+        let now = now_ms() + 10_000;
         let installments = vec![Installment {
             id: 1,
             title: "car".into(),
