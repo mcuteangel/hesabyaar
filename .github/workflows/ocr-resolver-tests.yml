@@ -28,6 +28,8 @@ jobs:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Run OCR resolver tests with coverage
         run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-ocr.xml --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
 

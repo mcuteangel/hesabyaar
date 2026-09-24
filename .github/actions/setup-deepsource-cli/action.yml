@@ -6,7 +6,9 @@ runs:
   steps:
     - name: Download and verify DeepSource CLI
       shell: bash
-      run: |
+      # The GITHUB_PATH entry is a fixed path under RUNNER_TEMP. The binary
+      # is checksum verified before the path is registered.
+      run: | # zizmor: ignore[github-env]
         VERSION="2.0.55"
         EXPECTED_SHA256="3d8264fef2487b39a7b9efd801d06bce8d04fe1ed8d5b5f13a876cd31e5a680d"
         ARCHIVE="deepsource_${VERSION}_linux_amd64.tar.gz"
@@ -23,6 +25,4 @@ runs:
 
         tar -xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "${RUNNER_TEMP}/deepsource-bin"
         chmod +x "${RUNNER_TEMP}/deepsource-bin/deepsource"
-        # The path is fixed above and the binary is checksum verified
-        # before this entry reaches $GITHUB_PATH.
-        echo "${RUNNER_TEMP}/deepsource-bin" >> "$GITHUB_PATH" # zizmor: ignore[github-env]
+        echo "${RUNNER_TEMP}/deepsource-bin" >> "$GITHUB_PATH"
