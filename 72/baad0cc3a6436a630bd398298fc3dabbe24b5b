@@ -1,0 +1,27 @@
+.github/actions/setup-deepsource-cli/action.yml
+  s_b1c4fdbf58f932::t_e598430a40ca6d 16
+.github/workflows/android-ci.yml
+  s_b1c4fdbf58f932::t_cc37b1622dabc6 102-103,107,112
+.github/workflows/rust-lint.yml
+  s_b1c4fdbf58f932::t_0477b6661ef7bf 75-76,80,85-86
+.github/workflows/lint.yml
+  s_b1c4fdbf58f932::t_38e84d28f0930f 65-66,70,75
+.github/workflows/ocr-resolver-tests.yml
+  s_b1c4fdbf58f932::t_a251821766aee5 48-49,53,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "72baad0cc3a6436a630bd398298fc3dabbe24b5b",
+  "prompts": {},
+  "sessions": {
+    "s_b1c4fdbf58f932": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f9500f-b476-45ff-a2b6-d272e414ac4d",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
