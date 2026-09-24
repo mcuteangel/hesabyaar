@@ -54,6 +54,13 @@ jobs:
            flags: scripts
            fail_ci_if_error: false
 
+       - name: Upload coverage to Qlty Cloud
+         uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
+         continue-on-error: true
+         with:
+           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+           files: coverage-pin-manager.lcov
+
        - name: Run Actions pin audit
          # Informational. The audit never fails CI on its findings; it
          # prints the compliance state of every uses: reference. A crash in
