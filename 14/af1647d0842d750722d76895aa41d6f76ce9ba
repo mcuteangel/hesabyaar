@@ -1,0 +1,26 @@
+app/src/main/java/io/github/mojri/hesabyar/data/Entities.kt
+  s_0c8597e9ce763e::t_545be9bcebdc76 3
+  s_0c8597e9ce763e::t_3b35c292460d9a 156,173,201
+app/src/test/java/io/github/mojri/hesabyar/BudgetAdviceGeneratorCategoryExclusionTest.kt
+  s_0c8597e9ce763e::t_ffa757c105b68d 224-225
+  s_0c8597e9ce763e::t_8852a0cba33112 207-223
+app/src/main/java/io/github/mojri/hesabyar/api/BudgetAdviceGenerator.kt
+  s_0c8597e9ce763e::t_9cacd901e5f9d2 102-103
+  s_0c8597e9ce763e::t_8fd48f379178e4 333-335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "14af1647d0842d750722d76895aa41d6f76ce9ba",
+  "prompts": {},
+  "sessions": {
+    "s_0c8597e9ce763e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3ccb09d-e25e-49d2-8602-07f6283a9c0b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
