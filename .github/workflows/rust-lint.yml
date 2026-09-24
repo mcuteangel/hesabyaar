@@ -69,6 +69,7 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: rust/lcov.info
+          add-prefix: rust
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}

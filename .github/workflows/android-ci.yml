@@ -96,6 +96,7 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          add-prefix: app/src/main/java
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
