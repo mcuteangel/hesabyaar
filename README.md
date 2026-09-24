@@ -11,8 +11,10 @@
 <p align="center">
   <a href="https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed" /></a>
   <a href="https://codecov.io/gh/mcuteangel/hesabyaar"><img src="https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg" alt="Codecov" /></a>
-  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade" /></a>
+  <a href="https://qlty.sh/gh/mcuteangel/projects/hesabyaar"><img src="https://qlty.sh/gh/mcuteangel/projects/hesabyaar/coverage.svg" alt="Qlty Coverage" /></a>
   <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage"><img src="https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Coverage" /></a>
+  <a href="https://qlty.sh/gh/mcuteangel/projects/hesabyaar"><img src="https://qlty.sh/gh/mcuteangel/projects/hesabyaar/maintainability.svg" alt="Qlty Maintainability" /></a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade" /></a>
   <a href="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar"><img src="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge" alt="CodeFactor" /></a>
 </p>
 
