@@ -239,6 +239,8 @@ else
 fi
 
 t4_out=$(cat "$t4_stdout")
+t4_err=$(cat "$t4_stderr")
+
 if [ "$t4_out" = "نسخه 0.8.0 حساب‌یار با موفقیت تولید شد." ]; then
   echo "PASS valid AI response emitted cleanly to stdout"
   pass=$((pass + 1))
@@ -246,6 +248,17 @@ else
   echo "FAIL unexpected stdout on successful API response: $t4_out"
   fail=$((fail + 1))
 fi
+
+case "$t4_err" in
+  *"Attempting release note generation with Gemini model"*)
+    echo "PASS stderr records model attempt in success test"
+    pass=$((pass + 1))
+    ;;
+  *)
+    echo "FAIL stderr missing model attempt: $t4_err"
+    fail=$((fail + 1))
+    ;;
+esac
 
 # --- Test 5: Model fallback when primary model returns empty content ---
 new_repo
@@ -287,6 +300,8 @@ else
 fi
 
 t5_out=$(cat "$t5_stdout")
+t5_err=$(cat "$t5_stderr")
+
 if [ "$t5_out" = "یادداشت مدل جایگزین" ]; then
   echo "PASS model fallback produces output when primary model candidate is empty"
   pass=$((pass + 1))
@@ -294,6 +309,17 @@ else
   echo "FAIL unexpected stdout on model fallback: $t5_out"
   fail=$((fail + 1))
 fi
+
+case "$t5_err" in
+  *"contained no extractable text, trying next model"*)
+    echo "PASS stderr records fallback model transition"
+    pass=$((pass + 1))
+    ;;
+  *)
+    echo "FAIL stderr missing fallback transition notice: $t5_err"
+    fail=$((fail + 1))
+    ;;
+esac
 
 echo ""
 echo "$pass passed, $fail failed"
