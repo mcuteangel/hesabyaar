@@ -98,6 +98,7 @@ jobs:
           repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
           file: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           format: jacoco
+          base-path: app/src/main/java
           flag-name: android
 
       - name: Upload coverage to Qlty Cloud
