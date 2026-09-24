@@ -89,7 +89,12 @@ jobs:
 
       - name: Comment with AI summary
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "$RESPONSE"
+          EXISTING=$(gh issue view "$ISSUE_NUMBER" --json comments --jq '.comments[] | select(.body | contains("<!-- hesabyar-issue-summary -->")) | .id')
+          if [ -n "$EXISTING" ]; then
+            echo "Summary comment already exists on issue #$ISSUE_NUMBER. Skipping."
+            exit 0
+          fi
+          gh issue comment "$ISSUE_NUMBER" --body "$(printf '%s\n\n%s' '<!-- hesabyar-issue-summary -->' "$RESPONSE")"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
