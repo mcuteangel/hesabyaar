@@ -71,14 +71,17 @@ jobs:
           files: rust/lcov.info
           add-prefix: rust
 
+      - name: Set up DeepSource CLI
+        uses: ./.github/actions/setup-deepsource-cli
+
       - name: Upload coverage to DeepSource
         continue-on-error: true
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
         run: |
           if [ -n "$DEEPSOURCE_DSN" ]; then
-            curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
-            ./bin/deepsource report --analyzer test-coverage --key rust --value-file rust/lcov.info
+            sed -e 's|^SF:hesabyar-core/|SF:rust/hesabyar-core/|' rust/lcov.info > rust/lcov.prefixed.info
+            deepsource report --analyzer test-coverage --key rust --value-file rust/lcov.prefixed.info
           else
             echo "DEEPSOURCE_DSN secret is not set, skipping DeepSource coverage upload."
           fi
