@@ -1,13 +1,18 @@
 # حسابیار (Hesabyar)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge" alt="Platform">
-  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
-  <img src="https://img.shields.io/badge/language-Rust-E74C3C?style=for-the-badge" alt="Rust">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
-     
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge) [![CodeFactor](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge)](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar) [![Codecov](https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg?token=KL85HP6U8J)](https://codecov.io/gh/mcuteangel/hesabyaar) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage) 
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Rust-E74C3C?logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/Calendar-Jalali-4CAF50" alt="Jalali Calendar">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
+</p>
+
+<p align="center">
+  <a href="https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed" /></a>
+  <a href="https://codecov.io/gh/mcuteangel/hesabyaar"><img src="https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg?token=KL85HP6U8J" alt="Codecov" /></a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade" /></a>
+  <a href="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar"><img src="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge" alt="CodeFactor" /></a>
 </p>
 
 <p align="center">
