@@ -1,0 +1,20 @@
+README.md
+  s_b1c4fdbf58f932::t_7b1f310d7f33e3 305
+  s_b1c4fdbf58f932::t_9ad96bf4dfc504 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "87779e1eb97907dec60debda839b08f8811ca573",
+  "prompts": {},
+  "sessions": {
+    "s_b1c4fdbf58f932": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f9500f-b476-45ff-a2b6-d272e414ac4d",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
