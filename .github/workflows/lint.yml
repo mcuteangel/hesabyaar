@@ -35,7 +35,7 @@ jobs:
          run: bash scripts/test-issue-autoclose.sh
 
        - name: Run Actions pin manager tests
-         run: node --test scripts/test-github-actions-pin-manager.mjs
+         run: node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage-pin-manager.lcov scripts/test-github-actions-pin-manager.mjs
 
        - name: Run change-detection regression tests
          run: bash scripts/tests/test-detect-changes.sh
@@ -45,6 +45,14 @@ jobs:
 
        - name: Run release-notes regression tests
          run: bash scripts/tests/test-generate-release-notes.sh
+
+       - name: Upload script coverage to Codecov
+         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+         with:
+           token: ${{ secrets.CODECOV_TOKEN }}
+           files: coverage-pin-manager.lcov
+           flags: scripts
+           fail_ci_if_error: false
 
        - name: Run Actions pin audit
          # Informational. The audit never fails CI on its findings; it

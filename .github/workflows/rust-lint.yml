@@ -31,7 +31,7 @@ jobs:
         # for this job.
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
-          components: clippy, rustfmt
+          components: clippy, rustfmt, llvm-tools-preview
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.2
@@ -46,6 +46,19 @@ jobs:
         working-directory: rust
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run tests
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@7623a79cdfecb99d681017af368ca353d9f49bb5 # v2.87.19
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run tests and generate coverage
         working-directory: rust
-        run: cargo test --workspace
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: rust/lcov.info
+          flags: rust
+          fail_ci_if_error: false

@@ -1,0 +1,63 @@
+# Codecov configuration for Hesabyar
+# Supports multi-language coverage: Android (Kotlin), Rust Core, and Scripts.
+
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+      android:
+        target: auto
+        threshold: 1%
+        flags:
+          - android
+      rust:
+        target: auto
+        threshold: 1%
+        flags:
+          - rust
+      scripts:
+        target: auto
+        threshold: 1%
+        flags:
+          - scripts
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+flags:
+  android:
+    paths:
+      - app/src/main/
+    carryforward: true
+  rust:
+    paths:
+      - rust/hesabyar-core/
+    carryforward: true
+  scripts:
+    paths:
+      - scripts/
+      - .github/scripts/
+    carryforward: true
+
+ignore:
+  - "**/*Test*.kt"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/androidTest/**"
+  - "app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt" # Generated UniFFI Kotlin bindings
+  - "rust/hesabyar-core/src/generated/**" # Generated core version
+  - "rust/uniffi-gen/**"
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false

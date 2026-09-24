@@ -81,6 +81,14 @@ jobs:
         with:
           coverage-reports: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          flags: android
+          fail_ci_if_error: false
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
