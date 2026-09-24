@@ -19,6 +19,7 @@ jobs:
         id: inference
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
@@ -39,8 +40,9 @@ jobs:
               "contents": [{"parts": [{"text": prompt}]}],
               "generationConfig": {"maxOutputTokens": 300},
           }).encode()
+          model = os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite"
           req = urllib.request.Request(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+              f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
               data=payload,
               headers={
                   "Content-Type": "application/json",
