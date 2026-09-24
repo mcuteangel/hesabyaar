@@ -57,6 +57,7 @@ jobs:
           VALIDATE_BASH_EXEC: true
           VALIDATE_YAML: true
           VALIDATE_GITHUB_ACTIONS: true
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: true
           VALIDATE_GITLEAKS: true
           VALIDATE_DOCKERFILE_HADOLINT: true
           VALIDATE_CLANG_FORMAT: true
