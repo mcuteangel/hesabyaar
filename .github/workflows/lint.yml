@@ -62,12 +62,12 @@ jobs:
            files: coverage-pin-manager.lcov
 
        - name: Set up DeepSource CLI
-         if: env.DEEPSOURCE_DSN != ''
+         if: ${{ secrets.DEEPSOURCE_DSN != '' }}
          continue-on-error: true
          uses: ./.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
-         if: env.DEEPSOURCE_DSN != ''
+         if: ${{ secrets.DEEPSOURCE_DSN != '' }}
          continue-on-error: true
          env:
            DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
