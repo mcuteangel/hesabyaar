@@ -27,10 +27,10 @@ internal class BackupDelegate(
     paymentHistoryDao.deleteAllPaymentHistory()
     bankLoanDao.deleteAllBankLoans()
     transactions.forEach { transactionDao.insertTransaction(it) }
-    loans.forEach { loanDao.insertLoan(it) }
-    installments.forEach { installmentDao.insertInstallment(it) }
+    loans.forEach { loanDao.insertLoan(normalizeLoanForRestore(it)) }
+    installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
     paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
-    bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
+    bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }
   }
 
   override suspend fun getAllPaymentHistories(): List<PaymentHistory> = paymentHistoryDao.getAllPaymentHistories()
@@ -57,9 +57,9 @@ internal class BackupDelegate(
         backupInsertPersonsForReplace(personsToInsert, personDao, backup.persons.isEmpty())
       backupInsertLoansWithPersonRemap(backup.loans, personMaps, loanDao)
       backupInsertTransactionsWithPersonRemap(backup.transactions, personMaps, transactionDao)
-      backup.installments.forEach { installmentDao.insertInstallment(it) }
+      backup.installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
-      backup.bankLoans.forEach { bankLoanDao.insertBankLoan(it) }
+      backup.bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }
       backup.accounts.forEach { accountDao.insert(it) }
     }
 
@@ -100,10 +100,16 @@ internal class BackupDelegate(
         sourcePersonId: Long?,
         fallbackName: String?
       ): Long? = resolvePersonId(sourcePersonId, fallbackName, personMaps)
-      val loanIdMap = backupMergeLoans(backup.loans, loanDao, ::resolveForMerge)
-      val bankLoanIdMap = backupMergeBankLoans(backup.bankLoans, bankLoanDao)
-      val installmentIdMap = backupMergeInstallments(backup.installments, installmentDao, bankLoanIdMap)
       val accountIdMap = backupMergeAccounts(backup.accounts, accountDao)
+      val loanIdMap = backupMergeLoans(backup.loans, loanDao, accountIdMap, ::resolveForMerge)
+      val bankLoanIdMap = backupMergeBankLoans(backup.bankLoans, bankLoanDao, accountIdMap)
+      val installmentIdMap =
+        backupMergeInstallments(
+          backup.installments,
+          installmentDao,
+          bankLoanIdMap,
+          accountIdMap
+        )
       backupMergeTransactions(
         backup.transactions,
         categoryIdMap,

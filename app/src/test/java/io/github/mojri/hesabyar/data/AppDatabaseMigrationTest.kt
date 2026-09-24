@@ -477,10 +477,10 @@ class AppDatabaseMigrationTest {
   }
 
   /**
-   * Creates a v5 database schema using raw SQL, runs MIGRATION_5_6 and
-   * MIGRATION_6_7, then opens the result with Room at version 7. Room's
+   * Creates a v5 database schema using raw SQL, runs MIGRATION_5_6 through
+   * MIGRATION_8_9, then opens the result with Room at version 9. Room's
    * schema validation will fail if the migration-produced schema doesn't
-   * match AccountEntity's column definitions.
+   * match the entities' column definitions.
    *
    * This is the P0 regression test: previously, SQL DEFAULT clauses in the
    * migration didn't match AccountEntity because the entity lacked
@@ -488,13 +488,13 @@ class AppDatabaseMigrationTest {
    * failures on Android 9+.
    */
   @Test
-  fun migration5to7SchemaMatchesAccountEntity() {
+  fun migration5to9SchemaMatchesAccountEntity() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val dbName = "migration_test_schema_v5"
     val dbFile = context.getDatabasePath(dbName)
 
     try {
-      assertMigration5to7SchemaMatchesAccountEntity(context, dbName)
+      assertMigration5to9SchemaMatchesAccountEntity(context, dbName)
     } finally {
       dbFile.delete()
       context.getDatabasePath("$dbName-wal").delete()
@@ -503,11 +503,11 @@ class AppDatabaseMigrationTest {
   }
 
   /**
-   * Creates a v5 database, runs MIGRATION_5_6 and MIGRATION_6_7,
-   * then verifies that AccountEntity data survives the round-trip
-   * and Room schema validation passes.
+   * Creates a v5 database, runs MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8
+   * and MIGRATION_8_9, then verifies that AccountEntity data survives the
+   * round-trip and Room schema validation passes.
    */
-  private fun assertMigration5to7SchemaMatchesAccountEntity(
+  private fun assertMigration5to9SchemaMatchesAccountEntity(
     context: Context,
     dbName: String
   ) {
@@ -515,9 +515,10 @@ class AppDatabaseMigrationTest {
     // This creates the exact v5 schema (no accounts table, no timestamps).
     createRawV5Database(context, dbName)
 
-    // Step 2: Run MIGRATION_5_6, MIGRATION_6_7 and MIGRATION_7_8 on the raw
-    // database. We open the database via Room with all migrations; Room will
-    // detect the version is 5 and apply 5→6→7→8 (the person-ledger migration).
+    // Step 2: Run MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8 and
+    // MIGRATION_8_9 on the raw database. We open the database via Room with
+    // all migrations; Room will detect the version is 5 and apply 5→6→7→8→9
+    // (the person-ledger migration, then the Phase 2 tracked-ledger columns).
     val migratedDb =
       Room
         .databaseBuilder(context, AppDatabase::class.java, dbName)
@@ -525,7 +526,8 @@ class AppDatabaseMigrationTest {
         .addMigrations(
           AppDatabase.MIGRATION_5_6,
           AppDatabase.MIGRATION_6_7,
-          AppDatabase.MIGRATION_7_8
+          AppDatabase.MIGRATION_7_8,
+          AppDatabase.MIGRATION_8_9
         ).build()
 
     // Step 3: Insert and query AccountEntity — if the migration-produced
@@ -638,7 +640,8 @@ class AppDatabaseMigrationTest {
       .addMigrations(
         AppDatabase.MIGRATION_5_6,
         AppDatabase.MIGRATION_6_7,
-        AppDatabase.MIGRATION_7_8
+        AppDatabase.MIGRATION_7_8,
+        AppDatabase.MIGRATION_8_9
       ).build()
   }
 

@@ -197,7 +197,9 @@ object RustMappers {
       remainingAmount = loan.remainingAmount,
       description = loan.description,
       date = loan.date,
-      isSettled = loan.isSettled
+      isSettled = loan.isSettled,
+      tracked = loan.tracked,
+      accountId = loan.accountId
     )
 
   fun mapInstallment(inst: Installment): io.github.mojri.hesabyar.rust.Installment =
@@ -209,7 +211,9 @@ object RustMappers {
       isPaid = inst.isPaid,
       reminderEnabled = inst.reminderEnabled,
       notes = inst.notes,
-      bankLoanId = inst.bankLoanId
+      bankLoanId = inst.bankLoanId,
+      tracked = inst.tracked,
+      accountId = inst.accountId
     )
 
   fun mapBankLoan(bankLoan: BankLoan): io.github.mojri.hesabyar.rust.BankLoan =
@@ -224,7 +228,9 @@ object RustMappers {
       totalInterest = bankLoan.totalInterest,
       startDate = bankLoan.startDate,
       description = bankLoan.description,
-      isSettled = bankLoan.isSettled
+      isSettled = bankLoan.isSettled,
+      tracked = bankLoan.tracked,
+      accountId = bankLoan.accountId
     )
 
   fun mapPaymentHistory(ph: PaymentHistory): io.github.mojri.hesabyar.rust.PaymentHistory =
@@ -303,7 +309,9 @@ object RustMappers {
       remainingAmount = loan.remainingAmount,
       description = loan.description,
       date = loan.date,
-      isSettled = loan.isSettled
+      isSettled = loan.isSettled,
+      tracked = loan.tracked,
+      accountId = loan.accountId
     )
 
   fun fromRustInstallment(inst: io.github.mojri.hesabyar.rust.Installment): Installment =
@@ -315,7 +323,9 @@ object RustMappers {
       isPaid = inst.isPaid,
       reminderEnabled = inst.reminderEnabled,
       notes = inst.notes,
-      bankLoanId = inst.bankLoanId
+      bankLoanId = inst.bankLoanId,
+      tracked = inst.tracked,
+      accountId = inst.accountId
     )
 
   fun fromRustBankLoan(bankLoan: io.github.mojri.hesabyar.rust.BankLoan): BankLoan =
@@ -330,7 +340,9 @@ object RustMappers {
       totalInterest = bankLoan.totalInterest,
       startDate = bankLoan.startDate,
       description = bankLoan.description,
-      isSettled = bankLoan.isSettled
+      isSettled = bankLoan.isSettled,
+      tracked = bankLoan.tracked,
+      accountId = bankLoan.accountId
     )
 
   fun fromRustCategory(cat: io.github.mojri.hesabyar.rust.Category): Category =

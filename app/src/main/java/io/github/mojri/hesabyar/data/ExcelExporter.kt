@@ -51,7 +51,7 @@ class ExcelExporter(
       )
 
     val bytes =
-      RustBridge.generateExcel(WorkbookData(sheets))
+      RustBridge.generateExcelSync(WorkbookData(sheets))
         ?: throw IllegalStateException("Rust Excel generation failed or unavailable")
 
     return ExportResult(

@@ -787,6 +787,8 @@ mod tests {
             description: "test".to_string(),
             date: 1710000000000,
             is_settled: false,
+            tracked: false,
+            account_id: None,
         }
     }
 
@@ -800,6 +802,8 @@ mod tests {
             reminder_enabled: true,
             notes: String::new(),
             bank_loan_id: None,
+            tracked: false,
+            account_id: None,
         }
     }
 
@@ -1285,6 +1289,8 @@ mod tests {
             start_date: 1710000000000,
             description: "test".into(),
             is_settled: false,
+            tracked: false,
+            account_id: None,
         }
     }
 
@@ -2590,6 +2596,8 @@ mod tests {
                 description: "test".into(),
                 date: 1710000000000,
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             }],
             ..Default::default()
         };
@@ -2659,6 +2667,8 @@ mod tests {
                 description: "test".into(),
                 date: 1710000000000,
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             }],
             ..Default::default()
         };
@@ -2736,6 +2746,8 @@ mod tests {
                 description: "test".into(),
                 date: 1710000000000,
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             }],
             transactions: vec![Transaction {
                 id: 1,
@@ -2804,6 +2816,8 @@ mod tests {
                 description: "test".into(),
                 date: 1710000000000,
                 is_settled: false,
+                tracked: false,
+                account_id: None,
             }],
             ..Default::default()
         };

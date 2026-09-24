@@ -12,6 +12,25 @@
 > Supersedes the clamp-based approach of plan 001: overpayments are now
 > rejected at the repository boundary instead of being clamped silently.
 
+## Phase 2 (scope expanded) — resolved migration contract (DECISION 1 + DECISION 2)
+
+DECISION 1 (Option 1 wins): `tracked=false` is the universal default for ALL
+pre-existing rows across `loans`, `bank_loans`, and `installments` (single
+additive `MIGRATION_8_9`). Historical transactions created before this
+migration are NEVER touched, deleted, or reversed. Going forward, any
+repayment on a pre-existing (backfilled) row does NOT create an account
+transaction unless the user explicitly enables tracked for that record.
+Accepted, intentional behavior change: mid-lifecycle inconsistency (early
+repayments have transactions, later ones do not unless opted in) is the
+correct outcome of the opt-in philosophy, not a bug.
+
+DECISION 2 (scope expansion): the tracked/accountId three-state model applies
+identically to Loan, BankLoan, and Installment. Bank-loan installments keep
+ledger-only defaults; each installment's own tracked flag governs its paid
+toggles. The parent bank loan's tracked flag governs only the one-time
+disbursement leg. Installment creation posts an initial expense only when the
+row is created already-paid with tracked=true and recordInitial=true.
+
 ## Status
 
 - Priority: P1
@@ -68,7 +87,11 @@ Kotlin mirrors that must stay consistent:
   `computeAccountSummaries`
 - `GetAnalyticsUseCase` fallback path
 - `BudgetAdvisor.kt` local totals, local debt-to-income, local health score
-- `BudgetAdviceGenerator.kt` prompt summary (audit during implementation)
+- `BudgetAdviceGenerator.kt` advice-prompt summary
+- `BudgetForecastPrompt.kt` forecast-prompt facts (`ForecastFacts.of`, fed by
+  the exclusion resolved in `BudgetAdvisor.getBudgetForecast`; decision
+  2026-09-19: both AI prompts report filtered KPI totals, so advice and
+  forecast never disagree about "real" income or expense)
 
 Kept untouched on purpose: `ExcelExporter` sheets and the transaction list —
 they are cash-movement ledgers, not KPIs.
@@ -92,6 +115,23 @@ to fail: an empty `excludedCategoryIds` list means no KPI filtering
 (aggregates keep their current semantics) plus one `AppLogger.w` warning per
 resolution attempt site. Phase 2 must include an explicit test for the
 empty-list case (Rust helper + each Kotlin mirror).
+
+#### Missing-"Loans"-category creation behavior (finalized)
+
+For entity creation paths with an initial transaction leg (`Loan` and `BankLoan`):
+- When `tracked = true` and `recordInitial = true`, the creation logic requires resolving
+  the default `"Loans"` category. If the category cannot be resolved from the database,
+  the operation throws `IllegalStateException` with a per-context message —
+  `"Loans category is missing; cannot record the initial loan transaction"`
+  (LoanDelegate) and `"Loans category is missing; cannot record the bank loan
+  disbursement transaction"` (BankLoanDelegate) —
+  within `withTransaction { }`. This guarantees full atomic rollback with zero rows written
+  (zero loans/bank loans, zero installments, zero transactions).
+- When `tracked = false` or `recordInitial = false`, no initial transaction is posted.
+  Creation always succeeds regardless of whether the `"Loans"` category is present in the database.
+  This applies identically to `LoanDelegate.insertLoanWithInitial` and `BankLoanDelegate.insertBankLoanWithInitial`.
+  Installment creation (`InstallmentDelegate.insertInstallmentWithInitial`) mirrors this behavior
+  identically with the default `"Installments"` category.
 
 ### D3 — `loans.personName` is sync-on-rename
 

@@ -115,6 +115,11 @@ class InstallmentViewModelTest {
 
     override suspend fun insertLoan(loan: Loan): Long = 0L
 
+    override suspend fun insertLoanWithInitial(
+      loan: Loan,
+      recordInitial: Boolean
+    ): Long = 0L
+
     override suspend fun updateLoan(loan: Loan) {}
 
     override suspend fun deleteLoan(loan: Loan) {}
@@ -129,6 +134,11 @@ class InstallmentViewModelTest {
     ): Boolean = false
 
     override suspend fun insertInstallment(installment: Installment): Long = 0L
+
+    override suspend fun insertInstallmentWithInitial(
+      installment: Installment,
+      recordInitial: Boolean
+    ): Long = 0L
 
     override suspend fun updateInstallment(installment: Installment) {}
 
@@ -147,6 +157,12 @@ class InstallmentViewModelTest {
     override suspend fun addBankLoanWithInstallments(
       bankLoan: BankLoan,
       installments: List<Installment>
+    ): Long = 0L
+
+    override suspend fun addBankLoanWithInstallmentsAndInitial(
+      bankLoan: BankLoan,
+      installments: List<Installment>,
+      recordInitial: Boolean
     ): Long = 0L
 
     override suspend fun importBackup(

@@ -154,7 +154,9 @@ class RustBridgeTest {
         remainingAmount = 1_000_000L,
         description = "test",
         date = 1_700_000_000_000L,
-        isSettled = false
+        isSettled = false,
+        tracked = false,
+        accountId = null
       )
     val installment =
       Installment(
@@ -165,7 +167,9 @@ class RustBridgeTest {
         isPaid = false,
         reminderEnabled = true,
         notes = "",
-        bankLoanId = null
+        bankLoanId = null,
+        tracked = false,
+        accountId = null
       )
     assertTrue(RustBridge.validateTransactionSync(txn))
     assertTrue(RustBridge.validateLoanSync(loan))
@@ -261,6 +265,52 @@ class RustBridgeTest {
     assertEquals("fallback", result)
   }
 
+  @Test
+  fun validateBooleanReturnsTrueOnSuccess() {
+    assertTrue(RustBridge.validateBoolean { /* success */ })
+  }
+
+  @Test
+  fun validateBooleanReturnsFalseOnCheckedException() {
+    val result =
+      RustBridge.validateBoolean {
+        throw java.io.IOException("checked exception failure")
+      }
+    assertFalse(result)
+  }
+
+  @Test
+  fun validateBooleanRethrowsRuntimeException() {
+    assertThrows(IllegalStateException::class.java) {
+      RustBridge.validateBoolean {
+        throw IllegalStateException("runtime fault")
+      }
+    }
+  }
+
+  @Test
+  fun validateBooleanRethrowsCancellationException() {
+    assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+      RustBridge.validateBoolean {
+        throw kotlinx.coroutines.CancellationException("cancelled")
+      }
+    }
+  }
+
+  @Test
+  fun validateBooleanRethrowsInterruptedExceptionAndRestoresFlag() {
+    try {
+      assertThrows(InterruptedException::class.java) {
+        RustBridge.validateBoolean {
+          throw InterruptedException("interrupted")
+        }
+      }
+      assertTrue(Thread.currentThread().isInterrupted)
+    } finally {
+      Thread.interrupted()
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Backup
   // ---------------------------------------------------------------------------
@@ -287,7 +337,7 @@ class RustBridgeTest {
   fun checksumAndExcelSyncCallsDelegateToTheNativeCore() {
     assertTrue(RustBridge.computeChecksumSync(byteArrayOf(1, 2, 3)).isNotEmpty())
     assertFalse(RustBridge.verifyChecksumSync(byteArrayOf(1), "abc"))
-    assertNotNull(RustBridge.generateExcel(WorkbookData(emptyList())))
+    assertNotNull(RustBridge.generateExcelSync(WorkbookData(emptyList())))
   }
 
   private fun emptyBackupPayload(): BackupPayload =
