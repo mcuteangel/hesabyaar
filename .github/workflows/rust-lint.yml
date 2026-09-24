@@ -72,19 +72,18 @@ jobs:
           add-prefix: rust
 
       - name: Set up DeepSource CLI
+        if: env.DEEPSOURCE_DSN != ''
+        continue-on-error: true
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
+        if: env.DEEPSOURCE_DSN != ''
         continue-on-error: true
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
         run: |
-          if [ -n "$DEEPSOURCE_DSN" ]; then
-            sed -e 's|^SF:hesabyar-core/|SF:rust/hesabyar-core/|' rust/lcov.info > rust/lcov.prefixed.info
-            deepsource report --analyzer test-coverage --key rust --value-file rust/lcov.prefixed.info
-          else
-            echo "DEEPSOURCE_DSN secret is not set, skipping DeepSource coverage upload."
-          fi
+          sed -e 's|^SF:hesabyar-core/|SF:rust/hesabyar-core/|' rust/lcov.info > rust/lcov.prefixed.info
+          deepsource report --analyzer test-coverage --key rust --value-file rust/lcov.prefixed.info
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}

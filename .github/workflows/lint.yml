@@ -62,18 +62,17 @@ jobs:
            files: coverage-pin-manager.lcov
 
        - name: Set up DeepSource CLI
+         if: env.DEEPSOURCE_DSN != ''
+         continue-on-error: true
          uses: ./.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
+         if: env.DEEPSOURCE_DSN != ''
          continue-on-error: true
          env:
            DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
          run: |
-           if [ -n "$DEEPSOURCE_DSN" ]; then
-             deepsource report --analyzer test-coverage --key javascript --value-file coverage-pin-manager.lcov
-           else
-             echo "DEEPSOURCE_DSN secret is not set, skipping DeepSource coverage upload."
-           fi
+           deepsource report --analyzer test-coverage --key javascript --value-file coverage-pin-manager.lcov
 
        - name: Upload test results to Codecov
          if: ${{ !cancelled() }}

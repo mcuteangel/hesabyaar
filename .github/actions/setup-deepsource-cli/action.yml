@@ -13,7 +13,7 @@ runs:
         URL="https://cli.deepsource.com/build/${ARCHIVE}"
 
         mkdir -p "${RUNNER_TEMP}/deepsource-bin"
-        curl -fsSL -o "${RUNNER_TEMP}/${ARCHIVE}" "${URL}"
+        curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 60 -o "${RUNNER_TEMP}/${ARCHIVE}" "${URL}"
         ACTUAL_SHA256=$(sha256sum "${RUNNER_TEMP}/${ARCHIVE}" | cut -d' ' -f1)
 
         if [ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]; then
