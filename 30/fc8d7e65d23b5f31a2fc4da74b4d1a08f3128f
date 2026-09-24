@@ -1,0 +1,20 @@
+scripts/tests/test-generate-release-notes.sh
+  s_0ff850e4f87ac4::t_75649880ce0423 303-304,313-322
+  s_0ff850e4f87ac4::t_30bf3693a28eef 242-243,252-261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "30fc8d7e65d23b5f31a2fc4da74b4d1a08f3128f",
+  "prompts": {},
+  "sessions": {
+    "s_0ff850e4f87ac4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3c80b953-c280-4f98-befb-2a9ab2750860",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
