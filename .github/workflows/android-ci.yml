@@ -98,6 +98,18 @@ jobs:
           files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           add-prefix: app/src/main/java
 
+      - name: Upload coverage to DeepSource
+        continue-on-error: true
+        env:
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        run: |
+          if [ -n "$DEEPSOURCE_DSN" ]; then
+            curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
+            ./bin/deepsource report --analyzer test-coverage --key kotlin --value-file app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          else
+            echo "DEEPSOURCE_DSN secret is not set, skipping DeepSource coverage upload."
+          fi
+
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
