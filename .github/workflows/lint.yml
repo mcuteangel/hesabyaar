@@ -35,7 +35,7 @@ jobs:
          run: bash scripts/test-issue-autoclose.sh
 
        - name: Run Actions pin manager tests
-         run: node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage-pin-manager.lcov scripts/test-github-actions-pin-manager.mjs
+         run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage-pin-manager.lcov scripts/test-github-actions-pin-manager.mjs
 
        - name: Run change-detection regression tests
          run: bash scripts/tests/test-detect-changes.sh

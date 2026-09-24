@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run OCR resolver tests with coverage
-        run: node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
+        run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
