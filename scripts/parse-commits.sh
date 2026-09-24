@@ -70,10 +70,18 @@ else
   BUMP_TYPE="patch"
 fi
 
-# Trim summary to 20 lines, avoid SIGPIPE
+# Trim summary to 20 lines, format as bulleted list
 summary_lines=$(echo "$summary_lines" | sed '/^$/d' | head -20 || true)
-summary_flat=$(echo "$summary_lines" | tr '\n' ' ' | sed 's/ $//')
+summary_bullets=$(echo "$summary_lines" | sed 's/^/- /')
 
-# Output JSON using jq (safe against special characters)
-jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_flat" \
-  '{bump_type: $bump_type, summary: $summary}'
+# Output JSON using jq or python fallback (safe against special characters)
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_bullets" \
+    '{bump_type: $bump_type, summary: $summary}'
+elif python3 --version >/dev/null 2>&1; then
+  BUMP_TYPE="$BUMP_TYPE" SUMMARY_BULLETS="$summary_bullets" python3 -c \
+    'import json, os; print(json.dumps({"bump_type": os.environ["BUMP_TYPE"], "summary": os.environ["SUMMARY_BULLETS"]}))'
+elif py -3 --version >/dev/null 2>&1; then
+  BUMP_TYPE="$BUMP_TYPE" SUMMARY_BULLETS="$summary_bullets" py -3 -c \
+    'import json, os; print(json.dumps({"bump_type": os.environ["BUMP_TYPE"], "summary": os.environ["SUMMARY_BULLETS"]}))'
+fi

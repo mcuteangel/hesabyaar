@@ -4,16 +4,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
-      - 'scripts/github-actions-pin-manager.mjs'
-      - 'scripts/test-github-actions-pin-manager.mjs'
-      - 'scripts/test-issue-autoclose.sh'
+      - 'scripts/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/**'
-      - 'scripts/github-actions-pin-manager.mjs'
-      - 'scripts/test-github-actions-pin-manager.mjs'
-      - 'scripts/test-issue-autoclose.sh'
+      - 'scripts/**'
 
 jobs:
   actionlint:
@@ -28,7 +24,7 @@ jobs:
          uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
          with:
           persist-credentials: false
-          
+
        - name: Download actionlint
          uses: reviewdog/action-actionlint@ab7138020abfe6cd20b742c82e5b7a9749fb5884 # v1.75.0
          with:
@@ -40,6 +36,12 @@ jobs:
 
        - name: Run Actions pin manager tests
          run: node --test scripts/test-github-actions-pin-manager.mjs
+
+       - name: Run release script regression tests
+         run: |
+           bash scripts/tests/test-detect-changes.sh
+           bash scripts/tests/test-parse-commits.sh
+           bash scripts/tests/test-generate-release-notes.sh
 
        - name: Run Actions pin audit
          # Informational. The audit never fails CI on its findings; it
