@@ -1,0 +1,29 @@
+.github/linters/zizmor.yaml
+  s_b1c4fdbf58f932::t_80fba7ac2ed61e 9-10,13-15
+.github/actions/setup-deepsource-cli/action.yml
+  s_b1c4fdbf58f932::t_2db7449c580e58 9-11
+  s_b1c4fdbf58f932::t_54acaf6a0ce8eb 28
+.github/workflows/rust-lint.yml
+  s_b1c4fdbf58f932::t_daf3f78a08a712 39
+.github/workflows/ocr-resolver-tests.yml
+  s_b1c4fdbf58f932::t_057179166019a8 31-32
+.github/workflows/android-ci.yml
+  s_b1c4fdbf58f932::t_d7170108b59dcb 9-11
+  s_b1c4fdbf58f932::t_f667a0120e15a5 20-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "34a2ce9769476979c58ea51bb82288c7c2066d6f",
+  "prompts": {},
+  "sessions": {
+    "s_b1c4fdbf58f932": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f9500f-b476-45ff-a2b6-d272e414ac4d",
+        "model": "stealth/space-bunny-alpha"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
