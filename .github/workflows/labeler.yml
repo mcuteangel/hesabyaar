@@ -50,6 +50,14 @@ jobs:
       GEMINI_MODEL: ${{ vars.PR_LABELER_MODEL || 'gemma-4-31b' }}
 
     steps:
+      # The gh CLI needs a git remote to resolve a pull request number. The
+      # checkout is shallow and stores no credential, and no file from the pull
+      # request is read or executed.
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
       - name: Resolve the pull request
         id: pr
         env:
