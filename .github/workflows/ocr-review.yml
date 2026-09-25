@@ -69,6 +69,8 @@ permissions:
   # scope the edit is rejected and archiving silently no-ops.
   issues: write
 
+cache-mode: none
+
 jobs:
   # Primary attempt with the configured OpenAI-compatible gateway.
   code-review:

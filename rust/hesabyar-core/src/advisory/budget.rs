@@ -102,6 +102,25 @@ pub fn get_offline_forecast(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64;
+    get_offline_forecast_at(
+        transactions,
+        loans,
+        installments,
+        bank_loans,
+        excluded_category_ids,
+        now_ms,
+    )
+}
+
+/// Get offline budget forecast with an explicit reference timestamp in milliseconds.
+pub fn get_offline_forecast_at(
+    transactions: &[Transaction],
+    loans: &[Loan],
+    installments: &[Installment],
+    bank_loans: &[BankLoan],
+    excluded_category_ids: &[i64],
+    now_ms: i64,
+) -> String {
     let thirty_days_ms = 30 * 24 * 60 * 60 * 1000;
     let upcoming_installments: Vec<&Installment> = installments
         .iter()
@@ -745,7 +764,7 @@ mod tests {
             1_000_000,
             now - 45 * day,
         )];
-        let result = get_offline_forecast(&txs, &[], &[], &[], &[]);
+        let result = get_offline_forecast_at(&txs, &[], &[], &[], &[], now);
         // avg_income = 666,666 Rial → 66,666 Toman in the "درآمد تخمینی" line.
         assert!(
             result.contains("66,666"),
