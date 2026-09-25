@@ -95,4 +95,6 @@ graphify-out/
 *.info
 *.lcov
 coverage*.lcov
+junit*.xml
+*-junit.xml
 
