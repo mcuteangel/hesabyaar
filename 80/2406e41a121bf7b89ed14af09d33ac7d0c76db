@@ -1,0 +1,23 @@
+rust/hesabyar-core/src/advisory/mod.rs
+  s_6903ef20271cc0::t_397ed4eb8f05fb 5
+rust/hesabyar-core/src/advisory/budget.rs
+  s_6903ef20271cc0::t_397ed4eb8f05fb 105-123,767
+.github/workflows/ocr-review.yml
+  s_6903ef20271cc0::t_397ed4eb8f05fb 72-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "802406e41a121bf7b89ed14af09d33ac7d0c76db",
+  "prompts": {},
+  "sessions": {
+    "s_6903ef20271cc0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ca63e5f-ad86-4ef6-aad2-ee275ee31919",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
