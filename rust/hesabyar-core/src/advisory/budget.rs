@@ -112,8 +112,8 @@ pub fn get_offline_forecast(
     )
 }
 
-/// Get offline budget forecast with an explicit reference timestamp in milliseconds.
-pub fn get_offline_forecast_at(
+/// Internal helper for offline budget forecast with an explicit reference timestamp in milliseconds.
+fn get_offline_forecast_at(
     transactions: &[Transaction],
     loans: &[Loan],
     installments: &[Installment],
@@ -124,7 +124,11 @@ pub fn get_offline_forecast_at(
     let thirty_days_ms = 30 * 24 * 60 * 60 * 1000;
     let upcoming_installments: Vec<&Installment> = installments
         .iter()
-        .filter(|i| !i.is_paid && i.due_date >= now_ms && i.due_date <= now_ms + thirty_days_ms)
+        .filter(|i| {
+            !i.is_paid
+                && i.due_date >= now_ms
+                && i.due_date <= now_ms.saturating_add(thirty_days_ms)
+        })
         .collect();
     let upcoming_sum: i64 = upcoming_installments
         .iter()
@@ -157,7 +161,7 @@ pub fn get_offline_forecast_at(
         return "\u{0647}\u{0646}\u{0648}\u{0632} \u{0627}\u{0637}\u{0644}\u{0627}\u{0639}\u{0627}\u{062A} \u{062A}\u{0631}\u{0627}\u{06A9}\u{0646}\u{0634} \u{06CC} \u{0642}\u{0633}\u{0637} \u{062F}\u{0631} \u{062D}\u{0633}\u{0627}\u{0628}\u{06CC}\u{0627}\u{0631} \u{062B}\u{0628}\u{062A} \u{0646}\u{0634}\u{062F}\u{0647} \u{0627}\u{0633}\u{062A}. \u{0644}\u{0637}\u{0641}\u{0627} \u{062E}\u{0637}\u{0627} \u{0648} \u{062E}\u{0631}\u{062C} \u{0647}\u{0627}\u{06CC} \u{0631}\u{0648}\u{0632}\u{0627}\u{0646}\u{0647} \u{062E}\u{0648}\u{062F} \u{0631}\u{0627} \u{0648}\u{0627}\u{0631}\u{062F} \u{06A9}\u{0646}\u{06CC}\u{062F}.".to_string();
     }
 
-    let window_start = now_ms - 90 * 24 * 60 * 60 * 1000;
+    let window_start = now_ms.saturating_sub(90 * 24 * 60 * 60 * 1000);
     let recent: Vec<&Transaction> = transactions
         .iter()
         .filter(|t| {

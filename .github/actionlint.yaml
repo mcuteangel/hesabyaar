@@ -1,0 +1,4 @@
+# actionlint policy configuration
+# Disables cache-call-unrestricted policy for reusable workflows that do not use cache actions
+policy:
+  cache-call-unrestricted: false
