@@ -1,9 +1,9 @@
 name: AI Issue OS v2 (Self-Healing + Context-Aware Manual)
 
 env:
-  # Model for the Gemini CLI. Override per-repo via Settings → Secrets/Variables
-  # (vars.GEMINI_MODEL). Falls back to the previously-working model if unset.
-  GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.1-flash-lite' }}
+  # Model for OpenRouter chat completions. Override per-repo via Settings → Secrets/Variables
+  # (vars.OPENROUTER_MODEL). Falls back to a free model if unset.
+  OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'stealth/space-bunny-alpha' }}
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       pull-requests: read
 
     env:
-      HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+      HAS_OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY != '' }}
 
     steps:
       - name: Checkout
@@ -90,6 +90,11 @@ jobs:
             HEAD="${{ github.event.after }}"
             DIFF_FILTER="-- src/ lib/ app/"
             if [[ "$BASE" == "0000000000000000000000000000000000000000" ]]; then BASE="HEAD~1"; fi
+            # Force-pushes/amends leave `before` dangling (not in fetched history).
+            # Fall back instead of dying with `fatal: bad object` (exit 128).
+            if ! git cat-file -e "$BASE" 2>/dev/null; then
+              git fetch origin "$BASE" --depth=1 2>/dev/null || BASE="HEAD~1"
+            fi
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
@@ -108,17 +113,17 @@ jobs:
 
           { head -n 500 diff_full.txt; echo "... [TRUNCATED] ..."; tail -n 500 diff_full.txt; } > diff.txt
 
-      - name: Sanitize Gemini context (strip image tags)
-        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+      - name: Sanitize OpenRouter context (strip image tags)
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_OPENROUTER_KEY == 'true'
         run: |
-          # Strip Markdown image tags ![alt](url) and HTML <img ...> so the Gemini
-          # CLI never sends image payloads (root cause of the API 400 errors).
+          # Strip Markdown image tags ![alt](url) and HTML <img ...> to keep the
+          # model context clean and small.
           clean() { sed -E 's/!\[[^]]*\]\([^)]*\)//g; s/<img[^>]*>//gi' "$1"; }
           [ -f intel.json ] && clean intel.json > intel.json.tmp && mv intel.json.tmp intel.json
           [ -f diff.txt ] && clean diff.txt > diff.txt.tmp && mv diff.txt.tmp diff.txt
 
-      - name: Prepare Gemini context
-        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+      - name: Prepare OpenRouter context
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_OPENROUTER_KEY == 'true'
         run: |
           {
             echo "INTEL_CONTEXT<<EOF"
@@ -132,37 +137,61 @@ jobs:
             echo "EOF"
           } >> $GITHUB_ENV
 
-      - name: Gemini reasoning
-        if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
+      - name: OpenRouter reasoning
+        if: steps.rule.outputs.trigger == 'true' && env.HAS_OPENROUTER_KEY == 'true'
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
-        id: gemini
-        env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: ${{ env.GEMINI_MODEL }}
-          prompt: |
-            You are a GitHub AI system.
-            Context:
-            - Issue intelligence summary:
-            ${{ env.INTEL_CONTEXT }}
+        id: openrouter
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg model "${{ env.OPENROUTER_MODEL }}" \
+            --arg intel "$INTEL_CONTEXT" \
+            --arg diff "$DIFF_CONTEXT" \
+            '{
+              model: $model,
+              messages: [{
+                role: "user",
+                content: ("You are a GitHub AI system.\nContext:\n- Issue intelligence summary:\n"
+                  + $intel + "\n\n- Code diff (truncated):\n" + $diff
+                  + "\n\nTasks:\n1. Detect resolved issues based on diff content\n2. Detect regressions (previously fixed issues that broke again)\n3. Suggest labels (bug/feature/security/refactor)\n\nOutput ONLY valid JSON, no markdown fences:\n{\"resolved\": [1], \"reopen\": [], \"labels\": {\"1\": [\"bug\"]}, \"reason\": \"Brief explanation\"}")
+              }],
+              response_format: { type: "json_object" },
+              temperature: 0.2,
+              max_tokens: 2000
+            }' > /tmp/or_payload.json
 
-            - Code diff (truncated):
-            ${{ env.DIFF_CONTEXT }}
+          HTTP_CODE=$(curl -sS --max-time 120 -o /tmp/or_resp.json -w "%{http_code}" \
+            -X POST https://openrouter.ai/api/v1/chat/completions \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "HTTP-Referer: https://github.com/${{ github.repository }}" \
+            -H "X-Title: AI Issue OS v2" \
+            --data @/tmp/or_payload.json)
 
-            Tasks:
-            1. Detect resolved issues based on diff content
-            2. Detect regressions (previously fixed issues that broke again)
-            3. Suggest labels (bug/feature/security/refactor)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "OpenRouter request failed (HTTP $HTTP_CODE)"
+            head -c 2000 /tmp/or_resp.json; echo
+            exit 1
+          fi
 
-            Output ONLY valid JSON:
-            {"resolved": [1], "reopen": [], "labels": {"1": ["bug"]}, "reason": "Brief explanation"}
+          CONTENT=$(jq -r '.choices[0].message.content // empty' /tmp/or_resp.json)
+          # Strip markdown fences in case the model wraps the JSON anyway.
+          CLEAN=$(printf '%s' "$CONTENT" | sed -e 's/^```json[[:space:]]*//' -e 's/^```[[:space:]]*//' -e 's/[[:space:]]*```$//')
+          printf '%s' "$CLEAN" | jq -e . > /dev/null || { echo "Model did not return valid JSON"; exit 1; }
+
+          {
+            echo "summary<<OR_SUMMARY_EOF"
+            printf '%s\n' "$CLEAN"
+            echo "OR_SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Apply issue updates
-        if: steps.gemini.outputs.summary != '' && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: steps.openrouter.outputs.summary != '' && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESPONSE: ${{ steps.gemini.outputs.summary }}
+          RESPONSE: ${{ steps.openrouter.outputs.summary }}
           ISSUES_JSON: ${{ steps.issues.outputs.result }}
           SHORT_SHA: ${{ github.sha }}
         run: |
@@ -416,35 +445,55 @@ jobs:
             -f "body=🤖 AI OS received \`/ai-fix\`. Reading the reported context..." \
             -f "in_reply_to_id=${{ github.event.comment.id }}"
 
-      - name: Generate Issue with Gemini
+      - name: Generate Issue with OpenRouter
         id: gen_issue
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
-        env: { GEMINI_CLI_TRUST_WORKSPACE: "true" }
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: ${{ env.GEMINI_MODEL }}
-          prompt: |
-            You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PARENT_CONTEXT: ${{ steps.pr_context.outputs.parent_context }}
+          PR_DIFF: ${{ steps.pr_context.outputs.diff }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg model "${{ env.OPENROUTER_MODEL }}" \
+            --arg parent "$PARENT_CONTEXT" \
+            --arg diff "$PR_DIFF" \
+            '{
+              model: $model,
+              messages: [{
+                role: "user",
+                content: ("You are an expert QA engineer. A user replied to a bot'"'"'s code review or bug report with the command `/ai-fix`.\n\nHERE IS THE EXACT BUG REPORT/REVIEW FROM THE BOT (Parent Comment):\n---\n"
+                  + $parent + "\n---\n\nHERE IS THE PR CODE DIFF FOR CONTEXT:\n---\n" + $diff
+                  + "\n---\n\nTASK: Create a highly professional GitHub Issue based STRICTLY on the \"BUG REPORT FROM THE BOT\" provided above. Use the diff only to understand the code context.\n\nOutput ONLY valid JSON with exactly this structure, no markdown fences:\n{\n  \"title\": \"Concise bug title based on the report\",\n  \"body\": \"Detailed markdown body explaining the bug reported by the bot, expected vs actual behavior, and referencing the problematic code snippet.\",\n  \"labels\": [\"bug\"]\n}")
+              }],
+              response_format: { type: "json_object" },
+              temperature: 0.3,
+              max_tokens: 3000
+            }' > /tmp/or_payload.json
 
-            HERE IS THE EXACT BUG REPORT/REVIEW FROM THE BOT (Parent Comment):
-            ---
-            ${{ steps.pr_context.outputs.parent_context }}
-            ---
+          HTTP_CODE=$(curl -sS --max-time 180 -o /tmp/or_resp.json -w "%{http_code}" \
+            -X POST https://openrouter.ai/api/v1/chat/completions \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "HTTP-Referer: https://github.com/${{ github.repository }}" \
+            -H "X-Title: AI Issue OS v2 /ai-fix" \
+            --data @/tmp/or_payload.json)
 
-            HERE IS THE PR CODE DIFF FOR CONTEXT:
-            ---
-            ${{ steps.pr_context.outputs.diff }}
-            ---
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "OpenRouter request failed (HTTP $HTTP_CODE)"
+            head -c 2000 /tmp/or_resp.json; echo
+            exit 1
+          fi
 
-            TASK: Create a highly professional GitHub Issue based STRICTLY on the "BUG REPORT FROM THE BOT" provided above. Use the diff only to understand the code context.
+          CONTENT=$(jq -r '.choices[0].message.content // empty' /tmp/or_resp.json)
+          CLEAN=$(printf '%s' "$CONTENT" | sed -e 's/^```json[[:space:]]*//' -e 's/^```[[:space:]]*//' -e 's/[[:space:]]*```$//')
+          printf '%s' "$CLEAN" | jq -e . > /dev/null || { echo "Model did not return valid JSON"; exit 1; }
 
-            Output ONLY valid JSON with exactly this structure:
-            {
-              "title": "Concise bug title based on the report",
-              "body": "Detailed markdown body explaining the bug reported by the bot, expected vs actual behavior, and referencing the problematic code snippet.",
-              "labels": ["bug"]
-            }
+          {
+            echo "summary<<OR_SUMMARY_EOF"
+            printf '%s\n' "$CLEAN"
+            echo "OR_SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate, Create Issue & Reply to PR
         env:
