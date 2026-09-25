@@ -18,6 +18,45 @@ This crate contains platform-independent business logic extracted from the Kotli
 - **Entity Validation** — Transaction, loan, installment validation
 - **AI Validation** — AI output validation and sanitization
 
+## UniFFI Architecture
+
+Hesabyar uses UniFFI procedural macros with scaffolding:
+- `uniffi::setup_scaffolding!()` in `rust/hesabyar-core/src/lib.rs`.
+- `#[uniffi::export]` attributes on exported functions, structs, and enums.
+- No `.udl` interface definition files are used.
+- Bindings are generated via the workspace binary `uniffi-gen` (see `rust/uniffi-gen/`).
+- The Gradle task `:app:generateAndFixBindings` orchestrates host compilation, binding generation, package renaming, and appending the compat template (`app/buildSrc/template/HesabyarCore.template.kt`).
+
+## Money Representation Rules
+
+- **Rust canonical money:** `i64` (representing amounts in Rial).
+- **Kotlin canonical money:** `Long` (representing amounts in Rial).
+- **BigDecimal:** Permitted only for intermediate decimal calculations (e.g., fractional rate scaling) before converting back to `i64`/`Long`.
+- **Float and Double:** Strictly forbidden for canonical money storage, FFI signatures, database persistence, and financial business logic. Float/Double is permitted only for non-monetary calculations such as progress percentages or UI animation values.
+
+## Workflow for Adding New Methods
+
+Follow this exact order when introducing new business logic:
+
+1. **Write Rust function:** Implement the logic in `rust/hesabyar-core/src/` using `i64` for currency.
+2. **Write Rust unit test:** Add `#[cfg(test)]` tests covering edge cases.
+3. **Run Rust tests:** `cargo test -p hesabyar-core`
+4. **Run Clippy:** `cargo clippy -p hesabyar-core -- -D warnings`
+5. **Expose via UniFFI:** Add `#[uniffi::export]` if public FFI exposure is needed. Update `app/buildSrc/template/HesabyarCore.template.kt` if the wrapper method requires defaults.
+6. **Regenerate bindings:** `./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks`
+7. **Write Kotlin caller:** Call via `RustBridge` inside a UseCase.
+8. **Write Kotlin test:** Add JVM test covering the UseCase and bridge interaction.
+
+## Quick Checks
+
+```bash
+# Fast Rust tests
+cargo test -p hesabyar-core
+
+# Rust clippy check
+cargo clippy -p hesabyar-core -- -D warnings
+```
+
 ## Building
 
 ### Prerequisites
@@ -53,7 +92,13 @@ cargo bench
 
 ### Generate Kotlin Bindings (UniFFI)
 
-The `uniffi-gen` binary in the workspace root generates Kotlin bindings from the compiled host library:
+The recommended method is using Gradle:
+
+```bash
+./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks
+```
+
+For manual generation via `uniffi-gen`:
 
 ```bash
 # From workspace root
@@ -136,7 +181,7 @@ and the worktree state of each case.
 ```
 hesabyar-core/
   src/
-    lib.rs              — Public API re-exports
+    lib.rs              — Public API re-exports and uniffi scaffolding
     calendar.rs          — Jalali ↔ Gregorian conversion
     currency.rs          — Rial/Toman formatting
     analytics.rs         — Transaction analytics
@@ -153,7 +198,7 @@ hesabyar-core/
       mod.rs             — Advisory module re-exports
       budget.rs          — Budget advice + forecasting
     ffi/
-      mod.rs             — UniFFI bridge with 20+ exported functions
+      mod.rs             — UniFFI bridge with exported functions
     validation.rs        — Entity validation
     search.rs            — Full-text search
     crypto.rs            — AES-256-GCM encryption
@@ -177,15 +222,4 @@ cargo test -- --nocapture
 
 # Specific test
 cargo test test_known_jalali_date
-
-# Benchmarks
-cargo bench
 ```
-
-## Architecture Decisions
-
-- **i64 for amounts** — Matches Room's Long type (Rial)
-- **Single crate** — Will split to workspace when Desktop/iOS targets are added
-- **UniFFI** — Auto-generated Kotlin/Swift bindings, no manual JNI
-- **No unsafe code** — Memory safety guaranteed by Rust's type system
-- **Serde for serialization** — Backup JSON handling
