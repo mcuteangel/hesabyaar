@@ -15,6 +15,8 @@ jobs:
   actionlint:
     name: Run actionlint
     runs-on: ubuntu-latest
+    env:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
     permissions:
       # Read repository content. Report lint results through the Checks API.
       contents: read
@@ -35,7 +37,7 @@ jobs:
          run: bash scripts/test-issue-autoclose.sh
 
        - name: Run Actions pin manager tests
-         run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage-pin-manager.lcov scripts/test-github-actions-pin-manager.mjs
+         run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-pin-manager.xml --test-reporter=lcov --test-reporter-destination=coverage-pin-manager.lcov scripts/test-github-actions-pin-manager.mjs
 
        - name: Run change-detection regression tests
          run: bash scripts/tests/test-detect-changes.sh
@@ -53,6 +55,54 @@ jobs:
            files: coverage-pin-manager.lcov
            flags: scripts
            fail_ci_if_error: false
+
+       - name: Upload coverage to Coveralls
+         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+         continue-on-error: true
+         with:
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+           repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
+           file: coverage-pin-manager.lcov
+           format: lcov
+           flag-name: scripts
+
+       - name: Upload coverage to Qlty Cloud
+         uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
+         continue-on-error: true
+         with:
+           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+           files: coverage-pin-manager.lcov
+
+       - name: Set up DeepSource CLI
+         id: setup-deepsource
+         if: ${{ env.DEEPSOURCE_DSN != '' }}
+         continue-on-error: true
+         uses: ./.github/actions/setup-deepsource-cli
+
+       - name: Upload coverage to DeepSource
+         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+         continue-on-error: true
+         env:
+           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+         run: |
+           deepsource report --analyzer test-coverage --key javascript --value-file coverage-pin-manager.lcov
+
+       - name: Upload test results to Codecov
+         if: ${{ !cancelled() }}
+         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+         with:
+           token: ${{ secrets.CODECOV_TOKEN }}
+           files: junit-pin-manager.xml
+           fail_ci_if_error: false
+
+       - name: Upload test results to BuildPulse
+         if: always()
+         uses: BuildPulseLLC/test-reporter-action@329c479061feca84382766b3a342a7368a6d8f4c # v3.1.0
+         continue-on-error: true
+         with:
+           api-token: ${{ secrets.BUILDPULSE_API_TOKEN }}
+           path: junit-pin-manager.xml
+           coverage-files: coverage-pin-manager.lcov
 
        - name: Run Actions pin audit
          # Informational. The audit never fails CI on its findings; it

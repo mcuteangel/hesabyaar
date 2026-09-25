@@ -829,12 +829,17 @@ mod tests {
 
     #[test]
     fn test_forecast_only_installments_no_transactions() {
-        let now = now_ms();
+        // The forecast window runs from the caller's wall clock to 30
+        // days ahead. A one-day offset keeps the installment inside that
+        // window even if the runner is descheduled between this line and
+        // the call below.
+        const ONE_DAY_MS: i64 = 24 * 60 * 60 * 1000;
+        let due_date = now_ms() + ONE_DAY_MS;
         let installments = vec![Installment {
             id: 1,
             title: "car".into(),
             amount: 3_000_000,
-            due_date: now,
+            due_date,
             is_paid: false,
             reminder_enabled: false,
             notes: String::new(),
