@@ -1,0 +1,19 @@
+.github/linters/zizmor.yaml
+  s_6903ef20271cc0::t_6616ff0f3e6ded 16-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a35c109e3b91a1987ad5c7c77e35e36bd899177a",
+  "prompts": {},
+  "sessions": {
+    "s_6903ef20271cc0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ca63e5f-ad86-4ef6-aad2-ee275ee31919",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
