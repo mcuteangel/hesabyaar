@@ -97,6 +97,7 @@ i18n:
       - 'app/src/main/res/**/strings.xml'
 
 # Repository housekeeping that changes no product code.
+# Test scripts under scripts/tests belong to the test label only.
 chore:
   - changed-files:
     - any-glob-to-any-file:
@@ -104,4 +105,3 @@ chore:
       - '.gitattributes'
       - '.editorconfig'
       - '**/.gitignore'
-      - 'scripts/tests/**'
