@@ -13,3 +13,14 @@ rules:
       - rust-lint.yml:34
       - codspeed-rust.yml:33
       - setup-rust-android/action.yml:19
+  # OpenCodeReview requires pull_request_target and issues/pull-requests write
+  # to review fork pull requests and post/update review comments securely.
+  dangerous-triggers:
+    ignore:
+      - ocr-review.yml
+  excessive-permissions:
+    ignore:
+      - ocr-review.yml
+  self-repository:
+    ignore:
+      - ocr-review.yml
