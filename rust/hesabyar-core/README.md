@@ -43,7 +43,7 @@ Follow this exact order when introducing new business logic:
 3. **Run Rust tests:** `cargo test -p hesabyar-core`
 4. **Run Clippy:** `cargo clippy -p hesabyar-core -- -D warnings`
 5. **Expose via UniFFI:** Add `#[uniffi::export]` if public FFI exposure is needed. Update `app/buildSrc/template/HesabyarCore.template.kt` if the wrapper method requires defaults.
-6. **Regenerate bindings:** `./gradlew --no-daemon :app:generateAndFixBindings`
+6. **Regenerate bindings:** `./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks`
 7. **Write Kotlin caller:** Call via `RustBridge` inside a UseCase.
 8. **Write Kotlin test:** Add JVM test covering the UseCase and bridge interaction.
 
@@ -95,16 +95,16 @@ cargo bench
 The recommended method is using Gradle:
 
 ```bash
-./gradlew --no-daemon :app:generateAndFixBindings
+./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks
 ```
 
 For manual generation via `uniffi-gen`:
 
 ```bash
-# From repository root
+# From rust/ directory (workspace root)
 cargo run --package uniffi-gen -- \
   target/release/libhesabyar_core.so \
-  app/src/main/java/io/github/mojri/hesabyar/rust
+  ../app/src/main/java/io/github/mojri/hesabyar/rust
 ```
 
 On Windows use `target/release/hesabyar_core.dll`, macOS use `target/release/libhesabyar_core.dylib`.

@@ -17,7 +17,7 @@ Follow this canonical sequence in order:
 - [ ] 2. Write Rust unit tests covering valid cases and edge cases (`#[cfg(test)]`).
 - [ ] 3. Run Rust unit tests: `cargo test -p hesabyar-core`
 - [ ] 4. Run Rust static analysis: `cargo clippy -p hesabyar-core -- -D warnings`
-- [ ] 5. Regenerate UniFFI bindings: if exposed to Kotlin, ensure `#[uniffi::export]` is set (and update `app/buildSrc/template/HesabyarCore.template.kt` if signature requires defaults), then run `./gradlew --no-daemon :app:generateAndFixBindings`
+- [ ] 5. Regenerate UniFFI bindings: if exposed to Kotlin, ensure `#[uniffi::export]` is set (and update `app/buildSrc/template/HesabyarCore.template.kt` if signature requires defaults), then run `./gradlew --no-daemon :app:generateAndFixBindings --rerun-tasks`
 - [ ] 6. Write Kotlin caller in the appropriate UseCase via `RustBridge`.
 - [ ] 7. Write Kotlin unit test for the UseCase caller.
 
