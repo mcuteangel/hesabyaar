@@ -72,6 +72,7 @@ permissions:
 jobs:
   # Primary attempt with the configured OpenAI-compatible gateway.
   code-review:
+    # actionlint:ignore-next-line cache-call-unrestricted -- ocr-review-job does not access actions cache
     uses: ./.github/workflows/ocr-review-job.yml
     with:
       llm_url: ${{ vars.OCR_LLM_URL }}
@@ -89,6 +90,7 @@ jobs:
   review-fallback:
     needs: code-review
     if: failure() && vars.OCR_FALLBACK_URL != '' && vars.OCR_FALLBACK_MODEL != ''
+    # actionlint:ignore-next-line cache-call-unrestricted -- ocr-review-job does not access actions cache
     uses: ./.github/workflows/ocr-review-job.yml
     with:
       llm_url: ${{ vars.OCR_FALLBACK_URL }}
