@@ -1,0 +1,19 @@
+.github/workflows/ocr-review.yml
+  s_6903ef20271cc0::t_d49cbec8b8703f 75,93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9ce75484ef6d5229cb0249bcfcf5c070c694043a",
+  "prompts": {},
+  "sessions": {
+    "s_6903ef20271cc0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ca63e5f-ad86-4ef6-aad2-ee275ee31919",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
