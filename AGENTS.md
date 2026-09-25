@@ -292,7 +292,7 @@ If compilation or tests fail, analyze the logs immediately. Find the root cause.
 
 Three convenience scripts automate the verification workflow. They are read-only checks:
 
-- `scripts/check-rust.sh`: checks formatting, clippy, and unit tests for the Rust workspace.
+- `scripts/check-rust.sh`: checks clippy and unit tests for the Rust workspace.
 - `scripts/check-android.sh`: runs ktlint, detekt, non-Rust unit tests, and Android lint.
 - `scripts/check-rust-bridge.sh`: runs isolated Rust-bridge JVM tests (`testDebugUnitTestRust`).
 
