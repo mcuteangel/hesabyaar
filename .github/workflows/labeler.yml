@@ -43,6 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
+    # This job writes the chosen label to the pull request. The pull request
+    # branch is the token context, so the label is written to the base pull
+    # request and never to the contributor's fork.
+    permissions:
+      contents: read
+      pull-requests: write
+
     # The secrets context cannot be read inside a job-level or step-level if
     # condition. Map the key to a job env and read it from there.
     env:
