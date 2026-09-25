@@ -1,0 +1,23 @@
+rust/hesabyar-core/src/advisory/budget.rs
+  s_6903ef20271cc0::t_129915cc05528c 115-116,127-131,164
+rust/hesabyar-core/src/advisory/mod.rs
+  s_6903ef20271cc0::t_df057cac4b2cfa 5
+.github/actionlint.yaml
+  s_6903ef20271cc0::t_e17a51ae10db46 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b1ef304c841a2590a8fb55954462ae01d3b4a131",
+  "prompts": {},
+  "sessions": {
+    "s_6903ef20271cc0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3ca63e5f-ad86-4ef6-aad2-ee275ee31919",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
