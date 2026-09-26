@@ -1,0 +1,22 @@
+.github/actions/setup-rust-android/action.yml
+  s_8788b3a7fe113b::t_7bce212a332685 22
+  s_8788b3a7fe113b::t_de7fec034c58c9 19-21
+.github/linters/zizmor.yaml
+  s_8788b3a7fe113b::t_f189b6dfe6865d 16-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e0806a882a5ab950ea13d2b853fc4c40a353cdeb",
+  "prompts": {},
+  "sessions": {
+    "s_8788b3a7fe113b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2384cb9f-11ae-4c31-bd0b-517722e27679",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
