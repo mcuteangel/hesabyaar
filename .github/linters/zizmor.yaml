@@ -13,10 +13,11 @@ rules:
     ignore:
       - rust-lint.yml:34
       - codspeed-rust.yml:33
-      - setup-rust-android/action.yml:19
+      - setup-rust-android/action.yml:22
+      - .github/actions/setup-rust-android/action.yml:22
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
   # to review fork pull requests and post/update review comments securely.
-  # Scoped to exact lines so other triggers/permissions remain audits.
+  # Scoped to exact lines so other triggers/permissions remain audited.
   dangerous-triggers:
     ignore:
       - ocr-review.yml:57
@@ -24,14 +25,6 @@ rules:
     ignore:
       - ocr-review.yml:66
       - ocr-review.yml:70
-      # release.yml runs only on push to main (trusted refs, no PR input).
-      # contents: write pushes the release branch, tag, and GitHub Release;
-      # pull-requests: write opens the auto-merge release PR. The workflow
-      # has no other jobs that touch these scopes. Scoping the grants to
-      # job level needs a full re-audit of every job's token needs, which
-      # cannot be tested before the next release; keep the grants here.
-      - release.yml:25
-      - release.yml:26
   self-repository:
     ignore:
       - ocr-review.yml:76

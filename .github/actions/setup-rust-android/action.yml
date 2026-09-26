@@ -16,7 +16,10 @@ runs:
   using: composite
   steps:
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      # zizmor: ignore[impostor-commit]
+      # SHA pins the action's version table (4cda84d5 = newest stable version
+      # table), not the installed toolchain, which resolves via rust-toolchain.toml.
+      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable (version table; toolchain from rust-toolchain.toml)
       with:
         toolchain: ${{ inputs.rust-toolchain }}
         targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android

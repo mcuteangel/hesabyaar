@@ -22,9 +22,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: read
+  contents: read
 
 concurrency:
   group: release
@@ -36,6 +34,9 @@ jobs:
     # talks to the GitHub API only.
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       mode: ${{ steps.classify.outputs.mode }}
       version: ${{ steps.classify.outputs.version }}
@@ -101,6 +102,11 @@ jobs:
     if: needs.classify.outputs.mode == 'finalize'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      # Publish the tag and GitHub Release.
+      contents: write
+      # Read the prepare run's artifacts.
+      actions: read
     env:
       VERSION: ${{ needs.classify.outputs.version }}
       PR_NUMBER: ${{ needs.classify.outputs.pr_number }}
@@ -223,6 +229,9 @@ jobs:
     if: needs.classify.outputs.mode == 'prepare'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
