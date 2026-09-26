@@ -107,6 +107,8 @@ jobs:
       contents: write
       # Read the prepare run's artifacts.
       actions: read
+      # Read the release PR body to extract the prepare run ID.
+      pull-requests: read
     env:
       VERSION: ${{ needs.classify.outputs.version }}
       PR_NUMBER: ${{ needs.classify.outputs.pr_number }}
@@ -232,6 +234,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
