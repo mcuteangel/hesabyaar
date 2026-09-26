@@ -1,0 +1,19 @@
+.github/prompts/bugfix-or-db-optimization.md
+  s_d198e7bfeecbe4::t_bbb6272a870590 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a9bcab162a75bafddb637a57b0b6a0de2a283f57",
+  "prompts": {},
+  "sessions": {
+    "s_d198e7bfeecbe4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c04b9e53-44ba-446e-9ea8-6c4449ed13c2",
+        "model": "stealth/space-bunny-alpha"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
