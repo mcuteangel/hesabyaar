@@ -1,0 +1,38 @@
+.github/actions/setup-rust-android/action.yml
+  s_8788b3a7fe113b::t_c7cec3f9c2aecd 19,26-28,32-33,36,40-41
+  s_8788b3a7fe113b::t_63835d290a47ba 42-44
+.github/workflows/release.yml
+  s_8788b3a7fe113b::t_16552eef0c8b54 254-259
+.github/workflows/lint.yml
+  s_8788b3a7fe113b::t_ec7b3ec9986eb2 30
+.github/workflows/ai-issue-os.yml
+  s_8788b3a7fe113b::t_da237edffd344c 268-270
+  s_8788b3a7fe113b::t_a83ffcff2e45bd 92,96,102,104,126,132,147,154
+  s_8788b3a7fe113b::t_76f2f821e4a359 483,494,503,507,513
+  s_8788b3a7fe113b::t_d6ecfef33e5496 446-447,453
+.github/workflows/labeler.yml
+  s_8788b3a7fe113b::t_7b78e158c42f53 166-167,174
+.github/workflows/issue-labeler.yml
+  s_8788b3a7fe113b::t_8cc26bd960b18e 87-88,95
+.github/workflows/gitguardian.yaml
+  s_8788b3a7fe113b::t_e94093cca20768 24-27
+.github/linters/zizmor.yaml
+  s_8788b3a7fe113b::t_e6a9947cb3325b 6-11
+  s_8788b3a7fe113b::t_824f23031ce126 19,27-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a8c468d67eb59f5a389b292a555d944168d4a464",
+  "prompts": {},
+  "sessions": {
+    "s_8788b3a7fe113b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2384cb9f-11ae-4c31-bd0b-517722e27679",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
