@@ -1,0 +1,25 @@
+.github/workflows/release.yml
+  s_8788b3a7fe113b::t_a67ec741280fe6 105-109
+  s_8788b3a7fe113b::t_38e0f0ab57d2f6 232-234
+  s_8788b3a7fe113b::t_1ecd7fd771255a 25,37-39
+.github/actions/setup-rust-android/action.yml
+  s_8788b3a7fe113b::t_c77158121abb5a 19-22
+.github/linters/zizmor.yaml
+  s_8788b3a7fe113b::t_abb19ea87e34d8 16-17,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d67998d5a06a68158abfe9d4227faa2cabffd392",
+  "prompts": {},
+  "sessions": {
+    "s_8788b3a7fe113b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2384cb9f-11ae-4c31-bd0b-517722e27679",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
