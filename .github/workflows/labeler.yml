@@ -163,18 +163,15 @@ jobs:
           # SECURITY (GHSA-wpqr-6v78-jr5g): the `pull_request` trigger means the
           # PR title and body are attacker-controlled, including from forks, and
           # this Action always runs `gemini --yolo`. Deny-by-default tool
-          # allowlist; read-only tools only, which is all this prompt needs
-          # because the PR text arrives inline.
+          # allowlist; all PR text arrives inline in the prompt, so no tool
+          # access is needed.
           # Schema note: the key is `tools.core`, NOT the `coreTools` shown in the
           # upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has no
           # `coreTools` key, so the documented form is silently ignored.
           settings: |-
             {
               "tools": {
-                "core": [
-                  "read_file",
-                  "grep_search"
-                ]
+                "core": []
               }
             }
           prompt: |

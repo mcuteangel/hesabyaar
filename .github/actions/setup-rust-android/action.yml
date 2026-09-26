@@ -16,26 +16,29 @@ runs:
   using: composite
   steps:
     - name: Install Rust toolchain
-      # SHA pins the action's known-version table, not the installed toolchain.
-      # fa04a145 is the "Add 1.96.1 patch release" commit (2026-06-30). The actual
-      # version comes from `toolchain:` below and resolves through
-      # rust/rust-toolchain.toml, which pins the channel to "stable". A newer
-      # table SHA is not required for newer stable releases.
-      uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # 1.96.1 version table
+      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
       with:
         toolchain: ${{ inputs.rust-toolchain }}
         targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
     - name: Install cargo-ndk
       shell: bash
-      run: cargo install cargo-ndk --version ${{ inputs.cargo-ndk-version }} --locked
+      env:
+        CARGO_NDK_VERSION: ${{ inputs.cargo-ndk-version }}
+      run: cargo install cargo-ndk --version "$CARGO_NDK_VERSION" --locked
 
     - name: Set up Android NDK
       shell: bash
+      env:
+        NDK_VERSION: ${{ inputs.ndk-version }}
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-        sdkmanager "ndk;${{ inputs.ndk-version }}"
+        sdkmanager "ndk;$NDK_VERSION"
 
     - name: Export ANDROID_NDK_HOME
       shell: bash
-      run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${{ inputs.ndk-version }}" >> "$GITHUB_ENV"
+      env:
+        NDK_VERSION: ${{ inputs.ndk-version }}
+      # NDK_VERSION is a caller-supplied input, not untrusted PR text, and the
+      # value reaches GITHUB_ENV as one quoted assignment on a single line.
+      run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV" # zizmor: ignore[github-env]

@@ -3,11 +3,12 @@
 # `zizmor --config`, so every rule listed here runs on every pull
 # request that touches a workflow.
 rules:
-  # dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
-  # and the pin in setup-rust-android both resolve in the upstream
-  # repository. The audit cannot confirm this from a shallow checkout,
-  # so it reports a false positive. Each ignore entry is scoped to one
-  # path:line so the rule stays active for any other pin in these files.
+  # All three dtolnay/rust-toolchain pins below use the same commit,
+  # 4cda84d5c5c54efe2404f9d843567869ab1699d4 ("toolchain: stable", the
+  # newest version table). The audit cannot confirm an upstream pin from
+  # a shallow checkout, so it reports a false positive. Each ignore entry
+  # is scoped to one path:line so the rule stays active for any other pin
+  # in these files.
   impostor-commit:
     ignore:
       - rust-lint.yml:34
@@ -15,7 +16,7 @@ rules:
       - setup-rust-android/action.yml:19
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
   # to review fork pull requests and post/update review comments securely.
-  # Scoped to exact lines so other triggers/permissions remain audited.
+  # Scoped to exact lines so other triggers/permissions remain audits.
   dangerous-triggers:
     ignore:
       - ocr-review.yml:57
@@ -23,6 +24,14 @@ rules:
     ignore:
       - ocr-review.yml:66
       - ocr-review.yml:70
+      # release.yml runs only on push to main (trusted refs, no PR input).
+      # contents: write pushes the release branch, tag, and GitHub Release;
+      # pull-requests: write opens the auto-merge release PR. The workflow
+      # has no other jobs that touch these scopes. Scoping the grants to
+      # job level needs a full re-audit of every job's token needs, which
+      # cannot be tested before the next release; keep the grants here.
+      - release.yml:25
+      - release.yml:26
   self-repository:
     ignore:
       - ocr-review.yml:76

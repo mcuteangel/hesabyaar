@@ -84,18 +84,15 @@ jobs:
           gemini_model: ${{ env.GEMINI_MODEL }}
           # SECURITY (GHSA-wpqr-6v78-jr5g): the `issues` trigger means the issue
           # title and body are attacker-controlled, and this Action always runs
-          # `gemini --yolo`. Deny-by-default tool allowlist; read-only tools only,
-          # which is all this prompt needs because the issue text arrives inline.
+          # `gemini --yolo`. Deny-by-default tool allowlist; all issue text
+          # arrives inline in the prompt, so no tool access is needed.
           # Schema note: the key is `tools.core`, NOT the `coreTools` shown in the
           # upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has no
           # `coreTools` key, so the documented form is silently ignored.
           settings: |-
             {
               "tools": {
-                "core": [
-                  "read_file",
-                  "grep_search"
-                ]
+                "core": []
               }
             }
           prompt: |

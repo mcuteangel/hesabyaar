@@ -251,10 +251,12 @@ jobs:
           result=$(bash scripts/parse-commits.sh "$BASE_REF" HEAD)
           bump_type=$(echo "$result" | jq -r '.bump_type')
           summary=$(echo "$result" | jq -r '.summary')
-          echo "bump_type=$bump_type" >> "$GITHUB_OUTPUT"
-          echo "summary<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$summary" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "bump_type=$bump_type"
+            echo "summary<<EOF"
+            echo "$summary"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
           echo "Bump type: $bump_type"
 
       - name: Bump version
