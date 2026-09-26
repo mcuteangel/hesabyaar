@@ -160,6 +160,23 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): the `pull_request` trigger means the
+          # PR title and body are attacker-controlled, including from forks, and
+          # this Action always runs `gemini --yolo`. Deny-by-default tool
+          # allowlist; read-only tools only, which is all this prompt needs
+          # because the PR text arrives inline.
+          # Schema note: the key is `tools.core`, NOT the `coreTools` shown in the
+          # upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has no
+          # `coreTools` key, so the documented form is silently ignored.
+          settings: |-
+            {
+              "tools": {
+                "core": [
+                  "read_file",
+                  "grep_search"
+                ]
+              }
+            }
           prompt: |
             You are a triage assistant for the Hesabyar personal finance app.
             Pick one label for this pull request from the list below.

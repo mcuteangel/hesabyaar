@@ -20,7 +20,13 @@ jobs:
           fetch-depth: 0 # fetch all history so multiple commits can be scanned
           
       - name: GitGuardian scan
-        uses: GitGuardian/ggshield/actions/secret@v1.52.2
+        # GitHub does not expose repository secrets to Dependabot-triggered
+        # runs, so GITGUARDIAN_API_KEY arrives empty and ggshield exits 1 with
+        # "Invalid GitGuardian API key". That fails the check on every
+        # Dependabot PR regardless of what the PR changes. Skip instead of
+        # failing; the push-to-main trigger still scans with a real key.
+        if: ${{ secrets.GITGUARDIAN_API_KEY != '' }}
+        uses: GitGuardian/ggshield/actions/secret@94571a547a8a2f314a094d142729ee88c6ed0a3b # v1.55.0
         env:
           GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITHUB_PUSH_BASE_SHA: ${{ github.event.before }}

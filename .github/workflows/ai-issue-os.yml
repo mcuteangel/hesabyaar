@@ -141,6 +141,24 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): this Action always runs
+          # `gemini --yolo` (action.yml 309/316) and this job is triggered by
+          # issue and PR comments, so untrusted text reaches a model that can
+          # otherwise run shell commands. Deny-by-default tool allowlist;
+          # read-only tools only, which is all this prompt needs since the diff
+          # and issue body arrive inline.
+          # Schema note: the key is `tools.core`, NOT the `coreTools` shown in
+          # the upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has
+          # no `coreTools` key, so the documented form is silently ignored.
+          settings: |-
+            {
+              "tools": {
+                "core": [
+                  "read_file",
+                  "grep_search"
+                ]
+              }
+            }
           prompt: |
             You are a GitHub AI system.
             Context:
@@ -424,6 +442,21 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): `/ai-fix` is an issue_comment
+          # trigger, so the parent comment and the PR diff are attacker-
+          # controllable. This Action always runs `gemini --yolo`, hence the
+          # deny-by-default, read-only tool allowlist below.
+          # Schema note: `tools.core`, not the `coreTools` from the upstream
+          # docs/trust-guidance.md, which the CLI ignores.
+          settings: |-
+            {
+              "tools": {
+                "core": [
+                  "read_file",
+                  "grep_search"
+                ]
+              }
+            }
           prompt: |
             You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
 

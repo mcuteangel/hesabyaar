@@ -16,7 +16,12 @@ runs:
   using: composite
   steps:
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+      # SHA pins the action's known-version table, not the installed toolchain.
+      # fa04a145 is the "Add 1.96.1 patch release" commit (2026-06-30). The actual
+      # version comes from `toolchain:` below and resolves through
+      # rust/rust-toolchain.toml, which pins the channel to "stable". A newer
+      # table SHA is not required for newer stable releases.
+      uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # 1.96.1 version table
       with:
         toolchain: ${{ inputs.rust-toolchain }}
         targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
