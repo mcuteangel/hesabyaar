@@ -1,13 +1,26 @@
 # حسابیار (Hesabyar)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge" alt="Platform">
-  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF?style=for-the-badge" alt="Kotlin">
-  <img src="https://img.shields.io/badge/language-Rust-E74C3C?style=for-the-badge" alt="Rust">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/Jalali%20Calendar-Support-4CAF50?style=for-the-badge" alt="Jalali Calendar">
-     
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge) [![CodeFactor](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge)](https://www.codefactor.io/repository/github/mcuteangel/hesabyaar) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f)](https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage) 
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Platform: Android">
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Language: Kotlin">
+  <img src="https://img.shields.io/badge/Rust-E74C3C?logo=rust&logoColor=white" alt="Language: Rust">
+  <img src="https://img.shields.io/badge/Calendar-Jalali-4CAF50" alt="Calendar: Jalali">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT">
+</p>
+
+<p align="center">
+  <a href="https://app.codspeed.io/mcuteangel/hesabyaar?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed" /></a>
+  <a href="https://codecov.io/gh/mcuteangel/hesabyaar"><img src="https://codecov.io/gh/mcuteangel/hesabyaar/graph/badge.svg" alt="Codecov" /></a>
+  <a href="https://coveralls.io/github/mcuteangel/hesabyaar?branch=main"><img src="https://coveralls.io/repos/github/mcuteangel/hesabyaar/badge.svg?branch=main" alt="Coverage Status" /></a>
+  <a href="https://app.deepsource.com/gh/mcuteangel/hesabyaar/"><img src="https://app.deepsource.com/gh/mcuteangel/hesabyaar.svg/?label=code+coverage&show_trend=true&token=ILOs6PrgoKPamuLY2r208RwZ" alt="DeepSource Coverage" /></a>
+  <a href="https://qlty.sh/gh/mcuteangel/projects/hesabyaar"><img src="https://qlty.sh/gh/mcuteangel/projects/hesabyaar/coverage.svg" alt="Qlty Coverage" /></a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage"><img src="https://app.codacy.com/project/badge/Coverage/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Coverage" /></a>
+  <a href="https://qlty.sh/gh/mcuteangel/projects/hesabyaar"><img src="https://qlty.sh/gh/mcuteangel/projects/hesabyaar/maintainability.svg" alt="Qlty Maintainability" /></a>
+  <a href="https://app.codacy.com/gh/mcuteangel/hesabyaar/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/67b7ee17a65a4c1da1e268e8fa16df1f" alt="Codacy Grade" /></a>
+  <a href="https://deepscan.io/dashboard#view=project&tid=30741&pid=32476&bid=1076614"><img src="https://deepscan.io/api/teams/30741/projects/32476/branches/1076614/badge/grade.svg" alt="DeepScan grade" /></a>
+  <a href="https://app.deepsource.com/gh/mcuteangel/hesabyaar/"><img src="https://app.deepsource.com/gh/mcuteangel/hesabyaar.svg/?label=active+issues&show_trend=true&token=ILOs6PrgoKPamuLY2r208RwZ" alt="DeepSource Active Issues" /></a>
+  <a href="https://app.deepsource.com/gh/mcuteangel/hesabyaar/"><img src="https://app.deepsource.com/gh/mcuteangel/hesabyaar.svg/?label=resolved+issues&show_trend=true&token=ILOs6PrgoKPamuLY2r208RwZ" alt="DeepSource Resolved Issues" /></a>
+  <a href="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar"><img src="https://www.codefactor.io/repository/github/mcuteangel/hesabyaar/badge" alt="CodeFactor" /></a>
 </p>
 
 <p align="center">
@@ -289,6 +302,16 @@ cargo bench
 ./gradlew lint --no-daemon
 ./gradlew ktlintCheck detekt --no-daemon
 ```
+
+### 📊 پوشش کد (Code Coverage)
+
+وضعیت و ساختار پوشش آزمون‌ها به‌صورت زنده توسط **Codecov** تحلیل می‌شود.
+
+<p align="center">
+  <a href="https://codecov.io/gh/mcuteangel/hesabyaar">
+    <img src="https://codecov.io/gh/mcuteangel/hesabyaar/graphs/sunburst.svg" alt="Codecov Sunburst Graph" width="280" />
+  </a>
+</p>
 
 ---
 

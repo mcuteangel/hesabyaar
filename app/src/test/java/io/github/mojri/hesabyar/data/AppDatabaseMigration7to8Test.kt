@@ -199,7 +199,7 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
           .build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
@@ -361,7 +361,7 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
           .build()
 
       // Backfill must complete without aborting on the unique-index violation
@@ -493,7 +493,7 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
           .build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
@@ -600,7 +600,7 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8)
+          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
           .build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()

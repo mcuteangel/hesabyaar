@@ -255,7 +255,9 @@ class RustMappersTest {
           isPaid = false,
           reminderEnabled = true,
           notes = "",
-          bankLoanId = 7L
+          bankLoanId = 7L,
+          tracked = false,
+          accountId = null
         )
       )
 
@@ -274,7 +276,9 @@ class RustMappersTest {
           isPaid = true,
           reminderEnabled = false,
           notes = "",
-          bankLoanId = null
+          bankLoanId = null,
+          tracked = false,
+          accountId = null
         )
       )
 
@@ -292,13 +296,18 @@ class RustMappersTest {
         isPaid = false,
         reminderEnabled = true,
         notes = "",
-        bankLoanId = 42L
+        bankLoanId = 42L,
+        tracked = true,
+        accountId = 3L
       )
 
     val rust = RustMappers.mapInstallment(kotlin)
     val roundTripped = RustMappers.fromRustInstallment(rust)
 
     assertEquals("bankLoanId survives Kotlin→Rust→Kotlin round-trip", 42L, roundTripped.bankLoanId)
+    // Phase 2 fields must not silently drop across the FFI boundary either.
+    assertEquals("tracked survives round-trip", true, roundTripped.tracked)
+    assertEquals("accountId survives round-trip", 3L, roundTripped.accountId)
   }
 
   // --- fromRustPerson / mapPerson person mapper branches ----------------------

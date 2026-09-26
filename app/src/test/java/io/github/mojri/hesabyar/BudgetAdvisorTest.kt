@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.BudgetAdviceGenerator
 import io.github.mojri.hesabyar.api.BudgetAdvisor
+import io.github.mojri.hesabyar.api.LocalBudgetMetrics
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
@@ -444,7 +445,7 @@ class BudgetAdvisorTest {
   @Test
   fun localmonthlyincomebaselineEmptyListReturnsZero() {
     val now = 1_700_000_000_000L
-    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(emptyList(), now))
+    assertEquals(0L, LocalBudgetMetrics.monthlyIncomeBaseline(emptyList(), now))
   }
 
   @Test
@@ -452,7 +453,7 @@ class BudgetAdvisorTest {
     val now = 1_700_000_000_000L
     // 30 days ago -> spans exactly 1 month -> baseline equals the amount.
     val tx = createTransactionAt(TransactionType.INCOME, 3_000_000, now - 30 * dayMs)
-    assertEquals(3_000_000L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx), now))
+    assertEquals(3_000_000L, LocalBudgetMetrics.monthlyIncomeBaseline(listOf(tx), now))
   }
 
   @Test
@@ -461,7 +462,7 @@ class BudgetAdvisorTest {
     val tx1 = createTransactionAt(TransactionType.INCOME, 1_500_000, now - 15 * dayMs)
     val tx2 = createTransactionAt(TransactionType.INCOME, 1_500_000, now - 45 * dayMs)
     // oldest is 45 days ago -> 45/30 = 1.5 months; 3,000,000 / 1.5 = 2,000,000.
-    assertEquals(2_000_000L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(tx1, tx2), now))
+    assertEquals(2_000_000L, LocalBudgetMetrics.monthlyIncomeBaseline(listOf(tx1, tx2), now))
   }
 
   @Test
@@ -471,22 +472,22 @@ class BudgetAdvisorTest {
     val outside91 = createTransactionAt(TransactionType.INCOME, 9_000_000, now - 91 * dayMs)
 
     // A transaction older than 90 days must be excluded entirely.
-    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(outside91), now))
+    assertEquals(0L, LocalBudgetMetrics.monthlyIncomeBaseline(listOf(outside91), now))
 
     // A transaction inside the window is counted, and an out-of-window one must
     // not change the result (proving strict trailing-90-day filtering).
-    val onlyWithin = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(within89), now)
-    val withOutside = BudgetAdvisor.localMonthlyIncomeBaseline(listOf(within89, outside91), now)
+    val onlyWithin = LocalBudgetMetrics.monthlyIncomeBaseline(listOf(within89), now)
+    val withOutside = LocalBudgetMetrics.monthlyIncomeBaseline(listOf(within89, outside91), now)
     assertEquals(onlyWithin, withOutside)
     assertTrue(onlyWithin > 0)
 
     // The inclusive boundary (exactly 90 days ago) is still inside the window.
     val atBoundary = createTransactionAt(TransactionType.INCOME, 3_000_000, now - 90 * dayMs)
-    assertTrue(BudgetAdvisor.localMonthlyIncomeBaseline(listOf(atBoundary), now) > 0)
+    assertTrue(LocalBudgetMetrics.monthlyIncomeBaseline(listOf(atBoundary), now) > 0)
 
     // Expenses are never counted as income.
     val expense = createTransactionAt(TransactionType.EXPENSE, 8_000_000, now - 10 * dayMs)
-    assertEquals(0L, BudgetAdvisor.localMonthlyIncomeBaseline(listOf(expense), now))
+    assertEquals(0L, LocalBudgetMetrics.monthlyIncomeBaseline(listOf(expense), now))
   }
 
   // calculateFinancialHealthScore local-fallback coverage moved to

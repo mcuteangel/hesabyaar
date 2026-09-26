@@ -215,12 +215,18 @@ jobs:
             core.setOutput('rule_path', '');
 
       - name: Run OpenCodeReview
-        # v1.9.9 release commit (immutable pin; tag object c95d3907 dereferences
-        # to this commit).
+        # v1.12.8 release commit (immutable pin; tag object 0e304c76 dereferences
+        # to this commit). Carries the GHSA-wwg6-qfxw-xffj fix forward from v1.11.1.
         uses: alibaba/open-code-review@5c7b38381d1fdd36de6cf622a2a1f768243c4704 # v1.12.8
         with:
           # Pin the CLI to the same reviewed release; the Action default is 'latest'.
-          ocr_version: '1.9.9'
+          # The CLI is the component the advisory covers, and the Action installs
+          # whatever this input names (`npm install -g ...@${OCR_VERSION}`), so a
+          # repinned Action with a stale CLI here leaves GHSA-wwg6-qfxw-xffj open.
+          # v1.12.8 also gates on the CLI version: `effort` needs v1.10.0+ and
+          # `stream_progress` needs v1.9.8+ (action.yml 569-581), so a stale CLI
+          # here breaks those inputs rather than only the advisory.
+          ocr_version: '1.12.8'
           llm_url: ${{ inputs.llm_url }}
           llm_auth_token: ${{ secrets.auth_token }}
           llm_model: ${{ inputs.llm_model }}
@@ -250,8 +256,8 @@ jobs:
           # Resolved from the trusted base SHA by the step above (default
           # branch HEAD as fallback for branches predating the rules file) -
           # never from the action's PR-controlled checkout. Empty path => no --rule flag:
-          # the pinned action.yml guards with [ -n "$OCR_RULE" ] (lines
-          # 276+282 of its run step), which skips set-but-empty values too,
+          # the pinned action.yml guards with [ -n "$OCR_RULE" ] (line 985 of
+          # its run step), which skips set-but-empty values too,
           # so built-in defaults apply.
           rule: ${{ steps.trusted-rules.outputs.rule_path }}
           # Noise reduction (issue #206 phase 1): weak findings move to the PR
@@ -270,15 +276,17 @@ jobs:
           # Explicit review output language (action default is already English).
           language: 'English'
           # Non-destructive inline dedupe (issue #206 phase 4). Verified
-          # against the pinned action (alibaba/open-code-review@4b6874bd…,
-          # action.yml): the "Run OpenCodeReview" step builds
-          #   ARGS=(--from … --to … --audience agent --format json)
-          # and appends --rule only when OCR_RULE is non-empty - it NEVER adds
-          # --incremental to `ocr review`. The `incremental` input is forwarded
-          # ONLY to the "Post review comments" step
-          # (incremental: ${{ inputs.incremental == 'true' }}) which calls
-          # runPostReviewComments; that helper skips inline comments whose
-          # (path, line range) overlaps an existing bot review comment.
+          # against the pinned action (alibaba/open-code-review@5c7b3838…,
+          # action.yml lines 972-987): the "Run OpenCodeReview" step builds
+          #   ARGS=(--from … --to …), appends --format json --timeout …, adds
+          # --audience agent only when stream_progress is false (the default),
+          # and adds --rule / --effort / --max-tokens-budget only when their
+          # inputs are non-empty. It NEVER adds --incremental to `ocr review`.
+          # The `incremental` input is forwarded ONLY to the "Post review
+          # comments" step (incremental: ${{ inputs.incremental == 'true' }},
+          # action.yml line 1076) which calls runPostReviewComments; that helper
+          # skips inline comments whose (path, line range) overlaps an existing
+          # bot review comment.
           # Consequently `ocr review > /tmp/ocr-result.json` always contains
           # the FULL finding set. This is COUPLED to the resolver's full-set
           # contract (see 'Audit stale OpenCodeReview threads' below, which
@@ -287,7 +295,7 @@ jobs:
           # resolver would mis-resolve threads - re-verify action.yml then.
           # Repeated runs on unchanged code never re-post the same finding and
           # nothing is dropped.
-          # SAFE ONLY with alibaba/open-code-review@4b6874bd…; if you repin,
+          # SAFE ONLY with alibaba/open-code-review@5c7b3838…; if you repin,
           # re-verify action.yml does NOT forward --incremental to `ocr review`
           # (the resolver reads the full /tmp/ocr-result.json set; see 'Audit
           # stale OpenCodeReview threads' below and the CONTRACT VERIFIED note
@@ -296,14 +304,18 @@ jobs:
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
 
-      # CONTRACT VERIFIED (issue #206 PR #213): the pinned action
-      # (alibaba/open-code-review@4b6874bd23106b5c68bea6d230bb60303b9f0961, its
-      # run step, lines ~285/287) exports OCR_EXIT_CODE to GITHUB_ENV on every
-      # path - 0 on success, non-zero on failure (and then force-exits the step
-      # non-zero, which stops this job). The guarded steps below rely on that
-      # var. If a future action version ever stops exporting it, fail the job
-      # loudly HERE instead of silently skipping the trusted-checkout restore
-      # below - which would let the audit load PR-head JavaScript.
+      # CONTRACT VERIFIED (issue #206 PR #213; re-verified for the v1.12.8
+      # repin): the pinned action
+      # (alibaba/open-code-review@5c7b38381d1fdd36de6cf622a2a1f768243c4704, its
+      # run step, action.yml line 1003) exports OCR_EXIT_CODE to GITHUB_ENV
+      # on every path - 0 on success, non-zero on failure (and then force-exits
+      # the step non-zero, which stops this job). Both branches set it first: the
+      # stream_progress path at action.yml line 995 and the default path at line
+      # 1000, so the single export at line 1003 always sees a value. The guarded
+      # steps below rely on that var. If a future action version ever stops
+      # exporting it, fail the job loudly HERE instead of silently skipping the
+      # trusted-checkout restore below - which would let the audit load PR-head
+      # JavaScript.
       - name: Assert OpenCodeReview result contract
         if: env.OCR_EXIT_CODE == ''
         run: |

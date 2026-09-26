@@ -74,12 +74,31 @@ fn bench_budget_advice(c: &mut Criterion) {
         })
         .collect();
 
+    let excluded_cat_ids = vec![1, 3];
+
     c.bench_function("offline_budget_advice_100tx", |b| {
-        b.iter(|| get_offline_budget_advice(&transactions, &categories))
+        b.iter(|| get_offline_budget_advice(&transactions, &categories, &[]))
+    });
+
+    c.bench_function("offline_budget_advice_100tx_filtered", |b| {
+        b.iter(|| get_offline_budget_advice(&transactions, &categories, &excluded_cat_ids))
     });
 
     c.bench_function("financial_health_score_100tx", |b| {
-        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories))
+        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories, &[]))
+    });
+
+    c.bench_function("financial_health_score_100tx_filtered", |b| {
+        b.iter(|| {
+            calculate_financial_health_score(
+                &transactions,
+                &[],
+                &[],
+                &[],
+                &categories,
+                &excluded_cat_ids,
+            )
+        })
     });
 }
 
@@ -310,6 +329,8 @@ fn make_loan(id: i64, loan_type: &str, original: i64, remaining: i64, settled: b
         description: String::new(),
         date: 1_710_000_000_000,
         is_settled: settled,
+        tracked: false,
+        account_id: None,
     }
 }
 
@@ -323,6 +344,8 @@ fn make_installment(id: i64, amount: i64, due_ms: i64, paid: bool) -> Installmen
         reminder_enabled: false,
         notes: String::new(),
         bank_loan_id: None,
+        tracked: false,
+        account_id: None,
     }
 }
 
@@ -339,6 +362,8 @@ fn make_bank_loan(id: i64, total_repayable: i64, settled: bool) -> BankLoan {
         start_date: 0,
         description: String::new(),
         is_settled: settled,
+        tracked: false,
+        account_id: None,
     }
 }
 
@@ -435,6 +460,7 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(None),
                 black_box(false),
                 black_box(now_ms),
+                black_box(&[]),
             )
         })
     });
@@ -450,6 +476,7 @@ fn bench_dashboard(c: &mut Criterion) {
                 black_box(None),
                 black_box(false),
                 black_box(now_ms),
+                black_box(&[]),
             )
         })
     });
@@ -524,6 +551,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });
@@ -539,6 +567,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });
@@ -573,6 +602,7 @@ fn bench_analytics(c: &mut Criterion) {
                 black_box(&no_accounts),
                 black_box(None),
                 black_box(false),
+                black_box(&[]),
             )
         })
     });

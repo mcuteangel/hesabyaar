@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.exception.CannotDeleteLastActiveAccountException
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
   private val _allLoans = MutableStateFlow<List<Loan>>(emptyList())
   private val _allAccounts = MutableStateFlow<List<AccountEntity>>(emptyList())
+  private val _allCategories = MutableStateFlow<List<Category>>(emptyList())
   val accountsList = mutableListOf<AccountEntity>()
 
   // --- Failure simulation (used by AccountViewModelTest error-path tests) ---
@@ -47,7 +49,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   override val allTransactions: Flow<List<Transaction>> = _allTransactions.asStateFlow()
   override val allLoans: Flow<List<Loan>> = _allLoans.asStateFlow()
   override val allInstallments: Flow<List<Installment>> = _allInstallments.asStateFlow()
-  override val allCategories: Flow<List<Category>> = flowOf(emptyList())
+  override val allCategories: Flow<List<Category>> = _allCategories.asStateFlow()
   override val allBankLoans: Flow<List<BankLoan>> = _allBankLoans.asStateFlow()
   override val allAccounts: Flow<List<AccountEntity>> = _allAccounts.asStateFlow()
 
@@ -58,15 +60,28 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
 
-  override suspend fun getCategoryById(id: Long): Category? = null
+  override suspend fun getCategoryById(id: Long): Category? = _allCategories.value.firstOrNull { it.id == id }
 
-  override suspend fun getCategoryByKey(key: String): Category? = null
+  override suspend fun getCategoryByKey(key: String): Category? = _allCategories.value.firstOrNull { it.key == key }
 
-  override suspend fun insertCategory(category: Category): Long = 0L
+  override suspend fun insertCategory(category: Category): Long {
+    val id = if (category.id != 0L) category.id else nextId++
+    nextId = maxOf(nextId, id + 1)
+    _allCategories.value = _allCategories.value + category.copy(id = id)
+    return id
+  }
 
-  override suspend fun updateCategory(category: Category) {}
+  override suspend fun updateCategory(category: Category) {
+    val current = _allCategories.value
+    val idx = current.indexOfFirst { it.id == category.id }
+    if (idx >= 0) {
+      _allCategories.value = current.toMutableList().also { it[idx] = category }
+    }
+  }
 
-  override suspend fun deleteCategory(category: Category) {}
+  override suspend fun deleteCategory(category: Category) {
+    _allCategories.value = _allCategories.value.filter { it.id != category.id }
+  }
 
   override suspend fun insertTransaction(transaction: Transaction): Long {
     val id = if (transaction.id != 0L) transaction.id else nextId++
@@ -89,6 +104,42 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     val id = if (loan.id != 0L) loan.id else nextId++
     nextId = maxOf(nextId, id + 1)
     _allLoans.value = _allLoans.value + loan.copy(id = id)
+    return id
+  }
+
+  override suspend fun insertLoanWithInitial(
+    loan: Loan,
+    recordInitial: Boolean
+  ): Long {
+    val loansCategory =
+      if (recordInitial && loan.tracked) {
+        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+          ?: throw IllegalStateException(
+            "Loans category is missing; cannot record the initial loan transaction"
+          )
+      } else {
+        null
+      }
+    val id = insertLoan(loan)
+    if (loansCategory != null) {
+      // Mirror LoanDelegate.insertLoanWithInitial: CREDITOR (I owe) receives
+      // the money → INCOME; DEBTOR (owed to me) lends it out → EXPENSE.
+      insertTransaction(
+        Transaction(
+          type =
+            if (loan.type == io.github.mojri.hesabyar.data.LoanType.CREDITOR) {
+              io.github.mojri.hesabyar.data.TransactionType.INCOME
+            } else {
+              io.github.mojri.hesabyar.data.TransactionType.EXPENSE
+            },
+          categoryId = loansCategory.id,
+          amount = loan.originalAmount,
+          description = loan.description.ifBlank { loan.personName },
+          date = loan.date,
+          accountId = loan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+        )
+      )
+    }
     return id
   }
 
@@ -115,6 +166,34 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     val id = nextId++
     installments.add(installment.copy(id = id))
     _allInstallments.value = installments.toList()
+    return id
+  }
+
+  override suspend fun insertInstallmentWithInitial(
+    installment: Installment,
+    recordInitial: Boolean
+  ): Long {
+    val installmentsCategory =
+      if (recordInitial && installment.tracked && installment.isPaid) {
+        _allCategories.value.firstOrNull { it.key == "Installments" }
+          ?: throw IllegalStateException("Installments category is missing from database")
+      } else {
+        null
+      }
+    val id = insertInstallment(installment)
+    if (installmentsCategory != null) {
+      insertTransaction(
+        Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.EXPENSE,
+          categoryId = installmentsCategory.id,
+          amount = installment.amount,
+          description = installment.title,
+          date = installment.dueDate,
+          accountId = installment.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+          installmentId = id
+        )
+      )
+    }
     return id
   }
 
@@ -170,6 +249,36 @@ internal class FakeRepository : HesabyarRepositoryInterface {
       installments.add(inst.copy(id = instId, bankLoanId = id))
     }
     _allInstallments.value = installments.toList()
+    return id
+  }
+
+  override suspend fun addBankLoanWithInstallmentsAndInitial(
+    bankLoan: BankLoan,
+    installmentsToAdd: List<Installment>,
+    recordInitial: Boolean
+  ): Long {
+    val loansCategory =
+      if (recordInitial && bankLoan.tracked) {
+        _allCategories.value.firstOrNull { it.key == LoansCategoryExclusion.CATEGORY_KEY }
+          ?: throw IllegalStateException(
+            "Loans category is missing; cannot record the bank loan disbursement transaction"
+          )
+      } else {
+        null
+      }
+    val id = addBankLoanWithInstallments(bankLoan, installmentsToAdd)
+    if (loansCategory != null) {
+      insertTransaction(
+        Transaction(
+          type = io.github.mojri.hesabyar.data.TransactionType.INCOME,
+          categoryId = loansCategory.id,
+          amount = bankLoan.receivedAmount,
+          description = "دریافت وام ${bankLoan.loanName} از ${bankLoan.bankName}",
+          date = bankLoan.startDate,
+          accountId = bankLoan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+        )
+      )
+    }
     return id
   }
 

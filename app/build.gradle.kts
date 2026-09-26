@@ -349,9 +349,11 @@ val rustJvmArgs =
     "-Djava.library.path=${rustReleaseDir.absolutePath}"
   )
 
-// Configure all unit test tasks: JVM args for JNA/Rust library discovery.
+// Configure all unit test tasks: JVM args for JNA/Rust library discovery and
+// disable Conscrypt in Robolectric for compatibility across Java 17, 21, and 24+.
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
   jvmArgs(rustJvmArgs)
+  systemProperty("robolectric.conscryptMode", "OFF")
 }
 
 // After Android plugin configures the test variant, set up category filtering

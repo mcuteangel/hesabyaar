@@ -90,3 +90,11 @@ graphify-out/
 
 # SQLite temp files (e.g. .freebuff from database tools)
 .freebuff/
+
+# Code coverage reports (cargo-llvm-cov, node --experimental-test-coverage)
+*.info
+*.lcov
+coverage*.lcov
+junit*.xml
+*-junit.xml
+

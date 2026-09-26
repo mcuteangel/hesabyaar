@@ -28,7 +28,7 @@ import java.io.File
     AccountEntity::class,
     Person::class
   ],
-  version = 8,
+  version = 9,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -363,6 +363,38 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Phase 2 of the person-ledger redesign (plans/011): opt-in tracked ledger
+     * for Loan, BankLoan, and Installment.
+     *
+     * Migration contract (DECISION 1, resolved): Option 1 wins. tracked=false is
+     * the universal default for ALL pre-existing rows across all three tables.
+     * Historical transactions created before this migration are NEVER touched,
+     * deleted, or reversed — they stay exactly as they are. Going forward, any
+     * repayment on a pre-existing (backfilled) row does NOT create an account
+     * transaction unless the user explicitly enables tracked for that record.
+     * Accepted, intentional behavior change: mid-lifecycle inconsistency (first
+     * repayments have transactions, later ones do not unless opted in) is the
+     * correct outcome of the opt-in philosophy, not a bug.
+     *
+     * Additive-only: ALTER TABLE ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0
+     * plus nullable accountId INTEGER on loans, bank_loans, installments.
+     * No data rewrite, no transaction deletion. Single MIGRATION_8_9 covers all
+     * three tables consistently (split per-table migrations would add ordering
+     * risk for zero benefit).
+     */
+    internal val MIGRATION_8_9 =
+      object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL("ALTER TABLE loans ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE loans ADD COLUMN accountId INTEGER")
+          db.execSQL("ALTER TABLE bank_loans ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE bank_loans ADD COLUMN accountId INTEGER")
+          db.execSQL("ALTER TABLE installments ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0")
+          db.execSQL("ALTER TABLE installments ADD COLUMN accountId INTEGER")
+        }
+      }
+
     internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -466,7 +498,8 @@ abstract class AppDatabase : RoomDatabase() {
         MIGRATION_4_5,
         MIGRATION_5_6,
         MIGRATION_6_7,
-        MIGRATION_7_8
+        MIGRATION_7_8,
+        MIGRATION_8_9
       )
 
     fun getDatabase(context: Context): AppDatabase {
@@ -493,6 +526,19 @@ abstract class AppDatabase : RoomDatabase() {
             .build()
         instance = db
         db
+      }
+    }
+
+    @androidx.annotation.VisibleForTesting
+    internal fun setDatabaseForTesting(db: AppDatabase?) {
+      synchronized(this) {
+        val prev = instance
+        if (prev !== db) {
+          if (prev?.isOpen == true) {
+            prev.close()
+          }
+        }
+        instance = db
       }
     }
 

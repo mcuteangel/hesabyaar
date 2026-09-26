@@ -8,6 +8,8 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -52,23 +54,34 @@ internal object BudgetAdviceGenerator {
     val categoryTotals: Map<Long, Long> = emptyMap()
   )
 
-  private fun calculateTransactionTotals(transactions: List<Transaction>): TransactionTotals {
+  private fun calculateTransactionTotals(
+    transactions: List<Transaction>,
+    excludedCategoryIds: List<Long> = emptyList()
+  ): TransactionTotals {
     val cats = mutableMapOf<Long, Long>()
     val (income, expense) =
       transactions.fold(0L to 0L) { (inc, exp), t ->
-        when (t.type) {
-          TransactionType.INCOME -> inc + t.amount to exp
-          TransactionType.EXPENSE -> {
-            cats[t.categoryId] =
-              (cats[t.categoryId] ?: 0L) + t.amount
-            inc to exp + t.amount
+        if (LoansCategoryExclusion.isExcluded(t, excludedCategoryIds)) {
+          inc to exp
+        } else {
+          when (t.type) {
+            TransactionType.INCOME -> inc + t.amount to exp
+            TransactionType.EXPENSE -> {
+              cats[t.categoryId] =
+                (cats[t.categoryId] ?: 0L) + t.amount
+              inc to exp + t.amount
+            }
+            else -> inc to exp
           }
-          else -> inc to exp
         }
       }
     return TransactionTotals(income, expense, cats)
   }
 
+  // Safety net: unexpected AI generation, network, or serialization failures must
+  // fall back to offline advice instead of crashing to the caller.
+  // CancellationException is rethrown to preserve structured concurrency.
+  @Suppress("TooGenericExceptionCaught")
   suspend fun getBudgetAdvice(
     transactions: List<Transaction>,
     loans: List<Loan>,
@@ -81,58 +94,62 @@ internal object BudgetAdviceGenerator {
   ): String =
     withContext(Dispatchers.IO) {
       val cfg = config ?: AiProviderConfig()
-      AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
-      if (!cfg.isConfigured) {
-        AppLogger.w(TAG, "AI not configured, using offline fallback")
-        return@withContext getBudgetAdviceOffline(
+      val excludedCategoryIds = LoansCategoryExclusion.resolve(categories, TAG)
+      try {
+        AppLogger.d(TAG, "getBudgetAdvice: configured=${cfg.isConfigured}")
+        val hasDebts =
+          loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
+        val hasIncludedTx = transactions.any { !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) }
+        if (!cfg.isConfigured || !hasIncludedTx && !hasDebts) {
+          return@withContext getBudgetAdviceOffline(
+            transactions,
+            loans,
+            installments,
+            categories,
+            bankLoans,
+            excludedCategoryIds
+          )
+        }
+        val summary =
+          buildDataSummary(
+            transactions,
+            loans,
+            installments,
+            categories,
+            bankLoans,
+            excludedCategoryIds
+          )
+        val prompt =
+          "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
+        val result =
+          aiGenerate(
+            cfg,
+            prompt,
+            ADVICE_SYSTEM_PROMPT,
+            0.6
+          )
+        handleAdviceResult(
+          result,
           transactions,
           loans,
           installments,
           categories,
-          bankLoans
+          bankLoans,
+          excludedCategoryIds
+        )
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e(TAG, "getBudgetAdvice failed, falling back to offline", e)
+        getBudgetAdviceOffline(
+          transactions,
+          loans,
+          installments,
+          categories,
+          bankLoans,
+          excludedCategoryIds
         )
       }
-      // With a configured provider, an empty ledger (no transactions and no unpaid
-      // obligations) must surface the empty-state message directly instead of
-      // burning a paid network/AI request on nothing. Unpaid loans/installments are
-      // still worth analyzing, so the generator path is retained for those.
-      val hasUnpaidObligations =
-        loans.any { !it.isSettled } || installments.any { !it.isPaid } || bankLoans.any { !it.isSettled }
-      if (transactions.isEmpty() && !hasUnpaidObligations) {
-        AppLogger.d(TAG, "getBudgetAdvice: empty ledger, returning empty-state without AI call")
-        return@withContext getBudgetAdviceOffline(
-          transactions,
-          loans,
-          installments,
-          categories,
-          bankLoans
-        )
-      }
-      val summary =
-        buildDataSummary(
-          transactions,
-          loans,
-          installments,
-          categories,
-          bankLoans
-        )
-      val prompt =
-        "در اینجا اطلاعات مالی من برای تحلیل و توصیه آمده است:\n$summary"
-      val result =
-        aiGenerate(
-          cfg,
-          prompt,
-          ADVICE_SYSTEM_PROMPT,
-          0.6
-        )
-      handleAdviceResult(
-        result,
-        transactions,
-        loans,
-        installments,
-        categories,
-        bankLoans
-      )
     }
 
   internal fun buildDataSummary(
@@ -140,9 +157,10 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val totals = calculateTransactionTotals(transactions)
+    val totals = calculateTransactionTotals(transactions, excludedCategoryIds)
     val balance = totals.income - totals.expense
     return StringBuilder()
       .apply {
@@ -240,7 +258,8 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
     val fallback = {
       getBudgetAdviceOffline(
@@ -248,7 +267,8 @@ internal object BudgetAdviceGenerator {
         loans,
         installments,
         categories,
-        bankLoans
+        bankLoans,
+        excludedCategoryIds
       )
     }
     return when (result) {
@@ -303,13 +323,16 @@ internal object BudgetAdviceGenerator {
     loans: List<Loan>,
     installments: List<Installment>,
     categories: List<Category>,
-    bankLoans: List<BankLoan> = emptyList()
+    bankLoans: List<BankLoan> = emptyList(),
+    excludedCategoryIds: List<Long> = emptyList()
   ): String {
-    val totals = calculateTransactionTotals(transactions)
+    val totals = calculateTransactionTotals(transactions, excludedCategoryIds)
     val balance = totals.income - totals.expense
     val sb = StringBuilder()
     sb.append("💡 **تحلیلگر و مشاور مالی هوشمند (آفلاین)**\n\n")
-    if (transactions.isEmpty()) {
+    val hasIncludedTransactions =
+      transactions.any { !LoansCategoryExclusion.isExcluded(it, excludedCategoryIds) }
+    if (!hasIncludedTransactions) {
       sb.append(EMPTY_TRANSACTIONS_MSG)
       // Retain debt-related advice when the ledger is empty but the user still
       // has active unpaid obligations (loans or installments). Only return early

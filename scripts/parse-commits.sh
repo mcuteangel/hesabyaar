@@ -70,10 +70,37 @@ else
   BUMP_TYPE="patch"
 fi
 
-# Trim summary to 20 lines, avoid SIGPIPE
-summary_lines=$(echo "$summary_lines" | sed '/^$/d' | head -20 || true)
-summary_flat=$(echo "$summary_lines" | tr '\n' ' ' | sed 's/ $//')
+# Trim summary to 20 lines, format as bulleted list
+summary_lines=$(printf '%s\n' "$summary_lines" | sed '/^$/d' | head -20 || true)
+summary_bullets=""
+if [ -n "$summary_lines" ]; then
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    if [ -z "$summary_bullets" ]; then
+      summary_bullets="- $line"
+    else
+      summary_bullets="$summary_bullets"$'\n'"- $line"
+    fi
+  done <<< "$summary_lines"
+fi
 
-# Output JSON using jq (safe against special characters)
-jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_flat" \
-  '{bump_type: $bump_type, summary: $summary}'
+# Detect Python interpreter
+PYTHON_CMD=""
+if python3 --version >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+elif py -3 --version >/dev/null 2>&1; then
+  PYTHON_CMD="py -3"
+fi
+
+# Output JSON using jq, python, or minimal shell fallback
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_bullets" \
+    '{bump_type: $bump_type, summary: $summary}'
+elif [ -n "$PYTHON_CMD" ]; then
+  BUMP_TYPE="$BUMP_TYPE" SUMMARY_BULLETS="$summary_bullets" $PYTHON_CMD -c \
+    'import json, os; print(json.dumps({"bump_type": os.environ["BUMP_TYPE"], "summary": os.environ["SUMMARY_BULLETS"]}))'
+else
+  # Shell fallback escaping backslashes, double quotes, and newlines
+  escaped_summary=$(printf '%s' "$summary_bullets" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{if (NR>1) printf "\\n"; printf "%s", $0}')
+  printf '{"bump_type":"%s","summary":"%s"}\n' "$BUMP_TYPE" "$escaped_summary"
+fi

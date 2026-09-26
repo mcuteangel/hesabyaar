@@ -7,6 +7,8 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.domain.utils.ArchivedTransactionFilter
+import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
 import io.github.mojri.hesabyar.ui.AnalyticsData
 import io.github.mojri.hesabyar.ui.MonthlyData
 import java.math.RoundingMode
@@ -14,6 +16,9 @@ import java.math.RoundingMode
 class GetAnalyticsUseCase {
   private companion object {
     const val DEFAULT_FALLBACK_COLOR = 0xFF999999L
+
+    /** Decimal scale used when the debt progress ratio is computed. */
+    private const val DEBT_PROGRESS_SCALE = 6
 
     /** Display name for breakdown entries whose metadata (category/account)
      *  cannot be resolved — e.g. after the category or account was deleted. */
@@ -43,7 +48,7 @@ class GetAnalyticsUseCase {
     if (original > 0L) {
       val paid = (original - remaining).toBigDecimal()
       paid
-        .divide(original.toBigDecimal(), 6, RoundingMode.HALF_UP)
+        .divide(original.toBigDecimal(), DEBT_PROGRESS_SCALE, RoundingMode.HALF_UP)
         .toFloat()
         .coerceIn(0f, 1f)
     } else {
@@ -59,6 +64,7 @@ class GetAnalyticsUseCase {
     accounts: List<io.github.mojri.hesabyar.data.AccountEntity> = emptyList(),
     accountId: Long? = null,
     includeArchived: Boolean = false,
+    excludedCategoryIds: List<Long> = emptyList(),
   ): AnalyticsData {
     val rustResult =
       io.github.mojri.hesabyar.rust.RustBridge.computeAnalyticsSync(
@@ -74,6 +80,7 @@ class GetAnalyticsUseCase {
         accounts,
         accountId,
         includeArchived,
+        excludedCategoryIds,
       )
 
     // Use the Rust result unless it failed (null) or came back as a blank
@@ -99,7 +106,8 @@ class GetAnalyticsUseCase {
       bankLoans,
       accounts,
       accountId,
-      includeArchived
+      includeArchived,
+      excludedCategoryIds,
     )
   }
 
@@ -112,53 +120,13 @@ class GetAnalyticsUseCase {
     accounts: List<io.github.mojri.hesabyar.data.AccountEntity>,
     accountId: Long?,
     includeArchived: Boolean = false,
+    excludedCategoryIds: List<Long> = emptyList(),
   ): AnalyticsData {
-    val now = System.currentTimeMillis()
-    val jalaliDate =
-      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-        .gregorianToJalali(now)
-    val jalaliMonthStart =
-      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
-        .jalaliToGregorian(jalaliDate.year, jalaliDate.month, 1)
-        ?.timeInMillis ?: now - 30L * 24 * 60 * 60 * 1000
-    val monthlyTx =
-      GetDashboardDataUseCase
-        .filterArchivedTransactions(transactions, accounts, includeArchived)
-        .filter { it.date in jalaliMonthStart..now }
-        .let { txs ->
-          if (accountId != null) {
-            txs.filter { it.accountId == accountId || it.destinationAccountId == accountId }
-          } else {
-            txs
-          }
-        }
-
-    val monthLabel =
-      if (jalaliDate.month in 1..12) jalaliMonthNames[jalaliDate.month - 1] else ""
-    val transferExpense =
-      if (accountId != null) {
-        monthlyTx
-          .filter { it.type == TransactionType.TRANSFER && it.accountId == accountId }
-          .sumOf { it.amount }
-      } else {
-        0L
-      }
-    val transferIncome =
-      if (accountId != null) {
-        monthlyTx
-          .filter { it.type == TransactionType.TRANSFER && it.destinationAccountId == accountId }
-          .sumOf { it.amount }
-      } else {
-        0L
-      }
-    val monthlyIncomeTotal = monthlyTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount } + transferIncome
-    val monthlyExpenseTotal =
-      monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount } + transferExpense
-    // Breakdown denominators must match the expense-only numerators of
-    // buildBreakdown (transfer rows are never included there), so compute the
-    // expense-only total separately — monthlyExpenseTotal additionally counts
-    // transferExpense for the monthly spending series.
-    val breakdownTotalExpense = monthlyTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    val window = AnalyticsFallback.window(transactions, accounts, accountId, includeArchived)
+    val includedMonthlyTx =
+      LoansCategoryExclusion.filterTransactions(window.monthlyTx, excludedCategoryIds)
+    val monthLabel = window.monthLabel(jalaliMonthNames)
+    val totals = AnalyticsFallback.totals(includedMonthlyTx, accountId)
 
     val unsettledLoans = loans.filter { !it.isSettled }
     val debtors = mapDebtSummaries(unsettledLoans, LoanType.DEBTOR)
@@ -167,10 +135,10 @@ class GetAnalyticsUseCase {
 
     return buildFallbackAnalyticsResult(
       FallbackAnalyticsInput(
-        monthlySpending = buildMonthlyData(jalaliDate, monthLabel, monthlyIncomeTotal, monthlyExpenseTotal),
-        monthlyIncome = buildMonthlyData(jalaliDate, monthLabel, monthlyIncomeTotal, 0L),
-        categoryBreakdown = buildCategoryBreakdown(monthlyTx, categories, breakdownTotalExpense),
-        accountBreakdown = buildAccountBreakdown(monthlyTx, accounts, breakdownTotalExpense),
+        monthlySpending = buildMonthlyData(window.jalaliDate, monthLabel, totals.income, totals.expense),
+        monthlyIncome = buildMonthlyData(window.jalaliDate, monthLabel, totals.income, 0L),
+        categoryBreakdown = buildCategoryBreakdown(includedMonthlyTx, categories, totals.breakdownExpense),
+        accountBreakdown = buildAccountBreakdown(includedMonthlyTx, accounts, totals.breakdownExpense),
         unsettledLoans = unsettledLoans,
         debtors = debtors,
         creditors = creditors,
@@ -327,4 +295,95 @@ class GetAnalyticsUseCase {
       paidInstallments == 0 &&
       bankLoans.isEmpty() &&
       bankLoansTotalDebt == 0L
+}
+
+/** Shared Jalali window and monthly totals for the Kotlin analytics fallback. */
+internal object AnalyticsFallback {
+  private const val FALLBACK_WINDOW_DAYS = 30L
+  private const val MILLIS_PER_DAY = 24L * 60L * 60L * 1000L
+  private const val JALALI_FIRST_MONTH = 1
+  private const val JALALI_LAST_MONTH = 12
+
+  /** Jalali window and account/archive-filtered transactions for one fallback run. */
+  data class MonthlyWindow(
+    val jalaliDate: io.github.mojri.hesabyar.ui.JalaliCalendarHelper.JalaliDate,
+    val monthlyTx: List<Transaction>,
+  ) {
+    /** Persian display label for the window month; empty when out of range. */
+    fun monthLabel(monthNames: List<String>): String =
+      if (jalaliDate.month in JALALI_FIRST_MONTH..JALALI_LAST_MONTH) {
+        monthNames[jalaliDate.month - JALALI_FIRST_MONTH]
+      } else {
+        ""
+      }
+  }
+
+  /** Monthly income and expense totals, including selected-account transfer legs. */
+  data class MonthlyTotals(
+    val income: Long,
+    val expense: Long,
+    /** Expense total without transfer legs, used as the breakdown denominator. */
+    val breakdownExpense: Long,
+  )
+
+  fun window(
+    transactions: List<Transaction>,
+    accounts: List<io.github.mojri.hesabyar.data.AccountEntity>,
+    accountId: Long?,
+    includeArchived: Boolean,
+  ): MonthlyWindow {
+    val now = System.currentTimeMillis()
+    val jalaliDate =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .gregorianToJalali(now)
+    val jalaliMonthStart =
+      io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+        .jalaliToGregorian(jalaliDate.year, jalaliDate.month, JALALI_FIRST_MONTH)
+        ?.timeInMillis
+        ?: now - FALLBACK_WINDOW_DAYS * MILLIS_PER_DAY
+    val monthlyTx =
+      ArchivedTransactionFilter
+        .filter(transactions, accounts, includeArchived)
+        .filter { it.date in jalaliMonthStart..now }
+        .let { txs ->
+          if (accountId != null) {
+            txs.filter { it.accountId == accountId || it.destinationAccountId == accountId }
+          } else {
+            txs
+          }
+        }
+    return MonthlyWindow(jalaliDate, monthlyTx)
+  }
+
+  fun totals(
+    transactions: List<Transaction>,
+    accountId: Long?,
+  ): MonthlyTotals {
+    var regularIncome = 0L
+    var breakdownExpense = 0L
+    var transferIncome = 0L
+    var transferExpense = 0L
+
+    for (tx in transactions) {
+      when (tx.type) {
+        TransactionType.INCOME -> regularIncome += tx.amount
+        TransactionType.EXPENSE -> breakdownExpense += tx.amount
+        TransactionType.TRANSFER -> {
+          if (accountId != null) {
+            if (tx.accountId == accountId) {
+              transferExpense += tx.amount
+            }
+            if (tx.destinationAccountId == accountId) {
+              transferIncome += tx.amount
+            }
+          }
+        }
+        else -> Unit
+      }
+    }
+
+    val income = regularIncome + transferIncome
+    val expense = breakdownExpense + transferExpense
+    return MonthlyTotals(income, expense, breakdownExpense)
+  }
 }

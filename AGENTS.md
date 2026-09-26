@@ -288,6 +288,16 @@ If detekt fails, fix the findings manually. `ktlintFormat` does not resolve dete
 
 If compilation or tests fail, analyze the logs immediately. Find the root cause. Apply the fix. Run the full verification loop again until all checks pass.
 
+### 4. Quick-Check Scripts
+
+Three convenience scripts automate the verification workflow. They are read-only checks:
+
+- `scripts/check-rust.sh`: checks clippy and unit tests for the Rust workspace.
+- `scripts/check-android.sh`: runs ktlint, detekt, non-Rust unit tests, and Android lint.
+- `scripts/check-rust-bridge.sh`: runs isolated Rust-bridge JVM tests (`testDebugUnitTestRust`).
+
+Use `check-rust.sh` for changes in `rust/**`. Use `check-android.sh` for Kotlin/UI changes. Use `check-rust-bridge.sh` whenever FFI signatures, bridge bindings, or native loaders change.
+
 ### Constraints
 
 - Keep this workflow readable and well-structured in `AGENTS.md`.
@@ -412,4 +422,188 @@ Serena is the symbol-level code-intelligence backend for this repo. It provides 
 - Use `get_symbols_overview` to orient on a file, `find_symbol` to locate a symbol, `find_referencing_symbols` to trace callers, `find_declaration` for a definition.
 - Line numbers returned by serena are 0-based.
 - Do not bypass serena with bulk reads when a symbolic tool answers the question.
+
+## Architecture Pattern
+
+Hesabyar uses the MVVM + UseCase architecture in a single Android module. The Rust Core (`rust/hesabyar-core`) serves as the sole location for canonical business logic. Do not describe this project as a multi-module Clean Architecture repository.
+
+### Data Flow
+
+Canonical business logic data flow:
+
+```text
+UI Event
+    ↓
+ViewModel
+    ↓
+UseCase
+    ↓
+RustBridge
+    ↓
+hesabyar-core
+(Rust / canonical business logic)
+```
+
+Persistence data flow:
+
+```text
+UseCase
+    ↓
+Repository
+    ↓
+Room
+(persistence only)
+```
+
+When a workflow requires both business calculations and persistence, the UseCase coordinates both paths. The Repository handles data storage and retrieval only. The Repository must never contain business rules or financial calculations.
+
+### Repository vs Rust Core Boundaries
+
+Direct Repository access is permitted only when an operation meets all of these criteria:
+- It is pure CRUD (Create, Read, Update, Delete).
+- It performs persistence or querying only.
+- It contains no business rules.
+- It contains no business calculations.
+- It contains no financial validations.
+- It contains no rule-driven data transformations.
+
+The Rust Core (`rust/hesabyar-core`) is mandatory via `UseCase → RustBridge → hesabyar-core` whenever an operation involves:
+- Business rules.
+- Financial calculations (interest, balances, budget allocations, health score).
+- Financial validations (transaction constraints, loan limits, amount limits).
+- Domain calculations.
+- Rule-driven data transformations.
+- Canonical logic shared across callers.
+
+## UI Constraints
+
+### Compose Only
+
+All new UI implementations must use Jetpack Compose. Legacy Android Views and XML layouts are forbidden for new features. Do not use legacy patterns such as `findViewById(...)`.
+
+### Existing Components First
+
+Before creating any new UI component:
+1. Inspect `ui/components/` for reusable components.
+2. Review existing screen implementations for shared patterns.
+3. Review standard Material 3 components.
+
+Create a custom component only when neither Material 3 nor `ui/components/` provides a suitable match. Place any reusable custom component in `ui/components/` following DRY principles.
+
+### RTL and Persian-First Layout
+
+The UI defaults to right-to-left (RTL) layout and Persian-first presentation.
+
+Forcing left-to-right (LTR) direction via `LocalLayoutDirection provides LayoutDirection.Ltr` is permitted only in specific contexts where numerical or financial values require LTR alignment (e.g., telephone numbers, card numbers, signed percentages).
+
+Real example from `AccountBalanceCard.kt`:
+
+```kotlin
+// Force LTR layout so the sign (±) always appears on the left of the
+// percentage, regardless of the page's RTL direction.
+CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+  Text(
+    text = "$sign$pct% $arrow",
+    style = MaterialTheme.typography.labelMedium,
+    color = color,
+    textAlign = TextAlign.End,
+  )
+}
+```
+
+### Jalali Calendar
+
+Use `JalaliCalendarHelper.kt` for all user-facing date presentation and date calculations in the UI.
+
+Do not use `java.time.LocalDate` or `java.util.Date` directly for user-facing financial date logic. This constraint does not forbid standard epoch millisecond timestamps used for internal database storage or serialization.
+
+## Room Migration Checklist
+
+Every change to the database schema or an `@Entity` class must satisfy this checklist:
+
+1. **Database version:** Increment `version` in `@Database(...)` in `AppDatabase.kt`.
+2. **Explicit migration:** Create an explicit `Migration(oldVersion, newVersion)` object and register it in the migration list. Using `fallbackToDestructiveMigration()` is strictly forbidden.
+3. **Exported schema:** Keep `exportSchema = true` enabled when Room schema exports are configured. The generated JSON schema for the new version must be created or updated in the schemas directory.
+4. **Migration test:** Test every migration with `MigrationTestHelper`. The test must:
+   - Create the database at the old version.
+   - Insert representative sample data.
+   - Execute the migration to the new version.
+   - Validate the new schema.
+   - Validate pre-existing data integrity.
+   - Validate new columns and tables.
+   - Assert zero data loss.
+5. **Backup compatibility:** Verify compatibility with the backup system:
+   - Check the backup JSON parser.
+   - Check `BACKUP_SCHEMA_VERSION`.
+   - Verify backward compatibility with existing backup files.
+   - The backup schema version is decoupled from the Room database version; bumping one does not imply bumping the other.
+6. **Documentation consistency:** Check `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` against `AppDatabase.kt`. Report any schema version mismatches.
+
+Required completion statement:
+یک ایجنت نباید تغییر اسکیما را «انجام‌شده» گزارش کند بدون اشاره‌ی مستقیم به فایل JSON اسکیمای جدید و نام دقیق تست MigrationTestHelper که پاس شده است.
+
+## Progress Tracking
+
+### Role of `progress.md`
+
+The `progress.md` file records the active operational state of coding agents.
+- It is not an architecture specification.
+- It is not an implementation source of truth.
+- It does not replace `AGENTS.md`.
+- It does not replace domain documentation.
+- It is not a permanent changelog.
+- It is not a scratchpad for full session transcripts.
+
+### Reading Before Tasks
+
+At the start of every task, an agent must:
+1. Read `AGENTS.md`.
+2. Read `progress.md` if the file exists.
+3. Validate claims in `progress.md` against the live repository state.
+
+Never treat claims in `progress.md` as verified facts without repository confirmation.
+
+### Updating Frequency
+
+Update `progress.md` upon reaching meaningful milestones:
+- Starting a significant task.
+- Completing a task phase.
+- Discovering an important technical finding.
+- Documenting an agreed architectural decision.
+- Executing a verification run (pass or fail).
+- Encountering or resolving a blocker.
+
+Trivial edits do not require updating `progress.md`.
+
+### State Over Changelog
+
+When a task finishes, remove outdated details or summarize them concisely. Do not append timestamped log entries for each session. Keep `progress.md` focused on current state.
+
+### Evidence Standard
+
+Record evidence for every substantive claim:
+- File paths and line numbers.
+- Exact commands executed.
+- Named test cases.
+- Observed results.
+
+Never record speculative status expressions like "probably fixed", "should work", or "I think this is correct".
+
+### Conflict Resolution
+
+When `progress.md` contradicts the repository or other documentation, apply this precedence hierarchy:
+1. Current live repository code.
+2. `AGENTS.md`.
+3. Specific domain documentation.
+4. `progress.md`.
+
+Report any contradiction and update `progress.md` to reflect verified reality.
+
+### Active Task Hygiene
+
+Only genuinely active tasks belong in the `Active Task` section of `progress.md`. Completed tasks must be moved to the completed summary or removed.
+
+### Secrets Protection
+
+Never write tokens, passwords, API keys, credentials, private keys, or secrets into `progress.md`.
 
