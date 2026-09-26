@@ -88,21 +88,20 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             BASE="${{ github.event.before }}"
             HEAD="${{ github.event.after }}"
-            DIFF_FILTER="-- src/ lib/ app/"
             if [[ "$BASE" == "0000000000000000000000000000000000000000" ]]; then BASE="HEAD~1"; fi
+            git diff "$BASE" "$HEAD" -- src/ lib/ app/ > diff_full.txt
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
             HEAD="${{ github.event.pull_request.head.sha }}"
-            DIFF_FILTER=""
+            git diff "$BASE" "$HEAD" > diff_full.txt
           fi
 
-          git diff "$BASE" "$HEAD" $DIFF_FILTER > diff_full.txt
           KEYWORDS="fix|bug|error|null|undefined|auth|crash|fail|exception|throw|catch"
 
           if grep -Eqi "$KEYWORDS" diff_full.txt; then
-            echo "trigger=true" >> $GITHUB_OUTPUT
+            echo "trigger=true" >> "$GITHUB_OUTPUT"
           else
-            echo "trigger=false" >> $GITHUB_OUTPUT
+            echo "trigger=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -124,13 +123,13 @@ jobs:
             echo "INTEL_CONTEXT<<EOF"
             cat intel.json
             echo "EOF"
-          } >> $GITHUB_ENV
+          } >> "$GITHUB_ENV"
 
           {
             echo "DIFF_CONTEXT<<EOF"
             cat diff.txt
             echo "EOF"
-          } >> $GITHUB_ENV
+          } >> "$GITHUB_ENV"
 
       - name: Gemini reasoning
         if: steps.rule.outputs.trigger == 'true' && env.HAS_GEMINI_KEY == 'true'
@@ -141,6 +140,20 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): this Action always runs
+          # `gemini --yolo` (action.yml 309/316) and this job is triggered by
+          # issue and PR comments, so untrusted text reaches a model that can
+          # otherwise run shell commands. Deny-by-default tool allowlist;
+          # all context arrives inline in the prompt, so no tool access is needed.
+          # Schema note: the key is `tools.core`, NOT the `coreTools` shown in
+          # the upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has
+          # no `coreTools` key, so the documented form is silently ignored.
+          settings: |-
+            {
+              "tools": {
+                "core": []
+              }
+            }
           prompt: |
             You are a GitHub AI system.
             Context:
@@ -252,6 +265,9 @@ jobs:
           # "#40abc". It keeps partial numbers apart, like "#40" and
           # "#400".
           LOOSE_CHAIN='(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?#[0-9]+([[:space:]]*,[[:space:]]*#[0-9]+)*'
+          # ${NUM} stays literal here on purpose: this is a template that is
+          # expanded dynamically for each candidate issue number below.
+          # shellcheck disable=SC2016
           PER_NUM_TEMPLATE='(^|[^[:alnum:]_])(fix(es|ed)?|close[sd]?|resolve[sd]?|patch(es|ed)?)[[:space:]]+(issues?[[:space:]]+)?(#[0-9]+[[:space:]]*,[[:space:]]*)*#${NUM}([^[:alnum:]_]|$)'
           MAX_MATCHES_PER_ISSUE=5
 
@@ -424,6 +440,19 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): `/ai-fix` is an issue_comment
+          # trigger, so the parent comment and the PR diff are attacker-
+          # controllable. This Action always runs `gemini --yolo`, hence the
+          # deny-by-default tool allowlist below; all context arrives inline
+          # in the prompt, so no tool access is needed.
+          # Schema note: `tools.core`, not the `coreTools` from the upstream
+          # docs/trust-guidance.md, which the CLI ignores.
+          settings: |-
+            {
+              "tools": {
+                "core": []
+              }
+            }
           prompt: |
             You are an expert QA engineer. A user replied to a bot's code review or bug report with the command `/ai-fix`.
 
@@ -451,6 +480,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gen_issue.outputs.summary }}
           PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_URL: ${{ steps.pr_context.outputs.pr_url }}
         run: |
           set -euo pipefail
 
@@ -461,7 +491,7 @@ jobs:
           fi
 
           if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
-            gh api --method POST -H "Accept: application/vnd.github+json" $ENDPOINT -f "body=❌ AI failed to parse JSON response." -f "in_reply_to_id=${{ github.event.comment.id }}"
+            gh api --method POST -H "Accept: application/vnd.github+json" "$ENDPOINT" -f "body=❌ AI failed to parse JSON response." -f "in_reply_to_id=${{ github.event.comment.id }}"
             exit 1
           fi
 
@@ -470,16 +500,16 @@ jobs:
           LABELS=$(echo "$RESPONSE" | jq -r 'if (.labels | type) == "array" then (.labels | join(",")) else empty end')
 
           if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
-            gh api --method POST -H "Accept: application/vnd.github+json" $ENDPOINT -f "body=❌ AI generated invalid issue fields (missing title or body)." -f "in_reply_to_id=${{ github.event.comment.id }}"
+            gh api --method POST -H "Accept: application/vnd.github+json" "$ENDPOINT" -f "body=❌ AI generated invalid issue fields (missing title or body)." -f "in_reply_to_id=${{ github.event.comment.id }}"
             exit 1
           fi
 
-          FOOTER="\n\n---\n🤖 *This issue was automatically generated via \`/ai-fix\` from [PR #${PR_NUM}](${{ steps.pr_context.outputs.pr_url }})*"
+          FOOTER="\n\n---\n🤖 *This issue was automatically generated via \`/ai-fix\` from [PR #${PR_NUM}]($PR_URL)*"
           FULL_BODY="${BODY}${FOOTER}"
 
           ISSUE_URL=$(gh issue create --title "$TITLE" --body "$FULL_BODY" --label "$LABELS")
 
           gh api --method POST -H "Accept: application/vnd.github+json" \
-            $ENDPOINT \
+            "$ENDPOINT" \
             -f "body=✅ Successfully created issue: ${ISSUE_URL}" \
             -f "in_reply_to_id=${{ github.event.comment.id }}"

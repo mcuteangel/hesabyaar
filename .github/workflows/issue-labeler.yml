@@ -82,6 +82,19 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: ${{ env.GEMINI_MODEL }}
+          # SECURITY (GHSA-wpqr-6v78-jr5g): the `issues` trigger means the issue
+          # title and body are attacker-controlled, and this Action always runs
+          # `gemini --yolo`. Deny-by-default tool allowlist; all issue text
+          # arrives inline in the prompt, so no tool access is needed.
+          # Schema note: the key is `tools.core`, NOT the `coreTools` shown in the
+          # upstream docs/trust-guidance.md. The CLI's settingsSchema.ts has no
+          # `coreTools` key, so the documented form is silently ignored.
+          settings: |-
+            {
+              "tools": {
+                "core": []
+              }
+            }
           prompt: |
             You are a triage assistant for the Hesabyar personal finance app repository.
             Analyze the following issue and select one or more matching labels from the
