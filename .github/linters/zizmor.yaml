@@ -13,8 +13,8 @@ rules:
     ignore:
       - rust-lint.yml:34
       - codspeed-rust.yml:33
-      - setup-rust-android/action.yml:22
-      - .github/actions/setup-rust-android/action.yml:22
+      - setup-rust-android/action.yml:21
+      - .github/actions/setup-rust-android/action.yml:21
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
   # to review fork pull requests and post/update review comments securely.
   # Scoped to exact lines so other triggers/permissions remain audited.
