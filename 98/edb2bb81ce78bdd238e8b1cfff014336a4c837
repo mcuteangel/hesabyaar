@@ -1,0 +1,22 @@
+.github/prompts/new-rust-method.md
+  s_d198e7bfeecbe4::t_8658259561afd6 20
+rust/hesabyar-core/README.md
+  s_d198e7bfeecbe4::t_efad3d8f5d6d4e 98,104,107
+  s_d198e7bfeecbe4::t_745a2b2c8ebf20 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "98edb2bb81ce78bdd238e8b1cfff014336a4c837",
+  "prompts": {},
+  "sessions": {
+    "s_d198e7bfeecbe4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c04b9e53-44ba-446e-9ea8-6c4449ed13c2",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
