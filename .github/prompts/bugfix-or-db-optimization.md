@@ -5,7 +5,7 @@ Use this template when diagnosing and fixing bugs or optimizing queries and data
 ## Metadata
 
 - **Bug symptom / issue description:** 
-- **Suspected area:** <!-- Select one or more: Rust core | Room / DAO | UI / Compose | Backup / Restore -->
+- **Suspected area:** <!-- Select one or more: Rust core | FFI / bridge | Room / DAO | UI / Compose | Backup / Restore -->
 
 ## Investigation & Reproduction Checklist
 
