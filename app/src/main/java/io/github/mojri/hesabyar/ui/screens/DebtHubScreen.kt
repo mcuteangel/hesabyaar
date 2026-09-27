@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
-import io.github.mojri.hesabyar.ui.LoanViewModel
+import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -32,44 +32,18 @@ private fun sectionTint(selected: Boolean): Color =
 @Composable
 fun DebtHubScreen(
   initialSection: DebtSection = DebtSection.INSTALLMENTS,
+  initialPersonsDirectionFilter: LoanDirectionFilter = LoanDirectionFilter.ALL,
   installmentViewModel: InstallmentViewModel,
   bankLoanViewModel: BankLoanViewModel,
-  loanViewModel: LoanViewModel,
+  personViewModel: PersonViewModel,
   settingsViewModel: SettingsViewModel,
   modifier: Modifier = Modifier
 ) {
   var section by remember { mutableStateOf(initialSection) }
+  var selectedPerson by remember { mutableStateOf<Pair<Long, String>?>(null) }
 
   Column(modifier = modifier.fillMaxSize()) {
-    SecondaryScrollableTabRow(
-      selectedTabIndex = DebtSection.entries.indexOf(section),
-      edgePadding = SpacingTokens.md,
-      containerColor = MaterialTheme.colorScheme.surface,
-      divider = {}
-    ) {
-      DebtSection.entries.forEach { s ->
-        val selected = s == section
-        LeadingIconTab(
-          selected = selected,
-          onClick = { section = s },
-          text = {
-            Text(
-              s.label,
-              fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-            )
-          },
-          icon = {
-            Icon(
-              imageVector = s.icon,
-              contentDescription = null,
-              tint = sectionTint(selected)
-            )
-          },
-          selectedContentColor = MaterialTheme.colorScheme.primary,
-          unselectedContentColor = sectionTint(false)
-        )
-      }
-    }
+    DebtHubTabBar(section = section, onSectionChange = { section = it })
 
     when (section) {
       DebtSection.INSTALLMENTS ->
@@ -84,12 +58,60 @@ fun DebtHubScreen(
           bankLoanViewModel = bankLoanViewModel,
           modifier = Modifier.fillMaxSize()
         )
-      DebtSection.LOANS ->
-        LoanManagementScreen(
-          loanViewModel = loanViewModel,
-          settingsViewModel = settingsViewModel,
+      DebtSection.PERSONS ->
+        PersonsScreen(
+          personViewModel = personViewModel,
+          initialDirectionFilter = initialPersonsDirectionFilter,
+          onPersonClick = { personId, personName ->
+            selectedPerson = personId to personName
+          },
           modifier = Modifier.fillMaxSize()
         )
+    }
+
+    selectedPerson?.let { (id, name) ->
+      PersonDetailSheet(
+        personId = id,
+        personName = name,
+        personViewModel = personViewModel,
+        onDismiss = { selectedPerson = null }
+      )
+    }
+  }
+}
+
+@Composable
+private fun DebtHubTabBar(
+  section: DebtSection,
+  onSectionChange: (DebtSection) -> Unit
+) {
+  SecondaryScrollableTabRow(
+    selectedTabIndex = DebtSection.entries.indexOf(section),
+    edgePadding = SpacingTokens.md,
+    containerColor = MaterialTheme.colorScheme.surface,
+    divider = {}
+  ) {
+    DebtSection.entries.forEach { s ->
+      val selected = s == section
+      LeadingIconTab(
+        selected = selected,
+        onClick = { onSectionChange(s) },
+        text = {
+          Text(
+            s.label,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+          )
+        },
+        icon = {
+          Icon(
+            imageVector = s.icon,
+            contentDescription = null,
+            tint = sectionTint(selected)
+          )
+        },
+        selectedContentColor = MaterialTheme.colorScheme.primary,
+        unselectedContentColor = sectionTint(false)
+      )
     }
   }
 }

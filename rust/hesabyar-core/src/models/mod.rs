@@ -400,6 +400,89 @@ pub struct DebtSummary {
     pub progress: f32,
 }
 
+/// Per-person net balance summary for the persons ledger (plans/011 Phase 3).
+///
+/// `total_receivables` is the sum of `remainingAmount` on this person's
+/// unsettled DEBTOR loans ("owed to me" — they owe me). `total_debts` is the
+/// sum on unsettled CREDITOR loans ("I owe them"). `net_balance` is
+/// `receivables - debts`: a positive value means the person owes the user
+/// (they are the user's debtor); a negative value means the user owes the
+/// person (they are the user's creditor).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, uniffi::Record)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonBalanceSummary {
+    pub person_id: i64,
+    pub person_name: String,
+    pub total_receivables: i64,
+    pub total_debts: i64,
+    pub net_balance: i64,
+    pub active_loan_count: i32,
+    pub settled_loan_count: i32,
+}
+
+/// Compute per-person ledger balances from loans (plans/011 Phase 3).
+///
+/// Only loans matched by `personId` are considered (legacy rows with a null
+/// personId are excluded — their person identity cannot be resolved). Settled
+/// loans are counted in `settled_loan_count` but contribute zero to the
+/// balance; unsettled loans contribute `remainingAmount` to receivables
+/// (DEBTOR) or debts (CREDITOR).
+pub fn compute_person_balances(persons: &[Person], loans: &[Loan]) -> Vec<PersonBalanceSummary> {
+    let mut sums: std::collections::HashMap<i64, PersonBalanceSummary> = persons
+        .iter()
+        .map(|p| {
+            (
+                p.id,
+                PersonBalanceSummary {
+                    person_id: p.id,
+                    person_name: p.name.clone(),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+
+    for loan in loans {
+        let person_id = match loan.person_id {
+            Some(id) => id,
+            None => continue, // legacy row no person link
+        };
+        let entry = match sums.get_mut(&person_id) {
+            Some(e) => e,
+            None => continue, // loan references unknown / archived person
+        };
+        let remaining = loan.remaining_amount;
+        match loan.loan_type.as_str() {
+            "DEBTOR" => {
+                // Person owes the user: increases the user's receivables / net.
+                if !loan.is_settled {
+                    entry.total_receivables += remaining;
+                    entry.net_balance += remaining;
+                    entry.active_loan_count += 1;
+                } else {
+                    entry.settled_loan_count += 1;
+                }
+            }
+            "CREDITOR" => {
+                // User owes the person: increases the user's debts / reduces net.
+                if !loan.is_settled {
+                    entry.total_debts += remaining;
+                    entry.net_balance -= remaining;
+                    entry.active_loan_count += 1;
+                } else {
+                    entry.settled_loan_count += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Deterministic ordering: by id ascending.
+    let mut result: Vec<_> = sums.into_values().collect();
+    result.sort_by_key(|b| b.person_id);
+    result
+}
+
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct InstallmentProgress {
     pub id: i64,
@@ -1260,5 +1343,98 @@ mod tests {
         assert!(is_tx_category_excluded(&tx, &[6]));
         tx.category_id = 7;
         assert!(!is_tx_category_excluded(&tx, &[6]));
+    }
+
+    fn person(id: i64, name: &str) -> Person {
+        Person {
+            id,
+            name: name.to_string(),
+            normalized_name: name.to_lowercase(),
+            phone: None,
+            notes: None,
+            created_at: 0,
+            is_archived: false,
+        }
+    }
+
+    fn loan(loan_type: &str, remaining: i64, person_id: Option<i64>, settled: bool) -> Loan {
+        Loan {
+            id: 0,
+            person_name: "x".to_string(),
+            person_id,
+            loan_type: loan_type.to_string(),
+            original_amount: remaining,
+            remaining_amount: remaining,
+            description: "".to_string(),
+            date: 0,
+            is_settled: settled,
+            tracked: false,
+            account_id: None,
+        }
+    }
+
+    #[test]
+    fn test_compute_person_balances_debtor_receivable_positive() {
+        let persons = vec![person(1, "Ali")];
+        let loans = vec![
+            loan("DEBTOR", 2_000_000, Some(1), false), // owed to me
+            loan("CREDITOR", 500_000, Some(1), false), // i owe
+        ];
+        let bal = compute_person_balances(&persons, &loans);
+        let b = bal.iter().find(|b| b.person_id == 1).unwrap();
+        assert_eq!(b.total_receivables, 2_000_000);
+        assert_eq!(b.total_debts, 500_000);
+        assert_eq!(b.net_balance, 1_500_000); // receivables - debts
+        assert_eq!(b.active_loan_count, 2);
+        assert_eq!(b.settled_loan_count, 0);
+    }
+
+    #[test]
+    fn test_compute_person_balances_settled_excluded_from_balance() {
+        let persons = vec![person(1, "Ali")];
+        let loans = vec![
+            loan("DEBTOR", 1_000_000, Some(1), true), // settled: counted, no balance
+            loan("CREDITOR", 300_000, Some(1), false), // i owe
+        ];
+        let bal = compute_person_balances(&persons, &loans);
+        let b = bal.iter().find(|b| b.person_id == 1).unwrap();
+        assert_eq!(b.total_receivables, 0);
+        assert_eq!(b.total_debts, 300_000);
+        assert_eq!(b.net_balance, -300_000);
+        assert_eq!(b.active_loan_count, 1);
+        assert_eq!(b.settled_loan_count, 1);
+    }
+
+    #[test]
+    fn test_compute_person_balances_legacy_loans_ignored() {
+        let persons = vec![person(1, "Ali")];
+        let loans = vec![
+            loan("DEBTOR", 9_000_000, None, false), // null personId → ignored
+            loan("CREDITOR", 1_000_000, Some(2), false), // unknown person → ignored
+        ];
+        let bal = compute_person_balances(&persons, &loans);
+        let b = bal.iter().find(|b| b.person_id == 1).unwrap();
+        assert_eq!(b.total_receivables, 0);
+        assert_eq!(b.total_debts, 0);
+        assert_eq!(b.net_balance, 0);
+        assert_eq!(b.active_loan_count, 0);
+    }
+
+    #[test]
+    fn test_compute_person_balances_empty_loans() {
+        let persons = vec![person(1, "Ali"), person(2, "Sara")];
+        let bal = compute_person_balances(&persons, &[]);
+        assert_eq!(bal.len(), 2);
+        assert!(bal
+            .iter()
+            .all(|b| b.net_balance == 0 && b.active_loan_count == 0));
+    }
+
+    #[test]
+    fn test_compute_person_balances_ordered_by_id() {
+        let persons = vec![person(3, "C"), person(1, "A"), person(2, "B")];
+        let bal = compute_person_balances(&persons, &[]);
+        let ids: Vec<i64> = bal.iter().map(|b| b.person_id).collect();
+        assert_eq!(ids, vec![1, 2, 3]);
     }
 }

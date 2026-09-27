@@ -37,6 +37,7 @@ object HesabyarCore {
     @Throws(HesabyarException::class) fun validateBackup(payload: BackupPayload) = __PKG__.validateBackup(payload)
     fun exportBackupJson(payload: BackupPayload): String = __PKG__.exportBackupJson(payload)
     fun searchTransactions(transactions: List<Transaction>, query: SearchQuery): SearchResponse = __PKG__.searchTransactions(transactions, query)
+    fun computePersonBalances(persons: List<Person>, loans: List<Loan>): List<PersonBalanceSummary> = __PKG__.computePersonBalances(persons, loans)
 // UniFFI 0.32+ requires a direct ByteBuffer for byte arguments.
     private fun toDirectBuffer(data: ByteArray): java.nio.ByteBuffer {
         val buffer = java.nio.ByteBuffer.allocateDirect(data.size)

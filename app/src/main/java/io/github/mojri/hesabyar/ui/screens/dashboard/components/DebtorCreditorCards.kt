@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,11 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Suppress("LongMethod")
 @Composable
-internal fun DebtorCreditorCards(dashboardData: DashboardData) {
+internal fun DebtorCreditorCards(
+  dashboardData: DashboardData,
+  onDebtorsClick: () -> Unit = {},
+  onCreditorsClick: () -> Unit = {},
+) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
@@ -42,7 +47,10 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
     maxItemsInEachRow = 2
   ) {
     HesabyarCard(
-      modifier = Modifier.weight(1f),
+      modifier =
+        Modifier
+          .weight(1f)
+          .clickable(onClick = onDebtorsClick),
       shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
@@ -91,7 +99,10 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
     }
 
     HesabyarCard(
-      modifier = Modifier.weight(1f),
+      modifier =
+        Modifier
+          .weight(1f)
+          .clickable(onClick = onCreditorsClick),
       shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(

@@ -56,6 +56,7 @@ class MainActivity : FragmentActivity() {
   private val exportViewModel: ExportViewModel by viewModels()
   private val analyticsViewModel: AnalyticsViewModel by viewModels()
   private val bankLoanViewModel: BankLoanViewModel by viewModels()
+  private val personViewModel: PersonViewModel by viewModels()
   private val accountViewModel: AccountViewModel by viewModels()
 
   private val notificationPermissionLauncher =
@@ -101,12 +102,14 @@ class MainActivity : FragmentActivity() {
               }
             val startDebtSection =
               when (intent?.getStringExtra("OPEN_TAB")) {
-                "LOANS" -> DebtSection.LOANS
+                "LOANS" -> DebtSection.PERSONS
                 "BANK_LOANS" -> DebtSection.BANK_LOANS
+                "PERSONS" -> DebtSection.PERSONS
                 else -> DebtSection.INSTALLMENTS
               }
             var currentTab by remember { mutableStateOf(startTab) }
             var debtSection by remember { mutableStateOf(startDebtSection) }
+            var personsFilter by remember { mutableStateOf(LoanDirectionFilter.ALL) }
             var showCategoryManagement by remember { mutableStateOf(false) }
             var showAccountManagement by remember { mutableStateOf(false) }
 
@@ -145,6 +148,11 @@ class MainActivity : FragmentActivity() {
                       aiAssistantViewModel = aiAssistantViewModel,
                       settingsViewModel = settingsViewModel,
                       onNavigateToAssistant = { currentTab = "ASSISTANT" },
+                      onNavigateToPersons = { filter ->
+                        personsFilter = filter
+                        debtSection = DebtSection.PERSONS
+                        currentTab = "DEBTS"
+                      },
                       modifier = modifier
                     )
                   "ASSISTANT" ->
@@ -158,9 +166,10 @@ class MainActivity : FragmentActivity() {
                   "DEBTS" ->
                     DebtHubScreen(
                       initialSection = debtSection,
+                      initialPersonsDirectionFilter = personsFilter,
                       installmentViewModel = installmentViewModel,
                       bankLoanViewModel = bankLoanViewModel,
-                      loanViewModel = loanViewModel,
+                      personViewModel = personViewModel,
                       settingsViewModel = settingsViewModel,
                       modifier = modifier
                     )
