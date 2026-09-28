@@ -1,0 +1,46 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_79c2773a1818ea::t_ed4ed495fe2ed9 18
+  s_79c2773a1818ea::t_2b4d9c0ed175a8 174-178
+  s_79c2773a1818ea::t_9ffcd8320677f8 135,138-140
+  s_79c2773a1818ea::t_204d884ff6b6e6 250-261,270
+  s_79c2773a1818ea::t_1c36cffa2d8838 4
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_79c2773a1818ea::t_ca73da8aa4e787 48-56
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonRowSemanticsTest.kt
+  s_79c2773a1818ea::t_4f4638c0c65ece 39,49
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonBalanceCalculator.kt
+  s_79c2773a1818ea::t_ec97761a1fe4b4 3
+  s_79c2773a1818ea::t_8f14e48c2ee716 45-57
+  s_79c2773a1818ea::t_e65b110fa2e6c2 96-99,101
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_a9a683a1913a22 94-95,97,121,125-126,128,134
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_025f2a49af58af 27-29,37
+  s_79c2773a1818ea::t_ac0433ce79c0c6 30-36,38
+  s_79c2773a1818ea::t_378b8dde69d4af 173,175,184,187,190-191,196-208,211-212,215-217
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetPersonBalancesUseCase.kt
+  s_79c2773a1818ea::t_a30a763fb372c1 34-37,43-47,50
+  s_79c2773a1818ea::t_633a352d85bba9 8
+app/src/test/java/io/github/mojri/hesabyar/rust/PersonBalanceParityTest.kt
+  s_79c2773a1818ea::t_865e91d32753a5 184-212
+  s_79c2773a1818ea::t_b502851cd3a613 213-240
+rust/hesabyar-core/src/models/mod.rs
+  s_79c2773a1818ea::t_0d43e3bdbebebb 1440-1459,1461-1462
+  s_79c2773a1818ea::t_6de655c1648a05 1460
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a44f413fa694ae3dd60eb52a987241b3ab9af960",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
