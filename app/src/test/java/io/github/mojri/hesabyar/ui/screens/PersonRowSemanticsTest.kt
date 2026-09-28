@@ -36,7 +36,7 @@ class PersonRowSemanticsTest {
   @get:Rule
   val composeRule = createComposeRule()
 
-  private lateinit var previousUnit: CurrencyUnit
+  private var previousUnit: CurrencyUnit? = null
 
   @Before
   fun setUp() {
@@ -46,7 +46,7 @@ class PersonRowSemanticsTest {
 
   @After
   fun tearDown() {
-    CurrencyFormatter.setUnit(previousUnit)
+    previousUnit?.let { CurrencyFormatter.setUnit(it) }
   }
 
   @Test

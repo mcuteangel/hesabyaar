@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -130,10 +132,12 @@ private fun PersonListContent(
     )
 
     if (filtered.isEmpty()) {
-      PersonEmptyState(searchQuery = searchQuery)
+      PersonEmptyState(searchQuery = searchQuery, directionFilter = directionFilter)
     } else {
       LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        // weight(1f): consume only the height left after the search bar and
+        // filter chips instead of requesting the full parent height.
+        modifier = Modifier.fillMaxWidth().weight(1f),
         contentPadding =
           PaddingValues(
             horizontal = SpacingTokens.md,
@@ -167,7 +171,11 @@ private fun PersonFilterChips(
   modifier: Modifier = Modifier,
 ) {
   Row(
-    modifier = modifier.fillMaxWidth().testTag("persons_filters"),
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .horizontalScroll(rememberScrollState())
+        .testTag("persons_filters"),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
     FILTER_LABELS.forEach { (filter, label) ->
@@ -239,7 +247,18 @@ private fun PersonSearchBar(
 }
 
 @Composable
-private fun ColumnScope.PersonEmptyState(searchQuery: String) {
+private fun ColumnScope.PersonEmptyState(
+  searchQuery: String,
+  directionFilter: LoanDirectionFilter,
+) {
+  val hasQuery = searchQuery.isNotEmpty()
+  val hasActiveFilter = directionFilter != LoanDirectionFilter.ALL
+  val text =
+    when {
+      hasQuery -> "هیچ شخصی یافت نشد."
+      hasActiveFilter -> "هیچ شخصی با این فیلتر یافت نشد."
+      else -> "هیچ شخصی ثبت نشده است."
+    }
   Box(
     modifier =
       Modifier
@@ -248,7 +267,7 @@ private fun ColumnScope.PersonEmptyState(searchQuery: String) {
     contentAlignment = Alignment.Center
   ) {
     Text(
-      text = if (searchQuery.isNotEmpty()) "هیچ شخصی یافت نشد." else "هیچ شخصی ثبت نشده است.",
+      text = text,
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

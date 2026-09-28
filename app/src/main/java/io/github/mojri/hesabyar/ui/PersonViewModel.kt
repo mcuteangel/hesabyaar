@@ -91,9 +91,10 @@ class PersonViewModel
       viewModelScope.launch {
         try {
           manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
+        } catch (e: CancellationException) {
+          throw e
         } catch (e: Throwable) {
-          if (e is CancellationException) throw e
-          AppLogger.e("PersonViewModel", "addLoanForPerson failed: ${e.message}", e)
+          AppLogger.e(TAG, "addLoanForPerson failed", e)
         }
       }
     }
@@ -117,18 +118,20 @@ class PersonViewModel
             if (remaining > 0L) {
               val success = manageLoanUseCase.makeRepayment(loan.id, remaining, "", null)
               if (!success) {
-                AppLogger.w("PersonViewModel", "makeRepayment returned false for loan ${loan.id}")
+                AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
               }
             }
           }
+        } catch (e: CancellationException) {
+          throw e
         } catch (e: Throwable) {
-          if (e is CancellationException) throw e
-          AppLogger.e("PersonViewModel", "settleFully failed: ${e.message}", e)
+          AppLogger.e(TAG, "settleFully failed", e)
         }
       }
     }
 
     private companion object {
+      const val TAG = "PersonViewModel"
       const val SUBSCRIBE_TIMEOUT_MS = 5000L
     }
   }

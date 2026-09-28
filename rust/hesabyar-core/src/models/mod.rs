@@ -1437,4 +1437,27 @@ mod tests {
         let ids: Vec<i64> = bal.iter().map(|b| b.person_id).collect();
         assert_eq!(ids, vec![1, 2, 3]);
     }
+
+    #[test]
+    fn test_compute_person_balances_saturating_overflow_and_underflow() {
+        let persons = vec![person(1, "BigDebtor"), person(2, "BigCreditor")];
+        let loans = vec![
+            // Person 1: two huge DEBTOR loans that would overflow i64::MAX
+            loan("DEBTOR", i64::MAX, Some(1), false),
+            loan("DEBTOR", 100, Some(1), false),
+            // Person 2: two huge CREDITOR loans that would underflow net balance
+            loan("CREDITOR", i64::MAX, Some(2), false),
+            loan("CREDITOR", 100, Some(2), false),
+        ];
+        let bal = compute_person_balances(&persons, &loans);
+        let p1 = bal.iter().find(|b| b.person_id == 1).unwrap();
+        assert_eq!(p1.total_receivables, i64::MAX);
+        assert_eq!(p1.net_balance, i64::MAX);
+        assert_eq!(p1.active_loan_count, 2);
+
+        let p2 = bal.iter().find(|b| b.person_id == 2).unwrap();
+        assert_eq!(p2.total_debts, i64::MAX);
+        assert_eq!(p2.net_balance, i64::MIN);
+        assert_eq!(p2.active_loan_count, 2);
+    }
 }

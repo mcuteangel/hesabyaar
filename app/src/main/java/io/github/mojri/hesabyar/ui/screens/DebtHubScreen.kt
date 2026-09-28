@@ -45,7 +45,15 @@ fun DebtHubScreen(
   var selectedPerson by remember { mutableStateOf<Pair<Long, String>?>(null) }
 
   Column(modifier = modifier.fillMaxSize()) {
-    DebtHubTabBar(section = section, onSectionChange = { section = it })
+    DebtHubTabBar(
+      section = section,
+      onSectionChange = { newSection ->
+        section = newSection
+        // The detail sheet belongs to the persons tab only — drop it when the
+        // user switches away so it cannot overlay unrelated content.
+        if (newSection != DebtSection.PERSONS) selectedPerson = null
+      }
+    )
 
     // Weighted container: tab bar keeps its height; the active section owns
     // exactly the remaining space instead of requesting full parent height.

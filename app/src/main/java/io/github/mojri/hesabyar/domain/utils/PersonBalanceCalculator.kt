@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.utils
 
+import io.github.mojri.hesabyar.core.MathUtils
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Person
@@ -41,20 +42,19 @@ object PersonBalanceCalculator {
     persons: List<Person>,
     loans: List<Loan>
   ): List<PersonBalance> {
-    val totals =
-      persons
-        .associate { p ->
-          p.id to
-            PersonBalance(
-              personId = p.id,
-              personName = p.name,
-              totalReceivables = 0L,
-              totalDebts = 0L,
-              netBalance = 0L,
-              activeLoanCount = 0,
-              settledLoanCount = 0,
-            )
-        }.toMutableMap()
+    val totals = mutableMapOf<Long, PersonBalance>()
+    for (p in persons) {
+      totals[p.id] =
+        PersonBalance(
+          personId = p.id,
+          personName = p.name,
+          totalReceivables = 0L,
+          totalDebts = 0L,
+          netBalance = 0L,
+          activeLoanCount = 0,
+          settledLoanCount = 0,
+        )
+    }
 
     for (loan in loans) {
       // Skip loans with no person link and loans pointing at an unknown person.
@@ -93,31 +93,12 @@ object PersonBalanceCalculator {
     return totals.values.sortedBy { it.personId }
   }
 
-  // Saturating helpers mirror the Rust core's saturating_add/saturating_sub so
-  // the fallback cannot wrap into a negative balance on extreme magnitudes.
-  private fun Long.saturatingAdd(other: Long): Long {
-    val sum = this + other
-    // Overflow sign check: operands disagree with the result's sign bit.
-    val sumXorThis = sum xor this
-    val sumXorOther = sum xor other
-    return if (sumXorThis and sumXorOther < 0L) {
-      if (this > 0L) Long.MAX_VALUE else Long.MIN_VALUE
-    } else {
-      sum
-    }
-  }
+  // Saturation delegates to the shared MathUtils helpers (already covered by
+  // MathUtilsTest) so the fallback cannot diverge from other Kotlin call sites
+  // or from the Rust core's saturating_add/saturating_sub on extreme amounts.
+  private fun Long.saturatingAdd(other: Long): Long = MathUtils.saturatingAdd(this, other)
 
-  private fun Long.saturatingSub(other: Long): Long {
-    val diff = this - other
-    // Overflow sign check: operands disagree and result disagrees with minuend.
-    val thisXorOther = this xor other
-    val thisXorDiff = this xor diff
-    return if (thisXorOther and thisXorDiff < 0L) {
-      if (this > 0L) Long.MAX_VALUE else Long.MIN_VALUE
-    } else {
-      diff
-    }
-  }
+  private fun Long.saturatingSub(other: Long): Long = MathUtils.saturatingSub(this, other)
 
   private fun Int.saturatingInc(): Int = if (this == Int.MAX_VALUE) Int.MAX_VALUE else this + 1
 }

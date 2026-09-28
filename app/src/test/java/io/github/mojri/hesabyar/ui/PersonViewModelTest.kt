@@ -24,10 +24,18 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PersonViewModelTest {
   private val testDispatcher = StandardTestDispatcher()
-  private lateinit var fakeRepository: TestFakeRepository
-  private lateinit var manageLoanUseCase: ManageLoanUseCase
-  private lateinit var getPersonBalancesUseCase: GetPersonBalancesUseCase
-  private lateinit var viewModel: PersonViewModel
+  private val fakeRepository = TestFakeRepository()
+  private val manageLoanUseCase = ManageLoanUseCase(fakeRepository)
+  private val getPersonBalancesUseCase = GetPersonBalancesUseCase()
+
+  /**
+   * Lazily constructed so `viewModelScope` binds to the Main dispatcher that
+   * [setUp] installs. Eager construction would capture the production Main
+   * dispatcher before [Dispatchers.setMain] runs.
+   */
+  private val viewModel by lazy {
+    PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase)
+  }
 
   private class TestFakeRepository : FakeRepository() {
     val personsFlow = MutableStateFlow<List<Person>>(emptyList())
@@ -57,10 +65,6 @@ class PersonViewModelTest {
   @Before
   fun setUp() {
     Dispatchers.setMain(testDispatcher)
-    fakeRepository = TestFakeRepository()
-    manageLoanUseCase = ManageLoanUseCase(fakeRepository)
-    getPersonBalancesUseCase = GetPersonBalancesUseCase()
-    viewModel = PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase)
   }
 
   @After
@@ -166,9 +170,9 @@ class PersonViewModelTest {
     }
 
   @Test
-  fun getLoansForPersonFiltersByPersonId() =
+  fun getLoansForPersonFiltersByPersonIdAndSortsChronologically() =
     runTest(testDispatcher) {
-      val loan1 =
+      val loanOlder =
         Loan(
           id = 1L,
           personId = 10L,
@@ -177,25 +181,39 @@ class PersonViewModelTest {
           originalAmount = 100L,
           remainingAmount = 100L,
           description = "",
-          date = 1L,
+          date = 1_000L,
           isSettled = false
         )
-      val loan2 =
+      val loanNewer =
         Loan(
           id = 2L,
-          personId = 20L,
-          personName = "B",
+          personId = 10L,
+          personName = "A",
           type = LoanType.DEBTOR,
           originalAmount = 200L,
           remainingAmount = 200L,
           description = "",
-          date = 1L,
+          date = 2_000L,
           isSettled = false
         )
-      fakeRepository.loansFlow.value = listOf(loan1, loan2)
+      val otherPersonLoan =
+        Loan(
+          id = 3L,
+          personId = 20L,
+          personName = "B",
+          type = LoanType.DEBTOR,
+          originalAmount = 300L,
+          remainingAmount = 300L,
+          description = "",
+          date = 500L,
+          isSettled = false
+        )
+      // Supplied in reverse chronological order to verify ascending sort.
+      fakeRepository.loansFlow.value = listOf(loanNewer, otherPersonLoan, loanOlder)
 
       val person10Loans = viewModel.getLoansForPerson(10L).first()
-      assertEquals("Only loan for person 10 returned", 1, person10Loans.size)
-      assertEquals(1L, person10Loans[0].id)
+      assertEquals("Only loans for person 10 returned", 2, person10Loans.size)
+      assertEquals("Oldest loan first", 1L, person10Loans[0].id)
+      assertEquals("Newer loan second", 2L, person10Loans[1].id)
     }
 }

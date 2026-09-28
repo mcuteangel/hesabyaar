@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.rust.RustBridge
+import kotlinx.coroutines.CancellationException
 
 /**
  * Computes per-person ledger balances (plans/011 Phase 3).
@@ -30,18 +31,23 @@ class GetPersonBalancesUseCase {
     val native =
       try {
         RustBridge.computePersonBalancesSync(persons = persons, loans = loans)
+      } catch (e: CancellationException) {
+        // Preserve structured concurrency: a cancelled caller must not run the
+        // fallback calculation.
+        throw e
       } catch (e: Exception) {
         // Native call threw an unchecked exception — execute Kotlin fallback directly.
         AppLogger.e("GetPersonBalancesUseCase", "Native balance calculation failed: ${e.message}", e)
         return PersonBalanceCalculator.compute(persons, loans)
       }
-    // Rust returns an empty list on panic/unavailable. Re-derive from Kotlin
-    // only when native failed; otherwise trust the FFI result to keep the
-    // parity guarantee visible (the parity test asserts identical ordering too).
-    return if (native.isNotEmpty() || persons.isEmpty() && loans.isEmpty()) {
+    // compute_person_balances returns one entry per input person, so a
+    // non-empty persons list with an empty native result means the native call
+    // failed (panic recovery returns an empty list). Trust native otherwise:
+    // an empty persons list legitimately produces an empty result.
+    return if (persons.isEmpty() || native.isNotEmpty()) {
       fromNative(native, persons)
     } else {
-      // Native failed but we have data → run the Kotlin mirror.
+      // Native failed but we have persons → run the Kotlin mirror.
       PersonBalanceCalculator.compute(persons, loans)
     }
   }
