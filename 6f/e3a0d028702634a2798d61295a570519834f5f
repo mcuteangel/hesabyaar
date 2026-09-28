@@ -1,0 +1,85 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_79c2773a1818ea::t_90343ea3153c45 15-16
+  s_79c2773a1818ea::t_ff423f36124650 137-141
+  s_79c2773a1818ea::t_f6b9086ae61607 56
+  s_79c2773a1818ea::t_b671b624f6c18d 8
+  s_79c2773a1818ea::t_f7c4653929c37b 81,85,87,106,123-129,135-136,144,163-178
+  s_79c2773a1818ea::t_38c497a4edfa9b 79-80,86
+  s_79c2773a1818ea::t_b0dc240b00b365 211-212
+  s_79c2773a1818ea::t_02cef657b25360 155-162
+  s_79c2773a1818ea::t_8a8222f13f92fa 350-351,357-358
+app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonBalanceCalculator.kt
+  s_79c2773a1818ea::t_a0192be0b08618 67,71-73,79,83-85,95-99,104-111,116-121
+  s_79c2773a1818ea::t_62d7ad8777bca9 100-103,112-115
+  s_79c2773a1818ea::t_ff423f36124650 122
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_7561d91f24c9f6 100
+  s_79c2773a1818ea::t_40c7c120603fb0 343-346
+  s_79c2773a1818ea::t_be6a7cd60bd2b0 141-162,166
+  s_79c2773a1818ea::t_51f662c14d97ca 279-282
+app/src/test/java/io/github/mojri/hesabyar/rust/PersonBalanceParityTest.kt
+  s_79c2773a1818ea::t_d50cd7d8df4eb2 50
+  s_79c2773a1818ea::t_08e9085cf946c4 11
+  s_79c2773a1818ea::t_b39e0fc3d801a5 107-108,119,127-129,133-136,138-141,155,158,173-180,185-186
+  s_79c2773a1818ea::t_200d8b777a5c2a 48-49,51-70
+progress.md
+  s_79c2773a1818ea::t_825a304f92f8c7 75
+app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt
+  s_79c2773a1818ea::t_5c49867bd21361 23
+  s_79c2773a1818ea::t_ff423f36124650 41,81,94,170
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt
+  s_79c2773a1818ea::t_8932282632d11f 75-76
+  s_79c2773a1818ea::t_d446b1d3e463a4 194-195
+rust/hesabyar-core/src/models/mod.rs
+  s_79c2773a1818ea::t_71f7ebfe9a50ec 459-461,463,469-471,473
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_1579257bdac37a 231-232,243,245-247
+  s_79c2773a1818ea::t_3b9d985b9a7a40 310-325,339,354-355,373
+  s_79c2773a1818ea::t_2d6dd8017b4823 78-79
+  s_79c2773a1818ea::t_db0962ad21cb98 6
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_edf73c8ded258e 67,69-71
+  s_79c2773a1818ea::t_a3572adbce4b64 43-44,47-49,51-55,57,94-95,110-121,124-126
+  s_79c2773a1818ea::t_5726b48f112a1d 50
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_79c2773a1818ea::t_8110e64c093424 1-113
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCards.kt
+  s_79c2773a1818ea::t_3c114664339e50 43-44,52-69,71
+  s_79c2773a1818ea::t_92872765c3b3ce 27-28
+  s_79c2773a1818ea::t_2b5727ad69e1cc 26
+  s_79c2773a1818ea::t_1405d9d87ad68e 119-136,138
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonRowSemanticsTest.kt
+  s_79c2773a1818ea::t_864688af4a34a1 64-65
+  s_79c2773a1818ea::t_3327951644e39b 111-112
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetPersonBalancesUseCase.kt
+  s_79c2773a1818ea::t_b7541de042909f 25,31-34,36-37
+  s_79c2773a1818ea::t_69cd159a9b691b 3,35
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgePersons.kt
+  s_79c2773a1818ea::t_f71bc7a2c6fe47 13
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_79c2773a1818ea::t_0566e0be9c2688 3,6
+  s_79c2773a1818ea::t_c04262dc93ea4a 50-75
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_119c033edbe5a8 78,96-97
+  s_79c2773a1818ea::t_a49c12e4899203 12,14
+  s_79c2773a1818ea::t_7955a0f5be2653 1-11,13,15-73,79-95,98-201
+  s_79c2773a1818ea::t_2f485e4b6fbe98 74-77
+rust/Cargo.toml
+  s_79c2773a1818ea::t_e6e5fd94049d36 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6fe3a0d028702634a2798d61295a570519834f5f",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "google/gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
