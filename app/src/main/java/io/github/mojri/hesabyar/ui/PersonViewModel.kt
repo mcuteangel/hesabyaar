@@ -40,14 +40,21 @@ class PersonViewModel
       _searchQuery.value = query
     }
 
-    /** All active (non-archived) persons with their computed net balance. */
-    val personBalances: StateFlow<List<PersonBalanceCalculator.PersonBalance>> =
+    /** Raw computed balances from persons and loans, isolated from search keystrokes. */
+    private val rawBalances: Flow<List<PersonBalanceCalculator.PersonBalance>> =
       combine(
         repository.allPersons,
-        repository.allLoans,
+        repository.allLoans
+      ) { persons, loans ->
+        getPersonBalancesUseCase.computePersonBalances(persons, loans)
+      }
+
+    /** All active (non-archived) persons with their computed net balance and search filter. */
+    val personBalances: StateFlow<List<PersonBalanceCalculator.PersonBalance>> =
+      combine(
+        rawBalances,
         searchQuery
-      ) { persons, loans, query ->
-        val balances = getPersonBalancesUseCase.computePersonBalances(persons, loans)
+      ) { balances, query ->
         val q = query.trim()
         if (q.isEmpty()) {
           balances
@@ -57,9 +64,11 @@ class PersonViewModel
         }
       }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 
-    /** Active loans for a single person. */
+    /** Active loans for a single person in chronological order (oldest first). */
     fun getLoansForPerson(personId: Long): Flow<List<Loan>> =
-      repository.allLoans.map { list -> list.filter { it.personId == personId } }
+      repository.allLoans.map { list ->
+        list.filter { it.personId == personId }.sortedBy { it.date }
+      }
 
     /** Payment history for a single loan (chronological — newest last). */
     fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> = manageLoanUseCase.getPaymentHistory(loanId)
@@ -82,9 +91,8 @@ class PersonViewModel
       viewModelScope.launch {
         try {
           manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+          if (e is CancellationException) throw e
           AppLogger.e("PersonViewModel", "addLoanForPerson failed: ${e.message}", e)
         }
       }
@@ -99,21 +107,23 @@ class PersonViewModel
     @Suppress("TooGenericExceptionCaught")
     fun settleFully(personId: Long) {
       viewModelScope.launch {
-        val snapshot =
-          repository.allLoans.first().filter {
-            it.personId == personId && !it.isSettled
-          }
-        snapshot.forEach { loan ->
-          val remaining = loan.remainingAmount
-          if (remaining > 0L) {
-            try {
-              manageLoanUseCase.makeRepayment(loan.id, remaining, "", null)
-            } catch (e: CancellationException) {
-              throw e
-            } catch (e: Exception) {
-              AppLogger.e("PersonViewModel", "settle loan ${loan.id} failed: ${e.message}", e)
+        try {
+          val snapshot =
+            repository.allLoans.first().filter {
+              it.personId == personId && !it.isSettled
+            }
+          snapshot.forEach { loan ->
+            val remaining = loan.remainingAmount
+            if (remaining > 0L) {
+              val success = manageLoanUseCase.makeRepayment(loan.id, remaining, "", null)
+              if (!success) {
+                AppLogger.w("PersonViewModel", "makeRepayment returned false for loan ${loan.id}")
+              }
             }
           }
+        } catch (e: Throwable) {
+          if (e is CancellationException) throw e
+          AppLogger.e("PersonViewModel", "settleFully failed: ${e.message}", e)
         }
       }
     }

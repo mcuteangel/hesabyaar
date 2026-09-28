@@ -1,7 +1,9 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.MaterialTheme
@@ -45,28 +47,32 @@ fun DebtHubScreen(
   Column(modifier = modifier.fillMaxSize()) {
     DebtHubTabBar(section = section, onSectionChange = { section = it })
 
-    when (section) {
-      DebtSection.INSTALLMENTS ->
-        InstallmentScreen(
-          installmentViewModel = installmentViewModel,
-          settingsViewModel = settingsViewModel,
-          bankLoanViewModel = bankLoanViewModel,
-          modifier = Modifier.fillMaxSize()
-        )
-      DebtSection.BANK_LOANS ->
-        BankLoanScreen(
-          bankLoanViewModel = bankLoanViewModel,
-          modifier = Modifier.fillMaxSize()
-        )
-      DebtSection.PERSONS ->
-        PersonsScreen(
-          personViewModel = personViewModel,
-          initialDirectionFilter = initialPersonsDirectionFilter,
-          onPersonClick = { personId, personName ->
-            selectedPerson = personId to personName
-          },
-          modifier = Modifier.fillMaxSize()
-        )
+    // Weighted container: tab bar keeps its height; the active section owns
+    // exactly the remaining space instead of requesting full parent height.
+    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+      when (section) {
+        DebtSection.INSTALLMENTS ->
+          InstallmentScreen(
+            installmentViewModel = installmentViewModel,
+            settingsViewModel = settingsViewModel,
+            bankLoanViewModel = bankLoanViewModel,
+            modifier = Modifier.fillMaxSize()
+          )
+        DebtSection.BANK_LOANS ->
+          BankLoanScreen(
+            bankLoanViewModel = bankLoanViewModel,
+            modifier = Modifier.fillMaxSize()
+          )
+        DebtSection.PERSONS ->
+          PersonsScreen(
+            personViewModel = personViewModel,
+            initialDirectionFilter = initialPersonsDirectionFilter,
+            onPersonClick = { personId, personName ->
+              selectedPerson = personId to personName
+            },
+            modifier = Modifier.fillMaxSize()
+          )
+      }
     }
 
     selectedPerson?.let { (id, name) ->

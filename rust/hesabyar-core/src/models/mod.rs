@@ -456,21 +456,21 @@ pub fn compute_person_balances(persons: &[Person], loans: &[Loan]) -> Vec<Person
             "DEBTOR" => {
                 // Person owes the user: increases the user's receivables / net.
                 if !loan.is_settled {
-                    entry.total_receivables += remaining;
-                    entry.net_balance += remaining;
-                    entry.active_loan_count += 1;
+                    entry.total_receivables = entry.total_receivables.saturating_add(remaining);
+                    entry.net_balance = entry.net_balance.saturating_add(remaining);
+                    entry.active_loan_count = entry.active_loan_count.saturating_add(1);
                 } else {
-                    entry.settled_loan_count += 1;
+                    entry.settled_loan_count = entry.settled_loan_count.saturating_add(1);
                 }
             }
             "CREDITOR" => {
                 // User owes the person: increases the user's debts / reduces net.
                 if !loan.is_settled {
-                    entry.total_debts += remaining;
-                    entry.net_balance -= remaining;
-                    entry.active_loan_count += 1;
+                    entry.total_debts = entry.total_debts.saturating_add(remaining);
+                    entry.net_balance = entry.net_balance.saturating_sub(remaining);
+                    entry.active_loan_count = entry.active_loan_count.saturating_add(1);
                 } else {
-                    entry.settled_loan_count += 1;
+                    entry.settled_loan_count = entry.settled_loan_count.saturating_add(1);
                 }
             }
             _ => {}

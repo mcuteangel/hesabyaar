@@ -10,7 +10,7 @@ import io.github.mojri.hesabyar.data.Person
  * Per-person net balance summary (plans/011 Phase 3).
  *
  * Mirrors `PersonBalanceSummary` from the Rust core. Computed by
- * [RustBridgeCore.computePersonBalancesSync] via the native FFI; when the
+ * [RustBridgePersons.computePersonBalancesSync] via the native FFI; when the
  * native library is unavailable or panics this returns an empty list, letting
  * the caller run a Kotlin fallback.
  */

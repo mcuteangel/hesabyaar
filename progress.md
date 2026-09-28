@@ -72,7 +72,7 @@ None.
 - Retained existing `rust/hesabyar-core/README.md` technical build and pre-commit hook instructions while adding UniFFI architecture, canonical money rules, and new method lifecycle.
 - Kept all check scripts strictly read-only (`check-android.sh` does not run `ktlintFormat`).
 - Removed `--rerun-tasks` from `scripts/check-rust-bridge.sh` per direct user instruction to avoid 11-14 min NDK rebuilds and preserve incremental Gradle task checking.
-- Phase 3 drops `LoanManagementScreen` from the hub tabs. `DebtSection.LOANS` was removed; loan management stays reachable by deep link and future person quick actions. This is a deliberate scope decision from plans/011 Phase 3 item 4 ("DebtHub third tab becomes this view").
+- Phase 3 drops `LoanManagementScreen` from the hub tabs. `DebtSection.LOANS` was removed; the `"LOANS"` and `"PERSONS"` deep links now both open `DebtSection.PERSONS`. `LoanManagementScreen` currently has no callers (it is retained only for possible future deep-link support), and loan actions are handled by the `PersonDetailSheet` quick actions. This is a deliberate scope decision from plans/011 Phase 3 item 4 ("DebtHub third tab becomes this view").
 - `MainActivity` no longer passes `loanViewModel` to `DebtHubScreen`, because the parameter became unused.
 
 ## Verification

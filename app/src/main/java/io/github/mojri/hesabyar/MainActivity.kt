@@ -97,7 +97,7 @@ class MainActivity : FragmentActivity() {
           } else {
             val startTab =
               when (intent?.getStringExtra("OPEN_TAB")) {
-                "LOANS", "INSTALLMENTS", "BANK_LOANS", "DEBTS" -> "DEBTS"
+                "LOANS", "INSTALLMENTS", "BANK_LOANS", "DEBTS", "PERSONS" -> "DEBTS"
                 else -> "DASHBOARD"
               }
             val startDebtSection =
@@ -138,23 +138,32 @@ class MainActivity : FragmentActivity() {
                 )
 
               @Composable
+              fun dashboardTab(modifier: Modifier) {
+                DashboardScreen(
+                  dashboardViewModel = dashboardViewModel,
+                  transactionViewModel = transactionViewModel,
+                  installmentViewModel = installmentViewModel,
+                  aiAssistantViewModel = aiAssistantViewModel,
+                  settingsViewModel = settingsViewModel,
+                  onNavigateToAssistant = { currentTab = "ASSISTANT" },
+                  onShowDebtors = {
+                    personsFilter = LoanDirectionFilter.DEBTOR
+                    debtSection = DebtSection.PERSONS
+                    currentTab = "DEBTS"
+                  },
+                  onShowCreditors = {
+                    personsFilter = LoanDirectionFilter.CREDITOR
+                    debtSection = DebtSection.PERSONS
+                    currentTab = "DEBTS"
+                  },
+                  modifier = modifier
+                )
+              }
+
+              @Composable
               fun currentTabScreen(modifier: Modifier) {
                 when (currentTab) {
-                  "DASHBOARD" ->
-                    DashboardScreen(
-                      dashboardViewModel = dashboardViewModel,
-                      transactionViewModel = transactionViewModel,
-                      installmentViewModel = installmentViewModel,
-                      aiAssistantViewModel = aiAssistantViewModel,
-                      settingsViewModel = settingsViewModel,
-                      onNavigateToAssistant = { currentTab = "ASSISTANT" },
-                      onNavigateToPersons = { filter ->
-                        personsFilter = filter
-                        debtSection = DebtSection.PERSONS
-                        currentTab = "DEBTS"
-                      },
-                      modifier = modifier
-                    )
+                  "DASHBOARD" -> dashboardTab(modifier)
                   "ASSISTANT" ->
                     SmartAssistantScreen(
                       aiAssistantViewModel = aiAssistantViewModel,
@@ -267,7 +276,10 @@ class MainActivity : FragmentActivity() {
                       tabs.forEach { (tabId, label, icon) ->
                         NavigationBarItem(
                           selected = currentTab == tabId,
-                          onClick = { currentTab = tabId },
+                          onClick = {
+                            if (tabId == "DEBTS") personsFilter = LoanDirectionFilter.ALL
+                            currentTab = tabId
+                          },
                           icon = { Icon(imageVector = icon, contentDescription = label) },
                           label = {
                             Text(
@@ -328,7 +340,10 @@ class MainActivity : FragmentActivity() {
                       tabs.forEach { (tabId, label, icon) ->
                         NavigationRailItem(
                           selected = currentTab == tabId,
-                          onClick = { currentTab = tabId },
+                          onClick = {
+                            if (tabId == "DEBTS") personsFilter = LoanDirectionFilter.ALL
+                            currentTab = tabId
+                          },
                           icon = { Icon(imageVector = icon, contentDescription = label) },
                           label = {
                             Text(

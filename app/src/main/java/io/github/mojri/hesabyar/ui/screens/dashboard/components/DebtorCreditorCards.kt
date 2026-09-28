@@ -23,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,8 +40,8 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 @Composable
 internal fun DebtorCreditorCards(
   dashboardData: DashboardData,
-  onDebtorsClick: () -> Unit = {},
-  onCreditorsClick: () -> Unit = {},
+  onDebtorsClick: (() -> Unit)? = null,
+  onCreditorsClick: (() -> Unit)? = null,
 ) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
@@ -46,11 +49,26 @@ internal fun DebtorCreditorCards(
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
     maxItemsInEachRow = 2
   ) {
+    val debtorModifier =
+      Modifier
+        .weight(1f)
+        .then(
+          if (onDebtorsClick != null) {
+            Modifier
+              .clickable(onClick = onDebtorsClick, role = Role.Button)
+              .semantics {
+                onClick(label = "مشاهده بدهکاران") {
+                  onDebtorsClick()
+                  true
+                }
+              }
+          } else {
+            Modifier
+          }
+        )
+
     HesabyarCard(
-      modifier =
-        Modifier
-          .weight(1f)
-          .clickable(onClick = onDebtorsClick),
+      modifier = debtorModifier,
       shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(
@@ -98,11 +116,26 @@ internal fun DebtorCreditorCards(
       }
     }
 
+    val creditorModifier =
+      Modifier
+        .weight(1f)
+        .then(
+          if (onCreditorsClick != null) {
+            Modifier
+              .clickable(onClick = onCreditorsClick, role = Role.Button)
+              .semantics {
+                onClick(label = "مشاهده طلبکاران") {
+                  onCreditorsClick()
+                  true
+                }
+              }
+          } else {
+            Modifier
+          }
+        )
+
     HesabyarCard(
-      modifier =
-        Modifier
-          .weight(1f)
-          .clickable(onClick = onCreditorsClick),
+      modifier = creditorModifier,
       shape = ShapeTokens.Large,
       cardColors =
         CardDefaults.cardColors(

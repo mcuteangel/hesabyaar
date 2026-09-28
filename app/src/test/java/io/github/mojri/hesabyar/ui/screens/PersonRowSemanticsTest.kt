@@ -61,8 +61,8 @@ class PersonRowSemanticsTest {
       )
     }
 
-    val expectedContentDesc = "علی رضایی: طلبکار, موجودی ${CurrencyFormatter.format(debtorBalance.netBalance)}"
-    val expectedStateDesc = "طلبکار — موجودی مثبت"
+    val expectedContentDesc = "علی رضایی: بدهکار, موجودی ${CurrencyFormatter.format(debtorBalance.netBalance)}"
+    val expectedStateDesc = "بدهکار — موجودی مثبت"
 
     val node =
       composeRule
@@ -108,8 +108,8 @@ class PersonRowSemanticsTest {
       )
     }
 
-    val expectedContentDesc = "سارا محمدی: بدهکار, موجودی ${CurrencyFormatter.format(creditorBalance.netBalance)}"
-    val expectedStateDesc = "بدهکار — موجودی منفی"
+    val expectedContentDesc = "سارا محمدی: طلبکار, موجودی ${CurrencyFormatter.format(creditorBalance.netBalance)}"
+    val expectedStateDesc = "طلبکار — موجودی منفی"
 
     val node =
       composeRule

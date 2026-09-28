@@ -5,14 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowCircleDown
@@ -26,7 +28,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -74,12 +76,15 @@ fun PersonsScreen(
   initialDirectionFilter: LoanDirectionFilter = LoanDirectionFilter.ALL,
   onPersonClick: (personId: Long, personName: String) -> Unit = { _, _ -> },
 ) {
-  var query by remember { mutableStateOf("") }
+  // Single source of truth for the search text: the ViewModel StateFlow.
+  val query by personViewModel.searchQuery.collectAsState()
+  var directionFilter by remember(initialDirectionFilter) { mutableStateOf(initialDirectionFilter) }
   PersonListContent(
     personViewModel = personViewModel,
     searchQuery = query,
-    directionFilter = initialDirectionFilter,
-    onSearchChange = { query = it },
+    directionFilter = directionFilter,
+    onSearchChange = { personViewModel.setSearchQuery(it) },
+    onDirectionFilterChange = { directionFilter = it },
     onPersonClick = onPersonClick,
     modifier = modifier.fillMaxSize(),
   )
@@ -98,16 +103,11 @@ private fun PersonListContent(
   searchQuery: String,
   directionFilter: LoanDirectionFilter,
   onSearchChange: (String) -> Unit,
+  onDirectionFilterChange: (LoanDirectionFilter) -> Unit,
   onPersonClick: (Long, String) -> Unit,
   modifier: Modifier,
 ) {
   val balances by personViewModel.personBalances.collectAsState()
-
-  // Re-derive the active filter when the dashboard passes an initial one.
-  // The ViewModel holds the search query; we feed it from local state so the
-  // TextField stays controlled without a separate ViewModel edit API.
-  LaunchedEffect(searchQuery) { personViewModel.setSearchQuery(searchQuery) }
-
   val filtered = balances.filter { matchesDirection(it, directionFilter) }
 
   Column(
@@ -116,28 +116,66 @@ private fun PersonListContent(
         .fillMaxSize()
         .imePadding()
         .navigationBarsPadding()
-        .verticalScroll(androidx.compose.foundation.rememberScrollState())
   ) {
     PersonSearchBar(
       searchQuery = searchQuery,
       onSearchChange = onSearchChange,
-      modifier = Modifier.padding(SpacingTokens.md)
+      modifier = Modifier.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm)
+    )
+
+    PersonFilterChips(
+      selected = directionFilter,
+      onSelect = onDirectionFilterChange,
+      modifier = Modifier.padding(horizontal = SpacingTokens.md)
     )
 
     if (filtered.isEmpty()) {
       PersonEmptyState(searchQuery = searchQuery)
     } else {
-      Column(
-        modifier = Modifier.fillMaxWidth(),
+      LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding =
+          PaddingValues(
+            horizontal = SpacingTokens.md,
+            vertical = SpacingTokens.sm
+          ),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
-        filtered.forEach { balance ->
+        items(filtered, key = { it.personId }) { balance ->
           PersonRow(
             balance = balance,
             onClick = { onPersonClick(balance.personId, balance.personName) },
           )
         }
       }
+    }
+  }
+}
+
+private val FILTER_LABELS: List<Pair<LoanDirectionFilter, String>> =
+  listOf(
+    LoanDirectionFilter.ALL to "همه",
+    LoanDirectionFilter.DEBTOR to "بدهکاران",
+    LoanDirectionFilter.CREDITOR to "طلبکاران",
+    LoanDirectionFilter.SETTLED to "تسویه‌شده",
+  )
+
+@Composable
+private fun PersonFilterChips(
+  selected: LoanDirectionFilter,
+  onSelect: (LoanDirectionFilter) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Row(
+    modifier = modifier.fillMaxWidth().testTag("persons_filters"),
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
+    FILTER_LABELS.forEach { (filter, label) ->
+      HesabyarChip(
+        selected = filter == selected,
+        onClick = { onSelect(filter) },
+        label = label
+      )
     }
   }
 }
@@ -170,7 +208,8 @@ private fun PersonSearchBar(
         value = searchQuery,
         onValueChange = onSearchChange,
         modifier = Modifier.weight(1f),
-        placeholder = { Text("جستجو بر اساس نام شخص") },
+        label = { Text("جستجو بر اساس نام شخص") },
+        placeholder = { Text("نام شخص") },
         leadingIcon = {
           Icon(
             imageVector = Icons.Filled.Search,
@@ -308,15 +347,15 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
       PersonDirection(
         icon = Icons.Filled.ArrowCircleDown,
         tint = MaterialTheme.colorScheme.primary,
-        label = "طلبکار",
-        contentDescription = "طلبکار — موجودی مثبت"
+        label = "بدهکار",
+        contentDescription = "بدهکار — موجودی مثبت"
       )
     net < 0L ->
       PersonDirection(
         icon = Icons.Filled.ArrowCircleUp,
         tint = MaterialTheme.colorScheme.secondary,
-        label = "بدهکار",
-        contentDescription = "بدهکار — موجودی منفی"
+        label = "طلبکار",
+        contentDescription = "طلبکار — موجودی منفی"
       )
     else ->
       PersonDirection(

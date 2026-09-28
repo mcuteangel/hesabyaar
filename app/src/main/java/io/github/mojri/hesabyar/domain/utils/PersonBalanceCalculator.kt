@@ -64,25 +64,25 @@ object PersonBalanceCalculator {
       when (loan.type) {
         LoanType.DEBTOR -> {
           if (loan.isSettled) {
-            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount + 1)
+            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
           } else {
             totals[pid] =
               e.copy(
-                totalReceivables = e.totalReceivables + remaining,
-                netBalance = e.netBalance + remaining,
-                activeLoanCount = e.activeLoanCount + 1,
+                totalReceivables = e.totalReceivables.saturatingAdd(remaining),
+                netBalance = e.netBalance.saturatingAdd(remaining),
+                activeLoanCount = e.activeLoanCount.saturatingInc(),
               )
           }
         }
         LoanType.CREDITOR -> {
           if (loan.isSettled) {
-            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount + 1)
+            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
           } else {
             totals[pid] =
               e.copy(
-                totalDebts = e.totalDebts + remaining,
-                netBalance = e.netBalance - remaining,
-                activeLoanCount = e.activeLoanCount + 1,
+                totalDebts = e.totalDebts.saturatingAdd(remaining),
+                netBalance = e.netBalance.saturatingSub(remaining),
+                activeLoanCount = e.activeLoanCount.saturatingInc(),
               )
           }
         }
@@ -92,4 +92,32 @@ object PersonBalanceCalculator {
 
     return totals.values.sortedBy { it.personId }
   }
+
+  // Saturating helpers mirror the Rust core's saturating_add/saturating_sub so
+  // the fallback cannot wrap into a negative balance on extreme magnitudes.
+  private fun Long.saturatingAdd(other: Long): Long {
+    val sum = this + other
+    // Overflow sign check: operands disagree with the result's sign bit.
+    val sumXorThis = sum xor this
+    val sumXorOther = sum xor other
+    return if (sumXorThis and sumXorOther < 0L) {
+      if (this > 0L) Long.MAX_VALUE else Long.MIN_VALUE
+    } else {
+      sum
+    }
+  }
+
+  private fun Long.saturatingSub(other: Long): Long {
+    val diff = this - other
+    // Overflow sign check: operands disagree and result disagrees with minuend.
+    val thisXorOther = this xor other
+    val thisXorDiff = this xor diff
+    return if (thisXorOther and thisXorDiff < 0L) {
+      if (this > 0L) Long.MAX_VALUE else Long.MIN_VALUE
+    } else {
+      diff
+    }
+  }
+
+  private fun Int.saturatingInc(): Int = if (this == Int.MAX_VALUE) Int.MAX_VALUE else this + 1
 }

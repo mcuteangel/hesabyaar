@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,14 +19,12 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -76,7 +75,8 @@ fun PersonDetailSheet(
   modifier: Modifier = Modifier
 ) {
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-  val loans by personViewModel.getLoansForPerson(personId).collectAsState(initial = emptyList())
+  val loansFlow = remember(personId) { personViewModel.getLoansForPerson(personId) }
+  val loans by loansFlow.collectAsState(initial = emptyList())
   val balances by personViewModel.personBalances.collectAsState()
   val currentBalance = balances.firstOrNull { it.personId == personId }
 
@@ -228,8 +228,8 @@ private fun PersonHeader(
 @Composable
 private fun balanceDirectionMeta(net: Long): Triple<String, Color, ImageVector> =
   when {
-    net > 0L -> Triple("طلبکار (بستانکار)", MaterialTheme.colorScheme.primary, Icons.Filled.ArrowCircleDown)
-    net < 0L -> Triple("بدهکار", MaterialTheme.colorScheme.secondary, Icons.Filled.ArrowCircleUp)
+    net > 0L -> Triple("بدهکار", MaterialTheme.colorScheme.primary, Icons.Filled.ArrowCircleDown)
+    net < 0L -> Triple("طلبکار", MaterialTheme.colorScheme.secondary, Icons.Filled.ArrowCircleUp)
     else -> Triple("تسویه شده", MaterialTheme.colorScheme.onSurfaceVariant, Icons.Filled.AccountCircle)
   }
 
@@ -240,9 +240,11 @@ private fun PersonQuickActions(
   onSettleFully: () -> Unit,
   canSettle: Boolean
 ) {
-  Row(
+  FlowRow(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+    maxItemsInEachRow = 3
   ) {
     HesabyarButton(
       onClick = onAddReceivable,
@@ -305,10 +307,22 @@ private fun TimelineLoanItem(
   loan: Loan,
   personViewModel: PersonViewModel
 ) {
-  val isDebtor = loan.type == LoanType.DEBTOR
-  val tint = if (isDebtor) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-  val icon = if (isDebtor) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp
-  val payments by personViewModel.getPaymentHistoryForLoan(loan.id).collectAsState(initial = emptyList())
+  val (tint, icon, typeLabel) =
+    when (loan.type) {
+      LoanType.DEBTOR ->
+        Triple(MaterialTheme.colorScheme.primary, Icons.Filled.ArrowCircleDown, "طلب")
+      LoanType.CREDITOR ->
+        Triple(MaterialTheme.colorScheme.secondary, Icons.Filled.ArrowCircleUp, "بدهی")
+      LoanType.UNKNOWN ->
+        Triple(
+          MaterialTheme.colorScheme.onSurfaceVariant,
+          Icons.Filled.AccountCircle,
+          "نوع نامشخص"
+        )
+    }
+  // Remember the flow per loan id: recomposition must not resubscribe.
+  val paymentsFlow = remember(loan.id) { personViewModel.getPaymentHistoryForLoan(loan.id) }
+  val payments by paymentsFlow.collectAsState(initial = emptyList())
 
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
@@ -322,7 +336,7 @@ private fun TimelineLoanItem(
     Column(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
-      LoanItemHeader(loan = loan, tint = tint, icon = icon)
+      LoanItemHeader(loan = loan, tint = tint, icon = icon, typeLabel = typeLabel)
 
       LoanItemAmounts(loan = loan)
 
@@ -337,7 +351,8 @@ private fun TimelineLoanItem(
 private fun LoanItemHeader(
   loan: Loan,
   tint: Color,
-  icon: ImageVector
+  icon: ImageVector,
+  typeLabel: String
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -355,7 +370,7 @@ private fun LoanItemHeader(
         modifier = Modifier.size(Dimens.IconSmall)
       )
       Text(
-        text = if (loan.type == LoanType.DEBTOR) "طلب" else "بدهی",
+        text = typeLabel,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
         color = tint
@@ -439,67 +454,4 @@ private fun PaymentsSection(payments: List<PaymentHistory>) {
       }
     }
   }
-}
-
-@Composable
-private fun AddPersonLoanDialog(
-  type: LoanType,
-  personName: String,
-  onConfirm: (amountRial: Long, description: String) -> Unit,
-  onDismiss: () -> Unit
-) {
-  var amountText by remember { mutableStateOf("") }
-  var description by remember { mutableStateOf("") }
-  val parsedAmount = amountText.toLongOrNull() ?: 0L
-  val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
-      Text(
-        text = "ثبت $typeLabel $personName",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-      ) {
-        OutlinedTextField(
-          value = amountText,
-          onValueChange = { amountText = it.filter { ch -> ch.isDigit() } },
-          label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
-          modifier = Modifier.fillMaxWidth(),
-          singleLine = true
-        )
-        OutlinedTextField(
-          value = description,
-          onValueChange = { description = it },
-          label = { Text("توضیحات (اختیاری)") },
-          modifier = Modifier.fillMaxWidth()
-        )
-      }
-    },
-    confirmButton = {
-      HesabyarButton(
-        onClick = {
-          val entered = amountText.toLongOrNull() ?: 0L
-          if (entered > 0L) {
-            onConfirm(CurrencyFormatter.toRial(entered), description)
-          }
-        },
-        enabled = parsedAmount > 0L,
-        text = "ثبت"
-      )
-    },
-    dismissButton = {
-      HesabyarButton(
-        onClick = onDismiss,
-        text = "انصراف",
-        variant = ButtonVariant.Text
-      )
-    }
-  )
 }
