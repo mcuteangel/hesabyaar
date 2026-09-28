@@ -47,6 +47,14 @@ jobs:
     # 60 (was 30): reasoning mode extends per-request latency; a handful of
     # slow LLM requests must not kill the run before comments are posted.
     timeout-minutes: 60
+    # The ocr CLI launcher spawns a detached background self-update
+    # (`npm i -g @alibaba-group/open-code-review@latest`) on every invocation.
+    # On PR #279 that raced the pinned-version install: the global bin symlink
+    # went dangling mid-run and `ocr review` died with
+    # "Cannot find module '/usr/local/bin/ocr'". The version is already pinned
+    # via ocr_version, so the CLI's own self-update is disabled here.
+    env:
+      OCR_NO_UPDATE: "1"
     if: |
       github.event_name == 'pull_request_target'
       || (
