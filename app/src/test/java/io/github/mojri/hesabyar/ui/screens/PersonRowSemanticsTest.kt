@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -35,9 +36,17 @@ class PersonRowSemanticsTest {
   @get:Rule
   val composeRule = createComposeRule()
 
+  private lateinit var previousUnit: CurrencyUnit
+
   @Before
   fun setUp() {
+    previousUnit = CurrencyFormatter.currentUnit
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+  }
+
+  @After
+  fun tearDown() {
+    CurrencyFormatter.setUnit(previousUnit)
   }
 
   @Test
