@@ -13,7 +13,6 @@ import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.DashboardData
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -42,8 +41,8 @@ class DebtorCreditorCardsTest {
 
   @Test
   fun clickableCardsDispatchCallbacksAndExposeButtonRole() {
-    var debtorsClicked = false
-    var creditorsClicked = false
+    var debtorsClicks = 0
+    var creditorsClicks = 0
     val data =
       DashboardData(
         debtorsTotal = 1_000_000L,
@@ -53,8 +52,8 @@ class DebtorCreditorCardsTest {
     composeRule.setContent {
       DebtorCreditorCards(
         dashboardData = data,
-        onDebtorsClick = { debtorsClicked = true },
-        onCreditorsClick = { creditorsClicked = true },
+        onDebtorsClick = { debtorsClicks++ },
+        onCreditorsClick = { creditorsClicks++ },
       )
     }
 
@@ -81,7 +80,9 @@ class DebtorCreditorCardsTest {
       )[0]
       .performClick()
 
-    assertTrue("Debtors callback was called", debtorsClicked)
+    // Exactly one dispatch: the semantics layer must not double-invoke.
+    assertEquals("Debtors callback fires exactly once per click", 1, debtorsClicks)
+    assertEquals("Creditors callback untouched", 0, creditorsClicks)
 
     // Click the second card (creditors)
     composeRule
@@ -92,7 +93,8 @@ class DebtorCreditorCardsTest {
       )[1]
       .performClick()
 
-    assertTrue("Creditors callback was called", creditorsClicked)
+    assertEquals("Creditors callback fires exactly once per click", 1, creditorsClicks)
+    assertEquals("Debtors callback not fired again", 1, debtorsClicks)
   }
 
   @Test

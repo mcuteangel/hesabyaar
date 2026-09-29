@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -78,6 +78,7 @@ class PersonViewModel
      *
      * Safety net: repository write failure must be logged instead of crashing.
      * Cancellation is rethrown to keep structured concurrency intact.
+     * [onResult] reports success so the caller can show feedback on failure.
      */
     @Suppress("TooGenericExceptionCaught")
     fun addLoanForPerson(
@@ -87,14 +88,17 @@ class PersonViewModel
       amount: Long,
       description: String,
       customDate: Long? = null,
+      onResult: ((Boolean) -> Unit)? = null,
     ) {
       viewModelScope.launch {
         try {
           manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
+          onResult?.invoke(true)
         } catch (e: CancellationException) {
           throw e
         } catch (e: Throwable) {
           AppLogger.e(TAG, "addLoanForPerson failed", e)
+          onResult?.invoke(false)
         }
       }
     }
@@ -110,7 +114,7 @@ class PersonViewModel
       viewModelScope.launch {
         try {
           val snapshot =
-            repository.allLoans.first().filter {
+            (repository.allLoans.firstOrNull() ?: emptyList()).filter {
               it.personId == personId && !it.isSettled
             }
           snapshot.forEach { loan ->

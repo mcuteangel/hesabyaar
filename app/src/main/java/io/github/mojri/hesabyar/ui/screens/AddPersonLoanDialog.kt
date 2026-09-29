@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
@@ -42,7 +44,7 @@ internal fun AddPersonLoanDialog(
     } else {
       Long.MAX_VALUE
     }
-  val parsedAmount = amountText.toLongOrNull() ?: 0L
+  val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
   val isValidAmount = parsedAmount in 1L..maxAllowedDisplay
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
 
@@ -98,7 +100,7 @@ private fun AddPersonLoanInputs(
   ) {
     OutlinedTextField(
       value = amountText,
-      onValueChange = { onAmountChange(it.filter { ch -> ch.isDigit() }) },
+      onValueChange = { onAmountChange(it.filterDigits()) },
       label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
       modifier = Modifier.fillMaxWidth(),
       singleLine = true

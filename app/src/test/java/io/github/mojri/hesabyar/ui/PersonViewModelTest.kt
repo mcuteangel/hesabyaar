@@ -42,11 +42,16 @@ class PersonViewModelTest {
     val loansFlow = MutableStateFlow<List<Loan>>(emptyList())
     val insertedLoans = mutableListOf<Loan>()
     var makeRepaymentCallCount = 0
+    var failNextInsert = false
 
     override val allPersons = personsFlow
     override val allLoans = loansFlow
 
     override suspend fun insertLoan(loan: Loan): Long {
+      if (failNextInsert) {
+        failNextInsert = false
+        throw IllegalStateException("insert failed")
+      }
       insertedLoans.add(loan)
       return insertedLoans.size.toLong()
     }
@@ -119,6 +124,54 @@ class PersonViewModelTest {
       assertEquals("Ali", loan.personName)
       assertEquals(100_000L, loan.originalAmount)
       assertEquals(LoanType.DEBTOR, loan.type)
+    }
+
+  @Test
+  fun addLoanForPersonReportsSuccessThroughOnResult() =
+    runTest(testDispatcher) {
+      var succeeded: Boolean? = null
+      viewModel.addLoanForPerson(
+        personId = 42L,
+        personName = "Ali",
+        type = LoanType.DEBTOR,
+        amount = 100_000L,
+        description = "Test loan",
+        onResult = { succeeded = it },
+      )
+      advanceUntilIdle()
+
+      assertEquals("onResult reports success", true, succeeded)
+      assertEquals("1 loan inserted", 1, fakeRepository.insertedLoans.size)
+    }
+
+  @Test
+  fun addLoanForPersonReportsFailureThroughOnResult() =
+    runTest(testDispatcher) {
+      fakeRepository.failNextInsert = true
+      var succeeded: Boolean? = null
+      viewModel.addLoanForPerson(
+        personId = 42L,
+        personName = "Ali",
+        type = LoanType.DEBTOR,
+        amount = 100_000L,
+        description = "Test loan",
+        onResult = { succeeded = it },
+      )
+      advanceUntilIdle()
+
+      assertEquals("onResult reports failure", false, succeeded)
+      assertEquals("No loan inserted", 0, fakeRepository.insertedLoans.size)
+    }
+
+  @Test
+  fun settleFullyWithEmptyLoanFlowDoesNotThrow() =
+    runTest(testDispatcher) {
+      fakeRepository.loansFlow.value = emptyList()
+
+      viewModel.settleFully(personId = 5L)
+      advanceUntilIdle()
+
+      assertEquals("No repayments attempted", 0, fakeRepository.makeRepaymentCallCount)
     }
 
   @Test

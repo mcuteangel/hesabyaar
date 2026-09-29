@@ -24,8 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -156,18 +154,13 @@ internal fun DebtorCreditorCards(
 }
 
 private fun Modifier.cardAction(
-  onClick: (() -> Unit)?,
+  action: (() -> Unit)?,
   accessibilityLabel: String,
 ): Modifier =
-  if (onClick != null) {
-    this
-      .clickable(onClick = onClick, role = Role.Button)
-      .semantics {
-        onClick(label = accessibilityLabel) {
-          onClick()
-          true
-        }
-      }
+  if (action != null) {
+    // clickable alone owns the click action. Its onClickLabel exposes the
+    // Persian action name to TalkBack without adding a second handler.
+    this.clickable(onClick = action, role = Role.Button, onClickLabel = accessibilityLabel)
   } else {
     this
   }

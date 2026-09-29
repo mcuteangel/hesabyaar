@@ -80,6 +80,8 @@ fun PersonsScreen(
 ) {
   // Single source of truth for the search text: the ViewModel StateFlow.
   val query by personViewModel.searchQuery.collectAsState()
+  // Keyed on initialDirectionFilter so a dashboard Debtor/Creditor card press
+  // re-applies its filter, while in-screen chip taps stay the local state.
   var directionFilter by remember(initialDirectionFilter) { mutableStateOf(initialDirectionFilter) }
   PersonListContent(
     personViewModel = personViewModel,

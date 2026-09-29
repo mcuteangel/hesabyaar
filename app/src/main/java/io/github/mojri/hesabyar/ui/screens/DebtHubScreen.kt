@@ -41,7 +41,10 @@ fun DebtHubScreen(
   settingsViewModel: SettingsViewModel,
   modifier: Modifier = Modifier
 ) {
-  var section by remember { mutableStateOf(initialSection) }
+  // Keyed on initialSection: an external change (dashboard Debtor/Creditor
+  // cards update MainActivity's debtSection) re-adopts the new value while
+  // in-screen tab taps still keep their own state between recompositions.
+  var section by remember(initialSection) { mutableStateOf(initialSection) }
   var selectedPerson by remember { mutableStateOf<Pair<Long, String>?>(null) }
 
   Column(modifier = modifier.fillMaxSize()) {
