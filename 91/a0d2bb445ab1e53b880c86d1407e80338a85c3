@@ -1,0 +1,32 @@
+app/src/test/java/io/github/mojri/hesabyar/rust/PersonBalanceParityTest.kt
+  s_79c2773a1818ea::t_e933322bc8c23e 69
+  s_79c2773a1818ea::t_2de4ed7ae79c6d 186-188
+  s_79c2773a1818ea::t_6c79f35b260d9c 116,152,205,228
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCardsTest.kt
+  s_79c2773a1818ea::t_f41cdba13df860 1-60,66,70,72,74,83,96-116,125-126
+  s_79c2773a1818ea::t_f82520a03a5fc5 61-65,67,73,75-77,80-82,84-88,91-95,117-121,123-124
+  s_79c2773a1818ea::t_aefea2b1ad7ab6 68-69,71,78-79,89-90,122
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetPersonBalancesUseCase.kt
+  s_79c2773a1818ea::t_a3231805319a71 12-17,32
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCards.kt
+  s_79c2773a1818ea::t_b0254e93aec947 105
+  s_79c2773a1818ea::t_b2ac4dd924b7e9 157-160,164-171,173
+  s_79c2773a1818ea::t_e12ce456d65536 53
+  s_79c2773a1818ea::t_8cc88ee23aed2e 161-163,172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "91a0d2bb445ab1e53b880c86d1407e80338a85c3",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
