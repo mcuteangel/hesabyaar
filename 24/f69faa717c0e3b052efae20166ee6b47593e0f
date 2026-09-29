@@ -1,0 +1,52 @@
+app/src/test/java/io/github/mojri/hesabyar/core/NumberTextTest.kt
+  s_79c2773a1818ea::t_58de58a84131ec 1-49
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCardsTest.kt
+  s_79c2773a1818ea::t_0f19a1ca649abb 44-45,55-56,83-85,96-97
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_9640e10adf2b8a 323-326
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_79c2773a1818ea::t_d19e555115692f 44-47
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_156a88337acb2a 81,91,96,101
+  s_79c2773a1818ea::t_dcabd6e0f1ec8f 21
+  s_79c2773a1818ea::t_4115fb79ddca8b 117
+app/src/main/java/io/github/mojri/hesabyar/core/NumberText.kt
+  s_79c2773a1818ea::t_d51eeff69a9b52 9-12,15-25,28-33
+  s_79c2773a1818ea::t_3cf29f66d699e2 3-8
+  s_79c2773a1818ea::t_cffbd7b6102d42 1-2,26-27
+  s_79c2773a1818ea::t_0964d2343861c0 13-14
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_79c2773a1818ea::t_5b7fdd58f030d7 83-84
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_79c2773a1818ea::t_93a96014e06242 47
+  s_79c2773a1818ea::t_1082c01dbcdd55 103
+  s_79c2773a1818ea::t_fd7533b92cb654 18
+  s_79c2773a1818ea::t_8b643c15635883 17
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCards.kt
+  s_79c2773a1818ea::t_e08cc42113a865 157,160-163
+progress.md
+  s_79c2773a1818ea::t_41114d07816105 80,88-89,103
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_4047d93e6cfac0 45,51-54
+  s_79c2773a1818ea::t_8207934b1e1a00 130-176
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonsScreenTest.kt
+  s_79c2773a1818ea::t_6e5cea43b09e86 4-5,35-40,80-84,86-100,104-129,147-149,164-166,181-183,198-200,216-217,222-225,230-232,234-235,247-249,252-254,259-261
+  s_79c2773a1818ea::t_c656305140965c 1-3,6-34,41-79,85,101-103,138-144,146,150-161,163,167-178,180,184-195,197,201-207,209-215,218-221,226-227,229,233,236-244,246,251,255-256,258,262-263
+  s_79c2773a1818ea::t_e5207e74831c41 130-137,145,162,179,196,208,228,245,250,257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "24f69faa717c0e3b052efae20166ee6b47593e0f",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "deepseek/deepseek-v4.1-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
