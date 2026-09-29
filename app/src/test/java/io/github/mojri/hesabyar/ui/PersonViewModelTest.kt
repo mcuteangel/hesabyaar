@@ -50,7 +50,7 @@ class PersonViewModelTest {
     override suspend fun insertLoan(loan: Loan): Long {
       if (failNextInsert) {
         failNextInsert = false
-        throw IllegalStateException("insert failed")
+        throw IllegalStateException(INSERT_FAILURE_MESSAGE)
       }
       insertedLoans.add(loan)
       return insertedLoans.size.toLong()
@@ -86,7 +86,7 @@ class PersonViewModelTest {
         }
 
       val personAli = Person(id = 1L, name = "Ali Reza", normalizedName = "alireza")
-      val personSara = Person(id = 2L, name = "Sara", normalizedName = "sara")
+      val personSara = Person(id = 2L, name = NAME_SARA, normalizedName = "sara")
       fakeRepository.personsFlow.value = listOf(personAli, personSara)
 
       advanceUntilIdle()
@@ -111,17 +111,17 @@ class PersonViewModelTest {
     runTest(testDispatcher) {
       viewModel.addLoanForPerson(
         personId = 42L,
-        personName = "Ali",
+        personName = NAME_ALI,
         type = LoanType.DEBTOR,
         amount = 100_000L,
-        description = "Test loan"
+        description = TEST_LOAN_DESC
       )
       advanceUntilIdle()
 
-      assertEquals("1 loan inserted", 1, fakeRepository.insertedLoans.size)
+      assertEquals(MSG_ONE_LOAN_INSERTED, 1, fakeRepository.insertedLoans.size)
       val loan = fakeRepository.insertedLoans[0]
       assertEquals(42L, loan.personId)
-      assertEquals("Ali", loan.personName)
+      assertEquals(NAME_ALI, loan.personName)
       assertEquals(100_000L, loan.originalAmount)
       assertEquals(LoanType.DEBTOR, loan.type)
     }
@@ -132,16 +132,16 @@ class PersonViewModelTest {
       var succeeded: Boolean? = null
       viewModel.addLoanForPerson(
         personId = 42L,
-        personName = "Ali",
+        personName = NAME_ALI,
         type = LoanType.DEBTOR,
         amount = 100_000L,
-        description = "Test loan",
+        description = TEST_LOAN_DESC,
         onResult = { succeeded = it },
       )
       advanceUntilIdle()
 
       assertEquals("onResult reports success", true, succeeded)
-      assertEquals("1 loan inserted", 1, fakeRepository.insertedLoans.size)
+      assertEquals(MSG_ONE_LOAN_INSERTED, 1, fakeRepository.insertedLoans.size)
     }
 
   @Test
@@ -151,10 +151,10 @@ class PersonViewModelTest {
       var succeeded: Boolean? = null
       viewModel.addLoanForPerson(
         personId = 42L,
-        personName = "Ali",
+        personName = NAME_ALI,
         type = LoanType.DEBTOR,
         amount = 100_000L,
-        description = "Test loan",
+        description = TEST_LOAN_DESC,
         onResult = { succeeded = it },
       )
       advanceUntilIdle()
@@ -181,7 +181,7 @@ class PersonViewModelTest {
         Loan(
           id = 101L,
           personId = 5L,
-          personName = "Sara",
+          personName = NAME_SARA,
           type = LoanType.DEBTOR,
           originalAmount = 50_000L,
           remainingAmount = 25_000L,
@@ -193,7 +193,7 @@ class PersonViewModelTest {
         Loan(
           id = 102L,
           personId = 5L,
-          personName = "Sara",
+          personName = NAME_SARA,
           type = LoanType.CREDITOR,
           originalAmount = 30_000L,
           remainingAmount = 0L,
@@ -269,4 +269,12 @@ class PersonViewModelTest {
       assertEquals("Oldest loan first", 1L, person10Loans[0].id)
       assertEquals("Newer loan second", 2L, person10Loans[1].id)
     }
+
+  private companion object {
+    const val NAME_ALI = "Ali"
+    const val NAME_SARA = "Sara"
+    const val TEST_LOAN_DESC = "Test loan"
+    const val INSERT_FAILURE_MESSAGE = "insert failed"
+    const val MSG_ONE_LOAN_INSERTED = "1 loan inserted"
+  }
 }

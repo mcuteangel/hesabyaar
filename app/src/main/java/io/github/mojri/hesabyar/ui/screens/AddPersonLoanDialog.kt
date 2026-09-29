@@ -34,7 +34,8 @@ internal fun AddPersonLoanDialog(
   type: LoanType,
   personName: String,
   onConfirm: (amountRial: Long, description: String) -> Unit,
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  errorMessage: String? = null,
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
@@ -62,7 +63,8 @@ internal fun AddPersonLoanDialog(
         amountText = amountText,
         onAmountChange = { amountText = it },
         description = description,
-        onDescriptionChange = { description = it }
+        onDescriptionChange = { description = it },
+        errorMessage = errorMessage
       )
     },
     confirmButton = {
@@ -92,7 +94,8 @@ private fun AddPersonLoanInputs(
   onAmountChange: (String) -> Unit,
   description: String,
   onDescriptionChange: (String) -> Unit,
-  modifier: Modifier = Modifier
+  errorMessage: String?,
+  modifier: Modifier = Modifier,
 ) {
   Column(
     modifier = modifier.fillMaxWidth(),
@@ -103,7 +106,14 @@ private fun AddPersonLoanInputs(
       onValueChange = { onAmountChange(it.filterDigits()) },
       label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
       modifier = Modifier.fillMaxWidth(),
-      singleLine = true
+      singleLine = true,
+      isError = errorMessage != null,
+      supportingText =
+        if (errorMessage != null) {
+          { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+        } else {
+          null
+        }
     )
     OutlinedTextField(
       value = description,

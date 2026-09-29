@@ -91,14 +91,22 @@ class PersonViewModel
       onResult: ((Boolean) -> Unit)? = null,
     ) {
       viewModelScope.launch {
+        val success =
+          try {
+            manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
+            true
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Throwable) {
+            AppLogger.e(TAG, "addLoanForPerson failed", e)
+            false
+          }
         try {
-          manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
-          onResult?.invoke(true)
+          onResult?.invoke(success)
         } catch (e: CancellationException) {
           throw e
         } catch (e: Throwable) {
-          AppLogger.e(TAG, "addLoanForPerson failed", e)
-          onResult?.invoke(false)
+          AppLogger.e(TAG, "addLoanForPerson onResult callback threw", e)
         }
       }
     }

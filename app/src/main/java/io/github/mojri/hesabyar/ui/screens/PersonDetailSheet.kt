@@ -81,6 +81,7 @@ fun PersonDetailSheet(
   val currentBalance = balances.firstOrNull { it.personId == personId }
 
   var addLoanType by remember { mutableStateOf<LoanType?>(null) }
+  var addLoanError by remember { mutableStateOf<String?>(null) }
   var showSettleConfirm by remember { mutableStateOf(false) }
 
   ModalBottomSheet(
@@ -99,34 +100,79 @@ fun PersonDetailSheet(
     )
   }
 
-  addLoanType?.let { type ->
+  PersonSheetDialogs(
+    dialogState =
+      PersonDialogState(
+        personId = personId,
+        personName = personName,
+        addLoanType = addLoanType,
+        addLoanError = addLoanError,
+        showSettleConfirm = showSettleConfirm
+      ),
+    personViewModel = personViewModel,
+    onAddLoanSuccess = { addLoanType = null },
+    onAddLoanFailure = { addLoanError = it },
+    onDismissAddLoan = {
+      addLoanType = null
+      addLoanError = null
+    },
+    onConfirmSettle = {
+      personViewModel.settleFully(personId)
+      showSettleConfirm = false
+    },
+    onDismissSettle = { showSettleConfirm = false }
+  )
+}
+
+private data class PersonDialogState(
+  val personId: Long,
+  val personName: String,
+  val addLoanType: LoanType?,
+  val addLoanError: String?,
+  val showSettleConfirm: Boolean,
+)
+
+@Composable
+private fun PersonSheetDialogs(
+  dialogState: PersonDialogState,
+  personViewModel: PersonViewModel,
+  onAddLoanSuccess: () -> Unit,
+  onAddLoanFailure: (String) -> Unit,
+  onDismissAddLoan: () -> Unit,
+  onConfirmSettle: () -> Unit,
+  onDismissSettle: () -> Unit,
+) {
+  dialogState.addLoanType?.let { type ->
     AddPersonLoanDialog(
       type = type,
-      personName = personName,
+      personName = dialogState.personName,
+      errorMessage = dialogState.addLoanError,
       onConfirm = { amountRial, description ->
         personViewModel.addLoanForPerson(
-          personId = personId,
-          personName = personName,
+          personId = dialogState.personId,
+          personName = dialogState.personName,
           type = type,
           amount = amountRial,
           description = description
-        )
-        addLoanType = null
+        ) { success ->
+          if (success) {
+            onAddLoanSuccess()
+          } else {
+            onAddLoanFailure("ثبت ناموفق بود. دوباره تلاش کنید.")
+          }
+        }
       },
-      onDismiss = { addLoanType = null }
+      onDismiss = onDismissAddLoan
     )
   }
 
-  if (showSettleConfirm) {
+  if (dialogState.showSettleConfirm) {
     ConfirmDialog(
       title = "تسویه کامل",
-      message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های $personName اطمینان دارید؟",
+      message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های ${dialogState.personName} اطمینان دارید؟",
       confirmText = "تسویه کن",
-      onConfirm = {
-        personViewModel.settleFully(personId)
-        showSettleConfirm = false
-      },
-      onDismiss = { showSettleConfirm = false }
+      onConfirm = onConfirmSettle,
+      onDismiss = onDismissSettle
     )
   }
 }

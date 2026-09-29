@@ -79,18 +79,18 @@ class PersonsScreenTest {
   private fun setupSampleData() {
     personsFlow.value =
       listOf(
-        Person(id = 1L, name = "Ali", normalizedName = "ali"),
-        Person(id = 2L, name = "Reza", normalizedName = "reza"),
-        Person(id = 3L, name = "Sara", normalizedName = "sara"),
+        Person(id = 1L, name = NAME_ALI, normalizedName = "ali"),
+        Person(id = 2L, name = NAME_REZA, normalizedName = "reza"),
+        Person(id = 3L, name = NAME_SARA, normalizedName = "sara"),
       )
     loansFlow.value =
       listOf(
-        activeLoan(10L, 1L, "Ali", LoanType.DEBTOR, 100_000L),
-        activeLoan(20L, 2L, "Reza", LoanType.CREDITOR, 200_000L),
+        activeLoan(10L, 1L, NAME_ALI, LoanType.DEBTOR, 100_000L),
+        activeLoan(20L, 2L, NAME_REZA, LoanType.CREDITOR, 200_000L),
         Loan(
           id = 30L,
           personId = 3L,
-          personName = "Sara",
+          personName = NAME_SARA,
           type = LoanType.DEBTOR,
           originalAmount = 50_000L,
           remainingAmount = 0L,
@@ -144,9 +144,9 @@ class PersonsScreenTest {
     }
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertIsDisplayed()
   }
 
   @Test
@@ -161,9 +161,9 @@ class PersonsScreenTest {
     }
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertDoesNotExist()
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
   }
 
   @Test
@@ -178,9 +178,9 @@ class PersonsScreenTest {
     }
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertDoesNotExist()
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
   }
 
   @Test
@@ -195,9 +195,9 @@ class PersonsScreenTest {
     }
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertDoesNotExist()
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertDoesNotExist()
   }
 
   @Test
@@ -228,11 +228,11 @@ class PersonsScreenTest {
     settle()
 
     composeRule
-      .onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L))
+      .onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L))
       .performClick()
 
     assertEquals("Clicked person ID", 1L, clickedId)
-    assertEquals("Clicked person name", "Ali", clickedName)
+    assertEquals("Clicked person name", NAME_ALI, clickedName)
   }
 
   @Test
@@ -246,18 +246,27 @@ class PersonsScreenTest {
 
     composeRule
       .onNode(hasText("جستجو بر اساس نام شخص").and(hasSetTextAction()))
-      .performTextInput("Reza")
+      .performTextInput(NAME_REZA)
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertDoesNotExist()
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
 
     composeRule.onNodeWithContentDescription("پاک‌سازی جستجو").performClick()
     settle()
 
-    composeRule.onNodeWithContentDescription(rowDescription("Ali", "بدهکار", 100_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Reza", "طلبکار", -200_000L)).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(rowDescription("Sara", "تعادل", 0L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertIsDisplayed()
+  }
+
+  private companion object {
+    const val NAME_ALI = "Ali"
+    const val NAME_REZA = "Reza"
+    const val NAME_SARA = "Sara"
+    const val LABEL_DEBTOR = "بدهکار"
+    const val LABEL_CREDITOR = "طلبکار"
+    const val LABEL_BALANCED = "تعادل"
   }
 }
