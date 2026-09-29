@@ -19,12 +19,22 @@ private fun Char.acceptedDigitOrNull(): Char? =
  * Keeps accepted digits only, in ASCII form. Use in an `onValueChange` filter
  * so the visible text stays parseable.
  */
-fun String.filterDigits(): String =
-  buildString(length) {
+fun String.filterDigits(): String {
+  var hasNonAsciiDigit = false
+  for (c in this) {
+    if (c !in '0'..'9') {
+      hasNonAsciiDigit = true
+      break
+    }
+  }
+  if (!hasNonAsciiDigit) return this
+
+  return buildString(length) {
     for (c in this@filterDigits) {
       c.acceptedDigitOrNull()?.let { append(it) }
     }
   }
+}
 
 /**
  * Parses the accepted digits into a [Long]. Other characters are ignored.

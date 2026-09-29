@@ -196,8 +196,8 @@ private fun matchesDirection(
 ): Boolean =
   when (filter) {
     LoanDirectionFilter.ALL -> true
-    LoanDirectionFilter.DEBTOR -> balance.totalReceivables > 0L
-    LoanDirectionFilter.CREDITOR -> balance.totalDebts > 0L
+    LoanDirectionFilter.DEBTOR -> balance.netBalance > 0L
+    LoanDirectionFilter.CREDITOR -> balance.netBalance < 0L
     LoanDirectionFilter.SETTLED ->
       balance.activeLoanCount == 0 && balance.settledLoanCount > 0
   }

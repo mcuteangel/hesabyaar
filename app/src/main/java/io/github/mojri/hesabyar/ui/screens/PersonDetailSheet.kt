@@ -366,10 +366,7 @@ private fun TimelineLoanItem(
           "نوع نامشخص"
         )
     }
-  // Remember the flow per loan instance: a replaced loan (same id after a
-  // restore) is a new object, so it resubscribes instead of reusing a stale
-  // subscription, and ordinary recomposition does not resubscribe.
-  val paymentsFlow = remember(loan) { personViewModel.getPaymentHistoryForLoan(loan.id) }
+  val paymentsFlow = remember(loan.id) { personViewModel.getPaymentHistoryForLoan(loan.id) }
   val payments by paymentsFlow.collectAsState(initial = emptyList())
 
   HesabyarCard(

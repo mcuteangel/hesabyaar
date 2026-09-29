@@ -106,14 +106,7 @@ private fun AddPersonLoanInputs(
       onValueChange = { onAmountChange(it.filterDigits()) },
       label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
       modifier = Modifier.fillMaxWidth(),
-      singleLine = true,
-      isError = errorMessage != null,
-      supportingText =
-        if (errorMessage != null) {
-          { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
-        } else {
-          null
-        }
+      singleLine = true
     )
     OutlinedTextField(
       value = description,
@@ -121,5 +114,12 @@ private fun AddPersonLoanInputs(
       label = { Text("توضیحات (اختیاری)") },
       modifier = Modifier.fillMaxWidth()
     )
+    if (errorMessage != null) {
+      Text(
+        text = errorMessage,
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodySmall
+      )
+    }
   }
 }

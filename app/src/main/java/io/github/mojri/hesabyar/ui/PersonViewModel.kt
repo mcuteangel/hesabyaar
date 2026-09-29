@@ -118,8 +118,12 @@ class PersonViewModel
      * Cancellation is rethrown to keep structured concurrency intact.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun settleFully(personId: Long) {
+    fun settleFully(
+      personId: Long,
+      onResult: ((Boolean) -> Unit)? = null,
+    ) {
       viewModelScope.launch {
+        var overallSuccess = true
         try {
           val snapshot =
             (repository.allLoans.firstOrNull() ?: emptyList()).filter {
@@ -130,6 +134,7 @@ class PersonViewModel
             if (remaining > 0L) {
               val success = manageLoanUseCase.makeRepayment(loan.id, remaining, "", null)
               if (!success) {
+                overallSuccess = false
                 AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
               }
             }
@@ -138,6 +143,14 @@ class PersonViewModel
           throw e
         } catch (e: Throwable) {
           AppLogger.e(TAG, "settleFully failed", e)
+          overallSuccess = false
+        }
+        try {
+          onResult?.invoke(overallSuccess)
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Throwable) {
+          AppLogger.e(TAG, "settleFully onResult callback threw", e)
         }
       }
     }

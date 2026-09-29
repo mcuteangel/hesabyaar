@@ -43,6 +43,7 @@ class PersonViewModelTest {
     val insertedLoans = mutableListOf<Loan>()
     var makeRepaymentCallCount = 0
     var failNextInsert = false
+    var failNextRepayment = false
 
     override val allPersons = personsFlow
     override val allLoans = loansFlow
@@ -63,6 +64,10 @@ class PersonViewModelTest {
       customDate: Long?
     ): Boolean {
       makeRepaymentCallCount++
+      if (failNextRepayment) {
+        failNextRepayment = false
+        return false
+      }
       return true
     }
   }
@@ -220,6 +225,57 @@ class PersonViewModelTest {
       advanceUntilIdle()
 
       assertEquals("Only active loan for person 5 repaid", 1, fakeRepository.makeRepaymentCallCount)
+    }
+
+  @Test
+  fun settleFullyReportsSuccessThroughOnResult() =
+    runTest(testDispatcher) {
+      val loan =
+        Loan(
+          id = 101L,
+          personId = 5L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 50_000L,
+          remainingAmount = 25_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(loan)
+
+      var succeeded: Boolean? = null
+      viewModel.settleFully(personId = 5L, onResult = { succeeded = it })
+      advanceUntilIdle()
+
+      assertEquals("settleFully reports success", true, succeeded)
+      assertEquals("1 repayment attempted", 1, fakeRepository.makeRepaymentCallCount)
+    }
+
+  @Test
+  fun settleFullyReportsFailureWhenRepaymentFails() =
+    runTest(testDispatcher) {
+      val loan =
+        Loan(
+          id = 101L,
+          personId = 5L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 50_000L,
+          remainingAmount = 25_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(loan)
+      fakeRepository.failNextRepayment = true
+
+      var succeeded: Boolean? = null
+      viewModel.settleFully(personId = 5L, onResult = { succeeded = it })
+      advanceUntilIdle()
+
+      assertEquals("settleFully reports failure", false, succeeded)
+      assertEquals("1 repayment attempted", 1, fakeRepository.makeRepaymentCallCount)
     }
 
   @Test
