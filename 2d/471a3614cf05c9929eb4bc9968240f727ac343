@@ -1,0 +1,73 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_d6f9953b8e6bef 67-70
+  s_79c2773a1818ea::t_f1d1d584a08d6d 139-140
+  s_79c2773a1818ea::t_4865cd72d8b6a3 166
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/GetPersonBalancesUseCase.kt
+  s_79c2773a1818ea::t_82f0e460a76bb2 45
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheetTest.kt
+  s_79c2773a1818ea::t_ca509a19a85831 163-165
+  s_79c2773a1818ea::t_ceae6af7c3a71b 7
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_f096425daa8f43 282-318
+  s_79c2773a1818ea::t_cd752415094e50 367-397
+app/src/main/java/io/github/mojri/hesabyar/core/NumberText.kt
+  s_79c2773a1818ea::t_33405025af0408 24,27,31
+  s_79c2773a1818ea::t_4fdea9765c1bf7 20-21
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_79c2773a1818ea::t_2b59126c62750e 26-27
+  s_79c2773a1818ea::t_27d7eafd48447b 115
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_feb5ab1f0bc3c2 359
+  s_79c2773a1818ea::t_5310ce937d50aa 532
+  s_79c2773a1818ea::t_c3e38ec3b6a09e 547
+  s_79c2773a1818ea::t_bdab8b633c11e3 323
+  s_79c2773a1818ea::t_4cb13a97a45436 308
+  s_79c2773a1818ea::t_4e6b3a57e12657 288
+  s_79c2773a1818ea::t_598ffe7d987d24 449,452
+  s_79c2773a1818ea::t_3ee0a99ef30f83 501,504
+  s_79c2773a1818ea::t_ebe2e3c0a50923 362-367,371-372
+  s_79c2773a1818ea::t_e4229a3d903a2b 330
+  s_79c2773a1818ea::t_afba3d4aaea05b 202-203
+  s_79c2773a1818ea::t_03ee1bddec46eb 537
+  s_79c2773a1818ea::t_7f1295a227bc82 206
+  s_79c2773a1818ea::t_209f3c2a60373f 573-580,587,590-592
+  s_79c2773a1818ea::t_5759cc4dbdf919 585
+  s_79c2773a1818ea::t_4416454271cc21 300
+  s_79c2773a1818ea::t_21f5fcc103880c 318
+  s_79c2773a1818ea::t_3719bfad0064ed 581-584,586
+  s_79c2773a1818ea::t_fa84643b5903dd 211,215
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/DebtSectionTest.kt
+  s_79c2773a1818ea::t_0bcdeae85ee04e 1-29
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_c141c07a690e97 195-196
+  s_79c2773a1818ea::t_8ec5e4eea0c867 102-103
+  s_79c2773a1818ea::t_fe680e2746d795 125-127
+  s_79c2773a1818ea::t_26c100c7a80bf8 80-83
+  s_79c2773a1818ea::t_8ea3b12c4fde27 519-520
+  s_79c2773a1818ea::t_a6c75273516589 215-222
+  s_79c2773a1818ea::t_f4c54a891fef20 124
+  s_79c2773a1818ea::t_d6826c30a2b302 87
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/GetPersonBalancesUseCaseTest.kt
+  s_79c2773a1818ea::t_7d41f828c09939 8
+  s_79c2773a1818ea::t_b2404b4e00e553 82-105
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonsScreenTest.kt
+  s_79c2773a1818ea::t_c8c216b0769941 264-301,306
+app/src/test/java/io/github/mojri/hesabyar/MainActivityNavigationTest.kt
+  s_79c2773a1818ea::t_3e59579ebbd46f 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2d471a3614cf05c9929eb4bc9968240f727ac343",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
