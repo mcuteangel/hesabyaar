@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
@@ -158,11 +159,10 @@ class PersonDetailSheetTest {
     }
     settle()
 
-    // The sheet is scrollable, so the second timeline item may sit below the
-    // fold. assertExists verifies composition; assertIsDisplayed only applies
-    // to the visible first item.
     composeRule.onNodeWithText(DESC_BUSINESS).assertIsDisplayed()
-    composeRule.onNodeWithText(DESC_GROCERIES).assertExists()
+    // The second item is composed but may sit below the fold — scroll it into
+    // view before asserting visibility.
+    composeRule.onNodeWithText(DESC_GROCERIES).performScrollTo().assertIsDisplayed()
     composeRule.onNodeWithText(LABEL_SETTLED_BADGE).assertExists()
     composeRule.onNodeWithText(BTN_SETTLE).assertIsDisplayed()
   }

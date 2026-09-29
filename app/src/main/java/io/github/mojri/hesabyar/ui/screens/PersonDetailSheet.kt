@@ -77,11 +77,14 @@ fun PersonDetailSheet(
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
   val loansFlow = remember(personId) { personViewModel.getLoansForPerson(personId) }
   val loans by loansFlow.collectAsState(initial = emptyList())
-  val balances by personViewModel.personBalances.collectAsState()
-  val currentBalance = balances.firstOrNull { it.personId == personId }
+  // Use the unfiltered per-person balance. The search-filtered list would hide
+  // this person when the query does not match their name.
+  val balanceFlow = remember(personId) { personViewModel.getBalanceForPerson(personId) }
+  val currentBalance by balanceFlow.collectAsState(initial = null)
 
   var addLoanType by remember { mutableStateOf<LoanType?>(null) }
   var addLoanError by remember { mutableStateOf<String?>(null) }
+  var settleError by remember { mutableStateOf<String?>(null) }
   var showSettleConfirm by remember { mutableStateOf(false) }
 
   ModalBottomSheet(
@@ -96,7 +99,8 @@ fun PersonDetailSheet(
       personViewModel = personViewModel,
       onAddReceivable = { addLoanType = LoanType.DEBTOR },
       onAddDebt = { addLoanType = LoanType.CREDITOR },
-      onSettleFully = { showSettleConfirm = true }
+      onSettleFully = { showSettleConfirm = true },
+      settleError = settleError
     )
   }
 
@@ -117,7 +121,10 @@ fun PersonDetailSheet(
       addLoanError = null
     },
     onConfirmSettle = {
-      personViewModel.settleFully(personId)
+      settleError = null
+      personViewModel.settleFully(personId) { success ->
+        if (!success) settleError = SETTLE_FAILED_MESSAGE
+      }
       showSettleConfirm = false
     },
     onDismissSettle = { showSettleConfirm = false }
@@ -185,7 +192,8 @@ private fun PersonSheetContent(
   personViewModel: PersonViewModel,
   onAddReceivable: () -> Unit,
   onAddDebt: () -> Unit,
-  onSettleFully: () -> Unit
+  onSettleFully: () -> Unit,
+  settleError: String?,
 ) {
   Column(
     modifier =
@@ -203,6 +211,14 @@ private fun PersonSheetContent(
       onSettleFully = onSettleFully,
       canSettle = loans.any { !it.isSettled }
     )
+
+    if (settleError != null) {
+      Text(
+        text = settleError,
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodySmall
+      )
+    }
 
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -500,3 +516,5 @@ private fun PaymentsSection(payments: List<PaymentHistory>) {
     }
   }
 }
+
+private const val SETTLE_FAILED_MESSAGE = "تسویه برخی از وام‌ها ناموفق بود."

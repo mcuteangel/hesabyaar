@@ -42,7 +42,7 @@ class GetPersonBalancesUseCase {
     }
   }
 
-  private fun fromNative(
+  internal fun fromNative(
     native: List<io.github.mojri.hesabyar.rust.PersonBalanceSummary>,
   ): List<PersonBalanceCalculator.PersonBalance> =
     native.map {

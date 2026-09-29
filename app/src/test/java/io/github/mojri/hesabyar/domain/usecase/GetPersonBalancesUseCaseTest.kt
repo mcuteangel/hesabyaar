@@ -5,6 +5,7 @@ import io.github.mojri.hesabyar.RustIsolationRule
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Person
+import io.github.mojri.hesabyar.rust.PersonBalanceSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -76,6 +77,30 @@ class GetPersonBalancesUseCaseTest {
     } finally {
       HesabyarApp.setRustInitializedForTesting(previous)
     }
+  }
+
+  @Test
+  fun fromNativeMapsEverySummaryField() {
+    val native =
+      PersonBalanceSummary(
+        personId = 7L,
+        personName = NAME_ALI,
+        totalReceivables = 90_000L,
+        totalDebts = 40_000L,
+        netBalance = 50_000L,
+        activeLoanCount = 2,
+        settledLoanCount = 3,
+      )
+
+    val mapped = useCase.fromNative(listOf(native)).single()
+
+    assertEquals("Person ID", 7L, mapped.personId)
+    assertEquals("Person name", NAME_ALI, mapped.personName)
+    assertEquals("Receivables", 90_000L, mapped.totalReceivables)
+    assertEquals("Debts", 40_000L, mapped.totalDebts)
+    assertEquals("Net balance", 50_000L, mapped.netBalance)
+    assertEquals("Active loan count", 2, mapped.activeLoanCount)
+    assertEquals("Settled loan count", 3, mapped.settledLoanCount)
   }
 
   private companion object {

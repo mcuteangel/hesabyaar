@@ -261,10 +261,49 @@ class PersonsScreenTest {
     composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertIsDisplayed()
   }
 
+  @Test
+  fun offsettingLoansYieldZeroNetAndAppearOnlyInAllFilter() {
+    personsFlow.value = listOf(Person(id = 4L, name = NAME_MAHDI, normalizedName = "mahdi"))
+    loansFlow.value =
+      listOf(
+        activeLoan(40L, 4L, NAME_MAHDI, LoanType.DEBTOR, 100_000L),
+        activeLoan(41L, 4L, NAME_MAHDI, LoanType.CREDITOR, 100_000L)
+      )
+
+    composeRule.setContent {
+      PersonsScreen(
+        personViewModel = viewModel,
+        initialDirectionFilter = LoanDirectionFilter.DEBTOR
+      )
+    }
+    settle()
+
+    // Net balance is zero, so neither directional filter may claim the person.
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_MAHDI, LABEL_BALANCED, 0L)).assertDoesNotExist()
+  }
+
+  @Test
+  fun offsettingLoansAppearUnderAllFilter() {
+    personsFlow.value = listOf(Person(id = 4L, name = NAME_MAHDI, normalizedName = "mahdi"))
+    loansFlow.value =
+      listOf(
+        activeLoan(40L, 4L, NAME_MAHDI, LoanType.DEBTOR, 100_000L),
+        activeLoan(41L, 4L, NAME_MAHDI, LoanType.CREDITOR, 100_000L)
+      )
+
+    composeRule.setContent {
+      PersonsScreen(personViewModel = viewModel, initialDirectionFilter = LoanDirectionFilter.ALL)
+    }
+    settle()
+
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_MAHDI, LABEL_BALANCED, 0L)).assertIsDisplayed()
+  }
+
   private companion object {
     const val NAME_ALI = "Ali"
     const val NAME_REZA = "Reza"
     const val NAME_SARA = "Sara"
+    const val NAME_MAHDI = "Mahdi"
     const val LABEL_DEBTOR = "بدهکار"
     const val LABEL_CREDITOR = "طلبکار"
     const val LABEL_BALANCED = "تعادل"

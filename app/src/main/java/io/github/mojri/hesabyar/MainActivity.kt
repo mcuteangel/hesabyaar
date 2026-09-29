@@ -199,21 +199,20 @@ class MainActivity : FragmentActivity() {
           callbacks =
             MainNavCallbacks(
               onTabSelected = { newTab ->
-                if (newTab == "DEBTS" && currentTab != "DEBTS") {
-                  debtsState = debtsState.copy(filter = LoanDirectionFilter.ALL)
-                }
+                // Keep the selected direction filter when the user leaves and
+                // returns to the DEBTS tab. Dashboard cards set it explicitly.
                 currentTab = newTab
               },
-              onNavigateToAssistant = { currentTab = "ASSISTANT" },
+              onNavigateToAssistant = { currentTab = TAB_ASSISTANT },
               onNavigateToCategories = { showCategoryManagement = true },
               onNavigateToAccounts = { showAccountManagement = true },
               onShowDebtors = {
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR)
-                currentTab = "DEBTS"
+                currentTab = TAB_DEBTS
               },
               onShowCreditors = {
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR)
-                currentTab = "DEBTS"
+                currentTab = TAB_DEBTS
               }
             )
         )
@@ -286,7 +285,7 @@ class MainActivity : FragmentActivity() {
     modifier: Modifier
   ) {
     when (currentTab) {
-      "DASHBOARD" ->
+      TAB_DASHBOARD ->
         DashboardScreen(
           dashboardViewModel = dashboardViewModel,
           transactionViewModel = transactionViewModel,
@@ -298,7 +297,7 @@ class MainActivity : FragmentActivity() {
           onShowCreditors = callbacks.onShowCreditors,
           modifier = modifier
         )
-      "ASSISTANT" ->
+      TAB_ASSISTANT ->
         SmartAssistantScreen(
           aiAssistantViewModel = aiAssistantViewModel,
           categoryViewModel = categoryViewModel,
@@ -306,7 +305,7 @@ class MainActivity : FragmentActivity() {
           settingsViewModel = settingsViewModel,
           modifier = modifier
         )
-      "DEBTS" ->
+      TAB_DEBTS ->
         DebtHubScreen(
           initialSection = debtsState.section,
           initialPersonsDirectionFilter = debtsState.filter,
@@ -316,19 +315,19 @@ class MainActivity : FragmentActivity() {
           settingsViewModel = settingsViewModel,
           modifier = modifier
         )
-      "ANALYTICS" ->
+      TAB_ANALYTICS ->
         AnalyticsScreen(
           analyticsViewModel = analyticsViewModel,
           modifier = modifier
         )
-      "REPORTS" ->
+      TAB_REPORTS ->
         ReportsScreen(
           dashboardViewModel = dashboardViewModel,
           transactionViewModel = transactionViewModel,
           aiAssistantViewModel = aiAssistantViewModel,
           modifier = modifier
         )
-      "SETTINGS" ->
+      TAB_SETTINGS ->
         SettingsScreen(
           aiAssistantViewModel = aiAssistantViewModel,
           backupViewModel = backupViewModel,
@@ -357,16 +356,20 @@ class MainActivity : FragmentActivity() {
   }
 }
 
-private fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSection> {
+internal fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSection> {
   val startTab =
     when (openTab) {
-      "LOANS", "INSTALLMENTS", "BANK_LOANS", "DEBTS", "PERSONS" -> "DEBTS"
-      else -> "DASHBOARD"
+      DEEP_LINK_LOANS,
+      DEEP_LINK_INSTALLMENTS,
+      DEEP_LINK_BANK_LOANS,
+      DEEP_LINK_DEBTS,
+      DEEP_LINK_PERSONS -> TAB_DEBTS
+      else -> TAB_DASHBOARD
     }
   val startDebtSection =
     when (openTab) {
-      "LOANS", "PERSONS" -> DebtSection.PERSONS
-      "BANK_LOANS" -> DebtSection.BANK_LOANS
+      DEEP_LINK_LOANS, DEEP_LINK_PERSONS -> DebtSection.PERSONS
+      DEEP_LINK_BANK_LOANS -> DebtSection.BANK_LOANS
       else -> DebtSection.INSTALLMENTS
     }
   return startTab to startDebtSection
@@ -443,10 +446,10 @@ private fun MainBottomNavigation(
     NavigationBarItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
-      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = "بیشتر") },
+      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = MORE_MENU_LABEL) },
       label = {
         Text(
-          "بیشتر",
+          MORE_MENU_LABEL,
           style = MaterialTheme.typography.labelSmall,
           fontWeight = FontWeight.Bold
         )
@@ -495,10 +498,10 @@ private fun MainNavigationRail(
     NavigationRailItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
-      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = "بیشتر") },
+      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = MORE_MENU_LABEL) },
       label = {
         Text(
-          "بیشتر",
+          MORE_MENU_LABEL,
           style = MaterialTheme.typography.labelSmall,
           fontWeight = FontWeight.Bold
         )
@@ -526,12 +529,12 @@ private fun MoreMenuSheet(
     ListItem(
       headlineContent = { Text("تحلیل و آمار") },
       leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect("ANALYTICS") }
+      modifier = Modifier.clickable { onSelect(TAB_ANALYTICS) }
     )
     ListItem(
       headlineContent = { Text("گزارش‌ها") },
       leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect("REPORTS") }
+      modifier = Modifier.clickable { onSelect(TAB_REPORTS) }
     )
     ListItem(
       headlineContent = { Text("مدیریت حساب‌ها") },
@@ -541,7 +544,7 @@ private fun MoreMenuSheet(
     ListItem(
       headlineContent = { Text("تنظیمات") },
       leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect("SETTINGS") }
+      modifier = Modifier.clickable { onSelect(TAB_SETTINGS) }
     )
     Spacer(modifier = Modifier.height(32.dp))
   }
@@ -567,10 +570,24 @@ private data class NavigationTabItem(
   val icon: ImageVector,
 )
 
-private val MORE_MENU_TABS = listOf("ANALYTICS", "REPORTS", "SETTINGS")
+private const val TAB_DASHBOARD = "DASHBOARD"
+private const val TAB_ASSISTANT = "ASSISTANT"
+private const val TAB_DEBTS = "DEBTS"
+private const val TAB_ANALYTICS = "ANALYTICS"
+private const val TAB_REPORTS = "REPORTS"
+private const val TAB_SETTINGS = "SETTINGS"
+private const val MORE_MENU_LABEL = "بیشتر"
+
+private const val DEEP_LINK_LOANS = "LOANS"
+private const val DEEP_LINK_PERSONS = "PERSONS"
+private const val DEEP_LINK_INSTALLMENTS = "INSTALLMENTS"
+private const val DEEP_LINK_BANK_LOANS = "BANK_LOANS"
+private const val DEEP_LINK_DEBTS = TAB_DEBTS
+
+private val MORE_MENU_TABS = listOf(TAB_ANALYTICS, TAB_REPORTS, TAB_SETTINGS)
 private val MAIN_TABS =
   listOf(
-    NavigationTabItem("DASHBOARD", "داشبورد", Icons.Filled.AccountBalanceWallet),
-    NavigationTabItem("ASSISTANT", "دستیار هوشمند", Icons.Filled.AutoAwesome),
-    NavigationTabItem("DEBTS", "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
+    NavigationTabItem(TAB_DASHBOARD, "داشبورد", Icons.Filled.AccountBalanceWallet),
+    NavigationTabItem(TAB_ASSISTANT, "دستیار هوشمند", Icons.Filled.AutoAwesome),
+    NavigationTabItem(TAB_DEBTS, "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
   )

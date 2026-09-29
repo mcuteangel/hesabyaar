@@ -64,6 +64,10 @@ class PersonViewModel
         }
       }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 
+    /** Net balance position for a single person, independent of search filter. */
+    fun getBalanceForPerson(personId: Long): Flow<PersonBalanceCalculator.PersonBalance?> =
+      rawBalances.map { list -> list.firstOrNull { it.personId == personId } }
+
     /** Active loans for a single person in chronological order (oldest first). */
     fun getLoansForPerson(personId: Long): Flow<List<Loan>> =
       repository.allLoans.map { list ->
@@ -132,7 +136,8 @@ class PersonViewModel
           snapshot.forEach { loan ->
             val remaining = loan.remainingAmount
             if (remaining > 0L) {
-              val success = manageLoanUseCase.makeRepayment(loan.id, remaining, "", null)
+              val success =
+                manageLoanUseCase.makeRepayment(loan.id, remaining, SETTLE_REPAYMENT_NOTE, null)
               if (!success) {
                 overallSuccess = false
                 AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
@@ -158,5 +163,6 @@ class PersonViewModel
     private companion object {
       const val TAG = "PersonViewModel"
       const val SUBSCRIBE_TIMEOUT_MS = 5000L
+      const val SETTLE_REPAYMENT_NOTE = "تسویه خودکار"
     }
   }

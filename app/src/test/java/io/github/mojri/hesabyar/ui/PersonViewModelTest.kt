@@ -279,6 +279,44 @@ class PersonViewModelTest {
     }
 
   @Test
+  fun settleFullyAttemptsAllLoansWhenOneRepaymentFails() =
+    runTest(testDispatcher) {
+      val failingLoan =
+        Loan(
+          id = 201L,
+          personId = 6L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 10_000L,
+          remainingAmount = 10_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      val succeedingLoan =
+        Loan(
+          id = 202L,
+          personId = 6L,
+          personName = NAME_SARA,
+          type = LoanType.CREDITOR,
+          originalAmount = 20_000L,
+          remainingAmount = 20_000L,
+          description = "",
+          date = 2000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(failingLoan, succeedingLoan)
+      fakeRepository.failNextRepayment = true
+
+      var succeeded: Boolean? = null
+      viewModel.settleFully(personId = 6L, onResult = { succeeded = it })
+      advanceUntilIdle()
+
+      assertEquals("No short-circuit: both repayments attempted", 2, fakeRepository.makeRepaymentCallCount)
+      assertEquals("Aggregate result reports failure", false, succeeded)
+    }
+
+  @Test
   fun getLoansForPersonFiltersByPersonIdAndSortsChronologically() =
     runTest(testDispatcher) {
       val loanOlder =
@@ -324,6 +362,37 @@ class PersonViewModelTest {
       assertEquals("Only loans for person 10 returned", 2, person10Loans.size)
       assertEquals("Oldest loan first", 1L, person10Loans[0].id)
       assertEquals("Newer loan second", 2L, person10Loans[1].id)
+    }
+
+  @Test
+  fun getBalanceForPersonIgnoresSearchFilter() =
+    runTest(testDispatcher) {
+      fakeRepository.personsFlow.value =
+        listOf(
+          Person(id = 1L, name = NAME_ALI, normalizedName = "ali"),
+          Person(id = 2L, name = NAME_SARA, normalizedName = "sara")
+        )
+      fakeRepository.loansFlow.value =
+        listOf(
+          Loan(
+            id = 1L,
+            personId = 2L,
+            personName = NAME_SARA,
+            type = LoanType.DEBTOR,
+            originalAmount = 70_000L,
+            remainingAmount = 70_000L,
+            description = TEST_LOAN_DESC,
+            date = 100L,
+            isSettled = false
+          )
+        )
+      // A query that matches nobody must not hide the balance lookup.
+      viewModel.setSearchQuery("zzz-no-match")
+
+      val balance = viewModel.getBalanceForPerson(2L).first()
+
+      assertEquals("Balance found despite search filter", 70_000L, balance?.netBalance)
+      assertEquals("Search-filtered list stays empty", 0, viewModel.personBalances.value.size)
     }
 
   private companion object {

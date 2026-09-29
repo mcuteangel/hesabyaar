@@ -23,6 +23,8 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
+private const val DESCRIPTION_MAX_LENGTH = 500
+
 /**
  * Dialog for adding a DEBTOR or CREDITOR loan linked to a person (plans/011 Phase 3).
  *
@@ -110,7 +112,7 @@ private fun AddPersonLoanInputs(
     )
     OutlinedTextField(
       value = description,
-      onValueChange = onDescriptionChange,
+      onValueChange = { onDescriptionChange(it.take(DESCRIPTION_MAX_LENGTH)) },
       label = { Text("توضیحات (اختیاری)") },
       modifier = Modifier.fillMaxWidth()
     )

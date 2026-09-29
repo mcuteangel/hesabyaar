@@ -17,17 +17,18 @@ private fun Char.acceptedDigitOrNull(): Char? =
 
 /**
  * Keeps accepted digits only, in ASCII form. Use in an `onValueChange` filter
- * so the visible text stays parseable.
+ * for positive integer input fields so the visible text stays parseable.
+ * Removes all non-digit characters including minus sign, decimal point, and grouping separators.
  */
 fun String.filterDigits(): String {
-  var hasNonAsciiDigit = false
+  var needsFiltering = false
   for (c in this) {
     if (c !in '0'..'9') {
-      hasNonAsciiDigit = true
+      needsFiltering = true
       break
     }
   }
-  if (!hasNonAsciiDigit) return this
+  if (!needsFiltering) return this
 
   return buildString(length) {
     for (c in this@filterDigits) {
