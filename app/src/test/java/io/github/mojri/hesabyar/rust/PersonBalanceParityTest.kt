@@ -66,6 +66,7 @@ class PersonBalanceParityTest {
     const val NAME_MARYAM = "Maryam"
     const val NAME_BABAK = "Babak"
     const val NAME_SARA = "Sara"
+    const val MSG_COUNT_MATCH = "Result count must match"
   }
 
   private fun createLoan(
@@ -112,7 +113,7 @@ class PersonBalanceParityTest {
     val kotlinResult = PersonBalanceCalculator.compute(persons, loans)
     val nativeResult = RustBridge.computePersonBalancesSync(persons, loans)
 
-    assertEquals("Result count must match", kotlinResult.size, nativeResult.size)
+    assertEquals(MSG_COUNT_MATCH, kotlinResult.size, nativeResult.size)
     assertEquals("Count must be 2", 2, kotlinResult.size)
 
     for (i in kotlinResult.indices) {
@@ -148,7 +149,7 @@ class PersonBalanceParityTest {
     val kotlinResult = PersonBalanceCalculator.compute(persons, loans)
     val nativeResult = RustBridge.computePersonBalancesSync(persons, loans)
 
-    assertEquals("Result count must match", kotlinResult.size, nativeResult.size)
+    assertEquals(MSG_COUNT_MATCH, kotlinResult.size, nativeResult.size)
     assertEquals("Should have 3 persons", 3, kotlinResult.size)
 
     for (i in kotlinResult.indices) {
@@ -182,8 +183,9 @@ class PersonBalanceParityTest {
 
   @Test
   fun shuffledPersonIdsProduceIdenticallyOrderedResults() {
-    // Persons are supplied in descending id order so an index-wise comparison
-    // only passes when both implementations re-sort by person_id ascending.
+    // Persons are supplied shuffled (30, 10, 20). The explicit sorted-id
+    // assertions below verify ascending order on both sides; the index-wise
+    // loop then verifies field parity for that common ordering.
     val persons =
       listOf(
         createPerson(30L, NAME_SARA),
@@ -200,7 +202,7 @@ class PersonBalanceParityTest {
     val kotlinResult = PersonBalanceCalculator.compute(persons, loans)
     val nativeResult = RustBridge.computePersonBalancesSync(persons, loans)
 
-    assertEquals("Result count must match", kotlinResult.size, nativeResult.size)
+    assertEquals(MSG_COUNT_MATCH, kotlinResult.size, nativeResult.size)
     assertEquals("Kotlin result sorted by personId", listOf(10L, 20L, 30L), kotlinResult.map { it.personId })
     assertEquals("Native result sorted by personId", listOf(10L, 20L, 30L), nativeResult.map { it.personId })
 
@@ -223,7 +225,7 @@ class PersonBalanceParityTest {
     val kotlinResult = PersonBalanceCalculator.compute(persons, loans)
     val nativeResult = RustBridge.computePersonBalancesSync(persons, loans)
 
-    assertEquals("Result count must match", kotlinResult.size, nativeResult.size)
+    assertEquals(MSG_COUNT_MATCH, kotlinResult.size, nativeResult.size)
 
     for (i in kotlinResult.indices) {
       assertBalanceParity(kotlinResult[i], nativeResult[i], "saturating index $i")

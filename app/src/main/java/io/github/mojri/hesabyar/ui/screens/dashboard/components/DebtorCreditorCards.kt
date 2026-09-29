@@ -50,22 +50,7 @@ internal fun DebtorCreditorCards(
     maxItemsInEachRow = 2
   ) {
     val debtorModifier =
-      Modifier
-        .weight(1f)
-        .then(
-          if (onDebtorsClick != null) {
-            Modifier
-              .clickable(onClick = onDebtorsClick, role = Role.Button)
-              .semantics {
-                onClick(label = "مشاهده بدهکاران") {
-                  onDebtorsClick()
-                  true
-                }
-              }
-          } else {
-            Modifier
-          }
-        )
+      Modifier.weight(1f).cardAction(onDebtorsClick, "مشاهده بدهکاران")
 
     HesabyarCard(
       modifier = debtorModifier,
@@ -117,22 +102,7 @@ internal fun DebtorCreditorCards(
     }
 
     val creditorModifier =
-      Modifier
-        .weight(1f)
-        .then(
-          if (onCreditorsClick != null) {
-            Modifier
-              .clickable(onClick = onCreditorsClick, role = Role.Button)
-              .semantics {
-                onClick(label = "مشاهده طلبکاران") {
-                  onCreditorsClick()
-                  true
-                }
-              }
-          } else {
-            Modifier
-          }
-        )
+      Modifier.weight(1f).cardAction(onCreditorsClick, "مشاهده طلبکاران")
 
     HesabyarCard(
       modifier = creditorModifier,
@@ -184,3 +154,20 @@ internal fun DebtorCreditorCards(
     }
   }
 }
+
+private fun Modifier.cardAction(
+  onClick: (() -> Unit)?,
+  accessibilityLabel: String,
+): Modifier =
+  if (onClick != null) {
+    this
+      .clickable(onClick = onClick, role = Role.Button)
+      .semantics {
+        onClick(label = accessibilityLabel) {
+          onClick()
+          true
+        }
+      }
+  } else {
+    this
+  }

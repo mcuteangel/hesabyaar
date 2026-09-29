@@ -1,18 +1,20 @@
 package io.github.mojri.hesabyar.domain.usecase
 
-import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.rust.RustBridge
-import kotlinx.coroutines.CancellationException
 
 /**
  * Computes per-person ledger balances (plans/011 Phase 3).
  *
  * Primary path: native Rust [RustBridge.computePersonBalancesSync]. Fallback:
- * [PersonBalanceCalculator.compute] when Rust is unavailable or panics (the
- * FFI wrapper returns an empty list on failure rather than crashing the process).
+ * [PersonBalanceCalculator.compute] when Rust is unavailable or panics.
+ *
+ * The bridge call needs no try/catch here. `rustCallSync` already catches every
+ * exception from the FFI call and the argument mapping, and returns a safe
+ * fallback. It rethrows only cancellation, interruption and VM errors on
+ * purpose, so those must keep propagating.
  *
  * The Kotlin fallback is a pure mirror — see [PersonBalanceCalculator] and
  * [io.github.mojri.hesabyar.rust.PersonBalanceParityTest] for the parity
@@ -23,23 +25,11 @@ class GetPersonBalancesUseCase {
    * Compute balances from in-memory lists. Mirrors the Rust FFI signature so
    * the same call site serves both the native and fallback paths.
    */
-  @Suppress("TooGenericExceptionCaught")
   fun computePersonBalances(
     persons: List<Person>,
     loans: List<Loan>,
   ): List<PersonBalanceCalculator.PersonBalance> {
-    val native =
-      try {
-        RustBridge.computePersonBalancesSync(persons = persons, loans = loans)
-      } catch (e: CancellationException) {
-        // Preserve structured concurrency: a cancelled caller must not run the
-        // fallback calculation.
-        throw e
-      } catch (e: Exception) {
-        // Native call threw an unchecked exception — execute Kotlin fallback directly.
-        AppLogger.e("GetPersonBalancesUseCase", "Native balance calculation failed: ${e.message}", e)
-        return PersonBalanceCalculator.compute(persons, loans)
-      }
+    val native = RustBridge.computePersonBalancesSync(persons = persons, loans = loans)
     // compute_person_balances returns one entry per input person, so a
     // non-empty persons list with an empty native result means the native call
     // failed (panic recovery returns an empty list). Trust native otherwise:
