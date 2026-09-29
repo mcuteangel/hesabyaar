@@ -115,7 +115,10 @@ fun PersonDetailSheet(
       ),
     personViewModel = personViewModel,
     onAddLoanSuccess = { addLoanType = null },
-    onAddLoanFailure = { addLoanError = it },
+    onAddLoanFailure = {
+      // A callback that lands after dismissal must not resurrect stale errors.
+      if (addLoanType != null) addLoanError = it
+    },
     onDismissAddLoan = {
       addLoanType = null
       addLoanError = null
