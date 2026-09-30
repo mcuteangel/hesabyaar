@@ -1,0 +1,29 @@
+progress.md
+  s_79c2773a1818ea::t_0bce32d9ce5e5b 88
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_79c2773a1818ea::t_b81e06b3ccf663 105
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonsScreenTest.kt
+  s_79c2773a1818ea::t_f91b91b4cd83a2 3
+  s_79c2773a1818ea::t_ae03d3e7cfc0f3 320-356
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialogTest.kt
+  s_79c2773a1818ea::t_c5d8c4aad2ceee 128-159
+  s_79c2773a1818ea::t_863b00018bc9e1 3
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/DebtHubTabBarTest.kt
+  s_79c2773a1818ea::t_7e86936af1a969 1-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a5e429d4dd0fb2a9ac12a1ea494513c9450b6d3e",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
