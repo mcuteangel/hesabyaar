@@ -102,7 +102,7 @@ fun DebtHubScreen(
 }
 
 @Composable
-private fun DebtHubTabBar(
+internal fun DebtHubTabBar(
   section: DebtSection,
   onSectionChange: (DebtSection) -> Unit
 ) {

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -314,6 +315,43 @@ class PersonsScreenTest {
 
     composeRule.onNodeWithText("بدهکاران").performClick()
     assertEquals("Selecting DEBTOR chip emits DEBTOR filter", LoanDirectionFilter.DEBTOR, selectedFilter)
+  }
+
+  @Test
+  fun updatingInitialDirectionFilterUpdatesVisibleRows() {
+    setupSampleData()
+    val filterState = mutableStateOf(LoanDirectionFilter.ALL)
+
+    composeRule.setContent {
+      PersonsScreen(
+        personViewModel = viewModel,
+        initialDirectionFilter = filterState.value
+      )
+    }
+    settle()
+
+    // Initially ALL: Ali (debtor), Reza (creditor), Sara (balanced) all visible
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertIsDisplayed()
+
+    // Dashboard card clicked: filter changes to DEBTOR
+    filterState.value = LoanDirectionFilter.DEBTOR
+    settle()
+
+    // Now only Ali is visible
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
+
+    // Dashboard card clicked: filter changes to CREDITOR
+    filterState.value = LoanDirectionFilter.CREDITOR
+    settle()
+
+    // Now only Reza is visible
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
   }
 
   private companion object {

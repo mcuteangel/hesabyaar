@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -124,7 +125,38 @@ class AddPersonLoanDialogTest {
       )
     }
 
-    composeRule.onNodeWithText("خطای آزمایشی").assertIsEnabled()
+    composeRule.onNodeWithText("خطای آزمایشی").assertIsDisplayed()
+  }
+
+  @Test
+  fun confirmButtonDisablesWhileSubmittingAndReEnablesOnError() {
+    val errorMessageState = mutableStateOf<String?>(null)
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = "Ali",
+        errorMessage = errorMessageState.value,
+        onConfirm = { _, _ -> },
+        onDismiss = {}
+      )
+    }
+
+    composeRule
+      .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+      .performTextInput("1000")
+
+    composeRule.onNodeWithText("ثبت").assertIsEnabled()
+    composeRule.onNodeWithText("ثبت").performClick()
+    composeRule.waitForIdle()
+
+    // Button is disabled immediately post-click while submitting
+    composeRule.onNodeWithText("ثبت").assertIsNotEnabled()
+
+    // When an error message arrives, LaunchedEffect(errorMessage) resets isSubmitting
+    errorMessageState.value = "خطای آزمایشی"
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("ثبت").assertIsEnabled()
   }
 
   @Test
