@@ -1,0 +1,36 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheetTest.kt
+  s_79c2773a1818ea::t_f3982906e2f3fb 4-6
+  s_79c2773a1818ea::t_0973e55846da8c 11
+  s_79c2773a1818ea::t_95b7178b5b09cc 117,138,185,230,268,290,312,349
+  s_79c2773a1818ea::t_4d6b7b1f2942fc 310-311,313-348,350-370,386-389
+  s_79c2773a1818ea::t_ff88b25fcdd447 373
+  s_79c2773a1818ea::t_ae24a3007b8788 60,76-78,80-82,98
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialogTest.kt
+  s_79c2773a1818ea::t_4878dcea7a123b 84,88-89,96
+  s_79c2773a1818ea::t_e8630f4fb581d9 145,176,178,182,185,189,199-204
+progress.md
+  s_79c2773a1818ea::t_05e828433a3f11 88
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtSection.kt
+  s_79c2773a1818ea::t_d499f5e430fe78 17-19
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_1dc73fefc46059 158-161,173
+  s_79c2773a1818ea::t_07b033c02a2e32 172
+app/src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt
+  s_79c2773a1818ea::t_708f336a6e36e8 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "01ca976cbab86146f9af9e9c928e53eb8b2cef00",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
