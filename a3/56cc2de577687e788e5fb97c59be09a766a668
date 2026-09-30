@@ -1,0 +1,25 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_cec1fefeb4341c 115-116,133,135-137,145-146,154-157,164
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialogTest.kt
+  s_79c2773a1818ea::t_4e0fd820b181ca 132-133,138,149-150,153,156,159
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_79c2773a1818ea::t_f9278b1986f2ca 41,46
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_a0af367be88996 158,171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a356cc2de577687e788e5fb97c59be09a766a668",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
