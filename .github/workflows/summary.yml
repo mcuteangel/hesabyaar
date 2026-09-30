@@ -76,6 +76,8 @@ jobs:
                   pass
               try:
                   target = email.utils.parsedate_to_datetime(header)
+                  if target.tzinfo is None:
+                      target = target.replace(tzinfo=datetime.timezone.utc)
                   now = datetime.datetime.now(datetime.timezone.utc)
                   return max(0.0, (target - now).total_seconds())
               except Exception:
