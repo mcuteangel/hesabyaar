@@ -14,8 +14,8 @@ enum class DebtSection(
   INSTALLMENTS("INSTALLMENTS", "اقساط", Icons.Filled.CreditCard),
   BANK_LOANS("BANK_LOANS", "وام بانکی", Icons.Filled.AccountBalance),
 
-  // Phase 3: the third tab now hosts the persons ledger. Loan management
-  // remains reachable through the person quick-action flow; this screen is
-  // retained for future deep-link support but no longer has a top-level tab.
+  // Phase 3: the third tab hosts the persons ledger. Individual loans are
+  // viewed and managed per-person via the PersonDetailSheet ledger timeline
+  // and quick-actions (plans/011 Phase 3).
   PERSONS("PERSONS", "اشخاص", Icons.Filled.AccountCircle)
 }

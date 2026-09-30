@@ -81,19 +81,19 @@ class AddPersonLoanDialogTest {
 
     // Type 50,000 in Persian digits: ۵۰۰۰۰
     composeRule
-      .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+      .onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
       .performTextInput("۵۰۰۰۰")
 
     composeRule
-      .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
-      .performTextInput("بابت قرض")
+      .onNode(hasText(LABEL_DESC).and(hasSetTextAction()))
+      .performTextInput(TEST_DESC)
 
     composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
     composeRule.onNodeWithText(BTN_SUBMIT).performClick()
 
     // 50,000 Toman -> 500,000 Rial
     assertEquals("Amount in Rial", 500_000L, confirmedRial)
-    assertEquals("Description passed", "بابت قرض", confirmedDesc)
+    assertEquals("Description passed", TEST_DESC, confirmedDesc)
   }
 
   @Test
@@ -142,7 +142,7 @@ class AddPersonLoanDialogTest {
     }
 
     composeRule
-      .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+      .onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
       .performTextInput(TEST_AMOUNT_1000)
 
     composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
@@ -173,20 +173,20 @@ class AddPersonLoanDialogTest {
       )
     }
 
-    val longText = "a".repeat(550)
+    val longText = CHAR_A.repeat(550)
     composeRule
-      .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+      .onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
       .performTextInput(TEST_AMOUNT_1000)
 
     composeRule
-      .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
+      .onNode(hasText(LABEL_DESC).and(hasSetTextAction()))
       .performTextInput(longText)
 
-    composeRule.onNodeWithText("500/500").assertIsDisplayed()
+    composeRule.onNodeWithText(DESC_COUNTER_500).assertIsDisplayed()
     composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled().performClick()
 
     assertEquals("Description should be capped at 500 characters", 500, confirmedDesc?.length)
-    assertEquals("Description matches first 500 characters", "a".repeat(500), confirmedDesc)
+    assertEquals("Description matches first 500 characters", CHAR_A.repeat(500), confirmedDesc)
   }
 
   private companion object {
@@ -196,5 +196,11 @@ class AddPersonLoanDialogTest {
     const val BTN_CANCEL = "انصراف"
     const val TEST_AMOUNT_1000 = "1000"
     const val TEST_ERROR_MSG = "خطای آزمایشی"
+    const val TEST_DESC = "بابت قرض"
+    const val LABEL_DESC = "توضیحات (اختیاری)"
+    const val DESC_COUNTER_500 = "500/500"
+    const val CHAR_A = "a"
+
+    fun amountInputLabel() = "مبلغ (${CurrencyFormatter.unitLabel})"
   }
 }

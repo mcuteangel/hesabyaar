@@ -155,7 +155,10 @@ class PersonViewModel
       }
     }
 
-    // Structured concurrency: CancellationException is rethrown to preserve job cancellation.
+    // Structured concurrency: cancellation is rethrown untouched.
+    // Per-loan isolation: every other throwable (including Rust FFI Errors such
+    // as UnsatisfiedLinkError) is logged and reported as a failed loan, so the
+    // remaining loans in the batch still settle.
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repayLoanSafely(loan: Loan): Boolean {
       val remaining = loan.remainingAmount
@@ -166,9 +169,8 @@ class PersonViewModel
           AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
         }
         success
-      } catch (e: CancellationException) {
-        throw e
-      } catch (e: Exception) {
+      } catch (e: Throwable) {
+        if (e is CancellationException) throw e
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }

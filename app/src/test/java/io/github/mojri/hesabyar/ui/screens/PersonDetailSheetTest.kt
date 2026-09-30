@@ -1,10 +1,14 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
@@ -53,6 +57,7 @@ class PersonDetailSheetTest {
 
   private val fakeRepository =
     object : FakeRepository() {
+      var failNextInsertLoan = false
       override val allPersons = personsFlow
       override val allLoans = loansFlow
 
@@ -67,6 +72,13 @@ class PersonDetailSheetTest {
       ): Boolean {
         makeRepaymentCalls++
         return true
+      }
+
+      override suspend fun insertLoan(loan: Loan): Long {
+        if (failNextInsertLoan) {
+          throw IllegalStateException("Simulated insert loan failure")
+        }
+        return 1L
       }
     }
 
@@ -83,6 +95,7 @@ class PersonDetailSheetTest {
     previousUnit = CurrencyFormatter.currentUnit
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     makeRepaymentCalls = 0
+    fakeRepository.failNextInsertLoan = false
     paymentsMap.clear()
   }
 
@@ -101,7 +114,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun emptyLoansDisplaysEmptyState() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value = emptyList()
 
     composeRule.setContent {
@@ -122,7 +135,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun loansTimelineDisplaysAmountsAndSettledBadge() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value =
       listOf(
         Loan(
@@ -169,7 +182,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun paymentHistoryDisplaysInTimelineItem() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     val loan =
       Loan(
         id = 10L,
@@ -214,7 +227,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun settleButtonShowsConfirmationDialogAndConfirms() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value =
       listOf(
         Loan(
@@ -252,7 +265,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun addReceivableButtonOpensDialog() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value = emptyList()
 
     composeRule.setContent {
@@ -274,7 +287,7 @@ class PersonDetailSheetTest {
 
   @Test
   fun addDebtButtonOpensDialog() {
-    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = "ali"))
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value = emptyList()
 
     composeRule.setContent {
@@ -294,8 +307,70 @@ class PersonDetailSheetTest {
     composeRule.onNodeWithText(BTN_CANCEL).assertIsDisplayed()
   }
 
+  @Test
+  fun addLoanSubmissionFailureDisplaysErrorAndAllowsRetry() {
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value = emptyList()
+    fakeRepository.failNextInsertLoan = true
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = {}
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText(BTN_ADD_RECEIVABLE).performClick()
+    settle()
+
+    composeRule
+      .onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+      .performTextInput(TEST_AMOUNT_1000)
+
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).performClick()
+    settle()
+
+    composeRule.onNodeWithText(MSG_ADD_LOAN_FAILED).assertIsDisplayed()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
+
+    composeRule.onNodeWithText(BTN_SUBMIT).performClick()
+    settle()
+
+    composeRule.onNodeWithText(MSG_ADD_LOAN_FAILED).assertIsDisplayed()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
+  }
+
+  @Test
+  fun dismissingAddLoanDialogClosesDialogAndClearsState() {
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value = emptyList()
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = {}
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText(BTN_ADD_RECEIVABLE).performClick()
+    settle()
+
+    composeRule.onNodeWithText(BTN_CANCEL).performClick()
+    settle()
+
+    composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
+  }
+
   private companion object {
     const val NAME_ALI = "Ali"
+    const val NORMALIZED_NAME_ALI = "ali"
     const val MSG_NO_LOANS = "هیچ وامی برای این شخص ثبت نشده است."
     const val BTN_ADD_RECEIVABLE = "ثبت طلب"
     const val BTN_ADD_DEBT = "ثبت بدهی"
@@ -308,5 +383,9 @@ class PersonDetailSheetTest {
     const val LABEL_PAYMENTS = "پرداخت‌ها:"
     const val DESC_BUSINESS = "بابت کسب‌وکار"
     const val DESC_GROCERIES = "خرید مایحتاج"
+    const val MSG_ADD_LOAN_FAILED = "ثبت ناموفق بود. دوباره تلاش کنید."
+    const val TEST_AMOUNT_1000 = "1000"
+
+    fun amountInputLabel() = "مبلغ (${CurrencyFormatter.unitLabel})"
   }
 }
