@@ -1,0 +1,26 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_79c2773a1818ea::t_07d5ab2f6c06ae 79,92-95
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_79c2773a1818ea::t_8f0cf6d0fdc7c2 82
+  s_79c2773a1818ea::t_7817b911c445ca 42
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_4258c5d88531c8 216-217
+  s_79c2773a1818ea::t_2d3a2f1c89c664 317-319
+  s_79c2773a1818ea::t_50dd015d2fdfc6 569
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fed548f7356c708f573cca708683f50a709af622",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "deepseek/deepseek-v4.1-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
