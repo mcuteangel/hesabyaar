@@ -1,0 +1,19 @@
+codecov.yml
+  s_3544ceaabcf13f::t_0166a2fcff965b 79-81,88-91,98-99,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2aa2e07bfae453bbedd2c858fcd9898b99cc75fb",
+  "prompts": {},
+  "sessions": {
+    "s_3544ceaabcf13f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccc6cd83-97cd-47b2-8dfa-8f5f275409f0",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
