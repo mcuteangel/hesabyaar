@@ -65,14 +65,6 @@ comment:
   require_changes: false
 
 component_management:
-  default_rules:
-    statuses:
-      - type: project
-        target: auto
-        threshold: 1%
-      - type: patch
-        target: auto
-        threshold: 1%
   individual_components:
     - component_id: rust_core
       name: "Rust Core"
@@ -84,31 +76,34 @@ component_management:
     - component_id: android_domain
       name: "Android Domain & API"
       paths:
-        - app/src/main/java/**/domain/**
-        - app/src/main/java/**/api/**
+        - app/src/main/java/io/github/mojri/hesabyar/domain/**
+        - app/src/main/java/io/github/mojri/hesabyar/api/**
+        - app/src/main/java/io/github/mojri/hesabyar/core/**
       flag_regexes:
         - "^android$"
 
     - component_id: android_data
       name: "Android Data & Storage"
       paths:
-        - app/src/main/java/**/data/**
-        - app/src/main/java/**/auth/**
-        - app/src/main/java/**/di/**
+        - app/src/main/java/io/github/mojri/hesabyar/data/**
+        - app/src/main/java/io/github/mojri/hesabyar/auth/**
+        - app/src/main/java/io/github/mojri/hesabyar/di/**
+        - app/src/main/java/io/github/mojri/hesabyar/reminder/**
       flag_regexes:
         - "^android$"
 
     - component_id: android_ui
       name: "Android UI & Presentation"
       paths:
-        - app/src/main/java/**/ui/**
+        - app/src/main/java/io/github/mojri/hesabyar/ui/**
+        - app/src/main/java/io/github/mojri/hesabyar/*.kt
       flag_regexes:
         - "^android$"
 
     - component_id: android_bridge
       name: "Android Rust Bridge"
       paths:
-        - app/src/main/java/**/rust/**
+        - app/src/main/java/io/github/mojri/hesabyar/rust/**
       flag_regexes:
         - "^android$"
 
