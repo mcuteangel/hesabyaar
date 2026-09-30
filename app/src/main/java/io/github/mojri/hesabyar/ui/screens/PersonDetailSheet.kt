@@ -112,6 +112,8 @@ fun PersonDetailSheet(
 private class PersonSheetState {
   var addLoanType by mutableStateOf<LoanType?>(null)
   var addLoanError by mutableStateOf<String?>(null)
+  var isSubmittingLoan by mutableStateOf(false)
+  var addLoanAttemptId by mutableStateOf(0L)
   var settleError by mutableStateOf<String?>(null)
   var showSettleConfirm by mutableStateOf(false)
 }
@@ -128,7 +130,11 @@ private fun PersonSheetDialogs(
       type = type,
       personName = personName,
       errorMessage = state.addLoanError,
+      isSubmitting = state.isSubmittingLoan,
       onConfirm = { amountRial, description ->
+        val attemptId = ++state.addLoanAttemptId
+        state.isSubmittingLoan = true
+        state.addLoanError = null
         personViewModel.addLoanForPerson(
           personId = personId,
           personName = personName,
@@ -136,7 +142,8 @@ private fun PersonSheetDialogs(
           amount = amountRial,
           description = description
         ) { success ->
-          if (state.addLoanType == type) {
+          if (state.addLoanAttemptId == attemptId && state.addLoanType != null) {
+            state.isSubmittingLoan = false
             if (success) {
               state.addLoanType = null
               state.addLoanError = null
@@ -144,13 +151,17 @@ private fun PersonSheetDialogs(
               state.addLoanError = "ثبت ناموفق بود. دوباره تلاش کنید."
             }
           } else {
-            AppLogger.w("PersonDetailSheet", "Add loan callback after dialog dismissal: success=$success")
+            AppLogger.w(
+              "PersonDetailSheet",
+              "Add loan callback discarded for stale attempt $attemptId (success=$success)"
+            )
           }
         }
       },
       onDismiss = {
         state.addLoanType = null
         state.addLoanError = null
+        state.isSubmittingLoan = false
       }
     )
   }

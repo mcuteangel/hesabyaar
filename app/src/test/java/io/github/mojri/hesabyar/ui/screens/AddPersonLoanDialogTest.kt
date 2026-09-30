@@ -129,13 +129,13 @@ class AddPersonLoanDialogTest {
   }
 
   @Test
-  fun confirmButtonDisablesWhileSubmittingAndReEnablesOnError() {
-    val errorMessageState = mutableStateOf<String?>(null)
+  fun confirmButtonDisablesWhileSubmitting() {
+    val submittingState = mutableStateOf(false)
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
         personName = "Ali",
-        errorMessage = errorMessageState.value,
+        isSubmitting = submittingState.value,
         onConfirm = { _, _ -> },
         onDismiss = {}
       )
@@ -146,16 +146,17 @@ class AddPersonLoanDialogTest {
       .performTextInput("1000")
 
     composeRule.onNodeWithText("ثبت").assertIsEnabled()
-    composeRule.onNodeWithText("ثبت").performClick()
+
+    submittingState.value = true
     composeRule.waitForIdle()
 
-    // Button is disabled immediately post-click while submitting
+    // Button is disabled when isSubmitting is true
     composeRule.onNodeWithText("ثبت").assertIsNotEnabled()
 
-    // When an error message arrives, LaunchedEffect(errorMessage) resets isSubmitting
-    errorMessageState.value = "خطای آزمایشی"
+    submittingState.value = false
     composeRule.waitForIdle()
 
+    // Button is re-enabled when submission completes or fails
     composeRule.onNodeWithText("ثبت").assertIsEnabled()
   }
 

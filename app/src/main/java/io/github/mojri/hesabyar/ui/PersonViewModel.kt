@@ -155,6 +155,7 @@ class PersonViewModel
       }
     }
 
+    // Structured concurrency: CancellationException is rethrown to preserve job cancellation.
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repayLoanSafely(loan: Loan): Boolean {
       val remaining = loan.remainingAmount
@@ -167,7 +168,7 @@ class PersonViewModel
         success
       } catch (e: CancellationException) {
         throw e
-      } catch (e: Throwable) {
+      } catch (e: Exception) {
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }

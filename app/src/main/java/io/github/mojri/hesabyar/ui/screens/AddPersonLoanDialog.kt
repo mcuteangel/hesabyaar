@@ -8,7 +8,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,18 +38,12 @@ internal fun AddPersonLoanDialog(
   onConfirm: (amountRial: Long, description: String) -> Unit,
   onDismiss: () -> Unit,
   errorMessage: String? = null,
+  isSubmitting: Boolean = false,
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
-  var isSubmitting by remember { mutableStateOf(false) }
-  LaunchedEffect(errorMessage) {
-    if (errorMessage != null) {
-      isSubmitting = false
-    }
-  }
-  val currentUnit = remember { CurrencyFormatter.currentUnit }
   val maxAllowedDisplay =
-    if (currentUnit == CurrencyUnit.TOMAN) {
+    if (CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN) {
       Long.MAX_VALUE / 10L
     } else {
       Long.MAX_VALUE
@@ -81,7 +74,6 @@ internal fun AddPersonLoanDialog(
       HesabyarButton(
         onClick = {
           if (isValidAmount && !isSubmitting) {
-            isSubmitting = true
             onConfirm(CurrencyFormatter.toRial(parsedAmount), description)
           }
         },
