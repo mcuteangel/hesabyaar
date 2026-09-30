@@ -1,0 +1,19 @@
+.github/workflows/summary.yml
+  s_3544ceaabcf13f::t_1656d8334b47f7 64,67-69,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bec732049e73fdbcc7bc756b77beba7f6455ce6f",
+  "prompts": {},
+  "sessions": {
+    "s_3544ceaabcf13f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccc6cd83-97cd-47b2-8dfa-8f5f275409f0",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
