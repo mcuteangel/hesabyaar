@@ -39,6 +39,7 @@ fun DebtHubScreen(
   bankLoanViewModel: BankLoanViewModel,
   personViewModel: PersonViewModel,
   settingsViewModel: SettingsViewModel,
+  onSectionChange: (DebtSection) -> Unit = {},
   onPersonsDirectionFilterChange: (LoanDirectionFilter) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
@@ -53,6 +54,7 @@ fun DebtHubScreen(
       section = section,
       onSectionChange = { newSection ->
         section = newSection
+        onSectionChange(newSection)
         // The detail sheet belongs to the persons tab only — drop it when the
         // user switches away so it cannot overlay unrelated content.
         if (newSection != DebtSection.PERSONS) selectedPerson = null

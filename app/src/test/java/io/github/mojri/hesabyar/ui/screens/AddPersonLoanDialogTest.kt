@@ -125,4 +125,33 @@ class AddPersonLoanDialogTest {
 
     composeRule.onNodeWithText("خطای آزمایشی").assertIsEnabled()
   }
+
+  @Test
+  fun descriptionInputIsCappedAt500Characters() {
+    var confirmedDesc: String? = null
+
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = "Ali",
+        onConfirm = { _, desc -> confirmedDesc = desc },
+        onDismiss = {}
+      )
+    }
+
+    val longText = "a".repeat(550)
+    composeRule
+      .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+      .performTextInput("1000")
+
+    composeRule
+      .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
+      .performTextInput(longText)
+
+    composeRule.onNodeWithText("500/500").assertIsEnabled()
+    composeRule.onNodeWithText("ثبت").performClick()
+
+    assertEquals("Description should be capped at 500 characters", 500, confirmedDesc?.length)
+    assertEquals("Description matches first 500 characters", "a".repeat(500), confirmedDesc)
+  }
 }

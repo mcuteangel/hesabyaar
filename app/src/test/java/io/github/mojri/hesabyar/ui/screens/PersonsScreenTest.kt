@@ -299,6 +299,23 @@ class PersonsScreenTest {
     composeRule.onNodeWithContentDescription(rowDescription(NAME_MAHDI, LABEL_BALANCED, 0L)).assertIsDisplayed()
   }
 
+  @Test
+  fun selectingFilterChipInvokesDirectionFilterChangeCallback() {
+    setupSampleData()
+    var selectedFilter: LoanDirectionFilter? = null
+
+    composeRule.setContent {
+      PersonsScreen(
+        personViewModel = viewModel,
+        onDirectionFilterChange = { selectedFilter = it }
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText("بدهکاران").performClick()
+    assertEquals("Selecting DEBTOR chip emits DEBTOR filter", LoanDirectionFilter.DEBTOR, selectedFilter)
+  }
+
   private companion object {
     const val NAME_ALI = "Ali"
     const val NAME_REZA = "Reza"

@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
@@ -84,7 +85,7 @@ fun PersonDetailSheet(
 
   var addLoanType by remember { mutableStateOf<LoanType?>(null) }
   var addLoanError by remember { mutableStateOf<String?>(null) }
-  var settleError by remember { mutableStateOf<String?>(null) }
+  var settleError by remember(personId) { mutableStateOf<String?>(null) }
   var showSettleConfirm by remember { mutableStateOf(false) }
 
   ModalBottomSheet(
@@ -117,7 +118,11 @@ fun PersonDetailSheet(
     onAddLoanSuccess = { addLoanType = null },
     onAddLoanFailure = {
       // A callback that lands after dismissal must not resurrect stale errors.
-      if (addLoanType != null) addLoanError = it
+      if (addLoanType != null) {
+        addLoanError = it
+      } else {
+        AppLogger.w("PersonDetailSheet", "Add loan callback after dialog dismissal: $it")
+      }
     },
     onDismissAddLoan = {
       addLoanType = null

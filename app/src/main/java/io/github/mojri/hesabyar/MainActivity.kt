@@ -306,19 +306,7 @@ class MainActivity : FragmentActivity() {
           settingsViewModel = settingsViewModel,
           modifier = modifier
         )
-      TAB_DEBTS ->
-        DebtHubScreen(
-          initialSection = debtsState.section,
-          initialPersonsDirectionFilter = debtsState.filter,
-          installmentViewModel = installmentViewModel,
-          bankLoanViewModel = bankLoanViewModel,
-          personViewModel = personViewModel,
-          settingsViewModel = settingsViewModel,
-          onPersonsDirectionFilterChange = {
-            callbacks.onDebtsStateChange(debtsState.copy(filter = it))
-          },
-          modifier = modifier
-        )
+      TAB_DEBTS -> DebtsTabContent(debtsState, callbacks, modifier)
       TAB_ANALYTICS ->
         AnalyticsScreen(
           analyticsViewModel = analyticsViewModel,
@@ -341,6 +329,29 @@ class MainActivity : FragmentActivity() {
           modifier = modifier
         )
     }
+  }
+
+  @Composable
+  private fun DebtsTabContent(
+    debtsState: DebtsTabState,
+    callbacks: MainNavCallbacks,
+    modifier: Modifier
+  ) {
+    DebtHubScreen(
+      initialSection = debtsState.section,
+      initialPersonsDirectionFilter = debtsState.filter,
+      installmentViewModel = installmentViewModel,
+      bankLoanViewModel = bankLoanViewModel,
+      personViewModel = personViewModel,
+      settingsViewModel = settingsViewModel,
+      onSectionChange = {
+        callbacks.onDebtsStateChange(debtsState.copy(section = it))
+      },
+      onPersonsDirectionFilterChange = {
+        callbacks.onDebtsStateChange(debtsState.copy(section = DebtSection.PERSONS, filter = it))
+      },
+      modifier = modifier
+    )
   }
 
   override fun onUserInteraction() {
@@ -554,7 +565,7 @@ private fun MoreMenuSheet(
   }
 }
 
-private data class DebtsTabState(
+internal data class DebtsTabState(
   val section: DebtSection,
   val filter: LoanDirectionFilter,
 )
@@ -575,19 +586,19 @@ private data class NavigationTabItem(
   val icon: ImageVector,
 )
 
-private const val TAB_DASHBOARD = "DASHBOARD"
-private const val TAB_ASSISTANT = "ASSISTANT"
-private const val TAB_DEBTS = "DEBTS"
-private const val TAB_ANALYTICS = "ANALYTICS"
-private const val TAB_REPORTS = "REPORTS"
-private const val TAB_SETTINGS = "SETTINGS"
-private const val MORE_MENU_LABEL = "بیشتر"
+internal const val TAB_DASHBOARD = "DASHBOARD"
+internal const val TAB_ASSISTANT = "ASSISTANT"
+internal const val TAB_DEBTS = "DEBTS"
+internal const val TAB_ANALYTICS = "ANALYTICS"
+internal const val TAB_REPORTS = "REPORTS"
+internal const val TAB_SETTINGS = "SETTINGS"
+internal const val MORE_MENU_LABEL = "بیشتر"
 
-private const val DEEP_LINK_LOANS = "LOANS"
-private const val DEEP_LINK_PERSONS = "PERSONS"
-private const val DEEP_LINK_INSTALLMENTS = "INSTALLMENTS"
-private const val DEEP_LINK_BANK_LOANS = "BANK_LOANS"
-private const val DEEP_LINK_DEBTS = TAB_DEBTS
+internal const val DEEP_LINK_LOANS = "LOANS"
+internal const val DEEP_LINK_PERSONS = "PERSONS"
+internal const val DEEP_LINK_INSTALLMENTS = "INSTALLMENTS"
+internal const val DEEP_LINK_BANK_LOANS = "BANK_LOANS"
+internal const val DEEP_LINK_DEBTS = TAB_DEBTS
 
 private val MORE_MENU_TABS = listOf(TAB_ANALYTICS, TAB_REPORTS, TAB_SETTINGS)
 private val MAIN_TABS =

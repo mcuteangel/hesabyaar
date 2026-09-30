@@ -41,6 +41,10 @@ internal fun AddPersonLoanDialog(
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
+  var isSubmitting by remember { mutableStateOf(false) }
+  if (errorMessage != null && isSubmitting) {
+    isSubmitting = false
+  }
   val maxAllowedDisplay =
     if (CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN) {
       Long.MAX_VALUE / 10L
@@ -72,11 +76,12 @@ internal fun AddPersonLoanDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
-          if (isValidAmount) {
+          if (isValidAmount && !isSubmitting) {
+            isSubmitting = true
             onConfirm(CurrencyFormatter.toRial(parsedAmount), description)
           }
         },
-        enabled = isValidAmount,
+        enabled = isValidAmount && !isSubmitting,
         text = "ثبت"
       )
     },
@@ -114,6 +119,12 @@ private fun AddPersonLoanInputs(
       value = description,
       onValueChange = { onDescriptionChange(it.take(DESCRIPTION_MAX_LENGTH)) },
       label = { Text("توضیحات (اختیاری)") },
+      supportingText = {
+        Text(
+          text = "${description.length}/$DESCRIPTION_MAX_LENGTH",
+          style = MaterialTheme.typography.labelSmall
+        )
+      },
       modifier = Modifier.fillMaxWidth()
     )
     if (errorMessage != null) {

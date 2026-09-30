@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -43,8 +44,8 @@ class PersonViewModel
     /** Raw computed balances from persons and loans, isolated from search keystrokes. */
     private val rawBalances: Flow<List<PersonBalanceCalculator.PersonBalance>> =
       combine(
-        repository.allPersons,
-        repository.allLoans
+        repository.allPersons.distinctUntilChanged(),
+        repository.allLoans.distinctUntilChanged()
       ) { persons, loans ->
         getPersonBalancesUseCase.computePersonBalances(persons, loans)
       }

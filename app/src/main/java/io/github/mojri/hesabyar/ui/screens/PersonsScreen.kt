@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,9 +82,13 @@ fun PersonsScreen(
 ) {
   // Single source of truth for the search text: the ViewModel StateFlow.
   val query by personViewModel.searchQuery.collectAsState()
-  // Keyed on initialDirectionFilter so a dashboard Debtor/Creditor card press
-  // re-applies its filter, while in-screen chip taps stay the local state.
-  var directionFilter by remember(initialDirectionFilter) { mutableStateOf(initialDirectionFilter) }
+  // Keep local state for the active direction filter. External updates (e.g. from
+  // dashboard cards) synchronize via LaunchedEffect, preventing re-keying from
+  // resetting local state when chip taps propagate upward to MainActivity.
+  var directionFilter by remember { mutableStateOf(initialDirectionFilter) }
+  LaunchedEffect(initialDirectionFilter) {
+    directionFilter = initialDirectionFilter
+  }
   PersonListContent(
     personViewModel = personViewModel,
     searchQuery = query,
