@@ -53,13 +53,13 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
-        personName = "Ali",
+        personName = NAME_ALI,
         onConfirm = { _, _ -> },
         onDismiss = {}
       )
     }
 
-    composeRule.onNodeWithText("ثبت").assertIsNotEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
   }
 
   @Test
@@ -70,7 +70,7 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
-        personName = "Ali",
+        personName = NAME_ALI,
         onConfirm = { amount, desc ->
           confirmedRial = amount
           confirmedDesc = desc
@@ -88,8 +88,8 @@ class AddPersonLoanDialogTest {
       .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
       .performTextInput("بابت قرض")
 
-    composeRule.onNodeWithText("ثبت").assertIsEnabled()
-    composeRule.onNodeWithText("ثبت").performClick()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).performClick()
 
     // 50,000 Toman -> 500,000 Rial
     assertEquals("Amount in Rial", 500_000L, confirmedRial)
@@ -103,13 +103,13 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.CREDITOR,
-        personName = "Reza",
+        personName = NAME_REZA,
         onConfirm = { _, _ -> },
         onDismiss = { dismissed = true }
       )
     }
 
-    composeRule.onNodeWithText("انصراف").performClick()
+    composeRule.onNodeWithText(BTN_CANCEL).performClick()
     assertTrue("Dismiss must be called", dismissed)
   }
 
@@ -118,14 +118,14 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
-        personName = "Ali",
-        errorMessage = "خطای آزمایشی",
+        personName = NAME_ALI,
+        errorMessage = TEST_ERROR_MSG,
         onConfirm = { _, _ -> },
         onDismiss = {}
       )
     }
 
-    composeRule.onNodeWithText("خطای آزمایشی").assertIsDisplayed()
+    composeRule.onNodeWithText(TEST_ERROR_MSG).assertIsDisplayed()
   }
 
   @Test
@@ -134,7 +134,7 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
-        personName = "Ali",
+        personName = NAME_ALI,
         isSubmitting = submittingState.value,
         onConfirm = { _, _ -> },
         onDismiss = {}
@@ -143,21 +143,21 @@ class AddPersonLoanDialogTest {
 
     composeRule
       .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
-      .performTextInput("1000")
+      .performTextInput(TEST_AMOUNT_1000)
 
-    composeRule.onNodeWithText("ثبت").assertIsEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
 
     submittingState.value = true
     composeRule.waitForIdle()
 
     // Button is disabled when isSubmitting is true
-    composeRule.onNodeWithText("ثبت").assertIsNotEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
 
     submittingState.value = false
     composeRule.waitForIdle()
 
     // Button is re-enabled when submission completes or fails
-    composeRule.onNodeWithText("ثبت").assertIsEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
   }
 
   @Test
@@ -167,7 +167,7 @@ class AddPersonLoanDialogTest {
     composeRule.setContent {
       AddPersonLoanDialog(
         type = LoanType.DEBTOR,
-        personName = "Ali",
+        personName = NAME_ALI,
         onConfirm = { _, desc -> confirmedDesc = desc },
         onDismiss = {}
       )
@@ -176,16 +176,25 @@ class AddPersonLoanDialogTest {
     val longText = "a".repeat(550)
     composeRule
       .onNode(hasText("مبلغ (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
-      .performTextInput("1000")
+      .performTextInput(TEST_AMOUNT_1000)
 
     composeRule
       .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
       .performTextInput(longText)
 
     composeRule.onNodeWithText("500/500").assertIsDisplayed()
-    composeRule.onNodeWithText("ثبت").assertIsEnabled().performClick()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled().performClick()
 
     assertEquals("Description should be capped at 500 characters", 500, confirmedDesc?.length)
     assertEquals("Description matches first 500 characters", "a".repeat(500), confirmedDesc)
+  }
+
+  private companion object {
+    const val NAME_ALI = "Ali"
+    const val NAME_REZA = "Reza"
+    const val BTN_SUBMIT = "ثبت"
+    const val BTN_CANCEL = "انصراف"
+    const val TEST_AMOUNT_1000 = "1000"
+    const val TEST_ERROR_MSG = "خطای آزمایشی"
   }
 }

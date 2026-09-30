@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -27,9 +28,9 @@ class DebtHubTabBarTest {
       )
     }
 
-    composeRule.onNodeWithText("اقساط").assertIsDisplayed()
-    composeRule.onNodeWithText("وام بانکی").assertIsDisplayed()
-    composeRule.onNodeWithText("اشخاص").assertIsDisplayed()
+    composeRule.onNodeWithText(TAB_INSTALLMENTS).assertIsDisplayed()
+    composeRule.onNodeWithText(TAB_BANK_LOANS).assertIsDisplayed()
+    composeRule.onNodeWithText(TAB_PERSONS).assertIsDisplayed()
   }
 
   @Test
@@ -43,7 +44,7 @@ class DebtHubTabBarTest {
       )
     }
 
-    composeRule.onNodeWithText("وام بانکی").performClick()
+    composeRule.onNodeWithText(TAB_BANK_LOANS).performClick()
     assertEquals("Selected section should be BANK_LOANS", DebtSection.BANK_LOANS, selectedSection)
   }
 
@@ -58,7 +59,7 @@ class DebtHubTabBarTest {
       )
     }
 
-    composeRule.onNodeWithText("اشخاص").performClick()
+    composeRule.onNodeWithText(TAB_PERSONS).performClick()
     assertEquals("Selected section should be PERSONS", DebtSection.PERSONS, selectedSection)
   }
 
@@ -73,7 +74,7 @@ class DebtHubTabBarTest {
       )
     }
 
-    composeRule.onNodeWithText("اقساط").performClick()
+    composeRule.onNodeWithText(TAB_INSTALLMENTS).performClick()
     assertEquals("Selected section should be INSTALLMENTS", DebtSection.INSTALLMENTS, selectedSection)
   }
 
@@ -88,8 +89,15 @@ class DebtHubTabBarTest {
       )
     }
 
-    composeRule.onNodeWithText("اشخاص").performClick()
+    composeRule.onNodeWithText(TAB_PERSONS).performClick()
     composeRule.waitForIdle()
     assertEquals("Active section is updated to PERSONS", DebtSection.PERSONS, sectionState.value)
+    composeRule.onNodeWithText(TAB_PERSONS).assertIsSelected()
+  }
+
+  private companion object {
+    const val TAB_INSTALLMENTS = "اقساط"
+    const val TAB_BANK_LOANS = "وام بانکی"
+    const val TAB_PERSONS = "اشخاص"
   }
 }

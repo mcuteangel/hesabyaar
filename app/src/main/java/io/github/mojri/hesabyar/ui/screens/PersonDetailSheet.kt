@@ -142,7 +142,7 @@ private fun PersonSheetDialogs(
           amount = amountRial,
           description = description
         ) { success ->
-          if (state.addLoanAttemptId == attemptId && state.addLoanType != null) {
+          if (state.addLoanAttemptId == attemptId && state.addLoanType == type) {
             state.isSubmittingLoan = false
             if (success) {
               state.addLoanType = null
