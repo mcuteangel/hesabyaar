@@ -82,11 +82,7 @@ fun PersonDetailSheet(
   // this person when the query does not match their name.
   val balanceFlow = remember(personId) { personViewModel.getBalanceForPerson(personId) }
   val currentBalance by balanceFlow.collectAsState(initial = null)
-
-  var addLoanType by remember { mutableStateOf<LoanType?>(null) }
-  var addLoanError by remember { mutableStateOf<String?>(null) }
-  var settleError by remember(personId) { mutableStateOf<String?>(null) }
-  var showSettleConfirm by remember { mutableStateOf(false) }
+  val dialogState = remember(personId) { PersonSheetState() }
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
@@ -98,96 +94,80 @@ fun PersonDetailSheet(
       balance = currentBalance,
       loans = loans,
       personViewModel = personViewModel,
-      onAddReceivable = { addLoanType = LoanType.DEBTOR },
-      onAddDebt = { addLoanType = LoanType.CREDITOR },
-      onSettleFully = { showSettleConfirm = true },
-      settleError = settleError
+      onAddReceivable = { dialogState.addLoanType = LoanType.DEBTOR },
+      onAddDebt = { dialogState.addLoanType = LoanType.CREDITOR },
+      onSettleFully = { dialogState.showSettleConfirm = true },
+      settleError = dialogState.settleError
     )
   }
 
   PersonSheetDialogs(
-    dialogState =
-      PersonDialogState(
-        personId = personId,
-        personName = personName,
-        addLoanType = addLoanType,
-        addLoanError = addLoanError,
-        showSettleConfirm = showSettleConfirm
-      ),
-    personViewModel = personViewModel,
-    onAddLoanSuccess = { addLoanType = null },
-    onAddLoanFailure = {
-      // A callback that lands after dismissal must not resurrect stale errors.
-      if (addLoanType != null) {
-        addLoanError = it
-      } else {
-        AppLogger.w("PersonDetailSheet", "Add loan callback after dialog dismissal: $it")
-      }
-    },
-    onDismissAddLoan = {
-      addLoanType = null
-      addLoanError = null
-    },
-    onConfirmSettle = {
-      settleError = null
-      personViewModel.settleFully(personId) { success ->
-        if (!success) settleError = SETTLE_FAILED_MESSAGE
-      }
-      showSettleConfirm = false
-    },
-    onDismissSettle = { showSettleConfirm = false }
+    personId = personId,
+    personName = personName,
+    state = dialogState,
+    personViewModel = personViewModel
   )
 }
 
-private data class PersonDialogState(
-  val personId: Long,
-  val personName: String,
-  val addLoanType: LoanType?,
-  val addLoanError: String?,
-  val showSettleConfirm: Boolean,
-)
+private class PersonSheetState {
+  var addLoanType by mutableStateOf<LoanType?>(null)
+  var addLoanError by mutableStateOf<String?>(null)
+  var settleError by mutableStateOf<String?>(null)
+  var showSettleConfirm by mutableStateOf(false)
+}
 
 @Composable
 private fun PersonSheetDialogs(
-  dialogState: PersonDialogState,
-  personViewModel: PersonViewModel,
-  onAddLoanSuccess: () -> Unit,
-  onAddLoanFailure: (String) -> Unit,
-  onDismissAddLoan: () -> Unit,
-  onConfirmSettle: () -> Unit,
-  onDismissSettle: () -> Unit,
+  personId: Long,
+  personName: String,
+  state: PersonSheetState,
+  personViewModel: PersonViewModel
 ) {
-  dialogState.addLoanType?.let { type ->
+  state.addLoanType?.let { type ->
     AddPersonLoanDialog(
       type = type,
-      personName = dialogState.personName,
-      errorMessage = dialogState.addLoanError,
+      personName = personName,
+      errorMessage = state.addLoanError,
       onConfirm = { amountRial, description ->
         personViewModel.addLoanForPerson(
-          personId = dialogState.personId,
-          personName = dialogState.personName,
+          personId = personId,
+          personName = personName,
           type = type,
           amount = amountRial,
           description = description
         ) { success ->
-          if (success) {
-            onAddLoanSuccess()
+          if (state.addLoanType == type) {
+            if (success) {
+              state.addLoanType = null
+              state.addLoanError = null
+            } else {
+              state.addLoanError = "ثبت ناموفق بود. دوباره تلاش کنید."
+            }
           } else {
-            onAddLoanFailure("ثبت ناموفق بود. دوباره تلاش کنید.")
+            AppLogger.w("PersonDetailSheet", "Add loan callback after dialog dismissal: success=$success")
           }
         }
       },
-      onDismiss = onDismissAddLoan
+      onDismiss = {
+        state.addLoanType = null
+        state.addLoanError = null
+      }
     )
   }
 
-  if (dialogState.showSettleConfirm) {
+  if (state.showSettleConfirm) {
     ConfirmDialog(
       title = "تسویه کامل",
-      message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های ${dialogState.personName} اطمینان دارید؟",
+      message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های $personName اطمینان دارید؟",
       confirmText = "تسویه کن",
-      onConfirm = onConfirmSettle,
-      onDismiss = onDismissSettle
+      onConfirm = {
+        state.settleError = null
+        personViewModel.settleFully(personId) { success ->
+          if (!success) state.settleError = SETTLE_FAILED_MESSAGE
+        }
+        state.showSettleConfirm = false
+      },
+      onDismiss = { state.showSettleConfirm = false }
     )
   }
 }

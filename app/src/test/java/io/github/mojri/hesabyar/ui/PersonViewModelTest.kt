@@ -44,6 +44,7 @@ class PersonViewModelTest {
     var makeRepaymentCallCount = 0
     var failNextInsert = false
     var failNextRepayment = false
+    var throwNextRepayment = false
 
     override val allPersons = personsFlow
     override val allLoans = loansFlow
@@ -64,6 +65,10 @@ class PersonViewModelTest {
       customDate: Long?
     ): Boolean {
       makeRepaymentCallCount++
+      if (throwNextRepayment) {
+        throwNextRepayment = false
+        throw IllegalStateException("Repayment threw")
+      }
       if (failNextRepayment) {
         failNextRepayment = false
         return false
@@ -313,6 +318,44 @@ class PersonViewModelTest {
       advanceUntilIdle()
 
       assertEquals("No short-circuit: both repayments attempted", 2, fakeRepository.makeRepaymentCallCount)
+      assertEquals("Aggregate result reports failure", false, succeeded)
+    }
+
+  @Test
+  fun settleFullyContinuesWhenOneRepaymentThrows() =
+    runTest(testDispatcher) {
+      val throwingLoan =
+        Loan(
+          id = 301L,
+          personId = 7L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 10_000L,
+          remainingAmount = 10_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      val succeedingLoan =
+        Loan(
+          id = 302L,
+          personId = 7L,
+          personName = NAME_SARA,
+          type = LoanType.CREDITOR,
+          originalAmount = 20_000L,
+          remainingAmount = 20_000L,
+          description = "",
+          date = 2000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(throwingLoan, succeedingLoan)
+      fakeRepository.throwNextRepayment = true
+
+      var succeeded: Boolean? = null
+      viewModel.settleFully(personId = 7L, onResult = { succeeded = it })
+      advanceUntilIdle()
+
+      assertEquals("Both repayments attempted despite first throwing", 2, fakeRepository.makeRepaymentCallCount)
       assertEquals("Aggregate result reports failure", false, succeeded)
     }
 

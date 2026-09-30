@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,11 +43,14 @@ internal fun AddPersonLoanDialog(
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
   var isSubmitting by remember { mutableStateOf(false) }
-  if (errorMessage != null && isSubmitting) {
-    isSubmitting = false
+  LaunchedEffect(errorMessage) {
+    if (errorMessage != null) {
+      isSubmitting = false
+    }
   }
+  val currentUnit = remember { CurrencyFormatter.currentUnit }
   val maxAllowedDisplay =
-    if (CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN) {
+    if (currentUnit == CurrencyUnit.TOMAN) {
       Long.MAX_VALUE / 10L
     } else {
       Long.MAX_VALUE

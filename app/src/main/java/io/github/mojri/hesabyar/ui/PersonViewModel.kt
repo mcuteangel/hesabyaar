@@ -135,14 +135,8 @@ class PersonViewModel
               it.personId == personId && !it.isSettled
             }
           snapshot.forEach { loan ->
-            val remaining = loan.remainingAmount
-            if (remaining > 0L) {
-              val success =
-                manageLoanUseCase.makeRepayment(loan.id, remaining, SETTLE_REPAYMENT_NOTE, null)
-              if (!success) {
-                overallSuccess = false
-                AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
-              }
+            if (!repayLoanSafely(loan)) {
+              overallSuccess = false
             }
           }
         } catch (e: CancellationException) {
@@ -158,6 +152,24 @@ class PersonViewModel
         } catch (e: Throwable) {
           AppLogger.e(TAG, "settleFully onResult callback threw", e)
         }
+      }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun repayLoanSafely(loan: Loan): Boolean {
+      val remaining = loan.remainingAmount
+      if (remaining <= 0L) return true
+      return try {
+        val success = manageLoanUseCase.makeRepayment(loan.id, remaining, SETTLE_REPAYMENT_NOTE, null)
+        if (!success) {
+          AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
+        }
+        success
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Throwable) {
+        AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
+        false
       }
     }
 

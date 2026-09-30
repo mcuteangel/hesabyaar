@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
@@ -148,8 +149,8 @@ class AddPersonLoanDialogTest {
       .onNode(hasText("توضیحات (اختیاری)").and(hasSetTextAction()))
       .performTextInput(longText)
 
-    composeRule.onNodeWithText("500/500").assertIsEnabled()
-    composeRule.onNodeWithText("ثبت").performClick()
+    composeRule.onNodeWithText("500/500").assertIsDisplayed()
+    composeRule.onNodeWithText("ثبت").assertIsEnabled().performClick()
 
     assertEquals("Description should be capped at 500 characters", 500, confirmedDesc?.length)
     assertEquals("Description matches first 500 characters", "a".repeat(500), confirmedDesc)
