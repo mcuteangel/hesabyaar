@@ -39,6 +39,7 @@ fun DebtHubScreen(
   bankLoanViewModel: BankLoanViewModel,
   personViewModel: PersonViewModel,
   settingsViewModel: SettingsViewModel,
+  onPersonsDirectionFilterChange: (LoanDirectionFilter) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   // Keyed on initialSection: an external change (dashboard Debtor/Creditor
@@ -78,6 +79,7 @@ fun DebtHubScreen(
           PersonsScreen(
             personViewModel = personViewModel,
             initialDirectionFilter = initialPersonsDirectionFilter,
+            onDirectionFilterChange = onPersonsDirectionFilterChange,
             onPersonClick = { personId, personName ->
               selectedPerson = personId to personName
             },

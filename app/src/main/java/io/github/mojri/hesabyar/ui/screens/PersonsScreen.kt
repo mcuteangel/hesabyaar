@@ -76,6 +76,7 @@ fun PersonsScreen(
   personViewModel: PersonViewModel,
   modifier: Modifier = Modifier,
   initialDirectionFilter: LoanDirectionFilter = LoanDirectionFilter.ALL,
+  onDirectionFilterChange: (LoanDirectionFilter) -> Unit = {},
   onPersonClick: (personId: Long, personName: String) -> Unit = { _, _ -> },
 ) {
   // Single source of truth for the search text: the ViewModel StateFlow.
@@ -88,7 +89,10 @@ fun PersonsScreen(
     searchQuery = query,
     directionFilter = directionFilter,
     onSearchChange = { personViewModel.setSearchQuery(it) },
-    onDirectionFilterChange = { directionFilter = it },
+    onDirectionFilterChange = {
+      directionFilter = it
+      onDirectionFilterChange(it)
+    },
     onPersonClick = onPersonClick,
     modifier = modifier.fillMaxSize(),
   )

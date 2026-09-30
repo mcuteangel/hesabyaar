@@ -213,7 +213,8 @@ class MainActivity : FragmentActivity() {
               onShowCreditors = {
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR)
                 currentTab = TAB_DEBTS
-              }
+              },
+              onDebtsStateChange = { debtsState = it }
             )
         )
       }
@@ -313,6 +314,9 @@ class MainActivity : FragmentActivity() {
           bankLoanViewModel = bankLoanViewModel,
           personViewModel = personViewModel,
           settingsViewModel = settingsViewModel,
+          onPersonsDirectionFilterChange = {
+            callbacks.onDebtsStateChange(debtsState.copy(filter = it))
+          },
           modifier = modifier
         )
       TAB_ANALYTICS ->
@@ -562,6 +566,7 @@ private data class MainNavCallbacks(
   val onNavigateToAccounts: () -> Unit,
   val onShowDebtors: () -> Unit,
   val onShowCreditors: () -> Unit,
+  val onDebtsStateChange: (DebtsTabState) -> Unit,
 )
 
 private data class NavigationTabItem(
