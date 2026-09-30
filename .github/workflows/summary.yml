@@ -26,6 +26,9 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           python3 - <<'PYEOF'
+          import datetime
+          import email.utils
+          import http.client
           import json
           import os
           import random
@@ -63,17 +66,30 @@ jobs:
           MAX_BACKOFF = 60
           MAX_SERVER_BACKOFF = 300
 
+          def parse_retry_after(header):
+              # RFC 9110 allows delay-seconds or an HTTP-date form.
+              if not header:
+                  return None
+              try:
+                  return float(header)
+              except (ValueError, TypeError):
+                  pass
+              try:
+                  target = email.utils.parsedate_to_datetime(header)
+                  now = datetime.datetime.now(datetime.timezone.utc)
+                  return max(0.0, (target - now).total_seconds())
+              except Exception:
+                  return None
+
           def compute_backoff(attempt, retry_after=None):
-              # Equal jitter spreads concurrent retries. A numeric server hint
-              # wins over the jittered delay, capped separately so a huge
+              # Equal jitter spreads concurrent retries. A server hint wins
+              # over the jittered delay, capped separately so a huge
               # Retry-After cannot stall the job past its budget.
               base = 2 ** attempt
               delay = base / 2 + random.uniform(0, base / 2)
-              if retry_after:
-                  try:
-                      return min(max(delay, float(retry_after)), MAX_SERVER_BACKOFF)
-                  except ValueError:
-                      pass
+              hint = parse_retry_after(retry_after)
+              if hint is not None:
+                  return min(max(delay, hint), MAX_SERVER_BACKOFF)
               return min(delay, MAX_BACKOFF)
 
           data = None
@@ -93,9 +109,10 @@ jobs:
                   print(f"Gemini API HTTP {e.code} (attempt {attempt}/{MAX_ATTEMPTS}); "
                         f"retrying in {backoff:.0f}s: {err_body[:200]}", file=sys.stderr)
                   time.sleep(backoff)
-              except OSError as e:
+              except (OSError, http.client.HTTPException) as e:
                   # Network-level failures only (URLError, TimeoutError,
-                  # ConnectionError). JSON/decode errors propagate immediately.
+                  # ConnectionError, truncated-response IncompleteRead).
+                  # JSON/decode errors propagate immediately.
                   if attempt == MAX_ATTEMPTS:
                       print(f"Network error calling Gemini API: {e}", file=sys.stderr)
                       raise
