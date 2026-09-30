@@ -61,15 +61,17 @@ jobs:
           TRANSIENT_STATUS = {429, 500, 502, 503, 504}
           MAX_ATTEMPTS = 5
           MAX_BACKOFF = 60
+          MAX_SERVER_BACKOFF = 300
 
           def compute_backoff(attempt, retry_after=None):
-              # Equal jitter spreads concurrent retries; the server hint wins
-              # when it asks for a longer wait.
+              # Equal jitter spreads concurrent retries. A numeric server hint
+              # wins over the jittered delay, capped separately so a huge
+              # Retry-After cannot stall the job past its budget.
               base = 2 ** attempt
               delay = base / 2 + random.uniform(0, base / 2)
               if retry_after:
                   try:
-                      delay = max(delay, float(retry_after))
+                      return min(max(delay, float(retry_after)), MAX_SERVER_BACKOFF)
                   except ValueError:
                       pass
               return min(delay, MAX_BACKOFF)
