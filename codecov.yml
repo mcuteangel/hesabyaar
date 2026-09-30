@@ -60,6 +60,62 @@ ignore:
   - "rust/uniffi-gen/**"
 
 comment:
-  layout: "reach,diff,flags,files"
+  layout: "reach,diff,flags,components,files"
   behavior: default
   require_changes: false
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+      - type: patch
+        target: auto
+        threshold: 1%
+  individual_components:
+    - component_id: rust_core
+      name: "Rust Core"
+      paths:
+        - rust/hesabyar-core/**
+      flag_regexes:
+        - "^rust$"
+
+    - component_id: android_domain
+      name: "Android Domain & API"
+      paths:
+        - app/src/main/java/**/domain/**
+        - app/src/main/java/**/api/**
+      flag_regexes:
+        - "^android$"
+
+    - component_id: android_data
+      name: "Android Data & Storage"
+      paths:
+        - app/src/main/java/**/data/**
+        - app/src/main/java/**/auth/**
+        - app/src/main/java/**/di/**
+      flag_regexes:
+        - "^android$"
+
+    - component_id: android_ui
+      name: "Android UI & Presentation"
+      paths:
+        - app/src/main/java/**/ui/**
+      flag_regexes:
+        - "^android$"
+
+    - component_id: android_bridge
+      name: "Android Rust Bridge"
+      paths:
+        - app/src/main/java/**/rust/**
+      flag_regexes:
+        - "^android$"
+
+    - component_id: scripts
+      name: "Scripts & Automation"
+      paths:
+        - scripts/**
+        - .github/scripts/**
+      flag_regexes:
+        - "^scripts$"
