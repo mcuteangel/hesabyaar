@@ -74,7 +74,7 @@ component_management:
         - "^rust$"
 
     - component_id: android_domain
-      name: "Android Domain & API"
+      name: "Android Domain, API & Core"
       paths:
         - app/src/main/java/io/github/mojri/hesabyar/domain/**
         - app/src/main/java/io/github/mojri/hesabyar/api/**
@@ -93,10 +93,11 @@ component_management:
         - "^android$"
 
     - component_id: android_ui
-      name: "Android UI & Presentation"
+      name: "Android UI & App"
       paths:
         - app/src/main/java/io/github/mojri/hesabyar/ui/**
-        - app/src/main/java/io/github/mojri/hesabyar/*.kt
+        - app/src/main/java/io/github/mojri/hesabyar/HesabyarApp.kt
+        - app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
       flag_regexes:
         - "^android$"
 
