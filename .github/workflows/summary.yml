@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Summarize issue with Gemini
         id: inference
@@ -26,6 +28,7 @@ jobs:
           python3 - <<'PYEOF'
           import json
           import os
+          import random
           import re
           import secrets
           import sys
@@ -57,6 +60,20 @@ jobs:
           )
           TRANSIENT_STATUS = {429, 500, 502, 503, 504}
           MAX_ATTEMPTS = 5
+          MAX_BACKOFF = 60
+
+          def compute_backoff(attempt, retry_after=None):
+              # Equal jitter spreads concurrent retries; the server hint wins
+              # when it asks for a longer wait.
+              base = 2 ** attempt
+              delay = base / 2 + random.uniform(0, base / 2)
+              if retry_after:
+                  try:
+                      delay = max(delay, float(retry_after))
+                  except ValueError:
+                      pass
+              return min(delay, MAX_BACKOFF)
+
           data = None
           for attempt in range(1, MAX_ATTEMPTS + 1):
               try:
@@ -69,17 +86,20 @@ jobs:
                   if not transient or attempt == MAX_ATTEMPTS:
                       print(f"Gemini API HTTP {e.code}: {err_body}", file=sys.stderr)
                       raise
-                  backoff = 2 ** attempt
+                  retry_after = e.headers.get("Retry-After") if e.headers else None
+                  backoff = compute_backoff(attempt, retry_after)
                   print(f"Gemini API HTTP {e.code} (attempt {attempt}/{MAX_ATTEMPTS}); "
-                        f"retrying in {backoff}s: {err_body[:200]}", file=sys.stderr)
+                        f"retrying in {backoff:.0f}s: {err_body[:200]}", file=sys.stderr)
                   time.sleep(backoff)
-              except Exception as e:
+              except OSError as e:
+                  # Network-level failures only (URLError, TimeoutError,
+                  # ConnectionError). JSON/decode errors propagate immediately.
                   if attempt == MAX_ATTEMPTS:
                       print(f"Network error calling Gemini API: {e}", file=sys.stderr)
                       raise
-                  backoff = 2 ** attempt
+                  backoff = compute_backoff(attempt)
                   print(f"Network error calling Gemini API (attempt {attempt}/{MAX_ATTEMPTS}); "
-                        f"retrying in {backoff}s: {e}", file=sys.stderr)
+                        f"retrying in {backoff:.0f}s: {e}", file=sys.stderr)
                   time.sleep(backoff)
 
           summary = next(
