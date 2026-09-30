@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Summarize issue with Gemini
         id: inference
@@ -24,11 +26,16 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           python3 - <<'PYEOF'
+          import datetime
+          import email.utils
+          import http.client
           import json
           import os
+          import random
           import re
           import secrets
           import sys
+          import time
           import urllib.error
           import urllib.request
 
@@ -54,16 +61,67 @@ jobs:
                   "x-goog-api-key": os.environ["GEMINI_API_KEY"],
               },
           )
-          try:
-              with urllib.request.urlopen(req, timeout=60) as resp:
-                  data = json.load(resp)
-          except urllib.error.HTTPError as e:
-              err_body = e.read().decode("utf-8", errors="replace")
-              print(f"Gemini API HTTP {e.code}: {err_body}", file=sys.stderr)
-              raise
-          except Exception as e:
-              print(f"Network error calling Gemini API: {e}", file=sys.stderr)
-              raise
+          TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+          MAX_ATTEMPTS = 5
+          MAX_BACKOFF = 60
+          MAX_SERVER_BACKOFF = 300
+
+          def parse_retry_after(header):
+              # RFC 9110 allows delay-seconds or an HTTP-date form.
+              if not header:
+                  return None
+              try:
+                  return float(header)
+              except (ValueError, TypeError):
+                  pass
+              try:
+                  target = email.utils.parsedate_to_datetime(header)
+                  if target.tzinfo is None:
+                      target = target.replace(tzinfo=datetime.timezone.utc)
+                  now = datetime.datetime.now(datetime.timezone.utc)
+                  return max(0.0, (target - now).total_seconds())
+              except Exception:
+                  return None
+
+          def compute_backoff(attempt, retry_after=None):
+              # Equal jitter spreads concurrent retries. A server hint wins
+              # over the jittered delay, capped separately so a huge
+              # Retry-After cannot stall the job past its budget.
+              base = 2 ** attempt
+              delay = base / 2 + random.uniform(0, base / 2)
+              hint = parse_retry_after(retry_after)
+              if hint is not None:
+                  return min(max(delay, hint), MAX_SERVER_BACKOFF)
+              return min(delay, MAX_BACKOFF)
+
+          data = None
+          for attempt in range(1, MAX_ATTEMPTS + 1):
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as resp:
+                      data = json.load(resp)
+                  break
+              except urllib.error.HTTPError as e:
+                  err_body = e.read().decode("utf-8", errors="replace")
+                  transient = e.code in TRANSIENT_STATUS
+                  if not transient or attempt == MAX_ATTEMPTS:
+                      print(f"Gemini API HTTP {e.code}: {err_body}", file=sys.stderr)
+                      raise
+                  retry_after = e.headers.get("Retry-After") if e.headers else None
+                  backoff = compute_backoff(attempt, retry_after)
+                  print(f"Gemini API HTTP {e.code} (attempt {attempt}/{MAX_ATTEMPTS}); "
+                        f"retrying in {backoff:.0f}s: {err_body[:200]}", file=sys.stderr)
+                  time.sleep(backoff)
+              except (OSError, http.client.HTTPException) as e:
+                  # Network-level failures only (URLError, TimeoutError,
+                  # ConnectionError, truncated-response IncompleteRead).
+                  # JSON/decode errors propagate immediately.
+                  if attempt == MAX_ATTEMPTS:
+                      print(f"Network error calling Gemini API: {e}", file=sys.stderr)
+                      raise
+                  backoff = compute_backoff(attempt)
+                  print(f"Network error calling Gemini API (attempt {attempt}/{MAX_ATTEMPTS}); "
+                        f"retrying in {backoff:.0f}s: {e}", file=sys.stderr)
+                  time.sleep(backoff)
 
           summary = next(
               (
