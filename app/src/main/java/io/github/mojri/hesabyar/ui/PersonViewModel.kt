@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -150,37 +151,54 @@ class PersonViewModel
       personId: Long,
       onResult: ((Boolean) -> Unit)? = null,
     ) {
+      if (!viewModelScope.isActive) {
+        AppLogger.w(TAG, "settleFully called when viewModelScope is not active")
+        return
+      }
       if (!tryAcquireSettleLock(personId)) {
         AppLogger.w(TAG, "settleFully already in flight for person $personId, ignoring duplicate")
         return
       }
-      viewModelScope.launch {
-        var overallSuccess = true
-        try {
-          val snapshot =
-            (repository.allLoans.firstOrNull() ?: emptyList()).filter {
-              it.personId == personId && !it.isSettled
+      try {
+        viewModelScope.launch {
+          var overallSuccess = true
+          try {
+            val snapshot =
+              (repository.allLoans.firstOrNull() ?: emptyList()).filter {
+                it.personId == personId && !it.isSettled
+              }
+            snapshot.forEach { loan ->
+              if (!repayLoanSafely(loan)) {
+                overallSuccess = false
+              }
             }
-          snapshot.forEach { loan ->
-            if (!repayLoanSafely(loan)) {
-              overallSuccess = false
-            }
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Throwable) {
+            AppLogger.e(TAG, "settleFully failed", e)
+            overallSuccess = false
+          } finally {
+            releaseSettleLock(personId)
           }
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Throwable) {
-          AppLogger.e(TAG, "settleFully failed", e)
-          overallSuccess = false
-        } finally {
-          releaseSettleLock(personId)
+          dispatchSettleResult(onResult, overallSuccess)
         }
-        try {
-          onResult?.invoke(overallSuccess)
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Throwable) {
-          AppLogger.e(TAG, "settleFully onResult callback threw", e)
-        }
+      } catch (e: Throwable) {
+        releaseSettleLock(personId)
+        throw e
+      }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun dispatchSettleResult(
+      onResult: ((Boolean) -> Unit)?,
+      success: Boolean
+    ) {
+      try {
+        onResult?.invoke(success)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Throwable) {
+        AppLogger.e(TAG, "settleFully onResult callback threw", e)
       }
     }
 

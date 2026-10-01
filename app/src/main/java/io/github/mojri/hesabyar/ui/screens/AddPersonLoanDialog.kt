@@ -53,7 +53,7 @@ internal fun AddPersonLoanDialog(
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
 
   AlertDialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!isSubmitting) onDismiss() },
     title = {
       Text(
         text = "ثبت $typeLabel $personName",
@@ -84,6 +84,7 @@ internal fun AddPersonLoanDialog(
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
+        enabled = !isSubmitting,
         text = "انصراف",
         variant = ButtonVariant.Text
       )

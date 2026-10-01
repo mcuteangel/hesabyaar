@@ -10,7 +10,6 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.resolveInitialNavigation
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -40,15 +39,21 @@ class NotificationHelperTest {
       loanType = LoanType.DEBTOR
     )
 
-    val notification = shadowNotificationManager.allNotifications.firstOrNull()
-    assertNotNull("Loan reminder notification must be posted", notification)
+    val notification =
+      requireNotNull(shadowNotificationManager.allNotifications.firstOrNull()) {
+        "Loan reminder notification must be posted"
+      }
 
-    val pendingIntent = notification?.contentIntent
-    assertNotNull("Content intent must be set", pendingIntent)
+    val pendingIntent =
+      requireNotNull(notification.contentIntent) {
+        "Content intent must be set"
+      }
 
     val shadowPendingIntent = Shadows.shadowOf(pendingIntent)
-    val savedIntent = shadowPendingIntent.savedIntent
-    assertNotNull("Saved intent must be extractable from PendingIntent", savedIntent)
+    val savedIntent =
+      requireNotNull(shadowPendingIntent.savedIntent) {
+        "Saved intent must be extractable from PendingIntent"
+      }
 
     val openTabExtra = savedIntent.getStringExtra(OPEN_TAB_EXTRA)
     assertEquals("Intent must carry DEEP_LINK_PERSONS", DEEP_LINK_PERSONS, openTabExtra)

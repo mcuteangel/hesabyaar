@@ -61,6 +61,7 @@ class PersonDetailSheetTest {
     object : FakeRepository() {
       var failNextInsertLoan = false
       var failNextRepayment = false
+      var delayInsertLoan: kotlinx.coroutines.CompletableDeferred<Unit>? = null
       var delayRepayment: kotlinx.coroutines.CompletableDeferred<Unit>? = null
       override val allPersons = personsFlow
       override val allLoans = loansFlow
@@ -84,6 +85,7 @@ class PersonDetailSheetTest {
       }
 
       override suspend fun insertLoan(loan: Loan): Long {
+        delayInsertLoan?.await()
         if (failNextInsertLoan) {
           throw IllegalStateException("Simulated insert loan failure")
         }
@@ -470,6 +472,47 @@ class PersonDetailSheetTest {
     composeRule.onNodeWithText(BTN_CANCEL).performClick()
     settle()
 
+    composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
+  }
+
+  @Test
+  fun addLoanDialogKeepsDismissDisabledWhileSubmitting() {
+    val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+    fakeRepository.delayInsertLoan = gate
+
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value = emptyList()
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = {}
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText(BTN_ADD_RECEIVABLE).performClick()
+    settle()
+
+    composeRule
+      .onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+      .performTextInput(TEST_AMOUNT_1000)
+
+    composeRule.onNodeWithText(BTN_SUBMIT).performClick()
+    testDispatcher.scheduler.runCurrent()
+    composeRule.waitForIdle()
+
+    // While the write is suspended at the gate, the dialog must not be
+    // dismissable, so the pending operation stays visible and tracked.
+    composeRule.onNodeWithText(BTN_CANCEL).assertIsNotEnabled()
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    gate.complete(Unit)
+    settle()
+
+    // Once the write completes the dialog closes and no text remains.
     composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
   }
 

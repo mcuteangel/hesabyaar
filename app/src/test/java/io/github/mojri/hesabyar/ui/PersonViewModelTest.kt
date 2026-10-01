@@ -329,6 +329,38 @@ class PersonViewModelTest {
     }
 
   @Test
+  fun settleFullyAllowsSubsequentBatchAfterFirstCompletes() =
+    runTest(testDispatcher) {
+      val loan =
+        Loan(
+          id = 101L,
+          personId = 8L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 30_000L,
+          remainingAmount = 15_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(loan)
+
+      var firstResult: Boolean? = null
+      viewModel.settleFully(personId = 8L, onResult = { firstResult = it })
+      advanceUntilIdle()
+
+      assertEquals("First settlement succeeded", true, firstResult)
+      assertEquals("First batch attempted repayment", 1, fakeRepository.makeRepaymentCallCount)
+
+      var secondResult: Boolean? = null
+      viewModel.settleFully(personId = 8L, onResult = { secondResult = it })
+      advanceUntilIdle()
+
+      assertEquals("Second settlement succeeded after lock release", true, secondResult)
+      assertEquals("Second batch also attempted repayment", 2, fakeRepository.makeRepaymentCallCount)
+    }
+
+  @Test
   fun settleFullyReportsFailureWhenRepaymentFails() =
     runTest(testDispatcher) {
       val loan =
