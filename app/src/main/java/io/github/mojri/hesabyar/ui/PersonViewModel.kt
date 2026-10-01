@@ -40,6 +40,11 @@ class PersonViewModel
       _searchQuery.value = query
     }
 
+    private val _settlingPersonIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    /** Person ids with a settle batch in flight, so the UI can disable the action. */
+    val settlingPersonIds: StateFlow<Set<Long>> = _settlingPersonIds.asStateFlow()
+
     /** Raw computed balances from persons and loans, isolated from search keystrokes. */
     private val rawBalances: Flow<List<PersonBalanceCalculator.PersonBalance>> =
       combine(
@@ -125,6 +130,12 @@ class PersonViewModel
       personId: Long,
       onResult: ((Boolean) -> Unit)? = null,
     ) {
+      if (personId in _settlingPersonIds.value) {
+        AppLogger.w(TAG, "settleFully already in flight for person $personId, skipping duplicate")
+        onResult?.invoke(false)
+        return
+      }
+      _settlingPersonIds.value = _settlingPersonIds.value + personId
       viewModelScope.launch {
         var overallSuccess = true
         try {
@@ -142,6 +153,8 @@ class PersonViewModel
         } catch (e: Throwable) {
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
+        } finally {
+          _settlingPersonIds.value = _settlingPersonIds.value - personId
         }
         try {
           onResult?.invoke(overallSuccess)

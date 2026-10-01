@@ -201,15 +201,18 @@ class MainActivity : FragmentActivity() {
               onTabSelected = { newTab ->
                 // Keep the selected direction filter when the user leaves and
                 // returns to the DEBTS tab. Dashboard cards set it explicitly.
+                // Entering DEBTS from another tab starts a fresh search: the
+                // query is Activity-scoped and would otherwise keep narrowing
+                // the persons list on every later entry.
+                if (newTab == TAB_DEBTS && currentTab != TAB_DEBTS) {
+                  personViewModel.setSearchQuery("")
+                }
                 currentTab = newTab
               },
               onNavigateToAssistant = { currentTab = TAB_ASSISTANT },
               onNavigateToCategories = { showCategoryManagement = true },
               onNavigateToAccounts = { showAccountManagement = true },
               onShowDebtors = {
-                // Clear any search left over from a previous visits to the
-                // persons list. The ViewModel is Activity-scoped, so the query
-                // outlives PersonsScreen and would silently narrow the list.
                 personViewModel.setSearchQuery("")
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR)
                 currentTab = TAB_DEBTS

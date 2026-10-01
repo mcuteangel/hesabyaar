@@ -71,6 +71,9 @@ fun PersonDetailSheet(
   val balanceFlow = remember(personId) { personViewModel.getBalanceForPerson(personId) }
   val currentBalance by balanceFlow.collectAsState(initial = null)
   val dialogState = remember(personId) { PersonSheetState() }
+  // The in-flight guard lives in the ViewModel so it survives sheet dismissal.
+  val settlingIds by personViewModel.settlingPersonIds.collectAsState()
+  val isSettling = personId in settlingIds
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
@@ -86,7 +89,7 @@ fun PersonDetailSheet(
       onAddDebt = { dialogState.addLoanType = LoanType.CREDITOR },
       onSettleFully = { dialogState.showSettleConfirm = true },
       settleError = dialogState.settleError,
-      isSettling = dialogState.isSettling
+      isSettling = isSettling
     )
   }
 
@@ -94,7 +97,8 @@ fun PersonDetailSheet(
     personId = personId,
     personName = personName,
     state = dialogState,
-    personViewModel = personViewModel
+    personViewModel = personViewModel,
+    isSettling = isSettling
   )
 }
 
@@ -105,7 +109,6 @@ private class PersonSheetState {
   var addLoanAttemptId by mutableStateOf(0L)
   var settleError by mutableStateOf<String?>(null)
   var showSettleConfirm by mutableStateOf(false)
-  var isSettling by mutableStateOf(false)
 }
 
 @Composable
@@ -113,7 +116,8 @@ private fun PersonSheetDialogs(
   personId: Long,
   personName: String,
   state: PersonSheetState,
-  personViewModel: PersonViewModel
+  personViewModel: PersonViewModel,
+  isSettling: Boolean
 ) {
   state.addLoanType?.let { type ->
     AddPersonLoanDialog(
@@ -163,7 +167,8 @@ private fun PersonSheetDialogs(
     personId = personId,
     personName = personName,
     state = state,
-    personViewModel = personViewModel
+    personViewModel = personViewModel,
+    isSettling = isSettling
   )
 }
 
@@ -172,7 +177,8 @@ private fun SettleConfirmDialog(
   personId: Long,
   personName: String,
   state: PersonSheetState,
-  personViewModel: PersonViewModel
+  personViewModel: PersonViewModel,
+  isSettling: Boolean
 ) {
   if (state.showSettleConfirm) {
     ConfirmDialog(
@@ -180,14 +186,11 @@ private fun SettleConfirmDialog(
       message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های $personName اطمینان دارید؟",
       confirmText = "تسویه کن",
       onConfirm = {
-        // Guard against a second batch while the first is still running.
-        // Both batches snapshot the loans independently, so overlapping runs
-        // would race on stale remaining amounts and report a false failure.
-        if (!state.isSettling) {
-          state.isSettling = true
+        // The ViewModel rejects a second batch for the same person, so a
+        // duplicate confirm cannot race the first one on stale amounts.
+        if (!isSettling) {
           state.settleError = null
           personViewModel.settleFully(personId) { success ->
-            state.isSettling = false
             if (!success) state.settleError = SETTLE_FAILED_MESSAGE
           }
         }
@@ -224,7 +227,8 @@ private fun PersonSheetContent(
       onAddReceivable = onAddReceivable,
       onAddDebt = onAddDebt,
       onSettleFully = onSettleFully,
-      canSettle = !isSettling && loans.any { !it.isSettled }
+      hasSettleableLoans = loans.any { !it.isSettled },
+      isSettling = isSettling
     )
 
     if (settleError != null) {
@@ -315,7 +319,8 @@ private fun PersonQuickActions(
   onAddReceivable: () -> Unit,
   onAddDebt: () -> Unit,
   onSettleFully: () -> Unit,
-  canSettle: Boolean
+  hasSettleableLoans: Boolean,
+  isSettling: Boolean
 ) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
@@ -335,13 +340,17 @@ private fun PersonQuickActions(
       icon = Icons.Filled.ArrowCircleUp,
       modifier = Modifier.weight(1f)
     )
-    if (canSettle) {
+    if (hasSettleableLoans) {
+      // Keep the button composed during a batch and show progress instead of
+      // dropping it, so the layout stays stable and the user gets feedback.
       HesabyarButton(
         onClick = onSettleFully,
         text = "تسویه",
         icon = Icons.Filled.CheckCircle,
         variant = ButtonVariant.Outlined,
-        modifier = Modifier.weight(1f)
+        modifier = Modifier.weight(1f),
+        enabled = !isSettling,
+        loading = isSettling
       )
     }
   }

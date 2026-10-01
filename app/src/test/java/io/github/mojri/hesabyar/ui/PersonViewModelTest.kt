@@ -258,6 +258,36 @@ class PersonViewModelTest {
     }
 
   @Test
+  fun settleFullyRejectsDuplicateWhileBatchInFlight() =
+    runTest(testDispatcher) {
+      val loan =
+        Loan(
+          id = 102L,
+          personId = 6L,
+          personName = NAME_ALI,
+          type = LoanType.CREDITOR,
+          originalAmount = 40_000L,
+          remainingAmount = 40_000L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(loan)
+
+      var firstResult: Boolean? = null
+      var secondResult: Boolean? = null
+      viewModel.settleFully(personId = 6L, onResult = { firstResult = it })
+      viewModel.settleFully(personId = 6L, onResult = { secondResult = it })
+
+      assertEquals("Duplicate rejected synchronously", false, secondResult)
+
+      advanceUntilIdle()
+
+      assertEquals("First batch reports success", true, firstResult)
+      assertEquals("Only one repayment attempted", 1, fakeRepository.makeRepaymentCallCount)
+    }
+
+  @Test
   fun settleFullyReportsFailureWhenRepaymentFails() =
     runTest(testDispatcher) {
       val loan =
