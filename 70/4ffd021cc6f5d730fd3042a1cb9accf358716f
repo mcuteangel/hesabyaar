@@ -1,0 +1,42 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_3cc876b41c6a97 355-356
+  s_79c2773a1818ea::t_77d41babeb6bbf 343,346-347
+app/src/test/java/io/github/mojri/hesabyar/reminder/NotificationHelperTest.kt
+  s_79c2773a1818ea::t_6874b39c964106 1-69
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheetTest.kt
+  s_79c2773a1818ea::t_48860050cd2563 270-316
+  s_79c2773a1818ea::t_fc1c1fb8d576a8 5
+  s_79c2773a1818ea::t_4a6e4d550cd915 62,75
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_73e50ec1a4830b 314-316
+  s_79c2773a1818ea::t_e5951a2619c448 120-150
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarButton.kt
+  s_79c2773a1818ea::t_02fc04c66f0bff 89,91-94
+  s_79c2773a1818ea::t_74533a5d9426b1 19-20
+  s_79c2773a1818ea::t_2151c47c4794e0 98-101
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_088232aaa1ac18 134-138
+progress.md
+  s_79c2773a1818ea::t_c986cd16c82896 88
+app/src/test/java/io/github/mojri/hesabyar/MainActivityNavigationTest.kt
+  s_79c2773a1818ea::t_d17b5efd9f2b5e 60-123
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_b2398b074fa70a 200-204,207
+  s_79c2773a1818ea::t_48c06cb1df12e2 563,573-605
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "704ffd021cc6f5d730fd3042a1cb9accf358716f",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
