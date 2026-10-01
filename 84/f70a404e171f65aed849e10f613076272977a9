@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_f1d9b3fcf6add5 172-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "84f70a404e171f65aed849e10f613076272977a9",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
