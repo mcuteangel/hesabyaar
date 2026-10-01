@@ -1,0 +1,48 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarButton.kt
+  s_79c2773a1818ea::t_a1b78183df432a 115
+  s_79c2773a1818ea::t_c7554509026404 111-113
+  s_79c2773a1818ea::t_6566fd8c11305f 43-45,52,61,70,77-101
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_2297627579c429 131-133,137-140,142-143,145-150
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheetTest.kt
+  s_79c2773a1818ea::t_1fd7cf650cd3a8 9
+  s_79c2773a1818ea::t_97a5799d2ae6d4 316-319,325-364,367-368
+  s_79c2773a1818ea::t_042a69768db72f 365
+  s_79c2773a1818ea::t_65c93501137862 483
+  s_79c2773a1818ea::t_4821f1781dd6f4 493
+  s_79c2773a1818ea::t_bef525265f1e41 313-314
+  s_79c2773a1818ea::t_ba5e657571a95c 63,79-82
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_3c812162497afa 142-146
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarCard.kt
+  s_79c2773a1818ea::t_20656ff6213d84 14,16,33,36,38,45-50,54,66
+  s_79c2773a1818ea::t_784bbce7af49b8 32,51-53,55-65,67-75
+  s_79c2773a1818ea::t_2fd6bd7d83c5a1 13,15,37,39-44
+app/src/test/java/io/github/mojri/hesabyar/MainActivityNavigationTest.kt
+  s_79c2773a1818ea::t_4660a6e440cb68 67-68,75,89-90,97,111-112,119
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_a0f02c4e416bd5 196-202,207-208,211-214
+  s_79c2773a1818ea::t_14faa5462f148a 580-586,591-592,610
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarButtonTest.kt
+  s_79c2773a1818ea::t_2db56587621566 23,38
+  s_79c2773a1818ea::t_b6d1d2b4ca520f 27,29,33-34,42,47-56
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCards.kt
+  s_79c2773a1818ea::t_e3012579b60e4a 100,102-103
+  s_79c2773a1818ea::t_65062ed03e49fc 49,51-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b299bd587fb4a5f7cb005a2bb59a8f20670b783a",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
