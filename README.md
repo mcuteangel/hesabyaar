@@ -106,7 +106,7 @@
 | **شبکه** | OkHttp + Retrofit |
 | **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
 | **تست** | Robolectric, Roborazzi |
-| **بنچمارک** | CodSpeed, JMH, **Criterion (Rust)** |
+| **بنچمارک** | CodSpeed, **Criterion (Rust)** |
 | **بایندینگ بومی (Native)** | **UniFFI** (Kotlin ↔ Rust) |
 | **رمزنگاری** | AES-256-GCM (Rust `aes-gcm`) |
 
@@ -317,13 +317,7 @@ cargo bench
 
 ## 📈 بنچمارک
 
-پروژه از بنچمارک‌های عملکردی با استفاده از **CodSpeed، JMH (JVM)** و **Criterion (Rust)** استفاده می‌کند. بنچمارک‌های JVM در build مستقل `benchmarks/` و بنچمارک‌های Rust در `rust/hesabyar-core/benches/` قرار دارند.
-
-### اجرای بنچمارک‌های JVM
-```bash
-cd benchmarks
-./gradlew jmh --no-daemon
-```
+پروژه از بنچمارک‌های عملکردی با استفاده از **CodSpeed** و **Criterion (Rust)** استفاده می‌کند. بنچمارک‌های Rust در `rust/hesabyar-core/benches/` قرار دارند.
 
 ### اجرای بنچمارک‌های Rust
 ```bash
