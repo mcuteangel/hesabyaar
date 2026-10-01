@@ -1,0 +1,25 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_229817a18ffc02 122-136,148,170
+progress.md
+  s_79c2773a1818ea::t_22c5202b7c79e2 88
+app/src/test/java/io/github/mojri/hesabyar/reminder/NotificationHelperTest.kt
+  s_79c2773a1818ea::t_fb50c3f896b651 28-33,46
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarButtonTest.kt
+  s_79c2773a1818ea::t_d1e6a0d318abc1 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4e207898f6e7c9ca727d02d14a37e345a0a536c4",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
