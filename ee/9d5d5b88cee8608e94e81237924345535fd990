@@ -1,0 +1,35 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarCard.kt
+  s_79c2773a1818ea::t_99b312295c0a51 8,27,56
+  s_79c2773a1818ea::t_d653bf4430af78 36-41,44
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarButton.kt
+  s_79c2773a1818ea::t_daf14fee49cd48 87
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_680323266d50fa 153-166,169-175,177
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialogTest.kt
+  s_79c2773a1818ea::t_9f76b59402c47c 18
+  s_79c2773a1818ea::t_c1747899866b1e 193-246
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_532e03c060569b 555
+  s_79c2773a1818ea::t_06d0eeebbc1877 146,148-150,152
+  s_79c2773a1818ea::t_9111ef7dee3be4 305-306,324-325,332
+  s_79c2773a1818ea::t_869f66c3ca6c4f 48
+  s_79c2773a1818ea::t_baaf3930df8282 68
+  s_79c2773a1818ea::t_f6e754c208aff8 139-140
+  s_79c2773a1818ea::t_c0634ab838f636 133,147,153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ee9d5d5b88cee8608e94e81237924345535fd990",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "deepseek/deepseek-v4.1-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
