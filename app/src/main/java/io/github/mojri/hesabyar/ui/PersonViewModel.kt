@@ -119,6 +119,21 @@ class PersonViewModel
       }
     }
 
+    private fun tryAcquireSettleLock(personId: Long): Boolean {
+      while (true) {
+        val current = _settlingPersonIds.value
+        if (personId in current) return false
+        if (_settlingPersonIds.compareAndSet(current, current + personId)) return true
+      }
+    }
+
+    private fun releaseSettleLock(personId: Long) {
+      while (true) {
+        val current = _settlingPersonIds.value
+        if (_settlingPersonIds.compareAndSet(current, current - personId)) break
+      }
+    }
+
     /**
      * Quick-action: settle all of a person's active loans in one go.
      *
@@ -130,15 +145,10 @@ class PersonViewModel
       personId: Long,
       onResult: ((Boolean) -> Unit)? = null,
     ) {
-      if (personId in _settlingPersonIds.value) {
-        // Skip duplicate launches while a batch is already running. We do not
-        // invoke onResult(false) here because a rejection is not a failed
-        // settlement — returning false would cause the caller to show a false
-        // error message while the in-flight batch is likely succeeding.
+      if (!tryAcquireSettleLock(personId)) {
         AppLogger.w(TAG, "settleFully already in flight for person $personId, ignoring duplicate")
         return
       }
-      _settlingPersonIds.value = _settlingPersonIds.value + personId
       viewModelScope.launch {
         var overallSuccess = true
         try {
@@ -157,7 +167,7 @@ class PersonViewModel
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
-          _settlingPersonIds.value = _settlingPersonIds.value - personId
+          releaseSettleLock(personId)
         }
         try {
           onResult?.invoke(overallSuccess)

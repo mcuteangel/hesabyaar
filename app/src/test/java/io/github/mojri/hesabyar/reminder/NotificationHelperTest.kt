@@ -11,13 +11,11 @@ import io.github.mojri.hesabyar.resolveInitialNavigation
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowNotificationManager
 
 /**
  * Unit tests for [NotificationHelper] deep link intents.
@@ -25,20 +23,14 @@ import org.robolectric.shadows.ShadowNotificationManager
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class NotificationHelperTest {
-  private lateinit var context: Context
-  private lateinit var notificationManager: NotificationManager
-  private lateinit var shadowNotificationManager: ShadowNotificationManager
-
-  @Before
-  fun setUp() {
-    context = ApplicationProvider.getApplicationContext()
-    notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    shadowNotificationManager = Shadows.shadowOf(notificationManager)
-    NotificationHelper.createNotificationChannels(context)
-  }
-
   @Test
   fun showLoanReminderIntentCarriesPersonsDeepLinkAndResolvesToPersonsLedger() {
+    val context: Context = ApplicationProvider.getApplicationContext()
+    val notificationManager =
+      context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val shadowNotificationManager = Shadows.shadowOf(notificationManager)
+    NotificationHelper.createNotificationChannels(context)
+
     val loanId = 42L
     NotificationHelper.showLoanReminder(
       context = context,
@@ -51,7 +43,7 @@ class NotificationHelperTest {
     val notification = shadowNotificationManager.allNotifications.firstOrNull()
     assertNotNull("Loan reminder notification must be posted", notification)
 
-    val pendingIntent = notification!!.contentIntent
+    val pendingIntent = notification?.contentIntent
     assertNotNull("Content intent must be set", pendingIntent)
 
     val shadowPendingIntent = Shadows.shadowOf(pendingIntent)
