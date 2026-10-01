@@ -1,0 +1,26 @@
+app/src/main/java/io/github/mojri/hesabyar/reminder/NotificationHelper.kt
+  s_79c2773a1818ea::t_c0730a0ade3e43 126
+  s_79c2773a1818ea::t_392c39a182e851 9
+  s_79c2773a1818ea::t_b1cb5d3c2eb0a0 11
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_79c2773a1818ea::t_f93458ac9c3b8b 129
+  s_79c2773a1818ea::t_e275a357f7670d 597
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_79c2773a1818ea::t_64bcbfaed1e04d 162-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "56867e189e53d80e6e1cb37b66d649b92ba3a1df",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
