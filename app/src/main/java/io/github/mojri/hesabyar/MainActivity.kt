@@ -207,10 +207,15 @@ class MainActivity : FragmentActivity() {
               onNavigateToCategories = { showCategoryManagement = true },
               onNavigateToAccounts = { showAccountManagement = true },
               onShowDebtors = {
+                // Clear any search left over from a previous visits to the
+                // persons list. The ViewModel is Activity-scoped, so the query
+                // outlives PersonsScreen and would silently narrow the list.
+                personViewModel.setSearchQuery("")
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR)
                 currentTab = TAB_DEBTS
               },
               onShowCreditors = {
+                personViewModel.setSearchQuery("")
                 debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR)
                 currentTab = TAB_DEBTS
               },

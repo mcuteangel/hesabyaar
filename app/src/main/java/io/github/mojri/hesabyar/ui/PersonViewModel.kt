@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -60,8 +59,7 @@ class PersonViewModel
         if (q.isEmpty()) {
           balances
         } else {
-          val needle = q.lowercase(Locale.getDefault())
-          balances.filter { it.personName.contains(needle, ignoreCase = true) }
+          balances.filter { it.personName.contains(q, ignoreCase = true) }
         }
       }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 

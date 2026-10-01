@@ -85,7 +85,7 @@ Run on 2026-09-30, branch `feature/person-loan-ledger`:
 | Kotlin style | `./gradlew --no-daemon ktlintFormat` | PASS |
 | Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings) |
 | Kotlin compile | `./gradlew --no-daemon compileDebugKotlin` | PASS (BUILD SUCCESSFUL) |
-| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL, 963 tests, 0 failures; suites: `DebtHubTabBarTest` 5/5, `AddPersonLoanDialogTest` 7/7, `PersonsScreenTest` 10/10, `PersonDetailSheetTest` 8/8, `PersonViewModelTest` 10/10, `PersonRowSemanticsTest` 4/4). |
+| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL, 963 tests, 0 failures; suites: `DebtHubTabBarTest` 5/5, `AddPersonLoanDialogTest` 6/6, `PersonsScreenTest` 11/11, `PersonDetailSheetTest` 8/8, `PersonViewModelTest` 12/12, `PersonRowSemanticsTest` 3/3). |
 | Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures). `PersonBalanceParityTest` (6/6 pass). |
 
 `config/detekt/detekt-baseline.xml` shrank: 8 `MainActivity.kt` entries removed after the `onCreate` refactor (no entries added).

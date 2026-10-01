@@ -1,28 +1,21 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -43,19 +36,14 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
-import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
-import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
-import io.github.mojri.hesabyar.ui.designsystem.Dimens
-import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 
 private const val CONTAINER_SIZE_DP = 40
 private const val ICON_SIZE_DP = 24
@@ -97,7 +85,8 @@ fun PersonDetailSheet(
       onAddReceivable = { dialogState.addLoanType = LoanType.DEBTOR },
       onAddDebt = { dialogState.addLoanType = LoanType.CREDITOR },
       onSettleFully = { dialogState.showSettleConfirm = true },
-      settleError = dialogState.settleError
+      settleError = dialogState.settleError,
+      isSettling = dialogState.isSettling
     )
   }
 
@@ -116,6 +105,7 @@ private class PersonSheetState {
   var addLoanAttemptId by mutableStateOf(0L)
   var settleError by mutableStateOf<String?>(null)
   var showSettleConfirm by mutableStateOf(false)
+  var isSettling by mutableStateOf(false)
 }
 
 @Composable
@@ -169,15 +159,37 @@ private fun PersonSheetDialogs(
     )
   }
 
+  SettleConfirmDialog(
+    personId = personId,
+    personName = personName,
+    state = state,
+    personViewModel = personViewModel
+  )
+}
+
+@Composable
+private fun SettleConfirmDialog(
+  personId: Long,
+  personName: String,
+  state: PersonSheetState,
+  personViewModel: PersonViewModel
+) {
   if (state.showSettleConfirm) {
     ConfirmDialog(
       title = "تسویه کامل",
       message = "آیا از تسویه کامل تمام وام‌ها و طلب‌های $personName اطمینان دارید؟",
       confirmText = "تسویه کن",
       onConfirm = {
-        state.settleError = null
-        personViewModel.settleFully(personId) { success ->
-          if (!success) state.settleError = SETTLE_FAILED_MESSAGE
+        // Guard against a second batch while the first is still running.
+        // Both batches snapshot the loans independently, so overlapping runs
+        // would race on stale remaining amounts and report a false failure.
+        if (!state.isSettling) {
+          state.isSettling = true
+          state.settleError = null
+          personViewModel.settleFully(personId) { success ->
+            state.isSettling = false
+            if (!success) state.settleError = SETTLE_FAILED_MESSAGE
+          }
         }
         state.showSettleConfirm = false
       },
@@ -196,6 +208,7 @@ private fun PersonSheetContent(
   onAddDebt: () -> Unit,
   onSettleFully: () -> Unit,
   settleError: String?,
+  isSettling: Boolean,
 ) {
   Column(
     modifier =
@@ -211,7 +224,7 @@ private fun PersonSheetContent(
       onAddReceivable = onAddReceivable,
       onAddDebt = onAddDebt,
       onSettleFully = onSettleFully,
-      canSettle = loans.any { !it.isSettled }
+      canSettle = !isSettling && loans.any { !it.isSettled }
     )
 
     if (settleError != null) {
@@ -330,191 +343,6 @@ private fun PersonQuickActions(
         variant = ButtonVariant.Outlined,
         modifier = Modifier.weight(1f)
       )
-    }
-  }
-}
-
-@Composable
-private fun LoanTimelineList(
-  loans: List<Loan>,
-  personViewModel: PersonViewModel,
-  modifier: Modifier = Modifier
-) {
-  if (loans.isEmpty()) {
-    Box(
-      modifier =
-        modifier
-          .fillMaxWidth()
-          .padding(vertical = SpacingTokens.xl),
-      contentAlignment = Alignment.Center
-    ) {
-      Text(
-        text = "هیچ وامی برای این شخص ثبت نشده است.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-      )
-    }
-  } else {
-    LazyColumn(
-      modifier = modifier.fillMaxWidth(),
-      verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-    ) {
-      items(loans, key = { it.id }) { loan ->
-        TimelineLoanItem(loan = loan, personViewModel = personViewModel)
-      }
-    }
-  }
-}
-
-@Composable
-private fun TimelineLoanItem(
-  loan: Loan,
-  personViewModel: PersonViewModel
-) {
-  val (tint, icon, typeLabel) =
-    when (loan.type) {
-      LoanType.DEBTOR ->
-        Triple(MaterialTheme.colorScheme.primary, Icons.Filled.ArrowCircleDown, "طلب")
-      LoanType.CREDITOR ->
-        Triple(MaterialTheme.colorScheme.secondary, Icons.Filled.ArrowCircleUp, "بدهی")
-      LoanType.UNKNOWN ->
-        Triple(
-          MaterialTheme.colorScheme.onSurfaceVariant,
-          Icons.Filled.AccountCircle,
-          "نوع نامشخص"
-        )
-    }
-  val paymentsFlow = remember(loan.id) { personViewModel.getPaymentHistoryForLoan(loan.id) }
-  val payments by paymentsFlow.collectAsState(initial = emptyList())
-
-  HesabyarCard(
-    modifier = Modifier.fillMaxWidth(),
-    shape = ShapeTokens.Medium,
-    cardColors =
-      CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-      ),
-    contentPadding = PaddingValues(SpacingTokens.md)
-  ) {
-    Column(
-      verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-    ) {
-      LoanItemHeader(loan = loan, tint = tint, icon = icon, typeLabel = typeLabel)
-
-      LoanItemAmounts(loan = loan)
-
-      if (payments.isNotEmpty()) {
-        PaymentsSection(payments = payments)
-      }
-    }
-  }
-}
-
-@Composable
-private fun LoanItemHeader(
-  loan: Loan,
-  tint: Color,
-  icon: ImageVector,
-  typeLabel: String
-) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
-  ) {
-    Row(
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-    ) {
-      Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = tint,
-        modifier = Modifier.size(Dimens.IconSmall)
-      )
-      Text(
-        text = typeLabel,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = tint
-      )
-      if (loan.isSettled) {
-        Text(
-          text = "(تسویه شده)",
-          style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-      }
-    }
-    Text(
-      text = formatPersianDate(loan.date),
-      style = MaterialTheme.typography.labelSmall,
-      color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-  }
-}
-
-@Composable
-private fun LoanItemAmounts(loan: Loan) {
-  if (loan.description.isNotBlank()) {
-    Text(
-      text = loan.description,
-      style = MaterialTheme.typography.bodySmall,
-      color = MaterialTheme.colorScheme.onSurface
-    )
-  }
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween
-  ) {
-    Text(
-      text = "مبلغ اولیه: ${CurrencyFormatter.format(loan.originalAmount)}",
-      style = MaterialTheme.typography.labelSmall,
-      color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    if (!loan.isSettled && loan.remainingAmount != loan.originalAmount) {
-      Text(
-        text = "مانده: ${CurrencyFormatter.format(loan.remainingAmount)}",
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.error
-      )
-    }
-  }
-}
-
-@Composable
-private fun PaymentsSection(payments: List<PaymentHistory>) {
-  Column(
-    modifier =
-      Modifier
-        .fillMaxWidth()
-        .padding(top = SpacingTokens.xs),
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xxs)
-  ) {
-    Text(
-      text = "پرداخت‌ها:",
-      style = MaterialTheme.typography.labelSmall,
-      fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    payments.forEach { payment ->
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-      ) {
-        Text(
-          text = formatPersianDate(payment.date),
-          style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-          text = CurrencyFormatter.format(payment.amount),
-          style = MaterialTheme.typography.labelSmall,
-          fontWeight = FontWeight.Medium,
-          color = MaterialTheme.colorScheme.primary
-        )
-      }
     }
   }
 }

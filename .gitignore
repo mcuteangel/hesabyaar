@@ -90,7 +90,6 @@ graphify-out/
 
 # Obsidian (local vault state — workspace.json changes on every window move)
 .obsidian/
-*.canvas
 
 # SQLite temp files (e.g. .freebuff from database tools)
 .freebuff/
