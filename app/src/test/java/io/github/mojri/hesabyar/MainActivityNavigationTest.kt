@@ -57,4 +57,68 @@ class MainActivityNavigationTest {
     assertEquals("Section updated to PERSONS", DebtSection.PERSONS, onPersons.section)
     assertEquals("Filter persists across section change", LoanDirectionFilter.DEBTOR, onPersons.filter)
   }
+
+  @Test
+  fun dashboardDebtorCardNavigationClearsQueryAndSwitchesToDebtors() {
+    var searchCleared = false
+    var currentTab = TAB_DASHBOARD
+    var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
+
+    val callbacks =
+      createMainNavCallbacks(
+        currentTabProvider = { currentTab },
+        onCurrentTabChange = { currentTab = it },
+        onDebtsStateChange = { debtsState = it },
+        onResetPersonSearch = { searchCleared = true }
+      )
+
+    callbacks.onShowDebtors()
+
+    assertEquals("Search query reset", true, searchCleared)
+    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
+    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals("Filter set to DEBTOR", LoanDirectionFilter.DEBTOR, debtsState.filter)
+  }
+
+  @Test
+  fun dashboardCreditorCardNavigationClearsQueryAndSwitchesToCreditors() {
+    var searchCleared = false
+    var currentTab = TAB_DASHBOARD
+    var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
+
+    val callbacks =
+      createMainNavCallbacks(
+        currentTabProvider = { currentTab },
+        onCurrentTabChange = { currentTab = it },
+        onDebtsStateChange = { debtsState = it },
+        onResetPersonSearch = { searchCleared = true }
+      )
+
+    callbacks.onShowCreditors()
+
+    assertEquals("Search query reset", true, searchCleared)
+    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
+    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals("Filter set to CREDITOR", LoanDirectionFilter.CREDITOR, debtsState.filter)
+  }
+
+  @Test
+  fun tabSelectedEnteringDebtsFromOtherTabResetsPersonSearch() {
+    var searchCleared = false
+    var currentTab = TAB_DASHBOARD
+    var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
+
+    val callbacks =
+      createMainNavCallbacks(
+        currentTabProvider = { currentTab },
+        onCurrentTabChange = { currentTab = it },
+        onDebtsStateChange = { debtsState = it },
+        onResetPersonSearch = { searchCleared = true }
+      )
+
+    callbacks.onTabSelected(TAB_DEBTS)
+
+    assertEquals("Search query reset on entering DEBTS", true, searchCleared)
+    assertEquals("Current tab updated to DEBTS", TAB_DEBTS, currentTab)
+  }
 }

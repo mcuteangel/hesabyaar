@@ -340,9 +340,11 @@ private fun PersonQuickActions(
       icon = Icons.Filled.ArrowCircleUp,
       modifier = Modifier.weight(1f)
     )
-    if (hasSettleableLoans) {
+    if (hasSettleableLoans || isSettling) {
       // Keep the button composed during a batch and show progress instead of
       // dropping it, so the layout stays stable and the user gets feedback.
+      // Condition uses (hasSettleableLoans || isSettling) so the button does
+      // not vanish early as soon as the last loan is marked settled.
       HesabyarButton(
         onClick = onSettleFully,
         text = "تسویه",
@@ -350,7 +352,8 @@ private fun PersonQuickActions(
         variant = ButtonVariant.Outlined,
         modifier = Modifier.weight(1f),
         enabled = !isSettling,
-        loading = isSettling
+        loading = isSettling,
+        iconContentDescription = if (isSettling) "در حال تسویه وام‌ها" else null
       )
     }
   }

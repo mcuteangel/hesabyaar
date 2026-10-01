@@ -197,32 +197,14 @@ class MainActivity : FragmentActivity() {
           currentTab = currentTab,
           debtsState = debtsState,
           callbacks =
-            MainNavCallbacks(
-              onTabSelected = { newTab ->
-                // Keep the selected direction filter when the user leaves and
-                // returns to the DEBTS tab. Dashboard cards set it explicitly.
-                // Entering DEBTS from another tab starts a fresh search: the
-                // query is Activity-scoped and would otherwise keep narrowing
-                // the persons list on every later entry.
-                if (newTab == TAB_DEBTS && currentTab != TAB_DEBTS) {
-                  personViewModel.setSearchQuery("")
-                }
-                currentTab = newTab
-              },
+            createMainNavCallbacks(
+              currentTabProvider = { currentTab },
+              onCurrentTabChange = { currentTab = it },
+              onDebtsStateChange = { debtsState = it },
+              onResetPersonSearch = { personViewModel.setSearchQuery("") },
               onNavigateToAssistant = { currentTab = TAB_ASSISTANT },
               onNavigateToCategories = { showCategoryManagement = true },
-              onNavigateToAccounts = { showAccountManagement = true },
-              onShowDebtors = {
-                personViewModel.setSearchQuery("")
-                debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR)
-                currentTab = TAB_DEBTS
-              },
-              onShowCreditors = {
-                personViewModel.setSearchQuery("")
-                debtsState = DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR)
-                currentTab = TAB_DEBTS
-              },
-              onDebtsStateChange = { debtsState = it }
+              onNavigateToAccounts = { showAccountManagement = true }
             )
         )
       }
@@ -578,7 +560,7 @@ internal data class DebtsTabState(
   val filter: LoanDirectionFilter,
 )
 
-private data class MainNavCallbacks(
+internal data class MainNavCallbacks(
   val onTabSelected: (String) -> Unit,
   val onNavigateToAssistant: () -> Unit,
   val onNavigateToCategories: () -> Unit,
@@ -587,6 +569,40 @@ private data class MainNavCallbacks(
   val onShowCreditors: () -> Unit,
   val onDebtsStateChange: (DebtsTabState) -> Unit,
 )
+
+internal fun createMainNavCallbacks(
+  currentTabProvider: () -> String,
+  onCurrentTabChange: (String) -> Unit,
+  onDebtsStateChange: (DebtsTabState) -> Unit,
+  onResetPersonSearch: () -> Unit,
+  onNavigateToAssistant: () -> Unit = {},
+  onNavigateToCategories: () -> Unit = {},
+  onNavigateToAccounts: () -> Unit = {},
+): MainNavCallbacks =
+  MainNavCallbacks(
+    onTabSelected = { newTab ->
+      // Entering DEBTS from another tab starts a fresh search: the query is
+      // Activity-scoped and would otherwise keep narrowing the persons list.
+      if (newTab == TAB_DEBTS && currentTabProvider() != TAB_DEBTS) {
+        onResetPersonSearch()
+      }
+      onCurrentTabChange(newTab)
+    },
+    onNavigateToAssistant = onNavigateToAssistant,
+    onNavigateToCategories = onNavigateToCategories,
+    onNavigateToAccounts = onNavigateToAccounts,
+    onShowDebtors = {
+      onResetPersonSearch()
+      onDebtsStateChange(DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR))
+      onCurrentTabChange(TAB_DEBTS)
+    },
+    onShowCreditors = {
+      onResetPersonSearch()
+      onDebtsStateChange(DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR))
+      onCurrentTabChange(TAB_DEBTS)
+    },
+    onDebtsStateChange = onDebtsStateChange
+  )
 
 private data class NavigationTabItem(
   val id: String,

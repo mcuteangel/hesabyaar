@@ -16,6 +16,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -84,11 +86,19 @@ private fun ButtonContent(
   text: String?
 ) {
   if (loading) {
+    val loadingDescription = iconContentDescription ?: text ?: "در حال بارگذاری"
     CircularProgressIndicator(
-      modifier = Modifier.size(Dimens.IconSmall),
+      modifier =
+        Modifier
+          .size(Dimens.IconSmall)
+          .semantics { contentDescription = loadingDescription },
       strokeWidth = Dimens.DividerThickness,
       color = LocalContentColor.current
     )
+    text?.let {
+      Spacer(modifier = Modifier.width(SpacingTokens.xs))
+      Text(text = it)
+    }
   } else {
     icon?.let {
       Icon(

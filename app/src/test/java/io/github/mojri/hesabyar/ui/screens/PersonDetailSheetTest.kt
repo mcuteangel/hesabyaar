@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -58,6 +59,7 @@ class PersonDetailSheetTest {
   private val fakeRepository =
     object : FakeRepository() {
       var failNextInsertLoan = false
+      var delayRepayment: kotlinx.coroutines.CompletableDeferred<Unit>? = null
       override val allPersons = personsFlow
       override val allLoans = loansFlow
 
@@ -70,6 +72,7 @@ class PersonDetailSheetTest {
         notes: String,
         customDate: Long?
       ): Boolean {
+        delayRepayment?.await()
         makeRepaymentCalls++
         return true
       }
@@ -261,6 +264,54 @@ class PersonDetailSheetTest {
     settle()
 
     assertEquals("Settle repayment performed", 1, makeRepaymentCalls)
+  }
+
+  @Test
+  fun settleButtonDisabledWhileBatchInFlight() {
+    val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+    fakeRepository.delayRepayment = gate
+
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value =
+      listOf(
+        Loan(
+          id = 10L,
+          personId = 1L,
+          personName = NAME_ALI,
+          type = LoanType.DEBTOR,
+          originalAmount = 100_000L,
+          remainingAmount = 100_000L,
+          description = "",
+          date = 1_000L,
+          isSettled = false
+        )
+      )
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = {}
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText(BTN_SETTLE).performClick()
+    settle()
+
+    composeRule.onNodeWithText(BTN_CONFIRM_SETTLE).performClick()
+    testDispatcher.scheduler.runCurrent()
+    composeRule.waitForIdle()
+
+    // While repayment is suspended at gate, the button stays composed but disabled.
+    composeRule.onNodeWithText(BTN_SETTLE).assertIsNotEnabled()
+
+    // Release the gate and allow repayment to finish.
+    gate.complete(Unit)
+    settle()
+
+    assertEquals("Repayment completed", 1, makeRepaymentCalls)
   }
 
   @Test

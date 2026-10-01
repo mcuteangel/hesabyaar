@@ -117,6 +117,38 @@ class PersonViewModelTest {
     }
 
   @Test
+  fun personBalancesFlowFiltersBySearchQueryWithTurkishLocale() =
+    runTest(testDispatcher) {
+      val originalLocale = java.util.Locale.getDefault()
+      try {
+        java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr"))
+        val collectJob =
+          backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.personBalances.collect {}
+          }
+
+        val personIvan = Person(id = 1L, name = "Ivan", normalizedName = "ivan")
+        val personSara = Person(id = 2L, name = NAME_SARA, normalizedName = "sara")
+        fakeRepository.personsFlow.value = listOf(personIvan, personSara)
+
+        advanceUntilIdle()
+
+        // Under Turkish locale, lowercase("IVAN") produces "ıvan" with dotless ı.
+        // Direct ignoreCase comparison correctly matches "Ivan".
+        viewModel.setSearchQuery("ivan")
+        advanceUntilIdle()
+
+        val filtered = viewModel.personBalances.value
+        assertEquals("Ivan matches under Turkish locale", 1, filtered.size)
+        assertEquals("Ivan", filtered[0].personName)
+
+        collectJob.cancel()
+      } finally {
+        java.util.Locale.setDefault(originalLocale)
+      }
+    }
+
+  @Test
   fun addLoanForPersonDispatchesInsert() =
     runTest(testDispatcher) {
       viewModel.addLoanForPerson(
@@ -279,7 +311,9 @@ class PersonViewModelTest {
       viewModel.settleFully(personId = 6L, onResult = { firstResult = it })
       viewModel.settleFully(personId = 6L, onResult = { secondResult = it })
 
-      assertEquals("Duplicate rejected synchronously", false, secondResult)
+      // Duplicate invocation is ignored without invoking onResult so the caller
+      // is not tricked into displaying a false failure while the batch runs.
+      assertEquals("Duplicate rejected without error callback", null, secondResult)
 
       advanceUntilIdle()
 
