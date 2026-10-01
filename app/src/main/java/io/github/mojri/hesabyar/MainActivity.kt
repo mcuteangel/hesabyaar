@@ -126,7 +126,7 @@ class MainActivity : FragmentActivity() {
     ReminderScheduler.scheduleReminders(this)
     observeUiMessages()
 
-    val (startTab, startDebtSection) = resolveInitialNavigation(intent?.getStringExtra("OPEN_TAB"))
+    val (startTab, startDebtSection) = resolveInitialNavigation(intent?.getStringExtra(OPEN_TAB_EXTRA))
 
     setContent {
       HesabyarAppRoot(startTab = startTab, startDebtSection = startDebtSection)
@@ -594,6 +594,7 @@ internal const val TAB_REPORTS = "REPORTS"
 internal const val TAB_SETTINGS = "SETTINGS"
 internal const val MORE_MENU_LABEL = "بیشتر"
 
+internal const val OPEN_TAB_EXTRA = "OPEN_TAB"
 internal const val DEEP_LINK_LOANS = "LOANS"
 internal const val DEEP_LINK_PERSONS = "PERSONS"
 internal const val DEEP_LINK_INSTALLMENTS = "INSTALLMENTS"

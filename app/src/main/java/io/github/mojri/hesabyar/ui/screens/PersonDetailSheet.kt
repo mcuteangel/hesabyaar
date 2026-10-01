@@ -159,6 +159,9 @@ private fun PersonSheetDialogs(
         }
       },
       onDismiss = {
+        // Invalidate any in-flight attempt so its callback cannot mutate a
+        // dialog the user reopens later.
+        state.addLoanAttemptId++
         state.addLoanType = null
         state.addLoanError = null
         state.isSubmittingLoan = false
