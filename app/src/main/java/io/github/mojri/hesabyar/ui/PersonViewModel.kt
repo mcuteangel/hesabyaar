@@ -169,8 +169,9 @@ class PersonViewModel
           AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
         }
         success
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: Throwable) {
-        if (e is CancellationException) throw e
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }
