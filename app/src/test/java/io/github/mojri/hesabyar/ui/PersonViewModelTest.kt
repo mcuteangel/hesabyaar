@@ -45,6 +45,7 @@ class PersonViewModelTest {
     var failNextInsert = false
     var failNextRepayment = false
     var throwNextRepayment = false
+    var delayRepayment: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
     override val allPersons = personsFlow
     override val allLoans = loansFlow
@@ -64,6 +65,7 @@ class PersonViewModelTest {
       notes: String,
       customDate: Long?
     ): Boolean {
+      delayRepayment?.await()
       makeRepaymentCallCount++
       if (throwNextRepayment) {
         throwNextRepayment = false
@@ -128,26 +130,27 @@ class PersonViewModelTest {
           }
 
         val personIvan = Person(id = 1L, name = "Ivan", normalizedName = "ivan")
-        val personIstanbul = Person(id = 2L, name = "İstanbul", normalizedName = "istanbul")
+        val personIstanbul = Person(id = 2L, name = NAME_ISTANBUL, normalizedName = "istanbul")
         val personSara = Person(id = 3L, name = NAME_SARA, normalizedName = "sara")
         fakeRepository.personsFlow.value = listOf(personIvan, personIstanbul, personSara)
 
         advanceUntilIdle()
 
-        // Under Turkish locale:
-        // 1. "IVAN".lowercase(Locale("tr")) -> "ıvan" (dotless). Under old code,
-        //    "Ivan".contains("ıvan", ignoreCase = true) returned false.
+        // Direct case-insensitive search behaves predictably under Turkish locale:
+        // "IVAN" matches "Ivan" without falling victim to unexpected casing drift.
         viewModel.setSearchQuery("IVAN")
         advanceUntilIdle()
         assertEquals("Ivan matches uppercase query under Turkish locale", 1, viewModel.personBalances.value.size)
         assertEquals("Ivan", viewModel.personBalances.value[0].personName)
 
-        // 2. "İstanbul".lowercase(Locale("tr")) folded İ to two code-points.
-        //    Direct ignoreCase comparison correctly matches İstanbul.
-        viewModel.setSearchQuery("İstanbul")
+        // Under Turkish locale the old q.lowercase(default) folding broke the
+        // İstanbul case: "İ".lowercase(tr) expands to "i" + U+0307 (two code
+        // points), so the folded query was longer than the name and matched
+        // nothing. A direct ignoreCase comparison matches case-only variants.
+        viewModel.setSearchQuery("ISTANBUL")
         advanceUntilIdle()
-        assertEquals("İstanbul matches under Turkish locale", 1, viewModel.personBalances.value.size)
-        assertEquals("İstanbul", viewModel.personBalances.value[0].personName)
+        assertEquals("Case-only query matches İstanbul under Turkish locale", 1, viewModel.personBalances.value.size)
+        assertEquals(NAME_ISTANBUL, viewModel.personBalances.value[0].personName)
 
         collectJob.cancel()
       } finally {
@@ -299,6 +302,8 @@ class PersonViewModelTest {
   @Test
   fun settleFullyRejectsDuplicateWhileBatchInFlight() =
     runTest(testDispatcher) {
+      val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+      fakeRepository.delayRepayment = gate
       val loan =
         Loan(
           id = 102L,
@@ -316,12 +321,15 @@ class PersonViewModelTest {
       var firstResult: Boolean? = null
       var secondResult: Boolean? = null
       viewModel.settleFully(personId = 6L, onResult = { firstResult = it })
+      // Let the first batch acquire the lock and suspend at the gate.
+      testDispatcher.scheduler.runCurrent()
       viewModel.settleFully(personId = 6L, onResult = { secondResult = it })
 
       // Duplicate invocation is ignored without invoking onResult so the caller
       // is not tricked into displaying a false failure while the batch runs.
       assertEquals("Duplicate rejected without error callback", null, secondResult)
 
+      gate.complete(Unit)
       advanceUntilIdle()
 
       assertEquals("First batch reports success", true, firstResult)
@@ -544,6 +552,7 @@ class PersonViewModelTest {
   private companion object {
     const val NAME_ALI = "Ali"
     const val NAME_SARA = "Sara"
+    const val NAME_ISTANBUL = "İstanbul"
     const val TEST_LOAN_DESC = "Test loan"
     const val INSERT_FAILURE_MESSAGE = "insert failed"
     const val MSG_ONE_LOAN_INSERTED = "1 loan inserted"

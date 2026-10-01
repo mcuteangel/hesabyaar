@@ -15,6 +15,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -187,6 +188,60 @@ class AddPersonLoanDialogTest {
 
     assertEquals("Description should be capped at 500 characters", 500, confirmedDesc?.length)
     assertEquals("Description matches first 500 characters", CHAR_A.repeat(500), confirmedDesc)
+  }
+
+  @Test
+  fun cancelButtonDisablesWhileSubmitting() {
+    val submittingState = mutableStateOf(false)
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        isSubmitting = submittingState.value,
+        onConfirm = { _, _ -> },
+        onDismiss = {}
+      )
+    }
+
+    composeRule.onNodeWithText(BTN_CANCEL).assertIsEnabled()
+
+    submittingState.value = true
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText(BTN_CANCEL).assertIsNotEnabled()
+  }
+
+  @Test
+  fun dismissRequestIsIgnoredWhileSubmitting() {
+    var dismissed = false
+    val submittingState = mutableStateOf(false)
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        isSubmitting = submittingState.value,
+        onConfirm = { _, _ -> },
+        onDismiss = { dismissed = true }
+      )
+    }
+
+    submittingState.value = true
+    composeRule.waitForIdle()
+
+    // Back out of the dialog while the write is in flight.
+    composeRule.onNodeWithText(BTN_CANCEL).assertIsNotEnabled()
+    composeRule.onNodeWithText(BTN_CANCEL).performClick()
+    composeRule.waitForIdle()
+
+    assertFalse("Dismissal must be ignored while submitting", dismissed)
+
+    submittingState.value = false
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText(BTN_CANCEL).performClick()
+    composeRule.waitForIdle()
+
+    assertTrue("Dismissal allowed once the write completes", dismissed)
   }
 
   private companion object {

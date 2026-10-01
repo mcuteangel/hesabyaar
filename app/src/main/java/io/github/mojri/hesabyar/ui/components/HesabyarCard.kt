@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -24,34 +24,24 @@ fun HesabyarCard(
   modifier: Modifier = Modifier,
   shape: Shape = ShapeTokens.Medium,
   elevation: Dp = ElevationTokens.Level0,
-  cardColors: androidx.compose.material3.CardColors =
+  cardColors: CardColors =
     CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     ),
   contentPadding: PaddingValues = PaddingValues(SpacingTokens.lg),
   onClick: (() -> Unit)? = null,
-  onClickLabel: String? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
-  val cardModifier =
-    if (onClick != null) {
-      modifier.semantics {
-        role = Role.Button
-        if (onClickLabel != null) {
-          onClick(label = onClickLabel) {
-            onClick()
-            true
-          }
-        }
-      }
-    } else {
-      modifier
-    }
-
   if (onClick != null) {
+    // Material 3 Card(onClick) publishes the click action but not the button
+    // role. Add the role and merge descendants so screen readers announce the
+    // card as one named button. Do not add a second onClick action here: the
+    // clickable owned by the card stays the only dispatcher.
+    val clickableModifier =
+      modifier.semantics(mergeDescendants = true) { role = Role.Button }
     Card(
       onClick = onClick,
-      modifier = cardModifier,
+      modifier = clickableModifier,
       shape = shape,
       elevation = CardDefaults.cardElevation(defaultElevation = elevation),
       colors = cardColors
@@ -63,7 +53,7 @@ fun HesabyarCard(
     }
   } else {
     Card(
-      modifier = cardModifier,
+      modifier = modifier,
       shape = shape,
       elevation = CardDefaults.cardElevation(defaultElevation = elevation),
       colors = cardColors

@@ -49,7 +49,6 @@ internal fun DebtorCreditorCards(
       modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
       onClick = onDebtorsClick,
-      onClickLabel = "مشاهده بدهکاران",
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -100,7 +99,6 @@ internal fun DebtorCreditorCards(
       modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
       onClick = onCreditorsClick,
-      onClickLabel = "مشاهده طلبکاران",
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.tertiaryContainer

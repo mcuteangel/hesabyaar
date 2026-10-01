@@ -84,7 +84,7 @@ private fun buildButtonModifier(
   if (!loading) return base
   val busyLabel = iconContentDescription ?: DEFAULT_LOADING_LABEL
   val description = if (text != null && text != busyLabel) "$text، $busyLabel" else busyLabel
-  return base.semantics { contentDescription = description }
+  return base.semantics(mergeDescendants = true) { contentDescription = description }
 }
 
 @Composable
