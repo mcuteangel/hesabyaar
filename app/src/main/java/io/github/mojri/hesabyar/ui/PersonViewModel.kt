@@ -139,6 +139,11 @@ class PersonViewModel
      *
      * Safety net: repository write failure must be logged instead of crashing.
      * Cancellation is rethrown to keep structured concurrency intact.
+     *
+     * Contract: if a settlement batch is already running for [personId], the
+     * duplicate launch is ignored and [onResult] is deliberately NOT invoked,
+     * so callers are not tricked into showing false errors while the in-flight
+     * batch succeeds.
      */
     @Suppress("TooGenericExceptionCaught")
     fun settleFully(

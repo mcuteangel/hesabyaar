@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -59,6 +60,7 @@ class PersonDetailSheetTest {
   private val fakeRepository =
     object : FakeRepository() {
       var failNextInsertLoan = false
+      var failNextRepayment = false
       var delayRepayment: kotlinx.coroutines.CompletableDeferred<Unit>? = null
       override val allPersons = personsFlow
       override val allLoans = loansFlow
@@ -74,6 +76,10 @@ class PersonDetailSheetTest {
       ): Boolean {
         delayRepayment?.await()
         makeRepaymentCalls++
+        if (failNextRepayment) {
+          failNextRepayment = false
+          return false
+        }
         return true
       }
 
@@ -304,14 +310,62 @@ class PersonDetailSheetTest {
     testDispatcher.scheduler.runCurrent()
     composeRule.waitForIdle()
 
-    // While repayment is suspended at gate, the button stays composed but disabled.
-    composeRule.onNodeWithText(BTN_SETTLE).assertIsNotEnabled()
+    // While repayment is suspended at gate, the button renders loading semantics and stays disabled.
+    composeRule.onNodeWithContentDescription(EXPECTED_SETTLING_DESC).assertIsNotEnabled()
+
+    // A second confirmation or direct invocation does not start another batch
+    viewModel.settleFully(1L)
+    testDispatcher.scheduler.runCurrent()
+    composeRule.waitForIdle()
 
     // Release the gate and allow repayment to finish.
     gate.complete(Unit)
     settle()
 
-    assertEquals("Repayment completed", 1, makeRepaymentCalls)
+    assertEquals("Only one repayment batch completed", 1, makeRepaymentCalls)
+  }
+
+  @Test
+  fun settleFailureRestoresSettleActionAndShowsError() {
+    fakeRepository.failNextRepayment = true
+
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value =
+      listOf(
+        Loan(
+          id = 10L,
+          personId = 1L,
+          personName = NAME_ALI,
+          type = LoanType.DEBTOR,
+          originalAmount = 100_000L,
+          remainingAmount = 100_000L,
+          description = "",
+          date = 1_000L,
+          isSettled = false
+        )
+      )
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = {}
+      )
+    }
+    settle()
+
+    composeRule.onNodeWithText(BTN_SETTLE).performClick()
+    settle()
+
+    composeRule.onNodeWithText(BTN_CONFIRM_SETTLE).performClick()
+    settle()
+
+    // Settle error is displayed
+    composeRule.onNodeWithText(MSG_SETTLE_FAILED).assertIsDisplayed()
+
+    // Settle button is restored and enabled for retry
+    composeRule.onNodeWithText(BTN_SETTLE).assertIsEnabled()
   }
 
   @Test
@@ -426,6 +480,7 @@ class PersonDetailSheetTest {
     const val BTN_ADD_RECEIVABLE = "ثبت طلب"
     const val BTN_ADD_DEBT = "ثبت بدهی"
     const val BTN_SETTLE = "تسویه"
+    const val EXPECTED_SETTLING_DESC = "تسویه، در حال تسویه وام‌ها"
     const val BTN_CONFIRM_SETTLE = "تسویه کن"
     const val BTN_SUBMIT = "ثبت"
     const val BTN_CANCEL = "انصراف"
@@ -435,6 +490,7 @@ class PersonDetailSheetTest {
     const val DESC_BUSINESS = "بابت کسب‌وکار"
     const val DESC_GROCERIES = "خرید مایحتاج"
     const val MSG_ADD_LOAN_FAILED = "ثبت ناموفق بود. دوباره تلاش کنید."
+    const val MSG_SETTLE_FAILED = "تسویه برخی از وام‌ها ناموفق بود."
     const val TEST_AMOUNT_1000 = "1000"
 
     fun amountInputLabel() = "مبلغ (${CurrencyFormatter.unitLabel})"

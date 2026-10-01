@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens.dashboard.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,12 +45,11 @@ internal fun DebtorCreditorCards(
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.md),
     maxItemsInEachRow = 2
   ) {
-    val debtorModifier =
-      Modifier.weight(1f).cardAction(onDebtorsClick, "مشاهده بدهکاران")
-
     HesabyarCard(
-      modifier = debtorModifier,
+      modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
+      onClick = onDebtorsClick,
+      onClickLabel = "مشاهده بدهکاران",
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -99,12 +96,11 @@ internal fun DebtorCreditorCards(
       }
     }
 
-    val creditorModifier =
-      Modifier.weight(1f).cardAction(onCreditorsClick, "مشاهده طلبکاران")
-
     HesabyarCard(
-      modifier = creditorModifier,
+      modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
+      onClick = onCreditorsClick,
+      onClickLabel = "مشاهده طلبکاران",
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -152,15 +148,3 @@ internal fun DebtorCreditorCards(
     }
   }
 }
-
-private fun Modifier.cardAction(
-  action: (() -> Unit)?,
-  accessibilityLabel: String,
-): Modifier =
-  if (action != null) {
-    // clickable alone owns the click action. Its onClickLabel exposes the
-    // Persian action name to TalkBack without adding a second handler.
-    this.clickable(onClick = action, role = Role.Button, onClickLabel = accessibilityLabel)
-  } else {
-    this
-  }

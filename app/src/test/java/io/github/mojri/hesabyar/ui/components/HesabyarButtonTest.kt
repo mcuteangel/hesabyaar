@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,33 +20,39 @@ class HesabyarButtonTest {
   val composeRule = createComposeRule()
 
   @Test
-  fun buttonShowsLabelAndSpinnerWithCustomContentDescriptionWhenLoading() {
+  fun buttonCombinesLabelAndCustomContentDescriptionWhenLoading() {
     composeRule.setContent {
       HesabyarButton(
         onClick = {},
-        text = "ذخیره",
+        text = TEXT_SAVE,
         loading = true,
-        iconContentDescription = "در حال ذخیره‌سازی"
+        iconContentDescription = DESC_SAVING
       )
     }
 
-    composeRule.onNodeWithText("ذخیره").assertIsDisplayed()
-    composeRule.onNodeWithContentDescription("در حال ذخیره‌سازی").assertIsDisplayed()
-    composeRule.onNodeWithText("ذخیره").assertIsNotEnabled()
+    composeRule.onNodeWithContentDescription(EXPECTED_SAVE_LOADING_DESC).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(EXPECTED_SAVE_LOADING_DESC).assertIsNotEnabled()
   }
 
   @Test
-  fun buttonFallsBackToLabelForLoadingContentDescription() {
+  fun buttonCombinesLabelAndDefaultLoadingDescription() {
     composeRule.setContent {
       HesabyarButton(
         onClick = {},
-        text = "تایید",
+        text = TEXT_CONFIRM,
         loading = true
       )
     }
 
-    composeRule.onNodeWithText("تایید").assertIsDisplayed()
-    composeRule.onNodeWithContentDescription("تایید").assertIsDisplayed()
-    composeRule.onNodeWithText("تایید").assertIsNotEnabled()
+    composeRule.onNodeWithContentDescription(EXPECTED_CONFIRM_LOADING_DESC).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(EXPECTED_CONFIRM_LOADING_DESC).assertIsNotEnabled()
+  }
+
+  private companion object {
+    const val TEXT_SAVE = "ذخیره"
+    const val DESC_SAVING = "در حال ذخیره‌سازی"
+    const val EXPECTED_SAVE_LOADING_DESC = "ذخیره، در حال ذخیره‌سازی"
+    const val TEXT_CONFIRM = "تایید"
+    const val EXPECTED_CONFIRM_LOADING_DESC = "تایید، در حال بارگذاری"
   }
 }

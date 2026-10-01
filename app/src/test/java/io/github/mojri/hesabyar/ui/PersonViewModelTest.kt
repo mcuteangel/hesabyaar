@@ -128,19 +128,26 @@ class PersonViewModelTest {
           }
 
         val personIvan = Person(id = 1L, name = "Ivan", normalizedName = "ivan")
-        val personSara = Person(id = 2L, name = NAME_SARA, normalizedName = "sara")
-        fakeRepository.personsFlow.value = listOf(personIvan, personSara)
+        val personIstanbul = Person(id = 2L, name = "İstanbul", normalizedName = "istanbul")
+        val personSara = Person(id = 3L, name = NAME_SARA, normalizedName = "sara")
+        fakeRepository.personsFlow.value = listOf(personIvan, personIstanbul, personSara)
 
         advanceUntilIdle()
 
-        // Under Turkish locale, lowercase("IVAN") produces "ıvan" with dotless ı.
-        // Direct ignoreCase comparison correctly matches "Ivan".
-        viewModel.setSearchQuery("ivan")
+        // Under Turkish locale:
+        // 1. "IVAN".lowercase(Locale("tr")) -> "ıvan" (dotless). Under old code,
+        //    "Ivan".contains("ıvan", ignoreCase = true) returned false.
+        viewModel.setSearchQuery("IVAN")
         advanceUntilIdle()
+        assertEquals("Ivan matches uppercase query under Turkish locale", 1, viewModel.personBalances.value.size)
+        assertEquals("Ivan", viewModel.personBalances.value[0].personName)
 
-        val filtered = viewModel.personBalances.value
-        assertEquals("Ivan matches under Turkish locale", 1, filtered.size)
-        assertEquals("Ivan", filtered[0].personName)
+        // 2. "İstanbul".lowercase(Locale("tr")) folded İ to two code-points.
+        //    Direct ignoreCase comparison correctly matches İstanbul.
+        viewModel.setSearchQuery("İstanbul")
+        advanceUntilIdle()
+        assertEquals("İstanbul matches under Turkish locale", 1, viewModel.personBalances.value.size)
+        assertEquals("İstanbul", viewModel.personBalances.value[0].personName)
 
         collectJob.cancel()
       } finally {

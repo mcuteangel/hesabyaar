@@ -64,15 +64,15 @@ class MainActivityNavigationTest {
     var currentTab = TAB_DASHBOARD
     var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
 
-    val callbacks =
-      createMainNavCallbacks(
+    val debtsNav =
+      createDebtsNavActions(
         currentTabProvider = { currentTab },
         onCurrentTabChange = { currentTab = it },
         onDebtsStateChange = { debtsState = it },
         onResetPersonSearch = { searchCleared = true }
       )
 
-    callbacks.onShowDebtors()
+    debtsNav.onShowDebtors()
 
     assertEquals("Search query reset", true, searchCleared)
     assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
@@ -86,15 +86,15 @@ class MainActivityNavigationTest {
     var currentTab = TAB_DASHBOARD
     var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
 
-    val callbacks =
-      createMainNavCallbacks(
+    val debtsNav =
+      createDebtsNavActions(
         currentTabProvider = { currentTab },
         onCurrentTabChange = { currentTab = it },
         onDebtsStateChange = { debtsState = it },
         onResetPersonSearch = { searchCleared = true }
       )
 
-    callbacks.onShowCreditors()
+    debtsNav.onShowCreditors()
 
     assertEquals("Search query reset", true, searchCleared)
     assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
@@ -108,15 +108,15 @@ class MainActivityNavigationTest {
     var currentTab = TAB_DASHBOARD
     var debtsState = DebtsTabState(DebtSection.INSTALLMENTS, LoanDirectionFilter.ALL)
 
-    val callbacks =
-      createMainNavCallbacks(
+    val debtsNav =
+      createDebtsNavActions(
         currentTabProvider = { currentTab },
         onCurrentTabChange = { currentTab = it },
         onDebtsStateChange = { debtsState = it },
         onResetPersonSearch = { searchCleared = true }
       )
 
-    callbacks.onTabSelected(TAB_DEBTS)
+    debtsNav.onTabSelected(TAB_DEBTS)
 
     assertEquals("Search query reset on entering DEBTS", true, searchCleared)
     assertEquals("Current tab updated to DEBTS", TAB_DEBTS, currentTab)

@@ -10,6 +10,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -25,17 +29,49 @@ fun HesabyarCard(
       containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     ),
   contentPadding: PaddingValues = PaddingValues(SpacingTokens.lg),
+  onClick: (() -> Unit)? = null,
+  onClickLabel: String? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
-  Card(
-    modifier = modifier,
-    shape = shape,
-    elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-    colors = cardColors
-  ) {
-    Column(
-      modifier = Modifier.padding(contentPadding),
-      content = content
-    )
+  val cardModifier =
+    if (onClick != null) {
+      modifier.semantics {
+        role = Role.Button
+        if (onClickLabel != null) {
+          onClick(label = onClickLabel) {
+            onClick()
+            true
+          }
+        }
+      }
+    } else {
+      modifier
+    }
+
+  if (onClick != null) {
+    Card(
+      onClick = onClick,
+      modifier = cardModifier,
+      shape = shape,
+      elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+      colors = cardColors
+    ) {
+      Column(
+        modifier = Modifier.padding(contentPadding),
+        content = content
+      )
+    }
+  } else {
+    Card(
+      modifier = cardModifier,
+      shape = shape,
+      elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+      colors = cardColors
+    ) {
+      Column(
+        modifier = Modifier.padding(contentPadding),
+        content = content
+      )
+    }
   }
 }
