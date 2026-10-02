@@ -68,7 +68,7 @@ None.
 - Kept all check scripts strictly read-only (`check-android.sh` does not run `ktlintFormat`).
 - Removed `--rerun-tasks` from `scripts/check-rust-bridge.sh` per direct user instruction to avoid 11-14 min NDK rebuilds and preserve incremental Gradle task checking.
 - Configure coverage through the Gradle `JacocoTaskExtension` on `tasks.withType<Test>().configureEach` in `app/build.gradle.kts`. This reaches all test tasks uniformly without call-site duplication.
-- Retain an additive defense-in-depth exclusion for `jdk/internal/*` in `JacocoTaskExtension.excludes` to prevent reflection accessor classloader conflicts on JDK 17+ (observed in CI run 36834656704).
+- Keep `JacocoTaskExtension` configuration minimal with `isIncludeNoLocationClasses = true`; omit `excludes` because JDK bootstrap classes are not handled by JaCoCo on forked test workers.
 
 ## Verification
 

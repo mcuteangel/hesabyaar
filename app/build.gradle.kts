@@ -360,11 +360,6 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
   // classes without that metadata by default, causing 0% Composable coverage.
   extensions.configure<org.gradle.testing.jacoco.plugins.JacocoTaskExtension> {
     isIncludeNoLocationClasses = true
-    // Defense-in-depth: additively exclude jdk/internal/* to prevent reflection
-    // accessor classloader conflicts (observed in CI run 36834656704 as
-    // NoClassDefFoundError: jdk/internal/reflect/GeneratedMethodAccessor1
-    // when includenolocationclasses=true was active).
-    excludes = (excludes ?: emptyList()) + "jdk/internal/*"
   }
 }
 
