@@ -68,6 +68,7 @@ None.
 - Kept all check scripts strictly read-only (`check-android.sh` does not run `ktlintFormat`).
 - Removed `--rerun-tasks` from `scripts/check-rust-bridge.sh` per direct user instruction to avoid 11-14 min NDK rebuilds and preserve incremental Gradle task checking.
 - Configure coverage through the Gradle `JacocoTaskExtension` on `tasks.withType<Test>().configureEach` in `app/build.gradle.kts`. This reaches all test tasks uniformly without call-site duplication.
+- Retain an additive defense-in-depth exclusion for `jdk.internal.*` in `JacocoTaskExtension.excludes` to prevent reflection accessor classloader conflicts on JDK 17+.
 
 ## Verification
 
@@ -76,7 +77,7 @@ None.
 | Rust | `./scripts/check-rust.sh` | PASS (490 unit tests passed; clippy clean; exit 0) |
 | Android | `./scripts/check-android.sh` | FAILED at lintDebug (ktlintCheck UP-TO-DATE; detekt UP-TO-DATE; testDebugUnitTest PASS; lintDebug failed with 4 errors in pre-existing files; exit 1) |
 | Rust Bridge | `./scripts/check-rust-bridge.sh` | PASS (45 actionable tasks executed; exit 0) |
-| #285 fix | CI run 36847313121 (`testDebugUnitTest jacocoTestReport`) | PASS: Coveralls reported 44.354% (job 188814742) vs 34.2% baseline (+10.15% delta from Compose coverage) |
+| #285 fix | CI run 36847313121 (`testDebugUnitTest jacocoTestReport`) | PASS: Coveralls reported 44.354% overall project coverage (job 188814742) vs 34.2% baseline (+10.15% overall delta); pending current commit CI verification |
 
 ## Next Steps
 
