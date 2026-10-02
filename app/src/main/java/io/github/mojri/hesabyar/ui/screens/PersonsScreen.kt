@@ -204,11 +204,21 @@ private fun matchesDirection(
   filter: LoanDirectionFilter,
 ): Boolean =
   when (filter) {
-    LoanDirectionFilter.ALL -> true
-    LoanDirectionFilter.DEBTOR -> balance.netBalance > 0L
-    LoanDirectionFilter.CREDITOR -> balance.netBalance < 0L
-    LoanDirectionFilter.SETTLED ->
+    LoanDirectionFilter.ALL -> {
+      true
+    }
+
+    LoanDirectionFilter.DEBTOR -> {
+      balance.netBalance > 0L
+    }
+
+    LoanDirectionFilter.CREDITOR -> {
+      balance.netBalance < 0L
+    }
+
+    LoanDirectionFilter.SETTLED -> {
       balance.activeLoanCount == 0 && balance.settledLoanCount > 0
+    }
   }
 
 @Composable
@@ -373,26 +383,31 @@ private data class PersonDirection(
 private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): PersonDirection {
   val net = balance.netBalance
   return when {
-    net > 0L ->
+    net > 0L -> {
       PersonDirection(
         icon = Icons.Filled.ArrowCircleDown,
         tint = MaterialTheme.colorScheme.primary,
         label = "بدهکار",
         contentDescription = "بدهکار — موجودی مثبت"
       )
-    net < 0L ->
+    }
+
+    net < 0L -> {
       PersonDirection(
         icon = Icons.Filled.ArrowCircleUp,
         tint = MaterialTheme.colorScheme.secondary,
         label = "طلبکار",
         contentDescription = "طلبکار — موجودی منفی"
       )
-    else ->
+    }
+
+    else -> {
       PersonDirection(
         icon = Icons.Filled.AccountCircle,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         label = "تعادل",
         contentDescription = "متعادل — موجودی صفر"
       )
+    }
   }
 }

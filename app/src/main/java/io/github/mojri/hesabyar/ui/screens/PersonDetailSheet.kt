@@ -85,11 +85,14 @@ fun PersonDetailSheet(
       balance = currentBalance,
       loans = loans,
       personViewModel = personViewModel,
-      onAddReceivable = { dialogState.addLoanType = LoanType.DEBTOR },
-      onAddDebt = { dialogState.addLoanType = LoanType.CREDITOR },
-      onSettleFully = { dialogState.showSettleConfirm = true },
-      settleError = dialogState.settleError,
-      isSettling = isSettling
+      actions =
+        PersonSheetActions(
+          onAddReceivable = { dialogState.addLoanType = LoanType.DEBTOR },
+          onAddDebt = { dialogState.addLoanType = LoanType.CREDITOR },
+          onSettleFully = { dialogState.showSettleConfirm = true },
+          settleError = dialogState.settleError,
+          isSettling = isSettling
+        )
     )
   }
 
@@ -101,6 +104,14 @@ fun PersonDetailSheet(
     isSettling = isSettling
   )
 }
+
+private data class PersonSheetActions(
+  val onAddReceivable: () -> Unit,
+  val onAddDebt: () -> Unit,
+  val onSettleFully: () -> Unit,
+  val settleError: String? = null,
+  val isSettling: Boolean = false,
+)
 
 private class PersonSheetState {
   var addLoanType by mutableStateOf<LoanType?>(null)
@@ -207,11 +218,7 @@ private fun PersonSheetContent(
   balance: PersonBalanceCalculator.PersonBalance?,
   loans: List<Loan>,
   personViewModel: PersonViewModel,
-  onAddReceivable: () -> Unit,
-  onAddDebt: () -> Unit,
-  onSettleFully: () -> Unit,
-  settleError: String?,
-  isSettling: Boolean,
+  actions: PersonSheetActions,
 ) {
   Column(
     modifier =
@@ -224,16 +231,16 @@ private fun PersonSheetContent(
     PersonHeader(personName = personName, balance = balance)
 
     PersonQuickActions(
-      onAddReceivable = onAddReceivable,
-      onAddDebt = onAddDebt,
-      onSettleFully = onSettleFully,
+      onAddReceivable = actions.onAddReceivable,
+      onAddDebt = actions.onAddDebt,
+      onSettleFully = actions.onSettleFully,
       hasSettleableLoans = loans.any { !it.isSettled },
-      isSettling = isSettling
+      isSettling = actions.isSettling
     )
 
-    if (settleError != null) {
+    if (actions.settleError != null) {
       Text(
-        text = settleError,
+        text = actions.settleError,
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodySmall
       )

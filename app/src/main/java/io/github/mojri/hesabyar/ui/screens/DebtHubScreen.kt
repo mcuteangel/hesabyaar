@@ -65,19 +65,23 @@ fun DebtHubScreen(
     // exactly the remaining space instead of requesting full parent height.
     Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
       when (section) {
-        DebtSection.INSTALLMENTS ->
+        DebtSection.INSTALLMENTS -> {
           InstallmentScreen(
             installmentViewModel = installmentViewModel,
             settingsViewModel = settingsViewModel,
             bankLoanViewModel = bankLoanViewModel,
             modifier = Modifier.fillMaxSize()
           )
-        DebtSection.BANK_LOANS ->
+        }
+
+        DebtSection.BANK_LOANS -> {
           BankLoanScreen(
             bankLoanViewModel = bankLoanViewModel,
             modifier = Modifier.fillMaxSize()
           )
-        DebtSection.PERSONS ->
+        }
+
+        DebtSection.PERSONS -> {
           PersonsScreen(
             personViewModel = personViewModel,
             initialDirectionFilter = initialPersonsDirectionFilter,
@@ -87,6 +91,7 @@ fun DebtHubScreen(
             },
             modifier = Modifier.fillMaxSize()
           )
+        }
       }
     }
 
