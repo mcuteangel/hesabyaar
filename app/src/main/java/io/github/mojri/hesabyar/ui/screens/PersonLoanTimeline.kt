@@ -82,16 +82,21 @@ private fun TimelineLoanItem(
 ) {
   val (tint, icon, typeLabel) =
     when (loan.type) {
-      LoanType.DEBTOR ->
+      LoanType.DEBTOR -> {
         Triple(MaterialTheme.colorScheme.primary, Icons.Filled.ArrowCircleDown, "طلب")
-      LoanType.CREDITOR ->
+      }
+
+      LoanType.CREDITOR -> {
         Triple(MaterialTheme.colorScheme.secondary, Icons.Filled.ArrowCircleUp, "بدهی")
-      LoanType.UNKNOWN ->
+      }
+
+      LoanType.UNKNOWN -> {
         Triple(
           MaterialTheme.colorScheme.onSurfaceVariant,
           Icons.Filled.AccountCircle,
           "نوع نامشخص"
         )
+      }
     }
   val paymentsFlow = remember(loan.id) { personViewModel.getPaymentHistoryForLoan(loan.id) }
   val payments by paymentsFlow.collectAsState(initial = emptyList())

@@ -324,6 +324,8 @@ class PersonViewModelTest {
       // Let the first batch acquire the lock and suspend at the gate.
       testDispatcher.scheduler.runCurrent()
       viewModel.settleFully(personId = 6L, onResult = { secondResult = it })
+      // Execute the second coroutine so it encounters the locked state and returns.
+      testDispatcher.scheduler.runCurrent()
 
       // Duplicate invocation is ignored without invoking onResult so the caller
       // is not tricked into displaying a false failure while the batch runs.
@@ -333,6 +335,7 @@ class PersonViewModelTest {
       advanceUntilIdle()
 
       assertEquals("First batch reports success", true, firstResult)
+      assertEquals("Duplicate callback never invoked even after completion", null, secondResult)
       assertEquals("Only one repayment attempted", 1, fakeRepository.makeRepaymentCallCount)
     }
 

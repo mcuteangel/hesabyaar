@@ -483,12 +483,13 @@ class PersonDetailSheetTest {
     personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value = emptyList()
 
+    var dismissCount = 0
     composeRule.setContent {
       PersonDetailSheet(
         personId = 1L,
         personName = NAME_ALI,
         personViewModel = viewModel,
-        onDismiss = {}
+        onDismiss = { dismissCount++ }
       )
     }
     settle()
@@ -508,11 +509,14 @@ class PersonDetailSheetTest {
     // dismissable, so the pending operation stays visible and tracked.
     composeRule.onNodeWithText(BTN_CANCEL).assertIsNotEnabled()
     composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+    assertEquals("Dismiss callback not invoked while submitting", 0, dismissCount)
 
     gate.complete(Unit)
     settle()
 
     // Once the write completes the dialog closes and no text remains.
+    composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
+    assertEquals("Sheet dismissal not triggered by dialog completion", 0, dismissCount)
     composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
   }
 

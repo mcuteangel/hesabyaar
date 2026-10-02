@@ -59,38 +59,52 @@ object PersonBalanceCalculator {
     for (loan in loans) {
       // Skip loans with no person link and loans pointing at an unknown person.
       val pid = loan.personId?.takeIf { totals.containsKey(it) } ?: continue
-      val e = totals.getValue(pid)
-      val remaining = loan.remainingAmount
       when (loan.type) {
-        LoanType.DEBTOR -> {
-          if (loan.isSettled) {
-            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
-          } else {
-            totals[pid] =
-              e.copy(
-                totalReceivables = e.totalReceivables.saturatingAdd(remaining),
-                netBalance = e.netBalance.saturatingAdd(remaining),
-                activeLoanCount = e.activeLoanCount.saturatingInc(),
-              )
-          }
-        }
-        LoanType.CREDITOR -> {
-          if (loan.isSettled) {
-            totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
-          } else {
-            totals[pid] =
-              e.copy(
-                totalDebts = e.totalDebts.saturatingAdd(remaining),
-                netBalance = e.netBalance.saturatingSub(remaining),
-                activeLoanCount = e.activeLoanCount.saturatingInc(),
-              )
-          }
-        }
+        LoanType.DEBTOR -> applyDebtor(totals, pid, loan)
+        LoanType.CREDITOR -> applyCreditor(totals, pid, loan)
         LoanType.UNKNOWN -> Unit
       }
     }
 
     return totals.values.sortedBy { it.personId }
+  }
+
+  private fun applyDebtor(
+    totals: MutableMap<Long, PersonBalance>,
+    pid: Long,
+    loan: Loan
+  ) {
+    val e = totals.getValue(pid)
+    if (loan.isSettled) {
+      totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
+      return
+    }
+    val remaining = loan.remainingAmount
+    totals[pid] =
+      e.copy(
+        totalReceivables = e.totalReceivables.saturatingAdd(remaining),
+        netBalance = e.netBalance.saturatingAdd(remaining),
+        activeLoanCount = e.activeLoanCount.saturatingInc(),
+      )
+  }
+
+  private fun applyCreditor(
+    totals: MutableMap<Long, PersonBalance>,
+    pid: Long,
+    loan: Loan
+  ) {
+    val e = totals.getValue(pid)
+    if (loan.isSettled) {
+      totals[pid] = e.copy(settledLoanCount = e.settledLoanCount.saturatingInc())
+      return
+    }
+    val remaining = loan.remainingAmount
+    totals[pid] =
+      e.copy(
+        totalDebts = e.totalDebts.saturatingAdd(remaining),
+        netBalance = e.netBalance.saturatingSub(remaining),
+        activeLoanCount = e.activeLoanCount.saturatingInc(),
+      )
   }
 
   // Saturation delegates to the shared MathUtils helpers (already covered by

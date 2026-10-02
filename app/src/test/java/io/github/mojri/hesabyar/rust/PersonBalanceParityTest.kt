@@ -8,7 +8,6 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
-import io.github.mojri.hesabyar.rust.PersonBalanceSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before

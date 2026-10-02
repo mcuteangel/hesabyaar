@@ -185,6 +185,7 @@ class MainActivity : FragmentActivity() {
           modifier = Modifier.fillMaxSize()
         )
       }
+
       showAccountManagement -> {
         AccountManagementScreen(
           accountViewModel = accountViewModel,
@@ -192,6 +193,7 @@ class MainActivity : FragmentActivity() {
           modifier = Modifier.fillMaxSize()
         )
       }
+
       else -> {
         val debtsNav =
           createDebtsNavActions(

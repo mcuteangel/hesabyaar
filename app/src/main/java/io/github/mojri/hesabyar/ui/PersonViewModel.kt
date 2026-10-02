@@ -174,17 +174,19 @@ class PersonViewModel
         } finally {
           releaseSettleLock(personId)
         }
-        dispatchSettleResult(onResult, overallSuccess)
+        if (onResult != null) {
+          dispatchSettleResult(onResult, overallSuccess)
+        }
       }
     }
 
     @Suppress("TooGenericExceptionCaught")
     private fun dispatchSettleResult(
-      onResult: ((Boolean) -> Unit)?,
+      onResult: (Boolean) -> Unit,
       success: Boolean
     ) {
       try {
-        onResult?.invoke(success)
+        onResult(success)
       } catch (e: CancellationException) {
         throw e
       } catch (e: Throwable) {
