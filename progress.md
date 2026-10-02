@@ -60,7 +60,7 @@ None.
     - 1 local machine issue: `local.properties:8` (`PropertyEscape` on unescaped Windows backslashes in `sdk.dir`).
     - 3 pre-existing Compose issues: `ManualTransactionDialog.kt:132, 138, 149` (`LocalContextGetResourceValueCall` from querying resources using `LocalContext.current`).
     Per task rules, application code was left unchanged.
-5. **JaCoCo 0% Composable Coverage:** structural gap between the JaCoCo agent and Robolectric's sandbox classloader. Resolved via `isIncludeNoLocationClasses = true` on Test tasks (issue #285, PR #298).
+5. **JaCoCo 0% Composable Coverage:** structural gap between the JaCoCo agent and Robolectric's sandbox classloader. Fix is `isIncludeNoLocationClasses = true` on Test tasks (issue #285, PR #298, pending CI verification on current commit).
 
 ## Decisions
 
@@ -68,7 +68,7 @@ None.
 - Kept all check scripts strictly read-only (`check-android.sh` does not run `ktlintFormat`).
 - Removed `--rerun-tasks` from `scripts/check-rust-bridge.sh` per direct user instruction to avoid 11-14 min NDK rebuilds and preserve incremental Gradle task checking.
 - Configure coverage through the Gradle `JacocoTaskExtension` on `tasks.withType<Test>().configureEach` in `app/build.gradle.kts`. This reaches all test tasks uniformly without call-site duplication.
-- Retain an additive defense-in-depth exclusion for `jdk.internal.*` in `JacocoTaskExtension.excludes` to prevent reflection accessor classloader conflicts on JDK 17+.
+- Retain an additive defense-in-depth exclusion for `jdk.internal.*` in `JacocoTaskExtension.excludes` to prevent reflection accessor classloader conflicts on JDK 17+ (observed in CI run 36834656704).
 
 ## Verification
 
@@ -77,14 +77,14 @@ None.
 | Rust | `./scripts/check-rust.sh` | PASS (490 unit tests passed; clippy clean; exit 0) |
 | Android | `./scripts/check-android.sh` | FAILED at lintDebug (ktlintCheck UP-TO-DATE; detekt UP-TO-DATE; testDebugUnitTest PASS; lintDebug failed with 4 errors in pre-existing files; exit 1) |
 | Rust Bridge | `./scripts/check-rust-bridge.sh` | PASS (45 actionable tasks executed; exit 0) |
-| #285 fix | CI run 36847313121 (`testDebugUnitTest jacocoTestReport`) | PASS: Coveralls reported 44.354% overall project coverage (job 188814742) vs 34.2% baseline (+10.15% overall delta); pending current commit CI verification |
+| #285 fix | CI `testDebugUnitTest jacocoTestReport` | PENDING: awaiting run completion on current commit; previous run 36847313121 confirmed 44.354% overall coverage (job 188814742) vs 34.2% baseline (+10.15% overall delta) |
 
 ## Next Steps
 
 1. Address pre-existing `LocalContextGetResourceValueCall` lint errors in `ManualTransactionDialog.kt` in a dedicated task.
 2. Align `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` with database version 9.
 3. Configure Room schema export and add `MigrationTestHelper` integration tests.
-4. Close issue #285 citing the verified 44.354% (+10.15% delta) coverage result from CI run 36847313121.
+4. Close issue #285 once current commit CI run completes green with confirmed coverage.
 
 ## Last Updated
 
