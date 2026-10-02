@@ -1,0 +1,27 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_79c2773a1818ea::t_082b907f5e33cc 108
+  s_79c2773a1818ea::t_7791a15bbede9c 167
+  s_79c2773a1818ea::t_118f7aa13e4815 189,195-197,213
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_79c2773a1818ea::t_5e4259f8386a45 401-424
+docs/LOCALIZATION.md
+  s_79c2773a1818ea::t_385cd66ab18452 13-14
+rust/hesabyar-core/src/models/mod.rs
+  s_79c2773a1818ea::t_b91d92f6be214c 1377,1393,1409,1424,1434,1442
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bbb64c13be4a69b23d3294c7f908f558f2a48ecc",
+  "prompts": {},
+  "sessions": {
+    "s_79c2773a1818ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58b94c7b-7b2f-4f6a-aa6a-453695e85c5b",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
