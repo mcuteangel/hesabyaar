@@ -105,9 +105,7 @@ class PersonViewModel
             true
           } catch (e: CancellationException) {
             throw e
-          } catch (e: VirtualMachineError) {
-            throw e
-          } catch (e: Throwable) {
+          } catch (e: Exception) {
             AppLogger.e(TAG, "addLoanForPerson failed", e)
             false
           }
@@ -166,9 +164,7 @@ class PersonViewModel
           }
         } catch (e: CancellationException) {
           throw e
-        } catch (e: VirtualMachineError) {
-          throw e
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
@@ -190,17 +186,15 @@ class PersonViewModel
         onResult(success)
       } catch (e: CancellationException) {
         throw e
-      } catch (e: VirtualMachineError) {
-        throw e
-      } catch (e: Throwable) {
+      } catch (e: Exception) {
         AppLogger.e(TAG, "$action onResult callback threw", e)
       }
     }
 
     // Structured concurrency: cancellation is rethrown untouched.
-    // Per-loan isolation: every other throwable (including Rust FFI Errors such
-    // as UnsatisfiedLinkError) is logged and reported as a failed loan, so the
-    // remaining loans in the batch still settle.
+    // Fatal VM errors (Error / VirtualMachineError) bypass catch (Exception) and fail fast.
+    // Per-loan isolation: non-fatal exceptions are logged and reported as a failed loan,
+    // so the remaining loans in the batch still settle.
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repayLoanSafely(loan: Loan): Boolean {
       val remaining = loan.remainingAmount
@@ -216,9 +210,7 @@ class PersonViewModel
         success
       } catch (e: CancellationException) {
         throw e
-      } catch (e: VirtualMachineError) {
-        throw e
-      } catch (e: Throwable) {
+      } catch (e: Exception) {
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }

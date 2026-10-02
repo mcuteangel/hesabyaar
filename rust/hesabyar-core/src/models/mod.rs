@@ -1374,7 +1374,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_debtor_receivable_positive() {
+    fn person_balances_debtor_receivable_positive() {
         let persons = vec![person(1, "Ali")];
         let loans = vec![
             loan("DEBTOR", 2_000_000, Some(1), false), // owed to me
@@ -1390,7 +1390,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_settled_excluded_from_balance() {
+    fn person_balances_settled_excluded_from_balance() {
         let persons = vec![person(1, "Ali")];
         let loans = vec![
             loan("DEBTOR", 1_000_000, Some(1), true), // settled: counted, no balance
@@ -1406,7 +1406,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_legacy_loans_ignored() {
+    fn person_balances_legacy_loans_ignored() {
         let persons = vec![person(1, "Ali")];
         let loans = vec![
             loan("DEBTOR", 9_000_000, None, false), // null personId → ignored
@@ -1421,7 +1421,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_empty_loans() {
+    fn person_balances_empty_loans() {
         let persons = vec![person(1, "Ali"), person(2, "Sara")];
         let bal = compute_person_balances(&persons, &[]);
         assert_eq!(bal.len(), 2);
@@ -1431,7 +1431,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_ordered_by_id() {
+    fn person_balances_ordered_by_id() {
         let persons = vec![person(3, "C"), person(1, "A"), person(2, "B")];
         let bal = compute_person_balances(&persons, &[]);
         let ids: Vec<i64> = bal.iter().map(|b| b.person_id).collect();
@@ -1439,7 +1439,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_person_balances_saturating_overflow_and_underflow() {
+    fn person_balances_saturating_overflow_and_underflow() {
         let persons = vec![person(1, "BigDebtor"), person(2, "BigCreditor")];
         let loans = vec![
             // Person 1: two huge DEBTOR loans that would overflow i64::MAX

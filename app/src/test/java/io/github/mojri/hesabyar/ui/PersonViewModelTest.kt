@@ -398,6 +398,31 @@ class PersonViewModelTest {
     }
 
   @Test
+  fun settleFullyReportsFailureWhenUnsettledLoanHasNonPositiveRemaining() =
+    runTest(testDispatcher) {
+      val loan =
+        Loan(
+          id = 101L,
+          personId = 5L,
+          personName = NAME_SARA,
+          type = LoanType.DEBTOR,
+          originalAmount = 50_000L,
+          remainingAmount = 0L,
+          description = "",
+          date = 1000L,
+          isSettled = false
+        )
+      fakeRepository.loansFlow.value = listOf(loan)
+
+      var succeeded: Boolean? = null
+      viewModel.settleFully(personId = 5L, onResult = { succeeded = it })
+      advanceUntilIdle()
+
+      assertEquals("settleFully reports failure for zero remaining amount", false, succeeded)
+      assertEquals("Zero repayments attempted", 0, fakeRepository.makeRepaymentCallCount)
+    }
+
+  @Test
   fun settleFullyAttemptsAllLoansWhenOneRepaymentFails() =
     runTest(testDispatcher) {
       val failingLoan =

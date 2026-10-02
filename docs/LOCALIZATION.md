@@ -10,6 +10,8 @@ This document defines the rules for text strings, localization, and resource key
 
 ## Key Naming Conventions
 
+> **Note on Examples:** The keys and strings listed throughout this guide serve as architectural standards and forward-looking naming patterns for string extraction across the codebase. They illustrate the standardized prefix schema and structure to adopt whenever hardcoded UI strings are extracted to `strings.xml`.
+
 All string resource keys must use `snake_case` with standardized prefix patterns:
 
 ### 1. Action Verbs (`action_*`)
