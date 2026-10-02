@@ -225,7 +225,7 @@ jobs:
       - name: Run OpenCodeReview
         # v1.12.8 release commit (immutable pin; tag object 0e304c76 dereferences
         # to this commit). Carries the GHSA-wwg6-qfxw-xffj fix forward from v1.11.1.
-        uses: alibaba/open-code-review@5c7b38381d1fdd36de6cf622a2a1f768243c4704 # v1.12.8
+        uses: alibaba/open-code-review@579b9319151aa734f2d25df6e59efa59eec5a577 # v1.12.10
         with:
           # Pin the CLI to the same reviewed release; the Action default is 'latest'.
           # The CLI is the component the advisory covers, and the Action installs
