@@ -103,8 +103,11 @@ class PersonViewModel
           try {
             manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
             true
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: VirtualMachineError) {
+            throw e
           } catch (e: Throwable) {
-            if (e is CancellationException || e is VirtualMachineError) throw e
             AppLogger.e(TAG, "addLoanForPerson failed", e)
             false
           }
@@ -161,8 +164,11 @@ class PersonViewModel
               overallSuccess = false
             }
           }
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: VirtualMachineError) {
+          throw e
         } catch (e: Throwable) {
-          if (e is CancellationException || e is VirtualMachineError) throw e
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
@@ -182,8 +188,11 @@ class PersonViewModel
     ) {
       try {
         onResult(success)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: VirtualMachineError) {
+        throw e
       } catch (e: Throwable) {
-        if (e is CancellationException || e is VirtualMachineError) throw e
         AppLogger.e(TAG, "$action onResult callback threw", e)
       }
     }
@@ -205,8 +214,11 @@ class PersonViewModel
           AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
         }
         success
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: VirtualMachineError) {
+        throw e
       } catch (e: Throwable) {
-        if (e is CancellationException || e is VirtualMachineError) throw e
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }
