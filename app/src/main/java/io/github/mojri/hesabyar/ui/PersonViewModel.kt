@@ -103,18 +103,13 @@ class PersonViewModel
           try {
             manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
             true
-          } catch (e: CancellationException) {
-            throw e
           } catch (e: Throwable) {
+            if (e is CancellationException || e is VirtualMachineError) throw e
             AppLogger.e(TAG, "addLoanForPerson failed", e)
             false
           }
-        try {
-          onResult?.invoke(success)
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Throwable) {
-          AppLogger.e(TAG, "addLoanForPerson onResult callback threw", e)
+        if (onResult != null) {
+          dispatchCallbackSafely("addLoanForPerson", onResult, success)
         }
       }
     }
@@ -166,31 +161,30 @@ class PersonViewModel
               overallSuccess = false
             }
           }
-        } catch (e: CancellationException) {
-          throw e
         } catch (e: Throwable) {
+          if (e is CancellationException || e is VirtualMachineError) throw e
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
           releaseSettleLock(personId)
         }
         if (onResult != null) {
-          dispatchSettleResult(onResult, overallSuccess)
+          dispatchCallbackSafely("settleFully", onResult, overallSuccess)
         }
       }
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun dispatchSettleResult(
+    private fun dispatchCallbackSafely(
+      action: String,
       onResult: (Boolean) -> Unit,
       success: Boolean
     ) {
       try {
         onResult(success)
-      } catch (e: CancellationException) {
-        throw e
       } catch (e: Throwable) {
-        AppLogger.e(TAG, "settleFully onResult callback threw", e)
+        if (e is CancellationException || e is VirtualMachineError) throw e
+        AppLogger.e(TAG, "$action onResult callback threw", e)
       }
     }
 
@@ -201,16 +195,18 @@ class PersonViewModel
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repayLoanSafely(loan: Loan): Boolean {
       val remaining = loan.remainingAmount
-      if (remaining <= 0L) return true
+      if (remaining <= 0L) {
+        AppLogger.w(TAG, "unsettled loan ${loan.id} has remaining=$remaining; cannot settle")
+        return false
+      }
       return try {
         val success = manageLoanUseCase.makeRepayment(loan.id, remaining, SETTLE_REPAYMENT_NOTE, null)
         if (!success) {
           AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
         }
         success
-      } catch (e: CancellationException) {
-        throw e
       } catch (e: Throwable) {
+        if (e is CancellationException || e is VirtualMachineError) throw e
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }

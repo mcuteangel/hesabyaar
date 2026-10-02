@@ -517,7 +517,6 @@ class PersonDetailSheetTest {
     // Once the write completes the dialog closes and no text remains.
     composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
     assertEquals("Sheet dismissal not triggered by dialog completion", 0, dismissCount)
-    composeRule.onNodeWithText(BTN_SUBMIT).assertDoesNotExist()
   }
 
   private companion object {
