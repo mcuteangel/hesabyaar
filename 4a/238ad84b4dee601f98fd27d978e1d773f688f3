@@ -1,0 +1,32 @@
+.github/workflows/android-ci.yml
+  s_3ae98003c5def4::t_0de965ca586690 76-77
+app/build.gradle.kts
+  s_3ae98003c5def4::t_46cee13b1998c2 550
+gradle/jacoco-coverage.gradle.kts
+  s_3ae98003c5def4::t_790bb76cd1ce3e 6-8,38,40-43,46-54,77
+  s_3ae98003c5def4::t_96b3088df361fc 1-2,5,10,18,21,30,35-37,39,44-45,55,68-76,84
+  s_3ae98003c5def4::t_558131883c7ced 3-4,9,11-17,19-20,22-29,31-34,56-67,78-83
+docs/TEST_COVERAGE.md
+  s_3ae98003c5def4::t_c35d1441a78003 8,18-28,40-41,43,45-46,50-56,58
+plans/012-unified-test-coverage-kotlin-rust.md
+  s_3ae98003c5def4::t_547536ac999471 4,7
+  s_3ae98003c5def4::t_eab576f720fc53 32-50,55-56
+progress.md
+  s_3ae98003c5def4::t_62ee9ae1d187ff 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4a238ad84b4dee601f98fd27d978e1d773f688f3",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
