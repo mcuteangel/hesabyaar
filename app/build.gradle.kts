@@ -547,6 +547,25 @@ androidComponents {
   }
 }
 
+val jacocoReportExcludes =
+  listOf(
+    "**/R.class",
+    "**/R$*.class",
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    "**/*_Impl*.*",
+    "**/hilt_aggregated_deps/**",
+    "**/dagger/**",
+    "**/*_HiltModules*.*",
+    "**/*_Factory*.*",
+    "**/*_MembersInjector*.*",
+    "**/Hilt_*.*",
+    "**/hesabyar_core*.*",
+    "**/Hesabyar_core*.*",
+    "**/Uniffi*.*",
+    "**/FfiConverter*.*"
+  )
+
 tasks.register<JacocoReport>("jacocoTestReport") {
   // Coverage must include both the fast non-Rust tests and the isolated
   // Rust-bridge tests (testDebugUnitTestRust) — executionData below globs
@@ -555,8 +574,14 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   executionData.setFrom(fileTree("build/jacoco") { include("*.exec") })
   sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
   classDirectories.setFrom(
-    fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") { include("**/*.class") },
-    fileTree("build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") { include("**/*.class") }
+    fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") {
+      include("**/*.class")
+      exclude(jacocoReportExcludes)
+    },
+    fileTree("build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") {
+      include("**/*.class")
+      exclude(jacocoReportExcludes)
+    }
   )
   reports {
     xml.required = true
