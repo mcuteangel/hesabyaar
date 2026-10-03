@@ -1,5 +1,8 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -20,7 +23,7 @@ class HesabyarButtonTest {
   val composeRule = createComposeRule()
 
   @Test
-  fun buttonCombinesLabelAndCustomContentDescriptionWhenLoading() {
+  fun loadingButtonPublishesActionNameAsContentDescription() {
     composeRule.setContent {
       HesabyarButton(
         onClick = {},
@@ -30,12 +33,16 @@ class HesabyarButtonTest {
       )
     }
 
-    composeRule.onNodeWithContentDescription(EXPECTED_SAVE_LOADING_DESC).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(EXPECTED_SAVE_LOADING_DESC).assertIsNotEnabled()
+    val node =
+      composeRule
+        .onNodeWithContentDescription(TEXT_SAVE)
+        .assertIsDisplayed()
+    node.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DESC_SAVING))
+    node.assertIsNotEnabled()
   }
 
   @Test
-  fun buttonCombinesLabelAndDefaultLoadingDescription() {
+  fun loadingButtonFallsBackToDefaultLoadingStateDescription() {
     composeRule.setContent {
       HesabyarButton(
         onClick = {},
@@ -44,15 +51,35 @@ class HesabyarButtonTest {
       )
     }
 
-    composeRule.onNodeWithContentDescription(EXPECTED_CONFIRM_LOADING_DESC).assertIsDisplayed()
-    composeRule.onNodeWithContentDescription(EXPECTED_CONFIRM_LOADING_DESC).assertIsNotEnabled()
+    val node =
+      composeRule
+        .onNodeWithContentDescription(TEXT_CONFIRM)
+        .assertIsDisplayed()
+    node.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DEFAULT_LOADING_DESC))
+    node.assertIsNotEnabled()
+  }
+
+  @Test
+  fun busyButtonKeepsClickActionDisabled() {
+    var clicked = false
+    composeRule.setContent {
+      HesabyarButton(
+        onClick = { clicked = true },
+        text = TEXT_SAVE,
+        loading = true,
+        iconContentDescription = DESC_SAVING
+      )
+    }
+
+    composeRule
+      .onNodeWithContentDescription(TEXT_SAVE)
+      .assertIsNotEnabled()
   }
 
   private companion object {
     const val TEXT_SAVE = "ذخیره"
     const val DESC_SAVING = "در حال ذخیره‌سازی"
-    const val EXPECTED_SAVE_LOADING_DESC = "ذخیره، در حال ذخیره‌سازی"
     const val TEXT_CONFIRM = "تایید"
-    const val EXPECTED_CONFIRM_LOADING_DESC = "تایید، در حال بارگذاری"
+    const val DEFAULT_LOADING_DESC = "در حال بارگذاری"
   }
 }

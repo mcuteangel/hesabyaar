@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -82,9 +83,11 @@ private fun buildButtonModifier(
 ): Modifier {
   val base = modifier.height(Dimens.ButtonHeight)
   if (!loading) return base
-  val busyLabel = iconContentDescription ?: DEFAULT_LOADING_LABEL
-  val description = if (text != null && text != busyLabel) "$text، $busyLabel" else busyLabel
-  return base.semantics(mergeDescendants = true) { contentDescription = description }
+  val busyState = iconContentDescription ?: DEFAULT_LOADING_LABEL
+  return base.semantics(mergeDescendants = true) {
+    if (text != null) contentDescription = text
+    stateDescription = busyState
+  }
 }
 
 @Composable

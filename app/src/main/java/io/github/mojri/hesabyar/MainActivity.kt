@@ -285,7 +285,7 @@ class MainActivity : FragmentActivity() {
     modifier: Modifier
   ) {
     when (currentTab) {
-      TAB_DASHBOARD ->
+      TAB_DASHBOARD -> {
         DashboardScreen(
           dashboardViewModel = dashboardViewModel,
           transactionViewModel = transactionViewModel,
@@ -297,7 +297,9 @@ class MainActivity : FragmentActivity() {
           onShowCreditors = callbacks.onShowCreditors,
           modifier = modifier
         )
-      TAB_ASSISTANT ->
+      }
+
+      TAB_ASSISTANT -> {
         SmartAssistantScreen(
           aiAssistantViewModel = aiAssistantViewModel,
           categoryViewModel = categoryViewModel,
@@ -305,20 +307,29 @@ class MainActivity : FragmentActivity() {
           settingsViewModel = settingsViewModel,
           modifier = modifier
         )
-      TAB_DEBTS -> DebtsTabContent(debtsState, callbacks, modifier)
-      TAB_ANALYTICS ->
+      }
+
+      TAB_DEBTS -> {
+        DebtsTabContent(debtsState, callbacks, modifier)
+      }
+
+      TAB_ANALYTICS -> {
         AnalyticsScreen(
           analyticsViewModel = analyticsViewModel,
           modifier = modifier
         )
-      TAB_REPORTS ->
+      }
+
+      TAB_REPORTS -> {
         ReportsScreen(
           dashboardViewModel = dashboardViewModel,
           transactionViewModel = transactionViewModel,
           aiAssistantViewModel = aiAssistantViewModel,
           modifier = modifier
         )
-      TAB_SETTINGS ->
+      }
+
+      TAB_SETTINGS -> {
         SettingsScreen(
           aiAssistantViewModel = aiAssistantViewModel,
           backupViewModel = backupViewModel,
@@ -327,6 +338,7 @@ class MainActivity : FragmentActivity() {
           onNavigateToCategories = callbacks.onNavigateToCategories,
           modifier = modifier
         )
+      }
     }
   }
 
