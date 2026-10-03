@@ -25,7 +25,7 @@ val jacocoReportExcludes =
     "**/*_Factory*.*",
     "**/*_MembersInjector*.*",
     "**/Hilt_*.*",
-    "**/Dagger*.*",
+    "**/DaggerHesabyarApp*.*",
     "**/HesabyarApp_HiltComponents*.*",
     // UniFFI generated file facades and support classes
     "**/hesabyar_core*.*",
@@ -58,6 +58,32 @@ tasks.register(
   "jacocoTestReport",
   org.gradle.testing.jacoco.tasks.JacocoReport::class.java
 ) {
+  // Fail fast if a new hand-written file was added to io.github.mojri.hesabyar.rust
+  // whose name does not start with one of handWrittenRustBridgePrefixes (which
+  // would cause it to be silently dropped by handWrittenClassSpec).
+  doFirst {
+    val rustSourceDir = file("src/main/java/io/github/mojri/hesabyar/rust")
+    if (rustSourceDir.exists()) {
+      val unrecognizedFiles =
+        rustSourceDir
+          .listFiles { f -> f.extension == "kt" || f.extension == "java" }
+          ?.filter { f ->
+            val name = f.name
+            name != "hesabyar_core.kt" &&
+              handWrittenRustBridgePrefixes.none { name.startsWith(it) }
+          }
+          ?.map { it.name }
+          ?: emptyList()
+      if (unrecognizedFiles.isNotEmpty()) {
+        throw org.gradle.api.GradleException(
+          "Unrecognized hand-written file(s) in $rustPackageSegment: $unrecognizedFiles. " +
+            "Update handWrittenRustBridgePrefixes in gradle/jacoco-coverage.gradle.kts " +
+            "so these files are measured by JaCoCo."
+        )
+      }
+    }
+  }
+
   // Coverage must include both the fast non-Rust tests and the isolated
   // Rust-bridge tests (testDebugUnitTestRust) — executionData below globs
   // every build/jacoco/*.exec, so both tasks must run before the report.
