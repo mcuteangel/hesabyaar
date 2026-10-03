@@ -109,12 +109,17 @@ jobs:
           flag-name: android
 
       - name: Upload coverage to Qlty Cloud
+        # Forked-PR runs get no secrets, so the token would be empty.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
         continue-on-error: true
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           add-prefix: app/src/main/java
+          # Each workflow uploads a different part of the repo and they run on
+          # different path filters; tags keep them from replacing each other.
+          tag: android
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
