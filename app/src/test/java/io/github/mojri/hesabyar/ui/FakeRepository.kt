@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.flowOf
  * BackupViewModelTest so multiple test classes exercise the important coordinator
  * without duplicating the ~35-method contract.
  */
-internal class FakeRepository : HesabyarRepositoryInterface {
+internal open class FakeRepository : HesabyarRepositoryInterface {
   var importShouldThrow: Exception? = null
   var exportShouldThrow: Exception? = null
 
@@ -38,7 +38,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
   var exportCategoryReadCount = 0
 
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-  override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
+  open override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
   override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
   override val allCategories: Flow<List<Category>> =
     flow {
@@ -78,7 +78,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun updateTransaction(transaction: Transaction) {}
 
-  override suspend fun insertLoan(loan: Loan): Long = 0L
+  open override suspend fun insertLoan(loan: Loan): Long = 0L
 
   override suspend fun insertLoanWithInitial(
     loan: Loan,
@@ -91,7 +91,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override fun getPaymentHistoryForLoan(loanId: Long): Flow<List<PaymentHistory>> = flowOf(emptyList())
 
-  override suspend fun addPaymentToLoan(
+  open override suspend fun addPaymentToLoan(
     loanId: Long,
     amount: Long,
     notes: String,
@@ -167,7 +167,7 @@ internal class FakeRepository : HesabyarRepositoryInterface {
 
   override suspend fun getMaxDisplayOrder(): Int = -1
 
-  override val allPersons: Flow<List<Person>> = flowOf(emptyList())
+  open override val allPersons: Flow<List<Person>> = flowOf(emptyList())
 
   override suspend fun getAllPersonsIncludingArchived(): List<Person> = emptyList()
 

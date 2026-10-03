@@ -16,6 +16,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -38,20 +41,16 @@ fun HesabyarButton(
   loading: Boolean = false,
   colors: ButtonColors? = null
 ) {
-  val buttonModifier = modifier.height(Dimens.ButtonHeight)
-  val resolvedColors =
-    colors ?: when (variant) {
-      ButtonVariant.Filled -> ButtonDefaults.buttonColors()
-      ButtonVariant.Outlined -> ButtonDefaults.outlinedButtonColors()
-      ButtonVariant.Text -> ButtonDefaults.textButtonColors()
-    }
+  val buttonModifier = buildButtonModifier(modifier, loading, text, iconContentDescription)
+  val resolvedColors = resolveButtonColors(variant, colors)
+  val isEnabled = enabled && !loading
 
   when (variant) {
     ButtonVariant.Filled ->
       Button(
         onClick = onClick,
         modifier = buttonModifier,
-        enabled = enabled && !loading,
+        enabled = isEnabled,
         shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
@@ -60,7 +59,7 @@ fun HesabyarButton(
       OutlinedButton(
         onClick = onClick,
         modifier = buttonModifier,
-        enabled = enabled && !loading,
+        enabled = isEnabled,
         shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
@@ -69,12 +68,40 @@ fun HesabyarButton(
       TextButton(
         onClick = onClick,
         modifier = buttonModifier,
-        enabled = enabled && !loading,
+        enabled = isEnabled,
         shape = ShapeTokens.Full,
         colors = resolvedColors
       ) { ButtonContent(loading, icon, iconContentDescription, text) }
   }
 }
+
+private fun buildButtonModifier(
+  modifier: Modifier,
+  loading: Boolean,
+  text: String?,
+  iconContentDescription: String?
+): Modifier {
+  val base = modifier.height(Dimens.ButtonHeight)
+  if (!loading) return base
+  val busyState = iconContentDescription ?: DEFAULT_LOADING_LABEL
+  return base.semantics(mergeDescendants = true) {
+    if (text != null) contentDescription = text
+    stateDescription = busyState
+  }
+}
+
+@Composable
+private fun resolveButtonColors(
+  variant: ButtonVariant,
+  colors: ButtonColors?
+): ButtonColors =
+  colors ?: when (variant) {
+    ButtonVariant.Filled -> ButtonDefaults.buttonColors()
+    ButtonVariant.Outlined -> ButtonDefaults.outlinedButtonColors()
+    ButtonVariant.Text -> ButtonDefaults.textButtonColors()
+  }
+
+private const val DEFAULT_LOADING_LABEL = "در حال بارگذاری"
 
 @Composable
 private fun ButtonContent(
@@ -84,6 +111,9 @@ private fun ButtonContent(
   text: String?
 ) {
   if (loading) {
+    // Keep spinner-only layout so weighted or narrow buttons (e.g. backup row)
+    // do not wrap text and clip vertically in 48.dp buttons. The merged button
+    // semantics combine the action name and busy state for screen readers.
     CircularProgressIndicator(
       modifier = Modifier.size(Dimens.IconSmall),
       strokeWidth = Dimens.DividerThickness,

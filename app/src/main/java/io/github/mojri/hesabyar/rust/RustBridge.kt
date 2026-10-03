@@ -34,6 +34,7 @@ internal object RustBridge :
   RustBridgeValidation,
   RustBridgeBudget,
   RustBridgeAnalytics,
+  RustBridgePersons,
   RustBridgeSearch,
   RustBridgeBackup {
   private const val TAG = "RustBridge"
