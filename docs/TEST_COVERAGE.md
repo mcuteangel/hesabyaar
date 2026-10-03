@@ -32,7 +32,9 @@ Rust core coverage tests `rust/hesabyar-core`.
 CI generates LCOV coverage with `cargo-llvm-cov nextest`.
 The report path is `rust/lcov.info`.
 The workflow prefixes source paths to `rust/hesabyar-core/`.
-The resulting `rust/lcov.prefixed.info` uploads to Codacy, Codecov, Coveralls, and DeepSource.
+The prefixed file `rust/lcov.prefixed.info` feeds Codacy and DeepSource.
+Codecov, Coveralls, and Qlty Cloud consume `rust/lcov.info` directly.
+Those services apply their own path handling.
 
 ## Metrics Interpretation
 

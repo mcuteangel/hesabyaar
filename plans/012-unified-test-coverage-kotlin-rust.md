@@ -31,13 +31,14 @@ Also, `android-ci.yml` executes `testDebugUnitTestRust` twice during CI runs.
 ### 3.1 Gradle JaCoCo Exclusion Filter (`app/build.gradle.kts`)
 
 Configure `classDirectories` in task `jacocoTestReport` with an exclusion filter.
-The filter excludes these file patterns:
+The filter `jacocoReportExcludes` defines these file patterns:
 - `**/R.class` and `**/R$*.class`
 - `**/BuildConfig.*`
 - `**/Manifest*.*`
 - `**/*_Impl*.*` (Room generated classes)
 - `**/hilt_aggregated_deps/**`
 - `**/dagger/**`
+- `**/*_HiltModules*.*`, `**/*_Factory*.*`, `**/*_MembersInjector*.*`, `**/Hilt_*.*` (Hilt generated code)
 - `**/hesabyar_core*.*` (UniFFI generated bindings)
 - `**/Hesabyar_core*.*`
 - `**/Uniffi*.*`
