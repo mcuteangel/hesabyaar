@@ -73,7 +73,8 @@ jobs:
         run: ./gradlew detekt
 
       - name: Run Unit Tests with Coverage (including Rust-bridge JNI)
-        run: ./gradlew testDebugUnitTest testDebugUnitTestRust jacocoTestReport
+        # jacocoTestReport depends on testDebugUnitTest and testDebugUnitTestRust.
+        run: ./gradlew :app:jacocoTestReport
 
       - name: Run Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0

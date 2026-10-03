@@ -1,9 +1,10 @@
 # Plan 012 — Unified Test Coverage for Kotlin and Rust Core
 
 - **Issue:** #231
+- **PR:** #301
 - **Created:** 2026-10-02
 - **Author:** Claude Code
-- **Status:** APPROVED
+- **Status:** IMPLEMENTATION COMPLETE (PR #301 open, CI pending)
 
 ## 1. Problem Statement
 
@@ -28,30 +29,31 @@ Also, `android-ci.yml` executes `testDebugUnitTestRust` twice during CI runs.
 
 ## 3. Detailed Design
 
-### 3.1 Gradle JaCoCo Exclusion Filter (`app/build.gradle.kts`)
+### 3.1 Gradle JaCoCo Configuration (`gradle/jacoco-coverage.gradle.kts`)
 
-Configure `classDirectories` in task `jacocoTestReport` with an exclusion filter.
-The filter `jacocoReportExcludes` defines these file patterns:
-- `**/R.class` and `**/R$*.class`
-- `**/BuildConfig.*`
-- `**/Manifest*.*`
-- `**/*_Impl*.*` (Room generated classes)
-- `**/hilt_aggregated_deps/**`
-- `**/dagger/**`
-- `**/*_HiltModules*.*`, `**/*_Factory*.*`, `**/*_MembersInjector*.*`, `**/Hilt_*.*` (Hilt generated code)
-- `**/hesabyar_core*.*` (UniFFI generated bindings)
-- `**/Hesabyar_core*.*`
-- `**/Uniffi*.*`
-- `**/FfiConverter*.*`
+All JaCoCo coverage configuration is extracted to `gradle/jacoco-coverage.gradle.kts`
+and applied from `app/build.gradle.kts` with `apply(from = "$rootDir/gradle/jacoco-coverage.gradle.kts")`.
+This keeps `app/build.gradle.kts` concise.
 
-Hand-written bridge classes like `RustBridge.kt` and `RustMappers.kt` remain included.
+The file configures `jacocoTestReport` with two complementary filters:
+1. `jacocoReportExcludes` pattern list for static boilerplate:
+   - `**/R.class` and `**/R\$*.class`
+   - `**/BuildConfig.*`
+   - `**/Manifest*.*`
+   - `**/*_Impl.class` and `**/*_Impl\$*.class` (Room generated classes)
+   - `**/hilt_aggregated_deps/**`, `**/dagger/**`, `**/*_HiltModules*.*`, `**/*_Factory*.*`, `**/*_MembersInjector*.*`, `**/Hilt_*.*`, `**/Dagger*.*`, `**/HesabyarApp_HiltComponents*.*`
+   - `**/hesabyar_core*.*`, `**/Hesabyar_core*.*`, `**/Uniffi*.*`, `**/FfiConverter*.*`
+2. Dynamic `handWrittenClassSpec` filter on `io/github/mojri/hesabyar/rust/`:
+   UniFFI emits ~40 top-level data classes into package `io.github.mojri.hesabyar.rust`.
+   A hard-coded class-name list drifts whenever the FFI surface changes.
+   The dynamic spec keeps only files whose names start with `RustBridge` or `RustMappers`.
+   All generated FFI classes are excluded automatically.
 
 ### 3.2 Android CI Workflow Optimization (`.github/workflows/android-ci.yml`)
 
 The task `jacocoTestReport` depends on `testDebugUnitTest` and `testDebugUnitTestRust`.
-Remove the redundant standalone step `Run Rust-bridge Tests (JNI isolated)`.
-Execute `./gradlew testDebugUnitTest testDebugUnitTestRust jacocoTestReport` in one step.
-This prevents running the 45 Rust-bridge tests twice.
+The workflow executes `./gradlew :app:jacocoTestReport` in a single step.
+This invokes both test suites and generates the report without duplicate runs.
 
 ### 3.3 Rust Coverage Upload to Codacy (`.github/workflows/rust-lint.yml`)
 

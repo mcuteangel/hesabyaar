@@ -10,7 +10,7 @@
 - **Branch:** `feat/unified-coverage-rust-kotlin`
 - **PR:** [#301](https://github.com/mcuteangel/hesabyaar/pull/301)
 - **Plan:** `plans/012-unified-test-coverage-kotlin-rust.md`
-- **Status:** PR opened; CI checks running.
+- **Status:** Implementation complete; PR #301 open, CI pending.
 - **Deliverables:**
     - [x] `app/build.gradle.kts`: `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`
     - [x] `.github/workflows/android-ci.yml`: single `testDebugUnitTest testDebugUnitTestRust jacocoTestReport` step; redundant Rust-bridge step removed
