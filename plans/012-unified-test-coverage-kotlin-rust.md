@@ -37,23 +37,25 @@ This keeps `app/build.gradle.kts` concise.
 
 The file configures `jacocoTestReport` with two complementary filters:
 1. `jacocoReportExcludes` pattern list for static boilerplate:
-   - `**/R.class` and `**/R\$*.class`
-   - `**/BuildConfig.*`
-   - `**/Manifest*.*`
-   - `**/*_Impl.class` and `**/*_Impl\$*.class` (Room generated classes)
-   - `**/hilt_aggregated_deps/**`, `**/dagger/**`, `**/*_HiltModules*.*`, `**/*_Factory*.*`, `**/*_MembersInjector*.*`, `**/Hilt_*.*`, `**/Dagger*.*`, `**/HesabyarApp_HiltComponents*.*`
-   - `**/hesabyar_core*.*`, `**/Hesabyar_core*.*`, `**/Uniffi*.*`, `**/FfiConverter*.*`
+    - `**/R.class` and `**/R\$*.class`
+    - `**/BuildConfig.*`
+    - `**/Manifest*.*`
+    - `**/*_Impl.class` and `**/*_Impl\$*.class` (Room generated classes)
+    - `**/hilt_aggregated_deps/**`, `**/dagger/**`, `**/*_HiltModules*.*`, `**/*_Factory*.*`, `**/*_MembersInjector*.*`, `**/Hilt_*.*`, `**/DaggerHesabyarApp*.*`, `**/HesabyarApp_HiltComponents*.*`
+    - `**/hesabyar_core*.*`, `**/Hesabyar_core*.*`, `**/Uniffi*.*`, `**/FfiConverter*.*`
 2. Dynamic `handWrittenClassSpec` filter on `io/github/mojri/hesabyar/rust/`:
-   UniFFI emits ~40 top-level data classes into package `io.github.mojri.hesabyar.rust`.
-   A hard-coded class-name list drifts whenever the FFI surface changes.
-   The dynamic spec keeps only files whose names start with `RustBridge` or `RustMappers`.
-   All generated FFI classes are excluded automatically.
+    UniFFI emits ~40 top-level data classes into package `io.github.mojri.hesabyar.rust`.
+    A hard-coded class-name list drifts whenever the FFI surface changes.
+    The dynamic spec keeps only files whose names start with `RustBridge` or `RustMappers`.
+    All generated FFI classes are excluded automatically.
+    A dedicated `checkRustBridgeCoverageScope` task walks both source roots recursively and fails fast on unrecognized hand-written files.
 
 ### 3.2 Android CI Workflow Optimization (`.github/workflows/android-ci.yml`)
 
-The task `jacocoTestReport` depends on `testDebugUnitTest` and `testDebugUnitTestRust`.
-The workflow executes `./gradlew :app:jacocoTestReport` in a single step.
-This invokes both test suites and generates the report without duplicate runs.
+The task `jacocoTestReport` depends on `checkRustBridgeCoverageScope`, `testDebugUnitTest`, and `testDebugUnitTestRust`.
+The scope guard runs before both test suites and fails fast on unrecognized files.
+The workflow executes `./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` in a single step, then asserts the XML report exists and is non-empty.
+This names the test tasks explicitly so a broken `dependsOn` chain fails instead of publishing a report from stale exec files.
 
 ### 3.3 Rust Coverage Upload to Codacy (`.github/workflows/rust-lint.yml`)
 

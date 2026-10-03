@@ -12,14 +12,14 @@
 - **Plan:** `plans/012-unified-test-coverage-kotlin-rust.md`
 - **Status:** Implementation complete; PR #301 open, CI pending.
 - **Deliverables:**
-    - [x] `app/build.gradle.kts`: `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`
-    - [x] `.github/workflows/android-ci.yml`: single `testDebugUnitTest testDebugUnitTestRust jacocoTestReport` step; redundant Rust-bridge step removed
+    - [x] `gradle/jacoco-coverage.gradle.kts` (applied from `app/build.gradle.kts:550`): `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
+    - [x] `.github/workflows/android-ci.yml`: explicit `:app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` tasks (line 80) plus separate `Assert coverage report exists` step (line 82-83)
     - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
     - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
 - **Verification (local, 2026-10-03):**
     - [x] `./gradlew ktlintCheck detekt`: BUILD SUCCESSFUL
     - [x] `./gradlew jacocoTestReport`: BUILD SUCCESSFUL in 3m 18s, 47 tasks (8 executed, 39 up-to-date)
-    - [x] JaCoCo XML: 35.94% instruction coverage (46896/130490); 0 generated-code classes remain; 24 hand-written bridge classes preserved
+    - [x] JaCoCo XML: 39.94% line coverage (7027/17593), 35.55% instruction (45410/127753); 0 generated-code classes remain; 24 hand-written bridge classes preserved
 
 ## Goal
 
