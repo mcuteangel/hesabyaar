@@ -1,0 +1,27 @@
+plans/README.md
+  s_3ae98003c5def4::t_2f75503dee7e5b 22
+progress.md
+  s_3ae98003c5def4::t_2c261606aec8de 11,13
+.github/workflows/rust-lint.yml
+  s_3ae98003c5def4::t_a7c11516b7f593 87-89,91
+docs/TEST_COVERAGE.md
+  s_3ae98003c5def4::t_a658dc64631247 35-37
+plans/012-unified-test-coverage-kotlin-rust.md
+  s_3ae98003c5def4::t_3c59a8b8eb764d 34,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2b4d76d9aa02d341c6e242c76d7851738781a0d8",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
