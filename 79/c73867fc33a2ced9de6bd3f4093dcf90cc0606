@@ -1,0 +1,38 @@
+plans/README.md
+  s_3ae98003c5def4::t_6b4bda30c70aa1 22
+plans/012-unified-test-coverage-kotlin-rust.md
+  s_3ae98003c5def4::t_d7d937dfffcd97 67-68
+  s_3ae98003c5def4::t_74789c830c42fd 1-61,66,69-72
+  s_3ae98003c5def4::t_c15d0712d57089 62-65
+app/build.gradle.kts
+  s_3ae98003c5def4::t_ba2944280ec11d 568,577,579-581,583-584
+  s_3ae98003c5def4::t_8d64608838d75e 559-562
+  s_3ae98003c5def4::t_d07160191a4078 578,582
+  s_3ae98003c5def4::t_cde92e733d78a5 550-558,563-567
+.github/workflows/android-ci.yml
+  s_3ae98003c5def4::t_f6d5b8b459af17 75-76
+docs/TEST_COVERAGE.md
+  s_3ae98003c5def4::t_998e93e20c3093 1-45
+progress.md
+  s_3ae98003c5def4::t_a6a21ed4676e97 9-11
+  s_3ae98003c5def4::t_d84849ff884770 25-26
+  s_3ae98003c5def4::t_234e5b418aad4e 12-21
+.github/workflows/rust-lint.yml
+  s_3ae98003c5def4::t_3a387063182bfb 86-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "79c73867fc33a2ced9de6bd3f4093dcf90cc0606",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
