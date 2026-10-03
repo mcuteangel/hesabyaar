@@ -390,6 +390,7 @@ internal fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSectio
       DEEP_LINK_BANK_LOANS,
       DEEP_LINK_DEBTS,
       DEEP_LINK_PERSONS -> TAB_DEBTS
+
       else -> TAB_DASHBOARD
     }
   val startDebtSection =
