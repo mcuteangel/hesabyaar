@@ -11,7 +11,8 @@ name: Coveralls Parallel Finish
 #
 # NOTE: if an uploader reports failure/startup_failure, the build is left
 # open (not force-finalized). Re-run every workflow named in the
-# 'Blocked by:' line to trigger a new finalization; the badge keeps
+# 'Blocked by:' line to trigger a new finalization (a startup_failure
+# needs billing/Actions fixed first, then re-run); the badge keeps
 # showing the previous commit until then.
 
 on:
@@ -56,18 +57,35 @@ jobs:
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             COVERAGE_RUNS=""
             API_ERR=$(mktemp)
+            # Capture stderr from both gh and jq.
             if API_OUT=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate 2>"$API_ERR") && \
                COVERAGE_RUNS=$(echo "$API_OUT" | jq -s --argjson pairs "$WORKFLOWS_JSON" \
-                 '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]'); then
+                 '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]' 2>>"$API_ERR"); then
               API_SUCCESS=true
               rm -f "$API_ERR"
               break
             fi
-            ERR_MSG=$(cat "$API_ERR" 2>/dev/null || echo "unknown error")
+            # Flatten stderr to a single line (workflow commands must be
+            # single-line), cap length, escape % for the command parser.
+            ERR_MSG=$(tr '\n\r' ' ' < "$API_ERR" | head -c 200 | sed 's/%/%25/g')
             rm -f "$API_ERR"
+            if [ -z "$ERR_MSG" ] || [ "$ERR_MSG" = " " ]; then
+              ERR_MSG="unknown error (empty stderr; likely jq failed)"
+            fi
+            # Don't retry permanent failures (401/403/404); only transient
+            # (429 rate limit, 5xx, network errors).
+            if echo "$ERR_MSG" | grep -Eq "HTTP (401|403|404)([^0-9]|$)"; then
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
+              break
+            fi
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-              # Exponential backoff: 10s, 20s, ...
-              SLEEP_SECS=$((10 * 2 ** (attempt - 1)))
+              # Longer backoff for rate limits (60s, 120s); exponential
+              # (10s, 20s) for other transient errors.
+              if echo "$ERR_MSG" | grep -Eq "HTTP 429([^0-9]|$)"; then
+                SLEEP_SECS=$((60 * attempt))
+              else
+                SLEEP_SECS=$((10 * 2 ** (attempt - 1)))
+              fi
               echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); retrying in ${SLEEP_SECS}s..."
               sleep $SLEEP_SECS
             else
