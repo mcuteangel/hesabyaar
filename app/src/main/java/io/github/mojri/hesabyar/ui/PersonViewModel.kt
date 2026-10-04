@@ -11,6 +11,7 @@ import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.concurrent.CancellationException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -103,9 +103,10 @@ class PersonViewModel
           try {
             manageLoanUseCase.addLoan(personName, type, amount, description, customDate, personId)
             true
-          } catch (e: CancellationException) {
-            throw e
           } catch (e: Exception) {
+            if (e is CancellationException) {
+              throw e
+            }
             AppLogger.e(TAG, "addLoanForPerson failed", e)
             false
           }
@@ -162,9 +163,10 @@ class PersonViewModel
               overallSuccess = false
             }
           }
-        } catch (e: CancellationException) {
-          throw e
         } catch (e: Exception) {
+          if (e is CancellationException) {
+            throw e
+          }
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
@@ -184,9 +186,10 @@ class PersonViewModel
     ) {
       try {
         onResult(success)
-      } catch (e: CancellationException) {
-        throw e
       } catch (e: Exception) {
+        if (e is CancellationException) {
+          throw e
+        }
         AppLogger.e(TAG, "$action onResult callback threw", e)
       }
     }
@@ -208,9 +211,10 @@ class PersonViewModel
           AppLogger.w(TAG, "makeRepayment returned false for loan ${loan.id}")
         }
         success
-      } catch (e: CancellationException) {
-        throw e
       } catch (e: Exception) {
+        if (e is CancellationException) {
+          throw e
+        }
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }
