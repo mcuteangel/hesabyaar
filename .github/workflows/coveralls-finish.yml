@@ -9,11 +9,8 @@ name: Coveralls Parallel Finish
 # WORKFLOWS list in the gate step; renaming a workflow's `name:` requires
 # updating both places.
 
-# This workflow never checks out code; it only reads workflow-run statuses
-# via the API and sends the Coveralls webhook, so workflow_run cannot
-# execute untrusted PR code.
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
     workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
     types: [completed]
     branches: [main]
@@ -55,19 +52,28 @@ jobs:
             echo "Coverage workflows still running for $HEAD_SHA ($IN_FLIGHT in flight); waiting for their workflow_run events."
             exit 0
           fi
-          # Finalize when at least one coverage workflow succeeded. The other
-          # three are path-filtered and often don't run at all for a given
-          # push — requiring all four would leave most builds unfinalized.
-          # A failed upload step still yields conclusion=success
-          # (continue-on-error), so this is best-effort, not a proof of upload.
-          SUCCEEDED=$(echo "$COVERAGE_RUNS" | jq '[.[] | select(.conclusion == "success")] | length')
-          if [ "$SUCCEEDED" = "0" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "No successful coverage workflow for $HEAD_SHA; not finalizing."
-            exit 0
-          fi
+          # Finalize only when every workflow that ran for this commit
+          # succeeded. The three path-filtered workflows often don't trigger
+          # at all — those are skipped, not required. But if a workflow ran
+          # and failed, its upload never happened; finalizing would bake a
+          # partial build into the badge. Its re-run re-triggers this workflow.
+          # Note: a failed *upload step* still yields conclusion=success
+          # (continue-on-error), so this guards workflow failure, not upload failure.
+          for wf in "Android CI" "Rust Lint" "Lint GitHub Actions" "OCR Resolver Tests"; do
+            RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
+            if [ "$RAN" = "0" ]; then
+              echo "Workflow '$wf' did not run for $HEAD_SHA; skipping."
+              continue
+            fi
+            OK=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "success")] | length')
+            if [ "$OK" = "0" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "Workflow '$wf' ran but did not succeed for $HEAD_SHA; not finalizing."
+              exit 0
+            fi
+          done
           echo "ready=true" >> "$GITHUB_OUTPUT"
-          echo "Coverage uploads done for $HEAD_SHA ($SUCCEEDED succeeded); finalizing Coveralls parallel build."
+          echo "All triggered coverage workflows succeeded for $HEAD_SHA; finalizing Coveralls parallel build."
 
       - name: Send Coveralls parallel-finished webhook
         if: steps.check.outputs.ready == 'true'
