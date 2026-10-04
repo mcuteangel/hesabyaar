@@ -1,0 +1,22 @@
+gradle/jacoco-coverage.gradle.kts
+  s_3ae98003c5def4::t_d2837fe1337fb6 70-113,116-117,120-122
+  s_3ae98003c5def4::t_2aefd1ed4973ce 145-146,148,152-162,164-165
+plans/012-unified-test-coverage-kotlin-rust.md
+  s_3ae98003c5def4::t_7cf79992a7147f 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "954b7744b03a70c473ed45ec666f7f6521b59419",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
