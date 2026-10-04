@@ -67,11 +67,23 @@ val checkRustBridgeCoverageScope =
     description =
       "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
     doLast {
+      // Match top-level declarations at column 0. The leading keyword run is
+      // deliberately open ('(?:\w+\s+)*') so every modifier is accepted, for
+      // example 'annotation class', 'fun interface', 'inline class', and
+      // 'expect'/'actual'. A closed modifier list would skip the declaration
+      // and fail open. Comment lines (KDoc '*' and line '//') never match,
+      // because the run stops at the first non-word character.
       val declarationRegex =
         Regex(
-          """^(?:@\w+(?:\([^)]*\))?\s+)*(?:internal\s+|private\s+|public\s+|abstract\s+|sealed\s+|data\s+|enum\s+|value\s+|open\s+)*(?:class|object|interface)\s+(\w+)""",
+          """^(?:@\w+(?:\([^)]*\))?\s+)*(?:\w+\s+)*(?:class|object|interface)\s+(\w+)""",
           RegexOption.MULTILINE
         )
+
+      // The file annotation must sit in the annotation header, at line start
+      // with only whitespace before it. A comment line ('// @file:JvmName') or
+      // a KDoc line ('* @file:JvmName') does not match and must not fail the
+      // build.
+      val jvmNameRegex = Regex("""^\s*@file:JvmName\b""", RegexOption.MULTILINE)
 
       val unrecognized = mutableListOf<String>()
 
@@ -101,15 +113,18 @@ val checkRustBridgeCoverageScope =
           if (declaresRustPackage) {
             val fileMatches = handWrittenRustBridgePrefixes.any { f.name.startsWith(it) }
             val text = f.readText()
-            val hasForbiddenJvmName = text.contains("@file:JvmName")
+            val hasForbiddenJvmName = jvmNameRegex.containsMatchIn(text)
             val declarations = declarationRegex.findAll(text).map { it.groupValues[1] }.toList()
-            val allDeclarationsMatch =
-              declarations.isNotEmpty() &&
-                declarations.all { decl -> handWrittenRustBridgePrefixes.any { decl.startsWith(it) } }
+            // An empty declaration set means the file holds functions only.
+            // Its facade carries the file name, which fileMatches already
+            // covers. Only a declaration whose name misses the prefixes fails
+            // the build.
+            val mismatchedDeclarations =
+              declarations.filter { decl -> handWrittenRustBridgePrefixes.none { decl.startsWith(it) } }
 
-            if (!fileMatches || hasForbiddenJvmName || !allDeclarationsMatch) {
+            if (!fileMatches || hasForbiddenJvmName || mismatchedDeclarations.isNotEmpty()) {
               unrecognized.add(
-                "${f.invariantSeparatorsPath} (fileMatches=$fileMatches, jvmName=$hasForbiddenJvmName, declarations=$declarations)"
+                "${f.invariantSeparatorsPath} (fileMatches=$fileMatches, jvmName=$hasForbiddenJvmName, mismatchedDeclarations=$mismatchedDeclarations)"
               )
             }
           }
@@ -142,8 +157,9 @@ tasks.register(
   // when a class path contains rustPackageSegment. If a package rename or AGP
   // output reorg ever removes that segment from compiled paths, generated
   // UniFFI classes would silently re-enter the denominator. Fail instead.
-  // Missing class roots also fail: generating a report with zero classes would
-  // otherwise look like a green coverage upload while measuring nothing.
+  // A report with zero class roots would also publish an empty denominator as
+  // green coverage, so fail when no root exists. One missing root is fine:
+  // the javac root exists only while the module has Java sources.
   doFirst {
     val classRootPaths =
       listOf(
@@ -151,17 +167,20 @@ tasks.register(
         "build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
       )
     val classRoots = classRootPaths.map { file(it) }
-    val missingRoots = classRootPaths.zip(classRoots).filter { !it.second.exists() }
-    if (missingRoots.isNotEmpty()) {
+    // One root may legitimately be absent (the javac root exists only while
+    // the module produces Java sources or BuildConfig). The guard needs one
+    // root that contains the rust package, not every root.
+    val existingRoots = classRoots.filter { it.exists() }
+    if (existingRoots.isEmpty()) {
       throw org.gradle.api.GradleException(
-        "Missing compiled class root(s): ${missingRoots.map { it.first }}. " +
+        "No compiled class root found. Looked for: $classRootPaths. " +
           "Cannot confirm rust package filtering, so the coverage denominator is unknown. " +
           "Run the debug test compile first, or confirm the AGP class output layout in " +
           "gradle/jacoco-coverage.gradle.kts."
       )
     }
     val classFiles =
-      classRoots.flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
+      existingRoots.flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
     if (classFiles.none { it.invariantSeparatorsPath.contains(rustPackageSegment) }) {
       throw org.gradle.api.GradleException(
         "No compiled class under $rustPackageSegment. handWrittenClassSpec would filter nothing. " +

@@ -19,8 +19,9 @@
     - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
 - **Verification (local, 2026-10-04):**
     - [x] `./gradlew ktlintCheck detekt`: BUILD SUCCESSFUL
-    - [x] `./gradlew :app:checkRustBridgeCoverageScope`: BUILD SUCCESSFUL (task `:app:checkRustBridgeCoverageScope` executed, 1m 54s run)
-    - [x] JaCoCo XML `app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml`: 39.94% line coverage (7027/17593), 35.55% instruction (45410/127753); 0 generated-code classes remain; 24 hand-written bridge classes preserved
+    - [x] `./gradlew :app:checkRustBridgeCoverageScope`: BUILD SUCCESSFUL (task executed in 1m 54s)
+    - [x] `./gradlew :app:jacocoTestReport`: BUILD SUCCESSFUL (executed with `doFirst` guard in 1m 26s)
+    - [x] JaCoCo XML `app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml`: 39.94% line coverage (7027/17593), 35.55% instruction (45410/127753). Zero generated-code classes remain. 24 hand-written bridge classes preserved.
 
 ## Goal
 
