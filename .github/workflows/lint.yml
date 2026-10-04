@@ -65,6 +65,7 @@ jobs:
            file: coverage-pin-manager.lcov
            format: lcov
            flag-name: scripts
+           parallel: true
 
        - name: Upload coverage to Qlty Cloud
          # Forked-PR runs get no secrets, so the token would be empty.
@@ -87,8 +88,11 @@ jobs:
          continue-on-error: true
          env:
            DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+           # On pull_request events, actions/checkout creates an ephemeral merge commit.
+           # Report against the PR head SHA so DeepSource can associate the artifact (#310).
+           DEEPSOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
          run: |
-           deepsource report --analyzer test-coverage --key javascript --value-file coverage-pin-manager.lcov
+           deepsource report --analyzer test-coverage --key javascript --commit "$DEEPSOURCE_COMMIT_SHA" --value-file coverage-pin-manager.lcov
 
        - name: Upload test results to Codecov
          if: ${{ !cancelled() }}

@@ -1,0 +1,207 @@
+name: Coveralls Parallel Finish
+
+# Finalizes Coveralls parallel builds. The four workflows below each upload
+# coverage with `parallel: true`; Coveralls waits for this webhook before
+# combining them into a single build. Without it, each upload overwrites the
+# previous one and the badge shows only the last-finishing job (Kotlin, ~40%).
+#
+# NOTE: the workflow names in `on.workflow_run.workflows` must match the
+# WORKFLOWS list in the gate step; renaming a workflow's `name:` requires
+# updating both places.
+#
+# NOTE: if an uploader reports failure/startup_failure, the build is left
+# open (not force-finalized). Re-run every workflow named in the
+# 'Blocked by:' line to trigger a new finalization (a startup_failure
+# needs billing/Actions fixed first, then re-run); the badge keeps
+# showing the previous commit until then.
+
+on:
+  workflow_run:
+    workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
+    types: [completed]
+    branches: [main]
+
+# Two finisher runs for the same commit must not cancel each other mid-webhook;
+# a duplicate parallel-finished call is harmless, a cancelled one leaves the
+# build open.
+concurrency:
+  group: coveralls-finish-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether coverage uploads for this commit are done
+        id: check
+        # A blocked build is a cosmetic badge problem, not a broken main:
+        # keep the ::error:: annotations loud, but don't turn main red.
+        # Scoped to this step only — a failed webhook must still fail the job.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Single source of truth: workflow name -> Coveralls flag name.
+          WORKFLOWS_JSON='[["Android CI","android"],["Rust Lint","rust"],["Lint GitHub Actions","scripts"],["OCR Resolver Tests","ocr-scripts"]]'
+          # Paginate through all runs for this commit; a single page can miss
+          # an in-flight run on a busy commit. Retry transient API failures
+          # (rate limits, network blips) instead of crashing.
+          MAX_ATTEMPTS=3
+          COVERAGE_RUNS=""
+          API_SUCCESS=false
+          ATTEMPTS_MADE=0
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            COVERAGE_RUNS=""
+            API_ERR=$(mktemp)
+            # Capture stderr from both gh and jq.
+            if API_OUT=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate 2>"$API_ERR") && \
+               COVERAGE_RUNS=$(echo "$API_OUT" | jq -s --argjson pairs "$WORKFLOWS_JSON" \
+                 '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]' 2>>"$API_ERR"); then
+              API_SUCCESS=true
+              rm -f "$API_ERR"
+              break
+            fi
+            # Classify on FULL stderr first (truncation can cut the status
+            # code; "abuse detection" has no "rate limit" substring).
+            FULL_ERR=$(cat "$API_ERR")
+            rm -f "$API_ERR"
+            # Flatten for display: single line, cap 200 chars, escape %.
+            ERR_MSG=$(echo "$FULL_ERR" | tr '\n\r' ' ' | head -c 200 | sed 's/%/%25/g')
+            if [ -z "$ERR_MSG" ] || [ "$ERR_MSG" = " " ]; then
+              ERR_MSG="unknown error (empty stderr; likely jq failed)"
+            fi
+            # Permanent failures: 401, 404, and 403 without rate-limit/abuse
+            # indicators. GitHub uses 403 for rate limits too.
+            IS_PERMANENT=false
+            IS_RATELIMIT=false
+            for code in 401 404; do
+              if echo "$FULL_ERR" | grep -Eq "HTTP $code([^0-9]|$)"; then
+                IS_PERMANENT=true
+              fi
+            done
+            if echo "$FULL_ERR" | grep -Eq "HTTP 403([^0-9]|$)"; then
+              if echo "$FULL_ERR" | grep -Eqi "rate limit|abuse"; then
+                IS_RATELIMIT=true
+              else
+                IS_PERMANENT=true
+              fi
+            fi
+            if echo "$FULL_ERR" | grep -Eq "HTTP 429([^0-9]|$)"; then
+              IS_RATELIMIT=true
+            fi
+            if [ "$IS_PERMANENT" = "true" ]; then
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
+              ATTEMPTS_MADE=$attempt
+              break
+            fi
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              # Long backoff for rate limits (60s, 120s); exponential
+              # (10s, 20s) for other transient errors.
+              if [ "$IS_RATELIMIT" = "true" ]; then
+                SLEEP_SECS=$((60 * attempt))
+              else
+                SLEEP_SECS=$((10 * 2 ** (attempt - 1)))
+              fi
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); retrying in ${SLEEP_SECS}s..."
+              sleep $SLEEP_SECS
+            else
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); no more retries."
+            fi
+            ATTEMPTS_MADE=$attempt
+          done
+          if [ "$API_SUCCESS" != "true" ]; then
+            # API is down, not a logic bug: loud but not red (continue-on-error),
+            # and `ready` is set so the crash-detector step stays quiet.
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Failed to list workflow runs for $HEAD_SHA after $ATTEMPTS_MADE attempt(s); not finalizing."
+            exit 1
+          fi
+          # Any non-terminal run means its upload may still be in flight; its
+          # completion re-triggers this workflow. (Valid API statuses:
+          # queued, in_progress, completed, requested, waiting, pending.)
+          IN_FLIGHT=$(echo "$COVERAGE_RUNS" | jq '[.[] | select(.status != "completed")] | length')
+          if [ "$IN_FLIGHT" != "0" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Coverage workflows still running for $HEAD_SHA ($IN_FLIGHT in flight); waiting for their workflow_run events."
+            exit 0
+          fi
+          # For each uploader: if it has no runs at all for this commit, its
+          # flag is carried forward from the previous build so the badge stays
+          # stable. If it ran, `failure` and `startup_failure` block
+          # finalization — a failed or never-started workflow uploaded
+          # nothing, and silently carrying it forward would mix fresh coverage
+          # with stale data. `timed_out` is carried forward, not blocked:
+          # the OCR (5 min) and Rust (30 min) job budgets are tight enough
+          # that a slow-but-healthy run can time out, which is not a broken
+          # workflow. Every other non-success conclusion (cancelled, skipped,
+          # neutral, action_required, …) is also carried forward — none of
+          # them indicate broken data, and blocking on them would leave the
+          # build open forever.
+          CARRYFORWARD=""
+          BLOCKED=""
+          while IFS=$'\t' read -r wf flag; do
+            RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
+            if [ "$RAN" = "0" ]; then
+              echo "Workflow '$wf' did not run for $HEAD_SHA; carrying forward flag '$flag'."
+              CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
+              continue
+            fi
+            OK=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "success")] | length')
+            if [ "$OK" != "0" ]; then
+              continue
+            fi
+            # startup_failure needs its own message: the run never started
+            # (often billing/Actions disabled), so a re-run is not the fix.
+            STARTUP_FAIL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "startup_failure") | .html_url] | first // empty')
+            if [ -n "$STARTUP_FAIL" ]; then
+              echo "::error::Workflow '$wf' could not start for $HEAD_SHA ($STARTUP_FAIL). Check billing/Actions settings, then re-run."
+              BLOCKED="${BLOCKED:+$BLOCKED,}$wf(startup_failure)"
+              continue
+            fi
+            FAILED_URL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "failure") | .html_url] | first // empty')
+            if [ -n "$FAILED_URL" ]; then
+              echo "::error::Workflow '$wf' failed for $HEAD_SHA ($FAILED_URL); not finalizing. Re-run it to trigger finalization."
+              BLOCKED="${BLOCKED:+$BLOCKED,}$wf(failure)"
+              continue
+            fi
+            echo "Workflow '$wf' has no successful run for $HEAD_SHA (conclusions: $(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf) | .conclusion] | unique | join(",")')); carrying forward flag '$flag'."
+            # A timed-out uploader is silent by design (not a broken workflow),
+            # but a permanently timing-out job should be visible.
+            if echo "$COVERAGE_RUNS" | jq -e --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "timed_out")] | length > 0' > /dev/null; then
+              echo "::warning::Workflow '$wf' timed out for $HEAD_SHA; carrying forward flag '$flag' from the previous build."
+            fi
+            CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
+          done < <(echo "$WORKFLOWS_JSON" | jq -r '.[] | "\(.[0])\t\(.[1])"')
+          # Report all blockers at once instead of exiting at the first one.
+          if [ -n "$BLOCKED" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Blocked by: $BLOCKED; not finalizing."
+            exit 1
+          fi
+          echo "carryforward=$CARRYFORWARD" >> "$GITHUB_OUTPUT"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Coverage uploads for $HEAD_SHA ready to finalize (carryforward: ${CARRYFORWARD:-none}); no workflow reported a failure."
+
+      # If the gate step crashed before setting `ready` (gh/jq error), the
+      # continue-on-error above would swallow it silently. Fail loudly here.
+      - name: Fail on unexpected gate crash
+        if: steps.check.outcome == 'failure' && steps.check.outputs.ready == ''
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "::error::Gate step crashed unexpectedly for $HEAD_SHA; see its logs. The Coveralls build stays open."
+          exit 1
+
+      - name: Send Coveralls parallel-finished webhook
+        if: steps.check.outputs.ready == 'true'
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
+          parallel-finished: true
+          carryforward: ${{ steps.check.outputs.carryforward }}

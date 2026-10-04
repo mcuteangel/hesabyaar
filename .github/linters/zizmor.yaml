@@ -16,10 +16,14 @@ rules:
       - .github/actions/setup-rust-android/action.yml:22
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
   # to review fork pull requests and post/update review comments securely.
-  # Scoped to exact lines so other triggers/permissions remain audited.
+  # coveralls-finish.yml uses workflow_run but never checks out code; it only
+  # reads workflow-run statuses via the API and sends the Coveralls webhook,
+  # so the trigger cannot execute untrusted PR code.
+  # Scoped to exact lines so other triggers remain audited.
   dangerous-triggers:
     ignore:
       - ocr-review.yml:57
+      - coveralls-finish.yml:18
   excessive-permissions:
     ignore:
       - ocr-review.yml:66
