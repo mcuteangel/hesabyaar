@@ -83,16 +83,12 @@ private fun buildButtonModifier(
 ): Modifier {
   val base = modifier.height(Dimens.ButtonHeight)
   if (!loading) return base
+  // iconContentDescription only ever describes the icon. The busy status uses
+  // one fixed label, so a named button never repeats its own phrase twice.
   val actionLabel = text ?: iconContentDescription
-  val busyState =
-    if (text != null) {
-      iconContentDescription ?: DEFAULT_LOADING_LABEL
-    } else {
-      DEFAULT_LOADING_LABEL
-    }
   return base.semantics(mergeDescendants = true) {
     if (actionLabel != null) contentDescription = actionLabel
-    stateDescription = busyState
+    stateDescription = DEFAULT_LOADING_LABEL
   }
 }
 

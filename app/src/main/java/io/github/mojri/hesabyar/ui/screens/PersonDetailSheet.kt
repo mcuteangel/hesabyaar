@@ -359,8 +359,7 @@ private fun PersonQuickActions(
         variant = ButtonVariant.Outlined,
         modifier = Modifier.weight(1f),
         enabled = !isSettling,
-        loading = isSettling,
-        iconContentDescription = if (isSettling) "در حال تسویه وام‌ها" else null
+        loading = isSettling
       )
     }
   }

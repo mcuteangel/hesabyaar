@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,7 +38,7 @@ class HesabyarButtonTest {
       composeRule
         .onNodeWithContentDescription(TEXT_SAVE)
         .assertIsDisplayed()
-    node.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DESC_SAVING))
+    node.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DEFAULT_LOADING_DESC))
     node.assertIsNotEnabled()
   }
 
@@ -93,7 +94,7 @@ class HesabyarButtonTest {
     composeRule
       .onNodeWithContentDescription(TEXT_SAVE)
       .assertIsNotEnabled()
-    org.junit.Assert.assertFalse("onClick must not be invoked while loading", clicked)
+    assertFalse("onClick must not be invoked while loading", clicked)
   }
 
   private companion object {

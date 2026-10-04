@@ -1,5 +1,8 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -313,7 +316,10 @@ class PersonDetailSheetTest {
     composeRule.waitForIdle()
 
     // While repayment is suspended at gate, the button renders loading semantics and stays disabled.
-    composeRule.onNodeWithContentDescription(EXPECTED_SETTLING_DESC).assertIsNotEnabled()
+    composeRule
+      .onNodeWithContentDescription(BTN_SETTLE)
+      .assertIsNotEnabled()
+      .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DEFAULT_LOADING_DESC))
 
     // A second confirmation or direct invocation does not start another batch
     viewModel.settleFully(1L)
@@ -526,7 +532,7 @@ class PersonDetailSheetTest {
     const val BTN_ADD_RECEIVABLE = "ثبت طلب"
     const val BTN_ADD_DEBT = "ثبت بدهی"
     const val BTN_SETTLE = "تسویه"
-    const val EXPECTED_SETTLING_DESC = "تسویه، در حال تسویه وام‌ها"
+    const val DEFAULT_LOADING_DESC = "در حال بارگذاری"
     const val BTN_CONFIRM_SETTLE = "تسویه کن"
     const val BTN_SUBMIT = "ثبت"
     const val BTN_CANCEL = "انصراف"

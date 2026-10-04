@@ -1,12 +1,15 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.material3.Card
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,26 +28,47 @@ class HesabyarCardTest {
   @Test
   fun clickableCardPublishesButtonRoleByDefault() {
     composeRule.setContent {
-      HesabyarCard(onClick = {}) {
+      HesabyarCard(onClick = {}, modifier = Modifier.testTag(TAG_CARD)) {
         Text("Card Content")
       }
     }
 
     composeRule
-      .onNodeWithText("Card Content")
+      .onNodeWithTag(TAG_CARD)
       .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
   }
 
   @Test
   fun nonClickableCardDoesNotPublishButtonRole() {
     composeRule.setContent {
-      HesabyarCard {
+      HesabyarCard(modifier = Modifier.testTag(TAG_CARD)) {
         Text("Static Content")
       }
     }
 
     composeRule
-      .onNodeWithText("Static Content")
+      .onNodeWithTag(TAG_CARD)
       .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))
+  }
+
+  /**
+   * Ground truth for the premise in HesabyarCard's onClick branch: Material 3
+   * Card(onClick) publishes the click action but leaves Role undefined.
+   */
+  @Test
+  fun bareMaterial3CardExposesNoRole() {
+    composeRule.setContent {
+      Card(onClick = {}, modifier = Modifier.testTag(TAG_CARD)) {
+        Text("Bare Card Content")
+      }
+    }
+
+    composeRule
+      .onNodeWithTag(TAG_CARD)
+      .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))
+  }
+
+  private companion object {
+    const val TAG_CARD = "hesabyar-card"
   }
 }

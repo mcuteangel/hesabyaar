@@ -33,8 +33,8 @@ fun HesabyarCard(
   content: @Composable ColumnScope.() -> Unit
 ) {
   if (onClick != null) {
-    // M3 Card(onClick) exposes the click action but no accessibility role
-    // (verified by HesabyarCardTest.clickableCardPublishesButtonRoleByDefault).
+    // M3 Card(onClick) publishes the click action without a Role.Button role
+    // (verified by HesabyarCardTest.bareMaterial3CardExposesNoRole).
     // Add Role.Button so screen readers announce the card as a button.
     val clickableModifier =
       modifier.semantics(mergeDescendants = true) { role = Role.Button }
