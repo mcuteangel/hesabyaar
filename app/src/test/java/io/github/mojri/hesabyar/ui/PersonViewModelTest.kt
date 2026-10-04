@@ -136,8 +136,8 @@ class PersonViewModelTest {
 
         advanceUntilIdle()
 
-        // Direct case-insensitive search behaves predictably under Turkish locale:
-        // "IVAN" matches "Ivan" without falling victim to unexpected casing drift.
+        // Under Turkish locale:
+        // Uppercase ASCII "IVAN" matches "Ivan" without unexpected casing drift.
         viewModel.setSearchQuery("IVAN")
         advanceUntilIdle()
         assertEquals("Ivan matches uppercase query under Turkish locale", 1, viewModel.personBalances.value.size)
