@@ -37,8 +37,10 @@
 # Single test class
 ./gradlew --no-daemon testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionTest"
 
-# Rust core tests
-cargo test
+# Rust core tests (run in rust/ directory or pass manifest path)
+(cd rust && cargo test)
+# Or from repository root:
+cargo test --manifest-path rust/Cargo.toml
 ```
 
 Notes:

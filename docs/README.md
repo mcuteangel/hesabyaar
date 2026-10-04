@@ -19,15 +19,16 @@ Start here. This index groups every document in `docs/` and `plans/`. It is Obsi
 
 ## Database and backup
 
-- [Database schema](DATABASE_SCHEMA.md) — tables, columns, migrations, relationships (schema v3)
+- [Database schema](DATABASE_SCHEMA.md) — tables, columns, migrations, relationships (schema baseline)
 - [Migration notes](MIGRATION_NOTES.md) — Room migration history
 - [Backup format](BACKUP_FORMAT.md) — JSON structure, restore modes (REPLACE/MERGE), validation rules
 
 ## Features
 
 - [AI providers](AI_PROVIDERS.md) — Gemini, OpenRouter, custom endpoints, offline fallback
-- [Security](SECURITY.md) — PIN, biometrics, backup encryption status
+- [Security](SECURITY.md) — API-key storage, build secrets, and encryption boundaries
 - [Build and release](BUILD_RELEASE.md) — signing, release packaging
+- [Test coverage](TEST_COVERAGE.md) — Kotlin JaCoCo and Rust core coverage scopes
 
 ## CI and automation
 
@@ -36,7 +37,14 @@ Start here. This index groups every document in `docs/` and `plans/`. It is Obsi
 
 ## Refactor and design documents
 
-- [Account management refactor](account-mgmt-refactor/00-checklist.md) — 8-phase plan (00–07)
+- [Account management refactor checklist](account-mgmt-refactor/00-checklist.md) — 8-phase refactor checklist
+  - [Phase 0: Bug fixes](account-mgmt-refactor/01-phase0-bugfixes.md)
+  - [Phase 1: Foundation](account-mgmt-refactor/02-phase1-foundation.md)
+  - [Phase 2: State](account-mgmt-refactor/03-phase2-state.md)
+  - [Phase 3: Components](account-mgmt-refactor/04-phase3-components.md)
+  - [Phase 4: Screen](account-mgmt-refactor/05-phase4-screen.md)
+  - [Phase 5: UX](account-mgmt-refactor/06-phase5-ux.md)
+  - [Phase 6: Tests](account-mgmt-refactor/07-phase6-tests.md)
 - [Account management blueprint](blueprint-account-management.md) — design blueprint
 - [Multi-account dashboard redesign](2026-07-29-multi-account-dashboard-redesign-design.md) — dated design doc
 
@@ -44,6 +52,8 @@ Start here. This index groups every document in `docs/` and `plans/`. It is Obsi
 
 Dated plans live in [`plans/`](../plans/). Index: [plans/README](../plans/README.md). Recent plans:
 
+- [UI/UX overhaul in prioritized phases](../plans/013-ui-ux-overhaul.md)
+- [Unified test coverage (Kotlin + Rust)](../plans/012-unified-test-coverage-kotlin-rust.md)
 - [Personal loan ledger redesign](../plans/011-personal-loan-ledger-redesign.md)
 - [Multi-account wallet support](../plans/009-multi-account-wallet-support.md)
 - [Rust fallback consolidation](../plans/2026-08-19-rust-fallback-consolidation-plan.md)

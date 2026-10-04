@@ -49,7 +49,7 @@ Package root: `io.github.mojri.hesabyar` under `app/src/main/java/`.
 
 | Path | Type |
 |------|------|
-| `app/src/test/` | JVM unit tests (JUnit, MockK, Robolectric) |
+| `app/src/test/` | JVM unit tests (JUnit, Robolectric, Roborazzi, MockWebServer) |
 | `rust/hesabyar-core/tests/` (incl. `golden/`) | Rust tests, golden tests for parsers |
 | `rust/hesabyar-core/benches/` | Criterion benchmarks |
 
@@ -69,10 +69,10 @@ Package root: `io.github.mojri.hesabyar` under `app/src/main/java/`.
 
 | Goal | Start here |
 |------|-----------|
-| Add or edit a transaction | `domain/usecase/ManageTransactionUseCase.kt` → `data/TransactionDelegate.kt` → `ui/TransactionViewModel.kt` |
-| Persian parse («دیروز ۵۰ هزارتومن ناهار») | `domain/usecase/ParseTransactionUseCase.kt` → `rust/RustBridgeParser.kt` → `rust/hesabyar-core/src/parser/` |
-| Person loans and debts | `domain/usecase/ManageLoanUseCase.kt` → `data/LoanDelegate.kt` + `PersonDelegate.kt` → `ui/screens/DebtHubScreen.kt` |
-| Installments and reminders | `domain/usecase/ManageInstallmentUseCase.kt` → `reminder/InstallmentReminderWorker.kt` |
-| Backup and restore | `domain/usecase/ManageBackupUseCase.kt` → `data/BackupDelegate.kt` → `auth/BackupCipher.kt` |
-| Smart budget advice | `api/BudgetAdvisor.kt` → `domain/usecase/GetBudgetAdviceUseCase.kt` → `rust/hesabyar-core/src/advisory/budget.rs` |
-| Dashboard | `domain/usecase/GetDashboardDataUseCase.kt` → `ui/DashboardViewModel.kt` → `ui/screens/DashboardScreen.kt` |
+| Add or edit a transaction | `ui/TransactionViewModel.kt` → `domain/usecase/ManageTransactionUseCase.kt` → `data/HesabyarRepository.kt` (`TransactionDelegate.kt`) / `rust/RustBridge.kt` |
+| Persian parse («دیروز ۵۰ هزارتومن ناهار») | `ui/screens/SmartAssistantScreen.kt` → `domain/usecase/ParseTransactionUseCase.kt` → `rust/RustBridgeParser.kt` → `rust/hesabyar-core/src/parser/` |
+| Person loans and debts | `ui/screens/DebtHubScreen.kt` → `ui/LoanViewModel.kt` → `domain/usecase/ManageLoanUseCase.kt` → `data/HesabyarRepository.kt` (`LoanDelegate.kt` / `PersonDelegate.kt`) |
+| Installments and reminders | `ui/screens/InstallmentScreen.kt` / `reminder/InstallmentReminderWorker.kt` → `domain/usecase/ManageInstallmentUseCase.kt` → `data/HesabyarRepository.kt` (`InstallmentDelegate.kt`) |
+| Backup and restore | `ui/BackupViewModel.kt` → `domain/usecase/ManageBackupUseCase.kt` → `domain/usecase/BackupPayloadExporter.kt` (`data/BackupDelegate.kt`) → `auth/BackupCipher.kt` |
+| Smart budget advice | `ui/AiAssistantViewModel.kt` → `domain/usecase/GetBudgetAdviceUseCase.kt` → `api/BudgetAdvisor.kt` → `rust/hesabyar-core/src/advisory/budget.rs` |
+| Dashboard | `ui/screens/DashboardScreen.kt` → `ui/DashboardViewModel.kt` → `domain/usecase/GetDashboardDataUseCase.kt` → `data/HesabyarRepository.kt` |

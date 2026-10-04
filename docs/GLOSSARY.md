@@ -59,13 +59,13 @@ Terms used across the codebase, the database, and the backup format. Use these e
 | REPLACE | Restore mode. Deletes all existing data. Then writes the backup contents. |
 | MERGE | Restore mode. Updates categories by key. Appends new transactions, loans, and installments. |
 | BACKUP_SCHEMA_VERSION | Rust constant in `hesabyar-core/src/models/mod.rs`. Single source of truth for the backup format version. |
-| BackupCipher | Kotlin class that encrypts backup payloads (`auth/BackupCipher.kt`). |
+| BackupCipher | Kotlin singleton object (`auth/BackupCipher.kt`). Encrypts and decrypts sensitive backup fields with AES-GCM. |
 
 ## AI and parsing
 
 | Term | Meaning |
 |------|---------|
-| AiProvider | Interface for AI backends. Implementations: Gemini, OpenRouter, custom endpoint. |
+| AiProvider | Kotlin singleton object (`api/AiProvider.kt`). Acts as provider facade and dispatches requests per `AiProviderConfig`. |
 | Smart parsing | Extracting amount, date, and category from Persian free text. Example: «دیروز ۵۰ هزارتومن ناهار». |
 | Offline fallback | Rule-based Rust parser and advisor. Used when no AI provider is reachable. The offline NLP parser is a permanent Kotlin fallback per ADR-001. |
 | Money detector | Gate that decides whether a text contains a money amount before parsing. |
@@ -85,4 +85,4 @@ Terms used across the codebase, the database, and the backup format. Use these e
 | Delegate | Data-layer class that holds per-entity logic. Example: `TransactionDelegate`. |
 | Repository | Persistence layer. Handles storage and retrieval only. Holds no business rules. |
 | Jalali calendar | The Persian calendar. All user-facing dates use it through `JalaliCalendarHelper.kt`. |
-| Room schema version | Current version: 3. Independent from the backup format version. |
+| Room schema version | Current version: 9 (`AppDatabase.kt`). Independent from the backup format version. |
