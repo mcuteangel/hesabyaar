@@ -1,0 +1,37 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarButtonTest.kt
+  s_2a8104e0529fbf::t_9c748447270bcf 97
+  s_2a8104e0529fbf::t_41728ae587c73d 10
+  s_2a8104e0529fbf::t_e1366aa4bae4a2 41
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_2a8104e0529fbf::t_571930d1c725c8 362
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarCard.kt
+  s_2a8104e0529fbf::t_73f201f2ec5609 36-37
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarCardTest.kt
+  s_2a8104e0529fbf::t_263d2fa23a7030 3,5-6,12,31,37,44,50,53-72
+app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt
+  s_2a8104e0529fbf::t_0a22436ef178b5 14
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheetTest.kt
+  s_2a8104e0529fbf::t_5ca0de9f96bfff 535
+  s_2a8104e0529fbf::t_c4199647537ca5 3-5
+  s_2a8104e0529fbf::t_6481aed13628b7 319-322
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarButton.kt
+  s_2a8104e0529fbf::t_194230f9f4434a 86-87,91
+progress.md
+  s_2a8104e0529fbf::t_5c94e79960e96a 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "697d7cd3dce51db9f9fb91f94abf1c42b8decb93",
+  "prompts": {},
+  "sessions": {
+    "s_2a8104e0529fbf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed46af4f-ceed-4741-b0db-31dfd41158cc",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
