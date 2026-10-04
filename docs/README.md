@@ -37,7 +37,7 @@ Start here. This index groups every document in `docs/` and `plans/`. It is Obsi
 
 ## Refactor and design documents
 
-- [Account management refactor checklist](account-mgmt-refactor/00-checklist.md) — 8-phase refactor checklist
+- [Account management refactor checklist](account-mgmt-refactor/00-checklist.md) — 7-phase refactor checklist (Phases 0–6)
   - [Phase 0: Bug fixes](account-mgmt-refactor/01-phase0-bugfixes.md)
   - [Phase 1: Foundation](account-mgmt-refactor/02-phase1-foundation.md)
   - [Phase 2: State](account-mgmt-refactor/03-phase2-state.md)

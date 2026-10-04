@@ -70,9 +70,10 @@ Package root: `io.github.mojri.hesabyar` under `app/src/main/java/`.
 | Goal | Start here |
 |------|-----------|
 | Add or edit a transaction | `ui/TransactionViewModel.kt` → `domain/usecase/ManageTransactionUseCase.kt` → `data/HesabyarRepository.kt` (`TransactionDelegate.kt`) / `rust/RustBridge.kt` |
-| Persian parse («دیروز ۵۰ هزارتومن ناهار») | `ui/screens/SmartAssistantScreen.kt` → `domain/usecase/ParseTransactionUseCase.kt` → `rust/RustBridgeParser.kt` → `rust/hesabyar-core/src/parser/` |
+| Persian parse («دیروز ۵۰ هزارتومن ناهار») | `ui/screens/SmartAssistantScreen.kt` → `ui/AiAssistantViewModel.kt` → `domain/usecase/ParseTransactionUseCase.kt` → `api/GeminiParser.kt` → `rust/RustBridgeParser.kt` → `rust/hesabyar-core/src/parser/` |
 | Person loans and debts | `ui/screens/DebtHubScreen.kt` → `ui/LoanViewModel.kt` → `domain/usecase/ManageLoanUseCase.kt` → `data/HesabyarRepository.kt` (`LoanDelegate.kt` / `PersonDelegate.kt`) |
-| Installments and reminders | `ui/screens/InstallmentScreen.kt` / `reminder/InstallmentReminderWorker.kt` → `domain/usecase/ManageInstallmentUseCase.kt` → `data/HesabyarRepository.kt` (`InstallmentDelegate.kt`) |
+| Installments | `ui/screens/InstallmentScreen.kt` → `ui/InstallmentViewModel.kt` → `domain/usecase/ManageInstallmentUseCase.kt` → `data/HesabyarRepository.kt` (`InstallmentDelegate.kt`) |
+| Installment reminders | `reminder/InstallmentReminderWorker.kt` → `data/Daos.kt` (`InstallmentDao`) → `reminder/ReminderNotificationHelper.kt` |
 | Backup and restore | `ui/BackupViewModel.kt` → `domain/usecase/ManageBackupUseCase.kt` → `domain/usecase/BackupPayloadExporter.kt` (`data/BackupDelegate.kt`) → `auth/BackupCipher.kt` |
 | Smart budget advice | `ui/AiAssistantViewModel.kt` → `domain/usecase/GetBudgetAdviceUseCase.kt` → `api/BudgetAdvisor.kt` → `rust/hesabyar-core/src/advisory/budget.rs` |
-| Dashboard | `ui/screens/DashboardScreen.kt` → `ui/DashboardViewModel.kt` → `domain/usecase/GetDashboardDataUseCase.kt` → `data/HesabyarRepository.kt` |
+| Dashboard | `ui/screens/DashboardScreen.kt` → `ui/DashboardViewModel.kt` → `domain/usecase/GetDashboardDataUseCase.kt` → `data/HesabyarRepository.kt` + `rust/RustBridge.kt` (`rust/hesabyar-core/src/dashboard.rs`) |
