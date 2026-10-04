@@ -35,7 +35,7 @@ fixes them in priority order, establishing shared policies (dialog,
 header, feedback) that later phases reuse. That is the integration
 approach: fix the foundations once, then apply them everywhere.
 
-## Open product decisions (owner decides before Phase 3)
+## Product decisions (all decided 2026-10-04 — recorded for the record)
 
 1. **Bottom navigation**: DECIDED 2026-10-04 — keep the bottom bar,
    modernized as a floating pill bar: detached rounded container, 4
@@ -67,7 +67,9 @@ made; Phases 3-6 consume them.
 ## Out of scope
 
 - Rust core, Room schema, backup format, repository logic.
-- New features. New screens. Visual redesign of the dashboard.
+- New features, except the two approved in this plan: dashboard section
+  toggles (Phase 4, Step 4.4) and the theme picker (Phase 5, Step 5.5).
+  New screens. Visual redesign of the dashboard.
 - `docs/ROADMAP.md` changes (update separately if scope shifts).
 
 ---
@@ -75,8 +77,11 @@ made; Phases 3-6 consume them.
 ## Phase 0 — Documentation baseline (P1, docs-only)
 
 **Goal**: make the docs match the code before any UI change lands, and
-give every later phase a doc home for the policies it creates. All
-claims below were verified by grep on 2026-10-04 at commit `ad0504c`.
+give every later phase a doc home for the policies it creates. The
+`file:line` references in this plan were checked against `ad0504c`
+(2026-10-04), but line numbers drift — executors must re-verify each
+reference with grep before editing, and the STOP condition below is
+symbol-based, not line-based.
 
 **Global documentation rule for Phases 1–6**: each implementation phase
 must update the matching doc section as part of its done criteria —
@@ -86,7 +91,7 @@ same section; roadmap checkboxes flip when a phase merges. Docs stay in
 English per `AGENTS.md`.
 
 **Screenshot-test note**: the Roborazzi Gradle plugin and dependencies
-are applied (`app/build.gradle.kts:169,610-612`), but zero screenshot
+are applied (`app/build.gradle.kts:169,620-622`), but zero screenshot
 tests exist in `app/src/test`. Where later phases say "update screenshot
 tests", read it as "add new Roborazzi tests".
 
@@ -100,7 +105,8 @@ tests", read it as "add new Roborazzi tests".
    "Compose UI Test" with "Robolectric (unit) + Roborazzi (screenshot,
    infra applied, no tests yet)". `app/src/androidTest` is empty.
 3. **Add missing entries**: Detekt, ktlint (static analysis —
-   `app/build.gradle.kts:171,173,627`), Robolectric.
+   `app/build.gradle.kts:171,173`; `detekt {}` config at `:643-650`,
+   `ktlint {}` at `:657-661`), Robolectric.
 4. Keep "Minimum SDK: Android 8+" — `minSdk = 26`
    (`app/build.gradle.kts:215`) is Android 8.0, so the entry is correct.
 
@@ -119,12 +125,18 @@ tests", read it as "add new Roborazzi tests".
 5. Add a "UI/UX" category listing this plan's phases as `[ ]` items with
    a link to `plans/012-ui-ux-overhaul.md`, so the overhaul is visible
    on the roadmap.
+6. `docs/DATABASE_SCHEMA.md:5` says "Current schema version: **3**" —
+   fix to **9** (same stale claim as ROADMAP; `AppDatabase.kt:31`).
+7. `docs/MIGRATION_NOTES.md` stops at "v2 → v3". Add a gap note that
+   migration notes for v4–v9 are missing, or state explicitly that they
+   are out of scope — do not leave the doc silently contradicting the
+   schema version.
 
 ### Step 0.3: Fix `docs/architecture/ARCHITECTURE.md`
 
 1. "Navigation Compose" (`:175`) → the hand-rolled navigation
    description from Step 0.1.
-2. Replace the aspirational Design System section (`:382-470`) with the
+2. Replace the aspirational Design System section (`:382-467`) with the
    actual inventory: `SpacingTokens`, `Dimens`, `ShapeTokens`/`AppShapes`,
    `ElevationTokens`, `FinancialColors`, `WindowSizeTokens`;
    `ui/theme/` (`Color.kt`, `Theme.kt`, `Type.kt`, Vazirmatn downloadable
@@ -137,8 +149,10 @@ tests", read it as "add new Roborazzi tests".
 ## Phase 0 done criteria
 
 - [ ] `TECH_STACK.md`: navigation, testing, and static-analysis entries
-  match grep-verified reality (4 fixes)
+  match grep-verified reality
 - [ ] `ROADMAP.md`: 4 status corrections + new UI/UX category
+- [ ] `DATABASE_SCHEMA.md`: schema version corrected; `MIGRATION_NOTES.md`
+  gap noted or declared out of scope
 - [ ] `ARCHITECTURE.md`: navigation fixed; design system section factual
 - [ ] All touched docs in English; no Persian strings added to docs
 - [ ] `git diff --stat` shows docs-only changes
@@ -182,23 +196,33 @@ Do not change field order or validation logic.
 **Verify**: save/cancel always visible without scrolling. Existing
 `AccountManagementScreen` tests pass.
 
-### Step 1.3: Add numeric keyboards to money fields
+### Step 1.3: Add numeric keyboards to money fields (IBAN is the exception)
 
 Files:
-- `ui/screens/InstallmentScreen.kt:233-237` (amount field)
-- `ui/screens/LoanManagementScreen.kt:~640-644` (amount field)
-- `ui/screens/account/AccountManagementScreen.kt:712-721` (IBAN field)
+- `ui/screens/InstallmentScreen.kt:220-224` (amount field)
+- `ui/screens/LoanManagementScreen.kt:765-769` (`LoanFormFields`,
+  "مبلغ قرض") and `:791-795` (`RepaymentFormFields`, "مبلغ پرداختی") —
+  two separate amount fields
+- `ui/screens/account/AccountManagementScreen.kt:726-733` (IBAN field)
 
-Current state: no `keyboardOptions`. `BankLoanScreen.kt:287-305`
+Current state: no `keyboardOptions`. `BankLoanScreen.kt:303,309,315`
 already does it right — copy that pattern
 (`keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)`).
 
-Change: add `KeyboardType.Number` to the two amount fields and the IBAN
-field. Amount fields stay RTL-safe: amounts right-align today; keep that
-behavior, only change the keyboard.
+Change: add `KeyboardType.Number` to the **three amount fields**
+(Installment + the two LoanManagement fields). Amount fields stay
+RTL-safe: amounts right-align today; keep that behavior, only change
+the keyboard.
 
-**Verify**: open each form on device/emulator, tap the field, confirm the
-numeric keyboard opens.
+**Do NOT put a Number keyboard on the IBAN field**: an IBAN starts with
+a 2-letter country code (`IR...` per the field's own placeholder), which
+a numeric keyboard cannot type. Use `KeyboardType.Ascii` and force LTR
+alignment for the IBAN (an `AGENTS.md`-sanctioned LTR-forced case, like
+phone numbers).
+
+**Verify**: open each form on device/emulator, tap the field, confirm
+the numeric keyboard opens on the amount fields and an ASCII/LTR
+keyboard opens on the IBAN field. Type `IR` into the IBAN field.
 
 ### Step 1.4: BackHandler on overlay screens
 
@@ -221,8 +245,10 @@ ktlintCheck detekt --no-daemon` exits 0.
 
 ### Step 1.5: Inline validation for the worst Toast-only forms
 
-Files: `ui/screens/dashboard/dialogs/ManualTransactionDialog.kt:137-166`,
-`ui/screens/InstallmentScreen.kt:276-278`.
+Files: `ui/screens/dashboard/dialogs/ManualTransactionDialog.kt:131-153`
+(validation block; `showToast` at `:132,138,147`, plus `:177`),
+`ui/screens/InstallmentScreen.kt:259-266` (validation; `showMessage` at
+`:265`).
 
 Current state: validation failures surface only via Toast after submit.
 
@@ -238,7 +264,7 @@ appears on the field. Existing tests pass.
 
 - [ ] Both dialog buttons visible in the assistant confirmation dialog
 - [ ] Account save/cancel in the dialog footer on all screen sizes
-- [ ] Numeric keyboard on the 3 fields
+- [ ] Numeric keyboard on the 3 amount fields; ASCII/LTR keyboard on IBAN
 - [ ] Back dismisses the 3 overlay screens
 - [ ] Inline errors on the 2 forms
 - [ ] `./gradlew test --no-daemon` exits 0
@@ -250,16 +276,23 @@ appears on the field. Existing tests pass.
 
 **Goal**: one dialog policy. Today raw `AlertDialog` is used 16 times
 with visibly different headers; `HesabyarDialog` 3 times;
-`ConfirmDialog` 5 times; `ModalBottomSheet` zero times in `ui/`
+`ConfirmDialog` 6 times (`ReportsScreen.kt:773`,
+`DashboardScreen.kt:309`, `CategoryManagementScreen.kt:245`,
+`BankLoanScreen.kt:114`, `AccountManagementScreen.kt:308` and `:335`);
+`ModalBottomSheet` zero times in `ui/`
 despite multi-field forms being the most common violation.
 
 ### Step 2.1: Write the dialog policy (code, not docs)
 
 Extend `ui/components/HesabyarDialog.kt` so it covers every current use:
 - `title`, `onDismiss`, scrollable body, action row (confirm/dismiss).
-- Add an optional `heightFraction` cap (default 0.85) so forms cannot
-  grow unbounded (`ManualTransactionDialog.kt:215` has no cap today).
-- Fix `ConfirmDialog.kt:53-57`: do not render the dismiss slot when
+- `heightFraction` already exists (`:63`, applied at `:78-79`, documented
+  at `:49`) but defaults to `null` (uncapped) — only
+  `ForecastDetailDialog.kt:43` passes a value (`0.85f`). Change the
+  default to `0.85f` so forms cannot grow unbounded
+  (`ManualTransactionDialog`'s content region at `:195-276` has no cap
+  today). Do not add a second mechanism.
+- Fix `ConfirmDialog.kt:58-62`: do not render the dismiss slot when
   `dismissText` is empty (today `""` renders a blank clickable button —
   `AccountManagementScreen.kt:339`).
 
@@ -267,11 +300,18 @@ Do not invent a fourth dialog component.
 
 ### Step 2.2: Migrate full forms to ModalBottomSheet
 
-Forms that outgrew dialogs (each has 5+ fields and/or nested pickers):
-- `ManualTransactionDialog` (6 sections + nested Jalali pickers)
-- `InstallmentScreen.kt:216-293` add form (+ nested `JalaliDateTimePicker`)
-- `BankLoanScreen.kt:180-258` add form (+ nested `JalaliDatePickerDialog`)
-- `LoanManagementScreen.kt` add/edit forms
+Five form surfaces that outgrew dialogs (each has 5+ fields and/or
+nested pickers):
+- `ManualTransactionDialog` — 9 top-level blocks (`:196`
+  `TransactionTypeSelector`, `:213` account `Column`+`AccountSelector`,
+  `:226` `DestinationAccountSelector`, `:234` `TransactionAmountInput`,
+  `:244` `TransactionCategorySelector`, `:252` `LoanPersonNameInput`,
+  `:259` `InstallmentFormFields`, `:267` `JalaliDateTimePicker`, `:272`
+  `TransactionDescriptionInput`) + nested Jalali pickers
+- `InstallmentScreen.kt:192-279` add form (+ nested `JalaliDateTimePicker`)
+- `BankLoanScreen.kt` add form (+ nested `JalaliDatePickerDialog`)
+- `LoanManagementScreen.kt` add form
+- `LoanManagementScreen.kt` edit form
 
 Change: present each as a `ModalBottomSheet` with a drag handle,
 scrollable content, and sticky footer actions. Keep all fields, order,
@@ -279,15 +319,19 @@ and validation logic identical. The nested Jalali pickers stay dialogs
 — a picker over a sheet is the correct M3 pattern; dialog-over-dialog
 was the problem.
 
-**Verify**: each form opens as a sheet, scrolls, and submits exactly as
-before. Update or add Roborazzi screenshots for the 4 forms.
+**Verify**: each of the 5 forms opens as a sheet, scrolls, and submits
+exactly as before. Update or add Roborazzi screenshots for all 5.
 
 ### Step 2.3: Migrate remaining raw AlertDialogs to HesabyarDialog
 
 Remaining raw usages after 2.2: `LoanManagementScreen` delete/repay,
 `CategoryManagementScreen` category dialog, `SettingsScreen`
 restore/verify-PIN/set-PIN, `SmartAssistantScreen` confirmation,
-`TransactionDetailDialog`, passphrase dialogs.
+`TransactionDetailDialog`, `ExportPassphraseDialog.kt:44`,
+`ImportPassphraseDialog.kt:46`, and `ConfirmDialog.kt:43` itself
+(fixing its blank dismiss button in Step 2.1 does not remove its
+`AlertDialog` usage — migrate it to `HesabyarDialog` so the zero-raw
+criterion below can pass).
 
 Change: mechanical migration to `HesabyarDialog`. Unify the header:
 title + close-X + divider (the `HesabyarDialog` treatment), replacing
@@ -303,7 +347,7 @@ visual result, correct semantics.
 ## Phase 2 done criteria
 
 - [ ] Zero raw `AlertDialog` in `ui/` (grep proves it)
-- [ ] 4 big forms open as bottom sheets with sticky footers
+- [ ] 5 big forms open as bottom sheets with sticky footers
 - [ ] `ConfirmDialog` with empty dismiss text renders no blank button
 - [ ] Dialog headers visually identical across screens
 - [ ] Screenshot tests updated; `./gradlew test --no-daemon` exits 0
@@ -314,7 +358,8 @@ visual result, correct semantics.
 ## Phase 3 — Navigation, headers, back stack (P2)
 
 **Goal**: consistent app chrome. Depends on Phase 1.4 (back handling)
-and consumes open decisions #1 and #4.
+and consumes decided product decision #1 (floating pill nav bar; the
+Snackbar work of decision #4 lives in Phase 6).
 
 ### Step 3.1: Shared screen header
 
@@ -340,8 +385,15 @@ Current state: `MainActivity.kt` drives `CategoryManagementScreen` and
 
 Change: keep the no-Navigation-Compose architecture (no rewrite in this
 plan), but centralize: a single `overlay: OverlayScreen?` state instead
-of two booleans, with one `BackHandler`. This removes the "two overlays
-at once" impossibility only if trivial; do not gold-plate.
+of two booleans, with one `BackHandler`. State model and precedence,
+stated explicitly so there is no ambiguity:
+- Only one overlay is ever visible: `overlay` holds at most one
+  `OverlayScreen` value (sealed: `CategoryManagement`, `Accounts`).
+- If an overlay is requested while another is open, the new request
+  REPLACES the current one (no stacking, no queue).
+- System back always dismisses the current overlay (`overlay = null`);
+  there is no deeper back-stack to walk.
+Do not gold-plate beyond this.
 
 ### Step 3.3: FAB consistency in DebtHub
 
@@ -374,6 +426,10 @@ Build the floating pill navigation bar:
   action, anchored bottom-end above the floating bar. Replace the
   hardcoded `80.dp` bottom content padding (`DashboardScreen.kt:113`)
   with a clearance token derived from the new bar geometry.
+- Accessibility: every destination keeps a `contentDescription` (and
+  matching semantics) carrying its Persian label. When the visible
+  labels fade to icons-only, TalkBack must still announce and activate
+  each destination — verify with TalkBack on device.
 
 ## Phase 3 done criteria
 
@@ -398,14 +454,18 @@ Current state: `StateFlow<DashboardData>` renders immediately. Cold
 launch shows "no transactions" / "no installments" identically for a
 new user and a still-loading database.
 
-Change: introduce a sealed UI state (`Loading` / `Loaded(DashboardData)`
-/ `Error`) in `DashboardViewModel`. Render M3 skeleton placeholders
-(`Card` + shimmer-free tonal blocks — no new dependencies) while
-loading, and a retry action on error. Apply the same pattern to
-`AnalyticsViewModel` (`AnalyticsScreen.kt:45`, seeds empty
-`AnalyticsData()` today).
+Change: introduce a sealed UI state (`Loading` / `Loaded(DashboardData)`)
+in `DashboardViewModel`. `Loading` shows until the first data emission;
+`Loaded` renders after. Render M3 skeleton placeholders (`Card` +
+shimmer-free tonal blocks — no new dependencies) while loading. Apply
+the same pattern to `AnalyticsViewModel` (`AnalyticsScreen.kt:45`,
+seeds empty `AnalyticsData()` today).
 
-Keep the change ViewModel-local. No repository changes.
+No `Error` state: the upstream repository Flows are seeded with empty
+lists and surface no failure signal, so an error branch would be
+unreachable. Adding one would require changing the repository/use-case
+contract, which this UI plan forbids (see Out of scope). Keep the change
+ViewModel-local. No repository changes.
 
 ### Step 4.2: Empty states with actions
 
@@ -427,8 +487,14 @@ Wire the actions to the existing FAB/dialog entry points.
   like `CurrencyFormatter`.
 - `ReportsScreen.kt:165`: "امروز" preset uses UTC midnight
   (`now - (now % 86400000)`), silently dropping 00:00–03:30 Tehran
-  transactions. Anchor the preset to Asia/Tehran midnight via
-  `JalaliCalendarHelper`. This is UI presentation logic; no Rust change.
+  transactions. Anchor the preset to Asia/Tehran midnight. Note:
+  `JalaliCalendarHelper` has no start-of-day API (its surface is
+  month-granular: `gregorianToJalali`, `getJalaliMonthBoundaries`, ...),
+  and it uses the device timezone — so add a small
+  `startOfDay(timestamp, zoneId)` helper (accepting an explicit
+  `ZoneId`, called with `ZoneId.of("Asia/Tehran")`) as a sub-task of
+  this step, covered by the boundary unit test below. This is UI
+  presentation logic; no Rust change.
 - `SettingsScreen.kt:1605`: Latin-digit `String.format` for reminder
   time next to Persian-digit slider labels — unify on Persian digits.
 
@@ -461,7 +527,8 @@ section is hidden; existing tests pass.
 
 ## Phase 4 done criteria
 
-- [ ] Skeleton on dashboard + analytics first open; error+retry path exists
+- [ ] Skeleton on dashboard + analytics first open (Loading until first
+  emission; no unreachable Error state)
 - [ ] All empty states use `EmptyState` with a working CTA
 - [ ] Persian digits on KPI percentages; Tehran-midnight "today" preset
 - [ ] Dashboard sections curated + compact; show/hide toggles work
@@ -476,7 +543,8 @@ inventing one-off values.
 
 ### Step 5.1: Financial colors with contrast-safe text roles
 
-File: `ui/designsystem/FinancialColors.kt:33-40`.
+File: `ui/designsystem/FinancialColors.kt:41-43` (hex roles; dark
+equivalents at `:50-52`; the mutable singleton lives at `:57-58`).
 
 Current state: `#2ECC71` on light surface is 2.10:1 (needs 4.5);
 `#E74C3C` is 3.82:1; `#F39C12` is 2.19:1. One color per role, no
@@ -500,29 +568,41 @@ Change:
   Vazirmatn. Today it falls back to the system font
   (`MainActivity.kt:266,293,327,354`,
   `AmountQuickFillButtons.kt:78`).
-- Load real Vazirmatn weights (Medium/SemiBold/Bold) instead of one
-  Regular file with synthetic bolding. Prefer per-weight downloadable
-  fonts; bundle only if download proves unreliable. Verify Persian
-  glyph rendering on device before/after.
+- `ui/theme/Type.kt:19-22`: the `VazirmatnFontFamily` registers a single
+  **downloadable** font entry with no `weight` declared — so the
+  `FontWeight.Bold`/`SemiBold`/`Medium` requests elsewhere in `Type.kt`
+  are never actually fetched (the repo has no `res/font/` directory and
+  no bundled `.ttf` at all; there is no "one Regular file with synthetic
+  bolding"). Fix the weight mapping: declare per-weight `Font(...)`
+  entries (downloadable preferred; bundle only if download proves
+  unreliable). Verify Persian glyph rendering on device before/after.
 
 ### Step 5.3: Kill hardcoded alphas and dp
 
+Work through this screen by screen (one file group at a time, verifying
+each group with grep before moving on — do not batch dozens of unrelated
+replacements into one unverifiable diff):
+
 - Add the missing alpha tokens actually in use (0.1f container tint,
-  0.3f container tint) as named constants next to
-  `Dimens.kt:36-43`, then replace all 38 raw `.copy(alpha = …)` call
-  sites in screens/components (list: `AnalyticsScreen.kt:450,905`,
-  `ReportsScreen.kt:610`, `SmartAssistantScreen.kt:237,435,473,1306`,
+  0.3f container tint) as named constants next to the existing ones in
+  `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
+  `:38`), then replace every raw `.copy(alpha = …)` call site in
+  `ui/` (≈38 hits — re-grep at execution and replace every hit; list:
+  `AnalyticsScreen.kt:450,905`, `ReportsScreen.kt:610`,
+  `SmartAssistantScreen.kt:237,435,473,1306`,
   `LoanManagementScreen.kt:515`, `SettingsScreen.kt:1070`, ...).
   `AnalyticsScreen.kt:905` (`Color.LightGray`) and
   `CategoryChip.kt:43` (`Color.Gray` fallback) must become theme-aware.
-- Replace ~160 raw `.dp` hits in `ui/screens` with `SpacingTokens`/
-  `Dimens` (worst files: `CategoryManagementScreen` 14,
-  `SmartAssistantScreen` 12, `ReportsScreen` 11). Add genuinely missing
-  tokens; do not force-fit.
-- Replace the 11 hardcoded `lineHeight` overrides with named styles in
+- Replace the 109 raw `.dp` hits in `ui/screens` (165 across
+  `app/src/main`) with `SpacingTokens`/`Dimens` (worst files:
+  `CategoryManagementScreen` 14, `SmartAssistantScreen` 12,
+  `ReportsScreen` 11). Add genuinely missing tokens; do not force-fit.
+- Replace the 10 hardcoded `lineHeight` overrides with named styles in
   `Type.kt`.
-- Unify circle shapes: `CircleShape` (26 uses) vs `ShapeTokens.Full` —
-  pick one token.
+- Unify circle shapes: standardize on `ShapeTokens.Full` (6 uses today;
+  note `ShapeTokens.kt:12` defines it as `RoundedCornerShape(9999.dp)`,
+  which approximates a circle only for aspect-square content) and
+  replace the 41 raw `CircleShape` uses in `ui/`.
 - `PinScreen.kt:155`: `fontSize = 24.sp` → theme typography style.
 - `CategoryManagementScreen.kt:467`,
   `AccountBalanceCard.kt:211`: `Color.White` tints over accent swatches
@@ -530,15 +610,20 @@ Change:
 
 ### Step 5.4: RTL charts
 
-File: `ui/screens/AnalyticsScreen.kt:261,368`.
+File: `ui/screens/AnalyticsScreen.kt` — `CombinedLineChartCard` at
+`:225` (x-origin `val startX = 20f` at `:261`), `BarChart` at `:351`
+(x calc `val x = index * (barWidth + spacing) + spacing / 2` at `:368`).
 
-Current state: `BarChart` x-origin and `CombinedLineChartCard`
-`startX = 20f` hardcode LTR; time flows left→right in an RTL-first app.
-Canvas does not auto-mirror.
+Current state: both hardcode LTR; time flows left→right in an RTL-first
+app. Canvas does not auto-mirror.
 
 Change: mirror the x-axis so the newest period is at the
-inline-start (right in RTL). Keep the drawing code otherwise
-identical. Verify against the Figma dashboard only for axis direction.
+inline-start (right in RTL): in `BarChart`, compute
+`x = size.width - (index * (barWidth + spacing) + spacing / 2) - barWidth`;
+in `CombinedLineChartCard`, mirror around `startX` similarly
+(`x = size.width - startX - idx * spacing`). Keep the drawing code
+otherwise identical. Verify against the Figma dashboard only for axis
+direction.
 
 ### Step 5.5: Theme system — dynamic, brand, and curated themes (decision #3, decided 2026-10-04)
 
@@ -569,7 +654,8 @@ spot-check on financial text; preference survives process death.
 
 ## Phase 5 done criteria
 
-- [ ] Contrast check passes 4.5:1 for financial text in light mode
+- [ ] Contrast check passes 4.5:1 for financial text in BOTH light and
+  dark modes (Phase 5.5 adds themes; every theme × mode must pass)
 - [ ] `labelSmall` in Vazirmatn; real font weights on device
 - [ ] Zero `.copy(alpha` in `ui/` outside the design system (grep)
 - [ ] Charts read right-to-left; decision #3 recorded
@@ -598,7 +684,17 @@ Change:
   placement guarantees this).
 - Give destructive or reversible actions (delete transaction,
   installment paid toggle — `InstallmentMiniItem.kt:65-78` has no
-  confirm/undo today) an Undo ("برگردان") action.
+  confirm/undo today) an Undo ("برگردان") action. Each Undo must name
+  its reversal operation in the phase PR: e.g. delete-transaction →
+  re-insert the deleted row via the repository insert (keep the deleted
+  entity in memory until the Snackbar dismisses); paid-toggle → toggle
+  the flag back. No fire-and-forget change may offer Undo without a
+  defined reversal.
+- Route the direct `Toast.makeText` calls (`SmartAssistantScreen.kt:1176`,
+  `ManualTransactionDialog.kt:293`) through the new Snackbar pipeline
+  (as transient UI events, not Toasts) — otherwise validation failures
+  in those forms keep bypassing Snackbar/Undo and the done criterion
+  below cannot pass.
 - Keep Toast only where a Snackbar cannot reach (pre-compose contexts).
 
 ### Step 6.2: Touch targets and input polish
@@ -622,7 +718,8 @@ Change:
 
 ## Phase 6 done criteria
 
-- [ ] Snackbar with Undo on delete/paid-toggle; no dead Toast for user errors
+- [ ] Zero user-facing Toasts for in-app validation/errors (grep proves
+  it); every destructive action offers Undo with a defined reversal
 - [ ] 48dp touch targets on category row actions; ime navigation works
 - [ ] Entrance animations run once; empty states centered
 - [ ] Full suite + lint exits 0
@@ -632,8 +729,10 @@ Change:
 ## Phase 7 — Screen structure refinement (P3)
 
 **Goal**: fix per-screen information-architecture and density issues the
-review found, after the shared policies (Phases 1–3) exist. No behavior
-changes — only structure.
+review found, after the shared policies (Phases 1–3) exist. Structure
+first; two small behavior completions are explicitly allowed (assistant
+parser retry, reports account filter) — anything beyond those is out of
+scope.
 
 ### Step 7.1: Settings screen structure
 
@@ -722,7 +821,11 @@ named test results, and file:line references in the phase report.
 
 ## STOP conditions
 
-- A "Current state" excerpt does not match the live file.
+- A "Current state" excerpt does not match the live file. Match on the
+  named symbol/property (e.g. "the `heightFraction` parameter of
+  `HesabyarDialog`"), not on exact line numbers — line numbers drift;
+  a drifted line range alone is not a STOP. Stop only when the cited
+  symbol or behavior is genuinely absent or different.
 - A phase requires a Room migration, a backup-schema change, or Rust
   business-logic changes — stop; those are out of scope for this plan.
 - A phase requires a new dependency — stop and ask the owner first.
