@@ -74,6 +74,7 @@ jobs:
           file: rust/lcov.info
           format: lcov
           flag-name: rust
+          parallel: true
 
       - name: Upload coverage to Qlty Cloud
         # Forked-PR runs get no secrets, so the token would be empty.
