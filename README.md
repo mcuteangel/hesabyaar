@@ -106,7 +106,7 @@
 | **شبکه** | OkHttp + Retrofit |
 | **هوش مصنوعی** | Firebase AI, OpenRouter, Custom AI providers |
 | **تست** | Robolectric, Roborazzi |
-| **بنچمارک** | CodSpeed, JMH, **Criterion (Rust)** |
+| **بنچمارک** | CodSpeed, **Criterion (Rust)** |
 | **بایندینگ بومی (Native)** | **UniFFI** (Kotlin ↔ Rust) |
 | **رمزنگاری** | AES-256-GCM (Rust `aes-gcm`) |
 
@@ -210,24 +210,19 @@ app/src/main/java/io/github/mojri/hesabyar/
    cd hesabyaar
    ```
 
-2. زیرماژول‌های git را initialize کنید:
-   ```bash
-   git submodule update --init --recursive
-   ```
-
-3. فایل `.env` را از روی `.env.example` کپی کنید:
+2. فایل `.env` را از روی `.env.example` کپی کنید:
    ```bash
    cp .env.example .env
    ```
 
-4. کلید API هوش مصنوعی را تنظیم کنید (اختیاری):
+3. کلید API هوش مصنوعی را تنظیم کنید (اختیاری):
    ```env
    GEMINI_API_KEY=your_api_key_here
    ```
 
-5. برای buildهای release، اطلاعات امضای دیجیتال را در `.env` تنظیم کنید.
+4. برای buildهای release، اطلاعات امضای دیجیتال را در `.env` تنظیم کنید.
 
-6. **Rust toolchain و targets اندروید را نصب کنید:**
+5. **Rust toolchain و targets اندروید را نصب کنید:**
    ```bash
    rustup default stable
    rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
@@ -317,13 +312,7 @@ cargo bench
 
 ## 📈 بنچمارک
 
-پروژه از بنچمارک‌های عملکردی با استفاده از **CodSpeed، JMH (JVM)** و **Criterion (Rust)** استفاده می‌کند. بنچمارک‌های JVM در build مستقل `benchmarks/` و بنچمارک‌های Rust در `rust/hesabyar-core/benches/` قرار دارند.
-
-### اجرای بنچمارک‌های JVM
-```bash
-cd benchmarks
-./gradlew jmh --no-daemon
-```
+پروژه از بنچمارک‌های عملکردی با استفاده از **CodSpeed** و **Criterion (Rust)** استفاده می‌کند. بنچمارک‌های Rust در `rust/hesabyar-core/benches/` قرار دارند.
 
 ### اجرای بنچمارک‌های Rust
 ```bash

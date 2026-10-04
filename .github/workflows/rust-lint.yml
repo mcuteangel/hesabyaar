@@ -76,12 +76,33 @@ jobs:
           flag-name: rust
 
       - name: Upload coverage to Qlty Cloud
+        # Forked-PR runs get no secrets, so the token would be empty.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
         continue-on-error: true
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: rust/lcov.info
           add-prefix: rust
+          tag: rust
+
+      - name: Prefix LCOV file paths for repository root
+        # The coverage command runs for the whole workspace (hesabyar-core
+        # plus uniffi-gen), so prefix every workspace-relative SF entry with
+        # rust/; entries that already resolve from the repo root stay intact.
+        run: |
+          sed -e 's|^SF:\([^/]\)|SF:rust/\1|' -e 's|^SF:rust/rust/|SF:rust/|' rust/lcov.info > rust/lcov.prefixed.info
+
+      - name: Run Codacy Coverage Reporter (Rust)
+        uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
+        continue-on-error: true
+        env:
+          CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
+          CODACY_ORGANIZATION_PROVIDER: gh
+          CODACY_USERNAME: mcuteangel
+          CODACY_PROJECT_NAME: hesabyaar
+        with:
+          coverage-reports: rust/lcov.prefixed.info
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
@@ -95,7 +116,6 @@ jobs:
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
         run: |
-          sed -e 's|^SF:hesabyar-core/|SF:rust/hesabyar-core/|' rust/lcov.info > rust/lcov.prefixed.info
           deepsource report --analyzer test-coverage --key rust --value-file rust/lcov.prefixed.info
 
       - name: Upload test results to Codecov

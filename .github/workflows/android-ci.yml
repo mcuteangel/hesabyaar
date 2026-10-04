@@ -72,11 +72,15 @@ jobs:
       - name: Run detekt
         run: ./gradlew detekt
 
-      - name: Run Unit Tests with Coverage
-        run: ./gradlew testDebugUnitTest jacocoTestReport
+      - name: Run Unit Tests with Coverage (including Rust-bridge JNI)
+        # Name the test tasks explicitly: if the dependsOn chain in
+        # gradle/jacoco-coverage.gradle.kts breaks, this step still fails
+        # instead of publishing a report from stale exec files.
+        # Gradle runs each task once per invocation (no duplicate work).
+        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport
 
-      - name: Run Rust-bridge Tests (JNI isolated)
-        run: ./gradlew testDebugUnitTestRust
+      - name: Assert coverage report exists
+        run: test -s app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Run Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
@@ -109,12 +113,17 @@ jobs:
           flag-name: android
 
       - name: Upload coverage to Qlty Cloud
+        # Forked-PR runs get no secrets, so the token would be empty.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
         continue-on-error: true
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           add-prefix: app/src/main/java
+          # Each workflow uploads a different part of the repo and they run on
+          # different path filters; tags keep them from replacing each other.
+          tag: android
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
