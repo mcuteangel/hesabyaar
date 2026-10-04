@@ -61,103 +61,120 @@ val handWrittenClassSpec =
 // to the rust package without being matched by handWrittenRustBridgePrefixes.
 // It walks jacocoSourceRoots recursively and also checks file contents for
 // 'package io.github.mojri.hesabyar.rust' to prevent package/directory drift.
+
+fun scanTripleQuoteString(input: String, start: Int, n: Int, sb: StringBuilder): Int {
+  val end = input.indexOf("\"\"\"", start + 3)
+  sb.append("\"\"")
+  return if (end == -1) {
+    val nextLine = input.indexOf('\n', start + 3)
+    if (nextLine == -1) n else nextLine
+  } else {
+    end + 3
+  }
+}
+
+fun scanCharLiteral(input: String, start: Int, n: Int, sb: StringBuilder): Int {
+  var j = start + 1
+  while (j < n) {
+    if (input[j] == '\\') {
+      j += 2
+    } else if (input[j] == '\'') {
+      j++
+      break
+    } else if (input[j] == '\n') {
+      break
+    } else {
+      j++
+    }
+  }
+  sb.append("''")
+  return j
+}
+
+fun scanRegularString(input: String, start: Int, n: Int, sb: StringBuilder): Int {
+  var j = start + 1
+  while (j < n) {
+    if (input[j] == '\\') {
+      j += 2
+    } else if (input[j] == '"') {
+      j++
+      break
+    } else if (input[j] == '\n') {
+      break
+    } else {
+      j++
+    }
+  }
+  sb.append("\"\"")
+  return j
+}
+
+fun scanBlockComment(
+  input: String,
+  start: Int,
+  n: Int,
+  isKotlin: Boolean,
+  sb: StringBuilder
+): Int {
+  var depth = 1
+  var j = start + 2
+  while (j < n && depth > 0) {
+    if (input[j] == '\n') {
+      sb.append('\n')
+    }
+    if (isKotlin && j + 1 < n && input[j] == '/' && input[j + 1] == '*') {
+      depth++
+      j += 2
+    } else if (j + 1 < n && input[j] == '*' && input[j + 1] == '/') {
+      depth--
+      j += 2
+    } else {
+      j++
+    }
+  }
+  sb.append(' ')
+  return j
+}
+
+fun scanLineComment(input: String, start: Int, n: Int, sb: StringBuilder): Int {
+  val j = input.indexOf('\n', start + 2)
+  return if (j == -1) {
+    n
+  } else {
+    sb.append(input[j])
+    j + 1
+  }
+}
+
+fun stripCommentsAndStrings(input: String, isKotlin: Boolean): String {
+  val sb = StringBuilder(input.length)
+  var i = 0
+  val n = input.length
+  while (i < n) {
+    if (i + 2 < n && input[i] == '"' && input[i + 1] == '"' && input[i + 2] == '"') {
+      i = scanTripleQuoteString(input, i, n, sb)
+    } else if (input[i] == '\'') {
+      i = scanCharLiteral(input, i, n, sb)
+    } else if (input[i] == '"') {
+      i = scanRegularString(input, i, n, sb)
+    } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '*') {
+      i = scanBlockComment(input, i, n, isKotlin, sb)
+    } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '/') {
+      i = scanLineComment(input, i, n, sb)
+    } else {
+      sb.append(input[i])
+      i++
+    }
+  }
+  return sb.toString()
+}
+
 val checkRustBridgeCoverageScope =
   tasks.register("checkRustBridgeCoverageScope") {
     group = "verification"
     description =
       "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
     doLast {
-      // Stripping comments and strings leaves pure code tokens so declarations
-      // and annotations cannot be obscured by quotes or parens inside comments
-      // or strings, and column-0 text inside multiline strings or comments
-      // cannot register as false declarations.
-      // Use single-pass scanner to avoid string literals with '//' or '/*'
-      // corrupting comment stripping, handle nested block comments in Kotlin,
-      // and properly consume escaped quotes in strings.
-      fun stripCommentsAndStrings(input: String, isKotlin: Boolean): String {
-        val sb = StringBuilder(input.length)
-        var i = 0
-        val n = input.length
-        while (i < n) {
-          if (i + 2 < n && input[i] == '"' && input[i + 1] == '"' && input[i + 2] == '"') {
-            val end = input.indexOf("\"\"\"", i + 3)
-            if (end == -1) {
-              sb.append("\"\"")
-              val nextLine = input.indexOf('\n', i + 3)
-              i = if (nextLine == -1) n else nextLine
-            } else {
-              sb.append("\"\"")
-              i = end + 3
-            }
-          } else if (input[i] == '\'') {
-            var j = i + 1
-            if (j < n && input[j] == '\\') {
-              j += 2
-            } else if (j < n && input[j] != '\'') {
-              j++
-            }
-            if (j < n && input[j] == '\'') j++
-            sb.append("''")
-            i = j
-          } else if (input[i] == '"') {
-            var j = i + 1
-            while (j < n) {
-              if (input[j] == '\\') {
-                j += 2
-              } else if (input[j] == '"') {
-                j++
-                break
-              } else if (input[j] == '\n') {
-                break
-              } else {
-                j++
-              }
-            }
-            sb.append("\"\"")
-            i = j
-          } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '*') {
-            var depth = 1
-            var j = i + 2
-            var sawNewline = false
-            while (j < n && depth > 0) {
-              if (input[j] == '\n') sawNewline = true
-              if (isKotlin && j + 1 < n && input[j] == '/' && input[j + 1] == '*') {
-                depth++
-                j += 2
-              } else if (j + 1 < n && input[j] == '*' && input[j + 1] == '/') {
-                depth--
-                j += 2
-              } else {
-                j++
-              }
-            }
-            // Preserve column-0 alignment: if block comment started at line start
-            // and did not cross a newline, do not introduce leading whitespace,
-            // and consume following horizontal whitespace so declaration starts at column 0.
-            val atLineStart = (sb.isEmpty() || sb.last() == '\n')
-            if (!atLineStart && !sawNewline) {
-              sb.append(' ')
-            } else if (sawNewline) {
-              sb.append('\n')
-            }
-            if (atLineStart) {
-              while (j < n && (input[j] == ' ' || input[j] == '\t')) {
-                j++
-              }
-            }
-            i = j
-          } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '/') {
-            var j = input.indexOf('\n', i + 2)
-            if (j == -1) j = n
-            sb.append(if (j < n) input[j] else "")
-            i = if (j < n) j + 1 else n
-          } else {
-            sb.append(input[i])
-            i++
-          }
-        }
-        return sb.toString()
-      }
 
       // Match top-level declarations strictly anchored at column 0.
       // Both Kotlin/Java forms and @interface (with modifiers) share the column-0 anchor '^'.
