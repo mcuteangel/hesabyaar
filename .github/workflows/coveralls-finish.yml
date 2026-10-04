@@ -69,9 +69,12 @@ jobs:
             if [ "$OK" != "0" ]; then
               continue
             fi
-            CANCELLED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "cancelled")] | length')
-            if [ "$CANCELLED" = "$RAN" ]; then
-              echo "Workflow '$wf' was cancelled (superseded); carrying forward flag '$flag'."
+            # Cancelled (superseded by a newer push) or timed_out runs never
+            # re-trigger on their own; carrying forward keeps the badge stable
+            # instead of blocking forever on a stale commit.
+            STALE=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and (.conclusion == "cancelled" or .conclusion == "timed_out"))] | length')
+            if [ "$STALE" = "$RAN" ]; then
+              echo "Workflow '$wf' was cancelled/timed out; carrying forward flag '$flag'."
               CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
               continue
             fi
