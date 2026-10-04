@@ -205,6 +205,6 @@ jobs:
           repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
           parallel-finished: true
           carryforward: ${{ steps.check.outputs.carryforward }}
-          # The workflow_run context's github.sha is not the triggering
-          # commit; pass it explicitly so Coveralls finalizes the right build.
+          # For workflow_run, github.sha is the newest commit on main at
+          # delivery time, not the triggering commit; pass head_sha explicitly.
           git-commit: ${{ github.event.workflow_run.head_sha }}
