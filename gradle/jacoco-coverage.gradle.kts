@@ -67,22 +67,32 @@ val checkRustBridgeCoverageScope =
     description =
       "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
     doLast {
-      // Match top-level declarations at column 0. An explicit modifier set
-      // covers every valid Kotlin top-level modifier without accepting
-      // arbitrary non-code words at column 0 (which raw strings or flush
-      // block comments might contain). The annotation group allows one
-      // nesting level so annotations such as '@Suppress("X", ReplaceWith("y"))'
-      // do not hide the declaration.
+      // Stripping comments and strings leaves pure code tokens so declarations
+      // and annotations cannot be obscured by quotes or parens inside comments
+      // or strings, and column-0 text inside multiline strings or comments
+      // cannot register as false declarations.
+      val blockCommentRegex = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL)
+      val lineCommentRegex = Regex("""//.*""")
+      val rawStringRegex = Regex("\"\"\".*?\"\"\"", RegexOption.DOT_MATCHES_ALL)
+      val quotedStringRegex = Regex("\"[^\"]*\"")
+
+      // Match top-level declarations at column 0. All Kotlin and Java
+      // top-level declaration forms (class, object, interface, enum, record,
+      // @interface) are supported, including Kotlin's full modifier set
+      // (final, external, open, data, etc.).
       val declarationRegex =
         Regex(
-          """^(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual)\s+)*(?:class|object|interface)\s+(\w+)""",
+          """^(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual|final|external)\s+)*(?:class|object|interface|enum|record)\s+(\w+)|^[\t ]*@interface\s+(\w+)""",
           RegexOption.MULTILINE
         )
 
-      // The file annotation must sit in the annotation header: line start,
-      // horizontal whitespace or preceding block comments only.
-      // '[ \t]' (not '\s') never crosses a newline.
-      val jvmNameRegex = Regex("""^[ \t]*(?:/\*.*?\*/[ \t]*)*@file:JvmName\b""", RegexOption.MULTILINE)
+      // The file annotation must sit in the pre-package file header.
+      // DOT_MATCHES_ALL allows leading multi-line block comments to be matched.
+      val jvmNameRegex =
+        Regex(
+          """^[ \t]*(?:/\*.*?\*/[ \t]*)*@file:JvmName\b""",
+          setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)
+        )
 
       val unrecognized = mutableListOf<String>()
 
@@ -113,12 +123,30 @@ val checkRustBridgeCoverageScope =
             val fileMatches = handWrittenRustBridgePrefixes.any { f.name.startsWith(it) }
             val text = f.readText()
             // File annotations must appear before the package declaration.
-            // Restricting the check to the pre-package header avoids matching
-            // @file:JvmName occurrences inside multiline strings or comments
-            // later in the file.
-            val fileHeader = text.substringBefore("\npackage ", text)
+            // Deriving line-by-line yields an empty header when the package
+            // declaration sits on line 1, avoiding false positives on strings.
+            val fileHeader =
+              text
+                .lineSequence()
+                .takeWhile { !it.trimStart().startsWith("package ") }
+                .joinToString("\n")
             val hasForbiddenJvmName = jvmNameRegex.containsMatchIn(fileHeader)
-            val declarations = declarationRegex.findAll(text).map { it.groupValues[1] }.toList()
+
+            // Strip comments and strings before scanning declarations so
+            // annotations and declarations are never obscured by in-string
+            // parens, and column-0 text in comments or raw strings cannot match.
+            val cleanCode =
+              text
+                .replace(blockCommentRegex, "")
+                .replace(lineCommentRegex, "")
+                .replace(rawStringRegex, "\"\"")
+                .replace(quotedStringRegex, "\"\"")
+
+            val declarations =
+              declarationRegex
+                .findAll(cleanCode)
+                .map { m -> if (m.groupValues[1].isNotEmpty()) m.groupValues[1] else m.groupValues[2] }
+                .toList()
             // An empty declaration set means the Kotlin file holds functions
             // only. Its facade carries the file name, which fileMatches
             // already covers. Java has no function-only facade, so an empty
