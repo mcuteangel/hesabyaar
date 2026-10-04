@@ -4,11 +4,21 @@ name: Coveralls Parallel Finish
 # coverage with `parallel: true`; Coveralls waits for this webhook before
 # combining them into a single build. Without it, each upload overwrites the
 # previous one and the badge shows only the last-finishing job (Kotlin, ~40%).
+#
+# NOTE: the workflow names in `on.workflow_run.workflows` and in the
+# in-flight gate below must stay identical; renaming a workflow's `name:`
+# requires updating both places.
 
 on:
   workflow_run:
     workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
     types: [completed]
+    branches: [main]
+
+# Two finisher runs for the same commit must not both send the webhook.
+concurrency:
+  group: coveralls-finish-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
 
 permissions:
   actions: read
@@ -17,33 +27,44 @@ jobs:
   finish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check whether all coverage workflows for this commit are done
+      - name: Check whether all coverage workflows for this commit succeeded
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          # Only consider the four coverage-uploading workflows; ignore this
-          # finisher's own run and unrelated workflows (linter, benchmarks, …),
-          # whose completion does not re-trigger this workflow.
-          QUERY='.workflow_runs
-            | map(select(.name != "Coveralls Parallel Finish"
-              and (.name == "Android CI" or .name == "Rust Lint"
-                or .name == "Lint GitHub Actions" or .name == "OCR Resolver Tests")))
-            | map(select(.status == "in_progress" or .status == "queued"))
-            | length'
-          IN_FLIGHT=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&per_page=30" --jq "$QUERY")
+          # Paginate through all runs for this commit; a single page can miss
+          # an in-flight run on a busy commit.
+          RUNS_JSON=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate --jq -s '[.[].workflow_runs[]]')
+          # Only the four coverage-uploading workflows matter; unrelated runs
+          # (linter, benchmarks, …) neither block finalization nor re-trigger it.
+          COVERAGE_RUNS=$(echo "$RUNS_JSON" | jq '[.[] | select(.name == "Android CI" or .name == "Rust Lint"
+            or .name == "Lint GitHub Actions" or .name == "OCR Resolver Tests")]')
+          # Any non-terminal run means uploads may still be in flight; its
+          # completion re-triggers this workflow.
+          IN_FLIGHT=$(echo "$COVERAGE_RUNS" | jq '[.[] | select(.status != "completed" and .status != "stale")] | length')
           if [ "$IN_FLIGHT" != "0" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Coverage workflows still running for $HEAD_SHA ($IN_FLIGHT in flight); waiting for their workflow_run events."
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "All coverage workflows done for $HEAD_SHA; finalizing Coveralls parallel build."
+            exit 0
           fi
+          # Only finalize when every coverage workflow succeeded; a failed run
+          # means its upload never happened, and its re-run will re-trigger.
+          for wf in "Android CI" "Rust Lint" "Lint GitHub Actions" "OCR Resolver Tests"; do
+            OK=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "success")] | length')
+            if [ "$OK" = "0" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "Workflow '$wf' has no successful run for $HEAD_SHA; not finalizing (a re-run will re-trigger)."
+              exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "All coverage workflows succeeded for $HEAD_SHA; finalizing Coveralls parallel build."
 
       - name: Send Coveralls parallel-finished webhook
         if: steps.check.outputs.ready == 'true'
         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
           parallel-finished: true
