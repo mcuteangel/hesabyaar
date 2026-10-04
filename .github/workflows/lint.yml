@@ -65,6 +65,7 @@ jobs:
            file: coverage-pin-manager.lcov
            format: lcov
            flag-name: scripts
+           parallel: true
 
        - name: Upload coverage to Qlty Cloud
          # Forked-PR runs get no secrets, so the token would be empty.
