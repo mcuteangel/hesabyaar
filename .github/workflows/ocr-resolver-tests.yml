@@ -50,6 +50,7 @@ jobs:
           file: coverage-ocr.lcov
           format: lcov
           flag-name: ocr-scripts
+          parallel: true
 
       - name: Upload coverage to Qlty Cloud
         # Forked-PR runs get no secrets, so the token would be empty.
