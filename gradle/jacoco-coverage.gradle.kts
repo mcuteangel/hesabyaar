@@ -74,16 +74,31 @@ val checkRustBridgeCoverageScope =
       // Use single-pass scanner to avoid string literals with '//' or '/*'
       // corrupting comment stripping, handle nested block comments in Kotlin,
       // and properly consume escaped quotes in strings.
-      fun stripCommentsAndStrings(input: String): String {
+      fun stripCommentsAndStrings(input: String, isKotlin: Boolean): String {
         val sb = StringBuilder(input.length)
         var i = 0
         val n = input.length
         while (i < n) {
           if (i + 2 < n && input[i] == '"' && input[i + 1] == '"' && input[i + 2] == '"') {
             val end = input.indexOf("\"\"\"", i + 3)
-            if (end == -1) break
-            sb.append("\"\"")
-            i = end + 3
+            if (end == -1) {
+              sb.append("\"\"")
+              val nextLine = input.indexOf('\n', i + 3)
+              i = if (nextLine == -1) n else nextLine
+            } else {
+              sb.append("\"\"")
+              i = end + 3
+            }
+          } else if (input[i] == '\'') {
+            var j = i + 1
+            if (j < n && input[j] == '\\') {
+              j += 2
+            } else if (j < n && input[j] != '\'') {
+              j++
+            }
+            if (j < n && input[j] == '\'') j++
+            sb.append("''")
+            i = j
           } else if (input[i] == '"') {
             var j = i + 1
             while (j < n) {
@@ -103,8 +118,10 @@ val checkRustBridgeCoverageScope =
           } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '*') {
             var depth = 1
             var j = i + 2
+            var sawNewline = false
             while (j < n && depth > 0) {
-              if (j + 1 < n && input[j] == '/' && input[j + 1] == '*') {
+              if (input[j] == '\n') sawNewline = true
+              if (isKotlin && j + 1 < n && input[j] == '/' && input[j + 1] == '*') {
                 depth++
                 j += 2
               } else if (j + 1 < n && input[j] == '*' && input[j + 1] == '/') {
@@ -114,7 +131,20 @@ val checkRustBridgeCoverageScope =
                 j++
               }
             }
-            sb.append(' ')
+            // Preserve column-0 alignment: if block comment started at line start
+            // and did not cross a newline, do not introduce leading whitespace,
+            // and consume following horizontal whitespace so declaration starts at column 0.
+            val atLineStart = (sb.isEmpty() || sb.last() == '\n')
+            if (!atLineStart && !sawNewline) {
+              sb.append(' ')
+            } else if (sawNewline) {
+              sb.append('\n')
+            }
+            if (atLineStart) {
+              while (j < n && (input[j] == ' ' || input[j] == '\t')) {
+                j++
+              }
+            }
             i = j
           } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '/') {
             var j = input.indexOf('\n', i + 2)
@@ -130,10 +160,10 @@ val checkRustBridgeCoverageScope =
       }
 
       // Match top-level declarations strictly anchored at column 0.
-      // Both Kotlin/Java forms and @interface share the column-0 anchor '^'.
+      // Both Kotlin/Java forms and @interface (with modifiers) share the column-0 anchor '^'.
       val declarationRegex =
         Regex(
-          """^(?:(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual|final|external)\s+)*(?:class|object|interface|enum|record)\s+(\w+)|@interface\s+(\w+))""",
+          """^(?:(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual|final|external)\s+)*(?:class|object|interface|enum|record)\s+(\w+)|(?:(?:public|protected|private|abstract|static|final|sealed|strictfp)\s+)*@interface\s+(\w+))""",
           RegexOption.MULTILINE
         )
 
@@ -171,7 +201,8 @@ val checkRustBridgeCoverageScope =
           if (declaresRustPackage) {
             val fileMatches = handWrittenRustBridgePrefixes.any { f.name.startsWith(it) }
             val text = f.readText()
-            val cleanCode = stripCommentsAndStrings(text)
+            val isKotlin = f.extension == "kt"
+            val cleanCode = stripCommentsAndStrings(text, isKotlin)
 
             // File annotations must appear before package declaration.
             // Deriving from cleanCode ensures comments/strings in header or doc
