@@ -1,0 +1,27 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarButton.kt
+  s_2a8104e0529fbf::t_5532a5845c8d8d 86,94
+  s_2a8104e0529fbf::t_ced52448dd8f82 87-92
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarCardTest.kt
+  s_2a8104e0529fbf::t_2e1e62d131222b 1-50
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarCard.kt
+  s_2a8104e0529fbf::t_352c671cd611a6 14-16
+  s_2a8104e0529fbf::t_863b94d6e1fcb3 36-40,43
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarButtonTest.kt
+  s_2a8104e0529fbf::t_d987bb69e43d53 63-80,96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "25ab058eea4a0b61bac300c6341e8367395e9eee",
+  "prompts": {},
+  "sessions": {
+    "s_2a8104e0529fbf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed46af4f-ceed-4741-b0db-31dfd41158cc",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
