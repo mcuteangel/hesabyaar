@@ -71,27 +71,76 @@ val checkRustBridgeCoverageScope =
       // and annotations cannot be obscured by quotes or parens inside comments
       // or strings, and column-0 text inside multiline strings or comments
       // cannot register as false declarations.
-      val blockCommentRegex = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL)
-      val lineCommentRegex = Regex("""//.*""")
-      val rawStringRegex = Regex("\"\"\".*?\"\"\"", RegexOption.DOT_MATCHES_ALL)
-      val quotedStringRegex = Regex("\"[^\"]*\"")
+      // Use single-pass scanner to avoid string literals with '//' or '/*'
+      // corrupting comment stripping, handle nested block comments in Kotlin,
+      // and properly consume escaped quotes in strings.
+      fun stripCommentsAndStrings(input: String): String {
+        val sb = StringBuilder(input.length)
+        var i = 0
+        val n = input.length
+        while (i < n) {
+          if (i + 2 < n && input[i] == '"' && input[i + 1] == '"' && input[i + 2] == '"') {
+            val end = input.indexOf("\"\"\"", i + 3)
+            if (end == -1) break
+            sb.append("\"\"")
+            i = end + 3
+          } else if (input[i] == '"') {
+            var j = i + 1
+            while (j < n) {
+              if (input[j] == '\\') {
+                j += 2
+              } else if (input[j] == '"') {
+                j++
+                break
+              } else if (input[j] == '\n') {
+                break
+              } else {
+                j++
+              }
+            }
+            sb.append("\"\"")
+            i = j
+          } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '*') {
+            var depth = 1
+            var j = i + 2
+            while (j < n && depth > 0) {
+              if (j + 1 < n && input[j] == '/' && input[j + 1] == '*') {
+                depth++
+                j += 2
+              } else if (j + 1 < n && input[j] == '*' && input[j + 1] == '/') {
+                depth--
+                j += 2
+              } else {
+                j++
+              }
+            }
+            sb.append(' ')
+            i = j
+          } else if (i + 1 < n && input[i] == '/' && input[i + 1] == '/') {
+            var j = input.indexOf('\n', i + 2)
+            if (j == -1) j = n
+            sb.append(if (j < n) input[j] else "")
+            i = if (j < n) j + 1 else n
+          } else {
+            sb.append(input[i])
+            i++
+          }
+        }
+        return sb.toString()
+      }
 
-      // Match top-level declarations at column 0. All Kotlin and Java
-      // top-level declaration forms (class, object, interface, enum, record,
-      // @interface) are supported, including Kotlin's full modifier set
-      // (final, external, open, data, etc.).
+      // Match top-level declarations strictly anchored at column 0.
+      // Both Kotlin/Java forms and @interface share the column-0 anchor '^'.
       val declarationRegex =
         Regex(
-          """^(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual|final|external)\s+)*(?:class|object|interface|enum|record)\s+(\w+)|^[\t ]*@interface\s+(\w+)""",
+          """^(?:(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual|final|external)\s+)*(?:class|object|interface|enum|record)\s+(\w+)|@interface\s+(\w+))""",
           RegexOption.MULTILINE
         )
 
-      // The file annotation must sit in the pre-package file header.
-      // DOT_MATCHES_ALL allows leading multi-line block comments to be matched.
       val jvmNameRegex =
         Regex(
-          """^[ \t]*(?:/\*.*?\*/[ \t]*)*@file:JvmName\b""",
-          setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL)
+          """^[ \t]*@file:JvmName\b""",
+          RegexOption.MULTILINE
         )
 
       val unrecognized = mutableListOf<String>()
@@ -108,8 +157,8 @@ val checkRustBridgeCoverageScope =
             f.useLines { lines ->
               for (line in lines) {
                 val trimmed = line.trim()
-                if (trimmed.startsWith("package ")) {
-                  val pkg = trimmed.removePrefix("package ").trimEnd(';', ' ').trim()
+                if (trimmed.startsWith("package") && (trimmed.length == 7 || trimmed[7].isWhitespace())) {
+                  val pkg = trimmed.substring(7).trim().removeSuffix(";").trim()
                   if (pkg == "io.github.mojri.hesabyar.rust") {
                     declaresRustPackage = true
                   }
@@ -122,25 +171,20 @@ val checkRustBridgeCoverageScope =
           if (declaresRustPackage) {
             val fileMatches = handWrittenRustBridgePrefixes.any { f.name.startsWith(it) }
             val text = f.readText()
-            // File annotations must appear before the package declaration.
-            // Deriving line-by-line yields an empty header when the package
-            // declaration sits on line 1, avoiding false positives on strings.
+            val cleanCode = stripCommentsAndStrings(text)
+
+            // File annotations must appear before package declaration.
+            // Deriving from cleanCode ensures comments/strings in header or doc
+            // cannot trigger @file:JvmName or hide it.
             val fileHeader =
-              text
+              cleanCode
                 .lineSequence()
-                .takeWhile { !it.trimStart().startsWith("package ") }
+                .takeWhile {
+                  val trimmed = it.trim()
+                  !(trimmed.startsWith("package") && (trimmed.length == 7 || trimmed[7].isWhitespace()))
+                }
                 .joinToString("\n")
             val hasForbiddenJvmName = jvmNameRegex.containsMatchIn(fileHeader)
-
-            // Strip comments and strings before scanning declarations so
-            // annotations and declarations are never obscured by in-string
-            // parens, and column-0 text in comments or raw strings cannot match.
-            val cleanCode =
-              text
-                .replace(blockCommentRegex, "")
-                .replace(lineCommentRegex, "")
-                .replace(rawStringRegex, "\"\"")
-                .replace(quotedStringRegex, "\"\"")
 
             val declarations =
               declarationRegex
