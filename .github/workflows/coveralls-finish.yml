@@ -52,11 +52,13 @@ jobs:
             echo "Coverage workflows still running for $HEAD_SHA ($IN_FLIGHT in flight); waiting for their workflow_run events."
             exit 0
           fi
-          # For each uploader: if it never ran (path filter), its flag is
-          # carried forward from the previous build so the badge stays stable.
-          # If it ran, require a success; a failure/timed_out blocks until a
-          # re-run succeeds. A pure-cancelled run means a newer push superseded
-          # it, so treat it as absent (the new commit's runs will finalize).
+          # For each uploader: if it has no runs at all for this commit, its
+          # flag is carried forward from the previous build so the badge stays
+          # stable. If it ran, only `failure` blocks finalization (a re-run
+          # emits a new workflow_run event). Every other non-success
+          # conclusion (cancelled, timed_out, skipped, neutral, …) is treated
+          # as absent and carried forward — none of them re-trigger on their
+          # own, so blocking on them would leave the build open forever.
           CARRYFORWARD=""
           while IFS=$'\t' read -r wf flag; do
             RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
@@ -69,18 +71,14 @@ jobs:
             if [ "$OK" != "0" ]; then
               continue
             fi
-            # Cancelled (superseded by a newer push) or timed_out runs never
-            # re-trigger on their own; carrying forward keeps the badge stable
-            # instead of blocking forever on a stale commit.
-            STALE=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and (.conclusion == "cancelled" or .conclusion == "timed_out"))] | length')
-            if [ "$STALE" = "$RAN" ]; then
-              echo "Workflow '$wf' was cancelled/timed out; carrying forward flag '$flag'."
-              CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
-              continue
+            FAILED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "failure")] | length')
+            if [ "$FAILED" != "0" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "Workflow '$wf' failed for $HEAD_SHA; not finalizing (a re-run will re-trigger)."
+              exit 0
             fi
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Workflow '$wf' ran but did not succeed for $HEAD_SHA; not finalizing."
-            exit 0
+            echo "Workflow '$wf' has no successful run for $HEAD_SHA (conclusions: $(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf) | .conclusion] | unique | join(",")')); carrying forward flag '$flag'."
+            CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
           done < <(echo "$WORKFLOWS_JSON" | jq -r '.[] | "\(.[0])\t\(.[1])"')
           echo "carryforward=$CARRYFORWARD" >> "$GITHUB_OUTPUT"
           echo "ready=true" >> "$GITHUB_OUTPUT"
