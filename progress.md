@@ -6,12 +6,27 @@
 
 ## Active Task
 
-None.
+- **Task:** Issue #231 — Unified test coverage (Kotlin/JaCoCo + Rust core to Codacy)
+- **Branch:** `feat/unified-coverage-rust-kotlin`
+- **PR:** [#301](https://github.com/mcuteangel/hesabyaar/pull/301)
+- **Plan:** `plans/012-unified-test-coverage-kotlin-rust.md`
+- **Status:** Implementation complete; PR #301 open, CI pending.
+- **Deliverables:**
+    - [x] `gradle/jacoco-coverage.gradle.kts` (applied from `app/build.gradle.kts:550`): `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
+    - [x] `checkRustBridgeCoverageScope` task in the same file: recursive fail-fast guard over shared `jacocoSourceRoots` (source path and `package` declaration both checked); the test tasks `dependsOn` it so it runs before the test suites
+    - [x] `.github/workflows/android-ci.yml`: explicit `:app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` tasks (line 80) plus separate `Assert coverage report exists` step (line 82-83)
+    - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
+    - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
+- **Verification (local, 2026-10-04):**
+    - [x] `./gradlew ktlintCheck detekt`: BUILD SUCCESSFUL
+    - [x] `./gradlew :app:checkRustBridgeCoverageScope`: BUILD SUCCESSFUL (task executed in 1m 54s)
+    - [x] `./gradlew :app:jacocoTestReport`: BUILD SUCCESSFUL (executed with `doFirst` guard in 1m 26s)
+    - [x] JaCoCo XML `app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml`: 39.94% line coverage (7027/17593), 35.55% instruction (45410/127753). Zero generated-code classes remain. 24 hand-written bridge classes preserved.
 
 ## Goal
 
-Make JaCoCo instrument Compose-generated classes that Robolectric's sandbox
-classloader loads without source-location metadata.
+Publish accurate project-wide coverage. The JaCoCo report must exclude generated code.
+The Rust core coverage must reach Codacy alongside the Kotlin report.
 
 ## Completed
 

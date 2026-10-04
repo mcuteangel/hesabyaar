@@ -547,23 +547,7 @@ androidComponents {
   }
 }
 
-tasks.register<JacocoReport>("jacocoTestReport") {
-  // Coverage must include both the fast non-Rust tests and the isolated
-  // Rust-bridge tests (testDebugUnitTestRust) — executionData below globs
-  // every build/jacoco/*.exec, so both tasks must run before the report.
-  dependsOn("testDebugUnitTest", "testDebugUnitTestRust")
-  executionData.setFrom(fileTree("build/jacoco") { include("*.exec") })
-  sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
-  classDirectories.setFrom(
-    fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") { include("**/*.class") },
-    fileTree("build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes") { include("**/*.class") }
-  )
-  reports {
-    xml.required = true
-    html.required = false
-    csv.required = false
-  }
-}
+apply(from = "$rootDir/gradle/jacoco-coverage.gradle.kts")
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.

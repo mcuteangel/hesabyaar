@@ -1,4 +1,4 @@
-# Plan 012: UI/UX overhaul — fix review findings in prioritized phases
+# Plan 013: UI/UX overhaul — fix review findings in prioritized phases
 
 > **Executor instructions**: Follow this plan phase by phase, in order.
 > Phases are priority-ordered (P1 first). Do not start a later phase
@@ -288,10 +288,12 @@ Extend `ui/components/HesabyarDialog.kt` so it covers every current use:
 - `title`, `onDismiss`, scrollable body, action row (confirm/dismiss).
 - `heightFraction` already exists (`:63`, applied at `:78-79`, documented
   at `:49`) but defaults to `null` (uncapped) — only
-  `ForecastDetailDialog.kt:43` passes a value (`0.85f`). Change the
-  default to `0.85f` so forms cannot grow unbounded
-  (`ManualTransactionDialog`'s content region at `:195-276` has no cap
-  today). Do not add a second mechanism.
+  `ForecastDetailDialog.kt:43` passes a value (`0.85f`). Use a maximum-height
+  constraint (e.g. `Modifier.heightIn(max = ...)` or an explicit `maxHeightFraction`
+  cap) rather than forcing `fillMaxHeight(0.85f)`, so short confirmation and
+  single-field dialogs size to their content while multi-field forms cannot
+  grow unbounded past 85% of screen height (`ManualTransactionDialog`'s
+  content region at `:195-276` has no cap today). Do not add a second mechanism.
 - Fix `ConfirmDialog.kt:58-62`: do not render the dismiss slot when
   `dismissText` is empty (today `""` renders a blank clickable button —
   `AccountManagementScreen.kt:339`).
@@ -617,13 +619,16 @@ File: `ui/screens/AnalyticsScreen.kt` — `CombinedLineChartCard` at
 Current state: both hardcode LTR; time flows left→right in an RTL-first
 app. Canvas does not auto-mirror.
 
-Change: mirror the x-axis so the newest period is at the
-inline-start (right in RTL): in `BarChart`, compute
-`x = size.width - (index * (barWidth + spacing) + spacing / 2) - barWidth`;
-in `CombinedLineChartCard`, mirror around `startX` similarly
-(`x = size.width - startX - idx * spacing`). Keep the drawing code
-otherwise identical. Verify against the Figma dashboard only for axis
-direction.
+Change: mirror the x-axis so time flows right-to-left in RTL
+(newest month on the left, or oldest on right flowing to newest):
+since `analytics.rs` supplies months in ascending chronological order
+(oldest to newest), placing the newest month at the inline-end (left)
+means reversing the data list or using descending coordinate mapping.
+In `BarChart`, reverse data and labels or compute RTL-aware coordinates:
+`x = size.width - (index * (barWidth + spacing) + spacing / 2) - barWidth`.
+In `CombinedLineChartCard`, reverse series or mirror around `startX` similarly
+(`x = size.width - startX - idx * spacing`). Ensure labels match the plotted
+data points and the axis order is visually verified against the Figma dashboard.
 
 ### Step 5.5: Theme system — dynamic, brand, and curated themes (decision #3, decided 2026-10-04)
 
