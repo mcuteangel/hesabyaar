@@ -38,7 +38,7 @@ class FakeRepositoryTest {
    */
   @Test
   fun exportGateBlocksOnlyFirstCollection() =
-    runTest {
+    runTest(testDispatcher) {
       val repo = FakeRepository()
       val gate = CompletableDeferred<Unit>()
       repo.exportGate = gate
