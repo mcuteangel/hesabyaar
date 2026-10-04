@@ -10,8 +10,9 @@ name: Coveralls Parallel Finish
 # updating both places.
 #
 # NOTE: if an uploader reports failure/startup_failure, the build is left
-# open (not force-finalized). Re-run the failed workflow to trigger a new
-# finalization; the badge keeps showing the previous commit until then.
+# open (not force-finalized). Re-run every workflow named in the
+# 'Blocked by:' line to trigger a new finalization; the badge keeps
+# showing the previous commit until then.
 
 on:
   workflow_run:
@@ -47,10 +48,25 @@ jobs:
           # Single source of truth: workflow name -> Coveralls flag name.
           WORKFLOWS_JSON='[["Android CI","android"],["Rust Lint","rust"],["Lint GitHub Actions","scripts"],["OCR Resolver Tests","ocr-scripts"]]'
           # Paginate through all runs for this commit; a single page can miss
-          # an in-flight run on a busy commit.
-          COVERAGE_RUNS=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" \
-            --paginate | jq -s --argjson pairs "$WORKFLOWS_JSON" \
-            '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]')
+          # an in-flight run on a busy commit. Retry transient API failures
+          # (rate limits, network blips) instead of crashing.
+          COVERAGE_RUNS=""
+          for attempt in 1 2 3; do
+            if API_OUT=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate 2>/dev/null) && \
+               COVERAGE_RUNS=$(echo "$API_OUT" | jq -s --argjson pairs "$WORKFLOWS_JSON" \
+                 '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]'); then
+              break
+            fi
+            echo "::warning::gh api attempt $attempt failed for $HEAD_SHA; retrying in 10s..."
+            sleep 10
+          done
+          if [ -z "$COVERAGE_RUNS" ]; then
+            # API is down, not a logic bug: loud but not red (continue-on-error),
+            # and `ready` is set so the crash-detector step stays quiet.
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Failed to list workflow runs for $HEAD_SHA after 3 attempts; not finalizing."
+            exit 1
+          fi
           # Any non-terminal run means its upload may still be in flight; its
           # completion re-triggers this workflow. (Valid API statuses:
           # queued, in_progress, completed, requested, waiting, pending.)
