@@ -54,14 +54,15 @@ jobs:
           fi
           # For each uploader: if it has no runs at all for this commit, its
           # flag is carried forward from the previous build so the badge stays
-          # stable. If it ran, `failure` and `startup_failure` block
-          # finalization — both need human attention (a re-run emits a new
-          # workflow_run event), and silently carrying a broken workflow
-          # forward would freeze the badge with no visible signal.
-          # Every other non-success conclusion (cancelled, timed_out,
-          # skipped, neutral, action_required, …) is treated as absent and
-          # carried forward — none of them re-trigger on their own, so
-          # blocking on them would leave the build open forever.
+          # stable. If it ran, `failure`, `startup_failure`, and `timed_out`
+          # block finalization — all three need human attention (a manual
+          # re-run emits a new workflow_run event). Silently carrying them
+          # forward would mix fresh coverage with stale data and freeze the
+          # badge with no visible signal.
+          # Every other non-success conclusion (cancelled, skipped, neutral,
+          # action_required, …) is treated as absent and carried forward —
+          # none of them indicate broken data, and blocking on them would
+          # leave the build open forever.
           CARRYFORWARD=""
           while IFS=$'\t' read -r wf flag; do
             RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
@@ -74,18 +75,18 @@ jobs:
             if [ "$OK" != "0" ]; then
               continue
             fi
-            FAILED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and (.conclusion == "failure" or .conclusion == "startup_failure"))] | length')
+            FAILED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and (.conclusion == "failure" or .conclusion == "startup_failure" or .conclusion == "timed_out"))] | length')
             if [ "$FAILED" != "0" ]; then
               echo "ready=false" >> "$GITHUB_OUTPUT"
-              echo "Workflow '$wf' failed for $HEAD_SHA; not finalizing (a re-run will re-trigger)."
-              exit 0
+              echo "::error::Workflow '$wf' did not succeed for $HEAD_SHA; not finalizing. Re-run it to trigger finalization."
+              exit 1
             fi
             echo "Workflow '$wf' has no successful run for $HEAD_SHA (conclusions: $(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf) | .conclusion] | unique | join(",")')); carrying forward flag '$flag'."
             CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
           done < <(echo "$WORKFLOWS_JSON" | jq -r '.[] | "\(.[0])\t\(.[1])"')
           echo "carryforward=$CARRYFORWARD" >> "$GITHUB_OUTPUT"
           echo "ready=true" >> "$GITHUB_OUTPUT"
-          echo "Coverage uploads for $HEAD_SHA are finalized (carryforward: ${CARRYFORWARD:-none}); no workflow reported a failure."
+          echo "Coverage uploads for $HEAD_SHA ready to finalize (carryforward: ${CARRYFORWARD:-none}); no workflow reported a failure."
 
       - name: Send Coveralls parallel-finished webhook
         if: steps.check.outputs.ready == 'true'
