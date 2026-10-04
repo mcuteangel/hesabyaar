@@ -1,0 +1,25 @@
+progress.md
+  s_3ae98003c5def4::t_0674cada9c7722 22-24
+gradle/jacoco-coverage.gradle.kts
+  s_3ae98003c5def4::t_5eb89c2bd9b11f 127
+  s_3ae98003c5def4::t_03c7f1bbbb3a32 70-75,78,82-87
+  s_3ae98003c5def4::t_a7b43060fad718 116,118-123,125
+  s_3ae98003c5def4::t_769992a6d778af 170-174,176,183
+  s_3ae98003c5def4::t_758ce7ce8db360 160-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6c1eff920eb8412b37209b531afdee549e331222",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
