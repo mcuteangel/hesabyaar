@@ -1,0 +1,21 @@
+plans/013-ui-ux-overhaul.md
+  s_3ae98003c5def4::t_e0f3548c095902 1
+  s_3ae98003c5def4::t_dd6f7b2f685107 622-631
+  s_3ae98003c5def4::t_deb54528ae9818 291-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2e13f0978c0b7c9fbdf509f934394e4b56dba6d4",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
