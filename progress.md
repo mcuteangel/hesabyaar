@@ -15,15 +15,23 @@ and the debts hub shows a per-person net position.
 
 ## Completed
 
-- **Task:** Issue #231 — Unified test coverage (Kotlin/JaCoCo + Rust core to Codacy)
-- **Status:** Completed and merged to `main`
+- **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
+- **Status:** Merged to `main`
 - **Completed Date:** 2026-10-04
 - **Deliverables:**
-    - [x] `gradle/jacoco-coverage.gradle.kts` (applied from `app/build.gradle.kts:550`): `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
-    - [x] `checkRustBridgeCoverageScope` task in the same file: recursive fail-fast guard over shared `jacocoSourceRoots` (source path and `package` declaration both checked); the test tasks `dependsOn` it so it runs before the test suites
-    - [x] `.github/workflows/android-ci.yml`: explicit `:app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` tasks (line 80) plus separate `Assert coverage report exists` step (line 82-83)
+    - [x] Renamed plan to `plans/013-ui-ux-overhaul.md` and reconciled `plans/README.md`
+    - [x] Addressed all review comments from review bots (Kilo, CodeAnt, Cubic, Sourcery)
+
+- **Task:** Issue #231 — Unified test coverage (Kotlin/JaCoCo + Rust core to Codacy)
+- **Status:** Merged into `main` via PR #301 (commit `b5b93a8`)
+- **Completed Date:** 2026-10-04
+- **Deliverables:**
+    - [x] `gradle/jacoco-coverage.gradle.kts`: `jacocoReportExcludes` filters generated code; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
+    - [x] `checkRustBridgeCoverageScope` task in `gradle/jacoco-coverage.gradle.kts`: recursive fail-fast guard over shared `jacocoSourceRoots`
+    - [x] `.github/workflows/android-ci.yml`: explicit test tasks and JaCoCo generation
     - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
     - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
+    - [x] `plans/012-unified-test-coverage-kotlin-rust.md`: completed architecture plan (DONE in `plans/README.md`)
 
 - **Task:** plans/011 Phase 0-2 (person records, tracked/untracked repayment, KPI exclusion)
 - **Status:** Completed and merged to `main`
