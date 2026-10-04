@@ -152,6 +152,12 @@ class PersonViewModelTest {
         assertEquals("Case-only query matches İstanbul under Turkish locale", 1, viewModel.personBalances.value.size)
         assertEquals(NAME_ISTANBUL, viewModel.personBalances.value[0].personName)
 
+        // Querying "İstanbul" directly against person named "İstanbul" under Turkish locale
+        viewModel.setSearchQuery(NAME_ISTANBUL)
+        advanceUntilIdle()
+        assertEquals("Direct İstanbul query matches under Turkish locale", 1, viewModel.personBalances.value.size)
+        assertEquals(NAME_ISTANBUL, viewModel.personBalances.value[0].personName)
+
         collectJob.cancel()
       } finally {
         java.util.Locale.setDefault(originalLocale)
