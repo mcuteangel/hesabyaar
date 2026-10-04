@@ -94,7 +94,7 @@ None.
 
 ## Verification
 
-Run on 2026-10-02, branch `feature/person-loan-ledger`:
+Run on 2026-10-04, branch `feature/person-loan-ledger`:
 
 | Check | Command | Result |
 |---|---|---|
@@ -102,7 +102,7 @@ Run on 2026-10-02, branch `feature/person-loan-ledger`:
 | Kotlin style | `./gradlew --no-daemon ktlintFormat` | PASS |
 | Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings) |
 | Kotlin compile | `./gradlew --no-daemon compileDebugKotlin` | PASS (BUILD SUCCESSFUL) |
-| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16 pass, `HesabyarButtonTest` 3/3 pass, `PersonRowSemanticsTest` 3/3 pass) |
+| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 2/2, `PersonRowSemanticsTest` 3/3) |
 | Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass) |
 
 ## Next Steps
@@ -115,4 +115,4 @@ Run on 2026-10-02, branch `feature/person-loan-ledger`:
 
 ## Last Updated
 
-2026-10-03
+2026-10-04
