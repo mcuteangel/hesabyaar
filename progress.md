@@ -6,29 +6,40 @@
 
 ## Active Task
 
-- **Task:** Issue #231 — Unified test coverage (Kotlin/JaCoCo + Rust core to Codacy)
-- **Branch:** `feat/unified-coverage-rust-kotlin`
-- **PR:** [#301](https://github.com/mcuteangel/hesabyaar/pull/301)
-- **Plan:** `plans/012-unified-test-coverage-kotlin-rust.md`
-- **Status:** Implementation complete; PR #301 open, CI pending.
+- **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
+- **Branch:** `docs/plan-012-ui-ux-overhaul`
+- **PR:** [#304](https://github.com/mcuteangel/hesabyaar/pull/304)
+- **Plan:** `plans/013-ui-ux-overhaul.md` (renamed from 012 to resolve numbering conflict with PR #301)
+- **Status:** Review feedback addressed across all bot reviews (Kilo, CodeAnt, Cubic, Sourcery); commit `d350d8f` pushed; awaiting automated self-resolution by review bots.
 - **Deliverables:**
-    - [x] `gradle/jacoco-coverage.gradle.kts` (applied from `app/build.gradle.kts:550`): `jacocoReportExcludes` filters generated code (UniFFI, Hilt, Room, BuildConfig) from `jacocoTestReport`; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
-    - [x] `checkRustBridgeCoverageScope` task in the same file: recursive fail-fast guard over shared `jacocoSourceRoots` (source path and `package` declaration both checked); the test tasks `dependsOn` it so it runs before the test suites
-    - [x] `.github/workflows/android-ci.yml`: explicit `:app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` tasks (line 80) plus separate `Assert coverage report exists` step (line 82-83)
-    - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
-    - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
+    - [x] Renamed plan to `plans/013-ui-ux-overhaul.md` and reconciled `plans/README.md`
+    - [x] Resolved merge conflict with `origin/main` (which merged PR #301)
+    - [x] Addressed all 22 review comments from `kilo-code-bot` (manually replied and resolved)
+    - [x] Addressed comment `4176716130` (Kilo): enumerated four approved behavior completions and dashboard compaction in Out of scope exemptions
+    - [x] Addressed comment `4176631449` (CodeAnt): specified cold-flow combine and `DashboardUiState.Loading` initial state to provide unambiguous readiness signal
+    - [x] Addressed comment `4176631456` (CodeAnt): defined atomic state, expiration, and reversal contract for Undo snackbars
+    - [x] Addressed comment `4176701729` (Cubic): clarified direct mirrored coordinate mapping on ascending chronological series without reversing list
+    - [x] Addressed comment `4176701733` (Cubic): specified `maxHeightFraction` / `heightIn(max)` constraint rather than `fillMaxHeight(0.85f)`
 - **Verification (local, 2026-10-04):**
-    - [x] `./gradlew ktlintCheck detekt`: BUILD SUCCESSFUL
-    - [x] `./gradlew :app:checkRustBridgeCoverageScope`: BUILD SUCCESSFUL (task executed in 1m 54s)
-    - [x] `./gradlew :app:jacocoTestReport`: BUILD SUCCESSFUL (executed with `doFirst` guard in 1m 26s)
-    - [x] JaCoCo XML `app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml`: 39.94% line coverage (7027/17593), 35.55% instruction (45410/127753). Zero generated-code classes remain. 24 hand-written bridge classes preserved.
+    - [x] `./gradlew ktlintCheck detekt`: BUILD SUCCESSFUL in pre-commit hook
+    - [x] Git commits `2e13f09` and `d350d8f` pushed cleanly to `origin/docs/plan-012-ui-ux-overhaul`
 
 ## Goal
 
-Publish accurate project-wide coverage. The JaCoCo report must exclude generated code.
-The Rust core coverage must reach Codacy alongside the Kotlin report.
+Align and finalize Plan 013 for review approval so subsequent implementation phases (0 through 7) can proceed independently.
 
 ## Completed
+
+- **Task:** Issue #231 — Unified test coverage (Kotlin/JaCoCo + Rust core to Codacy)
+- **Status:** Merged into `main` via PR #301 (commit `b5b93a8`)
+- **Completed Date:** 2026-10-04
+- **Deliverables:**
+    - [x] `gradle/jacoco-coverage.gradle.kts`: `jacocoReportExcludes` filters generated code; dynamic `handWrittenClassSpec` keeps only hand-written bridge classes in rust package
+    - [x] `checkRustBridgeCoverageScope` task in `gradle/jacoco-coverage.gradle.kts`: recursive fail-fast guard over shared `jacocoSourceRoots`
+    - [x] `.github/workflows/android-ci.yml`: explicit test tasks and JaCoCo generation
+    - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
+    - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
+    - [x] `plans/012-unified-test-coverage-kotlin-rust.md`: completed architecture plan (DONE in `plans/README.md`)
 
 - **Task:** Vibe Coding preparation
 - **Status:** Completed with known pre-existing verification failure
@@ -96,11 +107,10 @@ None.
 
 ## Next Steps
 
-1. Address pre-existing `LocalContextGetResourceValueCall` lint errors in `ManualTransactionDialog.kt` in a dedicated task.
-2. Align `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` with database version 9.
-3. Configure Room schema export and add `MigrationTestHelper` integration tests.
-4. Close issue #285 now that CI run 36971068107 completed green with confirmed 44.347% coverage.
+1. Finish PR #304 review: resolve remaining review threads once bots re-review the latest commits.
+2. Merge PR #304 (docs-only: `plans/013-ui-ux-overhaul.md` + index row).
+3. Open a tracking issue for phase-by-phase execution of Plan 013, per the owner's instruction.
 
 ## Last Updated
 
-2026-10-02
+2026-10-04
