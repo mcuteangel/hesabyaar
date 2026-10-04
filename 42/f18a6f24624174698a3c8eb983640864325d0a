@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/PersonViewModelTest.kt
+  s_2a8104e0529fbf::t_904e77ed4e7f9b 139-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "42f18a6f24624174698a3c8eb983640864325d0a",
+  "prompts": {},
+  "sessions": {
+    "s_2a8104e0529fbf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed46af4f-ceed-4741-b0db-31dfd41158cc",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
