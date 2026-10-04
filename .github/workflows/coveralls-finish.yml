@@ -54,6 +54,7 @@ jobs:
           MAX_ATTEMPTS=3
           COVERAGE_RUNS=""
           API_SUCCESS=false
+          ATTEMPTS_MADE=0
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             COVERAGE_RUNS=""
             API_ERR=$(mktemp)
@@ -72,10 +73,23 @@ jobs:
             if [ -z "$ERR_MSG" ] || [ "$ERR_MSG" = " " ]; then
               ERR_MSG="unknown error (empty stderr; likely jq failed)"
             fi
-            # Don't retry permanent failures (401/403/404); only transient
-            # (429 rate limit, 5xx, network errors).
-            if echo "$ERR_MSG" | grep -Eq "HTTP (401|403|404)([^0-9]|$)"; then
+            # Don't retry permanent failures; only transient ones.
+            # 401: bad credentials (permanent). 404: not found (permanent).
+            # 403: permanent UNLESS it's a rate limit (GitHub uses 403 for
+            # both primary and secondary rate limits).
+            if echo "$ERR_MSG" | grep -Eq "HTTP 401([^0-9]|$)"; then
               echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
+              ATTEMPTS_MADE=$attempt
+              break
+            fi
+            if echo "$ERR_MSG" | grep -Eq "HTTP 404([^0-9]|$)"; then
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
+              ATTEMPTS_MADE=$attempt
+              break
+            fi
+            if echo "$ERR_MSG" | grep -Eq "HTTP 403([^0-9]|$)" && ! echo "$ERR_MSG" | grep -qi "rate limit"; then
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
+              ATTEMPTS_MADE=$attempt
               break
             fi
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
@@ -91,12 +105,13 @@ jobs:
             else
               echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); no more retries."
             fi
+            ATTEMPTS_MADE=$attempt
           done
           if [ "$API_SUCCESS" != "true" ]; then
             # API is down, not a logic bug: loud but not red (continue-on-error),
             # and `ready` is set so the crash-detector step stays quiet.
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Failed to list workflow runs for $HEAD_SHA after $MAX_ATTEMPTS attempts; not finalizing."
+            echo "::error::Failed to list workflow runs for $HEAD_SHA after $ATTEMPTS_MADE attempt(s); not finalizing."
             exit 1
           fi
           # Any non-terminal run means its upload may still be in flight; its
