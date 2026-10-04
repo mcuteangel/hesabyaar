@@ -67,33 +67,59 @@ val checkRustBridgeCoverageScope =
     description =
       "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
     doLast {
-      val unrecognized =
-        jacocoSourceRoots
-          .map { file(it) }
-          .filter { it.exists() }
-          .flatMap { root -> root.walkTopDown().toList() }
-          .filter { f ->
-            if (!f.isFile || (f.extension != "kt" && f.extension != "java")) {
-              false
-            } else if (f.name == "hesabyar_core.kt") {
-              false
-            } else {
-              val inDir = f.invariantSeparatorsPath.contains(rustPackageSegment)
-              val inPackage =
-                inDir ||
-                  f
-                    .readLines()
-                    .take(20)
-                    .any { it.trim().startsWith("package io.github.mojri.hesabyar.rust") }
-              inPackage && handWrittenRustBridgePrefixes.none { f.name.startsWith(it) }
+      val declarationRegex =
+        Regex(
+          """^(?:@\w+(?:\([^)]*\))?\s+)*(?:internal\s+|private\s+|public\s+|abstract\s+|sealed\s+|data\s+|enum\s+|value\s+|open\s+)*(?:class|object|interface)\s+(\w+)""",
+          RegexOption.MULTILINE
+        )
+
+      val unrecognized = mutableListOf<String>()
+
+      jacocoSourceRoots
+        .map { file(it) }
+        .filter { it.exists() }
+        .flatMap { root -> root.walkTopDown().toList() }
+        .filter { f -> f.isFile && (f.extension == "kt" || f.extension == "java") && f.name != "hesabyar_core.kt" }
+        .forEach { f ->
+          val inDir = f.invariantSeparatorsPath.contains(rustPackageSegment)
+          var declaresRustPackage = inDir
+          if (!declaresRustPackage) {
+            f.useLines { lines ->
+              for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.startsWith("package ")) {
+                  val pkg = trimmed.removePrefix("package ").trimEnd(';', ' ').trim()
+                  if (pkg == "io.github.mojri.hesabyar.rust") {
+                    declaresRustPackage = true
+                  }
+                  break
+                }
+              }
             }
           }
-          .map { it.invariantSeparatorsPath }
+
+          if (declaresRustPackage) {
+            val fileMatches = handWrittenRustBridgePrefixes.any { f.name.startsWith(it) }
+            val text = f.readText()
+            val hasForbiddenJvmName = text.contains("@file:JvmName")
+            val declarations = declarationRegex.findAll(text).map { it.groupValues[1] }.toList()
+            val allDeclarationsMatch =
+              declarations.isNotEmpty() &&
+                declarations.all { decl -> handWrittenRustBridgePrefixes.any { decl.startsWith(it) } }
+
+            if (!fileMatches || hasForbiddenJvmName || !allDeclarationsMatch) {
+              unrecognized.add(
+                "${f.invariantSeparatorsPath} (fileMatches=$fileMatches, jvmName=$hasForbiddenJvmName, declarations=$declarations)"
+              )
+            }
+          }
+        }
+
       if (unrecognized.isNotEmpty()) {
         throw org.gradle.api.GradleException(
-          "Unrecognized hand-written file(s) in $rustPackageSegment: $unrecognized. " +
-            "Update handWrittenRustBridgePrefixes in gradle/jacoco-coverage.gradle.kts " +
-            "so these files are measured by JaCoCo."
+          "Unrecognized hand-written file(s) or declaration(s) in $rustPackageSegment: $unrecognized. " +
+            "Ensure file name and top-level class/interface/object declarations start with one of " +
+            "$handWrittenRustBridgePrefixes so JaCoCo handWrittenClassSpec measures them."
         )
       }
     }
@@ -116,15 +142,27 @@ tasks.register(
   // when a class path contains rustPackageSegment. If a package rename or AGP
   // output reorg ever removes that segment from compiled paths, generated
   // UniFFI classes would silently re-enter the denominator. Fail instead.
+  // Missing class roots also fail: generating a report with zero classes would
+  // otherwise look like a green coverage upload while measuring nothing.
   doFirst {
-    val classRoots =
+    val classRootPaths =
       listOf(
         "build/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
         "build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
-      ).map { file(it) }
+      )
+    val classRoots = classRootPaths.map { file(it) }
+    val missingRoots = classRootPaths.zip(classRoots).filter { !it.second.exists() }
+    if (missingRoots.isNotEmpty()) {
+      throw org.gradle.api.GradleException(
+        "Missing compiled class root(s): ${missingRoots.map { it.first }}. " +
+          "Cannot confirm rust package filtering, so the coverage denominator is unknown. " +
+          "Run the debug test compile first, or confirm the AGP class output layout in " +
+          "gradle/jacoco-coverage.gradle.kts."
+      )
+    }
     val classFiles =
-      classRoots.filter { it.exists() }.flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
-    if (classFiles.isNotEmpty() && classFiles.none { it.invariantSeparatorsPath.contains(rustPackageSegment) }) {
+      classRoots.flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
+    if (classFiles.none { it.invariantSeparatorsPath.contains(rustPackageSegment) }) {
       throw org.gradle.api.GradleException(
         "No compiled class under $rustPackageSegment. handWrittenClassSpec would filter nothing. " +
           "The Kotlin package or AGP class output layout changed — update " +

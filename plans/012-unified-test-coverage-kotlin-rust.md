@@ -55,7 +55,7 @@ The file configures `jacocoTestReport` with two complementary filters:
 The task `jacocoTestReport` depends on `checkRustBridgeCoverageScope`, `testDebugUnitTest`, and `testDebugUnitTestRust`.
 The scope guard runs before both test suites (the test tasks declare an explicit `dependsOn(checkRustBridgeCoverageScope)`) and fails fast on unrecognized files.
 The workflow executes `./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport` in a single step, then asserts the XML report exists and is non-empty.
-Naming the test tasks explicitly alongside `jacocoTestReport` ensures both suites run even if internal dependency wiring changes, while `test -s` asserts that the report was generated and is non-empty.
+Naming the test tasks alongside `jacocoTestReport` ensures both suites run if dependency wiring changes. The `test -s` step verifies that the report exists and is non-empty.
 
 ### 3.3 Rust Coverage Upload to Codacy (`.github/workflows/rust-lint.yml`)
 
