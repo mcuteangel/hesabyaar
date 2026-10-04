@@ -65,12 +65,19 @@ val handWrittenClassSpec =
 fun scanTripleQuoteString(input: String, start: Int, n: Int, sb: StringBuilder): Int {
   val end = input.indexOf("\"\"\"", start + 3)
   sb.append("\"\"")
-  return if (end == -1) {
-    val nextLine = input.indexOf('\n', start + 3)
-    if (nextLine == -1) n else nextLine
-  } else {
-    end + 3
+  val limit =
+    if (end == -1) {
+      val nextLine = input.indexOf('\n', start + 3)
+      if (nextLine == -1) n else nextLine
+    } else {
+      end + 3
+    }
+  for (k in start until limit) {
+    if (input[k] == '\n') {
+      sb.append('\n')
+    }
   }
+  return limit
 }
 
 fun scanCharLiteral(input: String, start: Int, n: Int, sb: StringBuilder): Int {
