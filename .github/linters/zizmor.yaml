@@ -23,7 +23,7 @@ rules:
   dangerous-triggers:
     ignore:
       - ocr-review.yml:57
-      - coveralls-finish.yml:12
+      - coveralls-finish.yml:16
   excessive-permissions:
     ignore:
       - ocr-review.yml:66
