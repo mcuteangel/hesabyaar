@@ -1,0 +1,19 @@
+gradle/jacoco-coverage.gradle.kts
+  s_3ae98003c5def4::t_beb0117420f7a5 68-78,80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "56b9db4fa6c33b7e59919eb56537345e3c10ee0b",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
