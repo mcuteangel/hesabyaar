@@ -67,30 +67,22 @@ val checkRustBridgeCoverageScope =
     description =
       "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
     doLast {
-      // Match top-level declarations at column 0. The leading keyword run is
-      // deliberately open ('(?:\w+\s+)*') so every modifier is accepted, for
-      // example 'annotation class', 'fun interface', 'inline class', and
-      // 'expect'/'actual'. A closed modifier list would skip the declaration
-      // and fail open. The annotation group allows one nesting level so
-      // same-line annotations such as '@Suppress("X", ReplaceWith("y"))' do
-      // not hide the declaration.
+      // Match top-level declarations at column 0. An explicit modifier set
+      // covers every valid Kotlin top-level modifier without accepting
+      // arbitrary non-code words at column 0 (which raw strings or flush
+      // block comments might contain). The annotation group allows one
+      // nesting level so annotations such as '@Suppress("X", ReplaceWith("y"))'
+      // do not hide the declaration.
       val declarationRegex =
         Regex(
-          """^(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:\w+\s+)*(?:class|object|interface)\s+(\w+)""",
+          """^(?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?[\t ]*)*(?:(?:internal|private|public|protected|abstract|sealed|data|enum|value|open|annotation|fun|inline|expect|actual)\s+)*(?:class|object|interface)\s+(\w+)""",
           RegexOption.MULTILINE
         )
 
-      // A Java file with zero matched declarations (enum, record, or
-      // @interface are not in the Kotlin keyword set) is never a valid
-      // function-only file. Empty matches pass only for Kotlin facades,
-      // whose class takes the file name that fileMatches already checks.
-      val isEmptyDeclarationsAllowed = { f: File -> f.extension != "java" }
-
       // The file annotation must sit in the annotation header: line start,
-      // horizontal whitespace only. '[ \t]' (not '\s') never crosses a line,
-      // and '//' or '*' comment prefixes do not match, so a comment or a
-      // string sample that mentions the annotation does not fail the build.
-      val jvmNameRegex = Regex("""^[ \t]*@file:JvmName\b""", RegexOption.MULTILINE)
+      // horizontal whitespace or preceding block comments only.
+      // '[ \t]' (not '\s') never crosses a newline.
+      val jvmNameRegex = Regex("""^[ \t]*(?:/\*.*?\*/[ \t]*)*@file:JvmName\b""", RegexOption.MULTILINE)
 
       val unrecognized = mutableListOf<String>()
 
@@ -135,8 +127,8 @@ val checkRustBridgeCoverageScope =
             val mismatchedDeclarations =
               declarations.filter { decl -> handWrittenRustBridgePrefixes.none { decl.startsWith(it) } }
 
-            val emptyIsFailure = declarations.isEmpty() && !isEmptyDeclarationsAllowed.invoke(f)
-            if (!fileMatches || hasForbiddenJvmName || mismatchedDeclarations.isNotEmpty() || emptyIsFailure) {
+            val emptyDeclarationsFail = declarations.isEmpty() && f.extension == "java"
+            if (!fileMatches || hasForbiddenJvmName || mismatchedDeclarations.isNotEmpty() || emptyDeclarationsFail) {
               unrecognized.add(
                 "${f.invariantSeparatorsPath} (fileMatches=$fileMatches, jvmName=$hasForbiddenJvmName, mismatchedDeclarations=$mismatchedDeclarations)"
               )
