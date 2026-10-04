@@ -36,13 +36,13 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           REPO: ${{ github.repository }}
         run: |
-          # Single source of truth for the coverage-uploading workflow names.
-          WORKFLOWS_JSON='["Android CI","Rust Lint","Lint GitHub Actions","OCR Resolver Tests"]'
+          # Single source of truth: workflow name -> Coveralls flag name.
+          WORKFLOWS_JSON='[["Android CI","android"],["Rust Lint","rust"],["Lint GitHub Actions","scripts"],["OCR Resolver Tests","ocr-scripts"]]'
           # Paginate through all runs for this commit; a single page can miss
           # an in-flight run on a busy commit.
           COVERAGE_RUNS=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" \
-            --paginate | jq -s --argjson names "$WORKFLOWS_JSON" \
-            '[.[].workflow_runs[] | select(.name as $n | $names | index($n))]')
+            --paginate | jq -s --argjson pairs "$WORKFLOWS_JSON" \
+            '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]')
           # Any non-terminal run means its upload may still be in flight; its
           # completion re-triggers this workflow. (Valid API statuses:
           # queued, in_progress, completed, requested, waiting, pending.)
@@ -52,28 +52,36 @@ jobs:
             echo "Coverage workflows still running for $HEAD_SHA ($IN_FLIGHT in flight); waiting for their workflow_run events."
             exit 0
           fi
-          # Finalize only when every workflow that ran for this commit
-          # succeeded. The three path-filtered workflows often don't trigger
-          # at all — those are skipped, not required. But if a workflow ran
-          # and failed, its upload never happened; finalizing would bake a
-          # partial build into the badge. Its re-run re-triggers this workflow.
-          # Note: a failed *upload step* still yields conclusion=success
-          # (continue-on-error), so this guards workflow failure, not upload failure.
-          for wf in "Android CI" "Rust Lint" "Lint GitHub Actions" "OCR Resolver Tests"; do
+          # For each uploader: if it never ran (path filter), its flag is
+          # carried forward from the previous build so the badge stays stable.
+          # If it ran, require a success; a failure/timed_out blocks until a
+          # re-run succeeds. A pure-cancelled run means a newer push superseded
+          # it, so treat it as absent (the new commit's runs will finalize).
+          CARRYFORWARD=""
+          while IFS=$'\t' read -r wf flag; do
             RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
             if [ "$RAN" = "0" ]; then
-              echo "Workflow '$wf' did not run for $HEAD_SHA; skipping."
+              echo "Workflow '$wf' did not run for $HEAD_SHA; carrying forward flag '$flag'."
+              CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
               continue
             fi
             OK=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "success")] | length')
-            if [ "$OK" = "0" ]; then
-              echo "ready=false" >> "$GITHUB_OUTPUT"
-              echo "Workflow '$wf' ran but did not succeed for $HEAD_SHA; not finalizing."
-              exit 0
+            if [ "$OK" != "0" ]; then
+              continue
             fi
-          done
+            CANCELLED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "cancelled")] | length')
+            if [ "$CANCELLED" = "$RAN" ]; then
+              echo "Workflow '$wf' was cancelled (superseded); carrying forward flag '$flag'."
+              CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
+              continue
+            fi
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Workflow '$wf' ran but did not succeed for $HEAD_SHA; not finalizing."
+            exit 0
+          done < <(echo "$WORKFLOWS_JSON" | jq -r '.[] | "\(.[0])\t\(.[1])"')
+          echo "carryforward=$CARRYFORWARD" >> "$GITHUB_OUTPUT"
           echo "ready=true" >> "$GITHUB_OUTPUT"
-          echo "All triggered coverage workflows succeeded for $HEAD_SHA; finalizing Coveralls parallel build."
+          echo "All triggered coverage workflows succeeded for $HEAD_SHA; finalizing (carryforward: ${CARRYFORWARD:-none})."
 
       - name: Send Coveralls parallel-finished webhook
         if: steps.check.outputs.ready == 'true'
@@ -82,3 +90,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
           parallel-finished: true
+          carryforward: ${{ steps.check.outputs.carryforward }}
