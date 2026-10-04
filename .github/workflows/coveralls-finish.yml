@@ -9,6 +9,9 @@ name: Coveralls Parallel Finish
 # WORKFLOWS list in the gate step; renaming a workflow's `name:` requires
 # updating both places.
 
+# zizmor: ignore[dangerous-triggers] -- this workflow never checks out code;
+# it only reads workflow-run statuses via the API and sends the Coveralls
+# webhook, so the workflow_run trigger cannot execute untrusted PR code.
 on:
   workflow_run:
     workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
