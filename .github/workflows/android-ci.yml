@@ -72,11 +72,15 @@ jobs:
       - name: Run detekt
         run: ./gradlew detekt
 
-      - name: Run Unit Tests with Coverage
-        run: ./gradlew testDebugUnitTest jacocoTestReport
+      - name: Run Unit Tests with Coverage (including Rust-bridge JNI)
+        # Name the test tasks explicitly: if the dependsOn chain in
+        # gradle/jacoco-coverage.gradle.kts breaks, this step still fails
+        # instead of publishing a report from stale exec files.
+        # Gradle runs each task once per invocation (no duplicate work).
+        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport
 
-      - name: Run Rust-bridge Tests (JNI isolated)
-        run: ./gradlew testDebugUnitTestRust
+      - name: Assert coverage report exists
+        run: test -s app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Run Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
