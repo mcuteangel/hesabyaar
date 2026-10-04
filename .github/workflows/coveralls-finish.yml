@@ -8,6 +8,10 @@ name: Coveralls Parallel Finish
 # NOTE: the workflow names in `on.workflow_run.workflows` must match the
 # WORKFLOWS list in the gate step; renaming a workflow's `name:` requires
 # updating both places.
+#
+# NOTE: if an uploader reports failure/startup_failure, the build is left
+# open (not force-finalized). Re-run the failed workflow to trigger a new
+# finalization; the badge keeps showing the previous commit until then.
 
 on:
   workflow_run:
@@ -69,6 +73,7 @@ jobs:
           # them indicate broken data, and blocking on them would leave the
           # build open forever.
           CARRYFORWARD=""
+          BLOCKED=""
           while IFS=$'\t' read -r wf flag; do
             RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
             if [ "$RAN" = "0" ]; then
@@ -84,15 +89,15 @@ jobs:
             # (often billing/Actions disabled), so a re-run is not the fix.
             STARTUP_FAIL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "startup_failure") | .html_url] | first // empty')
             if [ -n "$STARTUP_FAIL" ]; then
-              echo "ready=false" >> "$GITHUB_OUTPUT"
               echo "::error::Workflow '$wf' could not start for $HEAD_SHA ($STARTUP_FAIL). Check billing/Actions settings, then re-run."
-              exit 1
+              BLOCKED="${BLOCKED:+$BLOCKED,}$wf(startup_failure)"
+              continue
             fi
             FAILED_URL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "failure") | .html_url] | first // empty')
             if [ -n "$FAILED_URL" ]; then
-              echo "ready=false" >> "$GITHUB_OUTPUT"
               echo "::error::Workflow '$wf' failed for $HEAD_SHA ($FAILED_URL); not finalizing. Re-run it to trigger finalization."
-              exit 1
+              BLOCKED="${BLOCKED:+$BLOCKED,}$wf(failure)"
+              continue
             fi
             echo "Workflow '$wf' has no successful run for $HEAD_SHA (conclusions: $(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf) | .conclusion] | unique | join(",")')); carrying forward flag '$flag'."
             # A timed-out uploader is silent by design (not a broken workflow),
@@ -102,9 +107,23 @@ jobs:
             fi
             CARRYFORWARD="${CARRYFORWARD:+$CARRYFORWARD,}$flag"
           done < <(echo "$WORKFLOWS_JSON" | jq -r '.[] | "\(.[0])\t\(.[1])"')
+          # Report all blockers at once instead of exiting at the first one.
+          if [ -n "$BLOCKED" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Blocked by: $BLOCKED; not finalizing."
+            exit 1
+          fi
           echo "carryforward=$CARRYFORWARD" >> "$GITHUB_OUTPUT"
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "Coverage uploads for $HEAD_SHA ready to finalize (carryforward: ${CARRYFORWARD:-none}); no workflow reported a failure."
+
+      # If the gate step crashed before setting `ready` (gh/jq error), the
+      # continue-on-error above would swallow it silently. Fail loudly here.
+      - name: Fail on unexpected gate crash
+        if: steps.check.outcome == 'failure' && steps.check.outputs.ready == ''
+        run: |
+          echo "::error::Gate step crashed unexpectedly for ${{ github.event.workflow_run.head_sha }}; see its logs. The Coveralls build stays open."
+          exit 1
 
       - name: Send Coveralls parallel-finished webhook
         if: steps.check.outputs.ready == 'true'
