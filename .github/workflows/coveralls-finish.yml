@@ -1,0 +1,45 @@
+name: Coveralls Parallel Finish
+
+# Finalizes Coveralls parallel builds. The four workflows below each upload
+# coverage with `parallel: true`; Coveralls waits for this webhook before
+# combining them into a single build. Without it, each upload overwrites the
+# previous one and the badge shows only the last-finishing job (Kotlin, ~40%).
+
+on:
+  workflow_run:
+    workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether all workflows for this commit are done
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # If any run for this commit is still queued or in progress, its
+          # completion will re-trigger this workflow, so exit quietly now.
+          IN_FLIGHT=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&status=in_progress&per_page=1" --jq '.total_count')
+          QUEUED=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&status=queued&per_page=1" --jq '.total_count')
+          if [ "$IN_FLIGHT" != "0" ] || [ "$QUEUED" != "0" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Workflows still running for $HEAD_SHA (in_progress=$IN_FLIGHT queued=$QUEUED); waiting for their workflow_run events."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "All workflows done for $HEAD_SHA; finalizing Coveralls parallel build."
+          fi
+
+      - name: Send Coveralls parallel-finished webhook
+        if: steps.check.outputs.ready == 'true'
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
