@@ -121,8 +121,10 @@ jobs:
       # continue-on-error above would swallow it silently. Fail loudly here.
       - name: Fail on unexpected gate crash
         if: steps.check.outcome == 'failure' && steps.check.outputs.ready == ''
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          echo "::error::Gate step crashed unexpectedly for ${{ github.event.workflow_run.head_sha }}; see its logs. The Coveralls build stays open."
+          echo "::error::Gate step crashed unexpectedly for $HEAD_SHA; see its logs. The Coveralls build stays open."
           exit 1
 
       - name: Send Coveralls parallel-finished webhook
