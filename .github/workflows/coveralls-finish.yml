@@ -66,36 +66,43 @@ jobs:
               rm -f "$API_ERR"
               break
             fi
-            # Flatten stderr to a single line (workflow commands must be
-            # single-line), cap length, escape % for the command parser.
-            ERR_MSG=$(tr '\n\r' ' ' < "$API_ERR" | head -c 200 | sed 's/%/%25/g')
+            # Classify on FULL stderr first (truncation can cut the status
+            # code; "abuse detection" has no "rate limit" substring).
+            FULL_ERR=$(cat "$API_ERR")
             rm -f "$API_ERR"
+            # Flatten for display: single line, cap 200 chars, escape %.
+            ERR_MSG=$(echo "$FULL_ERR" | tr '\n\r' ' ' | head -c 200 | sed 's/%/%25/g')
             if [ -z "$ERR_MSG" ] || [ "$ERR_MSG" = " " ]; then
               ERR_MSG="unknown error (empty stderr; likely jq failed)"
             fi
-            # Don't retry permanent failures; only transient ones.
-            # 401: bad credentials (permanent). 404: not found (permanent).
-            # 403: permanent UNLESS it's a rate limit (GitHub uses 403 for
-            # both primary and secondary rate limits).
-            if echo "$ERR_MSG" | grep -Eq "HTTP 401([^0-9]|$)"; then
-              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
-              ATTEMPTS_MADE=$attempt
-              break
+            # Permanent failures: 401, 404, and 403 without rate-limit/abuse
+            # indicators. GitHub uses 403 for rate limits too.
+            IS_PERMANENT=false
+            IS_RATELIMIT=false
+            for code in 401 404; do
+              if echo "$FULL_ERR" | grep -Eq "HTTP $code([^0-9]|$)"; then
+                IS_PERMANENT=true
+              fi
+            done
+            if echo "$FULL_ERR" | grep -Eq "HTTP 403([^0-9]|$)"; then
+              if echo "$FULL_ERR" | grep -Eqi "rate limit|abuse"; then
+                IS_RATELIMIT=true
+              else
+                IS_PERMANENT=true
+              fi
             fi
-            if echo "$ERR_MSG" | grep -Eq "HTTP 404([^0-9]|$)"; then
-              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
-              ATTEMPTS_MADE=$attempt
-              break
+            if echo "$FULL_ERR" | grep -Eq "HTTP 429([^0-9]|$)"; then
+              IS_RATELIMIT=true
             fi
-            if echo "$ERR_MSG" | grep -Eq "HTTP 403([^0-9]|$)" && ! echo "$ERR_MSG" | grep -qi "rate limit"; then
+            if [ "$IS_PERMANENT" = "true" ]; then
               echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed with permanent error ($ERR_MSG); not retrying."
               ATTEMPTS_MADE=$attempt
               break
             fi
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-              # Longer backoff for rate limits (60s, 120s); exponential
+              # Long backoff for rate limits (60s, 120s); exponential
               # (10s, 20s) for other transient errors.
-              if echo "$ERR_MSG" | grep -Eq "HTTP 429([^0-9]|$)"; then
+              if [ "$IS_RATELIMIT" = "true" ]; then
                 SLEEP_SECS=$((60 * attempt))
               else
                 SLEEP_SECS=$((10 * 2 ** (attempt - 1)))
