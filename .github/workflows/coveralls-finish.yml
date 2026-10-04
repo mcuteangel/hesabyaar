@@ -14,12 +14,20 @@ on:
     workflows: ["Android CI", "Rust Lint", "Lint GitHub Actions", "OCR Resolver Tests"]
     types: [completed]
     branches: [main]
+  # Manual override: force-finalize a commit whose uploader is permanently
+  # broken (no re-runnable run to emit a workflow_run event).
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to finalize"
+        required: true
+        type: string
 
 # Two finisher runs for the same commit must not cancel each other mid-webhook;
 # a duplicate parallel-finished call is harmless, a cancelled one leaves the
-# build open.
+# build open. For manual runs the SHA comes from the input.
 concurrency:
-  group: coveralls-finish-${{ github.event.workflow_run.head_sha }}
+  group: coveralls-finish-${{ github.event.workflow_run.head_sha || inputs.sha }}
   cancel-in-progress: false
 
 permissions:
@@ -28,12 +36,15 @@ permissions:
 jobs:
   finish:
     runs-on: ubuntu-latest
+    # A blocked build is a cosmetic badge problem, not a broken main: keep the
+    # ::error:: annotations loud, but don't turn main red for it.
+    continue-on-error: true
     steps:
       - name: Check whether coverage uploads for this commit are done
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
           REPO: ${{ github.repository }}
         run: |
           # Single source of truth: workflow name -> Coveralls flag name.
@@ -54,15 +65,16 @@ jobs:
           fi
           # For each uploader: if it has no runs at all for this commit, its
           # flag is carried forward from the previous build so the badge stays
-          # stable. If it ran, `failure`, `startup_failure`, and `timed_out`
-          # block finalization — all three need human attention (a manual
-          # re-run emits a new workflow_run event). Silently carrying them
-          # forward would mix fresh coverage with stale data and freeze the
-          # badge with no visible signal.
-          # Every other non-success conclusion (cancelled, skipped, neutral,
-          # action_required, …) is treated as absent and carried forward —
-          # none of them indicate broken data, and blocking on them would
-          # leave the build open forever.
+          # stable. If it ran, `failure` and `startup_failure` block
+          # finalization — a failed or never-started workflow uploaded
+          # nothing, and silently carrying it forward would mix fresh coverage
+          # with stale data. `timed_out` is carried forward, not blocked:
+          # the OCR (5 min) and Rust (30 min) job budgets are tight enough
+          # that a slow-but-healthy run can time out, which is not a broken
+          # workflow. Every other non-success conclusion (cancelled, skipped,
+          # neutral, action_required, …) is also carried forward — none of
+          # them indicate broken data, and blocking on them would leave the
+          # build open forever.
           CARRYFORWARD=""
           while IFS=$'\t' read -r wf flag; do
             RAN=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf)] | length')
@@ -75,10 +87,18 @@ jobs:
             if [ "$OK" != "0" ]; then
               continue
             fi
-            FAILED=$(echo "$COVERAGE_RUNS" | jq --arg wf "$wf" '[.[] | select(.name == $wf and (.conclusion == "failure" or .conclusion == "startup_failure" or .conclusion == "timed_out"))] | length')
-            if [ "$FAILED" != "0" ]; then
+            # startup_failure needs its own message: the run never started
+            # (often billing/Actions disabled), so a re-run is not the fix.
+            STARTUP_FAIL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "startup_failure") | .html_url] | first // empty')
+            if [ -n "$STARTUP_FAIL" ]; then
               echo "ready=false" >> "$GITHUB_OUTPUT"
-              echo "::error::Workflow '$wf' did not succeed for $HEAD_SHA; not finalizing. Re-run it to trigger finalization."
+              echo "::error::Workflow '$wf' could not start for $HEAD_SHA ($STARTUP_FAIL). Check billing/Actions settings, then re-run or use workflow_dispatch to finalize."
+              exit 1
+            fi
+            FAILED_URL=$(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf and .conclusion == "failure") | .html_url] | first // empty')
+            if [ -n "$FAILED_URL" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "::error::Workflow '$wf' failed for $HEAD_SHA ($FAILED_URL); not finalizing. Re-run it to trigger finalization."
               exit 1
             fi
             echo "Workflow '$wf' has no successful run for $HEAD_SHA (conclusions: $(echo "$COVERAGE_RUNS" | jq -r --arg wf "$wf" '[.[] | select(.name == $wf) | .conclusion] | unique | join(",")')); carrying forward flag '$flag'."
