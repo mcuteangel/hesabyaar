@@ -50,21 +50,35 @@ jobs:
           # Paginate through all runs for this commit; a single page can miss
           # an in-flight run on a busy commit. Retry transient API failures
           # (rate limits, network blips) instead of crashing.
+          MAX_ATTEMPTS=3
           COVERAGE_RUNS=""
-          for attempt in 1 2 3; do
-            if API_OUT=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate 2>/dev/null) && \
+          API_SUCCESS=false
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            COVERAGE_RUNS=""
+            API_ERR=$(mktemp)
+            if API_OUT=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --paginate 2>"$API_ERR") && \
                COVERAGE_RUNS=$(echo "$API_OUT" | jq -s --argjson pairs "$WORKFLOWS_JSON" \
                  '[.[].workflow_runs[] | select(.name as $n | $pairs | map(.[0]) | index($n))]'); then
+              API_SUCCESS=true
+              rm -f "$API_ERR"
               break
             fi
-            echo "::warning::gh api attempt $attempt failed for $HEAD_SHA; retrying in 10s..."
-            sleep 10
+            ERR_MSG=$(cat "$API_ERR" 2>/dev/null || echo "unknown error")
+            rm -f "$API_ERR"
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              # Exponential backoff: 10s, 20s, ...
+              SLEEP_SECS=$((10 * 2 ** (attempt - 1)))
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); retrying in ${SLEEP_SECS}s..."
+              sleep $SLEEP_SECS
+            else
+              echo "::warning::gh api attempt $attempt/$MAX_ATTEMPTS failed for $HEAD_SHA ($ERR_MSG); no more retries."
+            fi
           done
-          if [ -z "$COVERAGE_RUNS" ]; then
+          if [ "$API_SUCCESS" != "true" ]; then
             # API is down, not a logic bug: loud but not red (continue-on-error),
             # and `ready` is set so the crash-detector step stays quiet.
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Failed to list workflow runs for $HEAD_SHA after 3 attempts; not finalizing."
+            echo "::error::Failed to list workflow runs for $HEAD_SHA after $MAX_ATTEMPTS attempts; not finalizing."
             exit 1
           fi
           # Any non-terminal run means its upload may still be in flight; its
