@@ -67,9 +67,13 @@ made; Phases 3-6 consume them.
 ## Out of scope
 
 - Rust core, Room schema, backup format, repository logic.
-- New features, except the two approved in this plan: dashboard section
-  toggles (Phase 4, Step 4.4) and the theme picker (Phase 5, Step 5.5).
-  New screens. Visual redesign of the dashboard.
+- New features, except the behavior additions and curations explicitly
+  approved in this plan:
+  1. Dashboard section toggles and card curation/compaction (Phase 4, Step 4.4, Decision #2)
+  2. Theme picker in Settings (Phase 5, Step 5.5, Decision #3)
+  3. Smart assistant parser retry button (Phase 7, Step 7.3)
+  4. Reports account filter (Phase 7, Step 7.4)
+  New screens outside these approved completions. Visual redesign of the dashboard beyond card curation and section toggles.
 - `docs/ROADMAP.md` changes (update separately if scope shifts).
 
 ---
@@ -454,20 +458,29 @@ Files: `ui/DashboardViewModel.kt:62`, `ui/screens/DashboardScreen.kt:83-91`.
 
 Current state: `StateFlow<DashboardData>` renders immediately. Cold
 launch shows "no transactions" / "no installments" identically for a
-new user and a still-loading database.
+new user and a still-loading database. Upstream ViewModel flows
+(`transactions`, `loans`, etc.) currently use `.stateIn(..., emptyList())`,
+which emits an empty list on frame 0 before Room runs the underlying query.
 
 Change: introduce a sealed UI state (`Loading` / `Loaded(DashboardData)`)
-in `DashboardViewModel`. `Loading` shows until the first data emission;
-`Loaded` renders after. Render M3 skeleton placeholders (`Card` +
-shimmer-free tonal blocks — no new dependencies) while loading. Apply
-the same pattern to `AnalyticsViewModel` (`AnalyticsScreen.kt:45`,
-seeds empty `AnalyticsData()` today).
+in `DashboardViewModel`.
+To provide a true readiness signal and avoid mistaking initial empty defaults
+for loaded data:
+- Do not combine intermediate StateFlows pre-seeded with `emptyList()`.
+- Combine the underlying repository/use-case Flows directly (which only emit
+  once Room delivers query results from disk).
+- Map the combined emission to `DashboardUiState.Loaded(computeDashboardData(...))`
+  and wrap in `stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState.Loading)`.
+- This ensures `Loading` remains the active state until the initial query emission
+  completes, correctly distinguishing initial pre-fetch state from a legitimate
+  empty database.
+Render M3 skeleton placeholders (`Card` + shimmer-free tonal blocks — no new
+dependencies) while loading. Apply the identical readiness pattern to
+`AnalyticsViewModel` (`AnalyticsScreen.kt:45`, seeds empty `AnalyticsData()` today).
 
-No `Error` state: the upstream repository Flows are seeded with empty
-lists and surface no failure signal, so an error branch would be
-unreachable. Adding one would require changing the repository/use-case
-contract, which this UI plan forbids (see Out of scope). Keep the change
-ViewModel-local. No repository changes.
+No `Error` state: the upstream repository Flows surface no failure signal,
+so an error branch would be unreachable without altering repository/use-case
+contracts (forbidden by Out of scope). Keep the change ViewModel-local.
 
 ### Step 4.2: Empty states with actions
 
@@ -619,16 +632,20 @@ File: `ui/screens/AnalyticsScreen.kt` — `CombinedLineChartCard` at
 Current state: both hardcode LTR; time flows left→right in an RTL-first
 app. Canvas does not auto-mirror.
 
-Change: mirror the x-axis so time flows right-to-left in RTL
-(newest month on the left, or oldest on right flowing to newest):
-since `analytics.rs` supplies months in ascending chronological order
-(oldest to newest), placing the newest month at the inline-end (left)
-means reversing the data list or using descending coordinate mapping.
-In `BarChart`, reverse data and labels or compute RTL-aware coordinates:
-`x = size.width - (index * (barWidth + spacing) + spacing / 2) - barWidth`.
-In `CombinedLineChartCard`, reverse series or mirror around `startX` similarly
-(`x = size.width - startX - idx * spacing`). Ensure labels match the plotted
-data points and the axis order is visually verified against the Figma dashboard.
+Change: align chart time flow with RTL convention where time flows
+right-to-left: the oldest month is positioned at inline-start (right),
+progressing leftward to the newest month at inline-end (left).
+Because `analytics.rs` supplies monthly records in ascending chronological
+order (`index 0` = oldest, `index N-1` = newest):
+- Apply the mirrored coordinate mapping directly to the ascending dataset:
+  in `BarChart`, compute `x = size.width - (index * (barWidth + spacing) + spacing / 2) - barWidth`;
+  in `CombinedLineChartCard`, mirror around `startX` via `x = size.width - startX - idx * spacing`.
+- With ascending input, this formula maps `index 0` (oldest) to the far right
+  and `index N-1` (newest) to the left without needing to reverse the data list.
+  Do not simultaneously reverse the list and apply mirrored coordinates, as that
+  would double-invert the axis back to LTR.
+- Ensure X-axis month labels use the exact same mirrored x-coordinates so labels
+  stay aligned with their data points. Visually verify against the Figma dashboard.
 
 ### Step 5.5: Theme system — dynamic, brand, and curated themes (decision #3, decided 2026-10-04)
 
@@ -689,12 +706,24 @@ Change:
   placement guarantees this).
 - Give destructive or reversible actions (delete transaction,
   installment paid toggle — `InstallmentMiniItem.kt:65-78` has no
-  confirm/undo today) an Undo ("برگردان") action. Each Undo must name
-  its reversal operation in the phase PR: e.g. delete-transaction →
-  re-insert the deleted row via the repository insert (keep the deleted
-  entity in memory until the Snackbar dismisses); paid-toggle → toggle
-  the flag back. No fire-and-forget change may offer Undo without a
-  defined reversal.
+  confirm/undo today) an Undo ("برگردان") action under an explicit
+  atomic state and reversal contract:
+  1. Reversal operation contract: each action offering Undo must define
+     an exact inverse repository/use-case call (e.g. `deleteTransaction`
+     retains the deleted entity snapshot in ViewModel memory and re-inserts
+     it with its original primary key and foreign keys on Undo;
+     `toggleInstallmentPaid` flips the boolean flag back).
+  2. Atomic state & expiration: the snapshot is held in ViewModel state
+     only for the duration of the Snackbar window (4 seconds). If the
+     user executes another mutation on the same entity or navigates away
+     before Undo is clicked, the pending reversal is finalized/invalidated
+     to prevent restoring stale state.
+  3. Non-reversible action boundary: operations that cannot be restored
+     atomically or have cascading external side effects (e.g. full database
+     reset, account deletion with cascaded transaction purges) must NEVER
+     use Snackbar Undo; they strictly require modal confirmation
+     (`ConfirmDialog`). No fire-and-forget change may offer Undo without
+     an atomic reversal operation.
 - Route the direct `Toast.makeText` calls (`SmartAssistantScreen.kt:1176`,
   `ManualTransactionDialog.kt:293`) through the new Snackbar pipeline
   (as transient UI events, not Toasts) — otherwise validation failures
