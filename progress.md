@@ -107,11 +107,10 @@ None.
 
 ## Next Steps
 
-1. Address pre-existing `LocalContextGetResourceValueCall` lint errors in `ManualTransactionDialog.kt` in a dedicated task.
-2. Align `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` with database version 9.
-3. Configure Room schema export and add `MigrationTestHelper` integration tests.
-4. Close issue #285 now that CI run 36971068107 completed green with confirmed 44.347% coverage.
+1. Finish PR #304 review: resolve remaining review threads once bots re-review the latest commits.
+2. Merge PR #304 (docs-only: `plans/013-ui-ux-overhaul.md` + index row).
+3. Open a tracking issue for phase-by-phase execution of Plan 013, per the owner's instruction.
 
 ## Last Updated
 
-2026-10-02
+2026-10-04
