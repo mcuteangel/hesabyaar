@@ -587,7 +587,7 @@ replacements into one unverifiable diff):
   0.3f container tint) as named constants next to the existing ones in
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
-  `ui/` (≈38 hits — re-grep at execution and replace every hit; list:
+  `ui/` (≈43 hits — re-grep at execution and replace every hit; list:
   `AnalyticsScreen.kt:450,905`, `ReportsScreen.kt:610`,
   `SmartAssistantScreen.kt:237,435,473,1306`,
   `LoanManagementScreen.kt:515`, `SettingsScreen.kt:1070`, ...).
