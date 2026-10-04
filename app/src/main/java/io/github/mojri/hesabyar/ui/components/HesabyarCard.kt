@@ -11,6 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -30,12 +33,14 @@ fun HesabyarCard(
   content: @Composable ColumnScope.() -> Unit
 ) {
   if (onClick != null) {
-    // Material 3 Card(onClick) owns the click action and the button role.
-    // Do not append a second role or action here: an extra semantics layer
-    // would fight call sites that set their own role or description.
+    // M3 Card(onClick) exposes the click action but no accessibility role
+    // (verified by HesabyarCardTest.clickableCardPublishesButtonRoleByDefault).
+    // Add Role.Button so screen readers announce the card as a button.
+    val clickableModifier =
+      modifier.semantics(mergeDescendants = true) { role = Role.Button }
     Card(
       onClick = onClick,
-      modifier = modifier,
+      modifier = clickableModifier,
       shape = shape,
       elevation = CardDefaults.cardElevation(defaultElevation = elevation),
       colors = cardColors

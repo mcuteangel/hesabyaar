@@ -83,9 +83,15 @@ private fun buildButtonModifier(
 ): Modifier {
   val base = modifier.height(Dimens.ButtonHeight)
   if (!loading) return base
-  val busyState = iconContentDescription ?: DEFAULT_LOADING_LABEL
+  val actionLabel = text ?: iconContentDescription
+  val busyState =
+    if (text != null) {
+      iconContentDescription ?: DEFAULT_LOADING_LABEL
+    } else {
+      DEFAULT_LOADING_LABEL
+    }
   return base.semantics(mergeDescendants = true) {
-    if (text != null) contentDescription = text
+    if (actionLabel != null) contentDescription = actionLabel
     stateDescription = busyState
   }
 }

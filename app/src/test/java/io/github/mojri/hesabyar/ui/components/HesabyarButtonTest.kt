@@ -60,6 +60,25 @@ class HesabyarButtonTest {
   }
 
   @Test
+  fun loadingIconOnlyButtonPreservesContentDescriptionAndDefaultLoadingState() {
+    composeRule.setContent {
+      HesabyarButton(
+        onClick = {},
+        text = null,
+        loading = true,
+        iconContentDescription = DESC_SAVING
+      )
+    }
+
+    val node =
+      composeRule
+        .onNodeWithContentDescription(DESC_SAVING)
+        .assertIsDisplayed()
+    node.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, DEFAULT_LOADING_DESC))
+    node.assertIsNotEnabled()
+  }
+
+  @Test
   fun busyButtonKeepsClickActionDisabled() {
     var clicked = false
     composeRule.setContent {
@@ -74,6 +93,7 @@ class HesabyarButtonTest {
     composeRule
       .onNodeWithContentDescription(TEXT_SAVE)
       .assertIsNotEnabled()
+    org.junit.Assert.assertFalse("onClick must not be invoked while loading", clicked)
   }
 
   private companion object {
