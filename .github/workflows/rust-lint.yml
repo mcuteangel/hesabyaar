@@ -83,7 +83,10 @@ jobs:
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: rust/lcov.info
-          add-prefix: rust
+          # No add-prefix: the Qlty CLI resolves SF: paths in rust/lcov.info
+          # against the lcov file's own location, which already yields the
+          # correct repo-relative rust/... paths. add-prefix produced
+          # rust/rust/... and failed validation (issue #294).
           tag: rust
 
       - name: Prefix LCOV file paths for repository root
