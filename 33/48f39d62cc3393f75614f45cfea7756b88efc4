@@ -1,0 +1,20 @@
+gradle/jacoco-coverage.gradle.kts
+  s_3ae98003c5def4::t_c8cc7e21132fcd 70-75,78,83-85
+  s_3ae98003c5def4::t_10425be51cfac5 130-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3348f39d62cc3393f75614f45cfea7756b88efc4",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
