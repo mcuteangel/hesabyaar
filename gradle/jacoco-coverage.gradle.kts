@@ -42,6 +42,7 @@ val jacocoReportExcludes =
 // bridge prefix. This needs no maintenance when the FFI surface changes.
 val rustPackageSegment = "/io/github/mojri/hesabyar/rust/"
 val handWrittenRustBridgePrefixes = listOf("RustBridge", "RustMappers")
+val jacocoSourceRoots = listOf("src/main/java", "src/main/kotlin")
 
 val handWrittenClassSpec =
   org.gradle.api.specs.Spec<File> { file ->
@@ -55,36 +56,51 @@ val handWrittenClassSpec =
   }
 
 // Fail-fast guard for the rust-package allow-list above. This is a dedicated
-// task (not a doFirst block) so it fails in seconds, before the 7-10 minute
-// test tasks run. It walks both source roots recursively, mirroring the depth
-// and roots that handWrittenClassSpec filters.
-tasks.register("checkRustBridgeCoverageScope") {
-  group = "verification"
-  description =
-    "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
-  doLast {
-    val sourceRoots = listOf("src/main/java", "src/main/kotlin")
-    val unrecognized =
-      sourceRoots
-        .map { file(it) }
-        .filter { it.exists() }
-        .flatMap { root -> root.walkTopDown().toList() }
-        .filter { f ->
-          f.isFile &&
-            f.invariantSeparatorsPath.contains(rustPackageSegment) &&
-            (f.extension == "kt" || f.extension == "java") &&
-            f.name != "hesabyar_core.kt" &&
-            handWrittenRustBridgePrefixes.none { f.name.startsWith(it) }
-        }
-        .map { it.invariantSeparatorsPath }
-    if (unrecognized.isNotEmpty()) {
-      throw org.gradle.api.GradleException(
-        "Unrecognized hand-written file(s) in $rustPackageSegment: $unrecognized. " +
-          "Update handWrittenRustBridgePrefixes in gradle/jacoco-coverage.gradle.kts " +
-          "so these files are measured by JaCoCo."
-      )
+// task that testDebugUnitTest and testDebugUnitTestRust depend on, so it runs
+// before the test suites and fails in seconds if a hand-written file is added
+// to the rust package without being matched by handWrittenRustBridgePrefixes.
+// It walks jacocoSourceRoots recursively and also checks file contents for
+// 'package io.github.mojri.hesabyar.rust' to prevent package/directory drift.
+val checkRustBridgeCoverageScope =
+  tasks.register("checkRustBridgeCoverageScope") {
+    group = "verification"
+    description =
+      "Fail if a hand-written file in the rust package is not covered by handWrittenRustBridgePrefixes."
+    doLast {
+      val unrecognized =
+        jacocoSourceRoots
+          .map { file(it) }
+          .filter { it.exists() }
+          .flatMap { root -> root.walkTopDown().toList() }
+          .filter { f ->
+            if (!f.isFile || (f.extension != "kt" && f.extension != "java")) {
+              false
+            } else if (f.name == "hesabyar_core.kt") {
+              false
+            } else {
+              val inDir = f.invariantSeparatorsPath.contains(rustPackageSegment)
+              val inPackage =
+                inDir ||
+                  f
+                    .readLines()
+                    .take(20)
+                    .any { it.trim().startsWith("package io.github.mojri.hesabyar.rust") }
+              inPackage && handWrittenRustBridgePrefixes.none { f.name.startsWith(it) }
+            }
+          }
+          .map { it.invariantSeparatorsPath }
+      if (unrecognized.isNotEmpty()) {
+        throw org.gradle.api.GradleException(
+          "Unrecognized hand-written file(s) in $rustPackageSegment: $unrecognized. " +
+            "Update handWrittenRustBridgePrefixes in gradle/jacoco-coverage.gradle.kts " +
+            "so these files are measured by JaCoCo."
+        )
+      }
     }
   }
+
+tasks.matching { it.name == "testDebugUnitTest" || it.name == "testDebugUnitTestRust" }.configureEach {
+  dependsOn(checkRustBridgeCoverageScope)
 }
 
 tasks.register(
@@ -94,10 +110,30 @@ tasks.register(
   // Coverage must include both the fast non-Rust tests and the isolated
   // Rust-bridge tests (testDebugUnitTestRust) — executionData below globs
   // every build/jacoco/*.exec, so both tasks must run before the report.
-  // The scope guard runs first and fails fast on unrecognized files.
-  dependsOn("checkRustBridgeCoverageScope", "testDebugUnitTest", "testDebugUnitTestRust")
+  // The test tasks in turn depend on checkRustBridgeCoverageScope (fail-fast).
+  dependsOn(checkRustBridgeCoverageScope, "testDebugUnitTest", "testDebugUnitTestRust")
+  // Guard against the filter failing open: handWrittenClassSpec only filters
+  // when a class path contains rustPackageSegment. If a package rename or AGP
+  // output reorg ever removes that segment from compiled paths, generated
+  // UniFFI classes would silently re-enter the denominator. Fail instead.
+  doFirst {
+    val classRoots =
+      listOf(
+        "build/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
+        "build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+      ).map { file(it) }
+    val classFiles =
+      classRoots.filter { it.exists() }.flatMap { root -> root.walkTopDown().filter { it.isFile }.toList() }
+    if (classFiles.isNotEmpty() && classFiles.none { it.invariantSeparatorsPath.contains(rustPackageSegment) }) {
+      throw org.gradle.api.GradleException(
+        "No compiled class under $rustPackageSegment. handWrittenClassSpec would filter nothing. " +
+          "The Kotlin package or AGP class output layout changed — update " +
+          "rustPackageSegment in gradle/jacoco-coverage.gradle.kts."
+      )
+    }
+  }
   executionData.setFrom(fileTree("build/jacoco") { include("*.exec") })
-  sourceDirectories.setFrom("src/main/java", "src/main/kotlin")
+  sourceDirectories.setFrom(jacocoSourceRoots)
   classDirectories.setFrom(
     files(
       fileTree("build/intermediates/javac/debug/compileDebugJavaWithJavac/classes") {

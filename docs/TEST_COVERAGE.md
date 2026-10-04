@@ -16,7 +16,7 @@ JaCoCo excludes generated code and build boilerplate from the report denominator
 - Build configuration classes (`BuildConfig.*`)
 - Android manifests (`Manifest*.*`)
 - Room generated DAO and database implementations (`*_Impl.class`, `*_Impl$*.class`)
-- Hilt and Dagger generated code (`*_HiltModules*.*`, `*_Factory*.*`, `*_MembersInjector*.*`, `Hilt_*.*`, `DaggerHesabyarApp*.*`, `HesabyarApp_HiltComponents*.*`, `hilt_aggregated_deps/**`)
+- Hilt and Dagger generated code (`*_HiltModules*.*`, `*_Factory*.*`, `*_MembersInjector*.*`, `Hilt_*.*`, `DaggerHesabyarApp*.*`, `HesabyarApp_HiltComponents*.*`, `hilt_aggregated_deps/**`, `dagger/**`)
 - UniFFI generated file facades (`hesabyar_core*.*`, `Hesabyar_core*.*`, `Uniffi*.*`, `FfiConverter*.*`)
 
 The UniFFI package `io.github.mojri.hesabyar.rust` needs a stronger rule.
