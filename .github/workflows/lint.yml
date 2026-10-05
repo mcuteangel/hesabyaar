@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+      HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
     permissions:
       # Read repository content. Report lint results through the Checks API.
       contents: read
