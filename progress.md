@@ -121,7 +121,8 @@ Run on 2026-10-05, branch `feature/person-loan-ledger`:
 | Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings) |
 | Kotlin compile | `./gradlew --no-daemon compileDebugKotlin compileReleaseKotlin` | PASS (BUILD SUCCESSFUL) |
 | Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `FakeRepositoryTest` 1/1, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 3/3, `PersonDetailSheetTest` 11/11, `PersonRowSemanticsTest` 3/3) |
-| Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass) |
+| Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass; cache-eligible per progress.md:107) |
+| Android lint | `./scripts/check-android.sh` | FAILED at lintDebug (4 pre-existing errors in `local.properties` and `ManualTransactionDialog.kt`; per Blocked item 4) |
 
 ## Next Steps
 
