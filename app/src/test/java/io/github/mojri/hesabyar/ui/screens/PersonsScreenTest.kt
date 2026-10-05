@@ -61,7 +61,7 @@ class PersonsScreenTest {
   private val getPersonBalancesUseCase = GetPersonBalancesUseCase()
 
   private val viewModel by lazy {
-    PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase)
+    PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase, testDispatcher)
   }
 
   @Before
