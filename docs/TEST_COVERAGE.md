@@ -43,7 +43,10 @@ The report path is `rust/lcov.info`.
 The workflow prefixes every workspace-relative LCOV path with `rust/`.
 The prefixed file `rust/lcov.prefixed.info` feeds Codacy and DeepSource.
 Codecov, Coveralls, Qlty Cloud, and BuildPulse consume `rust/lcov.info`.
-Only Qlty configures path handling (`add-prefix: rust`).
+No consumer configures extra path handling for it: the Qlty CLI resolves
+`SF:` paths against the lcov file's own directory, which already yields
+repo-relative `rust/...` paths. (An `add-prefix: rust` produced
+`rust/rust/...` and failed Qlty validation — see issue #294.)
 
 ## Metrics Interpretation
 
