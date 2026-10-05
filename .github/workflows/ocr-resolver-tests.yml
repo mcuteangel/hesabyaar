@@ -11,6 +11,7 @@ on:
     paths:
       - ".github/scripts/**"
       - ".github/workflows/ocr-resolver-tests.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,12 +44,14 @@ jobs:
           fail_ci_if_error: false
 
       - name: Verify Coveralls token on trusted runs
+        id: verify-coveralls-token
         # Loud but non-fatal: a missing token must not abort the rest of the
         # job (other coverage reporters, test results, APK build). The final
         # gate step fails the run after everything else has finished.
-        # Fork/Dependabot PRs skip the upload silently via the if guard below.
+        # Fork/Dependabot runs skip the upload silently via the if guard below
+        # (Dependabot-triggered runs receive no Actions secrets by design).
         continue-on-error: true
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && env.HAS_COVERALLS_TOKEN != 'true' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && github.actor != 'dependabot[bot]' && env.HAS_COVERALLS_TOKEN != 'true' }}
         run: |
           echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1
@@ -111,10 +114,10 @@ jobs:
           path: junit-ocr.xml
           coverage-files: coverage-ocr.lcov
       - name: Fail if Coveralls token missing on trusted runs
-        # Companion to the non-fatal verify step above: turn a missing token
-        # into a red build only after the build, artifacts and all other
-        # reporters have finished.
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && env.HAS_COVERALLS_TOKEN != 'true' }}
+        # Derives from the verify step's outcome so the trusted-run condition
+        # lives in exactly one place; always() keeps it reporting even when an
+        # earlier step failed.
+        if: ${{ always() && steps.verify-coveralls-token.outcome == 'failure' }}
         run: |
           echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1
