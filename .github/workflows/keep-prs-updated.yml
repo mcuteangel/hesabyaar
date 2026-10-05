@@ -31,7 +31,8 @@ jobs:
     steps:
       - name: Merge main into each open PR branch once
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN-triggered pushes don't start CI runs; WORKFLOW_PAT does.
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           REPO: ${{ github.repository }}
         run: |
           set -u
@@ -70,8 +71,8 @@ jobs:
             if out=$(gh api "repos/$REPO/pulls/$pr/update-branch" -X PUT \
                 --input - <<< "$body" 2>&1); then
               echo "PR #$pr: update queued"
-            elif echo "$out" | grep -q "422"; then
-              # 422 = merge conflict or branch already up to date: expected, skip.
+            elif echo "$out" | grep -qE "HTTP (409|422)"; then
+              # 409/422 = conflict, stale head, or head moved: expected races, skip.
               echo "PR #$pr: skipped (conflict or stale head)"
             else
               # Auth, rate-limit, 4xx/5xx: real failures must fail the run,
