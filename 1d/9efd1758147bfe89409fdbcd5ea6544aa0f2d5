@@ -1,0 +1,23 @@
+docs/PROJECT_OVERVIEW.md
+  s_3ae98003c5def4::t_7d22d9fd9a0225 17
+docs/ROADMAP.md
+  s_3ae98003c5def4::t_90e0b3a1fea043 80
+docs/MODULE_MAP.md
+  s_3ae98003c5def4::t_93be88332b0f0c 76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1d9efd1758147bfe89409fdbcd5ea6544aa0f2d5",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
