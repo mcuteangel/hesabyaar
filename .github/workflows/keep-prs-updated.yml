@@ -25,6 +25,9 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # A stuck run (e.g. hung TCP on gh api) must not occupy the concurrency
+    # group for GitHub's default 6h job limit while main pushes queue behind it.
+    timeout-minutes: 15
     steps:
       - name: Merge main into each open PR branch once
         env:
@@ -32,20 +35,49 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -u
-          prs=$(gh pr list --repo "$REPO" --base main --state open \
-            --json number,isDraft -q '.[] | select(.isDraft | not) | .number')
+          prs_json=$(gh pr list --repo "$REPO" --base main --state open \
+            --limit 1000 --json number,isDraft,headRefOid) || {
+            echo "::error::gh pr list failed; aborting instead of reporting 'no PRs'"
+            exit 1
+          }
+          # headRefOid is captured in the initial listing, so a push between the
+          # list and the update can't slip in with a fresh expected head, and no
+          # per-PR `gh pr view` call is needed.
+          prs=$(echo "$prs_json" | jq -r '.[] | select(.isDraft | not) | "\(.number) \(.headRefOid)"') || {
+            echo "::error::failed to parse PR list"
+            exit 1
+          }
           if [ -z "$prs" ]; then
             echo "no open non-draft PRs targeting main"
             exit 0
           fi
-          for pr in $prs; do
-            head_sha=$(gh pr view "$pr" --repo "$REPO" --json headRefOid -q .headRefOid)
+          failed=0
+          while IFS= read -r line; do
+            pr=${line%% *}
+            head_sha=${line#* }
+            if [ -z "$head_sha" ] || [ "$head_sha" = "null" ]; then
+              echo "PR #$pr: skipped (empty head SHA)"
+              continue
+            fi
             # expected_head_sha: skip the PR if its branch moved since we listed
             # it (e.g. someone just pushed) instead of merging onto fresh work.
-            if out=$(gh api "repos/$REPO/pulls/$pr/update-branch" -X POST \
-                -f expected_head_sha="$head_sha" 2>&1); then
+            body=$(jq -n --arg sha "$head_sha" '{expected_head_sha: $sha}') || {
+              echo "::error::PR #$pr: failed to build request body"
+              exit 1
+            }
+            # update-branch is a PUT endpoint expecting a JSON body; -f would
+            # send form fields and GitHub would reject every request.
+            if out=$(gh api "repos/$REPO/pulls/$pr/update-branch" -X PUT \
+                --input - <<< "$body" 2>&1); then
               echo "PR #$pr: update queued"
+            elif echo "$out" | grep -q "422"; then
+              # 422 = merge conflict or branch already up to date: expected, skip.
+              echo "PR #$pr: skipped (conflict or stale head)"
             else
-              echo "PR #$pr: skipped ($(echo "$out" | head -c 160 | tr '\n' ' '))"
+              # Auth, rate-limit, 4xx/5xx: real failures must fail the run,
+              # not hide behind a green check.
+              echo "::error::PR #$pr: update failed: $(echo "$out" | head -c 300 | tr '\n' ' ')"
+              failed=1
             fi
-          done
+          done <<< "$prs"
+          exit "$failed"
