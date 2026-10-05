@@ -1,0 +1,28 @@
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_648bcbb1239395 726-728,747
+  s_3ae98003c5def4::t_0844819a1ca4cb 548-549
+  s_3ae98003c5def4::t_7d3253693b8034 657-661,668,693-697,705
+  s_3ae98003c5def4::t_08d62965d9a13c 618,622-628,632,638,640-641,643
+  s_3ae98003c5def4::t_61f6e379b9f345 508-512,518
+  s_3ae98003c5def4::t_432ee4a5ae992c 547,550-551,557
+  s_3ae98003c5def4::t_333e9864f6be18 466-470,479
+  s_3ae98003c5def4::t_08a239b7b022d1 29-30
+scripts/pre-commit
+  s_3ae98003c5def4::t_649d5daafea1b5 73-76,82-91,93-113,115-122,124-127,131-152,155-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "877add613b29020f4fd5d28feebc4e6f203efbfb",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
