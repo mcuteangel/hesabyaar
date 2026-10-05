@@ -74,11 +74,10 @@
 - [x] Encrypted API Keys (EncryptedSharedPreferences)
 - [x] Build Secrets (.env)
 - [x] No Hardcoded Keys
-- [x] Sensitive Field Encryption in Backups (AES-GCM via BackupCipher)
 - [x] Database Encryption (SQLCipher)
 - [x] Biometric Auth & PIN Lock
-- [ ] Full Payload Backup Encryption
 - [ ] Certificate Pinning
+- Note: Sensitive field backup encryption and full payload backup encryption are tracked under the [Data section](#data).
 
 ---
 

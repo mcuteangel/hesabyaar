@@ -14,7 +14,7 @@ Hesabyar is a Persian-first personal finance app for Android. It works fully off
 - **Backup and restore.** Export all data as JSON. Restore with REPLACE or MERGE mode. Excel (.xlsx) export is available.
 - **Security.** Lock the app with PIN or biometrics. Room database is encrypted on disk via SQLCipher. Passphrase-based AES-GCM protects sensitive backup fields.
 
-> Planned, not yet done: CSV export, certificate pinning, voice input, on-device local AI. See [ROADMAP](ROADMAP.md).
+> Planned, not yet done: CSV export, full backup payload encryption, certificate pinning, voice input, on-device local AI. See [ROADMAP](ROADMAP.md).
 
 ## Architecture
 
