@@ -1,0 +1,9 @@
+pull_request_rules:
+  - name: keep PRs up to date with main
+    conditions:
+      - base=main
+      - -conflict
+      - -draft
+      - "#commits-behind > 0"
+    actions:
+      update: {}
