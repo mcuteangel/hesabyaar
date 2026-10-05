@@ -96,17 +96,29 @@ try_commit() {
   done
 
   if [[ $has_kotlin -eq 1 ]]; then
-    # Snapshot each staged file's working-tree hash BEFORE ktlintFormat runs,
+    # Identify staged Kotlin files. Exclude staged deletions and files without
+    # an active index entry so ktlintFormat cannot undo a deletion or re-stage
+    # unstaged deletions into the commit candidate.
+    local -a staged_kt=()
+    local f
+    while IFS= read -r -d '' f; do
+      case "$f" in
+        *.kt|*.kts)
+          if git rev-parse --verify -q ":$f" >/dev/null 2>&1; then
+            staged_kt+=("$f")
+          fi
+          ;;
+      esac
+    done < <(git diff --cached --diff-filter=d -z --name-only)
+
+    # Snapshot working-tree hash of each staged Kotlin file BEFORE ktlintFormat runs,
     # then compare after to re-stage only files ktlintFormat actually changed.
-    # This avoids pulling in pre-existing unstaged changes the user left out.
     declare -A pre_format_hash
-    if [[ ${#staged_files[@]} -gt 0 ]]; then
-      for f in "${staged_files[@]}"; do
-        if [[ -f "$f" ]]; then
-          pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
-        fi
-      done
-    fi
+    for f in "${staged_kt[@]}"; do
+      if [[ -f "$f" ]]; then
+        pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
+      fi
+    done
 
     # Run ktlintFormat first to auto-fix formatting
     echo ""
@@ -119,9 +131,9 @@ try_commit() {
     echo "  ✓ ktlintFormat passed"
 
     # Compare post-format hashes to detect files modified by ktlintFormat
-    if [[ ${#staged_files[@]} -gt 0 ]]; then
+    if [[ ${#staged_kt[@]} -gt 0 ]]; then
       local modified_files=()
-      for f in "${staged_files[@]}"; do
+      for f in "${staged_kt[@]}"; do
         if [[ -f "$f" ]]; then
           local post_hash
           post_hash=$(git hash-object "$f" 2>/dev/null || echo "")

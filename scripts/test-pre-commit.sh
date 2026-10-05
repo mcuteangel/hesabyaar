@@ -30,7 +30,8 @@
 #   G staged formatted + unstaged edits  P2 Kotlin-only commit runs Kotlin gates
 #   H untracked Rust file                Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
-#   J unstaged Rust deletion             T newline in filename (best effort)
+#   J unstaged Rust deletion             S tab in filename
+#                                        T newline in filename (best effort)
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   V unstaged +x mode change survives       W +x restored after clippy failure
 #   X unstaged 740/750/710 modes survive     Y exact modes restored after failure
@@ -677,6 +678,66 @@ case_p2() {
   assert_nothing_staged
 }
 
+case_p3() {
+  echo "=== P3: build and linter configuration changes trigger Kotlin gates ==="
+  local cfg_files=(
+    "gradle/libs.versions.toml"
+    ".editorconfig"
+    "config/detekt/detekt.yml"
+    "gradle/wrapper/gradle-wrapper.properties"
+  )
+  local cfg
+  for cfg in "${cfg_files[@]}"; do
+    reset_clone
+    printf '\n# p3 probe\n' >> "$CLONE/$cfg"
+    git_clone add "$cfg"
+    stage_carrier "p3"
+    run_hook
+    expect_rc 0 "config commit for $cfg passes Kotlin gates"
+    assert_log_contains "[1/5] Running ktlintFormat"
+    assert_log_contains "[2/5] Running ktlintCheck"
+    assert_log_contains "[3/5] Running detekt"
+    assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+    if grep -qF "cargo clippy passed" "$LOG"; then
+      fail "clippy ran on a config-only commit: $cfg"
+    else
+      pass "clippy skipped on a config-only commit: $cfg"
+    fi
+    expect_commit_exactly "$CARRIER" "$cfg"
+    assert_nothing_staged
+  done
+}
+
+case_p4() {
+  echo "=== P4: ktlintFormat auto-formatting is detected and re-staged ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "ktlintFormat" ]; then
+  target="app/src/main/java/io/github/mojri/hesabyar/CarrierP4.kt"
+  if [ -f "$target" ]; then
+    printf '// auto-formatted\n' >> "$target"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP4.kt"
+  printf '// initial unformatted\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p4
+  run_hook
+  expect_rc 0 "hook passes and re-stages ktlintFormat changes"
+  assert_log_contains "Re-staging 1 file(s) with auto-fixes..."
+  expect_commit_exactly "$CARRIER" "$kt"
+  if git_clone show "HEAD:$kt" | grep -qF "// auto-formatted"; then
+    pass "re-staged commit candidate includes auto-formatted delta"
+  else
+    fail "re-staged commit candidate missing auto-formatted delta"
+  fi
+  assert_nothing_staged
+}
+
 case_q() {
   echo "=== Q: missing rust/ directory hard-fails when Rust sources are staged ==="
   reset_clone
@@ -854,7 +915,7 @@ case_v() {
   fi
   local idx_mode
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  if [[ "$idx_mode" == "100644" ]]; then
+  if [[ "$idx_mode" = "100644" ]]; then
     pass "index mode untouched (100644)"
   else
     fail "index mode changed: $idx_mode"
@@ -910,7 +971,7 @@ run_full_mode_scenario() { # <probe-text> <clippy-must-fail:0|1> <mode>
     assert_nothing_staged
     head_oid=$(git_clone rev-parse "HEAD:$RS")
     exp_oid=$(git_clone hash-object --path="$RS" "$EXP")
-    if [[ "$head_oid" == "$exp_oid" ]]; then
+    if [[ "$head_oid" = "$exp_oid" ]]; then
       pass "commit recorded the staged candidate, not the worktree copy"
     else
       fail "commit recorded wrong Rust content"
@@ -919,13 +980,13 @@ run_full_mode_scenario() { # <probe-text> <clippy-must-fail:0|1> <mode>
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   got_mode=$(read_mode "$CLONE/$RS")
-  if [[ "$got_mode" == "$want_mode" ]]; then
+  if [[ "$got_mode" = "$want_mode" ]]; then
     pass "exact worktree mode $want_mode restored (got $got_mode)"
   else
     fail "worktree mode wrong: wanted $want_mode, got $got_mode"
   fi
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  if [[ "$idx_mode" == "100644" ]]; then
+  if [[ "$idx_mode" = "100644" ]]; then
     pass "index mode untouched (100644)"
   else
     fail "index mode changed: $idx_mode"
@@ -997,7 +1058,7 @@ case_z() {
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   mode_after=$(read_mode "$CLONE/$RS")
-  if [[ "$mode_after" == "$mode_before" ]]; then
+  if [[ "$mode_after" = "$mode_before" ]]; then
     pass "worktree mode untouched by the aborted run"
   else
     fail "worktree mode changed: wanted $mode_before, got $mode_after"
@@ -1037,7 +1098,7 @@ case_e2_static_capture_before_materialization() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
 
 for c in "${CASES[@]}"; do
   "case_$c"
