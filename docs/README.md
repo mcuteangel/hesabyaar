@@ -1,6 +1,6 @@
 # Hesabyar Documentation Hub
 
-Start here. This index groups every document in `docs/` and `plans/`. It is Obsidian-friendly: plain Markdown, relative links, no plugins needed.
+Start here. This index groups selected entry-point documents in `docs/` and `plans/`. It is Obsidian-friendly: plain Markdown, relative links, no plugins needed.
 
 ## Start here
 

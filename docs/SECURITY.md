@@ -33,14 +33,14 @@
 ### Room Database
 
 - SQLite database stored in app-private directory
-- Not encrypted (future enhancement: SQLCipher)
+- Encrypted on disk via SQLCipher (`SupportOpenHelperFactory` in `AppDatabase.getDatabase`); see `data/DatabaseKeyManager.kt`
 - Access restricted to app process only
 
 ### Backups
 
-- JSON format, plain text
+- JSON format, plain text by default
 - Stored in user-selected location via SAF
-- Future enhancement: encryption with user password
+- Sensitive fields encrypted with passphrase AES-GCM via `auth/BackupCipher.kt` when the user sets a passphrase
 
 ---
 
@@ -53,19 +53,23 @@
 
 ---
 
+## Authentication & App Lock
+
+- App locking with PIN or Biometrics (`BiometricPrompt` via `auth/BiometricHelper.kt`)
+- PIN hashed with salt and stored in `EncryptedSharedPreferences` (`auth/PinStorage.kt`)
+
+---
+
 ## What's NOT Encrypted
 
-1. **Room database** — SQLite file on disk (accessible with root)
-2. **Backup files** — Plain JSON (user responsibility)
-3. **SharedPreferences** — App settings, reminder config (non-sensitive)
+1. **Non-sensitive backup fields** — Category names and account metadata (sensitive notes/amounts encrypted via `BackupCipher.kt`)
+2. **SharedPreferences** — Non-sensitive app preferences and reminder config (sensitive tokens and keys use `EncryptedSharedPreferences`)
 
 ---
 
 ## Future Security Enhancements
 
-- [ ] SQLCipher for database encryption
-- [ ] Encrypted backup format
+- [ ] Full payload backup encryption
 - [ ] Certificate pinning
-- [ ] Biometric authentication
 - [ ] ProGuard/R8 minification and obfuscation
 - [ ] Root detection

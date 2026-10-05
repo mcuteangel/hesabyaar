@@ -16,7 +16,7 @@ Package root: `io.github.mojri.hesabyar` under `app/src/main/java/`.
 | `domain/usecase/` | Domain use cases | `ManageTransactionUseCase.kt`, `ParseTransactionUseCase.kt` (Persian parsing), `GetDashboardDataUseCase.kt`, `ManageBackupUseCase.kt`, `GetForecastUseCase.kt` |
 | `domain/utils/` | Domain helpers | `PersonNameNormalizer.kt`, `TransactionAmountResolver.kt`, `LoanEditCalculator.kt` |
 | `domain/exception/` | Domain exceptions | `CannotDeleteLastActiveAccountException.kt` |
-| `reminder/` | Installment and loan reminders | `InstallmentReminderWorker.kt`, `LoanReminderWorker.kt`, `ReminderScheduler.kt`, `BootReceiver.kt` |
+| `reminder/` | Installment and loan reminders | `InstallmentReminderWorker.kt`, `LoanReminderWorker.kt`, `ReminderScheduler.kt`, `ReminderSettingsManager.kt`, `NotificationHelper.kt`, `MarkPaidReceiver.kt`, `BootReceiver.kt` |
 | `rust/` | UniFFI bridge to the Rust core | `RustBridge.kt`, `RustBridgeParser.kt`, `RustBridgeCurrency.kt`, `RustBridgeAnalytics.kt`, `RustBridgeBudget.kt`, `RustBridgeBackup.kt`, `RustBridgeValidation.kt`, `RustBridgeSearch.kt`, `RustMappers.kt` |
 | `ui/` | ViewModels and top-level UI helpers | `DashboardViewModel.kt`, `TransactionViewModel.kt`, `LoanViewModel.kt`, `BackupViewModel.kt`, `AiAssistantViewModel.kt` |
 | `ui/screens/` | Main screens (Compose) | `DashboardScreen.kt`, `LoanManagementScreen.kt`, `DebtHubScreen.kt`, `AnalyticsScreen.kt`, `SmartAssistantScreen.kt`, `BankLoanScreen.kt`, `account/AccountManagementScreen.kt` |
@@ -73,7 +73,7 @@ Package root: `io.github.mojri.hesabyar` under `app/src/main/java/`.
 | Persian parse («دیروز ۵۰ هزارتومن ناهار») | `ui/screens/SmartAssistantScreen.kt` → `ui/AiAssistantViewModel.kt` → `domain/usecase/ParseTransactionUseCase.kt` → `api/GeminiParser.kt` → `rust/RustBridgeParser.kt` → `rust/hesabyar-core/src/parser/` |
 | Person loans and debts | `ui/screens/DebtHubScreen.kt` → `ui/LoanViewModel.kt` → `domain/usecase/ManageLoanUseCase.kt` → `data/HesabyarRepository.kt` (`LoanDelegate.kt` / `PersonDelegate.kt`) |
 | Installments | `ui/screens/InstallmentScreen.kt` → `ui/InstallmentViewModel.kt` → `domain/usecase/ManageInstallmentUseCase.kt` → `data/HesabyarRepository.kt` (`InstallmentDelegate.kt`) |
-| Installment reminders | `reminder/InstallmentReminderWorker.kt` → `reminder/NotificationHelper.kt` (`showInstallmentReminder`) |
+| Installment reminders | `reminder/InstallmentReminderWorker.kt` → `data/Daos.kt` (`InstallmentDao` via `AppDatabase.getDatabase(...).installmentDao()`) → `reminder/NotificationHelper.kt` (`showInstallmentReminder`) |
 | Backup and restore | `ui/BackupViewModel.kt` → `domain/usecase/ManageBackupUseCase.kt` → `domain/usecase/BackupPayloadExporter.kt` (`data/BackupDelegate.kt`) → `auth/BackupCipher.kt` |
 | Smart budget advice | `ui/AiAssistantViewModel.kt` → `domain/usecase/GetBudgetAdviceUseCase.kt` → `api/BudgetAdvisor.kt` → `rust/hesabyar-core/src/advisory/budget.rs` |
 | Dashboard | `ui/screens/DashboardScreen.kt` → `ui/DashboardViewModel.kt` → `domain/usecase/GetDashboardDataUseCase.kt` → `data/HesabyarRepository.kt` + `rust/RustBridge.kt` (`rust/hesabyar-core/src/dashboard.rs`) |
