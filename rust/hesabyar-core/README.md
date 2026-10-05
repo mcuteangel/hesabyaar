@@ -143,10 +143,13 @@ rustup installs them on the first cargo command.
 
 ### Pre-Commit Hook
 
-The pre-commit hook runs the Kotlin checks first. Then it runs the Rust checks:
+The pre-commit hook runs quality gates selectively by staged file type.
 
-1. `cargo fmt` — formats the staged Rust sources
-2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- When Kotlin or build files are staged, it runs the Kotlin checks (`ktlintFormat`, `ktlintCheck`, `detekt`).
+- When files under `rust/` are staged, it runs the Rust checks:
+  1. `cargo fmt` — formats staged Rust sources
+  2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- Commits with neither (such as documentation-only commits) skip both gates.
 
 The Rust gate validates the commit candidate, not the whole worktree.
 
@@ -165,12 +168,12 @@ The hook re-stages only the formatting delta for staged Rust sources. Staged del
 excluded from the format path list; they stay deleted in the commit. The hook never stages
 untracked files and never stages unrelated unstaged edits.
 
-A missing `cargo` command fails the commit. Install Rust with rustup and keep `cargo` on
-PATH. A missing `rust/` workspace directory also fails the commit with a clear hint.
-A Clippy warning fails the commit. Fix the code. Do not add an allow attribute without a
-reason comment. The hook does not run the Rust tests. CI runs the full test suite
-(`cargo test --workspace`). The Gradle task `copyGitHooks` installs the hook from
-`scripts/pre-commit`.
+When Rust files are staged, a missing `cargo` command fails the commit. Install Rust with
+rustup and keep `cargo` on PATH. A missing `rust/` workspace directory also fails the
+commit with a clear hint. A Clippy warning fails the commit. Fix the code. Do not add
+an allow attribute without a reason comment. The hook does not run the Rust tests. CI runs
+the full test suite (`cargo test --workspace`). The Gradle task `copyGitHooks` installs the
+hook from `scripts/pre-commit`.
 
 Run `scripts/test-pre-commit.sh` to test the hook. The script builds a scratch clone and
 runs the real hook across a regression matrix. It checks the exit code, the index state,

@@ -27,9 +27,9 @@
 #   D staged invalid + valid worktree    N cargo clippy failure
 #   E staged valid + invalid worktree    O restoration after fmt failure
 #   F staged unformatted + formatted wt  P docs-only commit skips every gate
-#   G staged formatted + unstaged edits  Q missing rust/ directory (with Rust staged)
-#   H untracked Rust file                R unusual filename (spaces/brackets)
-#   I staged Rust deletion               S tab in filename
+#   G staged formatted + unstaged edits  P2 Kotlin-only commit runs Kotlin gates
+#   H untracked Rust file                Q missing rust/ directory (with Rust staged)
+#   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             T newline in filename (best effort)
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   V unstaged +x mode change survives       W +x restored after clippy failure
@@ -268,6 +268,14 @@ stage_carrier() {
   git_clone add "$CARRIER"
 }
 
+stage_cargo_toml_probe() { # $1 label
+  local toml_staged="$WORK/${1}_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# %s probe\n' "$1" >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
+}
+
 setup_commit_no_verify() {
   git_clone add "$1"
   git_clone commit -q --no-verify -m "setup: add $1"
@@ -463,19 +471,18 @@ case_h() {
   reset_clone
   local u="rust/hesabyar-core/src/orphan_u.rs"
   printf '%s' "$P_A" > "$CLONE/$u"
-  local toml_staged="$WORK/h_toml.bin"
-  cp "$CLONE/$CARGO_TOML" "$toml_staged"
-  printf '\n# h probe\n' >> "$toml_staged"
-  cp "$toml_staged" "$CLONE/$CARGO_TOML"
-  git_clone add "$CARGO_TOML"
+  stage_cargo_toml_probe h
   stage_carrier h
   run_hook
   expect_rc 0 "hook passes with untracked orphan module present"
   assert_log_contains "No staged Rust sources to format"
   assert_log_contains "cargo clippy passed"
   assert_present_wt "$u"
-  contains_staged "$u" && fail "untracked file became staged: $u" \
-    || pass "untracked file stayed unstaged"
+  if contains_staged "$u"; then
+    fail "untracked file became staged: $u"
+  else
+    pass "untracked file stayed unstaged"
+  fi
   expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
@@ -492,10 +499,16 @@ case_i() {
   run_hook
   expect_rc 0 "staged deletion excluded from cargo fmt path list"
   assert_log_contains "cargo clippy passed"
-  grep -qF "does not exist" "$LOG" && fail "rustfmt saw the deleted path" \
-    || pass "rustfmt never received the deleted path"
-  commit_deletion_present "$o" && pass "deletion recorded in the commit" \
-    || fail "deletion missing from the commit"
+  if grep -qF "does not exist" "$LOG"; then
+    fail "rustfmt saw the deleted path"
+  else
+    pass "rustfmt never received the deleted path"
+  fi
+  if commit_deletion_present "$o"; then
+    pass "deletion recorded in the commit"
+  else
+    fail "deletion missing from the commit"
+  fi
   assert_absent_wt "$o"
   expect_commit_exactly "$CARRIER" "$o"
   assert_nothing_staged
@@ -505,11 +518,7 @@ case_j() {
   echo "=== J: unstaged deletion of tracked Rust file ==="
   reset_clone
   rm "$CLONE/$RS"
-  local toml_staged="$WORK/j_toml.bin"
-  cp "$CLONE/$CARGO_TOML" "$toml_staged"
-  printf '\n# j probe\n' >> "$toml_staged"
-  cp "$toml_staged" "$CLONE/$CARGO_TOML"
-  git_clone add "$CARGO_TOML"
+  stage_cargo_toml_probe j
   stage_carrier j
   run_hook
   expect_rc 0 "absent dirty file handled without cp failure"
@@ -544,11 +553,7 @@ case_l() {
   cp "$CLONE/$CARGO_LOCK" "$WTX"
   printf '[[package]]\nname = "probe-lock-corruption"\n' >> "$WTX"
   cp "$WTX" "$CLONE/$CARGO_LOCK"
-  local toml_staged="$WORK/l_toml.bin"
-  cp "$CLONE/$CARGO_TOML" "$toml_staged"
-  printf '\n# l probe\n' >> "$toml_staged"
-  cp "$toml_staged" "$CLONE/$CARGO_TOML"
-  git_clone add "$CARGO_TOML"
+  stage_cargo_toml_probe l
   stage_carrier l
   run_hook
   expect_rc 0 "lockfile materialized from the index for validation"
@@ -622,15 +627,53 @@ case_p() {
   expect_rc 0 "docs-only commit passes"
   assert_log_contains "No staged Kotlin sources — skipping ktlint and detekt"
   assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
-  grep -qF "cargo clippy passed" "$LOG" && fail "clippy ran on a docs-only commit" \
-    || pass "clippy skipped on a docs-only commit"
-  grep -qF "[1/5]" "$LOG" && fail "ktlint ran on a docs-only commit" \
-    || pass "ktlint skipped on a docs-only commit"
+  if grep -qF "cargo clippy passed" "$LOG"; then
+    fail "clippy ran on a docs-only commit"
+  else
+    pass "clippy skipped on a docs-only commit"
+  fi
+  if grep -qF "[1/5]" "$LOG"; then
+    fail "ktlint ran on a docs-only commit"
+  else
+    pass "ktlint skipped on a docs-only commit"
+  fi
   local dirty_rust
   dirty_rust=$(git_clone status --porcelain -- rust/)
-  [[ -z "$dirty_rust" ]] && pass "rust/ untouched" \
-    || fail "rust/ modified by docs-only run: $dirty_rust"
+  if [[ -z "$dirty_rust" ]]; then
+    pass "rust/ untouched"
+  else
+    fail "rust/ modified by docs-only run: $dirty_rust"
+  fi
   expect_commit_exactly "$CARRIER"
+  assert_nothing_staged
+}
+
+case_p2() {
+  echo "=== P2: Kotlin-only commit runs Kotlin gates and skips Rust gates ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP.kt"
+  printf '// p probe\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p_kt
+  run_hook
+  expect_rc 0 "Kotlin-only commit passes"
+  assert_log_contains "[1/5] Running ktlintFormat"
+  assert_log_contains "[2/5] Running ktlintCheck"
+  assert_log_contains "[3/5] Running detekt"
+  assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+  if grep -qF "cargo clippy passed" "$LOG"; then
+    fail "clippy ran on a Kotlin-only commit"
+  else
+    pass "clippy skipped on a Kotlin-only commit"
+  fi
+  local dirty_rust
+  dirty_rust=$(git_clone status --porcelain -- rust/)
+  if [[ -z "$dirty_rust" ]]; then
+    pass "rust/ untouched"
+  else
+    fail "rust/ modified by Kotlin-only run: $dirty_rust"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
   assert_nothing_staged
 }
 
@@ -646,6 +689,9 @@ case_q() {
   expect_rc nonzero "missing workspace fails fast"
   assert_log_contains "rust/"
   assert_log_contains "not found"
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$EXP"
+  expect_staged_exactly "$CARRIER" "$RS"
 }
 
 case_r() {
@@ -654,17 +700,16 @@ case_r() {
   local name="odd name (v1) [ok].rs"
   local p="rust/hesabyar-core/src/$name"
   printf '%s' "$P_A" > "$CLONE/$p"
-  local toml_staged="$WORK/r_toml.bin"
-  cp "$CLONE/$CARGO_TOML" "$toml_staged"
-  printf '\n# r probe\n' >> "$toml_staged"
-  cp "$toml_staged" "$CLONE/$CARGO_TOML"
-  git_clone add "$CARGO_TOML"
+  stage_cargo_toml_probe r1
   stage_carrier r1
   run_hook
   expect_rc 0 "untracked odd-named file passes and survives"
   assert_present_wt "$p"
-  contains_staged "$p" && fail "odd-named untracked became staged" \
-    || pass "odd-named untracked stayed unstaged"
+  if contains_staged "$p"; then
+    fail "odd-named untracked became staged"
+  else
+    pass "odd-named untracked stayed unstaged"
+  fi
   expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   reset_clone
   printf '%s' "$P_A" > "$CLONE/$p"
@@ -690,18 +735,17 @@ run_odd_name_case() { # $1 label, $2 raw filename
     return 0
   fi
   printf '%s' "$P_A" > "$EXP"
-  local toml_staged="$WORK/odd_toml.bin"
-  cp "$CLONE/$CARGO_TOML" "$toml_staged"
-  printf '\n# odd probe\n' >> "$toml_staged"
-  cp "$toml_staged" "$CLONE/$CARGO_TOML"
-  git_clone add "$CARGO_TOML"
+  stage_cargo_toml_probe "$1"
   stage_carrier "$1"
   run_hook
   expect_rc 0 "$1: hook passes"
   assert_present_wt "$p"
   assert_wt_file "$p" "$EXP"
-  contains_staged "$p" && fail "$1: untracked became staged" \
-    || pass "$1: untracked stayed unstaged"
+  if contains_staged "$p"; then
+    fail "$1: untracked became staged"
+  else
+    pass "$1: untracked stayed unstaged"
+  fi
   expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   rm -f "$CLONE/$p"
   return 0
@@ -735,8 +779,11 @@ case_u() {
   export PATH=$saved_path
   expect_rc nonzero "commit aborted by the Kotlin gate failure"
   assert_log_contains "ktlintFormat failed"
-  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates after a Kotlin failure" \
-    || pass "hook stopped before the Rust gates"
+  if grep -qF "[4/5]" "$LOG"; then
+    fail "hook reached the Rust gates after a Kotlin failure"
+  else
+    pass "hook stopped before the Rust gates"
+  fi
   if [[ -f "$CARGO_PROBE_LOG" ]]; then
     fail "cargo ran despite the Kotlin gate failure: $(cat "$CARGO_PROBE_LOG")"
   else
@@ -800,12 +847,18 @@ case_v() {
   expect_rc 0 "hook passes with an unstaged mode change present"
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
-  [[ -x "$CLONE/$RS" ]] && pass "original worktree mode (+x) restored" \
-    || fail "worktree executable bit lost by materialization"
+  if [[ -x "$CLONE/$RS" ]]; then
+    pass "original worktree mode (+x) restored"
+  else
+    fail "worktree executable bit lost by materialization"
+  fi
   local idx_mode
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
-    || fail "index mode changed: $idx_mode"
+  if [[ "$idx_mode" == "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
   expect_commit_exactly "$CARRIER" "$RS"
   assert_nothing_staged
 }
@@ -825,8 +878,11 @@ case_w() {
   assert_log_contains "cargo clippy failed"
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
-  [[ -x "$CLONE/$RS" ]] && pass "mode restored through the failure path" \
-    || fail "mode lost on the clippy failure path"
+  if [[ -x "$CLONE/$RS" ]]; then
+    pass "mode restored through the failure path"
+  else
+    fail "mode lost on the clippy failure path"
+  fi
   expect_staged_exactly "$CARRIER" "$RS"
 }
 
@@ -854,19 +910,26 @@ run_full_mode_scenario() { # <probe-text> <clippy-must-fail:0|1> <mode>
     assert_nothing_staged
     head_oid=$(git_clone rev-parse "HEAD:$RS")
     exp_oid=$(git_clone hash-object --path="$RS" "$EXP")
-    [[ "$head_oid" == "$exp_oid" ]] \
-      && pass "commit recorded the staged candidate, not the worktree copy" \
-      || fail "commit recorded wrong Rust content"
+    if [[ "$head_oid" == "$exp_oid" ]]; then
+      pass "commit recorded the staged candidate, not the worktree copy"
+    else
+      fail "commit recorded wrong Rust content"
+    fi
   fi
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   got_mode=$(read_mode "$CLONE/$RS")
-  [[ "$got_mode" == "$want_mode" ]] \
-    && pass "exact worktree mode $want_mode restored (got $got_mode)" \
-    || fail "worktree mode wrong: wanted $want_mode, got $got_mode"
+  if [[ "$got_mode" == "$want_mode" ]]; then
+    pass "exact worktree mode $want_mode restored (got $got_mode)"
+  else
+    fail "worktree mode wrong: wanted $want_mode, got $got_mode"
+  fi
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
-    || fail "index mode changed: $idx_mode"
+  if [[ "$idx_mode" == "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
 }
 
 case_x() {
@@ -907,8 +970,11 @@ case_z() {
   export PATH=$saved_path
   expect_rc nonzero "hook aborts when no stat can capture a mode"
   assert_log_contains "Cannot capture file mode"
-  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates despite mode-capture failure" \
-    || pass "hook stopped before cargo fmt materialized the tree"
+  if grep -qF "[4/5]" "$LOG"; then
+    fail "hook reached the Rust gates despite mode-capture failure"
+  else
+    pass "hook stopped before cargo fmt materialized the tree"
+  fi
   if [[ -f "$CARGO_PROBE_LOG" ]]; then
     fail "cargo ran despite the mode-capture failure: $(cat "$CARGO_PROBE_LOG")"
   else
@@ -931,10 +997,14 @@ case_z() {
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   mode_after=$(read_mode "$CLONE/$RS")
-  [[ "$mode_after" == "$mode_before" ]] && pass "worktree mode untouched by the aborted run" \
-    || fail "worktree mode changed: wanted $mode_before, got $mode_after"
+  if [[ "$mode_after" == "$mode_before" ]]; then
+    pass "worktree mode untouched by the aborted run"
+  else
+    fail "worktree mode changed: wanted $mode_before, got $mode_after"
+  fi
 }
 
+# shellcheck disable=SC2016
 case_e1_static_mode_restore_wiring() {
   echo "=== E1: hook source wires full-mode capture and restore ==="
   reset_clone
@@ -950,6 +1020,7 @@ case_e1_static_mode_restore_wiring() {
   fi
 }
 
+# shellcheck disable=SC2016
 case_e2_static_capture_before_materialization() {
   echo "=== E2: mode capture is checked before index materialization ==="
   reset_clone
@@ -966,7 +1037,7 @@ case_e2_static_capture_before_materialization() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
 
 for c in "${CASES[@]}"; do
   "case_$c"

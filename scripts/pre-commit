@@ -79,18 +79,35 @@ try_commit() {
   local staged_files
   mapfile -d '' -t staged_files < <(git diff --cached --name-only -z)
 
-  # Classify the staged set. Kotlin gates cover *.kt and *.kts. Rust gates
-  # cover every path under rust/ (sources, manifests, lockfile, toolchain).
+  # Classify the staged set. Kotlin gates cover *.kt, *.kts, and Kotlin/Gradle
+  # build and linter configurations. Rust gates cover every path under rust/
+  # (sources, manifests, lockfile, toolchain).
   local has_kotlin=0 has_rust=0
   local staged_path
   for staged_path in "${staged_files[@]}"; do
     case "$staged_path" in
-      *.kt|*.kts) has_kotlin=1 ;;
-      rust/*)     has_rust=1 ;;
+      *.kt|*.kts|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
+        has_kotlin=1
+        ;;
+      rust/*)
+        has_rust=1
+        ;;
     esac
   done
 
   if [[ $has_kotlin -eq 1 ]]; then
+    # Snapshot each staged file's working-tree hash BEFORE ktlintFormat runs,
+    # then compare after to re-stage only files ktlintFormat actually changed.
+    # This avoids pulling in pre-existing unstaged changes the user left out.
+    declare -A pre_format_hash
+    if [[ ${#staged_files[@]} -gt 0 ]]; then
+      for f in "${staged_files[@]}"; do
+        if [[ -f "$f" ]]; then
+          pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
+        fi
+      done
+    fi
+
     # Run ktlintFormat first to auto-fix formatting
     echo ""
     echo "[1/5] Running ktlintFormat (auto-fix)..."
@@ -101,17 +118,8 @@ try_commit() {
     fi
     echo "  ✓ ktlintFormat passed"
 
-    # Snapshot each staged file's working-tree hash before ktlintFormat runs,
-    # then compare after to re-stage only files ktlintFormat actually changed.
-    # This avoids pulling in pre-existing unstaged changes the user left out.
+    # Compare post-format hashes to detect files modified by ktlintFormat
     if [[ ${#staged_files[@]} -gt 0 ]]; then
-      declare -A pre_format_hash
-      for f in "${staged_files[@]}"; do
-        if [[ -f "$f" ]]; then
-          pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
-        fi
-      done
-
       local modified_files=()
       for f in "${staged_files[@]}"; do
         if [[ -f "$f" ]]; then
@@ -150,6 +158,14 @@ try_commit() {
   else
     echo ""
     echo "  No staged Kotlin sources — skipping ktlint and detekt"
+  fi
+
+  # Check whether any Rust inputs are staged. Re-evaluate against the live
+  # index in case earlier formatting steps updated the staged set.
+  if git diff --cached --quiet -- rust/; then
+    has_rust=0
+  else
+    has_rust=1
   fi
 
   if [[ $has_rust -eq 0 ]]; then
@@ -344,7 +360,7 @@ while true; do
 
   # Ask user to fix issues and re-stage files
   echo ""
-  read -p "Fix issues and stage files? (y/n): " choice
+  read -r -p "Fix issues and stage files? (y/n): " choice
   case "$choice" in
     y|Y)
       echo "Continuing..."
