@@ -112,15 +112,15 @@ None.
 
 ## Verification
 
-Run on 2026-10-04, branch `feature/person-loan-ledger`:
+Run on 2026-10-05, branch `feature/person-loan-ledger`:
 
 | Check | Command | Result |
 |---|---|---|
 | Rust unit tests | `cargo test --manifest-path rust/Cargo.toml` | PASS (496 passed; 0 failures) |
 | Kotlin style | `./gradlew --no-daemon ktlintFormat` | PASS |
 | Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings) |
-| Kotlin compile | `./gradlew --no-daemon compileDebugKotlin` | PASS (BUILD SUCCESSFUL) |
-| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 3/3, `PersonDetailSheetTest` 11/11, `PersonRowSemanticsTest` 3/3) |
+| Kotlin compile | `./gradlew --no-daemon compileDebugKotlin compileReleaseKotlin` | PASS (BUILD SUCCESSFUL) |
+| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `FakeRepositoryTest` 1/1, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 3/3, `PersonDetailSheetTest` 11/11, `PersonRowSemanticsTest` 3/3) |
 | Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass) |
 
 ## Next Steps
@@ -133,4 +133,4 @@ Run on 2026-10-04, branch `feature/person-loan-ledger`:
 
 ## Last Updated
 
-2026-10-04
+2026-10-05
