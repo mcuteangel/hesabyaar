@@ -1,0 +1,51 @@
+# Keeps open PRs up to date with main — exactly once per push to main.
+#
+# Why this instead of Mergify's `update` rule: Mergify re-evaluates its rules
+# on EVERY event (including pushes to the PR branch itself). So after an
+# agent force-pushed, Mergify immediately pushed another merge commit, the
+# next push got rejected, another force-push was needed, ... infinite loop.
+# This workflow only triggers on pushes to main, so a force-push after an
+# update is final — nothing touches the branch again until main moves.
+name: keep PRs up to date with main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Serialize runs: two overlapping runs must not merge into the same branches.
+concurrency:
+  group: keep-prs-updated
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge main into each open PR branch once
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -u
+          prs=$(gh pr list --repo "$REPO" --base main --state open \
+            --json number,isDraft -q '.[] | select(.isDraft | not) | .number')
+          if [ -z "$prs" ]; then
+            echo "no open non-draft PRs targeting main"
+            exit 0
+          fi
+          for pr in $prs; do
+            head_sha=$(gh pr view "$pr" --repo "$REPO" --json headRefOid -q .headRefOid)
+            # expected_head_sha: skip the PR if its branch moved since we listed
+            # it (e.g. someone just pushed) instead of merging onto fresh work.
+            if out=$(gh api "repos/$REPO/pulls/$pr/update-branch" -X POST \
+                -f expected_head_sha="$head_sha" 2>&1); then
+              echo "PR #$pr: update queued"
+            else
+              echo "PR #$pr: skipped ($(echo "$out" | head -c 160 | tr '\n' ' '))"
+            fi
+          done
