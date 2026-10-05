@@ -145,7 +145,7 @@ rustup installs them on the first cargo command.
 
 The pre-commit hook runs quality gates selectively by staged file type.
 
-- When Kotlin or build files are staged, it runs the Kotlin checks (`ktlintFormat`, `ktlintCheck`, `detekt`).
+- When Kotlin or build files are staged, it runs the Kotlin checks (`ktlintFormat`, `ktlintCheck`, `detekt`). The Kotlin trigger covers `*.kt`, `*.kts`, `gradle/libs.versions.toml`, `.editorconfig`, `gradle/wrapper/*`, and `config/detekt/*`. Other Gradle files such as `gradle.properties` do not trigger the Kotlin gates.
 - When files under `rust/` are staged, it runs the Rust checks:
   1. `cargo fmt` — formats staged Rust sources
   2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`

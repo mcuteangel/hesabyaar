@@ -28,7 +28,9 @@
 #   E staged valid + invalid worktree    O restoration after fmt failure
 #   F staged unformatted + formatted wt  P docs-only commit skips every gate
 #   G staged formatted + unstaged edits  P2 Kotlin-only commit runs Kotlin gates
-#   H untracked Rust file                Q missing rust/ directory (with Rust staged)
+#   H untracked Rust file                P3 config files trigger Kotlin gates
+#   I staged Rust deletion               P4 ktlintFormat auto-fix is re-staged
+#   J unstaged Rust deletion             Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             S tab in filename
 #                                        T newline in filename (best effort)

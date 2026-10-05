@@ -82,18 +82,17 @@ try_commit() {
   # Classify the staged set. Kotlin gates cover *.kt, *.kts, and Kotlin/Gradle
   # build and linter configurations. Rust gates cover every path under rust/
   # (sources, manifests, lockfile, toolchain).
-  local has_kotlin=0 has_rust=0
+  local has_kotlin=0
   local staged_path
-  for staged_path in "${staged_files[@]}"; do
-    case "$staged_path" in
-      *.kt|*.kts|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
-        has_kotlin=1
-        ;;
-      rust/*)
-        has_rust=1
-        ;;
-    esac
-  done
+  if [[ ${#staged_files[@]} -gt 0 ]]; then
+    for staged_path in "${staged_files[@]}"; do
+      case "$staged_path" in
+        *.kt|*.kts|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
+          has_kotlin=1
+          ;;
+      esac
+    done
+  fi
 
   if [[ $has_kotlin -eq 1 ]]; then
     # Identify staged Kotlin files. Exclude staged deletions and files without
@@ -111,14 +110,44 @@ try_commit() {
       esac
     done < <(git diff --cached --diff-filter=d -z --name-only)
 
-    # Snapshot working-tree hash of each staged Kotlin file BEFORE ktlintFormat runs,
-    # then compare after to re-stage only files ktlintFormat actually changed.
+    # Materialize the index version of each staged Kotlin file into the worktree
+    # before ktlintFormat runs. This prevents ktlintFormat from touching unrelated
+    # unstaged edits, and ensures git add after formatting stages only the formatter
+    # delta on the staged content — not the user's worktree-only changes.
+    local -a kt_backup_paths=()
+    local -a kt_worktree_files=()
+    local f
+    if [[ ${#staged_kt[@]} -gt 0 ]]; then
+      for f in "${staged_kt[@]}"; do
+        if [[ -f "$f" ]]; then
+          kt_worktree_files+=("$f")
+          kt_backup_paths+=("$rust_backup_dir/tracked/$f")
+        fi
+      done
+    fi
+    # Back up worktree bytes and write index versions for staged files
+    if [[ ${#kt_worktree_files[@]} -gt 0 ]]; then
+      for i in "${!kt_worktree_files[@]}"; do
+        f="${kt_worktree_files[$i]}"
+        mkdir -p "$(dirname "${kt_backup_paths[$i]}")"
+        cp "$f" "${kt_backup_paths[$i]}"
+      done
+      for i in "${!kt_worktree_files[@]}"; do
+        f="${kt_worktree_files[$i]}"
+        git show ":$f" > "$f" 2>/dev/null || cp "${kt_backup_paths[$i]}" "$f"
+      done
+    fi
+
+    # Snapshot the index-version hash AFTER materialization (i.e., the pre-format
+    # candidate), then compare after to re-stage only files ktlintFormat changed.
     declare -A pre_format_hash
-    for f in "${staged_kt[@]}"; do
-      if [[ -f "$f" ]]; then
-        pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
-      fi
-    done
+    if [[ ${#staged_kt[@]} -gt 0 ]]; then
+      for f in "${staged_kt[@]}"; do
+        if [[ -f "$f" ]]; then
+          pre_format_hash["$f"]=$(git hash-object "$f" 2>/dev/null || echo "")
+        fi
+      done
+    fi
 
     # Run ktlintFormat first to auto-fix formatting
     echo ""
@@ -126,6 +155,13 @@ try_commit() {
     if ! ./gradlew ktlintFormat --quiet; then
       echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
       echo "   Run ./gradlew ktlintFormat manually to see details."
+      # Restore worktree Kotlin files before returning
+      for i in "${!kt_worktree_files[@]}"; do
+        f="${kt_worktree_files[$i]}"
+        if [[ -f "${kt_backup_paths[$i]}" ]]; then
+          cp "${kt_backup_paths[$i]}" "$f"
+        fi
+      done
       return 1
     fi
     echo "  ✓ ktlintFormat passed"
@@ -147,6 +183,15 @@ try_commit() {
         git add "${modified_files[@]}"
       fi
     fi
+
+    # Restore the original worktree bytes for staged Kotlin files
+    for i in "${!kt_worktree_files[@]}"; do
+      f="${kt_worktree_files[$i]}"
+      if [[ -f "${kt_backup_paths[$i]}" ]]; then
+        mkdir -p "$(dirname "$f")"
+        cp "${kt_backup_paths[$i]}" "$f"
+      fi
+    done
 
     # Run ktlintCheck to verify no style violations remain
     echo ""
