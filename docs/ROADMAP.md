@@ -40,8 +40,9 @@
 - [x] Backup (JSON format)
 - [x] Restore (replace + merge modes)
 - [x] Excel Export (.xlsx)
+- [x] Sensitive Field Encryption in Backups (passphrase AES-GCM via BackupCipher)
 - [ ] CSV Export
-- [ ] Encrypted Backups
+- [ ] Full Payload Backup Encryption
 
 ---
 
@@ -73,9 +74,11 @@
 - [x] Encrypted API Keys (EncryptedSharedPreferences)
 - [x] Build Secrets (.env)
 - [x] No Hardcoded Keys
-- [ ] Secure Backup (encryption)
-- [ ] Database Encryption (SQLCipher)
-- [ ] Biometric Auth
+- [x] Sensitive Field Encryption in Backups (AES-GCM via BackupCipher)
+- [x] Database Encryption (SQLCipher)
+- [x] Biometric Auth & PIN Lock
+- [ ] Full Payload Backup Encryption
+- [ ] Certificate Pinning
 
 ---
 
