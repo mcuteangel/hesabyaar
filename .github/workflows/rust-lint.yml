@@ -67,11 +67,14 @@ jobs:
           fail_ci_if_error: false
 
       - name: Verify Coveralls token on trusted runs
-        # Fail loudly if the token is misconfigured on main; fork/Dependabot
-        # runs skip the upload silently via the if guard below.
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_COVERALLS_TOKEN != 'true' }}
+        # Loud but non-fatal: a missing token must not abort the rest of the
+        # job (other coverage reporters, test results, APK build). The final
+        # gate step fails the run after everything else has finished.
+        # Fork/Dependabot PRs skip the upload silently via the if guard below.
+        continue-on-error: true
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && env.HAS_COVERALLS_TOKEN != 'true' }}
         run: |
-          echo "::error::COVERALLS_REPO_TOKEN is not configured for main branch pushes"
+          echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1
 
       - name: Upload coverage to Coveralls
@@ -153,3 +156,11 @@ jobs:
           api-token: ${{ secrets.BUILDPULSE_API_TOKEN }}
           path: rust/junit.xml
           coverage-files: rust/lcov.info
+      - name: Fail if Coveralls token missing on trusted runs
+        # Companion to the non-fatal verify step above: turn a missing token
+        # into a red build only after the build, artifacts and all other
+        # reporters have finished.
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && env.HAS_COVERALLS_TOKEN != 'true' }}
+        run: |
+          echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
+          exit 1
