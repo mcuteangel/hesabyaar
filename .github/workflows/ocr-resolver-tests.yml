@@ -18,10 +18,10 @@ permissions:
 
 # Push and pull_request fire for the same commit; cancel superseded runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # A manual dispatch must never cancel an in-flight push run: the cancelled
-  # run would skip its coverage upload and block coveralls-finish finalization.
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  # Manual dispatches get their own group so neither direction cancels the
+  # other; push/PR runs keep sharing a group to cancel superseded runs.
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && '-dispatch' || '' }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -30,6 +30,9 @@ jobs:
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
+      # Single definition of the trusted-run predicate (event, fork, actor);
+      # the verify step references this instead of repeating the expression.
+      IS_TRUSTED_RUN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,7 +57,7 @@ jobs:
         # Fork/Dependabot runs skip the upload silently via the if guard below
         # (Dependabot-triggered runs receive no Actions secrets by design).
         continue-on-error: true
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' && env.HAS_COVERALLS_TOKEN != 'true' }}
+        if: ${{ env.IS_TRUSTED_RUN == 'true' && env.HAS_COVERALLS_TOKEN != 'true' }}
         run: |
           echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1
