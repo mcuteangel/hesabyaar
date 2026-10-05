@@ -88,7 +88,7 @@ class PersonViewModel
      * Cancellation is rethrown to keep structured concurrency intact.
      * [onResult] reports success so the caller can show feedback on failure.
      */
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
     fun addLoanForPerson(
       personId: Long,
       personName: String,
@@ -105,8 +105,8 @@ class PersonViewModel
             true
           } catch (e: CancellationException) {
             throw e
-            // skipcq: KT-W1064
           } catch (e: Exception) {
+            // skipcq: KT-W1064
             AppLogger.e(TAG, "addLoanForPerson failed", e)
             false
           }
@@ -142,7 +142,7 @@ class PersonViewModel
      * so callers are not tricked into showing false errors while the in-flight
      * batch succeeds.
      */
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
     fun settleFully(
       personId: Long,
       onResult: ((Boolean) -> Unit)? = null,
@@ -165,8 +165,8 @@ class PersonViewModel
           }
         } catch (e: CancellationException) {
           throw e
-          // skipcq: KT-W1064
         } catch (e: Exception) {
+          // skipcq: KT-W1064
           AppLogger.e(TAG, "settleFully failed", e)
           overallSuccess = false
         } finally {
@@ -178,7 +178,7 @@ class PersonViewModel
       }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
     private fun dispatchCallbackSafely(
       action: String,
       onResult: (Boolean) -> Unit,
@@ -188,8 +188,8 @@ class PersonViewModel
         onResult(success)
       } catch (e: CancellationException) {
         throw e
-        // skipcq: KT-W1064
       } catch (e: Exception) {
+        // skipcq: KT-W1064
         AppLogger.e(TAG, "$action onResult callback threw", e)
       }
     }
@@ -198,7 +198,7 @@ class PersonViewModel
     // Fatal VM errors (Error / VirtualMachineError) bypass catch (Exception) and fail fast.
     // Per-loan isolation: non-fatal exceptions are logged and reported as a failed loan,
     // so the remaining loans in the batch still settle.
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
     private suspend fun repayLoanSafely(loan: Loan): Boolean {
       val remaining = loan.remainingAmount
       if (remaining <= 0L) {
@@ -213,8 +213,8 @@ class PersonViewModel
         success
       } catch (e: CancellationException) {
         throw e
-        // skipcq: KT-W1064
       } catch (e: Exception) {
+        // skipcq: KT-W1064
         AppLogger.e(TAG, "makeRepayment threw for loan ${loan.id}", e)
         false
       }
