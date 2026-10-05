@@ -36,12 +36,13 @@
 
 # Data
 
-- [x] Room Database (v3)
+- [x] Room Database (schema v9, encrypted on disk via SQLCipher)
 - [x] Backup (JSON format)
 - [x] Restore (replace + merge modes)
 - [x] Excel Export (.xlsx)
+- [x] Sensitive Field Encryption in Backups (passphrase AES-GCM via BackupCipher)
 - [ ] CSV Export
-- [ ] Encrypted Backups
+- [ ] Full Payload Backup Encryption
 
 ---
 
@@ -73,9 +74,10 @@
 - [x] Encrypted API Keys (EncryptedSharedPreferences)
 - [x] Build Secrets (.env)
 - [x] No Hardcoded Keys
-- [ ] Secure Backup (encryption)
-- [ ] Database Encryption (SQLCipher)
-- [ ] Biometric Auth
+- [x] Database Encryption (SQLCipher)
+- [x] Biometric Auth & PIN Lock
+- [ ] Certificate Pinning
+- Note: Sensitive field backup encryption and full payload backup encryption are tracked under the [Data section](#data).
 
 ---
 
