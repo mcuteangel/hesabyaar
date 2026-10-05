@@ -31,20 +31,23 @@ jobs:
     steps:
       - name: Merge main into each open PR branch once
         env:
-          # GITHUB_TOKEN-triggered pushes don't start CI runs; WORKFLOW_PAT does.
-          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          # WORKFLOW_PAT makes pushed merge commits trigger CI runs
+          # (GITHUB_TOKEN doesn't). Falls back to github.token where the
+          # secret is absent (e.g. forks) instead of failing with an
+          # empty token.
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -u
           prs_json=$(gh pr list --repo "$REPO" --base main --state open \
-            --limit 1000 --json number,isDraft,headRefOid) || {
+            --limit 1000 --json number,isDraft,headRefOid,isCrossRepository) || {
             echo "::error::gh pr list failed; aborting instead of reporting 'no PRs'"
             exit 1
           }
           # headRefOid is captured in the initial listing, so a push between the
           # list and the update can't slip in with a fresh expected head, and no
           # per-PR `gh pr view` call is needed.
-          prs=$(echo "$prs_json" | jq -r '.[] | select(.isDraft | not) | "\(.number) \(.headRefOid)"') || {
+          prs=$(echo "$prs_json" | jq -r '.[] | select(.isDraft | not) | "\(.number) \(.headRefOid) \(.isCrossRepository // false)"') || {
             echo "::error::failed to parse PR list"
             exit 1
           }
@@ -55,7 +58,9 @@ jobs:
           failed=0
           while IFS= read -r line; do
             pr=${line%% *}
-            head_sha=${line#* }
+            rest=${line#* }
+            head_sha=${rest%% *}
+            is_xrepo=${rest##* }
             if [ -z "$head_sha" ] || [ "$head_sha" = "null" ]; then
               echo "PR #$pr: skipped (empty head SHA)"
               continue
@@ -71,9 +76,16 @@ jobs:
             if out=$(gh api "repos/$REPO/pulls/$pr/update-branch" -X PUT \
                 --input - <<< "$body" 2>&1); then
               echo "PR #$pr: update queued"
-            elif echo "$out" | grep -qE "HTTP (409|422)"; then
-              # 409/422 = conflict, stale head, or head moved: expected races, skip.
-              echo "PR #$pr: skipped (conflict or stale head)"
+            elif echo "$out" | grep -qE "HTTP (404|409|422)"; then
+              # 404 = PR/head repo deleted mid-run; 409/422 = conflict, stale
+              # head, or head moved: expected races, skip.
+              echo "PR #$pr: skipped (deleted mid-run, conflict, or stale head)"
+            elif [ "$is_xrepo" = "true" ] && echo "$out" | grep -q "HTTP 403"; then
+              # 403 on a fork PR = cannot write the head branch (e.g. author
+              # disabled "allow edits from maintainers"): a permanent per-PR
+              # condition, skip with a warning. A 403 on a same-repo PR is a
+              # real token/auth problem and still fails the run below.
+              echo "::warning::PR #$pr: skipped (no write access to fork head branch)"
             else
               # Auth, rate-limit, 4xx/5xx: real failures must fail the run,
               # not hide behind a green check.
