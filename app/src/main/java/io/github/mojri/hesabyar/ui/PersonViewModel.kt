@@ -77,7 +77,7 @@ class PersonViewModel
           balances.filter { it.personName.contains(q, ignoreCase = true) }
         }
       }.flowOn(defaultDispatcher)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 
     /** Net balance position for a single person, independent of search filter. */
     fun getBalanceForPerson(personId: Long): Flow<PersonBalanceCalculator.PersonBalance?> =
