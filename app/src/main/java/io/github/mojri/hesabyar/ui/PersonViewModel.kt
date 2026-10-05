@@ -12,6 +12,8 @@ import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,12 +30,19 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PersonViewModel
-  @Inject
-  constructor(
+  internal constructor(
     private val repository: HesabyarRepositoryInterface,
     private val manageLoanUseCase: ManageLoanUseCase,
     private val getPersonBalancesUseCase: GetPersonBalancesUseCase,
+    private val defaultDispatcher: CoroutineDispatcher,
   ) : ViewModel() {
+    @Inject
+    constructor(
+      repository: HesabyarRepositoryInterface,
+      manageLoanUseCase: ManageLoanUseCase,
+      getPersonBalancesUseCase: GetPersonBalancesUseCase,
+    ) : this(repository, manageLoanUseCase, getPersonBalancesUseCase, Dispatchers.Default)
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -52,7 +62,7 @@ class PersonViewModel
         repository.allLoans.distinctUntilChanged()
       ) { persons, loans ->
         getPersonBalancesUseCase.computePersonBalances(persons, loans)
-      }
+      }.flowOn(defaultDispatcher)
 
     /** All active (non-archived) persons with their computed net balance and search filter. */
     val personBalances: StateFlow<List<PersonBalanceCalculator.PersonBalance>> =
@@ -66,7 +76,8 @@ class PersonViewModel
         } else {
           balances.filter { it.personName.contains(q, ignoreCase = true) }
         }
-      }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
+      }.flowOn(defaultDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), emptyList())
 
     /** Net balance position for a single person, independent of search filter. */
     fun getBalanceForPerson(personId: Long): Flow<PersonBalanceCalculator.PersonBalance?> =

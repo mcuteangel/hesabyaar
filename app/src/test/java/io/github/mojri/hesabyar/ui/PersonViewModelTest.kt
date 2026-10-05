@@ -34,7 +34,7 @@ class PersonViewModelTest {
    * dispatcher before [Dispatchers.setMain] runs.
    */
   private val viewModel by lazy {
-    PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase)
+    PersonViewModel(fakeRepository, manageLoanUseCase, getPersonBalancesUseCase, testDispatcher)
   }
 
   private class TestFakeRepository : FakeRepository() {
