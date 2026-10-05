@@ -62,7 +62,7 @@
 
 ## What's NOT Encrypted
 
-1. **Other backup fields** — Person names, transaction amounts and descriptions, loan and installment amounts, account names and balances, and category names stay plaintext. Only person phone and notes, plus account card number, account number, and IBAN, are encrypted via `BackupCipher.kt`.
+1. **Plaintext backup fields** — Free-text installment notes and payment-history notes (unlike person notes, which are encrypted), transaction descriptions and amounts, loan and installment amounts, bank-loan amounts (received amount, monthly installment amount, total repayable amount, total interest), account names and initial balances, person names, and category names stay plaintext. Only person phone and person notes, plus account card number, account number, and IBAN, are encrypted via `auth/BackupCipher.kt`.
 2. **SharedPreferences** — Non-sensitive app preferences and reminder config (sensitive tokens and keys use `EncryptedSharedPreferences`)
 
 ---
