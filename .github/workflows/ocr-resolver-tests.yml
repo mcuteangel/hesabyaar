@@ -18,10 +18,12 @@ permissions:
 
 # Push and pull_request fire for the same commit; cancel superseded runs.
 concurrency:
-  # Manual dispatches get their own group so neither direction cancels the
-  # other; push/PR runs keep sharing a group to cancel superseded runs.
+  # Manual dispatches get their own group so a push can never cancel them;
+  # push/PR runs keep sharing a group to cancel superseded runs. Cancellation
+  # stays disabled for dispatches: an explicitly requested manual run must
+  # not be silently killed by a second dispatch.
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && '-dispatch' || '' }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   test:
