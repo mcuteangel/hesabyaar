@@ -1,0 +1,12 @@
+# NOTE: `update` pushes a merge commit to the PR head branch, so it needs
+# write access to it. Same-repo branches always qualify; fork PRs only when
+# the author left "Allow edits from maintainers" enabled (GitHub default on).
+pull_request_rules:
+  - name: keep PRs up to date with main
+    conditions:
+      - base=main
+      - -conflict
+      - -draft
+      - "#commits-behind > 0"
+    actions:
+      update: {}
