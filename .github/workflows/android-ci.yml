@@ -104,6 +104,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Verify Coveralls token on trusted runs
+        # The final gate step references this id - do not rename without updating it.
         id: verify-coveralls-token
         # Loud but non-fatal: a missing token must not abort the rest of the
         # job (other coverage reporters, test results, APK build). The final
@@ -111,7 +112,7 @@ jobs:
         # Fork/Dependabot runs skip the upload silently via the if guard below
         # (Dependabot-triggered runs receive no Actions secrets by design).
         continue-on-error: true
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.repository.fork != true && github.actor != 'dependabot[bot]' && env.HAS_COVERALLS_TOKEN != 'true' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' && env.HAS_COVERALLS_TOKEN != 'true' }}
         run: |
           echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1
@@ -189,9 +190,9 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
       - name: Fail if Coveralls token missing on trusted runs
         # Derives from the verify step's outcome so the trusted-run condition
-        # lives in exactly one place; always() keeps it reporting even when an
-        # earlier step failed.
-        if: ${{ always() && steps.verify-coveralls-token.outcome == 'failure' }}
+        # lives in exactly one place; !cancelled() keeps it reporting after
+        # step failures without flipping cancelled runs to failure.
+        if: ${{ !cancelled() && steps.verify-coveralls-token.outcome == 'failure' }}
         run: |
           echo "::error::COVERALLS_REPO_TOKEN is not configured for trusted runs"
           exit 1

@@ -11,7 +11,7 @@ rules:
   # in these files.
   impostor-commit:
     ignore:
-      - rust-lint.yml:34
+      - rust-lint.yml:35
       - codspeed-rust.yml:33
       - .github/actions/setup-rust-android/action.yml:22
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
