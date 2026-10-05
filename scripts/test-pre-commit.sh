@@ -26,8 +26,8 @@
 #   C staged + unrelated unstaged Rust   M cargo fmt failure
 #   D staged invalid + valid worktree    N cargo clippy failure
 #   E staged valid + invalid worktree    O restoration after fmt failure
-#   F staged unformatted + formatted wt  P Kotlin-only commit
-#   G staged formatted + unstaged edits  Q missing rust/ directory
+#   F staged unformatted + formatted wt  P docs-only commit skips every gate
+#   G staged formatted + unstaged edits  Q missing rust/ directory (with Rust staged)
 #   H untracked Rust file                R unusual filename (spaces/brackets)
 #   I staged Rust deletion               S tab in filename
 #   J unstaged Rust deletion             T newline in filename (best effort)
@@ -463,6 +463,11 @@ case_h() {
   reset_clone
   local u="rust/hesabyar-core/src/orphan_u.rs"
   printf '%s' "$P_A" > "$CLONE/$u"
+  local toml_staged="$WORK/h_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# h probe\n' >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
   stage_carrier h
   run_hook
   expect_rc 0 "hook passes with untracked orphan module present"
@@ -471,7 +476,7 @@ case_h() {
   assert_present_wt "$u"
   contains_staged "$u" && fail "untracked file became staged: $u" \
     || pass "untracked file stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -500,12 +505,17 @@ case_j() {
   echo "=== J: unstaged deletion of tracked Rust file ==="
   reset_clone
   rm "$CLONE/$RS"
+  local toml_staged="$WORK/j_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# j probe\n' >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
   stage_carrier j
   run_hook
   expect_rc 0 "absent dirty file handled without cp failure"
   assert_idx_is_base "$RS"
   assert_absent_wt "$RS"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -534,12 +544,17 @@ case_l() {
   cp "$CLONE/$CARGO_LOCK" "$WTX"
   printf '[[package]]\nname = "probe-lock-corruption"\n' >> "$WTX"
   cp "$WTX" "$CLONE/$CARGO_LOCK"
+  local toml_staged="$WORK/l_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# l probe\n' >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
   stage_carrier l
   run_hook
   expect_rc 0 "lockfile materialized from the index for validation"
   assert_idx_is_base "$CARGO_LOCK"
   assert_wt_file "$CARGO_LOCK" "$WTX"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -600,26 +615,32 @@ case_o() {
 }
 
 case_p() {
-  echo "=== P: Kotlin-only commit skips Rust fmt but keeps clippy gate ==="
+  echo "=== P: docs-only commit skips every quality gate ==="
   reset_clone
   stage_carrier p
   run_hook
-  expect_rc 0 "Kotlin-only commit passes"
-  assert_log_contains "No staged Rust sources to format"
-  assert_log_contains "cargo clippy passed"
+  expect_rc 0 "docs-only commit passes"
+  assert_log_contains "No staged Kotlin sources — skipping ktlint and detekt"
+  assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+  grep -qF "cargo clippy passed" "$LOG" && fail "clippy ran on a docs-only commit" \
+    || pass "clippy skipped on a docs-only commit"
+  grep -qF "[1/5]" "$LOG" && fail "ktlint ran on a docs-only commit" \
+    || pass "ktlint skipped on a docs-only commit"
   local dirty_rust
   dirty_rust=$(git_clone status --porcelain -- rust/)
   [[ -z "$dirty_rust" ]] && pass "rust/ untouched" \
-    || fail "rust/ modified by Kotlin-only run: $dirty_rust"
+    || fail "rust/ modified by docs-only run: $dirty_rust"
   expect_commit_exactly "$CARRIER"
   assert_nothing_staged
 }
 
 case_q() {
-  echo "=== Q: missing rust/ directory hard-fails with hint ==="
+  echo "=== Q: missing rust/ directory hard-fails when Rust sources are staged ==="
   reset_clone
-  mv "$CLONE/rust" "$CLONE/rust_hidden_probe"
+  mk_rs_candidate "$P_A"
+  git_clone add "$RS"
   stage_carrier q
+  mv "$CLONE/rust" "$CLONE/rust_hidden_probe"
   run_hook
   mv "$CLONE/rust_hidden_probe" "$CLONE/rust"
   expect_rc nonzero "missing workspace fails fast"
@@ -633,13 +654,18 @@ case_r() {
   local name="odd name (v1) [ok].rs"
   local p="rust/hesabyar-core/src/$name"
   printf '%s' "$P_A" > "$CLONE/$p"
+  local toml_staged="$WORK/r_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# r probe\n' >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
   stage_carrier r1
   run_hook
   expect_rc 0 "untracked odd-named file passes and survives"
   assert_present_wt "$p"
   contains_staged "$p" && fail "odd-named untracked became staged" \
     || pass "odd-named untracked stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   reset_clone
   printf '%s' "$P_A" > "$CLONE/$p"
   setup_commit_no_verify "$p"
@@ -664,6 +690,11 @@ run_odd_name_case() { # $1 label, $2 raw filename
     return 0
   fi
   printf '%s' "$P_A" > "$EXP"
+  local toml_staged="$WORK/odd_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# odd probe\n' >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
   stage_carrier "$1"
   run_hook
   expect_rc 0 "$1: hook passes"
@@ -671,7 +702,7 @@ run_odd_name_case() { # $1 label, $2 raw filename
   assert_wt_file "$p" "$EXP"
   contains_staged "$p" && fail "$1: untracked became staged" \
     || pass "$1: untracked stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   rm -f "$CLONE/$p"
   return 0
 }
@@ -692,6 +723,9 @@ case_u() {
   printf '#!/usr/bin/env bash\nexit 1\n' > "$CLONE/gradlew"
   chmod +x "$CLONE/gradlew"
   rm -f "$CARGO_PROBE_LOG"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierU.kt"
+  printf '// u probe\n' > "$CLONE/$kt"
+  git_clone add "$kt"
   mk_rs_candidate "$P_A"
   git_clone add "$RS"
   stage_carrier u
@@ -710,7 +744,7 @@ case_u() {
   fi
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$EXP"
-  expect_staged_exactly "$CARRIER" "$RS"
+  expect_staged_exactly "$CARRIER" "$kt" "$RS"
 }
 
 # Can this host represent a chmod on a .rs file that bash and Git can see?
