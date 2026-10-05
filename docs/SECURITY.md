@@ -40,7 +40,7 @@
 
 - JSON format, plain text by default
 - Stored in user-selected location via SAF
-- Sensitive fields encrypted with passphrase AES-GCM via `auth/BackupCipher.kt` when the user sets a passphrase
+- Sensitive fields encrypted with passphrase AES-GCM via `auth/BackupCipher.kt` when the user sets a passphrase (person `phone` and `notes`, and account `cardNumber`, `accountNumber`, and `iban`)
 
 ---
 
@@ -62,7 +62,7 @@
 
 ## What's NOT Encrypted
 
-1. **Non-sensitive backup fields** — Category names and account metadata (sensitive notes/amounts encrypted via `BackupCipher.kt`)
+1. **Other backup fields** — Person names, transaction amounts and descriptions, loan and installment amounts, account names and balances, and category names stay plaintext. Only person phone and notes, plus account card number, account number, and IBAN, are encrypted via `BackupCipher.kt`.
 2. **SharedPreferences** — Non-sensitive app preferences and reminder config (sensitive tokens and keys use `EncryptedSharedPreferences`)
 
 ---

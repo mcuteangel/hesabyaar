@@ -12,7 +12,7 @@ Hesabyar is a Persian-first personal finance app for Android. It works fully off
 - **Smart text parsing.** Type Persian text such as «دیروز ۵۰ هزارتومن ناهار». The parser extracts the amount, date, and category. It works offline (Rust NLP parser) and online (Gemini).
 - **AI providers.** Use Gemini, OpenRouter, or a custom endpoint. A rule-based offline fallback covers budget advice and forecasts when no provider is available.
 - **Backup and restore.** Export all data as JSON. Restore with REPLACE or MERGE mode. Excel (.xlsx) export is available.
-- **Security.** Lock the app with PIN or biometrics. Room database is encrypted on disk via SQLCipher. Passphrase-based AES-GCM protects sensitive backup fields.
+- **Security.** Lock the app with PIN or biometrics. Room database is encrypted on disk via SQLCipher. Passphrase-based AES-GCM protects sensitive person/account fields in backups (phone, notes, card/account numbers, IBAN); amounts and names remain plaintext. See [SECURITY](SECURITY.md).
 
 > Planned, not yet done: CSV export, full backup payload encryption, certificate pinning, voice input, on-device local AI. See [ROADMAP](ROADMAP.md).
 
