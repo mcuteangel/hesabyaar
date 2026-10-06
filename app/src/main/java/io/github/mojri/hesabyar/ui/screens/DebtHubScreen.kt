@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,12 @@ fun DebtHubScreen(
   // in-screen tab taps still keep their own state between recompositions.
   var section by remember(initialSection) { mutableStateOf(initialSection) }
   var selectedPerson by remember { mutableStateOf<Pair<Long, String>?>(null) }
+
+  LaunchedEffect(initialSection) {
+    if (initialSection != DebtSection.PERSONS) {
+      selectedPerson = null
+    }
+  }
 
   Column(modifier = modifier.fillMaxSize()) {
     DebtHubTabBar(
