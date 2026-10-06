@@ -72,6 +72,8 @@ fun DashboardScreen(
     transactionViewModel.submitManualTransaction(request)
   },
   onNavigateToAssistant: () -> Unit,
+  onShowDebtors: () -> Unit,
+  onShowCreditors: () -> Unit,
   modifier: Modifier = Modifier
 ) {
   val dashboardData by dashboardViewModel.dashboardState.collectAsState()
@@ -187,7 +189,11 @@ fun DashboardScreen(
       // Debtors and Creditors summary Row
       item {
         entranceCard {
-          DebtorCreditorCards(dashboardData)
+          DebtorCreditorCards(
+            dashboardData = dashboardData,
+            onDebtorsClick = onShowDebtors,
+            onCreditorsClick = onShowCreditors,
+          )
         }
       }
 
