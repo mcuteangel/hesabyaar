@@ -11,6 +11,34 @@ RUST_DIRTY_FILES=()     # tracked rust/ inputs whose worktree differed from the 
 RUST_UNTRACKED_FILES=() # non-ignored untracked files under rust/
 declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal before backup
 
+# Backup state for Kotlin worktree materialization. Declared at script scope
+# so the EXIT trap can clean it up on crash, abort, or interruption.
+kt_backup_dir=""
+KT_DIRTY_FILES=()     # staged Kotlin files whose worktree differed from index
+KT_ABSENT_FILES=()    # staged Kotlin files absent from worktree before the hook ran
+
+# Restore every Kotlin file touched by Kotlin materialization back to its
+# original worktree state. Idempotent: a second call is a no-op.
+restore_kt_worktree() {
+  local b="$kt_backup_dir"
+  local f
+  if [[ -n "$b" && -d "$b" ]]; then
+    for f in "${KT_DIRTY_FILES[@]}"; do
+      if [[ -f "$b/tracked/$f" ]]; then
+        mkdir -p "$(dirname "$f")" 2>/dev/null || true
+        cp "$b/tracked/$f" "$f" 2>/dev/null || true
+      fi
+    done
+    rm -rf "$b"
+  fi
+  for f in "${KT_ABSENT_FILES[@]}"; do
+    rm -f "$f"
+  done
+  KT_DIRTY_FILES=()
+  KT_ABSENT_FILES=()
+  kt_backup_dir=""
+}
+
 # Print a file's permission bits as octal digits without leading zeros.
 # GNU stat accepts -c. BSD and macOS stat accept -f '%Lp'. The value is
 # accepted only when it is pure octal. Returns non-zero when no stat
@@ -64,7 +92,12 @@ restore_rust_worktree() {
   rust_backup_dir=""
 }
 
-trap restore_rust_worktree EXIT
+cleanup_worktrees() {
+  restore_kt_worktree
+  restore_rust_worktree
+}
+
+trap cleanup_worktrees EXIT
 
 echo "==========================================="
 echo "  Hesabyar — Pre-Commit Hook"
@@ -82,7 +115,7 @@ try_commit() {
   # Classify the staged set. Kotlin gates cover *.kt, *.kts, and Kotlin/Gradle
   # build and linter configurations. Rust gates cover every path under rust/
   # (sources, manifests, lockfile, toolchain).
-  local has_kotlin=0
+  local has_kotlin=0 has_rust=0
   local staged_path
   if [[ ${#staged_files[@]} -gt 0 ]]; then
     for staged_path in "${staged_files[@]}"; do
@@ -110,32 +143,66 @@ try_commit() {
       esac
     done < <(git diff --cached --diff-filter=d -z --name-only)
 
-    # Materialize the index version of each staged Kotlin file into the worktree
-    # before ktlintFormat runs. This prevents ktlintFormat from touching unrelated
-    # unstaged edits, and ensures git add after formatting stages only the formatter
-    # delta on the staged content — not the user's worktree-only changes.
-    local -a kt_backup_paths=()
-    local -a kt_worktree_files=()
-    local f
+    # Clean up any leftover Kotlin backup from a previous attempt
+    restore_kt_worktree
+
+    # Materialize the index version of each staged Kotlin file that is dirty
+    # (has unstaged worktree modifications) or absent (deleted in the worktree
+    # without staging). This isolates staged Kotlin files so git add after
+    # formatting only stages the formatter delta on the staged content — not
+    # the user's unstaged edits. Note that unrelated Kotlin files in the
+    # project remain subject to the project-wide ktlintFormat task.
     if [[ ${#staged_kt[@]} -gt 0 ]]; then
+      local -a dirty_kt=() absent_kt=()
       for f in "${staged_kt[@]}"; do
-        if [[ -f "$f" ]]; then
-          kt_worktree_files+=("$f")
-          kt_backup_paths+=("$rust_backup_dir/tracked/$f")
+        if [[ ! -e "$f" ]]; then
+          absent_kt+=("$f")
+        elif ! git diff-files --quiet -- "$f" 2>/dev/null; then
+          dirty_kt+=("$f")
         fi
       done
-    fi
-    # Back up worktree bytes and write index versions for staged files
-    if [[ ${#kt_worktree_files[@]} -gt 0 ]]; then
-      for i in "${!kt_worktree_files[@]}"; do
-        f="${kt_worktree_files[$i]}"
-        mkdir -p "$(dirname "${kt_backup_paths[$i]}")"
-        cp "$f" "${kt_backup_paths[$i]}"
-      done
-      for i in "${!kt_worktree_files[@]}"; do
-        f="${kt_worktree_files[$i]}"
-        git show ":$f" > "$f" 2>/dev/null || cp "${kt_backup_paths[$i]}" "$f"
-      done
+
+      if [[ ${#dirty_kt[@]} -gt 0 || ${#absent_kt[@]} -gt 0 ]]; then
+        kt_backup_dir=$(mktemp -d "${TMPDIR:-/tmp}/hesabyar-kt.XXXXXX") || {
+          echo "❌ Could not create a temporary backup directory for Kotlin files."
+          return 1
+        }
+        mkdir -p "$kt_backup_dir/tracked" || {
+          echo "❌ Could not create backup directory '$kt_backup_dir/tracked'."
+          rm -rf "$kt_backup_dir"
+          kt_backup_dir=""
+          return 1
+        }
+
+        # Back up dirty worktree files before materialization
+        for f in "${dirty_kt[@]}"; do
+          if ! mkdir -p "$(dirname "$kt_backup_dir/tracked/$f")" || ! cp "$f" "$kt_backup_dir/tracked/$f"; then
+            echo "❌ Failed to back up Kotlin file '$f'."
+            restore_kt_worktree
+            return 1
+          fi
+          KT_DIRTY_FILES+=("$f")
+        done
+
+        # Materialize index version for dirty files
+        for f in "${dirty_kt[@]}"; do
+          if ! git show ":$f" > "$f" 2>/dev/null; then
+            echo "❌ Failed to materialize index version for Kotlin file '$f'."
+            restore_kt_worktree
+            return 1
+          fi
+        done
+
+        # Materialize index version for files absent from the worktree
+        for f in "${absent_kt[@]}"; do
+          if ! mkdir -p "$(dirname "$f")" 2>/dev/null || ! git show ":$f" > "$f" 2>/dev/null; then
+            echo "❌ Failed to materialize absent Kotlin file '$f'."
+            restore_kt_worktree
+            return 1
+          fi
+          KT_ABSENT_FILES+=("$f")
+        done
+      fi
     fi
 
     # Snapshot the index-version hash AFTER materialization (i.e., the pre-format
@@ -155,13 +222,7 @@ try_commit() {
     if ! ./gradlew ktlintFormat --quiet; then
       echo "❌ ktlintFormat failed — there may be unresolved formatting issues."
       echo "   Run ./gradlew ktlintFormat manually to see details."
-      # Restore worktree Kotlin files before returning
-      for i in "${!kt_worktree_files[@]}"; do
-        f="${kt_worktree_files[$i]}"
-        if [[ -f "${kt_backup_paths[$i]}" ]]; then
-          cp "${kt_backup_paths[$i]}" "$f"
-        fi
-      done
+      restore_kt_worktree
       return 1
     fi
     echo "  ✓ ktlintFormat passed"
@@ -173,7 +234,7 @@ try_commit() {
         if [[ -f "$f" ]]; then
           local post_hash
           post_hash=$(git hash-object "$f" 2>/dev/null || echo "")
-          if [[ -n "${pre_format_hash[$f]}" && "${pre_format_hash[$f]}" != "$post_hash" ]]; then
+          if [[ -n "${pre_format_hash[$f]:-}" && "${pre_format_hash[$f]}" != "$post_hash" ]]; then
             modified_files+=("$f")
           fi
         fi
@@ -184,21 +245,13 @@ try_commit() {
       fi
     fi
 
-    # Restore the original worktree bytes for staged Kotlin files
-    for i in "${!kt_worktree_files[@]}"; do
-      f="${kt_worktree_files[$i]}"
-      if [[ -f "${kt_backup_paths[$i]}" ]]; then
-        mkdir -p "$(dirname "$f")"
-        cp "${kt_backup_paths[$i]}" "$f"
-      fi
-    done
-
     # Run ktlintCheck to verify no style violations remain
     echo ""
     echo "[2/5] Running ktlintCheck..."
     if ! ./gradlew ktlintCheck --quiet; then
       echo "❌ ktlintCheck failed — Kotlin style violations detected."
       echo "   Fix the issues manually or re-stage the files and try again."
+      restore_kt_worktree
       return 1
     fi
     echo "  ✓ ktlintCheck passed"
@@ -209,9 +262,13 @@ try_commit() {
     if ! ./gradlew detekt; then
       echo "❌ detekt failed — code quality issues detected."
       echo "   Fix the issues or run ./gradlew detekt to see details."
+      restore_kt_worktree
       return 1
     fi
     echo "  ✓ detekt passed"
+
+    # Restore the original worktree bytes for dirty and absent Kotlin files
+    restore_kt_worktree
   else
     echo ""
     echo "  No staged Kotlin sources — skipping ktlint and detekt"
