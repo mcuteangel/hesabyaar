@@ -32,6 +32,10 @@
 #                                        P4 ktlintFormat auto-fix is re-staged
 #                                        P5 staged Kotlin + unstaged edits survives
 #                                        P6 ktlint failure restores Kotlin worktree
+#                                        P7 staged Kotlin deletion passes
+#                                        P8 absent staged Kotlin validated/restored
+#                                        P9 detekt failure restores Kotlin worktree
+#                                        P10 unstaged Kotlin mode change survives
 #                                        Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             S tab in filename
@@ -790,6 +794,112 @@ EOF
   assert_log_contains "ktlintCheck failed"
   assert_wt_file "$kt" "$wtx"
   assert_idx_file "$kt" "$exp"
+  expect_staged_exactly "$CARRIER" "$kt"
+}
+
+case_p7() {
+  echo "=== P7: staged Kotlin deletion passes and stays deleted ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP7.kt"
+  printf '// p7 doomed content\n' > "$CLONE/$kt"
+  setup_commit_no_verify "$kt"
+  DIFF_BASE=$(git_clone rev-parse HEAD)
+  git_clone rm -q "$kt"
+  stage_carrier p7
+  run_hook
+  expect_rc 0 "staged Kotlin deletion passes Kotlin gates"
+  assert_log_contains "[1/5] Running ktlintFormat"
+  if commit_deletion_present "$kt"; then
+    pass "Kotlin deletion recorded in the commit"
+  else
+    fail "Kotlin deletion missing from the commit"
+  fi
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p8() {
+  echo "=== P8: absent staged Kotlin file is validated then restored absent ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP8.kt"
+  local exp="$WORK/p8_staged.bin"
+  printf '// p8 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p8
+  # Delete from the worktree without staging: the hook must materialize the
+  # index version for validation and delete it again on restore.
+  rm "$CLONE/$kt"
+  run_hook
+  expect_rc 0 "hook passes with an absent staged Kotlin file"
+  assert_idx_file "$kt" "$exp"
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p9() {
+  echo "=== P9: detekt failure still restores Kotlin worktree ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP9.kt"
+  local exp="$WORK/p9_staged.bin"
+  local wtx="$WORK/p9_wt.bin"
+  printf '// p9 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p9
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p9 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc nonzero "hook fails when detekt fails"
+  assert_log_contains "detekt failed"
+  assert_wt_file "$kt" "$wtx"
+  assert_idx_file "$kt" "$exp"
+  expect_staged_exactly "$CARRIER" "$kt"
+}
+
+case_p10() {
+  echo "=== P10: unstaged Kotlin mode change survives materialization ==="
+  host_represents_chmod || { skip "P10: host cannot represent chmod on .kt files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP10.kt"
+  local exp="$WORK/p10_staged.bin"
+  local wtx="$WORK/p10_wt.bin"
+  printf '// p10 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p10
+  chmod +x "$CLONE/$kt"
+  cp "$exp" "$wtx"
+  run_hook
+  expect_rc 0 "hook passes with an unstaged Kotlin mode change present"
+  assert_idx_file "$kt" "$exp"
+  assert_wt_file "$kt" "$wtx"
+  if [[ -x "$CLONE/$kt" ]]; then
+    pass "original Kotlin worktree mode (+x) restored"
+  else
+    fail "Kotlin worktree executable bit lost by materialization"
+  fi
+  local idx_mode
+  idx_mode=$(git_clone ls-files -s -- "$kt" | awk '{print $1}')
+  if [[ "$idx_mode" = "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
 }
 
 case_q() {
@@ -1152,7 +1262,7 @@ case_e2_static_capture_before_materialization() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
 
 for c in "${CASES[@]}"; do
   "case_$c"

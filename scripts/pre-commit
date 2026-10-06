@@ -23,12 +23,16 @@ declare -A KT_DIRTY_MODES=() # permission bits of each dirty Kotlin file in octa
 restore_kt_worktree() {
   local b="$kt_backup_dir"
   local f
+  local restore_failed=0
   if [[ -n "$b" && -d "$b" ]]; then
     if [[ ${#KT_DIRTY_FILES[@]} -gt 0 ]]; then
       for f in "${KT_DIRTY_FILES[@]}"; do
         if [[ -f "$b/tracked/$f" ]]; then
-          mkdir -p "$(dirname "$f")" 2>/dev/null || true
-          cp "$b/tracked/$f" "$f" 2>/dev/null || true
+          if ! mkdir -p "$(dirname "$f")" 2>/dev/null || ! cp "$b/tracked/$f" "$f" 2>/dev/null; then
+            restore_failed=1
+            echo "❌ Failed to restore Kotlin file '$f' from '$b/tracked/$f'." >&2
+            continue
+          fi
           local m="${KT_DIRTY_MODES[$f]:-}"
           if [[ "$m" =~ ^[0-7]{1,4}$ ]]; then
             chmod "$m" "$f" 2>/dev/null || true
@@ -36,7 +40,12 @@ restore_kt_worktree() {
         fi
       done
     fi
-    rm -rf "$b"
+    if [[ $restore_failed -eq 0 ]]; then
+      rm -rf "$b"
+      kt_backup_dir=""
+    else
+      echo "⚠️ Retaining Kotlin backup directory '$b' due to restore failure." >&2
+    fi
   fi
   if [[ ${#KT_ABSENT_FILES[@]} -gt 0 ]]; then
     for f in "${KT_ABSENT_FILES[@]}"; do
@@ -46,7 +55,10 @@ restore_kt_worktree() {
   KT_DIRTY_FILES=()
   KT_ABSENT_FILES=()
   KT_DIRTY_MODES=()
-  kt_backup_dir=""
+  if [[ $restore_failed -ne 0 ]]; then
+    return 1
+  fi
+  return 0
 }
 
 # Print a file's permission bits as octal digits without leading zeros.
@@ -103,8 +115,8 @@ restore_rust_worktree() {
 }
 
 cleanup_worktrees() {
-  restore_kt_worktree
-  restore_rust_worktree
+  restore_kt_worktree || true
+  restore_rust_worktree || true
 }
 
 trap cleanup_worktrees EXIT
@@ -165,7 +177,17 @@ try_commit() {
     if [[ ${#staged_kt[@]} -gt 0 ]]; then
       local -a dirty_kt=() absent_kt=()
       for f in "${staged_kt[@]}"; do
-        if [[ ! -e "$f" ]]; then
+        if [[ -L "$f" ]]; then
+          # A dangling symlink is not -e, so it would enter the absent path
+          # and git show would write through the link to its target. Never
+          # materialize through a symlink: reject it before any backup runs.
+          echo "❌ Staged Kotlin file '$f' is a symbolic link."
+          echo "   The hook materializes index content into the worktree and"
+          echo "   must not write through a symlink. Replace it with a regular"
+          echo "   file and retry."
+          restore_kt_worktree
+          return 1
+        elif [[ ! -e "$f" ]]; then
           absent_kt+=("$f")
         elif ! git diff-files --quiet -- "$f" 2>/dev/null; then
           dirty_kt+=("$f")
@@ -210,14 +232,17 @@ try_commit() {
           fi
         done
 
-        # Materialize index version for files absent from the worktree
+        # Materialize index version for files absent from the worktree.
+        # Register the path BEFORE the write: the redirection creates or
+        # truncates $f even when git show fails, and an interrupt right after
+        # the write must still find the path in KT_ABSENT_FILES for cleanup.
         for f in "${absent_kt[@]}"; do
+          KT_ABSENT_FILES+=("$f")
           if ! mkdir -p "$(dirname "$f")" 2>/dev/null || ! git show ":$f" > "$f" 2>/dev/null; then
             echo "❌ Failed to materialize absent Kotlin file '$f'."
             restore_kt_worktree
             return 1
           fi
-          KT_ABSENT_FILES+=("$f")
         done
       fi
     fi
