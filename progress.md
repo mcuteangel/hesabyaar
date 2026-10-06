@@ -112,7 +112,7 @@ None.
 
 ## Verification
 
-Run on 2026-10-06, branch `feature/person-loan-ledger` (head `c6e2a59`):
+Run on 2026-10-06, branch `feature/person-loan-ledger` (head `a14c196`):
 
 | Check | Command | Result |
 |---|---|---|
