@@ -38,6 +38,7 @@
 #                                        P10 unstaged Kotlin mode change survives
 #                                        P11 staged Kotlin symlink is rejected
 #                                        P12 forced Kotlin restore failure aborts, backup kept
+#                                        P13 leftover failed Kotlin backup aborts hook
 #                                        Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             S tab in filename
@@ -696,10 +697,16 @@ case_p3() {
     ".editorconfig"
     "config/detekt/detekt.yml"
     "gradle/wrapper/gradle-wrapper.properties"
+    "feature-module/gradle/wrapper/gradle-wrapper.properties"
+    "subproject/config/detekt/detekt.yml"
+    "subproject/gradle.properties"
+    "subproject/gradle/libs.versions.toml"
+    "subproject/.editorconfig"
   )
   local cfg
   for cfg in "${cfg_files[@]}"; do
     reset_clone
+    mkdir -p "$CLONE/$(dirname "$cfg")"
     printf '\n# p3 probe\n' >> "$CLONE/$cfg"
     git_clone add "$cfg"
     stage_carrier "p3"
@@ -982,6 +989,41 @@ EOF
   fi
 
   rm -f "$CLONE/$pkg"
+}
+
+case_p13() {
+  echo "=== P13: leftover failed Kotlin backup aborts before creating new backup ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP13.kt"
+  printf '// p13 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p13
+
+  local stale_backup="$WORK/hesabyar-kt-stale.999999"
+  mkdir -p "$stale_backup"
+
+  # Inject prior failed restore state into hook copy
+  sed -e "s|^kt_restore_failed=0|kt_restore_failed=1\nkt_backup_dir=\"$stale_backup\"|" \
+    "$SRC/scripts/pre-commit" > "$HOOKS/pre-commit"
+  chmod +x "$HOOKS/pre-commit"
+
+  run_hook
+  expect_rc nonzero "hook aborts when leftover Kotlin backup state failed"
+  assert_log_contains "Leftover Kotlin backup could not be restored"
+  assert_log_contains "$stale_backup"
+  expect_staged_exactly "$CARRIER" "$kt"
+
+  # Verify stale backup directory was preserved on disk and not clobbered
+  if [[ -d "$stale_backup" ]]; then
+    pass "stale backup directory retained without clobber: $stale_backup"
+  else
+    fail "stale backup directory was deleted or moved: $stale_backup"
+  fi
+
+  # Restore clean hook
+  cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
+  chmod +x "$HOOKS/pre-commit"
+  rm -rf "$stale_backup"
 }
 
 case_q() {
@@ -1368,7 +1410,8 @@ case_e3_static_kotlin_symlink_rejection() {
   if [[ -n "$sym_ln" && -n "$mat_ln" && "$sym_ln" -lt "$mat_ln" ]] \
      && grep -qF "must not write through a symlink" "$src" \
      && grep -qF "Retaining Kotlin backup directory" "$src" \
-     && grep -qF "Failed to restore the original Kotlin worktree state" "$src"; then
+     && grep -qF "Failed to restore the original Kotlin worktree state" "$src" \
+     && grep -qF "Leftover Kotlin backup could not be restored" "$src"; then
     pass "symlink check (line $sym_ln) precedes materialization (line $mat_ln) and restore-failure retention is wired"
   else
     fail "symlink rejection or restore failure retention wiring missing from hook source"
@@ -1377,7 +1420,7 @@ case_e3_static_kotlin_symlink_rejection() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"

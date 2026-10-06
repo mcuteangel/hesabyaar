@@ -147,7 +147,12 @@ try_commit() {
   if [[ ${#staged_files[@]} -gt 0 ]]; then
     for staged_path in "${staged_files[@]}"; do
       case "$staged_path" in
-        *.kt|*.kts|*.gradle|gradle.properties|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
+        *.kt|*.kts|*.gradle|\
+        gradle.properties|*/gradle.properties|\
+        gradle/libs.versions.toml|*/gradle/libs.versions.toml|\
+        .editorconfig|*/.editorconfig|\
+        gradle/wrapper/*|*/gradle/wrapper/*|\
+        config/detekt/*|*/config/detekt/*)
           has_kotlin=1
           ;;
       esac
@@ -170,15 +175,20 @@ try_commit() {
       esac
     done < <(git diff --cached --diff-filter=d -z --name-only)
 
-    # Clean up any leftover Kotlin backup from a previous attempt
-    restore_kt_worktree
+    # Clean up any leftover Kotlin backup from a previous attempt.
+    # Abort if a prior restore failed so retained state is not clobbered.
+    if ! restore_kt_worktree; then
+      echo "❌ Leftover Kotlin backup could not be restored." >&2
+      echo "   Retained backup directory: '$kt_backup_dir'" >&2
+      return 1
+    fi
 
-    # Materialize the index version of each staged Kotlin file that is dirty
-    # (has unstaged worktree modifications) or absent (deleted in the worktree
-    # without staging). This isolates staged Kotlin files so git add after
-    # formatting only stages the formatter delta on the staged content — not
-    # the user's unstaged edits. Note that unrelated Kotlin files in the
-    # project remain subject to the project-wide ktlintFormat task.
+    # Materialize index versions for staged Kotlin files that are dirty
+    # or absent in the worktree. This prevents unstaged edits on staged files
+    # from being included when auto-fixes are re-staged.
+    # Note: Gradle tasks (ktlintFormat, ktlintCheck, detekt) run on the whole
+    # project and can modify unstaged Kotlin files in the worktree. Only the
+    # staged files are protected against accidental staging of unstaged edits.
     if [[ ${#staged_kt[@]} -gt 0 ]]; then
       local -a dirty_kt=() absent_kt=()
       for f in "${staged_kt[@]}"; do
