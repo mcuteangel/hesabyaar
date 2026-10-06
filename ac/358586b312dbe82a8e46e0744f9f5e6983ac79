@@ -1,0 +1,29 @@
+scripts/pre-commit
+  s_3ae98003c5def4::t_9e87a97aaed2dc 19,36,48
+  s_3ae98003c5def4::t_6695b3d81928a2 41-45
+  s_3ae98003c5def4::t_ff2bc5158928cf 27-35,37-38
+  s_3ae98003c5def4::t_dcd15273f3eb60 133
+  s_3ae98003c5def4::t_bec1375ce7fd1d 187,194-199,201
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_9dea8a0b3036f1 745-794
+  s_3ae98003c5def4::t_b5053d3016b6ab 33-34
+  s_3ae98003c5def4::t_c866398112b0b3 1155
+rust/hesabyar-core/README.md
+  s_3ae98003c5def4::t_9c22bea26e7981 148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ac358586b312dbe82a8e46e0744f9f5e6983ac79",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
