@@ -34,7 +34,11 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Suppress("LongMethod")
 @Composable
-internal fun DebtorCreditorCards(dashboardData: DashboardData) {
+internal fun DebtorCreditorCards(
+  dashboardData: DashboardData,
+  onDebtorsClick: (() -> Unit)? = null,
+  onCreditorsClick: (() -> Unit)? = null,
+) {
   FlowRow(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md),
@@ -44,6 +48,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
+      onClick = onDebtorsClick,
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -93,6 +98,7 @@ internal fun DebtorCreditorCards(dashboardData: DashboardData) {
     HesabyarCard(
       modifier = Modifier.weight(1f),
       shape = ShapeTokens.Large,
+      onClick = onCreditorsClick,
       cardColors =
         CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.tertiaryContainer

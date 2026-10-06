@@ -228,6 +228,7 @@ The backup envelope carries two version fields. They are independent from the ap
 - `docs/ROADMAP.md` — the feature status
 - `docs/architecture/ARCHITECTURE.md` — the full architecture guide
 - `docs/architecture/ADR-001-rust-sole-implementation.md` — Rust-first business logic policy decision record
+- `docs/LOCALIZATION.md` — String resources, localization, and key reusability guidelines
 
 ## Mandatory Post-Modification Verification Workflow
 
@@ -516,6 +517,22 @@ CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
 Use `JalaliCalendarHelper.kt` for all user-facing date presentation and date calculations in the UI.
 
 Do not use `java.time.LocalDate` or `java.util.Date` directly for user-facing financial date logic. This constraint does not forbid standard epoch millisecond timestamps used for internal database storage or serialization.
+
+### String Resources and Localization
+
+When code reviews or static analysis tools flag hardcoded string literals:
+1. Extract user-facing string literals into `app/src/main/res/values/strings.xml`.
+2. Reference strings with `stringResource(R.string.<key>)` in Compose or `context.getString(R.string.<key>)`.
+3. Never keep raw hardcoded text strings in UI code when flagged.
+
+Follow these naming and reusability rules:
+
+- **Common Action Verbs**: Use generic action prefixes (`action_save`, `action_cancel`, `action_confirm`, `action_delete`). Reuse them across screens.
+- **Generic Labels and Errors**: Use standard prefixes for common UI states (`label_name`, `label_amount`, `error_empty_field`).
+- **Feature-Specific Strings**: Prefix with the feature or domain (`<feature>_<element>_<detail>`), such as `debt_hub_tab_persons`.
+- **Reusable Over Specific**: Do not duplicate keys for identical text. Search `strings.xml` before adding new keys.
+- **Dynamic Content**: Use format specifiers (`%1$s`, `%1$d`) instead of string concatenation.
+- **Persian-First**: Store the primary Persian text in `res/values/strings.xml`.
 
 ## Room Migration Checklist
 
