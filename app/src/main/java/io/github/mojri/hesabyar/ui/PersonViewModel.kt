@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
+import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
@@ -61,8 +62,29 @@ class PersonViewModel
         repository.allPersons.distinctUntilChanged(),
         repository.allLoans.distinctUntilChanged()
       ) { persons, loans ->
-        getPersonBalancesUseCase.computePersonBalances(persons, loans)
+        computeBalancesSafely(persons, loans)
       }.flowOn(defaultDispatcher)
+
+    /**
+     * Compute per-person balances via the Rust bridge.
+     *
+     * Safety net: native bridge failure must be logged, not crash the ledger.
+     * Cancellation is rethrown to preserve structured concurrency.
+     */
+    @Suppress("TooGenericExceptionCaught") // CancellationException is rethrown first for structured cancellation
+    private fun computeBalancesSafely(
+      persons: List<Person>,
+      loans: List<Loan>,
+    ): List<PersonBalanceCalculator.PersonBalance> =
+      try {
+        getPersonBalancesUseCase.computePersonBalances(persons, loans)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        // skipcq: KT-W1064
+        AppLogger.e(TAG, "computePersonBalances failed; rendering empty ledger", e)
+        emptyList()
+      }
 
     /** All active (non-archived) persons with their computed net balance and search filter. */
     val personBalances: StateFlow<List<PersonBalanceCalculator.PersonBalance>> =
