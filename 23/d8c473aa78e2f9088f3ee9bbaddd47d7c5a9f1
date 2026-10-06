@@ -1,0 +1,22 @@
+progress.md
+  s_859d581d3d8f7b::t_c60e290b3cfef2 115
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt
+  s_859d581d3d8f7b::t_55ff732fc23e09 13
+  s_859d581d3d8f7b::t_f5ba7104002168 53-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "23d8c473aa78e2f9088f3ee9bbaddd47d7c5a9f1",
+  "prompts": {},
+  "sessions": {
+    "s_859d581d3d8f7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc4c2e08-0f99-4d6b-b1ab-b898f3c1359b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
