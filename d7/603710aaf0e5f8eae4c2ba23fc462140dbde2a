@@ -1,0 +1,22 @@
+.github/workflows/lint.yml
+  s_d5784245dd9d9a::t_1bbb728c1cbf2c 103,108
+.github/workflows/ocr-review-job.yml
+  s_d5784245dd9d9a::t_2fe1b9a13e2dbb 287-288,295,306,315,317-318,321-322
+  s_d5784245dd9d9a::t_fbd7d56ed86e4f 226,234,237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d7603710aaf0e5f8eae4c2ba23fc462140dbde2a",
+  "prompts": {},
+  "sessions": {
+    "s_d5784245dd9d9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2d2d3832-b500-44de-a6c6-2118535bb369",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
