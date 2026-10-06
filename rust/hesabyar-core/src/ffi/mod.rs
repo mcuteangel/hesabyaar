@@ -237,6 +237,27 @@ pub fn search_transactions(transactions: Vec<Transaction>, query: SearchQuery) -
 }
 
 // ===========================================================================
+// FFI Wrappers for persons ledger (plans/011 Phase 3).
+// ===========================================================================
+
+/// Compute per-person net balances from loans.
+///
+/// Each person in [persons] appears in the result (even with a zero balance).
+/// Only loans with a resolvable `personId` contribute — legacy loans without a
+/// person link are ignored. Unsettled DEBTOR loans ("person owes me") increase
+/// `totalReceivables`/`netBalance`; unsettled CREDITOR loans ("I owe person")
+/// increase `totalDebts` and decrease `netBalance`. Settled loans are counted
+/// in `settledLoanCount` but do not affect the balance.
+#[uniffi::export]
+pub fn compute_person_balances(
+    persons: Vec<Person>,
+    loans: Vec<Loan>,
+) -> Vec<PersonBalanceSummary> {
+    catch_unwind_safe(|| crate::models::compute_person_balances(&persons, &loans))
+        .unwrap_or_default()
+}
+
+// ===========================================================================
 // FFI Wrappers for crypto functions.
 //
 // Key management stays on the Kotlin/Android side.
