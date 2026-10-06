@@ -30,14 +30,13 @@ class GetPersonBalancesUseCase {
     loans: List<Loan>,
   ): List<PersonBalanceCalculator.PersonBalance> {
     val native = RustBridge.computePersonBalancesSync(persons = persons, loans = loans)
-    // compute_person_balances returns one entry per input person, so a
-    // non-empty persons list with an empty native result means the native call
-    // failed (panic recovery returns an empty list). Trust native otherwise:
-    // an empty persons list legitimately produces an empty result.
-    return if (persons.isEmpty() || native.isNotEmpty()) {
+    // compute_person_balances returns one entry per input person. A size match
+    // guarantees complete computation; an empty native result on non-empty
+    // persons indicates bridge failure and triggers the Kotlin mirror fallback.
+    return if (persons.isEmpty() || native.size == persons.size) {
       fromNative(native)
     } else {
-      // Native failed but we have persons → run the Kotlin mirror.
+      // Native failed or returned incomplete result → run the Kotlin mirror.
       PersonBalanceCalculator.compute(persons, loans)
     }
   }
