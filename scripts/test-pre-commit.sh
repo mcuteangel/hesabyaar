@@ -30,6 +30,8 @@
 #   G staged formatted + unstaged edits  P2 Kotlin-only commit runs Kotlin gates
 #   H untracked Rust file                P3 config files trigger Kotlin gates
 #                                        P4 ktlintFormat auto-fix is re-staged
+#                                        P5 staged Kotlin + unstaged edits survives
+#                                        P6 ktlint failure restores Kotlin worktree
 #                                        Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             S tab in filename
@@ -740,6 +742,56 @@ EOF
   assert_nothing_staged
 }
 
+case_p5() {
+  echo "=== P5: staged Kotlin file with unstaged edits survives the hook ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP5.kt"
+  local exp="$WORK/p5_staged.bin"
+  local wtx="$WORK/p5_wt.bin"
+  printf '// p5 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p5
+  # Append unstaged edits to the same file in the worktree
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p5 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc 0 "hook passes with partially staged Kotlin file"
+  assert_idx_file "$kt" "$exp"
+  assert_wt_file "$kt" "$wtx"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p6() {
+  echo "=== P6: ktlintCheck failure still restores Kotlin worktree ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "ktlintCheck" ]; then
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP6.kt"
+  local exp="$WORK/p6_staged.bin"
+  local wtx="$WORK/p6_wt.bin"
+  printf '// p6 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p6
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p6 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc nonzero "hook fails when ktlintCheck fails"
+  assert_log_contains "ktlintCheck failed"
+  assert_wt_file "$kt" "$wtx"
+  assert_idx_file "$kt" "$exp"
+}
+
 case_q() {
   echo "=== Q: missing rust/ directory hard-fails when Rust sources are staged ==="
   reset_clone
@@ -1100,7 +1152,7 @@ case_e2_static_capture_before_materialization() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
 
 for c in "${CASES[@]}"; do
   "case_$c"

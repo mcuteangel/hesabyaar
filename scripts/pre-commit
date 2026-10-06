@@ -16,6 +16,7 @@ declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal be
 kt_backup_dir=""
 KT_DIRTY_FILES=()     # staged Kotlin files whose worktree differed from index
 KT_ABSENT_FILES=()    # staged Kotlin files absent from worktree before the hook ran
+declare -A KT_DIRTY_MODES=() # permission bits of each dirty Kotlin file in octal
 
 # Restore every Kotlin file touched by Kotlin materialization back to its
 # original worktree state. Idempotent: a second call is a no-op.
@@ -23,19 +24,28 @@ restore_kt_worktree() {
   local b="$kt_backup_dir"
   local f
   if [[ -n "$b" && -d "$b" ]]; then
-    for f in "${KT_DIRTY_FILES[@]}"; do
-      if [[ -f "$b/tracked/$f" ]]; then
-        mkdir -p "$(dirname "$f")" 2>/dev/null || true
-        cp "$b/tracked/$f" "$f" 2>/dev/null || true
-      fi
-    done
+    if [[ ${#KT_DIRTY_FILES[@]} -gt 0 ]]; then
+      for f in "${KT_DIRTY_FILES[@]}"; do
+        if [[ -f "$b/tracked/$f" ]]; then
+          mkdir -p "$(dirname "$f")" 2>/dev/null || true
+          cp "$b/tracked/$f" "$f" 2>/dev/null || true
+          local m="${KT_DIRTY_MODES[$f]:-}"
+          if [[ "$m" =~ ^[0-7]{1,4}$ ]]; then
+            chmod "$m" "$f" 2>/dev/null || true
+          fi
+        fi
+      done
+    fi
     rm -rf "$b"
   fi
-  for f in "${KT_ABSENT_FILES[@]}"; do
-    rm -f "$f"
-  done
+  if [[ ${#KT_ABSENT_FILES[@]} -gt 0 ]]; then
+    for f in "${KT_ABSENT_FILES[@]}"; do
+      rm -f "$f"
+    done
+  fi
   KT_DIRTY_FILES=()
   KT_ABSENT_FILES=()
+  KT_DIRTY_MODES=()
   kt_backup_dir=""
 }
 
@@ -120,7 +130,7 @@ try_commit() {
   if [[ ${#staged_files[@]} -gt 0 ]]; then
     for staged_path in "${staged_files[@]}"; do
       case "$staged_path" in
-        *.kt|*.kts|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
+        *.kt|*.kts|*.gradle|gradle.properties|gradle/libs.versions.toml|.editorconfig|gradle/wrapper/*|config/detekt/*)
           has_kotlin=1
           ;;
       esac
@@ -174,14 +184,21 @@ try_commit() {
           return 1
         }
 
-        # Back up dirty worktree files before materialization
+        # Back up dirty worktree files and their modes before materialization
         for f in "${dirty_kt[@]}"; do
           if ! mkdir -p "$(dirname "$kt_backup_dir/tracked/$f")" || ! cp "$f" "$kt_backup_dir/tracked/$f"; then
             echo "❌ Failed to back up Kotlin file '$f'."
             restore_kt_worktree
             return 1
           fi
+          local mode
+          if ! mode=$(capture_file_mode "$f"); then
+            echo "❌ Cannot capture file mode for '$f'."
+            restore_kt_worktree
+            return 1
+          fi
           KT_DIRTY_FILES+=("$f")
+          KT_DIRTY_MODES["$f"]="$mode"
         done
 
         # Materialize index version for dirty files
