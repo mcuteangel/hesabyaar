@@ -112,17 +112,19 @@ None.
 
 ## Verification
 
-Run on 2026-10-05, branch `feature/person-loan-ledger`:
+Run on 2026-10-06, branch `feature/person-loan-ledger` (head `a769375`):
 
 | Check | Command | Result |
 |---|---|---|
 | Rust unit tests | `cargo test --manifest-path rust/Cargo.toml` | PASS (496 passed; 0 failures) |
 | Kotlin style | `./gradlew --no-daemon ktlintFormat` | PASS |
-| Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings) |
+| Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings after extracting `computeBalancesSafely` in `f676bb3`) |
 | Kotlin compile | `./gradlew --no-daemon compileDebugKotlin compileReleaseKotlin` | PASS (BUILD SUCCESSFUL) |
-| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `FakeRepositoryTest` 1/1, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 3/3, `PersonDetailSheetTest` 11/11, `PersonRowSemanticsTest` 3/3) |
+| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest` | PASS (BUILD SUCCESSFUL; `PersonViewModelTest` 16/16, `GetPersonBalancesUseCaseTest` 4/4, `FakeRepositoryTest` 1/1, `HesabyarButtonTest` 4/4, `HesabyarCardTest` 3/3, `PersonDetailSheetTest` 11/11, `PersonRowSemanticsTest` 3/3) |
 | Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass; cache-eligible per progress.md:107) |
 | Android lint | `./scripts/check-android.sh` | FAILED at lintDebug (4 pre-existing errors in `local.properties` and `ManualTransactionDialog.kt`; per Blocked item 4) |
+| OpenCodeReview bot | PR #279 review run | PASS (0 findings across 27 selected items) |
+| Codacy PR analysis | PR #279 quality gate | PASS (0 issues, +1.85% coverage variation, 74.27% diff coverage) |
 
 ## Next Steps
 
@@ -134,4 +136,4 @@ Run on 2026-10-05, branch `feature/person-loan-ledger`:
 
 ## Last Updated
 
-2026-10-05
+2026-10-06
