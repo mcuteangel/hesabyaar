@@ -1002,8 +1002,13 @@ case_p13() {
   local stale_backup="$WORK/hesabyar-kt-stale.999999"
   mkdir -p "$stale_backup"
 
-  # Inject prior failed restore state into hook copy
-  sed -e "s|^kt_restore_failed=0|kt_restore_failed=1\nkt_backup_dir=\"$stale_backup\"|" \
+  # Count existing Kotlin backups under /tmp before running hook
+  local initial_kt_backups
+  initial_kt_backups=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name "hesabyar-kt.*" -type d 2>/dev/null | wc -l)
+
+  # Inject prior failed restore state into hook copy using portable sed
+  sed -e "s|^kt_restore_failed=0|kt_restore_failed=1|" \
+      -e "s|^kt_backup_dir=\"\"|kt_backup_dir=\"$stale_backup\"|" \
     "$SRC/scripts/pre-commit" > "$HOOKS/pre-commit"
   chmod +x "$HOOKS/pre-commit"
 
@@ -1020,10 +1025,51 @@ case_p13() {
     fail "stale backup directory was deleted or moved: $stale_backup"
   fi
 
+  # Verify no new Kotlin backup directory was created
+  local final_kt_backups
+  final_kt_backups=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name "hesabyar-kt.*" -type d 2>/dev/null | wc -l)
+  if [[ "$final_kt_backups" -eq "$initial_kt_backups" ]]; then
+    pass "no new Kotlin backup directory created: $final_kt_backups"
+  else
+    fail "new Kotlin backup directory was created during abort (before=$initial_kt_backups after=$final_kt_backups)"
+  fi
+
   # Restore clean hook
   cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
   chmod +x "$HOOKS/pre-commit"
   rm -rf "$stale_backup"
+}
+
+case_p14() {
+  echo "=== P14: cross-invocation leftover Kotlin backup is restored ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP14.kt"
+  local exp="$WORK/p14_exp.bin"
+  local wtx="$WORK/p14_wtx.bin"
+  printf '// p14 staged candidate\n' > "$exp"
+  printf '// p14 unstaged worktree edit\n' > "$wtx"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p14
+
+  # Simulate a prior interrupted run: dirty file was backed up and index was materialized
+  local old_backup="$WORK/hesabyar-kt-p14.old"
+  mkdir -p "$old_backup/tracked/$(dirname "$kt")"
+  cp "$wtx" "$old_backup/tracked/$kt"
+  printf '%s\n' "$old_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  # Worktree currently holds materialized staged index bytes
+  cp "$exp" "$CLONE/$kt"
+
+  run_hook
+  expect_rc 0 "hook succeeds after restoring leftover backup"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+  assert_wt_file "$kt" "$wtx"
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" ]]; then
+    pass "leftover backup and recovery marker cleanly removed"
+  else
+    fail "leftover backup or recovery marker remained"
+  fi
 }
 
 case_q() {
@@ -1420,7 +1466,7 @@ case_e3_static_kotlin_symlink_rejection() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"
