@@ -14,6 +14,7 @@ declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal be
 # Backup state for Kotlin worktree materialization. Declared at script scope
 # so the EXIT trap can clean it up on crash, abort, or interruption.
 kt_backup_dir=""
+kt_restore_failed=0
 KT_DIRTY_FILES=()     # staged Kotlin files whose worktree differed from index
 KT_ABSENT_FILES=()    # staged Kotlin files absent from worktree before the hook ran
 declare -A KT_DIRTY_MODES=() # permission bits of each dirty Kotlin file in octal
@@ -25,6 +26,9 @@ restore_kt_worktree() {
   local f
   local restore_failed=0
   if [[ -n "$b" && -d "$b" ]]; then
+    if [[ $kt_restore_failed -ne 0 ]]; then
+      return 1
+    fi
     if [[ ${#KT_DIRTY_FILES[@]} -gt 0 ]]; then
       for f in "${KT_DIRTY_FILES[@]}"; do
         if [[ -f "$b/tracked/$f" ]]; then
@@ -44,6 +48,7 @@ restore_kt_worktree() {
       rm -rf "$b"
       kt_backup_dir=""
     else
+      kt_restore_failed=1
       echo "⚠️ Retaining Kotlin backup directory '$b' due to restore failure." >&2
     fi
   fi
@@ -55,7 +60,7 @@ restore_kt_worktree() {
   KT_DIRTY_FILES=()
   KT_ABSENT_FILES=()
   KT_DIRTY_MODES=()
-  if [[ $restore_failed -ne 0 ]]; then
+  if [[ $restore_failed -ne 0 || $kt_restore_failed -ne 0 ]]; then
     return 1
   fi
   return 0
@@ -309,8 +314,14 @@ try_commit() {
     fi
     echo "  ✓ detekt passed"
 
-    # Restore the original worktree bytes for dirty and absent Kotlin files
-    restore_kt_worktree
+    # Restore the original worktree bytes for dirty and absent Kotlin files.
+    # A failed restore must abort the commit: the worktree would still hold
+    # materialized index bytes, and the backup directory is kept on disk.
+    if ! restore_kt_worktree; then
+      echo "❌ Failed to restore the original Kotlin worktree state."
+      echo "   The backup directory was kept for manual recovery (see above)."
+      return 1
+    fi
   else
     echo ""
     echo "  No staged Kotlin sources — skipping ktlint and detekt"

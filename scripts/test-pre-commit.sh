@@ -36,6 +36,8 @@
 #                                        P8 absent staged Kotlin validated/restored
 #                                        P9 detekt failure restores Kotlin worktree
 #                                        P10 unstaged Kotlin mode change survives
+#                                        P11 staged Kotlin symlink is rejected
+#                                        P12 forced Kotlin restore failure aborts, backup kept
 #                                        Q missing rust/ directory (with Rust staged)
 #   I staged Rust deletion               R unusual filename (spaces/brackets)
 #   J unstaged Rust deletion             S tab in filename
@@ -47,6 +49,7 @@
 #   E0 static check: no destructive git commands in the hook source
 #   E1 static check: full-mode capture/restore wired into the hook source
 #   E2 static check: mode capture precedes index materialization
+#   E3 static check: Kotlin symlink rejection precedes materialization
 #
 # Usage:
 #   scripts/test-pre-commit.sh
@@ -902,6 +905,85 @@ case_p10() {
   assert_nothing_staged
 }
 
+case_p11() {
+  echo "=== P11: staged Kotlin symlink is rejected before materialization ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP11.kt"
+  local target="app/src/main/java/io/github/mojri/hesabyar/CarrierP11Target.kt"
+  printf '// p11 target\n' > "$CLONE/$target"
+  if ! host_supports_symlink; then
+    skip "P11: host cannot create symbolic links"
+    return 0
+  fi
+  ( cd "$CLONE" && ln -s "CarrierP11Target.kt" "$kt" )
+  git_clone add "$kt" "$target"
+  stage_carrier p11
+  run_hook
+  expect_rc nonzero "hook rejects staged Kotlin symbolic link"
+  assert_log_contains "is a symbolic link"
+  assert_log_contains "must not write through a symlink"
+  if [[ -L "$CLONE/$kt" ]]; then
+    pass "worktree symlink preserved (not overwritten)"
+  else
+    fail "worktree symlink was modified or removed"
+  fi
+  expect_staged_exactly "$CARRIER" "$kt" "$target"
+}
+
+case_p12() {
+  echo "=== P12: Kotlin restoration failure aborts commit and retains backup ==="
+  reset_clone
+  local pkg="app/src/main/java/io/github/mojri/hesabyar/p12pkg"
+  local kt="$pkg/CarrierP12.kt"
+  mkdir -p "$CLONE/$pkg"
+  local exp="$WORK/p12_staged.bin"
+  local wtx="$WORK/p12_wt.bin"
+  printf '// p12 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p12
+  cp "$exp" "$wtx"
+  printf '// p12 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+
+  # Fake gradlew replaces the parent folder with a regular file during ktlintFormat.
+  # This causes restore_kt_worktree's `mkdir -p $(dirname "$f")` to fail when
+  # restoring the original worktree state after the quality gates pass.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+pkg="app/src/main/java/io/github/mojri/hesabyar/p12pkg"
+if [ -d "$pkg" ]; then
+  rm -rf "$pkg"
+  touch "$pkg"
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+
+  run_hook
+  expect_rc nonzero "hook aborts when Kotlin worktree restoration fails"
+  assert_log_contains "Failed to restore Kotlin file"
+  assert_log_contains "Retaining Kotlin backup directory"
+  assert_log_contains "Failed to restore the original Kotlin worktree state"
+  expect_staged_exactly "$CARRIER" "$kt"
+
+  local retained_backup
+  retained_backup=$(grep -oE "Retaining Kotlin backup directory '[^']+'" "$LOG" | head -1 | sed "s/Retaining Kotlin backup directory '//;s/'//")
+  if [[ -n "$retained_backup" && -d "$retained_backup" ]]; then
+    pass "backup directory retained on disk: $retained_backup"
+    if [[ -f "$retained_backup/tracked/$kt" ]]; then
+      pass "backup contains original dirty worktree file"
+    else
+      fail "backup missing tracked file $kt"
+    fi
+    rm -rf "$retained_backup"
+  else
+    fail "backup directory was not retained on disk (retained_backup='$retained_backup')"
+  fi
+
+  rm -f "$CLONE/$pkg"
+}
+
 case_q() {
   echo "=== Q: missing rust/ directory hard-fails when Rust sources are staged ==="
   reset_clone
@@ -1017,6 +1099,21 @@ case_u() {
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$EXP"
   expect_staged_exactly "$CARRIER" "$kt" "$RS"
+}
+
+# Can this host create symbolic links that bash can see with [[ -L ]]?
+# Windows without Developer Mode / SeCreateSymbolicLinkPrivilege fails.
+host_supports_symlink() {
+  local pf="$WORK/symlink-capability.bin"
+  local lf="$WORK/symlink-capability.link"
+  : > "$pf"
+  rm -f "$lf"
+  if ln -s "$pf" "$lf" 2>/dev/null && [[ -L "$lf" ]]; then
+    rm -f "$pf" "$lf"
+    return 0
+  fi
+  rm -f "$pf" "$lf"
+  return 1
 }
 
 # Can this host represent a chmod on a .rs file that bash and Git can see?
@@ -1260,9 +1357,27 @@ case_e2_static_capture_before_materialization() {
   fi
 }
 
+# shellcheck disable=SC2016
+case_e3_static_kotlin_symlink_rejection() {
+  echo "=== E3: Kotlin symlink rejection precedes materialization ==="
+  reset_clone
+  local src="$SRC/scripts/pre-commit"
+  local sym_ln mat_ln
+  sym_ln=$(grep -nF 'if [[ -L "$f" ]]; then' "$src" | head -1 | cut -d: -f1)
+  mat_ln=$(grep -nF 'git show ":$f"' "$src" | head -1 | cut -d: -f1)
+  if [[ -n "$sym_ln" && -n "$mat_ln" && "$sym_ln" -lt "$mat_ln" ]] \
+     && grep -qF "must not write through a symlink" "$src" \
+     && grep -qF "Retaining Kotlin backup directory" "$src" \
+     && grep -qF "Failed to restore the original Kotlin worktree state" "$src"; then
+    pass "symlink check (line $sym_ln) precedes materialization (line $mat_ln) and restore-failure retention is wired"
+  else
+    fail "symlink rejection or restore failure retention wiring missing from hook source"
+  fi
+}
+
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"
