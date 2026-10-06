@@ -17,7 +17,6 @@ jobs:
     name: Run actionlint
     runs-on: ubuntu-latest
     env:
-      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
       # Single definition of the trusted-run predicate (event, fork, actor);
       # the verify step references this instead of repeating the expression.
@@ -101,12 +100,12 @@ jobs:
 
        - name: Set up DeepSource CLI
          id: setup-deepsource
-         if: ${{ env.DEEPSOURCE_DSN != '' }}
+         if: ${{ secrets.DEEPSOURCE_DSN != '' }}
          continue-on-error: true
          uses: ./.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
-         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+         if: ${{ secrets.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
          continue-on-error: true
          env:
            DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
