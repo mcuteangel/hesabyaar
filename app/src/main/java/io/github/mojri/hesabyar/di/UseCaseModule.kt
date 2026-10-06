@@ -13,6 +13,7 @@ import io.github.mojri.hesabyar.domain.usecase.GetAnalyticsUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
+import io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetSettingsUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBackupUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageBankLoanUseCase
@@ -70,6 +71,9 @@ object UseCaseModule {
 
   @Provides
   fun provideGetAnalyticsUseCase(): GetAnalyticsUseCase = GetAnalyticsUseCase()
+
+  @Provides
+  fun provideGetPersonBalancesUseCase(): GetPersonBalancesUseCase = GetPersonBalancesUseCase()
 
   @Provides
   fun provideManageBackupUseCase(

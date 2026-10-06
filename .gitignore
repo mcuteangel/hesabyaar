@@ -88,6 +88,9 @@ app/src/main/java/io/github/mojri/hesabyar/rust/generated/
 # Graphify (generated knowledge graph — local only)
 graphify-out/
 
+# Obsidian (local vault state — workspace.json changes on every window move)
+.obsidian/
+
 # SQLite temp files (e.g. .freebuff from database tools)
 .freebuff/
 

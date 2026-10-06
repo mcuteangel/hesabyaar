@@ -6,7 +6,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import io.github.mojri.hesabyar.DEEP_LINK_PERSONS
 import io.github.mojri.hesabyar.MainActivity
+import io.github.mojri.hesabyar.OPEN_TAB_EXTRA
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -121,7 +123,7 @@ object NotificationHelper {
     val intent =
       Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        putExtra("OPEN_TAB", "LOANS")
+        putExtra(OPEN_TAB_EXTRA, DEEP_LINK_PERSONS)
       }
     val pendingIntent =
       PendingIntent.getActivity(
