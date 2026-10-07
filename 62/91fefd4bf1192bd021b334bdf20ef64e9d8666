@@ -1,0 +1,23 @@
+scripts/test-github-actions-pin-manager.mjs
+  s_dffb3e8f0de3e7::t_1ac4772326f7b0 348-349
+  s_dffb3e8f0de3e7::t_50f1eeb04ababb 327-345,350-357
+  s_dffb3e8f0de3e7::t_9e2b5eb856bb37 346-347
+scripts/github-actions-pin-manager.mjs
+  s_dffb3e8f0de3e7::t_8736da2b21a37f 396-399,401,403
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6291fefd4bf1192bd021b334bdf20ef64e9d8666",
+  "prompts": {},
+  "sessions": {
+    "s_dffb3e8f0de3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d6584a97-da62-41c3-9fe5-1adc967b0c17",
+        "model": "poolside/laguna-s-2.1:free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
