@@ -976,7 +976,8 @@ EOF
   expect_staged_exactly "$CARRIER" "$kt"
 
   local retain_count
-  retain_count=$(grep -c "Retaining Kotlin backup directory" "$LOG" || echo "0")
+  # grep -c prints 0 itself on no match; || true only swallows its exit 1.
+  retain_count=$(grep -c "Retaining Kotlin backup directory" "$LOG" || true)
   if [[ "$retain_count" -eq 1 ]]; then
     pass "restore attempted exactly once (EXIT trap did not retry)"
   else
@@ -1023,7 +1024,7 @@ case_p13() {
   # This is what the hook persists when restore_kt_worktree fails.
   printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
   : > "$CLONE/.git/hesabyar-kt-restore-failed"
-  # Empty tracked/: recovery must trust modes.null only, so a backup with no
+  # No modes.null: recovery trusts modes.null only, so a backup with no
   # authoritative record has nothing to restore and fails closed.
 
   # Use the real hook (no patching needed: the marker file drives the behavior)
@@ -1176,6 +1177,150 @@ case_p17() {
     fail "partial backup was deleted or moved: $stale_backup"
   fi
   rm -rf "$stale_backup"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p18() {
+  echo "=== P18: malformed absent.null records rejected and valid absent restored ==="
+  reset_clone
+  local valid_kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP18Valid.kt"
+  local exp="$WORK/p18_valid.bin"
+  printf '// p18 staged candidate\n' > "$exp"
+  cp "$exp" "$CLONE/$valid_kt"
+  git_clone add "$valid_kt"
+  stage_carrier p18
+
+  # Simulate prior interrupted run where $valid_kt was materialized into worktree
+  cp "$exp" "$CLONE/$valid_kt"
+
+  local can_abs="$WORK/p18_canary_abs.txt"
+  local can_trav="$WORK/p18_canary_trav.txt"
+  printf 'canary abs\n' > "$can_abs"
+  printf 'canary trav\n' > "$can_trav"
+
+  local old_backup="$WORK/hesabyar-kt-p18.old"
+  mkdir -p "$old_backup"
+  printf '%s\n' "$old_backup" > "$CLONE/.git/hesabyar-kt-backup"
+
+  # Write absent.null containing:
+  # - absolute path
+  # - traversal path (..)
+  # - dot path (/.)
+  # - double slash (//)
+  # - valid relative path ($valid_kt)
+  printf '%s\0%s\0%s\0%s\0%s\0' \
+    "$can_abs" \
+    "app/../../p18_canary_trav.txt" \
+    "app/./src/p18_dot.kt" \
+    "app//src/p18_slash.kt" \
+    "$valid_kt" > "$old_backup/absent.null"
+
+  run_hook
+  expect_rc 0 "hook succeeds and filters malformed absent.null records"
+  expect_commit_exactly "$CARRIER" "$valid_kt"
+  assert_nothing_staged
+  assert_absent_wt "$valid_kt"
+
+  if [[ -f "$can_abs" ]]; then
+    pass "canary for absolute path was not deleted"
+  else
+    fail "canary for absolute path was deleted"
+  fi
+  if [[ -f "$can_trav" ]]; then
+    pass "canary for traversal path was not deleted"
+  else
+    fail "canary for traversal path was deleted"
+  fi
+
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" ]]; then
+    pass "leftover backup and recovery marker cleanly removed"
+  else
+    fail "leftover backup or recovery marker remained"
+  fi
+  rm -f "$can_abs" "$can_trav"
+}
+
+case_p19() {
+  echo "=== P19: failed git show during absent materialization cleans truncated artifact ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP19.kt"
+  local exp="$WORK/p19_staged.bin"
+  printf '// p19 staged candidate\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p19
+  # Worktree file is absent before hook runs
+  rm "$CLONE/$kt"
+
+  # Intercept git show inside the hook. A PATH shim cannot work here: Git for
+  # Windows prepends its exec-path to PATH for hooks, so it would bypass any
+  # shim directory. BASH_ENV defines a shell function instead; functions take
+  # precedence over PATH lookup.
+  local env_file="$WORK/p19-bash-env.sh"
+  cat << EOF > "$env_file"
+git() {
+  if [[ "\$1" == "show" && "\$2" == ":$kt" ]]; then
+    printf 'corrupted truncated artifact\n'
+    return 1
+  fi
+  command git "\$@"
+}
+EOF
+
+  local saved_env=${BASH_ENV:-}
+  export BASH_ENV="$env_file"
+  run_hook
+  if [[ -n "$saved_env" ]]; then
+    export BASH_ENV="$saved_env"
+  else
+    unset BASH_ENV
+  fi
+
+  expect_rc nonzero "hook aborts when git show materialization fails"
+  assert_log_contains "Failed to materialize absent Kotlin file"
+  assert_absent_wt "$kt"
+  expect_staged_exactly "$CARRIER" "$kt"
+  rm -f "$env_file"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p20() {
+  echo "=== P20: mode-only difference on materialized absent file is not a user edit ==="
+  host_represents_chmod || { skip "P20: host cannot represent chmod on .kt files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP20.kt"
+  local exp="$WORK/p20_staged.bin"
+  printf '// p20 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  chmod 755 "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p20
+  rm "$CLONE/$kt"
+  # Fake gradlew flips the mode of the materialized absent file, then passes.
+  # Content stays untouched: restore must delete, not preserve.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP20.kt"
+  if [ -f "$kt" ]; then
+    chmod 644 "$kt"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  run_hook
+  expect_rc 0 "hook passes with a mode-only difference on the materialized file"
+  assert_idx_file "$kt" "$exp"
+  if grep -q "Preserving modified worktree file" "$LOG"; then
+    fail "mode-only difference was misclassified as a user edit"
+  else
+    pass "mode-only difference was not treated as a user edit"
+  fi
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
   rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
 }
 
@@ -1573,7 +1718,7 @@ case_e3_static_kotlin_symlink_rejection() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"

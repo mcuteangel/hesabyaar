@@ -64,6 +64,10 @@ restore_kt_worktree() {
     if [[ $kt_restore_failed -ne 0 ]]; then
       echo "❌ Kotlin restore previously failed and backup directory '${b:-<unset>}' is missing." >&2
       echo "   Refusing to proceed with possibly unrecovered worktree bytes." >&2
+      # Name the blocking state and the recovery command. The hook cannot know
+      # whether the worktree is intact, so manual verification comes first.
+      echo "   Verify the Kotlin worktree manually, then clear the markers with:" >&2
+      echo "   rm -f \"\$(git rev-parse --git-dir)/$KT_RECOVERY_FAILED\" \"\$(git rev-parse --git-dir)/$KT_RECOVERY_POINTER\"" >&2
       return 1
     fi
     return 0
@@ -135,13 +139,24 @@ restore_kt_worktree() {
   if [[ ${#KT_ABSENT_FILES[@]} -gt 0 ]]; then
     local -a remaining_absent=()
     for f in "${KT_ABSENT_FILES[@]}"; do
-      # Only delete if the worktree file matches the staged index version
-      # that the hook materialized. If the user edited the file in the meantime,
-      # do not delete user edits. Test -L too: -e is false for a dangling
-      # symlink, and that user change must not be deleted either.
-      if [[ -e "$f" || -L "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
-        echo "⚠️ Preserving modified worktree file '$f' originally flagged absent." >&2
-        continue
+      # Only delete if the worktree content matches the staged index version
+      # that the hook materialized. If the user edited the file in the
+      # meantime, do not delete user edits. Compare content, not git diff:
+      # git diff --quiet also fails on a mode-only difference, and the hook's
+      # own materialized copy can carry a shell default mode instead of the
+      # index mode, which must not count as a user edit. Test -L too: -e is
+      # false for a dangling symlink, and that user change must not be
+      # deleted either. An unreadable worktree file preserves as well.
+      local idx_oid="" wt_oid=""
+      if [[ -e "$f" || -L "$f" ]]; then
+        idx_oid=$(git rev-parse -q --verify ":$f" 2>/dev/null || echo "")
+        if [[ -n "$idx_oid" ]]; then
+          wt_oid=$(git hash-object --path="$f" "$f" 2>/dev/null || echo "")
+          if [[ -z "$wt_oid" || "$wt_oid" != "$idx_oid" ]]; then
+            echo "⚠️ Preserving modified worktree file '$f' originally flagged absent." >&2
+            continue
+          fi
+        fi
       fi
       if ! rm -f "$f" 2>/dev/null; then
         remaining_absent+=("$f")
