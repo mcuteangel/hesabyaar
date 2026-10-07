@@ -13,11 +13,15 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
  */
 object DisplayAmountInput {
   /**
-   * Upper bound for a display-unit amount, so that the ×10 Toman → Rial
-   * conversion can never overflow [Long]. Real amounts are many orders of
-   * magnitude below this.
+   * Largest display-unit amount that [toRial] can convert without overflowing
+   * [Long]. Display → Rial is a linear scale-up (×10 for Toman, ×1 for Rial), so
+   * the factor is read from the conversion itself instead of being hardcoded:
+   * Rial mode accepts up to [Long.MAX_VALUE], Toman mode up to a tenth of it.
    */
-  const val MAX_DISPLAY_AMOUNT: Long = Long.MAX_VALUE / 10
+  fun maxDisplayAmount(toRial: (Long) -> Long = CurrencyFormatter::toRial): Long {
+    val factor = toRial(1L).coerceAtLeast(1L)
+    return Long.MAX_VALUE / factor
+  }
 
   /**
    * Parses [text] typed in the display unit and returns the Rial value, or null
@@ -29,10 +33,11 @@ object DisplayAmountInput {
     text: String,
     toRial: (Long) -> Long = CurrencyFormatter::toRial
   ): Long? {
+    val max = maxDisplayAmount(toRial)
     val display =
       normalizeDigits(text)
         .toLongOrNull()
-        ?.takeIf { it in -MAX_DISPLAY_AMOUNT..MAX_DISPLAY_AMOUNT }
+        ?.takeIf { it in -max..max }
     return when {
       display == null -> null
       display == 0L -> 0L

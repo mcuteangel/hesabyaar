@@ -304,12 +304,16 @@ private fun BankLoanForm(
       value = received,
       onValueChange = onReceived,
       label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
+      isError = isInvalidAmount(received),
+      supportingText = invalidAmountText(received),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
       value = monthly,
       onValueChange = onMonthly,
       label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
+      isError = isInvalidAmount(monthly),
+      supportingText = invalidAmountText(monthly),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
@@ -326,3 +330,11 @@ private fun BankLoanForm(
     )
   }
 }
+
+/** True when the user typed something that is not a usable amount (garbage or too large). */
+private fun isInvalidAmount(text: String): Boolean =
+  text.isNotBlank() && DisplayAmountInput.toRialOrNull(text) == null
+
+@Composable
+private fun invalidAmountText(text: String): String? =
+  if (isInvalidAmount(text)) stringResource(R.string.balance_invalid_amount) else null

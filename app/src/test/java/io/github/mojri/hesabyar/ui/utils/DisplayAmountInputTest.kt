@@ -102,9 +102,29 @@ class DisplayAmountInputTest {
   }
 
   @Test
+  fun rialModeAcceptsAmountsUpToLongMax() {
+    CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
+    assertEquals(Long.MAX_VALUE, DisplayAmountInput.maxDisplayAmount())
+    assertEquals(Long.MAX_VALUE, DisplayAmountInput.toRialOrNull(Long.MAX_VALUE.toString()))
+    assertEquals(9_000_000_000_000_000_000L, DisplayAmountInput.toRialOrNull("9,000,000,000,000,000,000"))
+    assertEquals(-Long.MAX_VALUE, DisplayAmountInput.toRialOrNull((-Long.MAX_VALUE).toString()))
+    assertNull(DisplayAmountInput.toRialOrNull(Long.MIN_VALUE.toString()))
+  }
+
+  @Test
+  fun overflowBoundFollowsInjectedConversion() {
+    val hundredfold: (Long) -> Long = { it * 100 }
+    val max = Long.MAX_VALUE / 100
+    assertEquals(max, DisplayAmountInput.maxDisplayAmount(hundredfold))
+    assertEquals(max * 100, DisplayAmountInput.toRialOrNull(max.toString(), hundredfold))
+    assertNull(DisplayAmountInput.toRialOrNull((max + 1).toString(), hundredfold))
+  }
+
+  @Test
   fun amountsThatWouldOverflowAreRejected() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    val max = DisplayAmountInput.MAX_DISPLAY_AMOUNT
+    val max = DisplayAmountInput.maxDisplayAmount()
+    assertEquals(Long.MAX_VALUE / 10, max)
     assertEquals(max * 10, DisplayAmountInput.toRialOrNull(max.toString()))
     assertNull(DisplayAmountInput.toRialOrNull((max + 1).toString()))
     assertEquals(-max * 10, DisplayAmountInput.toRialOrNull((-max).toString()))

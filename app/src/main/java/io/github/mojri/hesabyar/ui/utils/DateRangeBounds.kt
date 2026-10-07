@@ -37,17 +37,20 @@ object DateRangeBounds {
    * Whole-day range covering the last [days] days, today included. Steps back by
    * local calendar days (not fixed 24 h blocks), so a daylight-saving change
    * inside the range cannot shift the start to a neighbouring date.
+   *
+   * [days] must be at least 1 (1 = today only).
    */
   fun lastDays(
     now: Long,
     days: Int
   ): Pair<Long, Long> {
+    require(days >= 1) { "days must be >= 1, was $days" }
     val start =
       Calendar
         .getInstance()
         .apply {
           timeInMillis = startOfDay(now)
-          add(Calendar.DAY_OF_MONTH, -(days - 1).coerceAtLeast(0))
+          add(Calendar.DAY_OF_MONTH, -(days - 1))
         }.timeInMillis
     return startOfDay(start) to endOfDay(now)
   }

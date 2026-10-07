@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui.utils
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -102,6 +103,12 @@ class DateRangeBoundsTest {
     val (start, end) = DateRangeBounds.previousJalaliMonth(now)
     assertEquals(tehranMillis(2026, 2, 20), start)
     assertEquals(tehranMillis(2026, 3, 20, 23, 59, 59, 999), end)
+  }
+
+  @Test
+  fun lastDaysRejectsNonPositiveDays() {
+    assertThrows(IllegalArgumentException::class.java) { DateRangeBounds.lastDays(0L, days = 0) }
+    assertThrows(IllegalArgumentException::class.java) { DateRangeBounds.lastDays(0L, days = -1) }
   }
 
   @Test
