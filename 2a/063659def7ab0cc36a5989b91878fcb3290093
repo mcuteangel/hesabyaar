@@ -1,0 +1,25 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/BankLoanFormTest.kt
+  s_1fec7dcc1000d6::t_de6f04438d99ef 6,34-37,63-71,76,81-82,124,129-130,154
+  s_1fec7dcc1000d6::t_431170614d862f 1-5,7-33,38-62,72-75,77-80,83-123,125-128,131-153,155-161
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_1fec7dcc1000d6::t_fcbd16c4e25727 281,283
+  s_1fec7dcc1000d6::t_ce98837cf2e161 3
+  s_1fec7dcc1000d6::t_2acb921695b429 344-347
+  s_1fec7dcc1000d6::t_2a2c11bb044d42 336-341
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2a063659def7ab0cc36a5989b91878fcb3290093",
+  "prompts": {},
+  "sessions": {
+    "s_1fec7dcc1000d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4074b1d-9ad3-4901-bb90-70e260576de7",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
