@@ -393,9 +393,14 @@ export function scanFiles(paths) {
 
 async function repoFacts(api, slug, cache) {
   if (!cache.has(slug)) {
+    // The slug may include a sub-action path (e.g. `owner/repo/.github/actions/foo`).
+    // Strip everything after the second `/` for API calls — the sub-path only
+    // matters for locating the action file inside the repo, not for version
+    // resolution.
     const [owner, repo] = slug.split('/');
+    const repoSlug = `${owner}/${repo}`;
     // Propagate the injected transport so scans stay offline in tests.
-    const subApi = createApi({ fetchImpl: api.fetchImpl, token: api.token, repo: slug });
+    const subApi = createApi({ fetchImpl: api.fetchImpl, token: api.token, repo: repoSlug });
     cache.set(slug, {
       api: subApi,
       owner,

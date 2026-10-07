@@ -324,6 +324,37 @@ test('weekly plan pins floating tag equal to newest same major release', async (
   assert.equal(plan.reportOnly.length, 0);
 });
 
+test('sub-path action resolves against repo without sub-path', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, '- uses: qltysh/qlty-action/coverage@' + SHA_A + ' # v2.4.0\n');
+  const { impl } = makeFetch([
+    // The API call must hit the repo root: owner/repo — NOT owner/repo/coverage.
+    { method: 'GET', url: /\/repos\/qltysh\/qlty-action\/releases\?/, reply: json([{ tag_name: 'v2.4.0', draft: false, prerelease: false }]) },
+    tagRefRoute('qltysh/qlty-action', 'v2.4.0', SHA_A),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.reportOnly.length, 0);
+});
+
+test('sub-path action with outdated pin proposes update from correct repo', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, '- uses: GitGuardian/ggshield/actions/secret@' + SHA_A + ' # v1.50.0\n');
+  const { impl } = makeFetch([
+    { method: 'GET', url: /\/repos\/GitGuardian\/ggshield\/releases\?/, reply: json([{ tag_name: 'v1.55.0', draft: false, prerelease: false }]) },
+    // The current pin's SHA must resolve to its recorded version (no drift).
+    tagRefRoute('GitGuardian/ggshield', 'v1.50.0', SHA_A),
+    // The new target version must also resolve to a SHA.
+    tagRefRoute('GitGuardian/ggshield', 'v1.55.0', SHA_B),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.needsHuman.length, 0);
+  assert.equal(plan.updates.length, 1);
+  assert.equal(plan.updates[0].targetTag, 'v1.55.0');
+});
+
 test('prerelease and drafts are rejected as targets', async () => {
   const stable = listStableVersions;
   const api = {
