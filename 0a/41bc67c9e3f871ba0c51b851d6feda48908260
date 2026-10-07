@@ -1,0 +1,19 @@
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_6909f1f821beb2 1235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0a41bc67c9e3f871ba0c51b851d6feda48908260",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
