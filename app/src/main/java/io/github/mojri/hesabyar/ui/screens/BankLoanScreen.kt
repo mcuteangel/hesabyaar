@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -277,8 +278,9 @@ private fun AddBankLoanDialog(
   )
 }
 
+@VisibleForTesting
 @Composable
-private fun BankLoanForm(
+internal fun BankLoanForm(
   bankName: String,
   onBankName: (String) -> Unit,
   loanName: String,
@@ -331,10 +333,15 @@ private fun BankLoanForm(
   }
 }
 
-/** True when the user typed something that is not a usable amount (garbage or too large). */
-private fun isInvalidAmount(text: String): Boolean =
-  text.isNotBlank() && DisplayAmountInput.toRialOrNull(text) == null
+/** True when the user typed something that is not a usable loan amount (garbage, too large, zero, or negative). */
+@VisibleForTesting
+internal fun isInvalidAmount(text: String): Boolean {
+  if (text.isBlank()) return false
+  return DisplayAmountInput.toRialOrNull(text)?.let { it > 0L } != true
+}
 
 @Composable
-private fun invalidAmountText(text: String): String? =
-  if (isInvalidAmount(text)) stringResource(R.string.balance_invalid_amount) else null
+private fun invalidAmountText(text: String): String? {
+  if (!isInvalidAmount(text)) return null
+  return stringResource(R.string.balance_invalid_amount)
+}
