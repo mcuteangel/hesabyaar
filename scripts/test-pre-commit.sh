@@ -1267,7 +1267,7 @@ git() {
 }
 EOF
 
-  local saved_env=${BASH_ENV:-}
+  local saved_env="${BASH_ENV:-}"
   export BASH_ENV="$env_file"
   run_hook
   if [[ -n "$saved_env" ]]; then
@@ -1420,10 +1420,10 @@ case_u() {
   mk_rs_candidate "$P_A"
   git_clone add "$RS"
   stage_carrier u
-  local saved_path=$PATH
+  local saved_path="$PATH"
   export PATH="$CARGO_SHIM_DIR:$PATH"
   run_hook
-  export PATH=$saved_path
+  export PATH="$saved_path"
   expect_rc nonzero "commit aborted by the Kotlin gate failure"
   assert_log_contains "ktlintFormat failed"
   if grep -qF "[4/5]" "$LOG"; then
@@ -1626,10 +1626,10 @@ case_z() {
   local mode_before mode_after
   mode_before=$(read_mode "$CLONE/$RS")
   rm -f "$CARGO_PROBE_LOG" "$GIT_PROBE_LOG"
-  local saved_path=$PATH
+  local saved_path="$PATH"
   export PATH="$STAT_SHIM_DIR:$GIT_SHIM_DIR:$PATH"
   run_hook
-  export PATH=$saved_path
+  export PATH="$saved_path"
   expect_rc nonzero "hook aborts when no stat can capture a mode"
   assert_log_contains "Cannot capture file mode"
   if grep -qF "[4/5]" "$LOG"; then
