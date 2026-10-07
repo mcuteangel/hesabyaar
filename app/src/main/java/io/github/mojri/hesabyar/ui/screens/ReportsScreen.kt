@@ -164,10 +164,10 @@ fun ReportsScreen(
         ) {
           val presets =
             listOf(
-              "امروز" to { DateRangeBounds.lastDays(now, days = 1) },
-              "هفته اخیر" to { DateRangeBounds.lastDays(now, days = 7) },
-              "ماه قبل" to { DateRangeBounds.previousJalaliMonth(now) },
-              "سال اخیر" to { DateRangeBounds.lastDays(now, days = 365) }
+              stringResource(R.string.report_preset_today) to { DateRangeBounds.lastDays(now, days = 1) },
+              stringResource(R.string.report_preset_last_week) to { DateRangeBounds.lastDays(now, days = 7) },
+              stringResource(R.string.report_preset_previous_month) to { DateRangeBounds.previousJalaliMonth(now) },
+              stringResource(R.string.report_preset_last_year) to { DateRangeBounds.lastDays(now, days = 365) }
             )
 
           presets.forEach { (label, rangeFn) ->

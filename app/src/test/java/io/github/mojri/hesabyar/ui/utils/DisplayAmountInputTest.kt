@@ -12,6 +12,10 @@ import org.junit.Test
  * balance) must read input in the user's display unit and store Rial.
  */
 class DisplayAmountInputTest {
+  private companion object {
+    const val HUNDRED_THOUSAND = "100000"
+  }
+
   @After
   fun reset() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
@@ -20,13 +24,13 @@ class DisplayAmountInputTest {
   @Test
   fun tomanInputIsStoredAsRial() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("100000"))
+    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull(HUNDRED_THOUSAND))
   }
 
   @Test
   fun rialInputIsStoredUnchanged() {
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
-    assertEquals(100_000L, DisplayAmountInput.toRialOrNull("100000"))
+    assertEquals(100_000L, DisplayAmountInput.toRialOrNull(HUNDRED_THOUSAND))
   }
 
   @Test
@@ -52,7 +56,7 @@ class DisplayAmountInputTest {
   @Test
   fun displayTextConvertsRialToDisplayUnit() {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
-    assertEquals("100000", DisplayAmountInput.toDisplayText(1_000_000L))
+    assertEquals(HUNDRED_THOUSAND, DisplayAmountInput.toDisplayText(1_000_000L))
     assertEquals("-5000", DisplayAmountInput.toDisplayText(-50_000L))
     CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
     assertEquals("1000000", DisplayAmountInput.toDisplayText(1_000_000L))
@@ -78,5 +82,44 @@ class DisplayAmountInputTest {
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
     assertEquals(0L, DisplayAmountInput.resolveEditedRial("0", "0", originalRial = null))
     assertEquals(70L, DisplayAmountInput.resolveEditedRial("7", "0", originalRial = null))
+  }
+
+  @Test
+  fun persianAndArabicIndicDigitsAreAccepted() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("۱۰۰۰۰۰"))
+    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("١٠٠٠٠٠"))
+    assertEquals(-50_000L, DisplayAmountInput.toRialOrNull("-۵۰۰۰"))
+  }
+
+  @Test
+  fun thousandsSeparatorsAreIgnored() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("100,000"))
+    assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("۱۰۰٬۰۰۰"))
+  }
+
+  @Test
+  fun amountsThatWouldOverflowAreRejected() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    val max = DisplayAmountInput.MAX_DISPLAY_AMOUNT
+    assertEquals(max * 10, DisplayAmountInput.toRialOrNull(max.toString()))
+    assertNull(DisplayAmountInput.toRialOrNull((max + 1).toString()))
+    assertNull(DisplayAmountInput.toRialOrNull(Long.MAX_VALUE.toString()))
+    assertNull(DisplayAmountInput.toRialOrNull(Long.MIN_VALUE.toString()))
+  }
+
+  @Test
+  fun untouchedPersianDigitPrefillKeepsOriginalRialValue() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    assertEquals(12_345L, DisplayAmountInput.resolveEditedRial("۱۲۳۴", "1234", originalRial = 12_345L))
+  }
+
+  @Test
+  fun reformattedButEqualPrefillKeepsOriginalRialValue() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+    // "01234" and "1,234" are the same 1_234 Toman; they must not round 12_345 Rial down to 12_340.
+    assertEquals(12_345L, DisplayAmountInput.resolveEditedRial("01234", "1234", originalRial = 12_345L))
+    assertEquals(12_345L, DisplayAmountInput.resolveEditedRial("1,234", "1234", originalRial = 12_345L))
   }
 }

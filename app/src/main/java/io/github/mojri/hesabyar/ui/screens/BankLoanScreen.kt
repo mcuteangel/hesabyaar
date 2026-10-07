@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -301,13 +303,13 @@ private fun BankLoanForm(
     HesabyarInputField(
       value = received,
       onValueChange = onReceived,
-      label = "مبلغ دریافتی (${CurrencyFormatter.unitLabel})",
+      label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
       value = monthly,
       onValueChange = onMonthly,
-      label = "مبلغ قسط ماهانه (${CurrencyFormatter.unitLabel})",
+      label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(

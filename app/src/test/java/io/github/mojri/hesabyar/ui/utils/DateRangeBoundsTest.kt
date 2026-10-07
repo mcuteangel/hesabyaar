@@ -103,4 +103,24 @@ class DateRangeBoundsTest {
     assertEquals(tehranMillis(2026, 2, 20), start)
     assertEquals(tehranMillis(2026, 3, 20, 23, 59, 59, 999), end)
   }
+
+  @Test
+  fun lastDaysUsesCalendarDaysAcrossDaylightSavingStart() {
+    // New York springs forward on 2026-03-08 (a 23-hour day). Subtracting a fixed
+    // 24 h from 2026-03-09 00:30 lands on 2026-03-07; the range must start on 03-08.
+    val newYork = TimeZone.getTimeZone("America/New_York")
+    TimeZone.setDefault(newYork)
+    val now =
+      Calendar.getInstance(newYork).apply {
+        set(2026, Calendar.MARCH, 9, 0, 30, 0)
+        set(Calendar.MILLISECOND, 0)
+      }.timeInMillis
+    val expectedStart =
+      Calendar.getInstance(newYork).apply {
+        set(2026, Calendar.MARCH, 8, 0, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+      }.timeInMillis
+    val (start, _) = DateRangeBounds.lastDays(now, days = 2)
+    assertEquals(expectedStart, start)
+  }
 }

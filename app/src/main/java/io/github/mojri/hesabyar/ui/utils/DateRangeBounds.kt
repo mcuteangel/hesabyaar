@@ -12,8 +12,6 @@ import java.util.Calendar
  * in the first day) than the picker's clock time are silently dropped.
  */
 object DateRangeBounds {
-  private const val DAY_MS = 24L * 60 * 60 * 1000
-
   /** 00:00:00.000 local time of the day containing [timestamp]. */
   fun startOfDay(timestamp: Long): Long =
     Calendar
@@ -35,11 +33,24 @@ object DateRangeBounds {
         add(Calendar.DAY_OF_MONTH, 1)
       }.timeInMillis - 1L
 
-  /** Whole-day range covering the last [days] days, today included. */
+  /**
+   * Whole-day range covering the last [days] days, today included. Steps back by
+   * local calendar days (not fixed 24 h blocks), so a daylight-saving change
+   * inside the range cannot shift the start to a neighbouring date.
+   */
   fun lastDays(
     now: Long,
     days: Int
-  ): Pair<Long, Long> = startOfDay(now - (days - 1).coerceAtLeast(0) * DAY_MS) to endOfDay(now)
+  ): Pair<Long, Long> {
+    val start =
+      Calendar
+        .getInstance()
+        .apply {
+          timeInMillis = startOfDay(now)
+          add(Calendar.DAY_OF_MONTH, -(days - 1).coerceAtLeast(0))
+        }.timeInMillis
+    return startOfDay(start) to endOfDay(now)
+  }
 
   /** The whole previous Jalali month, relative to the month containing [now]. */
   fun previousJalaliMonth(now: Long): Pair<Long, Long> {

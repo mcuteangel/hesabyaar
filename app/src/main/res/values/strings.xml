@@ -146,4 +146,17 @@
     <!-- Dashboard income/expense cards: totals for the current Jalali month (GetDashboardDataUseCase) -->
     <string name="dashboard_month_income_label">درآمد این ماه</string>
     <string name="dashboard_month_expenses_label">مخارج این ماه</string>
+    <!-- Loan counterparty wording, shared by UI lists and the Excel export (LoanTypeLabels.kt) -->
+    <string name="loan_party_debtor">بدهکار</string>
+    <string name="loan_party_creditor">طلبکار</string>
+    <string name="loan_party_unknown">نامشخص</string>
+    <!-- Amount field labels; %1$s = display unit (تومان / ریال) -->
+    <string name="opening_balance_label">موجودی اولیه (%1$s)</string>
+    <string name="bank_loan_received_label">مبلغ دریافتی (%1$s)</string>
+    <string name="bank_loan_monthly_label">مبلغ قسط ماهانه (%1$s)</string>
+    <!-- ReportsScreen date presets -->
+    <string name="report_preset_today">امروز</string>
+    <string name="report_preset_last_week">هفته اخیر</string>
+    <string name="report_preset_previous_month">ماه قبل</string>
+    <string name="report_preset_last_year">سال اخیر</string>
 </resources>

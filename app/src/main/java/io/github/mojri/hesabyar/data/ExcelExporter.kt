@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.data
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.ui.utils.partyLabelRes
 import io.github.mojri.hesabyar.rust.Cell
 import io.github.mojri.hesabyar.rust.RustBridge
 import io.github.mojri.hesabyar.rust.SheetData
@@ -168,12 +169,7 @@ class ExcelExporter(
    * and CREDITOR (the user owes them) is «طلبکار».
    */
   @VisibleForTesting
-  internal fun loanTypeLabel(type: LoanType): String =
-    when (type) {
-      LoanType.DEBTOR -> "بدهکار"
-      LoanType.CREDITOR -> "طلبکار"
-      LoanType.UNKNOWN -> "نامشخص"
-    }
+  internal fun loanTypeLabel(type: LoanType): String = context.getString(type.partyLabelRes())
 
   @VisibleForTesting
   internal fun buildLoansSheet(loans: List<Loan>): SheetData {

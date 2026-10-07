@@ -605,7 +605,11 @@ private fun AccountDialogForm(
     HesabyarInputField(
       value = initialBalance,
       onValueChange = { initialBalance = it },
-      label = "موجودی اولیه (${CurrencyFormatter.unitLabel})",
+      label =
+        stringResource(
+          id = io.github.mojri.hesabyar.R.string.opening_balance_label,
+          CurrencyFormatter.unitLabel
+        ),
       placeholder = "0",
       shape = ShapeTokens.Medium,
       singleLine = true,
