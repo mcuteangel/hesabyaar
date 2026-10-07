@@ -1,0 +1,28 @@
+scripts/pre-commit
+  s_3ae98003c5def4::t_66d2cc40ece005 67-70
+  s_3ae98003c5def4::t_c77a972568bb5d 142-159
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_917e452b9a5909 1183-1254,1268-1269,1272,1278-1282,1284-1286
+  s_3ae98003c5def4::t_f073df65993126 979-980
+  s_3ae98003c5def4::t_44a9062662eb3a 1255-1267,1270-1271,1273-1277
+  s_3ae98003c5def4::t_4f23dc58cbe214 1283
+  s_3ae98003c5def4::t_911ed0cc47387a 1287-1326
+  s_3ae98003c5def4::t_4da9213219ee17 1721
+  s_3ae98003c5def4::t_66638ba058d913 1027
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b2f042543ec22560e607f9cae9fc942679f9b574",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
