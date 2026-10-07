@@ -392,11 +392,19 @@ export function scanFiles(paths) {
 // ---------------------------------------------------------------------------
 
 async function repoFacts(api, slug, cache) {
-  if (!cache.has(slug)) {
-    const [owner, repo] = slug.split('/');
+  // The slug may include a sub-action path (e.g. `owner/repo/.github/actions/foo`).
+  // Strip everything after the second `/` for API calls and caching — facts (releases,
+  // tags, advisories) belong to the repository root, not individual sub-action paths.
+  const parts = slug.split('/');
+  if (parts.length < 2 || !parts[0] || !parts[1]) {
+    throw new Error(`Invalid action slug: ${slug}`);
+  }
+  const [owner, repo] = parts;
+  const repoSlug = `${owner}/${repo}`;
+  if (!cache.has(repoSlug)) {
     // Propagate the injected transport so scans stay offline in tests.
-    const subApi = createApi({ fetchImpl: api.fetchImpl, token: api.token, repo: slug });
-    cache.set(slug, {
+    const subApi = createApi({ fetchImpl: api.fetchImpl, token: api.token, repo: repoSlug });
+    cache.set(repoSlug, {
       api: subApi,
       owner,
       repo,
@@ -404,7 +412,7 @@ async function repoFacts(api, slug, cache) {
       advisoriesPromise: null,
     });
   }
-  return cache.get(slug);
+  return cache.get(repoSlug);
 }
 
 // Advisory lookup, shared by every occurrence of one repository. The result
