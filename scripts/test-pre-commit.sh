@@ -152,6 +152,7 @@ reset_clone() {
   git_clone clean -qfdx || die "clean failed"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$CLONE/gradlew"
   chmod +x "$CLONE/gradlew"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
   refresh_split
   DIFF_BASE=""
 }
@@ -974,6 +975,14 @@ EOF
   assert_log_contains "Failed to restore the original Kotlin worktree state"
   expect_staged_exactly "$CARRIER" "$kt"
 
+  local retain_count
+  retain_count=$(grep -c "Retaining Kotlin backup directory" "$LOG" || echo "0")
+  if [[ "$retain_count" -eq 1 ]]; then
+    pass "restore attempted exactly once (EXIT trap did not retry)"
+  else
+    fail "restore executed $retain_count times (expected 1)"
+  fi
+
   local retained_backup
   retained_backup=$(grep -oE "Retaining Kotlin backup directory '[^']+'" "$LOG" | head -1 | sed "s/Retaining Kotlin backup directory '//;s/'//")
   if [[ -n "$retained_backup" && -d "$retained_backup" ]]; then
@@ -989,6 +998,7 @@ EOF
   fi
 
   rm -f "$CLONE/$pkg"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
 }
 
 case_p13() {
@@ -1013,8 +1023,8 @@ case_p13() {
   # This is what the hook persists when restore_kt_worktree fails.
   printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
   : > "$CLONE/.git/hesabyar-kt-restore-failed"
-  # Create a tracked/ directory so the early guard does not short-circuit
-  mkdir -p "$stale_backup/tracked"
+  # Empty tracked/: recovery must trust modes.null only, so a backup with no
+  # authoritative record has nothing to restore and fails closed.
 
   # Use the real hook (no patching needed: the marker file drives the behavior)
   cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
@@ -1049,6 +1059,7 @@ case_p13() {
   cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
   chmod +x "$HOOKS/pre-commit"
   rm -rf "$stale_backup"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed"
 }
 
 case_p14() {
@@ -1078,11 +1089,94 @@ case_p14() {
   expect_commit_exactly "$CARRIER" "$kt"
   assert_nothing_staged
   assert_wt_file "$kt" "$wtx"
-  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" ]]; then
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" && ! -f "$CLONE/.git/hesabyar-kt-restore-failed" ]]; then
     pass "leftover backup and recovery marker cleanly removed"
   else
     fail "leftover backup or recovery marker remained"
   fi
+}
+
+case_p15() {
+  echo "=== P15: orphaned restore-failure marker with missing backup directory aborts ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP15.kt"
+  printf '// p15 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p15
+  local missing_backup="$WORK/hesabyar-kt-missing.p15"
+  rm -rf "$missing_backup"
+  printf '%s\n' "$missing_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  run_hook
+  expect_rc nonzero "hook aborts on orphaned restore-failure marker"
+  assert_log_contains "Kotlin restore previously failed and backup directory"
+  assert_log_contains "Refusing to proceed with possibly unrecovered worktree bytes"
+  expect_staged_exactly "$CARRIER" "$kt"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p16() {
+  echo "=== P16: edited materialized absent file is preserved on restore ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP16.kt"
+  local exp="$WORK/p16_staged.bin"
+  printf '// p16 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p16
+  rm "$CLONE/$kt"
+  # Fake gradlew edits the materialized absent file during detekt (after ktlintFormat
+  # and re-staging have finished), then passes.
+  # Restore must detect the user edit via git diff and preserve it.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP16.kt"
+  if [ -f "$kt" ]; then
+    printf '// p16 user edit during detekt\n' >> "$kt"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  run_hook
+  expect_rc 0 "hook passes with edited materialized absent file"
+  assert_log_contains "Preserving modified worktree file"
+  assert_idx_file "$kt" "$exp"
+  if grep -q "p16 user edit during detekt" "$CLONE/$kt"; then
+    pass "user edit to materialized absent file preserved"
+  else
+    fail "user edit to materialized absent file was lost"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p17() {
+  echo "=== P17: leftover partial tracked/ bytes without modes.null fail closed ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP17.kt"
+  printf '// p17 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p17
+  local stale_backup="$WORK/hesabyar-kt-stale.p17"
+  mkdir -p "$stale_backup/tracked/$(dirname "$kt")"
+  # Partial bytes with no authoritative modes.null record.
+  printf '// p17 partial leftover\n' > "$stale_backup/tracked/$kt"
+  printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  run_hook
+  expect_rc nonzero "hook fails closed on partial backup without modes.null"
+  assert_log_contains "Leftover Kotlin backup could not be restored"
+  expect_staged_exactly "$CARRIER" "$kt"
+  if [[ -d "$stale_backup" ]]; then
+    pass "partial backup retained without clobber: $stale_backup"
+  else
+    fail "partial backup was deleted or moved: $stale_backup"
+  fi
+  rm -rf "$stale_backup"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
 }
 
 case_q() {
@@ -1479,7 +1573,7 @@ case_e3_static_kotlin_symlink_rejection() {
 
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"

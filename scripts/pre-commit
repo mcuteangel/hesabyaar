@@ -58,7 +58,16 @@ restore_kt_worktree() {
     kt_restore_failed=1
   fi
 
-  [[ -n "$b" && -d "$b" ]] || return 0
+  # Fail closed when a prior restore failed but its backup is gone.
+  # An orphaned marker means unrecovered worktree bytes may remain.
+  if [[ -z "$b" || ! -d "$b" ]]; then
+    if [[ $kt_restore_failed -ne 0 ]]; then
+      echo "❌ Kotlin restore previously failed and backup directory '${b:-<unset>}' is missing." >&2
+      echo "   Refusing to proceed with possibly unrecovered worktree bytes." >&2
+      return 1
+    fi
+    return 0
+  fi
 
   # Cross-invocation recovery: reconstruct dirty file list from modes.null.
   # modes.null is appended only AFTER a file's backup copy completes, so it is
@@ -72,15 +81,19 @@ restore_kt_worktree() {
       while IFS= read -r -d '' rec_mode && IFS= read -r -d '' rec_path; do
         [[ -n "$rec_path" && "$rec_mode" =~ ^[0-7]{1,4}$ ]] || continue
         KT_DIRTY_MODES["$rec_path"]="$rec_mode"
-        if [[ ${#KT_DIRTY_FILES[@]} -eq 0 ]]; then
-          KT_DIRTY_FILES+=("$rec_path")
-        fi
+        KT_DIRTY_FILES+=("$rec_path")
       done < "$b/modes.null"
     fi
   fi
   if [[ -f "$b/absent.null" && ${#KT_ABSENT_FILES[@]} -eq 0 ]]; then
     while IFS= read -r -d '' f; do
-      [[ -n "$f" ]] && KT_ABSENT_FILES+=("$f")
+      # Validate each record: non-empty, relative, no empty/./.. component.
+      # A corrupted record must not redirect the cleanup rm outside the repo.
+      [[ -n "$f" && "$f" != /* ]] || continue
+      case "/$f/" in
+        */../*|*/./*|*//*) continue ;;
+      esac
+      KT_ABSENT_FILES+=("$f")
     done < "$b/absent.null"
   fi
 
@@ -124,8 +137,9 @@ restore_kt_worktree() {
     for f in "${KT_ABSENT_FILES[@]}"; do
       # Only delete if the worktree file matches the staged index version
       # that the hook materialized. If the user edited the file in the meantime,
-      # do not delete user edits.
-      if [[ -e "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+      # do not delete user edits. Test -L too: -e is false for a dangling
+      # symlink, and that user change must not be deleted either.
+      if [[ -e "$f" || -L "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
         echo "⚠️ Preserving modified worktree file '$f' originally flagged absent." >&2
         continue
       fi
@@ -311,25 +325,6 @@ try_commit() {
           kt_backup_dir=""
           return 1
         }
-        # Persist recovery pointer BEFORE any materialization. This ensures a
-        # forced termination (SIGKILL) between here and the backup writes cannot
-        # leave staged bytes in the worktree with no way for the next invocation
-        # to locate the backup. Abort if the marker cannot be written.
-        local git_dir
-        git_dir=$(get_git_dir)
-        if [[ -n "$git_dir" ]]; then
-          if ! printf '%s\n' "$kt_backup_dir" > "$git_dir/$KT_RECOVERY_POINTER" 2>/dev/null; then
-            echo "❌ Could not persist Kotlin recovery marker." >&2
-            echo "   Aborting before materialization to avoid leaving worktree in an" >&2
-            echo "   unrecoverable state." >&2
-            rm -rf "$kt_backup_dir"
-            kt_backup_dir=""
-            return 1
-          fi
-          # Remove any stale restore-failure marker from a prior attempt
-          rm -f "$git_dir/$KT_RECOVERY_FAILED" 2>/dev/null || true
-        fi
-
         # Back up dirty worktree files and their modes before materialization.
         # Track each successfully backed-up file so restore only uses complete
         # copies, avoiding partial cp leftovers.
@@ -351,6 +346,24 @@ try_commit() {
           printf '%s\0%s\0' "$mode" "$f" >> "$kt_backup_dir/modes.null"
         done
 
+        # Persist recovery pointer BEFORE any worktree materialization.
+        # Backups are already complete on disk with authoritative modes.null,
+        # so an interrupt during backup creation cannot leave a pointer over
+        # incomplete state. Abort before materialization if marker write fails.
+        local git_dir
+        git_dir=$(get_git_dir)
+        if [[ -n "$git_dir" ]]; then
+          if ! printf '%s\n' "$kt_backup_dir" > "$git_dir/$KT_RECOVERY_POINTER" 2>/dev/null; then
+            echo "❌ Could not persist Kotlin recovery marker." >&2
+            echo "   Aborting before materialization to avoid leaving worktree in an" >&2
+            echo "   unrecoverable state." >&2
+            restore_kt_worktree
+            return 1
+          fi
+          # Remove any stale restore-failure marker from a prior attempt
+          rm -f "$git_dir/$KT_RECOVERY_FAILED" 2>/dev/null || true
+        fi
+
         # Materialize index version for dirty files
         for f in "${dirty_kt[@]}"; do
           if ! git show ":$f" > "$f" 2>/dev/null; then
@@ -367,7 +380,17 @@ try_commit() {
         for f in "${absent_kt[@]}"; do
           KT_ABSENT_FILES+=("$f")
           printf '%s\0' "$f" >> "$kt_backup_dir/absent.null"
-          if ! mkdir -p "$(dirname "$f")" 2>/dev/null || ! git show ":$f" > "$f" 2>/dev/null; then
+          if ! mkdir -p "$(dirname "$f")" 2>/dev/null; then
+            echo "❌ Failed to create directory for absent Kotlin file '$f'."
+            restore_kt_worktree
+            return 1
+          fi
+          if ! git show ":$f" > "$f" 2>/dev/null; then
+            # The redirection may have left a truncated file. The path was
+            # absent before the hook ran, so remove the artifact: restore
+            # would otherwise treat the truncated bytes as a user edit and
+            # preserve them.
+            rm -f "$f" 2>/dev/null || true
             echo "❌ Failed to materialize absent Kotlin file '$f'."
             restore_kt_worktree
             return 1
