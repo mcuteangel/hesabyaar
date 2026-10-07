@@ -390,7 +390,7 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
         icon = Icons.Filled.ArrowCircleDown,
         tint = MaterialTheme.colorScheme.primary,
         label = stringResource(R.string.loan_party_debtor),
-        contentDescription = "بدهکار — موجودی مثبت"
+        contentDescription = stringResource(R.string.person_direction_debtor_desc)
       )
     }
 
@@ -399,7 +399,7 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
         icon = Icons.Filled.ArrowCircleUp,
         tint = MaterialTheme.colorScheme.secondary,
         label = stringResource(R.string.loan_party_creditor),
-        contentDescription = "طلبکار — موجودی منفی"
+        contentDescription = stringResource(R.string.person_direction_creditor_desc)
       )
     }
 
@@ -407,8 +407,8 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
       PersonDirection(
         icon = Icons.Filled.AccountCircle,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        label = "تعادل",
-        contentDescription = "متعادل — موجودی صفر"
+        label = stringResource(R.string.person_direction_settled),
+        contentDescription = stringResource(R.string.person_direction_settled_desc)
       )
     }
   }

@@ -150,6 +150,11 @@
     <string name="loan_party_debtor">بدهکار</string>
     <string name="loan_party_creditor">طلبکار</string>
     <string name="loan_party_unknown">نامشخص</string>
+    <!-- PersonsScreen balance direction (label + screen-reader description) -->
+    <string name="person_direction_settled">تعادل</string>
+    <string name="person_direction_debtor_desc">بدهکار — موجودی مثبت</string>
+    <string name="person_direction_creditor_desc">طلبکار — موجودی منفی</string>
+    <string name="person_direction_settled_desc">متعادل — موجودی صفر</string>
     <!-- Amount field labels; %1$s = display unit (تومان / ریال) -->
     <string name="opening_balance_label">موجودی اولیه (%1$s)</string>
     <string name="bank_loan_received_label">مبلغ دریافتی (%1$s)</string>

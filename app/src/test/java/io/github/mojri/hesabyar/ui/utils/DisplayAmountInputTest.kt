@@ -90,6 +90,8 @@ class DisplayAmountInputTest {
     assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("۱۰۰۰۰۰"))
     assertEquals(1_000_000L, DisplayAmountInput.toRialOrNull("١٠٠٠٠٠"))
     assertEquals(-50_000L, DisplayAmountInput.toRialOrNull("-۵۰۰۰"))
+    // U+2212 MINUS SIGN, as some keyboards emit it.
+    assertEquals(-50_000L, DisplayAmountInput.toRialOrNull("\u22125000"))
   }
 
   @Test
@@ -105,6 +107,8 @@ class DisplayAmountInputTest {
     val max = DisplayAmountInput.MAX_DISPLAY_AMOUNT
     assertEquals(max * 10, DisplayAmountInput.toRialOrNull(max.toString()))
     assertNull(DisplayAmountInput.toRialOrNull((max + 1).toString()))
+    assertEquals(-max * 10, DisplayAmountInput.toRialOrNull((-max).toString()))
+    assertNull(DisplayAmountInput.toRialOrNull((-(max + 1)).toString()))
     assertNull(DisplayAmountInput.toRialOrNull(Long.MAX_VALUE.toString()))
     assertNull(DisplayAmountInput.toRialOrNull(Long.MIN_VALUE.toString()))
   }

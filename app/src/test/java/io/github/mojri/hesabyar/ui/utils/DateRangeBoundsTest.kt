@@ -110,17 +110,22 @@ class DateRangeBoundsTest {
     // 24 h from 2026-03-09 00:30 lands on 2026-03-07; the range must start on 03-08.
     val newYork = TimeZone.getTimeZone("America/New_York")
     TimeZone.setDefault(newYork)
-    val now =
-      Calendar.getInstance(newYork).apply {
-        set(2026, Calendar.MARCH, 9, 0, 30, 0)
-        set(Calendar.MILLISECOND, 0)
-      }.timeInMillis
-    val expectedStart =
-      Calendar.getInstance(newYork).apply {
-        set(2026, Calendar.MARCH, 8, 0, 0, 0)
-        set(Calendar.MILLISECOND, 0)
-      }.timeInMillis
+    val now = newYorkMillis(2026, Calendar.MARCH, 9, 0, 30)
+    val expectedStart = newYorkMillis(2026, Calendar.MARCH, 8, 0, 0)
     val (start, _) = DateRangeBounds.lastDays(now, days = 2)
     assertEquals(expectedStart, start)
+  }
+
+  private fun newYorkMillis(
+    year: Int,
+    month: Int,
+    day: Int,
+    hour: Int,
+    min: Int
+  ): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"))
+    cal.set(year, month, day, hour, min, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
   }
 }

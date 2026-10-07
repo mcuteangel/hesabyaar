@@ -667,14 +667,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Text(
                 text = stringResource(loan.type.partyLabelRes()),
                 style = MaterialTheme.typography.labelSmall,
-                color =
-                  if (loan.type ==
-                    LoanType.DEBTOR
-                  ) {
-                    MaterialTheme.colorScheme.primary
-                  } else {
-                    MaterialTheme.colorScheme.error
-                  }
+                color = loanTypeColor(loan.type)
               )
             }
 
@@ -685,13 +678,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                   .fillMaxWidth()
                   .height(8.dp)
                   .clip(ShapeTokens.Small),
-              color =
-                if (loan.type == LoanType.DEBTOR
-                ) {
-                  MaterialTheme.colorScheme.primary
-                } else {
-                  MaterialTheme.colorScheme.error
-                },
+              color = loanTypeColor(loan.type),
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
@@ -925,3 +912,12 @@ private fun CircularProgress(
     )
   }
 }
+
+/** DEBTOR = primary, CREDITOR = error, UNKNOWN = neutral so it is not shown as a creditor. */
+@Composable
+private fun loanTypeColor(type: LoanType): Color =
+  when (type) {
+    LoanType.DEBTOR -> MaterialTheme.colorScheme.primary
+    LoanType.CREDITOR -> MaterialTheme.colorScheme.error
+    LoanType.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+  }
