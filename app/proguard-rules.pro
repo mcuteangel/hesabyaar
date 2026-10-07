@@ -82,12 +82,16 @@
 -keep class com.sun.jna.** { *; }
 # UniFFI marks Structure subclasses with @Structure.FieldOrder.
 # JNA reads this annotation with reflection at runtime.
-# R8 strips the annotation from optimized classes.
+# R8 strips class-level annotations from classes that are not kept.
+# -keepattributes alone does not preserve them.
 # Keep the subclasses entirely so the annotation survives.
 -keep class * extends com.sun.jna.Structure { *; }
-# The bindings are installed with the app package, so the interface
-# is io.github.mojri.hesabyar.rust.UniffiLib, not uniffi.hesabyar_core.
-# JNA builds a proxy for the interface at runtime.
-# The proxy resolves native symbols from the Java method names.
-# R8 must not rename the interface or its methods.
--keep interface io.github.mojri.hesabyar.rust.UniffiLib { *; }
+# The bindings are installed with the app package.
+# The entry points are io.github.mojri.hesabyar.rust.UniffiLib and
+# io.github.mojri.hesabyar.rust.IntegrityCheckingUniffiLib.
+# UniFFI 0.32 generates objects, not interfaces.
+# Each object binds native symbols with Native.register at init.
+# Native.register resolves the symbols from the external fun names.
+# R8 must not rename the objects or their functions.
+-keep class io.github.mojri.hesabyar.rust.UniffiLib { *; }
+-keep class io.github.mojri.hesabyar.rust.IntegrityCheckingUniffiLib { *; }
