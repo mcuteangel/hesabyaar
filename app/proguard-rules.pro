@@ -79,3 +79,8 @@
 -keepclassmembers class * extends com.sun.jna.Structure {
     public *;
 }
+# UniFFI generates the FFI interface uniffi.hesabyar_core.UniffiLib.
+# JNA builds a proxy for the interface at runtime.
+# The proxy resolves native symbols from the Java method names.
+# R8 must not rename the interface or its methods.
+-keep interface uniffi.hesabyar_core.UniffiLib { *; }
