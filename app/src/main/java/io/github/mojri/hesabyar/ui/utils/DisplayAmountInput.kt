@@ -29,9 +29,12 @@ object DisplayAmountInput {
     text: String,
     toRial: (Long) -> Long = CurrencyFormatter::toRial
   ): Long? {
-    val display = normalizeDigits(text).toLongOrNull() ?: return null
-    if (display > MAX_DISPLAY_AMOUNT || display < -MAX_DISPLAY_AMOUNT) return null
+    val display =
+      normalizeDigits(text)
+        .toLongOrNull()
+        ?.takeIf { it in -MAX_DISPLAY_AMOUNT..MAX_DISPLAY_AMOUNT }
     return when {
+      display == null -> null
       display == 0L -> 0L
       display < 0L -> -toRial(-display)
       else -> toRial(display)

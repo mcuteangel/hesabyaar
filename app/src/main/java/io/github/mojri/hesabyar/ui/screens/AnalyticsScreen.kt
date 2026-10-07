@@ -35,6 +35,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.AccountBreakdownCard
+import io.github.mojri.hesabyar.ui.utils.partyColor
 import io.github.mojri.hesabyar.ui.utils.partyLabelRes
 
 @Composable
@@ -667,7 +668,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
               Text(
                 text = stringResource(loan.type.partyLabelRes()),
                 style = MaterialTheme.typography.labelSmall,
-                color = loanTypeColor(loan.type)
+                color = loan.type.partyColor()
               )
             }
 
@@ -678,7 +679,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                   .fillMaxWidth()
                   .height(8.dp)
                   .clip(ShapeTokens.Small),
-              color = loanTypeColor(loan.type),
+              color = loan.type.partyColor(),
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
@@ -912,12 +913,3 @@ private fun CircularProgress(
     )
   }
 }
-
-/** DEBTOR = primary, CREDITOR = error, UNKNOWN = neutral so it is not shown as a creditor. */
-@Composable
-private fun loanTypeColor(type: LoanType): Color =
-  when (type) {
-    LoanType.DEBTOR -> MaterialTheme.colorScheme.primary
-    LoanType.CREDITOR -> MaterialTheme.colorScheme.error
-    LoanType.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-  }
