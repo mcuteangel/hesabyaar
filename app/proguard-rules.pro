@@ -80,11 +80,14 @@
 # This rule tells R8 to ignore those references.
 -dontwarn java.awt.*
 -keep class com.sun.jna.** { *; }
--keepclassmembers class * extends com.sun.jna.Structure {
-    public *;
-}
-# UniFFI generates the FFI interface uniffi.hesabyar_core.UniffiLib.
+# UniFFI marks Structure subclasses with @Structure.FieldOrder.
+# JNA reads this annotation with reflection at runtime.
+# R8 strips the annotation from optimized classes.
+# Keep the subclasses entirely so the annotation survives.
+-keep class * extends com.sun.jna.Structure { *; }
+# The bindings are installed with the app package, so the interface
+# is io.github.mojri.hesabyar.rust.UniffiLib, not uniffi.hesabyar_core.
 # JNA builds a proxy for the interface at runtime.
 # The proxy resolves native symbols from the Java method names.
 # R8 must not rename the interface or its methods.
--keep interface uniffi.hesabyar_core.UniffiLib { *; }
+-keep interface io.github.mojri.hesabyar.rust.UniffiLib { *; }
