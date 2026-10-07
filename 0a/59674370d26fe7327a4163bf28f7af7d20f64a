@@ -1,0 +1,27 @@
+scripts/pre-commit
+  s_3ae98003c5def4::t_9120cef4e7f988 98-102
+  s_3ae98003c5def4::t_36b21741f71e4a 63-65,87-91
+  s_3ae98003c5def4::t_3d92c2acba0ae9 303-319,322-324,338,340
+  s_3ae98003c5def4::t_328c5d33a44f0a 16-20,23-24,26-33,38-39,45,47,52,56-60,76-77,103-105,136,138,142
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_3428b6126c9935 1005,1012-1020
+  s_3ae98003c5def4::t_4817bc825e14ba 1036-1041
+  s_3ae98003c5def4::t_301deed5beee26 1006-1010
+  s_3ae98003c5def4::t_14f7518e48cd5c 1071-1072
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0a59674370d26fe7327a4163bf28f7af7d20f64a",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
