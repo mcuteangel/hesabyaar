@@ -137,7 +137,7 @@
 
     <!-- AccountManagementScreen -->
     <string name="balance_invalid_amount">مقدار نامعتبر</string>
-    <string name="balance_amount_label">مبلغ ریال</string>
+    <string name="balance_amount_label">مبلغ به %1$s</string>
 
     <!-- AccountViewModel runGuarded error messages -->
     <string name="account_operation_error">خطا در %1$s: %2$s</string>

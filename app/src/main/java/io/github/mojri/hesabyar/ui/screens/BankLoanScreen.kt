@@ -45,6 +45,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 
 @Composable
 fun BankLoanScreen(
@@ -221,8 +222,9 @@ private fun AddBankLoanDialog(
 
   val jDate = JalaliCalendarHelper.gregorianToJalali(startDate)
   val countVal = count.toIntOrNull() ?: 0
-  val receivedVal = received.toLongOrNull() ?: 0L
-  val monthlyVal = monthly.toLongOrNull() ?: 0L
+  // Inputs are typed in the user's display unit; the database stores Rial.
+  val receivedVal = DisplayAmountInput.toRialOrNull(received) ?: 0L
+  val monthlyVal = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
   val canConfirm =
     bankName.isNotBlank() &&
       receivedVal > 0 &&
@@ -299,13 +301,13 @@ private fun BankLoanForm(
     HesabyarInputField(
       value = received,
       onValueChange = onReceived,
-      label = "مبلغ دریافتی (ریال)",
+      label = "مبلغ دریافتی (${CurrencyFormatter.unitLabel})",
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
       value = monthly,
       onValueChange = onMonthly,
-      label = "مبلغ قسط ماهانه (ریال)",
+      label = "مبلغ قسط ماهانه (${CurrencyFormatter.unitLabel})",
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(

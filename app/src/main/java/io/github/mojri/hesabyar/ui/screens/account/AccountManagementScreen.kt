@@ -80,6 +80,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import kotlinx.coroutines.launch
 
 private const val COLOR_PICKER_COLUMNS = 8
@@ -558,8 +559,16 @@ private fun AccountDialogForm(
   var cardNumber by remember { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
   var accountNumber by remember { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
   var iban by remember { mutableStateOf(initialAccount?.iban.orEmpty()) }
-  var initialBalance by remember { mutableStateOf(initialAccount?.initialBalance?.toString() ?: "0") }
-  val parsedBalance = initialBalance.trim().toLongOrNull()
+  // The opening balance is typed in the user's display unit; the database stores Rial.
+  val prefilledBalance =
+    remember { initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0" }
+  var initialBalance by remember { mutableStateOf(prefilledBalance) }
+  val parsedBalance =
+    DisplayAmountInput.resolveEditedRial(
+      text = initialBalance,
+      prefilledText = prefilledBalance,
+      originalRial = initialAccount?.initialBalance
+    )
   val balanceError = initialBalance.isNotBlank() && parsedBalance == null
   var selectedColor by remember { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
@@ -596,7 +605,7 @@ private fun AccountDialogForm(
     HesabyarInputField(
       value = initialBalance,
       onValueChange = { initialBalance = it },
-      label = "موجودی اولیه (ریال)",
+      label = "موجودی اولیه (${CurrencyFormatter.unitLabel})",
       placeholder = "0",
       shape = ShapeTokens.Medium,
       singleLine = true,
@@ -610,7 +619,10 @@ private fun AccountDialogForm(
             id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
           )
         } else {
-          stringResource(id = io.github.mojri.hesabyar.R.string.balance_amount_label)
+          stringResource(
+            id = io.github.mojri.hesabyar.R.string.balance_amount_label,
+            CurrencyFormatter.unitLabel
+          )
         },
       isError = balanceError
     )
