@@ -60,23 +60,23 @@ restore_kt_worktree() {
 
   [[ -n "$b" && -d "$b" ]] || return 0
 
-  # Recover persisted restore-failure flag from prior invocation
-  if [[ -n "$git_dir" && -f "$git_dir/$KT_RECOVERY_FAILED" ]]; then
-    kt_restore_failed=1
-  fi
-
-  # Discover files from disk if in-memory list is empty (cross-invocation recovery)
-  if [[ ${#KT_DIRTY_FILES[@]} -eq 0 && -d "$b/tracked" ]]; then
-    while IFS= read -r -d '' f; do
-      local rel="${f#"$b"/tracked/}"
-      [[ -n "$rel" ]] && KT_DIRTY_FILES+=("$rel")
-    done < <(find "$b/tracked" -type f -print0 2>/dev/null)
-  fi
-  if [[ -f "$b/modes.null" && ${#KT_DIRTY_MODES[@]} -eq 0 ]]; then
-    # Parse as NUL-delimited mode/path pairs so filenames with spaces round-trip.
-    while IFS= read -r -d '' mode && IFS= read -r -d '' path; do
-      [[ -n "$path" && "$mode" =~ ^[0-7]{1,4}$ ]] && KT_DIRTY_MODES["$path"]="$mode"
-    done < "$b/modes.null"
+  # Cross-invocation recovery: reconstruct dirty file list from modes.null.
+  # modes.null is appended only AFTER a file's backup copy completes, so it is
+  # the authoritative record of completed backups. Never scan tracked/ directly:
+  # a partial cp left by an interrupted run would otherwise be treated as a
+  # complete backup and overwrite the untouched worktree file.
+  if [[ -f "$b/modes.null" ]]; then
+    if [[ ${#KT_DIRTY_MODES[@]} -eq 0 ]]; then
+      # Parse as NUL-delimited mode/path pairs so filenames with spaces round-trip.
+      local rec_mode rec_path
+      while IFS= read -r -d '' rec_mode && IFS= read -r -d '' rec_path; do
+        [[ -n "$rec_path" && "$rec_mode" =~ ^[0-7]{1,4}$ ]] || continue
+        KT_DIRTY_MODES["$rec_path"]="$rec_mode"
+        if [[ ${#KT_DIRTY_FILES[@]} -eq 0 ]]; then
+          KT_DIRTY_FILES+=("$rec_path")
+        fi
+      done < "$b/modes.null"
+    fi
   fi
   if [[ -f "$b/absent.null" && ${#KT_ABSENT_FILES[@]} -eq 0 ]]; then
     while IFS= read -r -d '' f; do
@@ -122,6 +122,13 @@ restore_kt_worktree() {
   if [[ ${#KT_ABSENT_FILES[@]} -gt 0 ]]; then
     local -a remaining_absent=()
     for f in "${KT_ABSENT_FILES[@]}"; do
+      # Only delete if the worktree file matches the staged index version
+      # that the hook materialized. If the user edited the file in the meantime,
+      # do not delete user edits.
+      if [[ -e "$f" ]] && ! git diff --quiet -- "$f" 2>/dev/null; then
+        echo "⚠️ Preserving modified worktree file '$f' originally flagged absent." >&2
+        continue
+      fi
       if ! rm -f "$f" 2>/dev/null; then
         remaining_absent+=("$f")
       fi
@@ -199,7 +206,11 @@ restore_rust_worktree() {
 }
 
 cleanup_worktrees() {
-  restore_kt_worktree || true
+  # If an inline restore already failed, do not retry from the EXIT trap
+  # to avoid duplicate diagnostics and partial-state re-entry.
+  if [[ $kt_restore_failed -eq 0 ]]; then
+    restore_kt_worktree || true
+  fi
   restore_rust_worktree || true
 }
 
