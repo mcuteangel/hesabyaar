@@ -1,0 +1,33 @@
+scripts/test-pre-commit.sh
+  s_3ae98003c5def4::t_f8f2ab81b5b4c4 978-985,1001
+  s_3ae98003c5def4::t_82016dbe30b880 1026-1027
+  s_3ae98003c5def4::t_d825ab05a17809 1092,1099,1101,1105,1109-1111,1115-1127,1131-1132,1134-1135,1137-1143,1145,1147-1179
+  s_3ae98003c5def4::t_73a3ce9bb44686 1128-1130,1133,1136,1144,1146
+  s_3ae98003c5def4::t_31014a307bfb84 1100,1102-1104,1106-1108,1112-1114
+  s_3ae98003c5def4::t_4ff0a5d38d59ae 1576
+  s_3ae98003c5def4::t_a51ece4995abbc 155
+  s_3ae98003c5def4::t_2ef67bf084857b 1062
+scripts/pre-commit
+  s_3ae98003c5def4::t_6c440fc89ea623 140-142
+  s_3ae98003c5def4::t_ffc9c288ad4646 84
+  s_3ae98003c5def4::t_faf5f15f87f991 383-393
+  s_3ae98003c5def4::t_696f2baa6c1810 349-365
+  s_3ae98003c5def4::t_89f8ebcb078b0a 90-96
+  s_3ae98003c5def4::t_76d4e8cfad5be7 61-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2068b644ffd17e7e588400958a9d5620d411efb2",
+  "prompts": {},
+  "sessions": {
+    "s_3ae98003c5def4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c36a562-6b25-4052-805e-03dce6d13006",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
