@@ -1232,7 +1232,7 @@ case_p18() {
     fail "canary for traversal path was deleted"
   fi
 
-  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" ]]; then
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" && ! -f "$CLONE/.git/hesabyar-kt-restore-failed" ]]; then
     pass "leftover backup and recovery marker cleanly removed"
   else
     fail "leftover backup or recovery marker remained"
