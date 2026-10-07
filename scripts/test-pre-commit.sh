@@ -1002,14 +1002,22 @@ case_p13() {
   local stale_backup="$WORK/hesabyar-kt-stale.999999"
   mkdir -p "$stale_backup"
 
-  # Count existing Kotlin backups under /tmp before running hook
-  local initial_kt_backups
-  initial_kt_backups=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name "hesabyar-kt.*" -type d 2>/dev/null | wc -l)
+  # Count existing Kotlin backups under /tmp before running hook.
+  # Use glob for portability: BSD/macOS find rejects -maxdepth.
+  local initial_kt_backups=0 d
+  for d in "${TMPDIR:-/tmp}"/hesabyar-kt.*; do
+    [[ -d "$d" ]] && initial_kt_backups=$((initial_kt_backups + 1)) || true
+  done
 
-  # Inject prior failed restore state into hook copy using portable sed
-  sed -e "s|^kt_restore_failed=0|kt_restore_failed=1|" \
-      -e "s|^kt_backup_dir=\"\"|kt_backup_dir=\"$stale_backup\"|" \
-    "$SRC/scripts/pre-commit" > "$HOOKS/pre-commit"
+  # Simulate a prior failed restore by writing the recovery marker file.
+  # This is what the hook persists when restore_kt_worktree fails.
+  printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  # Create a tracked/ directory so the early guard does not short-circuit
+  mkdir -p "$stale_backup/tracked"
+
+  # Use the real hook (no patching needed: the marker file drives the behavior)
+  cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
   chmod +x "$HOOKS/pre-commit"
 
   run_hook
@@ -1025,9 +1033,12 @@ case_p13() {
     fail "stale backup directory was deleted or moved: $stale_backup"
   fi
 
-  # Verify no new Kotlin backup directory was created
-  local final_kt_backups
-  final_kt_backups=$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name "hesabyar-kt.*" -type d 2>/dev/null | wc -l)
+  # Verify no new Kotlin backup directory was created.
+  # Use glob for portability: BSD/macOS find rejects -maxdepth.
+  local final_kt_backups=0 d
+  for d in "${TMPDIR:-/tmp}"/hesabyar-kt.*; do
+    [[ -d "$d" ]] && final_kt_backups=$((final_kt_backups + 1)) || true
+  done
   if [[ "$final_kt_backups" -eq "$initial_kt_backups" ]]; then
     pass "no new Kotlin backup directory created: $final_kt_backups"
   else
@@ -1057,6 +1068,8 @@ case_p14() {
   mkdir -p "$old_backup/tracked/$(dirname "$kt")"
   cp "$wtx" "$old_backup/tracked/$kt"
   printf '%s\n' "$old_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  # Write mode in new NUL-delimited pair format
+  printf '644\0%s\0' "$kt" > "$old_backup/modes.null"
   # Worktree currently holds materialized staged index bytes
   cp "$exp" "$CLONE/$kt"
 

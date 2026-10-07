@@ -13,37 +13,56 @@ declare -A RUST_DIRTY_MODES=() # permission bits of each dirty input in octal be
 
 # Backup state for Kotlin worktree materialization. Declared at script scope
 # so the EXIT trap can clean it up on crash, abort, or interruption.
-GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
+# Recovery state is persisted across invocations via marker files in $GIT_DIR:
+#   - hesabyar-kt-backup: one line with the backup directory path
+#   - hesabyar-kt-restore-failed: presence means prior restore failed (no content)
+KT_RECOVERY_POINTER="hesabyar-kt-backup"
+KT_RECOVERY_FAILED="hesabyar-kt-restore-failed"
 kt_backup_dir=""
 kt_restore_failed=0
-KT_DIRTY_FILES=()     # staged Kotlin files whose worktree differed from index
-KT_ABSENT_FILES=()    # staged Kotlin files absent from worktree before the hook ran
+KT_DIRTY_FILES=()        # staged Kotlin files whose worktree differed from index
+KT_ABSENT_FILES=()       # staged Kotlin files absent from worktree before hook ran
 declare -A KT_DIRTY_MODES=() # permission bits of each dirty Kotlin file in octal
+declare -A KT_BACKED_UP=()   # files whose backup copy completed successfully
+
+# Resolve the Git directory path lazily. The hook always runs inside a git
+# repo (pre-commit), so this never fails in practice. Centralizing avoids
+# global capture timing issues.
+get_git_dir() {
+  git rev-parse --git-dir 2>/dev/null || echo ""
+}
 
 # Restore every Kotlin file touched by Kotlin materialization back to its
 # original worktree state. Idempotent: a second call is a no-op.
 restore_kt_worktree() {
+  local git_dir
+  git_dir=$(get_git_dir)
   local b="$kt_backup_dir"
   local f
   local restore_failed=0
 
   # Recover persisted backup pointer from prior interrupted invocation if not set
-  if [[ -z "$b" && -n "$GIT_DIR" && -f "$GIT_DIR/hesabyar-kt-backup" ]]; then
+  if [[ -z "$b" && -n "$git_dir" && -f "$git_dir/$KT_RECOVERY_POINTER" ]]; then
     local saved_b
-    saved_b=$(head -n 1 "$GIT_DIR/hesabyar-kt-backup" 2>/dev/null || echo "")
+    saved_b=$(head -n 1 "$git_dir/$KT_RECOVERY_POINTER" 2>/dev/null || echo "")
     if [[ -n "$saved_b" && -d "$saved_b" ]]; then
       b="$saved_b"
       kt_backup_dir="$b"
     else
-      rm -f "$GIT_DIR/hesabyar-kt-backup" 2>/dev/null || true
+      rm -f "$git_dir/$KT_RECOVERY_POINTER" 2>/dev/null || true
     fi
+  fi
+
+  # Recover persisted restore-failure flag from prior invocation
+  if [[ -n "$git_dir" && -f "$git_dir/$KT_RECOVERY_FAILED" ]]; then
+    kt_restore_failed=1
   fi
 
   [[ -n "$b" && -d "$b" ]] || return 0
 
-  # If restore previously failed and no tracked files exist to retry, return failure
-  if [[ $kt_restore_failed -ne 0 && ${#KT_DIRTY_FILES[@]} -eq 0 && ! -d "$b/tracked" ]]; then
-    return 1
+  # Recover persisted restore-failure flag from prior invocation
+  if [[ -n "$git_dir" && -f "$git_dir/$KT_RECOVERY_FAILED" ]]; then
+    kt_restore_failed=1
   fi
 
   # Discover files from disk if in-memory list is empty (cross-invocation recovery)
@@ -54,9 +73,8 @@ restore_kt_worktree() {
     done < <(find "$b/tracked" -type f -print0 2>/dev/null)
   fi
   if [[ -f "$b/modes.null" && ${#KT_DIRTY_MODES[@]} -eq 0 ]]; then
-    while IFS= read -r -d '' entry; do
-      local mode="${entry%% *}"
-      local path="${entry#* }"
+    # Parse as NUL-delimited mode/path pairs so filenames with spaces round-trip.
+    while IFS= read -r -d '' mode && IFS= read -r -d '' path; do
       [[ -n "$path" && "$mode" =~ ^[0-7]{1,4}$ ]] && KT_DIRTY_MODES["$path"]="$mode"
     done < "$b/modes.null"
   fi
@@ -66,10 +84,25 @@ restore_kt_worktree() {
     done < "$b/absent.null"
   fi
 
+  # If restore previously failed and no tracked, absent, or mode data remain,
+  # there is nothing to retry. Return failure so the caller knows the backup
+  # state is unrecoverable.
+  if [[ $kt_restore_failed -ne 0 && ${#KT_DIRTY_FILES[@]} -eq 0 && ${#KT_ABSENT_FILES[@]} -eq 0 && ${#KT_DIRTY_MODES[@]} -eq 0 ]]; then
+    return 1
+  fi
+
   kt_restore_failed=0
   local -a remaining_dirty=()
   if [[ ${#KT_DIRTY_FILES[@]} -gt 0 ]]; then
     for f in "${KT_DIRTY_FILES[@]}"; do
+      # When restoring within the same invocation, only restore files whose
+      # backup copy completed successfully (KT_BACKED_UP is populated). On
+      # cross-invocation recovery, KT_BACKED_UP is empty because the in-memory
+      # state was not persisted, so trust any discovered file under tracked/.
+      if [[ ${#KT_BACKED_UP[@]} -gt 0 && -z "${KT_BACKED_UP[$f]:-}" ]]; then
+        echo "⚠️ Skipping restore of '$f': no completed backup copy." >&2
+        continue
+      fi
       if [[ -f "$b/tracked/$f" ]]; then
         if ! mkdir -p "$(dirname "$f")" 2>/dev/null || ! cp "$b/tracked/$f" "$f" 2>/dev/null; then
           restore_failed=1
@@ -100,11 +133,13 @@ restore_kt_worktree() {
     rm -rf "$b"
     kt_backup_dir=""
     kt_restore_failed=0
-    [[ -n "$GIT_DIR" ]] && rm -f "$GIT_DIR/hesabyar-kt-backup" 2>/dev/null || true
+    [[ -n "$git_dir" ]] && rm -f "$git_dir/$KT_RECOVERY_POINTER" "$git_dir/$KT_RECOVERY_FAILED" 2>/dev/null || true
     KT_DIRTY_MODES=()
+    KT_BACKED_UP=()
     return 0
   else
     kt_restore_failed=1
+    [[ -n "$git_dir" ]] && touch "$git_dir/$KT_RECOVERY_FAILED" 2>/dev/null || true
     echo "⚠️ Retaining Kotlin backup directory '$b' due to restore failure." >&2
     return 1
   fi
@@ -265,11 +300,28 @@ try_commit() {
           kt_backup_dir=""
           return 1
         }
-        if [[ -n "$GIT_DIR" ]]; then
-          printf '%s\n' "$kt_backup_dir" > "$GIT_DIR/hesabyar-kt-backup" 2>/dev/null || true
+        # Persist recovery pointer BEFORE any materialization. This ensures a
+        # forced termination (SIGKILL) between here and the backup writes cannot
+        # leave staged bytes in the worktree with no way for the next invocation
+        # to locate the backup. Abort if the marker cannot be written.
+        local git_dir
+        git_dir=$(get_git_dir)
+        if [[ -n "$git_dir" ]]; then
+          if ! printf '%s\n' "$kt_backup_dir" > "$git_dir/$KT_RECOVERY_POINTER" 2>/dev/null; then
+            echo "❌ Could not persist Kotlin recovery marker." >&2
+            echo "   Aborting before materialization to avoid leaving worktree in an" >&2
+            echo "   unrecoverable state." >&2
+            rm -rf "$kt_backup_dir"
+            kt_backup_dir=""
+            return 1
+          fi
+          # Remove any stale restore-failure marker from a prior attempt
+          rm -f "$git_dir/$KT_RECOVERY_FAILED" 2>/dev/null || true
         fi
 
-        # Back up dirty worktree files and their modes before materialization
+        # Back up dirty worktree files and their modes before materialization.
+        # Track each successfully backed-up file so restore only uses complete
+        # copies, avoiding partial cp leftovers.
         for f in "${dirty_kt[@]}"; do
           if ! mkdir -p "$(dirname "$kt_backup_dir/tracked/$f")" || ! cp "$f" "$kt_backup_dir/tracked/$f"; then
             echo "❌ Failed to back up Kotlin file '$f'."
@@ -283,8 +335,9 @@ try_commit() {
             return 1
           fi
           KT_DIRTY_FILES+=("$f")
+          KT_BACKED_UP["$f"]=1
           KT_DIRTY_MODES["$f"]="$mode"
-          printf '%s %s\0' "$mode" "$f" >> "$kt_backup_dir/modes.null"
+          printf '%s\0%s\0' "$mode" "$f" >> "$kt_backup_dir/modes.null"
         done
 
         # Materialize index version for dirty files
