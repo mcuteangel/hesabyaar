@@ -49,7 +49,7 @@ restore_kt_worktree() {
   # Discover files from disk if in-memory list is empty (cross-invocation recovery)
   if [[ ${#KT_DIRTY_FILES[@]} -eq 0 && -d "$b/tracked" ]]; then
     while IFS= read -r -d '' f; do
-      local rel="${f#$b/tracked/}"
+      local rel="${f#"$b"/tracked/}"
       [[ -n "$rel" ]] && KT_DIRTY_FILES+=("$rel")
     done < <(find "$b/tracked" -type f -print0 2>/dev/null)
   fi
