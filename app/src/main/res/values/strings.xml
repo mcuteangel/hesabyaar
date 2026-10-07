@@ -143,4 +143,7 @@
     <string name="account_operation_error">خطا در %1$s: %2$s</string>
     <string name="database_error_fallback">خطای پایگاه داده</string>
     <string name="unknown_error_fallback">خطای ناشناخته</string>
+    <!-- Dashboard income/expense cards: totals for the current Jalali month (GetDashboardDataUseCase) -->
+    <string name="dashboard_month_income_label">درآمد این ماه</string>
+    <string name="dashboard_month_expenses_label">مخارج این ماه</string>
 </resources>
