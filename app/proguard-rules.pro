@@ -70,3 +70,17 @@
 -keepclassmembers class * {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
+
+# --- JNA (used by UniFFI Rust bindings) ---
+# The release build minifies code. Without these rules R8 renames
+# com.sun.jna.Pointer.peer, and JNA native init fails at startup with
+# UnsatisfiedLinkError, crashing the release APK on launch.
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.Structure {
+    public *;
+}
+# UniFFI generates the FFI interface uniffi.hesabyar_core.UniffiLib.
+# JNA builds a proxy for the interface at runtime.
+# The proxy resolves native symbols from the Java method names.
+# R8 must not rename the interface or its methods.
+-keep interface uniffi.hesabyar_core.UniffiLib { *; }
