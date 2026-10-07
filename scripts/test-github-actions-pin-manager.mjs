@@ -334,6 +334,9 @@ test('sub-path action resolves against repo without sub-path', async () => {
   ]);
   const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
   const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  // A failed release lookup lands in needsHuman; assert it too, otherwise the
+  // test would pass even when the API call hits a wrong sub-path URL.
+  assert.equal(plan.needsHuman.length, 0);
   assert.equal(plan.updates.length, 0);
   assert.equal(plan.reportOnly.length, 0);
 });
@@ -353,6 +356,27 @@ test('sub-path action with outdated pin proposes update from correct repo', asyn
   assert.equal(plan.needsHuman.length, 0);
   assert.equal(plan.updates.length, 1);
   assert.equal(plan.updates[0].targetTag, 'v1.55.0');
+});
+
+test('sibling sub-paths of one repo share one releases lookup', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pinmgr-'));
+  await setupRepo(dir, [
+    '- uses: qltysh/qlty-action/coverage@' + SHA_A + ' # v2.4.0',
+    '- uses: qltysh/qlty-action/smells@' + SHA_A + ' # v2.4.0',
+    '',
+  ].join('\n'));
+  const { calls, impl } = makeFetch([
+    // Exactly one releases lookup must serve both sibling sub-paths.
+    { method: 'GET', url: /\/repos\/qltysh\/qlty-action\/releases\?/, reply: json([{ tag_name: 'v2.4.0', draft: false, prerelease: false }]) },
+    tagRefRoute('qltysh/qlty-action', 'v2.4.0', SHA_A),
+  ]);
+  const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
+  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  assert.equal(plan.needsHuman.length, 0);
+  assert.equal(plan.updates.length, 0);
+  assert.equal(plan.reportOnly.length, 0);
+  const releaseCalls = calls.filter((call) => /\/repos\/qltysh\/qlty-action\/releases\?/.test(call.url));
+  assert.equal(releaseCalls.length, 1);
 });
 
 test('prerelease and drafts are rejected as targets', async () => {
