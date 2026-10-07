@@ -75,6 +75,10 @@
 # The release build minifies code. Without these rules R8 renames
 # com.sun.jna.Pointer.peer, and JNA native init fails at startup with
 # UnsatisfiedLinkError, crashing the release APK on launch.
+# JNA's Native$AWT references desktop java.awt classes.
+# Android does not provide java.awt, so R8 fails on the missing classes.
+# This rule tells R8 to ignore those references.
+-dontwarn java.awt.*
 -keep class com.sun.jna.** { *; }
 -keepclassmembers class * extends com.sun.jna.Structure {
     public *;
