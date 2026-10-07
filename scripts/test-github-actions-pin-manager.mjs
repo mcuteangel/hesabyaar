@@ -371,7 +371,12 @@ test('sibling sub-paths of one repo share one releases lookup', async () => {
     tagRefRoute('qltysh/qlty-action', 'v2.4.0', SHA_A),
   ]);
   const api = createApi({ fetchImpl: impl, token: 't', repo: 'o/r' });
-  const plan = await planUpdates(scanFiles([join(dir, '.github', 'workflows', 'w.yml')]), api, 'weekly');
+  const files = scanFiles([join(dir, '.github', 'workflows', 'w.yml')]);
+  assert.deepEqual(files[0].occurrences.map((occ) => occ.target.slug), [
+    'qltysh/qlty-action/coverage',
+    'qltysh/qlty-action/smells',
+  ]);
+  const plan = await planUpdates(files, api, 'weekly');
   assert.equal(plan.needsHuman.length, 0);
   assert.equal(plan.updates.length, 0);
   assert.equal(plan.reportOnly.length, 0);
