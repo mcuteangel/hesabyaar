@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -120,5 +121,34 @@ class MainActivityNavigationTest {
 
     assertEquals("Search query reset on entering DEBTS", true, searchCleared)
     assertEquals("Current tab updated to DEBTS", TAB_DEBTS, currentTab)
+  }
+
+  @Test
+  fun backWalksVisitedTabsThenHomeThenAsksToExit() {
+    var history = listOf(TAB_DASHBOARD).pushTab(TAB_DEBTS).pushTab(TAB_REPORTS)
+    assertEquals(listOf(TAB_DASHBOARD, TAB_DEBTS, TAB_REPORTS), history)
+
+    history = history.popTab(TAB_DASHBOARD)!!
+    assertEquals("Back returns to the previous tab", TAB_DEBTS, history.last())
+    history = history.popTab(TAB_DASHBOARD)!!
+    assertEquals("Back reaches the dashboard", TAB_DASHBOARD, history.last())
+    assertNull("Back on the dashboard asks to exit", history.popTab(TAB_DASHBOARD))
+  }
+
+  @Test
+  fun deepLinkStartFallsBackToDashboardBeforeExit() {
+    val history = listOf(TAB_DEBTS).popTab(TAB_DASHBOARD)
+    assertEquals(listOf(TAB_DASHBOARD), history)
+  }
+
+  @Test
+  fun revisitingTabMovesItToTopWithoutDuplicates() {
+    val history =
+      listOf(TAB_DASHBOARD)
+        .pushTab(TAB_DEBTS)
+        .pushTab(TAB_REPORTS)
+        .pushTab(TAB_DEBTS)
+        .pushTab(TAB_DEBTS)
+    assertEquals(listOf(TAB_DASHBOARD, TAB_REPORTS, TAB_DEBTS), history)
   }
 }

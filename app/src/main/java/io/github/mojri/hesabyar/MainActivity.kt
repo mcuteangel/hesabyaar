@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,12 +46,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -75,6 +78,7 @@ import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.screens.AnalyticsScreen
 import io.github.mojri.hesabyar.ui.screens.CategoryManagementScreen
@@ -170,15 +174,23 @@ class MainActivity : FragmentActivity() {
     startTab: String,
     startDebtSection: DebtSection,
   ) {
-    var currentTab by remember { mutableStateOf(startTab) }
+    // Tabs the user visited, newest last. System back walks this history
+    // instead of closing the app; rememberSaveable keeps it across rotation.
+    var tabHistory by rememberSaveable { mutableStateOf(listOf(startTab)) }
+    val currentTab = tabHistory.last()
     var debtsState by remember {
       mutableStateOf(DebtsTabState(section = startDebtSection, filter = LoanDirectionFilter.ALL))
     }
-    var showCategoryManagement by remember { mutableStateOf(false) }
-    var showAccountManagement by remember { mutableStateOf(false) }
+    var showCategoryManagement by rememberSaveable { mutableStateOf(false) }
+    var showAccountManagement by rememberSaveable { mutableStateOf(false) }
+
+    // Called before the screens below, so their own back handlers (sheets,
+    // overlays, management screens) take precedence over tab history.
+    TabBackHandler(tabHistory = tabHistory, onHistoryChange = { tabHistory = it })
 
     when {
       showCategoryManagement -> {
+        BackHandler { showCategoryManagement = false }
         CategoryManagementScreen(
           categoryViewModel = categoryViewModel,
           onBack = { showCategoryManagement = false },
@@ -187,6 +199,7 @@ class MainActivity : FragmentActivity() {
       }
 
       showAccountManagement -> {
+        BackHandler { showAccountManagement = false }
         AccountManagementScreen(
           accountViewModel = accountViewModel,
           onBack = { showAccountManagement = false },
@@ -198,7 +211,7 @@ class MainActivity : FragmentActivity() {
         val debtsNav =
           createDebtsNavActions(
             currentTabProvider = { currentTab },
-            onCurrentTabChange = { currentTab = it },
+            onCurrentTabChange = { tabHistory = tabHistory.pushTab(it) },
             onDebtsStateChange = { debtsState = it },
             onResetPersonSearch = { personViewModel.setSearchQuery("") }
           )
@@ -208,7 +221,7 @@ class MainActivity : FragmentActivity() {
           callbacks =
             MainNavCallbacks(
               onTabSelected = debtsNav.onTabSelected,
-              onNavigateToAssistant = { currentTab = TAB_ASSISTANT },
+              onNavigateToAssistant = { tabHistory = tabHistory.pushTab(TAB_ASSISTANT) },
               onNavigateToCategories = { showCategoryManagement = true },
               onNavigateToAccounts = { showAccountManagement = true },
               onShowDebtors = debtsNav.onShowDebtors,
@@ -217,6 +230,33 @@ class MainActivity : FragmentActivity() {
             )
         )
       }
+    }
+  }
+
+  /**
+   * System back walks the visited tabs, then returns to the dashboard, and
+   * only there asks before leaving the app.
+   */
+  @Composable
+  private fun TabBackHandler(
+    tabHistory: List<String>,
+    onHistoryChange: (List<String>) -> Unit,
+  ) {
+    var showExitDialog by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler {
+      val previous = tabHistory.popTab(home = TAB_DASHBOARD)
+      if (previous != null) onHistoryChange(previous) else showExitDialog = true
+    }
+
+    if (showExitDialog) {
+      ExitConfirmDialog(
+        onConfirm = {
+          showExitDialog = false
+          finish()
+        },
+        onDismiss = { showExitDialog = false }
+      )
     }
   }
 
@@ -400,6 +440,21 @@ internal fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSectio
       else -> DebtSection.INSTALLMENTS
     }
   return startTab to startDebtSection
+}
+
+@Composable
+private fun ExitConfirmDialog(
+  onConfirm: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  ConfirmDialog(
+    title = stringResource(R.string.exit_dialog_title),
+    message = stringResource(R.string.exit_dialog_message),
+    confirmText = stringResource(R.string.exit_dialog_confirm),
+    dismissText = stringResource(R.string.cancel_label),
+    onConfirm = onConfirm,
+    onDismiss = onDismiss
+  )
 }
 
 @Composable
@@ -591,6 +646,24 @@ internal data class MainNavCallbacks(
   val onShowCreditors: () -> Unit,
   val onDebtsStateChange: (DebtsTabState) -> Unit,
 )
+
+/**
+ * Moves [tab] to the top of the visited-tabs history. A tab appears at most
+ * once, so back never cycles between two tabs the user bounced between.
+ */
+internal fun List<String>.pushTab(tab: String): List<String> =
+  if (lastOrNull() == tab) this else filterNot { it == tab } + tab
+
+/**
+ * The history after one system back press, or `null` when back should ask
+ * to leave the app: previous tab first, then [home], then exit.
+ */
+internal fun List<String>.popTab(home: String): List<String>? =
+  when {
+    size > 1 -> dropLast(1)
+    lastOrNull() != home -> listOf(home)
+    else -> null
+  }
 
 internal data class DebtsNavActions(
   val onTabSelected: (String) -> Unit,
