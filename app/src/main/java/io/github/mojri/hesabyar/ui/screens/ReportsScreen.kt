@@ -47,6 +47,7 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.ManualTransactionDialog
 import io.github.mojri.hesabyar.ui.screens.dashboard.dialogs.TransactionDetailDialog
+import io.github.mojri.hesabyar.ui.utils.DateRangeBounds
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
@@ -75,8 +76,9 @@ fun ReportsScreen(
   var showDetailTransaction by remember { mutableStateOf<Transaction?>(null) }
 
   val now = System.currentTimeMillis()
-  var startDate by remember { mutableStateOf(now - 30L * 24 * 60 * 60 * 1000) }
-  var endDate by remember { mutableStateOf(now) }
+  // Ranges always cover whole days: from = 00:00:00.000, to = 23:59:59.999 (local time).
+  var startDate by remember { mutableStateOf(DateRangeBounds.lastDays(now, days = 30).first) }
+  var endDate by remember { mutableStateOf(DateRangeBounds.endOfDay(now)) }
   var showStartPicker by remember { mutableStateOf(false) }
   var showEndPicker by remember { mutableStateOf(false) }
 
@@ -85,7 +87,7 @@ fun ReportsScreen(
       initialTimestamp = startDate,
       onDismissRequest = { showStartPicker = false },
       onDateSelected = {
-        startDate = it
+        startDate = DateRangeBounds.startOfDay(it)
         selectedPreset = null
       }
     )
@@ -95,7 +97,7 @@ fun ReportsScreen(
       initialTimestamp = endDate,
       onDismissRequest = { showEndPicker = false },
       onDateSelected = {
-        endDate = it
+        endDate = DateRangeBounds.endOfDay(it)
         selectedPreset = null
       }
     )
@@ -162,10 +164,10 @@ fun ReportsScreen(
         ) {
           val presets =
             listOf(
-              "امروز" to { Pair(now - (now % (24L * 60 * 60 * 1000)), now) },
-              "هفته اخیر" to { Pair(now - 7L * 24 * 60 * 60 * 1000, now) },
-              "ماه اخیر" to { Pair(now - 30L * 24 * 60 * 60 * 1000, now) },
-              "سال اخیر" to { Pair(now - 365L * 24 * 60 * 60 * 1000, now) }
+              stringResource(R.string.report_preset_today) to { DateRangeBounds.lastDays(now, days = 1) },
+              stringResource(R.string.report_preset_last_week) to { DateRangeBounds.lastDays(now, days = 7) },
+              stringResource(R.string.report_preset_previous_month) to { DateRangeBounds.previousJalaliMonth(now) },
+              stringResource(R.string.report_preset_last_year) to { DateRangeBounds.lastDays(now, days = 365) }
             )
 
           presets.forEach { (label, rangeFn) ->

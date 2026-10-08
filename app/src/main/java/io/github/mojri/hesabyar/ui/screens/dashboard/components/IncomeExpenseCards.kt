@@ -16,9 +16,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
@@ -53,7 +55,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
-            text = "درآمد ۳۰ روزه",
+            text = stringResource(R.string.dashboard_month_income_label),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -87,7 +89,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
-            text = "مخارج ۳۰ روزه",
+            text = stringResource(R.string.dashboard_month_expenses_label),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )

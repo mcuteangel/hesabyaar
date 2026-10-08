@@ -137,10 +137,31 @@
 
     <!-- AccountManagementScreen -->
     <string name="balance_invalid_amount">مقدار نامعتبر</string>
-    <string name="balance_amount_label">مبلغ ریال</string>
+    <string name="balance_amount_label">مبلغ به %1$s</string>
 
     <!-- AccountViewModel runGuarded error messages -->
     <string name="account_operation_error">خطا در %1$s: %2$s</string>
     <string name="database_error_fallback">خطای پایگاه داده</string>
     <string name="unknown_error_fallback">خطای ناشناخته</string>
+    <!-- Dashboard income/expense cards: totals for the current Jalali month (GetDashboardDataUseCase) -->
+    <string name="dashboard_month_income_label">درآمد این ماه</string>
+    <string name="dashboard_month_expenses_label">مخارج این ماه</string>
+    <!-- Loan counterparty wording, shared by UI lists and the Excel export (LoanTypeLabels.kt) -->
+    <string name="loan_party_debtor">بدهکار</string>
+    <string name="loan_party_creditor">طلبکار</string>
+    <string name="loan_party_unknown">نامشخص</string>
+    <!-- PersonsScreen balance direction (label + screen-reader description) -->
+    <string name="person_direction_settled">تعادل</string>
+    <string name="person_direction_debtor_desc">بدهکار — موجودی مثبت</string>
+    <string name="person_direction_creditor_desc">طلبکار — موجودی منفی</string>
+    <string name="person_direction_settled_desc">متعادل — موجودی صفر</string>
+    <!-- Amount field labels; %1$s = display unit (تومان / ریال) -->
+    <string name="opening_balance_label">موجودی اولیه (%1$s)</string>
+    <string name="bank_loan_received_label">مبلغ دریافتی (%1$s)</string>
+    <string name="bank_loan_monthly_label">مبلغ قسط ماهانه (%1$s)</string>
+    <!-- ReportsScreen date presets -->
+    <string name="report_preset_today">امروز</string>
+    <string name="report_preset_last_week">هفته اخیر</string>
+    <string name="report_preset_previous_month">ماه قبل</string>
+    <string name="report_preset_last_year">سال اخیر</string>
 </resources>

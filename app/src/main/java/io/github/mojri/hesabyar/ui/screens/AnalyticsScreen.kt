@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,8 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.AccountBreakdownCard
+import io.github.mojri.hesabyar.ui.utils.partyColor
+import io.github.mojri.hesabyar.ui.utils.partyLabelRes
 
 @Composable
 fun AnalyticsScreen(
@@ -663,16 +666,9 @@ private fun LoanStatusCard(loans: List<Loan>) {
                 fontWeight = FontWeight.Bold
               )
               Text(
-                text = if (loan.type == LoanType.DEBTOR) "بدهکار" else "طلبکار",
+                text = stringResource(loan.type.partyLabelRes()),
                 style = MaterialTheme.typography.labelSmall,
-                color =
-                  if (loan.type ==
-                    LoanType.DEBTOR
-                  ) {
-                    MaterialTheme.colorScheme.primary
-                  } else {
-                    MaterialTheme.colorScheme.error
-                  }
+                color = loan.type.partyColor()
               )
             }
 
@@ -683,13 +679,7 @@ private fun LoanStatusCard(loans: List<Loan>) {
                   .fillMaxWidth()
                   .height(8.dp)
                   .clip(ShapeTokens.Small),
-              color =
-                if (loan.type == LoanType.DEBTOR
-                ) {
-                  MaterialTheme.colorScheme.primary
-                } else {
-                  MaterialTheme.colorScheme.error
-                },
+              color = loan.type.partyColor(),
               trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 

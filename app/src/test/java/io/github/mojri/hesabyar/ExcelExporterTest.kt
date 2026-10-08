@@ -6,6 +6,8 @@ import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.ExcelExporter
+import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import org.junit.Assert.assertEquals
@@ -166,9 +168,39 @@ class ExcelExporterTest {
   }
 
   @Test
-  fun `loan type mapping`() {
-    assertEquals("طلبکار", if ("DEBTOR" == "DEBTOR") "طلبکار" else "بدهکار")
-    assertEquals("بدهکار", if ("CREDITOR" == "DEBTOR") "طلبکار" else "بدهکار")
+  fun loanTypeLabelMatchesUiWording() {
+    // UI (AnalyticsScreen, PersonsScreen): DEBTOR = «بدهکار», CREDITOR = «طلبکار».
+    val exporter = ExcelExporter(context)
+    assertEquals("بدهکار", exporter.loanTypeLabel(LoanType.DEBTOR))
+    assertEquals("طلبکار", exporter.loanTypeLabel(LoanType.CREDITOR))
+    assertEquals("نامشخص", exporter.loanTypeLabel(LoanType.UNKNOWN))
+  }
+
+  @Test
+  fun loansSheetTypeColumnUsesUiWording() {
+    val loans =
+      listOf(
+        Loan(
+          personName = "علی",
+          personId = null,
+          type = LoanType.DEBTOR,
+          originalAmount = 5_000_000L,
+          remainingAmount = 3_000_000L,
+          description = "d"
+        ),
+        Loan(
+          personName = "رضا",
+          personId = null,
+          type = LoanType.CREDITOR,
+          originalAmount = 2_000_000L,
+          remainingAmount = 2_000_000L,
+          description = "c"
+        )
+      )
+    val sheet = ExcelExporter(context).buildLoansSheet(loans)
+    val typeColumn = sheet.headers.indexOf("نوع")
+    assertEquals("بدهکار", sheet.rows[0][typeColumn].value)
+    assertEquals("طلبکار", sheet.rows[1][typeColumn].value)
   }
 
   @Test
