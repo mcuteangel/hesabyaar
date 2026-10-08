@@ -296,10 +296,7 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
     }
 
     if let Some(n) = current_num.filter(|n| n.is_positive()) {
-        let exp = last_unit
-            .and_then(|u| u.lower())
-            .map(|u| u.exp())
-            .unwrap_or(0);
+        let exp = last_unit.and_then(|u| u.lower()).map_or(0, |u| u.exp());
         let term = match n.times_unit(exp) {
             Some(t) => t,
             None => return 0,
