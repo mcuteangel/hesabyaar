@@ -622,7 +622,7 @@ internal data class DebtsTabState(
 internal val TabHistorySaver: Saver<List<String>, Any> =
   listSaver(
     save = { it.toList() },
-    restore = { it.filterIsInstance<String>() }
+    restore = { it.filterIsInstance<String>().ifEmpty { listOf(TAB_DASHBOARD) } }
   )
 
 internal val DebtsTabStateSaver: Saver<DebtsTabState, Any> =

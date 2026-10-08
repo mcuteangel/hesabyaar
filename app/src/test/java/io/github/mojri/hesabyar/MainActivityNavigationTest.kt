@@ -93,6 +93,15 @@ class MainActivityNavigationTest {
   }
 
   @Test
+  fun tabHistorySaverFallsBackToDashboardWhenEmpty() {
+    val restored = TabHistorySaver.restore(emptyList<Any>())
+    assertEquals("Empty restore falls back to dashboard", listOf(TAB_DASHBOARD), restored)
+
+    val nonStringOnly = TabHistorySaver.restore(listOf(42, true))
+    assertEquals("Non-string entries fall back to dashboard", listOf(TAB_DASHBOARD), nonStringOnly)
+  }
+
+  @Test
   fun debtsTabStateSaverFallsBackOnInvalidValues() {
     val restored = DebtsTabStateSaver.restore(listOf("INVALID_SECTION", "INVALID_FILTER"))
     assertEquals("Invalid section falls back to INSTALLMENTS", DebtSection.INSTALLMENTS, restored?.section)
