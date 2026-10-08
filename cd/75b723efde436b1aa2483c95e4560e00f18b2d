@@ -1,0 +1,19 @@
+rust/hesabyar-core/src/parser/amount.rs
+  s_4fb610411cc145::t_cffd59f4eb7b3f 299
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cd75b723efde436b1aa2483c95e4560e00f18b2d",
+  "prompts": {},
+  "sessions": {
+    "s_4fb610411cc145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c81da407-9343-4d9a-80b5-eb865da60831",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
