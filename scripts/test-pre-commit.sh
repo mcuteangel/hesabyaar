@@ -26,11 +26,23 @@
 #   C staged + unrelated unstaged Rust   M cargo fmt failure
 #   D staged invalid + valid worktree    N cargo clippy failure
 #   E staged valid + invalid worktree    O restoration after fmt failure
-#   F staged unformatted + formatted wt  P Kotlin-only commit
-#   G staged formatted + unstaged edits  Q missing rust/ directory
-#   H untracked Rust file                R unusual filename (spaces/brackets)
-#   I staged Rust deletion               S tab in filename
-#   J unstaged Rust deletion             T newline in filename (best effort)
+#   F staged unformatted + formatted wt  P docs-only commit skips every gate
+#   G staged formatted + unstaged edits  P2 Kotlin-only commit runs Kotlin gates
+#   H untracked Rust file                P3 config files trigger Kotlin gates
+#                                        P4 ktlintFormat auto-fix is re-staged
+#                                        P5 staged Kotlin + unstaged edits survives
+#                                        P6 ktlint failure restores Kotlin worktree
+#                                        P7 staged Kotlin deletion passes
+#                                        P8 absent staged Kotlin validated/restored
+#                                        P9 detekt failure restores Kotlin worktree
+#                                        P10 unstaged Kotlin mode change survives
+#                                        P11 staged Kotlin symlink is rejected
+#                                        P12 forced Kotlin restore failure aborts, backup kept
+#                                        P13 leftover failed Kotlin backup aborts hook
+#                                        Q missing rust/ directory (with Rust staged)
+#   I staged Rust deletion               R unusual filename (spaces/brackets)
+#   J unstaged Rust deletion             S tab in filename
+#                                        T newline in filename (best effort)
 #   U failing Kotlin gate blocks all Rust gates (cargo probe proves it)
 #   V unstaged +x mode change survives       W +x restored after clippy failure
 #   X unstaged 740/750/710 modes survive     Y exact modes restored after failure
@@ -38,6 +50,7 @@
 #   E0 static check: no destructive git commands in the hook source
 #   E1 static check: full-mode capture/restore wired into the hook source
 #   E2 static check: mode capture precedes index materialization
+#   E3 static check: Kotlin symlink rejection precedes materialization
 #
 # Usage:
 #   scripts/test-pre-commit.sh
@@ -139,6 +152,7 @@ reset_clone() {
   git_clone clean -qfdx || die "clean failed"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$CLONE/gradlew"
   chmod +x "$CLONE/gradlew"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
   refresh_split
   DIFF_BASE=""
 }
@@ -266,6 +280,14 @@ assert_log_contains() {
 stage_carrier() {
   printf 'probe carrier %s\n' "$1" > "$CLONE/$CARRIER"
   git_clone add "$CARRIER"
+}
+
+stage_cargo_toml_probe() { # $1 label
+  local toml_staged="$WORK/${1}_toml.bin"
+  cp "$CLONE/$CARGO_TOML" "$toml_staged"
+  printf '\n# %s probe\n' "$1" >> "$toml_staged"
+  cp "$toml_staged" "$CLONE/$CARGO_TOML"
+  git_clone add "$CARGO_TOML"
 }
 
 setup_commit_no_verify() {
@@ -463,15 +485,19 @@ case_h() {
   reset_clone
   local u="rust/hesabyar-core/src/orphan_u.rs"
   printf '%s' "$P_A" > "$CLONE/$u"
+  stage_cargo_toml_probe h
   stage_carrier h
   run_hook
   expect_rc 0 "hook passes with untracked orphan module present"
   assert_log_contains "No staged Rust sources to format"
   assert_log_contains "cargo clippy passed"
   assert_present_wt "$u"
-  contains_staged "$u" && fail "untracked file became staged: $u" \
-    || pass "untracked file stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  if contains_staged "$u"; then
+    fail "untracked file became staged: $u"
+  else
+    pass "untracked file stayed unstaged"
+  fi
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -487,10 +513,16 @@ case_i() {
   run_hook
   expect_rc 0 "staged deletion excluded from cargo fmt path list"
   assert_log_contains "cargo clippy passed"
-  grep -qF "does not exist" "$LOG" && fail "rustfmt saw the deleted path" \
-    || pass "rustfmt never received the deleted path"
-  commit_deletion_present "$o" && pass "deletion recorded in the commit" \
-    || fail "deletion missing from the commit"
+  if grep -qF "does not exist" "$LOG"; then
+    fail "rustfmt saw the deleted path"
+  else
+    pass "rustfmt never received the deleted path"
+  fi
+  if commit_deletion_present "$o"; then
+    pass "deletion recorded in the commit"
+  else
+    fail "deletion missing from the commit"
+  fi
   assert_absent_wt "$o"
   expect_commit_exactly "$CARRIER" "$o"
   assert_nothing_staged
@@ -500,12 +532,13 @@ case_j() {
   echo "=== J: unstaged deletion of tracked Rust file ==="
   reset_clone
   rm "$CLONE/$RS"
+  stage_cargo_toml_probe j
   stage_carrier j
   run_hook
   expect_rc 0 "absent dirty file handled without cp failure"
   assert_idx_is_base "$RS"
   assert_absent_wt "$RS"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -534,12 +567,13 @@ case_l() {
   cp "$CLONE/$CARGO_LOCK" "$WTX"
   printf '[[package]]\nname = "probe-lock-corruption"\n' >> "$WTX"
   cp "$WTX" "$CLONE/$CARGO_LOCK"
+  stage_cargo_toml_probe l
   stage_carrier l
   run_hook
   expect_rc 0 "lockfile materialized from the index for validation"
   assert_idx_is_base "$CARGO_LOCK"
   assert_wt_file "$CARGO_LOCK" "$WTX"
-  expect_commit_exactly "$CARRIER"
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   assert_nothing_staged
 }
 
@@ -600,31 +634,711 @@ case_o() {
 }
 
 case_p() {
-  echo "=== P: Kotlin-only commit skips Rust fmt but keeps clippy gate ==="
+  echo "=== P: docs-only commit skips every quality gate ==="
   reset_clone
   stage_carrier p
   run_hook
-  expect_rc 0 "Kotlin-only commit passes"
-  assert_log_contains "No staged Rust sources to format"
-  assert_log_contains "cargo clippy passed"
+  expect_rc 0 "docs-only commit passes"
+  assert_log_contains "No staged Kotlin sources — skipping ktlint and detekt"
+  assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+  if grep -qF "cargo clippy passed" "$LOG"; then
+    fail "clippy ran on a docs-only commit"
+  else
+    pass "clippy skipped on a docs-only commit"
+  fi
+  if grep -qF "[1/5]" "$LOG"; then
+    fail "ktlint ran on a docs-only commit"
+  else
+    pass "ktlint skipped on a docs-only commit"
+  fi
   local dirty_rust
   dirty_rust=$(git_clone status --porcelain -- rust/)
-  [[ -z "$dirty_rust" ]] && pass "rust/ untouched" \
-    || fail "rust/ modified by Kotlin-only run: $dirty_rust"
+  if [[ -z "$dirty_rust" ]]; then
+    pass "rust/ untouched"
+  else
+    fail "rust/ modified by docs-only run: $dirty_rust"
+  fi
   expect_commit_exactly "$CARRIER"
   assert_nothing_staged
 }
 
-case_q() {
-  echo "=== Q: missing rust/ directory hard-fails with hint ==="
+case_p2() {
+  echo "=== P2: Kotlin-only commit runs Kotlin gates and skips Rust gates ==="
   reset_clone
-  mv "$CLONE/rust" "$CLONE/rust_hidden_probe"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP.kt"
+  printf '// p probe\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p_kt
+  run_hook
+  expect_rc 0 "Kotlin-only commit passes"
+  assert_log_contains "[1/5] Running ktlintFormat"
+  assert_log_contains "[2/5] Running ktlintCheck"
+  assert_log_contains "[3/5] Running detekt"
+  assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+  if grep -qF "cargo clippy passed" "$LOG"; then
+    fail "clippy ran on a Kotlin-only commit"
+  else
+    pass "clippy skipped on a Kotlin-only commit"
+  fi
+  local dirty_rust
+  dirty_rust=$(git_clone status --porcelain -- rust/)
+  if [[ -z "$dirty_rust" ]]; then
+    pass "rust/ untouched"
+  else
+    fail "rust/ modified by Kotlin-only run: $dirty_rust"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p3() {
+  echo "=== P3: build and linter configuration changes trigger Kotlin gates ==="
+  local cfg_files=(
+    "gradle/libs.versions.toml"
+    ".editorconfig"
+    "config/detekt/detekt.yml"
+    "gradle/wrapper/gradle-wrapper.properties"
+    "feature-module/gradle/wrapper/gradle-wrapper.properties"
+    "subproject/config/detekt/detekt.yml"
+    "subproject/gradle.properties"
+    "subproject/gradle/libs.versions.toml"
+    "subproject/.editorconfig"
+  )
+  local cfg
+  for cfg in "${cfg_files[@]}"; do
+    reset_clone
+    mkdir -p "$CLONE/$(dirname "$cfg")"
+    printf '\n# p3 probe\n' >> "$CLONE/$cfg"
+    git_clone add "$cfg"
+    stage_carrier "p3"
+    run_hook
+    expect_rc 0 "config commit for $cfg passes Kotlin gates"
+    assert_log_contains "[1/5] Running ktlintFormat"
+    assert_log_contains "[2/5] Running ktlintCheck"
+    assert_log_contains "[3/5] Running detekt"
+    assert_log_contains "No staged Rust sources — skipping cargo fmt and clippy"
+    if grep -qF "cargo clippy passed" "$LOG"; then
+      fail "clippy ran on a config-only commit: $cfg"
+    else
+      pass "clippy skipped on a config-only commit: $cfg"
+    fi
+    expect_commit_exactly "$CARRIER" "$cfg"
+    assert_nothing_staged
+  done
+}
+
+case_p4() {
+  echo "=== P4: ktlintFormat auto-formatting is detected and re-staged ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "ktlintFormat" ]; then
+  target="app/src/main/java/io/github/mojri/hesabyar/CarrierP4.kt"
+  if [ -f "$target" ]; then
+    printf '// auto-formatted\n' >> "$target"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP4.kt"
+  printf '// initial unformatted\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p4
+  run_hook
+  expect_rc 0 "hook passes and re-stages ktlintFormat changes"
+  assert_log_contains "Re-staging 1 file(s) with auto-fixes..."
+  expect_commit_exactly "$CARRIER" "$kt"
+  if git_clone show "HEAD:$kt" | grep -qF "// auto-formatted"; then
+    pass "re-staged commit candidate includes auto-formatted delta"
+  else
+    fail "re-staged commit candidate missing auto-formatted delta"
+  fi
+  assert_nothing_staged
+}
+
+case_p5() {
+  echo "=== P5: staged Kotlin file with unstaged edits survives the hook ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP5.kt"
+  local exp="$WORK/p5_staged.bin"
+  local wtx="$WORK/p5_wt.bin"
+  printf '// p5 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p5
+  # Append unstaged edits to the same file in the worktree
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p5 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc 0 "hook passes with partially staged Kotlin file"
+  assert_idx_file "$kt" "$exp"
+  assert_wt_file "$kt" "$wtx"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p6() {
+  echo "=== P6: ktlintCheck failure still restores Kotlin worktree ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "ktlintCheck" ]; then
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP6.kt"
+  local exp="$WORK/p6_staged.bin"
+  local wtx="$WORK/p6_wt.bin"
+  printf '// p6 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p6
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p6 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc nonzero "hook fails when ktlintCheck fails"
+  assert_log_contains "ktlintCheck failed"
+  assert_wt_file "$kt" "$wtx"
+  assert_idx_file "$kt" "$exp"
+  expect_staged_exactly "$CARRIER" "$kt"
+}
+
+case_p7() {
+  echo "=== P7: staged Kotlin deletion passes and stays deleted ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP7.kt"
+  printf '// p7 doomed content\n' > "$CLONE/$kt"
+  setup_commit_no_verify "$kt"
+  DIFF_BASE=$(git_clone rev-parse HEAD)
+  git_clone rm -q "$kt"
+  stage_carrier p7
+  run_hook
+  expect_rc 0 "staged Kotlin deletion passes Kotlin gates"
+  assert_log_contains "[1/5] Running ktlintFormat"
+  if commit_deletion_present "$kt"; then
+    pass "Kotlin deletion recorded in the commit"
+  else
+    fail "Kotlin deletion missing from the commit"
+  fi
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p8() {
+  echo "=== P8: absent staged Kotlin file is validated then restored absent ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP8.kt"
+  local exp="$WORK/p8_staged.bin"
+  printf '// p8 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p8
+  # Delete from the worktree without staging: the hook must materialize the
+  # index version for validation and delete it again on restore.
+  rm "$CLONE/$kt"
+  run_hook
+  expect_rc 0 "hook passes with an absent staged Kotlin file"
+  assert_idx_file "$kt" "$exp"
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p9() {
+  echo "=== P9: detekt failure still restores Kotlin worktree ==="
+  reset_clone
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  exit 1
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP9.kt"
+  local exp="$WORK/p9_staged.bin"
+  local wtx="$WORK/p9_wt.bin"
+  printf '// p9 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p9
+  cp "$CLONE/$kt" "$wtx"
+  printf '// p9 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+  run_hook
+  expect_rc nonzero "hook fails when detekt fails"
+  assert_log_contains "detekt failed"
+  assert_wt_file "$kt" "$wtx"
+  assert_idx_file "$kt" "$exp"
+  expect_staged_exactly "$CARRIER" "$kt"
+}
+
+case_p10() {
+  echo "=== P10: unstaged Kotlin mode change survives materialization ==="
+  host_represents_chmod || { skip "P10: host cannot represent chmod on .kt files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP10.kt"
+  local exp="$WORK/p10_staged.bin"
+  local wtx="$WORK/p10_wt.bin"
+  printf '// p10 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p10
+  chmod +x "$CLONE/$kt"
+  cp "$exp" "$wtx"
+  run_hook
+  expect_rc 0 "hook passes with an unstaged Kotlin mode change present"
+  assert_idx_file "$kt" "$exp"
+  assert_wt_file "$kt" "$wtx"
+  if [[ -x "$CLONE/$kt" ]]; then
+    pass "original Kotlin worktree mode (+x) restored"
+  else
+    fail "Kotlin worktree executable bit lost by materialization"
+  fi
+  local idx_mode
+  idx_mode=$(git_clone ls-files -s -- "$kt" | awk '{print $1}')
+  if [[ "$idx_mode" = "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+}
+
+case_p11() {
+  echo "=== P11: staged Kotlin symlink is rejected before materialization ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP11.kt"
+  local target="app/src/main/java/io/github/mojri/hesabyar/CarrierP11Target.kt"
+  printf '// p11 target\n' > "$CLONE/$target"
+  if ! host_supports_symlink; then
+    skip "P11: host cannot create symbolic links"
+    return 0
+  fi
+  ( cd "$CLONE" && ln -s "CarrierP11Target.kt" "$kt" )
+  git_clone add "$kt" "$target"
+  stage_carrier p11
+  run_hook
+  expect_rc nonzero "hook rejects staged Kotlin symbolic link"
+  assert_log_contains "is a symbolic link"
+  assert_log_contains "must not write through a symlink"
+  if [[ -L "$CLONE/$kt" ]]; then
+    pass "worktree symlink preserved (not overwritten)"
+  else
+    fail "worktree symlink was modified or removed"
+  fi
+  expect_staged_exactly "$CARRIER" "$kt" "$target"
+}
+
+case_p12() {
+  echo "=== P12: Kotlin restoration failure aborts commit and retains backup ==="
+  reset_clone
+  local pkg="app/src/main/java/io/github/mojri/hesabyar/p12pkg"
+  local kt="$pkg/CarrierP12.kt"
+  mkdir -p "$CLONE/$pkg"
+  local exp="$WORK/p12_staged.bin"
+  local wtx="$WORK/p12_wt.bin"
+  printf '// p12 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p12
+  cp "$exp" "$wtx"
+  printf '// p12 unstaged edit\n' >> "$wtx"
+  cp "$wtx" "$CLONE/$kt"
+
+  # Fake gradlew replaces the parent folder with a regular file during ktlintFormat.
+  # This causes restore_kt_worktree's `mkdir -p $(dirname "$f")` to fail when
+  # restoring the original worktree state after the quality gates pass.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+pkg="app/src/main/java/io/github/mojri/hesabyar/p12pkg"
+if [ -d "$pkg" ]; then
+  rm -rf "$pkg"
+  touch "$pkg"
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+
+  run_hook
+  expect_rc nonzero "hook aborts when Kotlin worktree restoration fails"
+  assert_log_contains "Failed to restore Kotlin file"
+  assert_log_contains "Retaining Kotlin backup directory"
+  assert_log_contains "Failed to restore the original Kotlin worktree state"
+  expect_staged_exactly "$CARRIER" "$kt"
+
+  local retain_count
+  # grep -c prints 0 itself on no match; || true only swallows its exit 1.
+  retain_count=$(grep -c "Retaining Kotlin backup directory" "$LOG" || true)
+  if [[ "$retain_count" -eq 1 ]]; then
+    pass "restore attempted exactly once (EXIT trap did not retry)"
+  else
+    fail "restore executed $retain_count times (expected 1)"
+  fi
+
+  local retained_backup
+  retained_backup=$(grep -oE "Retaining Kotlin backup directory '[^']+'" "$LOG" | head -1 | sed "s/Retaining Kotlin backup directory '//;s/'//")
+  if [[ -n "$retained_backup" && -d "$retained_backup" ]]; then
+    pass "backup directory retained on disk: $retained_backup"
+    if [[ -f "$retained_backup/tracked/$kt" ]]; then
+      pass "backup contains original dirty worktree file"
+    else
+      fail "backup missing tracked file $kt"
+    fi
+    rm -rf "$retained_backup"
+  else
+    fail "backup directory was not retained on disk (retained_backup='$retained_backup')"
+  fi
+
+  rm -f "$CLONE/$pkg"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p13() {
+  echo "=== P13: leftover failed Kotlin backup aborts before creating new backup ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP13.kt"
+  printf '// p13 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p13
+
+  local stale_backup="$WORK/hesabyar-kt-stale.999999"
+  mkdir -p "$stale_backup"
+
+  # Count existing Kotlin backups under /tmp before running hook.
+  # Use glob for portability: BSD/macOS find rejects -maxdepth.
+  local initial_kt_backups=0 d
+  for d in "${TMPDIR:-/tmp}"/hesabyar-kt.*; do
+    [[ -d "$d" ]] && initial_kt_backups=$((initial_kt_backups + 1)) || true
+  done
+
+  # Simulate a prior failed restore by writing the recovery marker file.
+  # This is what the hook persists when restore_kt_worktree fails.
+  printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  # No modes.null: recovery trusts modes.null only, so a backup with no
+  # authoritative record has nothing to restore and fails closed.
+
+  # Use the real hook (no patching needed: the marker file drives the behavior)
+  cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
+  chmod +x "$HOOKS/pre-commit"
+
+  run_hook
+  expect_rc nonzero "hook aborts when leftover Kotlin backup state failed"
+  assert_log_contains "Leftover Kotlin backup could not be restored"
+  assert_log_contains "$stale_backup"
+  expect_staged_exactly "$CARRIER" "$kt"
+
+  # Verify stale backup directory was preserved on disk and not clobbered
+  if [[ -d "$stale_backup" ]]; then
+    pass "stale backup directory retained without clobber: $stale_backup"
+  else
+    fail "stale backup directory was deleted or moved: $stale_backup"
+  fi
+
+  # Verify no new Kotlin backup directory was created.
+  # Use glob for portability: BSD/macOS find rejects -maxdepth.
+  local final_kt_backups=0 d
+  for d in "${TMPDIR:-/tmp}"/hesabyar-kt.*; do
+    [[ -d "$d" ]] && final_kt_backups=$((final_kt_backups + 1)) || true
+  done
+  if [[ "$final_kt_backups" -eq "$initial_kt_backups" ]]; then
+    pass "no new Kotlin backup directory created: $final_kt_backups"
+  else
+    fail "new Kotlin backup directory was created during abort (before=$initial_kt_backups after=$final_kt_backups)"
+  fi
+
+  # Restore clean hook
+  cp "$SRC/scripts/pre-commit" "$HOOKS/pre-commit"
+  chmod +x "$HOOKS/pre-commit"
+  rm -rf "$stale_backup"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed"
+}
+
+case_p14() {
+  echo "=== P14: cross-invocation leftover Kotlin backup is restored ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP14.kt"
+  local exp="$WORK/p14_exp.bin"
+  local wtx="$WORK/p14_wtx.bin"
+  printf '// p14 staged candidate\n' > "$exp"
+  printf '// p14 unstaged worktree edit\n' > "$wtx"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p14
+
+  # Simulate a prior interrupted run: dirty file was backed up and index was materialized
+  local old_backup="$WORK/hesabyar-kt-p14.old"
+  mkdir -p "$old_backup/tracked/$(dirname "$kt")"
+  cp "$wtx" "$old_backup/tracked/$kt"
+  printf '%s\n' "$old_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  # Write mode in new NUL-delimited pair format
+  printf '644\0%s\0' "$kt" > "$old_backup/modes.null"
+  # Worktree currently holds materialized staged index bytes
+  cp "$exp" "$CLONE/$kt"
+
+  run_hook
+  expect_rc 0 "hook succeeds after restoring leftover backup"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+  assert_wt_file "$kt" "$wtx"
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" && ! -f "$CLONE/.git/hesabyar-kt-restore-failed" ]]; then
+    pass "leftover backup and recovery marker cleanly removed"
+  else
+    fail "leftover backup or recovery marker remained"
+  fi
+}
+
+case_p15() {
+  echo "=== P15: orphaned restore-failure marker with missing backup directory aborts ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP15.kt"
+  printf '// p15 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p15
+  local missing_backup="$WORK/hesabyar-kt-missing.p15"
+  rm -rf "$missing_backup"
+  printf '%s\n' "$missing_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  run_hook
+  expect_rc nonzero "hook aborts on orphaned restore-failure marker"
+  assert_log_contains "Kotlin restore previously failed and backup directory"
+  assert_log_contains "Refusing to proceed with possibly unrecovered worktree bytes"
+  expect_staged_exactly "$CARRIER" "$kt"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p16() {
+  echo "=== P16: edited materialized absent file is preserved on restore ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP16.kt"
+  local exp="$WORK/p16_staged.bin"
+  printf '// p16 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p16
+  rm "$CLONE/$kt"
+  # Fake gradlew edits the materialized absent file during detekt (after ktlintFormat
+  # and re-staging have finished), then passes.
+  # Restore must detect the user edit via git diff and preserve it.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP16.kt"
+  if [ -f "$kt" ]; then
+    printf '// p16 user edit during detekt\n' >> "$kt"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  run_hook
+  expect_rc 0 "hook passes with edited materialized absent file"
+  assert_log_contains "Preserving modified worktree file"
+  assert_idx_file "$kt" "$exp"
+  if grep -q "p16 user edit during detekt" "$CLONE/$kt"; then
+    pass "user edit to materialized absent file preserved"
+  else
+    fail "user edit to materialized absent file was lost"
+  fi
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p17() {
+  echo "=== P17: leftover partial tracked/ bytes without modes.null fail closed ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP17.kt"
+  printf '// p17 staged content\n' > "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p17
+  local stale_backup="$WORK/hesabyar-kt-stale.p17"
+  mkdir -p "$stale_backup/tracked/$(dirname "$kt")"
+  # Partial bytes with no authoritative modes.null record.
+  printf '// p17 partial leftover\n' > "$stale_backup/tracked/$kt"
+  printf '%s\n' "$stale_backup" > "$CLONE/.git/hesabyar-kt-backup"
+  : > "$CLONE/.git/hesabyar-kt-restore-failed"
+  run_hook
+  expect_rc nonzero "hook fails closed on partial backup without modes.null"
+  assert_log_contains "Leftover Kotlin backup could not be restored"
+  expect_staged_exactly "$CARRIER" "$kt"
+  if [[ -d "$stale_backup" ]]; then
+    pass "partial backup retained without clobber: $stale_backup"
+  else
+    fail "partial backup was deleted or moved: $stale_backup"
+  fi
+  rm -rf "$stale_backup"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p18() {
+  echo "=== P18: malformed absent.null records rejected and valid absent restored ==="
+  reset_clone
+  local valid_kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP18Valid.kt"
+  local exp="$WORK/p18_valid.bin"
+  printf '// p18 staged candidate\n' > "$exp"
+  cp "$exp" "$CLONE/$valid_kt"
+  git_clone add "$valid_kt"
+  stage_carrier p18
+
+  # Simulate prior interrupted run where $valid_kt was materialized into worktree
+  cp "$exp" "$CLONE/$valid_kt"
+
+  local can_abs="$WORK/p18_canary_abs.txt"
+  local can_trav="$WORK/p18_canary_trav.txt"
+  printf 'canary abs\n' > "$can_abs"
+  printf 'canary trav\n' > "$can_trav"
+
+  local old_backup="$WORK/hesabyar-kt-p18.old"
+  mkdir -p "$old_backup"
+  printf '%s\n' "$old_backup" > "$CLONE/.git/hesabyar-kt-backup"
+
+  # Write absent.null containing:
+  # - absolute path
+  # - traversal path (..)
+  # - dot path (/.)
+  # - double slash (//)
+  # - valid relative path ($valid_kt)
+  printf '%s\0%s\0%s\0%s\0%s\0' \
+    "$can_abs" \
+    "app/../../p18_canary_trav.txt" \
+    "app/./src/p18_dot.kt" \
+    "app//src/p18_slash.kt" \
+    "$valid_kt" > "$old_backup/absent.null"
+
+  run_hook
+  expect_rc 0 "hook succeeds and filters malformed absent.null records"
+  expect_commit_exactly "$CARRIER" "$valid_kt"
+  assert_nothing_staged
+  assert_absent_wt "$valid_kt"
+
+  if [[ -f "$can_abs" ]]; then
+    pass "canary for absolute path was not deleted"
+  else
+    fail "canary for absolute path was deleted"
+  fi
+  if [[ -f "$can_trav" ]]; then
+    pass "canary for traversal path was not deleted"
+  else
+    fail "canary for traversal path was deleted"
+  fi
+
+  if [[ ! -d "$old_backup" && ! -f "$CLONE/.git/hesabyar-kt-backup" && ! -f "$CLONE/.git/hesabyar-kt-restore-failed" ]]; then
+    pass "leftover backup and recovery marker cleanly removed"
+  else
+    fail "leftover backup or recovery marker remained"
+  fi
+  rm -f "$can_abs" "$can_trav"
+}
+
+case_p19() {
+  echo "=== P19: failed git show during absent materialization cleans truncated artifact ==="
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP19.kt"
+  local exp="$WORK/p19_staged.bin"
+  printf '// p19 staged candidate\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p19
+  # Worktree file is absent before hook runs
+  rm "$CLONE/$kt"
+
+  # Intercept git show inside the hook. A PATH shim cannot work here: Git for
+  # Windows prepends its exec-path to PATH for hooks, so it would bypass any
+  # shim directory. BASH_ENV defines a shell function instead; functions take
+  # precedence over PATH lookup.
+  local env_file="$WORK/p19-bash-env.sh"
+  cat << EOF > "$env_file"
+git() {
+  if [[ "\$1" == "show" && "\$2" == ":$kt" ]]; then
+    printf 'corrupted truncated artifact\n'
+    return 1
+  fi
+  command git "\$@"
+}
+EOF
+
+  local saved_env="${BASH_ENV:-}"
+  export BASH_ENV="$env_file"
+  run_hook
+  if [[ -n "$saved_env" ]]; then
+    export BASH_ENV="$saved_env"
+  else
+    unset BASH_ENV
+  fi
+
+  expect_rc nonzero "hook aborts when git show materialization fails"
+  assert_log_contains "Failed to materialize absent Kotlin file"
+  assert_absent_wt "$kt"
+  expect_staged_exactly "$CARRIER" "$kt"
+  rm -f "$env_file"
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_p20() {
+  echo "=== P20: mode-only difference on materialized absent file is not a user edit ==="
+  host_represents_chmod || { skip "P20: host cannot represent chmod on .kt files"; return 0; }
+  git_clone config core.fileMode true
+  reset_clone
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP20.kt"
+  local exp="$WORK/p20_staged.bin"
+  printf '// p20 staged content\n' > "$exp"
+  cp "$exp" "$CLONE/$kt"
+  chmod 755 "$CLONE/$kt"
+  git_clone add "$kt"
+  stage_carrier p20
+  rm "$CLONE/$kt"
+  # Fake gradlew flips the mode of the materialized absent file, then passes.
+  # Content stays untouched: restore must delete, not preserve.
+  cat << 'EOF' > "$CLONE/gradlew"
+#!/usr/bin/env bash
+if [ "$1" = "detekt" ]; then
+  kt="app/src/main/java/io/github/mojri/hesabyar/CarrierP20.kt"
+  if [ -f "$kt" ]; then
+    chmod 644 "$kt"
+  fi
+fi
+exit 0
+EOF
+  chmod +x "$CLONE/gradlew"
+  run_hook
+  expect_rc 0 "hook passes with a mode-only difference on the materialized file"
+  assert_idx_file "$kt" "$exp"
+  if grep -q "Preserving modified worktree file" "$LOG"; then
+    fail "mode-only difference was misclassified as a user edit"
+  else
+    pass "mode-only difference was not treated as a user edit"
+  fi
+  assert_absent_wt "$kt"
+  expect_commit_exactly "$CARRIER" "$kt"
+  assert_nothing_staged
+  rm -f "$CLONE/.git/hesabyar-kt-backup" "$CLONE/.git/hesabyar-kt-restore-failed" 2>/dev/null || true
+}
+
+case_q() {
+  echo "=== Q: missing rust/ directory hard-fails when Rust sources are staged ==="
+  reset_clone
+  mk_rs_candidate "$P_A"
+  git_clone add "$RS"
   stage_carrier q
+  mv "$CLONE/rust" "$CLONE/rust_hidden_probe"
   run_hook
   mv "$CLONE/rust_hidden_probe" "$CLONE/rust"
   expect_rc nonzero "missing workspace fails fast"
   assert_log_contains "rust/"
   assert_log_contains "not found"
+  assert_idx_file "$RS" "$EXP"
+  assert_wt_file "$RS" "$EXP"
+  expect_staged_exactly "$CARRIER" "$RS"
 }
 
 case_r() {
@@ -633,13 +1347,17 @@ case_r() {
   local name="odd name (v1) [ok].rs"
   local p="rust/hesabyar-core/src/$name"
   printf '%s' "$P_A" > "$CLONE/$p"
+  stage_cargo_toml_probe r1
   stage_carrier r1
   run_hook
   expect_rc 0 "untracked odd-named file passes and survives"
   assert_present_wt "$p"
-  contains_staged "$p" && fail "odd-named untracked became staged" \
-    || pass "odd-named untracked stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  if contains_staged "$p"; then
+    fail "odd-named untracked became staged"
+  else
+    pass "odd-named untracked stayed unstaged"
+  fi
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   reset_clone
   printf '%s' "$P_A" > "$CLONE/$p"
   setup_commit_no_verify "$p"
@@ -664,14 +1382,18 @@ run_odd_name_case() { # $1 label, $2 raw filename
     return 0
   fi
   printf '%s' "$P_A" > "$EXP"
+  stage_cargo_toml_probe "$1"
   stage_carrier "$1"
   run_hook
   expect_rc 0 "$1: hook passes"
   assert_present_wt "$p"
   assert_wt_file "$p" "$EXP"
-  contains_staged "$p" && fail "$1: untracked became staged" \
-    || pass "$1: untracked stayed unstaged"
-  expect_commit_exactly "$CARRIER"
+  if contains_staged "$p"; then
+    fail "$1: untracked became staged"
+  else
+    pass "$1: untracked stayed unstaged"
+  fi
+  expect_commit_exactly "$CARRIER" "$CARGO_TOML"
   rm -f "$CLONE/$p"
   return 0
 }
@@ -692,17 +1414,23 @@ case_u() {
   printf '#!/usr/bin/env bash\nexit 1\n' > "$CLONE/gradlew"
   chmod +x "$CLONE/gradlew"
   rm -f "$CARGO_PROBE_LOG"
+  local kt="app/src/main/java/io/github/mojri/hesabyar/CarrierU.kt"
+  printf '// u probe\n' > "$CLONE/$kt"
+  git_clone add "$kt"
   mk_rs_candidate "$P_A"
   git_clone add "$RS"
   stage_carrier u
-  local saved_path=$PATH
+  local saved_path="$PATH"
   export PATH="$CARGO_SHIM_DIR:$PATH"
   run_hook
-  export PATH=$saved_path
+  export PATH="$saved_path"
   expect_rc nonzero "commit aborted by the Kotlin gate failure"
   assert_log_contains "ktlintFormat failed"
-  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates after a Kotlin failure" \
-    || pass "hook stopped before the Rust gates"
+  if grep -qF "[4/5]" "$LOG"; then
+    fail "hook reached the Rust gates after a Kotlin failure"
+  else
+    pass "hook stopped before the Rust gates"
+  fi
   if [[ -f "$CARGO_PROBE_LOG" ]]; then
     fail "cargo ran despite the Kotlin gate failure: $(cat "$CARGO_PROBE_LOG")"
   else
@@ -710,7 +1438,22 @@ case_u() {
   fi
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$EXP"
-  expect_staged_exactly "$CARRIER" "$RS"
+  expect_staged_exactly "$CARRIER" "$kt" "$RS"
+}
+
+# Can this host create symbolic links that bash can see with [[ -L ]]?
+# Windows without Developer Mode / SeCreateSymbolicLinkPrivilege fails.
+host_supports_symlink() {
+  local pf="$WORK/symlink-capability.bin"
+  local lf="$WORK/symlink-capability.link"
+  : > "$pf"
+  rm -f "$lf"
+  if ln -s "$pf" "$lf" 2>/dev/null && [[ -L "$lf" ]]; then
+    rm -f "$pf" "$lf"
+    return 0
+  fi
+  rm -f "$pf" "$lf"
+  return 1
 }
 
 # Can this host represent a chmod on a .rs file that bash and Git can see?
@@ -766,12 +1509,18 @@ case_v() {
   expect_rc 0 "hook passes with an unstaged mode change present"
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
-  [[ -x "$CLONE/$RS" ]] && pass "original worktree mode (+x) restored" \
-    || fail "worktree executable bit lost by materialization"
+  if [[ -x "$CLONE/$RS" ]]; then
+    pass "original worktree mode (+x) restored"
+  else
+    fail "worktree executable bit lost by materialization"
+  fi
   local idx_mode
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
-    || fail "index mode changed: $idx_mode"
+  if [[ "$idx_mode" = "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
   expect_commit_exactly "$CARRIER" "$RS"
   assert_nothing_staged
 }
@@ -791,8 +1540,11 @@ case_w() {
   assert_log_contains "cargo clippy failed"
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
-  [[ -x "$CLONE/$RS" ]] && pass "mode restored through the failure path" \
-    || fail "mode lost on the clippy failure path"
+  if [[ -x "$CLONE/$RS" ]]; then
+    pass "mode restored through the failure path"
+  else
+    fail "mode lost on the clippy failure path"
+  fi
   expect_staged_exactly "$CARRIER" "$RS"
 }
 
@@ -820,19 +1572,26 @@ run_full_mode_scenario() { # <probe-text> <clippy-must-fail:0|1> <mode>
     assert_nothing_staged
     head_oid=$(git_clone rev-parse "HEAD:$RS")
     exp_oid=$(git_clone hash-object --path="$RS" "$EXP")
-    [[ "$head_oid" == "$exp_oid" ]] \
-      && pass "commit recorded the staged candidate, not the worktree copy" \
-      || fail "commit recorded wrong Rust content"
+    if [[ "$head_oid" = "$exp_oid" ]]; then
+      pass "commit recorded the staged candidate, not the worktree copy"
+    else
+      fail "commit recorded wrong Rust content"
+    fi
   fi
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   got_mode=$(read_mode "$CLONE/$RS")
-  [[ "$got_mode" == "$want_mode" ]] \
-    && pass "exact worktree mode $want_mode restored (got $got_mode)" \
-    || fail "worktree mode wrong: wanted $want_mode, got $got_mode"
+  if [[ "$got_mode" = "$want_mode" ]]; then
+    pass "exact worktree mode $want_mode restored (got $got_mode)"
+  else
+    fail "worktree mode wrong: wanted $want_mode, got $got_mode"
+  fi
   idx_mode=$(git_clone ls-files -s -- "$RS" | awk '{print $1}')
-  [[ "$idx_mode" == "100644" ]] && pass "index mode untouched (100644)" \
-    || fail "index mode changed: $idx_mode"
+  if [[ "$idx_mode" = "100644" ]]; then
+    pass "index mode untouched (100644)"
+  else
+    fail "index mode changed: $idx_mode"
+  fi
 }
 
 case_x() {
@@ -867,14 +1626,17 @@ case_z() {
   local mode_before mode_after
   mode_before=$(read_mode "$CLONE/$RS")
   rm -f "$CARGO_PROBE_LOG" "$GIT_PROBE_LOG"
-  local saved_path=$PATH
+  local saved_path="$PATH"
   export PATH="$STAT_SHIM_DIR:$GIT_SHIM_DIR:$PATH"
   run_hook
-  export PATH=$saved_path
+  export PATH="$saved_path"
   expect_rc nonzero "hook aborts when no stat can capture a mode"
   assert_log_contains "Cannot capture file mode"
-  grep -qF "[4/5]" "$LOG" && fail "hook reached the Rust gates despite mode-capture failure" \
-    || pass "hook stopped before cargo fmt materialized the tree"
+  if grep -qF "[4/5]" "$LOG"; then
+    fail "hook reached the Rust gates despite mode-capture failure"
+  else
+    pass "hook stopped before cargo fmt materialized the tree"
+  fi
   if [[ -f "$CARGO_PROBE_LOG" ]]; then
     fail "cargo ran despite the mode-capture failure: $(cat "$CARGO_PROBE_LOG")"
   else
@@ -897,10 +1659,14 @@ case_z() {
   assert_idx_file "$RS" "$EXP"
   assert_wt_file "$RS" "$WTX"
   mode_after=$(read_mode "$CLONE/$RS")
-  [[ "$mode_after" == "$mode_before" ]] && pass "worktree mode untouched by the aborted run" \
-    || fail "worktree mode changed: wanted $mode_before, got $mode_after"
+  if [[ "$mode_after" = "$mode_before" ]]; then
+    pass "worktree mode untouched by the aborted run"
+  else
+    fail "worktree mode changed: wanted $mode_before, got $mode_after"
+  fi
 }
 
+# shellcheck disable=SC2016
 case_e1_static_mode_restore_wiring() {
   echo "=== E1: hook source wires full-mode capture and restore ==="
   reset_clone
@@ -916,6 +1682,7 @@ case_e1_static_mode_restore_wiring() {
   fi
 }
 
+# shellcheck disable=SC2016
 case_e2_static_capture_before_materialization() {
   echo "=== E2: mode capture is checked before index materialization ==="
   reset_clone
@@ -930,9 +1697,28 @@ case_e2_static_capture_before_materialization() {
   fi
 }
 
+# shellcheck disable=SC2016
+case_e3_static_kotlin_symlink_rejection() {
+  echo "=== E3: Kotlin symlink rejection precedes materialization ==="
+  reset_clone
+  local src="$SRC/scripts/pre-commit"
+  local sym_ln mat_ln
+  sym_ln=$(grep -nF 'if [[ -L "$f" ]]; then' "$src" | head -1 | cut -d: -f1)
+  mat_ln=$(grep -nF 'git show ":$f"' "$src" | head -1 | cut -d: -f1)
+  if [[ -n "$sym_ln" && -n "$mat_ln" && "$sym_ln" -lt "$mat_ln" ]] \
+     && grep -qF "must not write through a symlink" "$src" \
+     && grep -qF "Retaining Kotlin backup directory" "$src" \
+     && grep -qF "Failed to restore the original Kotlin worktree state" "$src" \
+     && grep -qF "Leftover Kotlin backup could not be restored" "$src"; then
+    pass "symlink check (line $sym_ln) precedes materialization (line $mat_ln) and restore-failure retention is wired"
+  else
+    fail "symlink rejection or restore failure retention wiring missing from hook source"
+  fi
+}
+
 # --- runner -------------------------------------------------------------------
 
-CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization)
+CASES=(e0_static_no_destructive_ops a b c d e f g h i j k l m n o p p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 q r s t u v w x y z e1_static_mode_restore_wiring e2_static_capture_before_materialization e3_static_kotlin_symlink_rejection)
 
 for c in "${CASES[@]}"; do
   "case_$c"
