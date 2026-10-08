@@ -85,22 +85,42 @@ impl Decimal {
         }
         // Now a.scale >= b.scale: b has the smaller scale (fewer fractional digits).
         let scale_diff = a.scale - b.scale;
-        if scale_diff >= 39 {
-            // a is negligible (< 10^-38 relative to b) for currency rounding.
-            return Some(b);
+
+        // Find the maximum scale increase for b that fits in i128.
+        let mut target_diff = scale_diff.min(38);
+        let mut b_scaled = None;
+        while target_diff > 0 {
+            if let Some(f) = 10_i128.checked_pow(target_diff) {
+                if let Some(bs) = b.mantissa.checked_mul(f) {
+                    b_scaled = Some(bs);
+                    break;
+                }
+            }
+            target_diff -= 1;
         }
-        let factor = match 10_i128.checked_pow(scale_diff) {
-            Some(f) => f,
-            None => return Some(b),
+        let b_mantissa = b_scaled.unwrap_or(b.mantissa);
+
+        // Scale a down to match (b.scale + target_diff), rounding half-up.
+        let drop_scale = scale_diff - target_diff;
+        let a_mantissa = if drop_scale >= 39 {
+            0
+        } else if drop_scale > 0 {
+            let a_divisor = 10_i128.checked_pow(drop_scale)?;
+            let a_quotient = a.mantissa / a_divisor;
+            let a_remainder = a.mantissa % a_divisor;
+            if a_remainder >= a_divisor / 2 {
+                a_quotient.checked_add(1)?
+            } else {
+                a_quotient
+            }
+        } else {
+            a.mantissa
         };
-        let b_mantissa = match b.mantissa.checked_mul(factor) {
-            Some(bm) => bm,
-            None => return Some(b),
-        };
-        let sum = a.mantissa.checked_add(b_mantissa)?;
+
+        let sum = a_mantissa.checked_add(b_mantissa)?;
         let mut res = Self {
             mantissa: sum,
-            scale: a.scale,
+            scale: b.scale + target_diff,
         };
         res.normalize();
         Some(res)
@@ -464,6 +484,14 @@ mod tests {
                 true
             ),
             1_000_000_000
+        );
+        // Large scale difference does not drop the finer-scale addend:
+        assert_eq!(
+            parse_amount(
+                "2 میلیون و 1.00000000000000000000000000000000000001 میلیون تومان",
+                true
+            ),
+            3_000_000
         );
     }
 
