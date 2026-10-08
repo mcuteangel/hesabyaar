@@ -1,6 +1,6 @@
 # Hesabyaar — Rust/Kotlin Fallback Consolidation: Phased Migration Plan
 
-Status: Proposed
+Status: In progress (Phases 1-3 merged: 9111e43, d4fab11, 0419e81; Phases 4-14 pending)
 Owner: مجتبی
 Source audit: Rust Core Integration Audit Report (2026-08-19)
 Target architecture: Option C (Hybrid), per ADR-001

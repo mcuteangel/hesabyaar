@@ -31,7 +31,7 @@ and the debts hub shows a per-person net position.
     - [x] `.github/workflows/android-ci.yml`: explicit test tasks and JaCoCo generation
     - [x] `.github/workflows/rust-lint.yml`: Codacy reporter uploads `rust/lcov.prefixed.info`
     - [x] `docs/TEST_COVERAGE.md`: coverage scope documentation for Kotlin and Rust
-    - [x] `plans/012-unified-test-coverage-kotlin-rust.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] `plans/archive/012-unified-test-coverage-kotlin-rust.md`: completed architecture plan (DONE in `plans/README.md`)
 
 - **Task:** plans/011 Phase 0-2 (person records, tracked/untracked repayment, KPI exclusion)
 - **Status:** Completed and merged to `main`

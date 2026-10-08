@@ -53,11 +53,11 @@ Start here. This index groups selected entry-point documents in `docs/` and `pla
 Dated plans live in [`plans/`](../plans/). Index: [plans/README](../plans/README.md). Recent plans:
 
 - [UI/UX overhaul in prioritized phases](../plans/013-ui-ux-overhaul.md)
-- [Unified test coverage (Kotlin + Rust)](../plans/012-unified-test-coverage-kotlin-rust.md)
+- [Unified test coverage (Kotlin + Rust)](../plans/archive/012-unified-test-coverage-kotlin-rust.md)
 - [Personal loan ledger redesign](../plans/011-personal-loan-ledger-redesign.md)
 - [Multi-account wallet support](../plans/009-multi-account-wallet-support.md)
 - [Rust fallback consolidation](../plans/2026-08-19-rust-fallback-consolidation-plan.md)
-- [Fix stale docs and roadmap markers](../plans/006-fix-stale-docs-and-roadmap-markers.md)
+- [Fix stale docs and roadmap markers](../plans/archive/006-fix-stale-docs-and-roadmap-markers.md)
 
 ## Process
 
