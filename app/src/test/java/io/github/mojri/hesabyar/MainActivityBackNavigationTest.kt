@@ -28,6 +28,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class MainActivityBackNavigationTest {
+  companion object {
+    private const val DIALOG_TITLE = "خروج از حسابیار"
+    private const val DIALOG_MESSAGE = "می‌خواهید از برنامه خارج شوید؟"
+    private const val BTN_CONFIRM_EXIT = "خروج"
+    private const val BTN_DISMISS_CANCEL = "انصراف"
+  }
+
   @get:Rule
   val composeRule = createComposeRule()
 
@@ -100,8 +107,8 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("خروج از حسابیار").assertIsDisplayed()
-    composeRule.onNodeWithText("می‌خواهید از برنامه خارج شوید؟").assertIsDisplayed()
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+    composeRule.onNodeWithText(DIALOG_MESSAGE).assertIsDisplayed()
     assertFalse("Exit not confirmed before user action", exitConfirmed)
   }
 
@@ -124,7 +131,7 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("خروج").performClick()
+    composeRule.onNodeWithText(BTN_CONFIRM_EXIT).performClick()
     composeRule.waitForIdle()
 
     assertTrue("Exit callback invoked after clicking confirm", exitConfirmed)
@@ -149,11 +156,11 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("انصراف").performClick()
+    composeRule.onNodeWithText(BTN_DISMISS_CANCEL).performClick()
     composeRule.waitForIdle()
 
     assertFalse("Exit callback should not be invoked on dismiss", exitConfirmed)
-    composeRule.onNodeWithText("خروج از حسابیار").assertDoesNotExist()
+    composeRule.onNodeWithText(DIALOG_TITLE).assertDoesNotExist()
   }
 
   @Test
@@ -167,7 +174,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    composeRule.onNodeWithText("خروج").performClick()
+    composeRule.onNodeWithText(BTN_CONFIRM_EXIT).performClick()
     composeRule.waitForIdle()
     assertTrue("Confirm callback called", confirmed)
   }
@@ -183,7 +190,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    composeRule.onNodeWithText("انصراف").performClick()
+    composeRule.onNodeWithText(BTN_DISMISS_CANCEL).performClick()
     composeRule.waitForIdle()
     assertTrue("Dismiss callback called", dismissed)
   }
