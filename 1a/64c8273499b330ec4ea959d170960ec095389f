@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/MainActivityNavigationTest.kt
+  s_573f3ddb7a6de3::t_ae231e9ca372cd 97
+  s_573f3ddb7a6de3::t_80368768138a6d 96,98-103
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_573f3ddb7a6de3::t_2bef0f6f467c5c 625
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1a64c8273499b330ec4ea959d170960ec095389f",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
