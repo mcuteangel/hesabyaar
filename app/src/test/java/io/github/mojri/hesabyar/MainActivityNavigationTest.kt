@@ -75,6 +75,18 @@ class MainActivityNavigationTest {
   }
 
   @Test
+  fun tabHistorySaverPreservesVisitedTabs() {
+    val history = listOf(TAB_DASHBOARD, TAB_DEBTS, TAB_REPORTS)
+    val saved =
+      with(TabHistorySaver) {
+        SaverScope { true }.save(history)
+      }
+    assertNotNull("Saved tab history should not be null", saved)
+    val restored = TabHistorySaver.restore(saved!!)
+    assertEquals("Tab history restored", history, restored)
+  }
+
+  @Test
   fun debtsTabStateSaverFallsBackOnInvalidValues() {
     val restored = DebtsTabStateSaver.restore(listOf("INVALID_SECTION", "INVALID_FILTER"))
     assertEquals("Invalid section falls back to INSTALLMENTS", DebtSection.INSTALLMENTS, restored?.section)

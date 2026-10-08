@@ -178,7 +178,9 @@ class MainActivity : FragmentActivity() {
   ) {
     // Tabs the user visited, newest last. System back walks this history
     // instead of closing the app; rememberSaveable keeps it across rotation.
-    var tabHistory by rememberSaveable(startTab) { mutableStateOf(listOf(startTab)) }
+    var tabHistory by rememberSaveable(startTab, stateSaver = TabHistorySaver) {
+      mutableStateOf(listOf(startTab))
+    }
     val currentTab = tabHistory.last()
     var debtsState by rememberSaveable(stateSaver = DebtsTabStateSaver) {
       mutableStateOf(DebtsTabState(section = startDebtSection, filter = LoanDirectionFilter.ALL))
@@ -616,6 +618,12 @@ internal data class DebtsTabState(
   val section: DebtSection,
   val filter: LoanDirectionFilter,
 )
+
+internal val TabHistorySaver: Saver<List<String>, Any> =
+  listSaver(
+    save = { it.toList() },
+    restore = { it }
+  )
 
 internal val DebtsTabStateSaver: Saver<DebtsTabState, Any> =
   listSaver(
