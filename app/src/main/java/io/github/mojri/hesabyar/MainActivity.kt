@@ -46,6 +46,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -176,9 +178,9 @@ class MainActivity : FragmentActivity() {
   ) {
     // Tabs the user visited, newest last. System back walks this history
     // instead of closing the app; rememberSaveable keeps it across rotation.
-    var tabHistory by rememberSaveable { mutableStateOf(listOf(startTab)) }
+    var tabHistory by rememberSaveable(startTab) { mutableStateOf(listOf(startTab)) }
     val currentTab = tabHistory.last()
-    var debtsState by remember {
+    var debtsState by rememberSaveable(stateSaver = DebtsTabStateSaver) {
       mutableStateOf(DebtsTabState(section = startDebtSection, filter = LoanDirectionFilter.ALL))
     }
     var showCategoryManagement by rememberSaveable { mutableStateOf(false) }
@@ -186,7 +188,12 @@ class MainActivity : FragmentActivity() {
 
     // Called before the screens below, so their own back handlers (sheets,
     // overlays, management screens) take precedence over tab history.
-    TabBackHandler(tabHistory = tabHistory, onHistoryChange = { tabHistory = it })
+    TabBackHandler(
+      tabHistoryProvider = { tabHistory },
+      onHistoryChange = { tabHistory = it },
+      onExitConfirmed = { finish() },
+      onResetPersonSearch = { personViewModel.setSearchQuery("") }
+    )
 
     when {
       showCategoryManagement -> {
@@ -230,33 +237,6 @@ class MainActivity : FragmentActivity() {
             )
         )
       }
-    }
-  }
-
-  /**
-   * System back walks the visited tabs, then returns to the dashboard, and
-   * only there asks before leaving the app.
-   */
-  @Composable
-  private fun TabBackHandler(
-    tabHistory: List<String>,
-    onHistoryChange: (List<String>) -> Unit,
-  ) {
-    var showExitDialog by rememberSaveable { mutableStateOf(false) }
-
-    BackHandler {
-      val previous = tabHistory.popTab(home = TAB_DASHBOARD)
-      if (previous != null) onHistoryChange(previous) else showExitDialog = true
-    }
-
-    if (showExitDialog) {
-      ExitConfirmDialog(
-        onConfirm = {
-          showExitDialog = false
-          finish()
-        },
-        onDismiss = { showExitDialog = false }
-      )
     }
   }
 
@@ -443,7 +423,7 @@ internal fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSectio
 }
 
 @Composable
-private fun ExitConfirmDialog(
+internal fun ExitConfirmDialog(
   onConfirm: () -> Unit,
   onDismiss: () -> Unit,
 ) {
@@ -636,6 +616,53 @@ internal data class DebtsTabState(
   val section: DebtSection,
   val filter: LoanDirectionFilter,
 )
+
+internal val DebtsTabStateSaver: Saver<DebtsTabState, Any> =
+  listSaver(
+    save = { listOf(it.section.name, it.filter.name) },
+    restore = {
+      val section = runCatching { DebtSection.valueOf(it[0]) }.getOrDefault(DebtSection.INSTALLMENTS)
+      val filter = runCatching { LoanDirectionFilter.valueOf(it[1]) }.getOrDefault(LoanDirectionFilter.ALL)
+      DebtsTabState(section = section, filter = filter)
+    }
+  )
+
+/**
+ * System back walks the visited tabs, then returns to the dashboard, and
+ * only there asks before leaving the app.
+ */
+@Composable
+internal fun TabBackHandler(
+  tabHistoryProvider: () -> List<String>,
+  onHistoryChange: (List<String>) -> Unit,
+  onExitConfirmed: () -> Unit,
+  onResetPersonSearch: () -> Unit = {},
+) {
+  var showExitDialog by rememberSaveable { mutableStateOf(false) }
+
+  BackHandler {
+    val current = tabHistoryProvider()
+    val previous = current.popTab(home = TAB_DASHBOARD)
+    if (previous != null) {
+      if (previous.lastOrNull() == TAB_DEBTS) {
+        onResetPersonSearch()
+      }
+      onHistoryChange(previous)
+    } else {
+      showExitDialog = true
+    }
+  }
+
+  if (showExitDialog) {
+    ExitConfirmDialog(
+      onConfirm = {
+        showExitDialog = false
+        onExitConfirmed()
+      },
+      onDismiss = { showExitDialog = false }
+    )
+  }
+}
 
 internal data class MainNavCallbacks(
   val onTabSelected: (String) -> Unit,

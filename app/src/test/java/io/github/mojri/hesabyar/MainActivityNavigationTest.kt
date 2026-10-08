@@ -1,8 +1,10 @@
 package io.github.mojri.hesabyar
 
+import androidx.compose.runtime.saveable.SaverScope
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -57,6 +59,26 @@ class MainActivityNavigationTest {
     val onPersons = withDebtors.copy(section = DebtSection.PERSONS)
     assertEquals("Section updated to PERSONS", DebtSection.PERSONS, onPersons.section)
     assertEquals("Filter persists across section change", LoanDirectionFilter.DEBTOR, onPersons.filter)
+  }
+
+  @Test
+  fun debtsTabStateSaverPreservesSectionAndFilter() {
+    val state = DebtsTabState(DebtSection.BANK_LOANS, LoanDirectionFilter.CREDITOR)
+    val saved =
+      with(DebtsTabStateSaver) {
+        SaverScope { true }.save(state)
+      }
+    assertNotNull("Saved state should not be null", saved)
+    val restored = DebtsTabStateSaver.restore(saved!!)
+    assertEquals("DebtsTabState section restored", state.section, restored?.section)
+    assertEquals("DebtsTabState filter restored", state.filter, restored?.filter)
+  }
+
+  @Test
+  fun debtsTabStateSaverFallsBackOnInvalidValues() {
+    val restored = DebtsTabStateSaver.restore(listOf("INVALID_SECTION", "INVALID_FILTER"))
+    assertEquals("Invalid section falls back to INSTALLMENTS", DebtSection.INSTALLMENTS, restored?.section)
+    assertEquals("Invalid filter falls back to ALL", LoanDirectionFilter.ALL, restored?.filter)
   }
 
   @Test
