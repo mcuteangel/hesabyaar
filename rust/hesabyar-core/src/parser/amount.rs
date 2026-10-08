@@ -20,6 +20,7 @@ impl Decimal {
             Some((i, f)) => (i, f),
             None => (text, ""),
         };
+        let frac_part = frac_part.trim_end_matches('0');
         let mut mantissa: i128 = 0;
         for c in int_part.chars().chain(frac_part.chars()) {
             let digit = i128::from(c.to_digit(10)?);
@@ -35,27 +36,71 @@ impl Decimal {
 
     /// `self * multiplier`, rounded half-up to a whole unit.
     fn times_rounded(self, multiplier: i64) -> Option<i128> {
-        let product = self.mantissa.checked_mul(i128::from(multiplier))?;
-        let divisor = 10_i128.checked_pow(self.scale)?;
-        Some((product + divisor / 2) / divisor)
+        if multiplier <= 0 {
+            return Some(0);
+        }
+
+        let mut m = multiplier;
+        let mut m_scale: u32 = 0;
+        while m % 10 == 0 {
+            m /= 10;
+            m_scale += 1;
+        }
+
+        let common = self.scale.min(m_scale);
+        let rem_scale = self.scale - common;
+        let rem_m_scale = m_scale - common;
+
+        let product = self.mantissa.checked_mul(i128::from(m))?;
+
+        if rem_scale == 0 {
+            let factor = 10_i128.checked_pow(rem_m_scale)?;
+            product.checked_mul(factor)
+        } else if rem_scale >= 39 {
+            Some(0)
+        } else {
+            let divisor = 10_i128.checked_pow(rem_scale)?;
+            let quotient = product / divisor;
+            let remainder = product % divisor;
+            let half = divisor / 2;
+            if remainder >= half {
+                quotient.checked_add(1)
+            } else {
+                Some(quotient)
+            }
+        }
     }
 
     /// Whole part only (fraction truncated), matching the old `f64 as i64`.
     fn truncated(self) -> Option<i128> {
-        Some(self.mantissa / 10_i128.checked_pow(self.scale)?)
+        if self.scale == 0 {
+            Some(self.mantissa)
+        } else if self.scale >= 39 {
+            Some(0)
+        } else {
+            let divisor = 10_i128.checked_pow(self.scale)?;
+            Some(self.mantissa / divisor)
+        }
     }
 }
 
-/// Narrows an exact total to `i64`. An amount that does not fit is not a
-/// usable amount, so it maps to `0` ("no amount") instead of wrapping.
+const MAX_TOMAN: i64 = i64::MAX / 10;
+
+/// Narrows an exact total to `i64`. An amount that does not fit or would
+/// overflow subsequent Toman->Rial conversion (`* 10`) is not usable,
+/// so it maps to `0` ("no amount") instead of wrapping or panicking.
 fn to_amount(total: Option<i128>) -> i64 {
-    total.and_then(|t| i64::try_from(t).ok()).unwrap_or(0)
+    total
+        .and_then(|t| i64::try_from(t).ok())
+        .filter(|&t| (0..=MAX_TOMAN).contains(&t))
+        .unwrap_or(0)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Number(Decimal),
     Unit(UnitType),
+    Invalid,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -137,8 +182,9 @@ fn tokenize(text: &str) -> Vec<Token> {
                 }
             }
             let num_str: String = chars[start..i].iter().collect();
-            if let Some(num) = Decimal::parse(&num_str) {
-                tokens.push(Token::Number(num));
+            match Decimal::parse(&num_str) {
+                Some(num) => tokens.push(Token::Number(num)),
+                None => tokens.push(Token::Invalid),
             }
             continue;
         }
@@ -179,6 +225,7 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
                 last_unit = Some(*u);
                 current_num = None;
             }
+            Token::Invalid => {}
         }
     }
 
@@ -260,7 +307,7 @@ pub fn parse_amount(sentence: &str, shorthand_mode: bool) -> i64 {
     let ascii = to_ascii_digits(&cleaned);
     let tokens = tokenize(&ascii);
 
-    if tokens.is_empty() {
+    if tokens.is_empty() || tokens.iter().any(|t| matches!(t, Token::Invalid)) {
         return 0;
     }
 
@@ -312,6 +359,8 @@ mod tests {
             2_300_050_000
         );
         // A trailing number with no unit takes the next unit down.
+        assert_eq!(parse_amount("3 میلیون و 200", true), 3_200_000);
+        // An explicit unit on the trailing number overrides the fallback.
         assert_eq!(parse_amount("3 میلیون و 200 تومن", true), 3_000_200);
     }
 
@@ -321,6 +370,14 @@ mod tests {
         assert_eq!(parse_amount("۱.۲ میلیارد تومان", true), 1_200_000_000);
         // Rounded half-up to a whole Toman.
         assert_eq!(parse_amount("1.2345 هزار تومان", true), 1_235);
+        // Zeros in fractional part reduce scale cleanly without overflow.
+        assert_eq!(
+            parse_amount(
+                "1.00000000000000000000000000000000000000 میلیارد تومان",
+                true
+            ),
+            1_000_000_000
+        );
     }
 
     #[test]
@@ -329,6 +386,20 @@ mod tests {
         assert_eq!(
             parse_amount("999999999999999999999999999999999999999999 تومان", true),
             0
+        );
+        // Unrepresentable number in a multi-token sentence rejects the whole amount.
+        assert_eq!(
+            parse_amount(
+                "100 میلیون و 999999999999999999999999999999999999999999 هزار تومان",
+                true
+            ),
+            0
+        );
+        // Toman values above i64::MAX / 10 would overflow Rial conversion (* 10).
+        assert_eq!(parse_amount("922337203685477581 تومان", true), 0);
+        assert_eq!(
+            parse_amount("922337203685477580 تومان", true),
+            922_337_203_685_477_580
         );
     }
 
