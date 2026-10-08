@@ -1,0 +1,22 @@
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_573f3ddb7a6de3::t_c814b8689bc6a8 181-183
+  s_573f3ddb7a6de3::t_9577b545a82170 622-627
+app/src/test/java/io/github/mojri/hesabyar/MainActivityNavigationTest.kt
+  s_573f3ddb7a6de3::t_5d33573735f33c 78-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d1df69baafb0553f20dfb07fa381f269feadb3d7",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
