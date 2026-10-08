@@ -102,6 +102,8 @@ impl Decimal {
 
         // Scale a down to match (b.scale + target_diff), rounding half-up.
         let drop_scale = scale_diff - target_diff;
+        // Since i128::MAX < 10^39, any mantissa scaled down by >= 39 decimal digits
+        // produces a value strictly < 10^-38 / 10 = 10^-39, which rounds half-up to 0.
         let a_mantissa = if drop_scale >= 39 {
             0
         } else if drop_scale > 0 {
@@ -127,7 +129,8 @@ impl Decimal {
     }
 
     /// Round half-up to a whole unit using quotient and remainder to prevent overflow.
-    /// Scale >= 39 means the fractional part dominates (< 10^-38) and rounds half-up to 0.
+    /// Scale >= 39 means the fractional part dominates (< 10^-38) and rounds half-up to 0:
+    /// i128::MAX < 10^39, so `mantissa / 10^39 < 1` and the value can never reach 0.5.
     fn round_half_up(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
@@ -148,7 +151,7 @@ impl Decimal {
 
     /// Whole part only (fraction truncated), matching the old `f64 as i64`.
     /// Scale >= 39 means the fractional part dominates (< 10^-38) and the
-    /// integer part is 0 since mantissa fits in i128 (< 10^39).
+    /// integer part is 0: i128::MAX < 10^39, so `mantissa / 10^39 == 0`.
     fn truncated(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
@@ -368,6 +371,8 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
     // `numbers.len() <= 3` is the supported shorthand shape: the first number
     // maps to the largest remaining unit. For >3 numbers we clamp the unit
     // index so we never index out of bounds (and never underflow `3 - len`).
+    // The clamp also defines semantics for >3 numbers: the 4th and later
+    // numbers are all read as Thousands ("1 2 3 4" = 1B + 2M + 3K + 4K).
     let start_idx = (3_usize).saturating_sub(numbers.len());
 
     let mut total = Decimal::ZERO;
@@ -386,6 +391,9 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
 }
 
 fn interpret_bare_last(tokens: &[Token]) -> i64 {
+    if tokens.iter().any(|t| matches!(t, Token::Invalid)) {
+        return 0;
+    }
     tokens
         .iter()
         .rev()
@@ -411,7 +419,7 @@ pub fn parse_amount(sentence: &str, shorthand_mode: bool) -> i64 {
     let ascii = to_ascii_digits(&cleaned);
     let tokens = tokenize(&ascii);
 
-    if tokens.is_empty() || tokens.iter().any(|t| matches!(t, Token::Invalid)) {
+    if tokens.is_empty() {
         return 0;
     }
 
