@@ -1,0 +1,20 @@
+app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt
+  s_573f3ddb7a6de3::t_da96ea84e8b4d3 31-37
+  s_573f3ddb7a6de3::t_646dea4b52efba 110-111,134,159,163,177,193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8443ce3d046961cf46ca54fd5842e3874a218470",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
