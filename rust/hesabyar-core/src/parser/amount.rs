@@ -119,6 +119,8 @@ impl Decimal {
     }
 
     /// Whole part only (fraction truncated), matching the old `f64 as i64`.
+    /// Scale >= 39 means the fractional part dominates (< 10^-38) and the
+    /// integer part is 0 since mantissa fits in i128 (< 10^39).
     fn truncated(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
