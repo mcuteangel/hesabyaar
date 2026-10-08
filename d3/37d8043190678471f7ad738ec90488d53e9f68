@@ -1,0 +1,22 @@
+rust/hesabyar-core/src/parser/amount.rs
+  s_4fb610411cc145::t_6c6b482b5477d5 17-21,42-49,51,53-65,67-74,76-81,83-100,102-106,109-111
+  s_4fb610411cc145::t_220a843d92409b 450-452
+  s_4fb610411cc145::t_a841e90eb5ffbb 162-170
+  s_4fb610411cc145::t_e31a3149f088ea 268-271,280-287,292,297,299-308,311,315-317,336-339,346,348-356,358
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d337d8043190678471f7ad738ec90488d53e9f68",
+  "prompts": {},
+  "sessions": {
+    "s_4fb610411cc145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c81da407-9343-4d9a-80b5-eb865da60831",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
