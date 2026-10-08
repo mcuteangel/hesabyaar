@@ -1,0 +1,20 @@
+rust/hesabyar-core/src/parser/amount.rs
+  s_4fb610411cc145::t_80e363a929b057 548-602
+  s_4fb610411cc145::t_b63c85be8cd9c2 446-452
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "acabd93ffdc9d04e5ae23a42182d678a0761d5e7",
+  "prompts": {},
+  "sessions": {
+    "s_4fb610411cc145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c81da407-9343-4d9a-80b5-eb865da60831",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
