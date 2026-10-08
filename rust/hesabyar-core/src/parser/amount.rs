@@ -443,6 +443,13 @@ mod tests {
         assert_eq!(parse_amount("۵۰۰۰۰۰ تومان", true), 500_000);
         // Bare numbers without money keywords return 0
         assert_eq!(parse_amount("۵۰۰", true), 0);
+        // Multi-number shorthand without explicit units (context keyword triggers money):
+        // "قیمت 50 250": 50 million + 250 thousand = 50,250,000
+        assert_eq!(parse_amount("قیمت 50 250", true), 50_250_000);
+        // "مبلغ 2 300 50": 2 billion + 300 million + 50 thousand = 2,300,050_000
+        assert_eq!(parse_amount("مبلغ 2 300 50", true), 2_300_050_000);
+        // >3 numbers: 1 billion + 2 million + 3 thousand + 4 thousand = 1,002,007,000
+        assert_eq!(parse_amount("هزینه 1 2 3 4", true), 1_002_007_000);
     }
 
     #[test]
@@ -537,5 +544,60 @@ mod tests {
     #[test]
     fn test_parse_no_money() {
         assert_eq!(parse_amount("سلام دنیا", true), 0);
+    }
+
+    #[test]
+    fn test_bare_last_without_shorthand() {
+        // `interpret_bare_last`: takes the last bare number, truncated.
+        assert_eq!(parse_amount("۵۰۰ تومان", false), 500);
+        assert_eq!(parse_amount("10 20 تومان", false), 20);
+        // No numbers at all returns 0.
+        assert_eq!(parse_amount("تومان", false), 0);
+    }
+
+    #[test]
+    fn test_trailing_dot_without_fraction() {
+        // A dot with no digits after it is not a fraction: "۵۰۰." parses as 500.
+        assert_eq!(parse_amount("۵۰۰. تومان", true), 500);
+    }
+
+    #[test]
+    fn test_checked_add_scale_branches() {
+        // Zero addend returns the other operand unchanged.
+        let a = Decimal::parse("5").unwrap();
+        assert_eq!(a.checked_add(Decimal::ZERO), Some(a));
+        assert_eq!(Decimal::ZERO.checked_add(a), Some(a));
+        // Scale-down with round-up: 1.6 (scale 1) + 1 (scale 0):
+        // drop 1 digit from 16 -> 1 remainder 6 >= 5 -> rounds to 2, plus 1 = 3.
+        let x = Decimal::parse("1.6").unwrap();
+        let one = Decimal::parse("1").unwrap();
+        assert_eq!(x.checked_add(one).and_then(|d| d.round_half_up()), Some(3));
+        // Scale-down without round-up: 1.4 + 1 = 2.4 -> 2.
+        let y = Decimal::parse("1.4").unwrap();
+        assert_eq!(y.checked_add(one).and_then(|d| d.round_half_up()), Some(2));
+        // Extreme scale difference (>= 39) absorbs the negligible operand.
+        let big = Decimal {
+            mantissa: 5,
+            scale: 0,
+        };
+        let tiny = Decimal {
+            mantissa: 1,
+            scale: 40,
+        };
+        assert_eq!(
+            big.checked_add(tiny).and_then(|d| d.round_half_up()),
+            Some(5)
+        );
+    }
+
+    #[test]
+    fn test_extreme_scale_rounds_to_zero() {
+        // A value below 10^-38 rounds half-up to 0 and truncates to 0.
+        let tiny = Decimal {
+            mantissa: 1,
+            scale: 39,
+        };
+        assert_eq!(tiny.round_half_up(), Some(0));
+        assert_eq!(tiny.truncated(), Some(0));
     }
 }
