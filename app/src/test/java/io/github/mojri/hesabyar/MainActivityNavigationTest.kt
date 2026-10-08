@@ -14,6 +14,12 @@ import org.junit.Test
  * Runs without Robolectric so the jacoco report records the mapping coverage.
  */
 class MainActivityNavigationTest {
+  companion object {
+    private const val MSG_SEARCH_QUERY_RESET = "Search query reset"
+    private const val MSG_NAVIGATED_TO_DEBTS = "Navigated to DEBTS tab"
+    private const val MSG_DEBTS_SECTION_PERSONS = "Debts section set to PERSONS"
+  }
+
   @Test
   fun deepLinksOpenDebtsTab() {
     val deepLinks =
@@ -109,9 +115,9 @@ class MainActivityNavigationTest {
 
     debtsNav.onShowDebtors()
 
-    assertEquals("Search query reset", true, searchCleared)
-    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
-    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals(MSG_SEARCH_QUERY_RESET, true, searchCleared)
+    assertEquals(MSG_NAVIGATED_TO_DEBTS, TAB_DEBTS, currentTab)
+    assertEquals(MSG_DEBTS_SECTION_PERSONS, DebtSection.PERSONS, debtsState.section)
     assertEquals("Filter set to DEBTOR", LoanDirectionFilter.DEBTOR, debtsState.filter)
   }
 
@@ -131,9 +137,9 @@ class MainActivityNavigationTest {
 
     debtsNav.onShowCreditors()
 
-    assertEquals("Search query reset", true, searchCleared)
-    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
-    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals(MSG_SEARCH_QUERY_RESET, true, searchCleared)
+    assertEquals(MSG_NAVIGATED_TO_DEBTS, TAB_DEBTS, currentTab)
+    assertEquals(MSG_DEBTS_SECTION_PERSONS, DebtSection.PERSONS, debtsState.section)
     assertEquals("Filter set to CREDITOR", LoanDirectionFilter.CREDITOR, debtsState.filter)
   }
 

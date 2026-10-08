@@ -33,6 +33,7 @@ class MainActivityBackNavigationTest {
     private const val DIALOG_MESSAGE = "می‌خواهید از برنامه خارج شوید؟"
     private const val BTN_CONFIRM_EXIT = "خروج"
     private const val BTN_DISMISS_CANCEL = "انصراف"
+    private const val MSG_DISPATCHER_PROVIDED = "OnBackPressedDispatcher should be provided"
   }
 
   @get:Rule
@@ -53,7 +54,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    assertNotNull("OnBackPressedDispatcher should be provided", dispatcher)
+    assertNotNull(MSG_DISPATCHER_PROVIDED, dispatcher)
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
@@ -81,7 +82,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    assertNotNull("OnBackPressedDispatcher should be provided", dispatcher)
+    assertNotNull(MSG_DISPATCHER_PROVIDED, dispatcher)
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
@@ -103,7 +104,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    assertNotNull("OnBackPressedDispatcher should be provided", dispatcher)
+    assertNotNull(MSG_DISPATCHER_PROVIDED, dispatcher)
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
@@ -127,7 +128,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    assertNotNull("OnBackPressedDispatcher should be provided", dispatcher)
+    assertNotNull(MSG_DISPATCHER_PROVIDED, dispatcher)
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
@@ -152,7 +153,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    assertNotNull("OnBackPressedDispatcher should be provided", dispatcher)
+    assertNotNull(MSG_DISPATCHER_PROVIDED, dispatcher)
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
