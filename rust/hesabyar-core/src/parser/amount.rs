@@ -14,6 +14,11 @@ pub struct Decimal {
 }
 
 impl Decimal {
+    const ZERO: Self = Self {
+        mantissa: 0,
+        scale: 0,
+    };
+
     /// Parses `digits[.digits]`. Returns `None` when the number does not fit.
     fn parse(text: &str) -> Option<Self> {
         let (int_part, frac_part) = match text.split_once('.') {
@@ -34,34 +39,76 @@ impl Decimal {
         self.mantissa > 0
     }
 
-    /// `self * multiplier`, rounded half-up to a whole unit.
-    fn times_rounded(self, multiplier: i64) -> Option<i128> {
-        if multiplier <= 0 {
-            return Some(0);
+    fn normalize(&mut self) {
+        if self.mantissa == 0 {
+            self.scale = 0;
+            return;
+        }
+        while self.mantissa % 10 == 0 && self.scale > 0 {
+            self.mantissa /= 10;
+            self.scale -= 1;
+        }
+    }
+
+    /// `self * 10^exp` kept exact as a decimal without intermediate overflow.
+    fn times_unit(mut self, exp: u32) -> Option<Self> {
+        self.normalize();
+        if exp >= self.scale {
+            let diff = exp - self.scale;
+            let factor = 10_i128.checked_pow(diff)?;
+            let mantissa = self.mantissa.checked_mul(factor)?;
+            Some(Self { mantissa, scale: 0 })
+        } else {
+            Some(Self {
+                mantissa: self.mantissa,
+                scale: self.scale - exp,
+            })
+        }
+    }
+
+    /// Add two non-negative decimals exact.
+    fn checked_add(self, other: Self) -> Option<Self> {
+        let mut a = self;
+        let mut b = other;
+        a.normalize();
+        b.normalize();
+
+        if a.mantissa == 0 {
+            return Some(b);
+        }
+        if b.mantissa == 0 {
+            return Some(a);
         }
 
-        let mut m = multiplier;
-        let mut m_scale: u32 = 0;
-        while m % 10 == 0 {
-            m /= 10;
-            m_scale += 1;
+        if a.scale < b.scale {
+            std::mem::swap(&mut a, &mut b);
         }
+        // Now a.scale >= b.scale
+        let scale_diff = a.scale - b.scale;
+        if scale_diff >= 39 {
+            return None;
+        }
+        let factor = 10_i128.checked_pow(scale_diff)?;
+        let b_mantissa = b.mantissa.checked_mul(factor)?;
+        let sum = a.mantissa.checked_add(b_mantissa)?;
+        let mut res = Self {
+            mantissa: sum,
+            scale: a.scale,
+        };
+        res.normalize();
+        Some(res)
+    }
 
-        let common = self.scale.min(m_scale);
-        let rem_scale = self.scale - common;
-        let rem_m_scale = m_scale - common;
-
-        let product = self.mantissa.checked_mul(i128::from(m))?;
-
-        if rem_scale == 0 {
-            let factor = 10_i128.checked_pow(rem_m_scale)?;
-            product.checked_mul(factor)
-        } else if rem_scale >= 39 {
+    /// Round half-up to a whole unit using quotient and remainder to prevent overflow.
+    fn round_half_up(self) -> Option<i128> {
+        if self.scale == 0 {
+            Some(self.mantissa)
+        } else if self.scale >= 39 {
             Some(0)
         } else {
-            let divisor = 10_i128.checked_pow(rem_scale)?;
-            let quotient = product / divisor;
-            let remainder = product % divisor;
+            let divisor = 10_i128.checked_pow(self.scale)?;
+            let quotient = self.mantissa / divisor;
+            let remainder = self.mantissa % divisor;
             let half = divisor / 2;
             if remainder >= half {
                 quotient.checked_add(1)
@@ -112,6 +159,15 @@ pub enum UnitType {
 }
 
 impl UnitType {
+    pub fn exp(self) -> u32 {
+        match self {
+            Self::Billion => 9,
+            Self::Million => 6,
+            Self::Thousand => 3,
+            Self::Tuman => 0,
+        }
+    }
+
     pub fn multiplier(self) -> i64 {
         match self {
             Self::Billion => 1_000_000_000,
@@ -209,7 +265,10 @@ fn tokenize(text: &str) -> Vec<Token> {
 }
 
 fn interpret_with_units(tokens: &[Token]) -> i64 {
-    let mut total: Option<i128> = Some(0);
+    if tokens.iter().any(|t| matches!(t, Token::Invalid)) {
+        return 0;
+    }
+    let mut total = Decimal::ZERO;
     let mut current_num: Option<Decimal> = None;
     let mut last_unit: Option<UnitType> = None;
 
@@ -218,31 +277,44 @@ fn interpret_with_units(tokens: &[Token]) -> i64 {
             Token::Number(n) => current_num = Some(*n),
             Token::Unit(u) => {
                 if let Some(n) = current_num.filter(|n| n.is_positive()) {
-                    total = total
-                        .zip(n.times_rounded(u.multiplier()))
-                        .and_then(|(t, add)| t.checked_add(add));
+                    let term = match n.times_unit(u.exp()) {
+                        Some(t) => t,
+                        None => return 0,
+                    };
+                    total = match total.checked_add(term) {
+                        Some(t) => t,
+                        None => return 0,
+                    };
                 }
                 last_unit = Some(*u);
                 current_num = None;
             }
-            Token::Invalid => {}
+            Token::Invalid => return 0,
         }
     }
 
     if let Some(n) = current_num.filter(|n| n.is_positive()) {
-        let multiplier = last_unit
+        let exp = last_unit
             .and_then(|u| u.lower())
-            .map(|u| u.multiplier())
-            .unwrap_or(1);
-        total = total
-            .zip(n.times_rounded(multiplier))
-            .and_then(|(t, add)| t.checked_add(add));
+            .map(|u| u.exp())
+            .unwrap_or(0);
+        let term = match n.times_unit(exp) {
+            Some(t) => t,
+            None => return 0,
+        };
+        total = match total.checked_add(term) {
+            Some(t) => t,
+            None => return 0,
+        };
     }
 
-    to_amount(total)
+    to_amount(total.round_half_up())
 }
 
 fn interpret_shorthand(tokens: &[Token]) -> i64 {
+    if tokens.iter().any(|t| matches!(t, Token::Invalid)) {
+        return 0;
+    }
     let numbers: Vec<Decimal> = tokens
         .iter()
         .filter_map(|t| {
@@ -261,24 +333,29 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
         return to_amount(numbers[0].truncated());
     }
 
-    let unit_steps = [
-        UnitType::Billion.multiplier(),
-        UnitType::Million.multiplier(),
-        UnitType::Thousand.multiplier(),
+    let unit_steps_exp = [
+        UnitType::Billion.exp(),
+        UnitType::Million.exp(),
+        UnitType::Thousand.exp(),
     ];
     // `numbers.len() <= 3` is the supported shorthand shape: the first number
     // maps to the largest remaining unit. For >3 numbers we clamp the unit
     // index so we never index out of bounds (and never underflow `3 - len`).
     let start_idx = (3_usize).saturating_sub(numbers.len());
 
-    let mut total: Option<i128> = Some(0);
+    let mut total = Decimal::ZERO;
     for (i, num) in numbers.iter().enumerate() {
-        let idx = (start_idx + i).min(unit_steps.len() - 1);
-        total = total
-            .zip(num.times_rounded(unit_steps[idx]))
-            .and_then(|(t, add)| t.checked_add(add));
+        let idx = (start_idx + i).min(unit_steps_exp.len() - 1);
+        let term = match num.times_unit(unit_steps_exp[idx]) {
+            Some(t) => t,
+            None => return 0,
+        };
+        total = match total.checked_add(term) {
+            Some(t) => t,
+            None => return 0,
+        };
     }
-    to_amount(total)
+    to_amount(total.round_half_up())
 }
 
 fn interpret_bare_last(tokens: &[Token]) -> i64 {
@@ -370,6 +447,9 @@ mod tests {
         assert_eq!(parse_amount("۱.۲ میلیارد تومان", true), 1_200_000_000);
         // Rounded half-up to a whole Toman.
         assert_eq!(parse_amount("1.2345 هزار تومان", true), 1_235);
+        // Fractional components accumulate exact without premature per-term rounding:
+        // 1234.5 + 1234.5 = 2469.0 -> 2469 (not 1235 + 1235 = 2470).
+        assert_eq!(parse_amount("1.2345 هزار و 1.2345 هزار تومان", true), 2_469);
         // Zeros in fractional part reduce scale cleanly without overflow.
         assert_eq!(
             parse_amount(
