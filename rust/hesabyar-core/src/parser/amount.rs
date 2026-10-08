@@ -83,13 +83,20 @@ impl Decimal {
         if a.scale < b.scale {
             std::mem::swap(&mut a, &mut b);
         }
-        // Now a.scale >= b.scale
+        // Now a.scale >= b.scale: b has the smaller scale (fewer fractional digits).
         let scale_diff = a.scale - b.scale;
         if scale_diff >= 39 {
-            return None;
+            // a is negligible (< 10^-38 relative to b) for currency rounding.
+            return Some(b);
         }
-        let factor = 10_i128.checked_pow(scale_diff)?;
-        let b_mantissa = b.mantissa.checked_mul(factor)?;
+        let factor = match 10_i128.checked_pow(scale_diff) {
+            Some(f) => f,
+            None => return Some(b),
+        };
+        let b_mantissa = match b.mantissa.checked_mul(factor) {
+            Some(bm) => bm,
+            None => return Some(b),
+        };
         let sum = a.mantissa.checked_add(b_mantissa)?;
         let mut res = Self {
             mantissa: sum,
@@ -100,6 +107,7 @@ impl Decimal {
     }
 
     /// Round half-up to a whole unit using quotient and remainder to prevent overflow.
+    /// Scale >= 39 means the fractional part dominates (< 10^-38) and rounds half-up to 0.
     fn round_half_up(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
