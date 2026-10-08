@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -45,6 +48,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 
 @Composable
 fun BankLoanScreen(
@@ -221,8 +225,9 @@ private fun AddBankLoanDialog(
 
   val jDate = JalaliCalendarHelper.gregorianToJalali(startDate)
   val countVal = count.toIntOrNull() ?: 0
-  val receivedVal = received.toLongOrNull() ?: 0L
-  val monthlyVal = monthly.toLongOrNull() ?: 0L
+  // Inputs are typed in the user's display unit; the database stores Rial.
+  val receivedVal = DisplayAmountInput.toRialOrNull(received) ?: 0L
+  val monthlyVal = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
   val canConfirm =
     bankName.isNotBlank() &&
       receivedVal > 0 &&
@@ -273,8 +278,9 @@ private fun AddBankLoanDialog(
   )
 }
 
+@VisibleForTesting
 @Composable
-private fun BankLoanForm(
+internal fun BankLoanForm(
   bankName: String,
   onBankName: (String) -> Unit,
   loanName: String,
@@ -299,13 +305,17 @@ private fun BankLoanForm(
     HesabyarInputField(
       value = received,
       onValueChange = onReceived,
-      label = "مبلغ دریافتی (ریال)",
+      label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
+      isError = isInvalidAmount(received),
+      supportingText = invalidAmountText(received),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
       value = monthly,
       onValueChange = onMonthly,
-      label = "مبلغ قسط ماهانه (ریال)",
+      label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
+      isError = isInvalidAmount(monthly),
+      supportingText = invalidAmountText(monthly),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
@@ -321,4 +331,17 @@ private fun BankLoanForm(
       variant = ButtonVariant.Outlined
     )
   }
+}
+
+/** True when the user typed something that is not a usable loan amount (garbage, too large, zero, or negative). */
+@VisibleForTesting
+internal fun isInvalidAmount(text: String): Boolean {
+  if (text.isBlank()) return false
+  return DisplayAmountInput.toRialOrNull(text)?.let { it > 0L } != true
+}
+
+@Composable
+private fun invalidAmountText(text: String): String? {
+  if (!isInvalidAmount(text)) return null
+  return stringResource(R.string.balance_invalid_amount)
 }

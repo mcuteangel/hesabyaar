@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.rust.SheetData
 import io.github.mojri.hesabyar.rust.WorkbookData
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.ui.utils.partyLabelRes
 import java.util.Calendar
 
 class ExcelExporter(
@@ -162,14 +163,23 @@ class ExcelExporter(
       Cell(value = "", bold = false)
     )
 
-  private fun buildLoansSheet(loans: List<Loan>): SheetData {
+  /**
+   * Same wording as the in-app loan lists (`AnalyticsScreen`, `PersonsScreen`):
+   * the label describes the person, so DEBTOR (they owe the user) is «بدهکار»
+   * and CREDITOR (the user owes them) is «طلبکار».
+   */
+  @VisibleForTesting
+  internal fun loanTypeLabel(type: LoanType): String = context.getString(type.partyLabelRes())
+
+  @VisibleForTesting
+  internal fun buildLoansSheet(loans: List<Loan>): SheetData {
     val headers = listOf("ردیف", "نام شخص", "نوع", "مبلغ اولیه", "مبلغ باقیمانده", "توضیحات", "تاریخ", "وضعیت")
     val rows =
       loans.mapIndexed { index, loan ->
         listOf(
           Cell(value = (index + 1).toString(), bold = false),
           Cell(value = loan.personName, bold = false),
-          Cell(value = if (loan.type == LoanType.DEBTOR) "طلبکار" else "بدهکار", bold = false),
+          Cell(value = loanTypeLabel(loan.type), bold = false),
           Cell(value = formatAmount(loan.originalAmount), bold = false),
           Cell(value = formatAmount(loan.remainingAmount), bold = false),
           Cell(value = loan.description, bold = false),

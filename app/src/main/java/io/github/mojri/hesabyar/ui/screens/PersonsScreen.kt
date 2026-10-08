@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.domain.utils.PersonBalanceCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.PersonViewModel
@@ -387,8 +389,8 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
       PersonDirection(
         icon = Icons.Filled.ArrowCircleDown,
         tint = MaterialTheme.colorScheme.primary,
-        label = "بدهکار",
-        contentDescription = "بدهکار — موجودی مثبت"
+        label = stringResource(R.string.loan_party_debtor),
+        contentDescription = stringResource(R.string.person_direction_debtor_desc)
       )
     }
 
@@ -396,8 +398,8 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
       PersonDirection(
         icon = Icons.Filled.ArrowCircleUp,
         tint = MaterialTheme.colorScheme.secondary,
-        label = "طلبکار",
-        contentDescription = "طلبکار — موجودی منفی"
+        label = stringResource(R.string.loan_party_creditor),
+        contentDescription = stringResource(R.string.person_direction_creditor_desc)
       )
     }
 
@@ -405,8 +407,8 @@ private fun personDirection(balance: PersonBalanceCalculator.PersonBalance): Per
       PersonDirection(
         icon = Icons.Filled.AccountCircle,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        label = "تعادل",
-        contentDescription = "متعادل — موجودی صفر"
+        label = stringResource(R.string.person_direction_settled),
+        contentDescription = stringResource(R.string.person_direction_settled_desc)
       )
     }
   }
