@@ -1,9 +1,60 @@
 use super::money_detector::contains_money;
 use super::text_preprocessor::{normalize_money_text, to_ascii_digits};
 
+/// A non-negative decimal number parsed from the input, kept exact.
+///
+/// The value is `mantissa / 10^scale` (e.g. `2.5` is `{ mantissa: 25, scale: 1 }`).
+/// Money is never routed through `f64`: every multiplication and rounding step
+/// below is integer arithmetic on `i128`, so large Rial/Toman amounts keep every
+/// digit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Decimal {
+    mantissa: i128,
+    scale: u32,
+}
+
+impl Decimal {
+    /// Parses `digits[.digits]`. Returns `None` when the number does not fit.
+    fn parse(text: &str) -> Option<Self> {
+        let (int_part, frac_part) = match text.split_once('.') {
+            Some((i, f)) => (i, f),
+            None => (text, ""),
+        };
+        let mut mantissa: i128 = 0;
+        for c in int_part.chars().chain(frac_part.chars()) {
+            let digit = i128::from(c.to_digit(10)?);
+            mantissa = mantissa.checked_mul(10)?.checked_add(digit)?;
+        }
+        let scale = u32::try_from(frac_part.len()).ok()?;
+        Some(Self { mantissa, scale })
+    }
+
+    fn is_positive(self) -> bool {
+        self.mantissa > 0
+    }
+
+    /// `self * multiplier`, rounded half-up to a whole unit.
+    fn times_rounded(self, multiplier: i64) -> Option<i128> {
+        let product = self.mantissa.checked_mul(i128::from(multiplier))?;
+        let divisor = 10_i128.checked_pow(self.scale)?;
+        Some((product + divisor / 2) / divisor)
+    }
+
+    /// Whole part only (fraction truncated), matching the old `f64 as i64`.
+    fn truncated(self) -> Option<i128> {
+        Some(self.mantissa / 10_i128.checked_pow(self.scale)?)
+    }
+}
+
+/// Narrows an exact total to `i64`. An amount that does not fit is not a
+/// usable amount, so it maps to `0` ("no amount") instead of wrapping.
+fn to_amount(total: Option<i128>) -> i64 {
+    total.and_then(|t| i64::try_from(t).ok()).unwrap_or(0)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Number(f64),
+    Number(Decimal),
     Unit(UnitType),
 }
 
@@ -86,7 +137,7 @@ fn tokenize(text: &str) -> Vec<Token> {
                 }
             }
             let num_str: String = chars[start..i].iter().collect();
-            if let Ok(num) = num_str.parse::<f64>() {
+            if let Some(num) = Decimal::parse(&num_str) {
                 tokens.push(Token::Number(num));
             }
             continue;
@@ -112,38 +163,40 @@ fn tokenize(text: &str) -> Vec<Token> {
 }
 
 fn interpret_with_units(tokens: &[Token]) -> i64 {
-    let mut total: f64 = 0.0;
-    let mut current_num: f64 = 0.0;
+    let mut total: Option<i128> = Some(0);
+    let mut current_num: Option<Decimal> = None;
     let mut last_unit: Option<UnitType> = None;
 
     for token in tokens {
         match token {
-            Token::Number(n) => current_num = *n,
+            Token::Number(n) => current_num = Some(*n),
             Token::Unit(u) => {
-                if current_num > 0.0 {
-                    total += current_num * u.multiplier() as f64;
+                if let Some(n) = current_num.filter(|n| n.is_positive()) {
+                    total = total
+                        .zip(n.times_rounded(u.multiplier()))
+                        .and_then(|(t, add)| t.checked_add(add));
                 }
                 last_unit = Some(*u);
-                current_num = 0.0;
+                current_num = None;
             }
         }
     }
 
-    if current_num > 0.0 {
+    if let Some(n) = current_num.filter(|n| n.is_positive()) {
         let multiplier = last_unit
             .and_then(|u| u.lower())
             .map(|u| u.multiplier())
             .unwrap_or(1);
-        total += current_num * multiplier as f64;
+        total = total
+            .zip(n.times_rounded(multiplier))
+            .and_then(|(t, add)| t.checked_add(add));
     }
 
-    // Round (not truncate) so float imprecision on large Rial totals does not
-    // silently drop a single unit.
-    total.round() as i64
+    to_amount(total)
 }
 
 fn interpret_shorthand(tokens: &[Token]) -> i64 {
-    let numbers: Vec<f64> = tokens
+    let numbers: Vec<Decimal> = tokens
         .iter()
         .filter_map(|t| {
             if let Token::Number(n) = t {
@@ -158,26 +211,27 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
         return 0;
     }
     if numbers.len() == 1 {
-        return numbers[0] as i64;
+        return to_amount(numbers[0].truncated());
     }
 
     let unit_steps = [
-        UnitType::Billion.multiplier() as f64,
-        UnitType::Million.multiplier() as f64,
-        UnitType::Thousand.multiplier() as f64,
+        UnitType::Billion.multiplier(),
+        UnitType::Million.multiplier(),
+        UnitType::Thousand.multiplier(),
     ];
     // `numbers.len() <= 3` is the supported shorthand shape: the first number
     // maps to the largest remaining unit. For >3 numbers we clamp the unit
     // index so we never index out of bounds (and never underflow `3 - len`).
     let start_idx = (3_usize).saturating_sub(numbers.len());
 
-    let mut total: f64 = 0.0;
+    let mut total: Option<i128> = Some(0);
     for (i, num) in numbers.iter().enumerate() {
         let idx = (start_idx + i).min(unit_steps.len() - 1);
-        total += num * unit_steps[idx];
+        total = total
+            .zip(num.times_rounded(unit_steps[idx]))
+            .and_then(|(t, add)| t.checked_add(add));
     }
-    // Round (not truncate) so float imprecision does not drop a single unit.
-    total.round() as i64
+    to_amount(total)
 }
 
 fn interpret_bare_last(tokens: &[Token]) -> i64 {
@@ -186,7 +240,7 @@ fn interpret_bare_last(tokens: &[Token]) -> i64 {
         .rev()
         .find_map(|t| {
             if let Token::Number(n) = t {
-                Some(*n as i64)
+                Some(to_amount(n.truncated()))
             } else {
                 None
             }
@@ -238,6 +292,60 @@ mod tests {
         assert_eq!(parse_amount("۵۰۰۰۰۰ تومان", true), 500_000);
         // Bare numbers without money keywords return 0
         assert_eq!(parse_amount("۵۰۰", true), 0);
+    }
+
+    #[test]
+    fn test_large_amounts_keep_every_digit() {
+        // 2^53 + 1: an f64 intermediate would round this to ...992.
+        assert_eq!(
+            parse_amount("9007199254740993 تومان", true),
+            9_007_199_254_740_993
+        );
+        assert_eq!(parse_amount("9999999999 تومان", true), 9_999_999_999);
+        assert_eq!(parse_amount("9999 میلیارد تومان", true), 9_999_000_000_000);
+    }
+
+    #[test]
+    fn test_mixed_units() {
+        assert_eq!(
+            parse_amount("2 میلیارد و 300 میلیون و 50 هزار تومان", true),
+            2_300_050_000
+        );
+        // A trailing number with no unit takes the next unit down.
+        assert_eq!(parse_amount("3 میلیون و 200 تومن", true), 3_000_200);
+    }
+
+    #[test]
+    fn test_fractional_units_are_exact() {
+        assert_eq!(parse_amount("2.5 میلیون تومان", true), 2_500_000);
+        assert_eq!(parse_amount("۱.۲ میلیارد تومان", true), 1_200_000_000);
+        // Rounded half-up to a whole Toman.
+        assert_eq!(parse_amount("1.2345 هزار تومان", true), 1_235);
+    }
+
+    #[test]
+    fn test_overflow_is_not_an_amount() {
+        assert_eq!(parse_amount("99999999999999 میلیارد تومان", true), 0);
+        assert_eq!(
+            parse_amount("999999999999999999999999999999999999999999 تومان", true),
+            0
+        );
+    }
+
+    #[test]
+    fn test_decimal_parse() {
+        assert_eq!(
+            Decimal::parse("2.5"),
+            Some(Decimal {
+                mantissa: 25,
+                scale: 1
+            })
+        );
+        assert_eq!(Decimal::parse("12").map(|d| d.truncated()), Some(Some(12)));
+        assert_eq!(
+            Decimal::parse("12.9").map(|d| d.truncated()),
+            Some(Some(12))
+        );
     }
 
     #[test]
