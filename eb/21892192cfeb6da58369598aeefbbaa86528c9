@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_573f3ddb7a6de3::t_fcc20e5ae8286e 625
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "eb21892192cfeb6da58369598aeefbbaa86528c9",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
