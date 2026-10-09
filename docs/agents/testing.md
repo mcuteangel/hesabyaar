@@ -47,7 +47,7 @@ Rule of thumb for test authors: a test that claims to cover the fallback or the 
 ## Test Layout
 
 - Put unit tests in `app/src/test/`. Use JUnit, Robolectric, and Roborazzi (screenshot testing).
-- There are no Android instrumentation tests. `app/src/androidTest/` is empty. <!-- check-docs: ignore -->
+- There are no Android instrumentation tests.
 - The test config is in `app/build.gradle.kts`. It uses `isIncludeAndroidResources = true` and `isReturnDefaultValues = true`.
 
 ## Mandatory Post-Modification Verification Workflow
@@ -93,7 +93,7 @@ Run the local testing suite. This makes sure all components and boundaries work 
 **Rust Core Tests (if you changed Rust modules):**
 
 ```bash
-cargo test
+cargo test --manifest-path rust/Cargo.toml
 ```
 
 
@@ -117,4 +117,4 @@ Three convenience scripts automate the verification workflow. They are read-only
 - `scripts/check-android.sh`: runs ktlint, detekt, non-Rust unit tests, and Android lint.
 - `scripts/check-rust-bridge.sh`: runs isolated Rust-bridge JVM tests (`testDebugUnitTestRust`).
 
-Use `check-rust.sh` for changes in `rust/**`. Use `check-android.sh` for Kotlin/UI changes. Use `check-rust-bridge.sh` whenever FFI signatures, bridge bindings, or native loaders change.
+Use `check-rust.sh` for changes in `rust/**`. Use `check-android.sh` for Kotlin/UI changes. Use `check-rust-bridge.sh` (or run with `--rerun-tasks` to avoid stale Gradle UP-TO-DATE caches when native binaries change) whenever FFI signatures, bridge bindings, or native loaders change.

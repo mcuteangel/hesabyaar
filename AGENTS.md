@@ -38,10 +38,10 @@ Read only the guides that match your task. Each one is short.
 |---|---|
 | Change any code (before you report "done") | `docs/agents/testing.md` — verification workflow, Rust JNI test isolation |
 | Write or refactor Kotlin / Compose code | `docs/agents/code-guidelines.md` — DRY, M3, RTL, Jalali, strings, data flow |
-| Edit a Kotlin file with Detekt findings | `docs/agents/detekt.md` — fix on touch, never re-baseline |
+| Edit or refactor any Kotlin file | `docs/agents/detekt.md` — fix on touch, never re-baseline |
 | Change `rust/**` or the FFI surface | `docs/agents/rust.md` — binding regeneration, core versioning |
 | Change a Room entity or the schema | `docs/agents/room-migrations.md` |
-| Start, continue, or finish a multi-step task | `docs/agents/progress-tracking.md` — `progress.md` rules |
+| Start, continue, or finish any task | `docs/agents/progress-tracking.md` — `progress.md` rules |
 | Search the codebase (Graphify, Serena) | `docs/agents/code-intelligence.md` |
 | Execute a plan | `plans/README.md` and the plan file |
 

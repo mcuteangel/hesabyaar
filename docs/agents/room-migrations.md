@@ -25,4 +25,4 @@ Every change to the database schema or an `@Entity` class must satisfy this chec
 6. **Documentation consistency:** Check `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` against `AppDatabase.kt`. Report any schema version mismatches.
 
 Required completion statement:
-یک ایجنت نباید تغییر اسکیما را «انجام‌شده» گزارش کند بدون اشاره‌ی مستقیم به فایل JSON اسکیمای جدید و نام دقیق تست MigrationTestHelper که پاس شده است.
+An agent must not report a schema change as "done" without direct reference to the explicit migration definition and the passing verification tests.

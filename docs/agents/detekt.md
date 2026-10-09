@@ -28,7 +28,7 @@ If your change makes a class or function cross a threshold (for example, detekt 
 - `@Suppress("TooGenericExceptionCaught")` in only two cases:
   1. Rethrowing `CancellationException` in coroutine scopes (structured concurrency).
   2. Safety-net `catch` blocks where an API layer can throw unchecked runtime exceptions. Examples are Rust FFI `RustBridge.rustCallSync` rethrowing `RuntimeException`, and org.json `opt*` accessors throwing NPE on malformed JSON. Put the annotation on the enclosing function, not inside the catch body. Always add a justification comment. See `ExportViewModel.exportExcel()` and `BackupJsonParser.parseBackupJsonKotlin()` for the pattern.
-- Use camelCase test names per the [Test Naming Convention](#5-test-naming-convention-codacy-compliance). Do not use backtick-quoted names.
+- Use camelCase test names per the [Test Naming Convention](code-guidelines.md#5-test-naming-convention-codacy-compliance). Do not use backtick-quoted names.
 
 ### Forbidden Suppressions
 
@@ -46,4 +46,4 @@ If your change makes a class or function cross a threshold (for example, detekt 
 4. Complex methods — decompose the conditional logic into small, well-named functions.
 5. Cognitive complexity — restructure the control flow. Prefer early returns over deep nesting.
 
-If a detekt rule does not apply to a specific file, the only sanctioned response is the documented `@Suppress("LongMethod")` exception in test files. Other suppressions are forbidden except the documented `@Suppress("TooGenericExceptionCaught")` cases (Rust FFI rethrow and org.json malformed-JSON access).
+If a detekt rule does not apply to a specific file, no suppression is needed. Only the two documented exceptions are permitted: `@Suppress("LongMethod")` in test files and `@Suppress("TooGenericExceptionCaught")` in the two approved cases (Rust FFI rethrow and org.json malformed-JSON access).

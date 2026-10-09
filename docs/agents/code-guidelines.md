@@ -92,7 +92,7 @@ The Rust Core (`rust/hesabyar-core`) is mandatory via `UseCase â†’ RustBridge â†
 - Financial validations (transaction constraints, loan limits, amount limits).
 - Domain calculations.
 - Rule-driven data transformations.
-- Canonical logic shared across callers.
+- Canonical logic shared across callers, except for the pre-approved Kotlin fallbacks listed in `docs/architecture/ADR-001-rust-sole-implementation.md`.
 
 ## UI Constraints
 
