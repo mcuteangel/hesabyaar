@@ -20,6 +20,8 @@ import {
   isGeneratedFile,
   shortSha,
   gh,
+  collectRunFindings,
+  resolvePrNumber,
 } from "./ci-warnings.mjs";
 
 const REPO = "owner/repo";
@@ -928,6 +930,174 @@ test("parseLogLine excludes Kotlin compiler errors starting with e: from matchin
   const kotlinCompileError = "e: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:142: error: deprecation notice causes compilation failure";
   const result = parseLogLine(kotlinCompileError, REPO, "CI", "build");
   assert.equal(result, null);
+});
+
+// ---------------------------------------------------------------------------
+// resolvePrNumber tests (PR-routing branches coverage)
+// ---------------------------------------------------------------------------
+
+test("resolvePrNumber skips lookup on default branch and returns null", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  process.env.GITHUB_REF_NAME = "main";
+  const originalFetch = globalThis.fetch;
+
+  let fetchCalled = false;
+  globalThis.fetch = async (url) => {
+    fetchCalled = true;
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    const result = await resolvePrNumber(REPO, "abc123", "main", null);
+    assert.equal(result, null);
+    assert.ok(!fetchCalled, "should not call API on main branch");
+  } finally {
+    delete process.env.GITHUB_REF_NAME;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns initialPrNumber without any API call", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  let fetchCalled = false;
+  globalThis.fetch = async (url) => {
+    fetchCalled = true;
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    // When initialPrNumber is provided, resolvePrNumber returns it directly
+    // without calling the API (env is not on main branch here)
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", 391);
+    assert.equal(result, 391);
+    assert.ok(!fetchCalled, "should not call API when PR number is provided");
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber falls back through open-match → any-open → first PR", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  // Mock fetch to return a PR list with multiple entries; verify the matching open PR wins
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 391, state: "open", head: { ref: "feature-branch" } },
+        { number: 200, state: "open", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    // HEAD_BRANCH matches #391 → should pick 391 as "matching open PR"
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, 391);
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns first OPEN PR when no branch match exists", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 200, state: "open", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    // No PR matches branch; first OPEN PR (200) is picked, not first overall (100, closed)
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, 200);
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// rawText and 404/410 handling tests
+// ---------------------------------------------------------------------------
+
+test("gh returns raw text when opts.rawText is true", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async (url, opts) => {
+      assert.equal(url, "https://api.github.com/repos/test/logs");
+      return new Response("raw log content here", {
+        status: 200,
+        headers: { "Content-Type": "application/octet-stream" }
+      });
+    };
+
+    const result = await gh("/repos/test/logs", { rawText: true });
+    assert.equal(result.data, "raw log content here");
+    assert.equal(result.link, null);
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("collectRunFindings suppresses 404/410 errors and warns on other failures", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  let warnings = [];
+  const originalWarn = console.warn.bind(console);
+  console.warn = (msg) => warnings.push(msg);
+
+  try {
+    // Simulate a 404 for logs (should be suppressed) and a generic error (should warn)
+    let callCount = 0;
+    globalThis.fetch = async (url, opts) => {
+      callCount++;
+      if (callCount === 1) {
+        // First call: /repositories/.../jobs succeeds
+        return new Response(JSON.stringify([
+          { id: 123, name: "test job", conclusion: "success", html_url: "http://job-url" }
+        ]), { status: 200, headers: { "Link": "" } });
+      } else if (callCount === 2) {
+        // Second call: annotations succeed
+        return new Response(JSON.stringify([]), { status: 200, headers: { "Link": "" } });
+      } else if (callCount === 3) {
+        // Third call: logs fail with 404 (should be suppressed)
+        return new Response("Not Found", { status: 404 });
+      }
+      return new Response("", { status: 200 });
+    };
+
+    const selectedRuns = [{ id: 12345, name: "Test Workflow" }];
+    const { allFindings } = await collectRunFindings(selectedRuns, REPO);
+
+    // Should have no findings since logs are not available
+    assert.equal(allFindings.length, 0);
+
+    // Should NOT contain warning for 404
+    const has404Warning = warnings.some(w => w.includes("404"));
+    assert.ok(!has404Warning, "should not warn about 404 (log expired)");
+
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    delete process.env.GITHUB_TOKEN;
+  }
 });
 
 

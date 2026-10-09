@@ -319,14 +319,21 @@ function categoriseAnnotation(annotation, repo) {
   }
 
   // A path-less annotation is either a runner/action notice or a script's
-  // `::warning::`. Only classify as actions-runtime when the message matches a
-  // known GitHub Actions deprecation signature; otherwise treat as script.
+  // `::warning::`. Classify as actions-runtime when the message matches a known
+  // GitHub Actions deprecation signature OR explicitly names a deprecated action
+  // (e.g. "deprecated-action", "action ... deprecated"). Otherwise treat as
+  // script so unrelated deprecations aren't mislabeled as runtime ones. The
+  // action-context match is anchored so it only fires on clear action references,
+  // not any sentence that merely contains "action" and "deprecated" far apart.
   const isActionsRuntime =
     /Node\.js \d+ actions are deprecated/i.test(message) ||
     /actions are deprecated.*will be removed/i.test(message) ||
     /set-output command is deprecated/i.test(message) ||
     /set-env command is deprecated/i.test(message) ||
-    /runner version.*deprecated/i.test(message);
+    /runner version.*deprecated/i.test(message) ||
+    /\bdeprecated[- ]action\b/i.test(message) ||
+    /\bgithub action[s]?\b.*\bdeprecated\b/i.test(message) ||
+    /\bdeprecated\b.*\bgithub action[s]?\b/i.test(message);
   const category = isActionsRuntime ? "actions-runtime" : "script";
   return { category, file: undefined, line: undefined, message };
 }
@@ -545,53 +552,51 @@ async function gh(path, opts = {}) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      if (isSafeHost) {
-        const res = await fetch(targetUrl.href, {
-          method: opts.method || "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            ...(hasBody ? { "Content-Type": "application/json" } : {}),
-            ...opts.headers,
-          },
-          body: hasBody ? JSON.stringify(opts.body) : undefined,
-          redirect: "follow",
-        });
+      const res = await fetch(targetUrl.href, {
+        method: opts.method || "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          ...(hasBody ? { "Content-Type": "application/json" } : {}),
+          ...opts.headers,
+        },
+        body: hasBody ? JSON.stringify(opts.body) : undefined,
+        redirect: "follow",
+      });
 
-        const rateLimited =
-          res.status === 429 ||
-          (res.status === 403 &&
-            (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
-        // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
-        // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
-        const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
-        if (attempt < 2 && shouldRetryStatus) {
-          const retryAfter = res.headers.get("retry-after");
-          const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`GitHub API ${res.status}: ${text}`);
-        }
-
-        if (opts.rawText) {
-          const text = await res.text();
-          return { data: text, link: null };
-        }
-
-        // Handle pagination via Link header
-        const link = res.headers.get("link");
-        const data = await res.json();
-        if (!link || !link.includes('rel="next"')) {
-          return { data, link: null };
-        }
-        // For simplicity, we only return first page; caller should handle pagination if needed
-        return { data, link };
+      const rateLimited =
+        res.status === 429 ||
+        (res.status === 403 &&
+          (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
+      // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
+      // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
+      const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
+      if (attempt < 2 && shouldRetryStatus) {
+        const retryAfter = res.headers.get("retry-after");
+        const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
       }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`GitHub API ${res.status}: ${text}`);
+      }
+
+      if (opts.rawText) {
+        const text = await res.text();
+        return { data: text, link: null };
+      }
+
+      // Handle pagination via Link header
+      const link = res.headers.get("link");
+      const data = await res.json();
+      if (!link || !link.includes('rel="next"')) {
+        return { data, link: null };
+      }
+      // For simplicity, we only return first page; caller should handle pagination if needed
+      return { data, link };
     } catch (e) {
       lastErr = e;
       if (attempt === 2 || /^GitHub API 4/.test(e.message) || (isWrite && /^GitHub API 5/.test(e.message))) throw e;
@@ -721,11 +726,38 @@ async function collectRunFindings(selectedRuns, repo) {
   return { allFindings, codeCompiled };
 }
 
+/**
+ * Resolve the PR number to report into.
+ * Priority: explicit PR_NUMBER env, then a PR lookup by HEAD_SHA.
+ * On the default branch (main) PR lookup is skipped and `null` is returned so
+ * the report goes to the "CI warnings on main" issue instead.
+ * Lookup fallbacks: an open PR whose head matches HEAD_BRANCH, then any open PR,
+ * then the first returned PR. Lookup failures are logged and treated as no-PR.
+ */
+async function resolvePrNumber(repo, headSha, headBranch, prNumber) {
+  if (prNumber) return prNumber;
+  const isDefaultBranch = headBranch === "main" || process.env.GITHUB_REF_NAME === "main";
+  if (isDefaultBranch) return null;
+  try {
+    const pulls = await ghAllPages(`/repos/${repo}/commits/${headSha}/pulls`);
+    const matchingPull =
+      pulls.find((p) => p.state === "open" && (!headBranch || p.head?.ref === headBranch)) ||
+      pulls.find((p) => p.state === "open") ||
+      pulls[0];
+    if (matchingPull && matchingPull.number) {
+      return matchingPull.number;
+    }
+  } catch (e) {
+    console.warn(`Could not resolve PR number: ${e.message}`);
+  }
+  return null;
+}
+
 async function main() {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
   const headSha = process.env.HEAD_SHA;
-  let prNumber = process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER, 10) : null;
+  const initialPrNumber = process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER, 10) : null;
   const selfWorkflowName = process.env.SELF_WORKFLOW_NAME;
 
   if (!token || !repo || !headSha) {
@@ -756,24 +788,8 @@ async function main() {
   const { allFindings, codeCompiled } = await collectRunFindings(selectedRuns, repo);
   const runsScanned = selectedRuns.length;
 
-  const headBranch = process.env.HEAD_BRANCH || "";
-  const isDefaultBranch = headBranch === "main" || process.env.GITHUB_REF_NAME === "main";
-
-  // 3. Resolve PR number if not provided (skip for default branch)
-  if (!prNumber && !isDefaultBranch) {
-    try {
-      const pulls = await ghAllPages(`/repos/${repo}/commits/${headSha}/pulls`);
-      const matchingPull =
-        pulls.find((p) => p.state === "open" && (!headBranch || p.head?.ref === headBranch)) ||
-        pulls.find((p) => p.state === "open") ||
-        pulls[0];
-      if (matchingPull && matchingPull.number) {
-        prNumber = matchingPull.number;
-      }
-    } catch (e) {
-      console.warn(`Could not resolve PR number: ${e.message}`);
-    }
-  }
+  // 3. Resolve PR number (skips lookup on default branch)
+  const prNumber = await resolvePrNumber(repo, headSha, process.env.HEAD_BRANCH || "", initialPrNumber);
 
   // 4. Render and post
   const commentBody = renderComment({
@@ -846,6 +862,7 @@ export {
   isGeneratedFile,
   shortSha,
   collectRunFindings,
+  resolvePrNumber,
   gh,
   ghAllPages,
   main,
