@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -186,7 +186,7 @@ internal val MORE_MENU_TABS = listOf(TAB_ANALYTICS, TAB_REPORTS, TAB_SETTINGS)
 
 internal val MAIN_TABS =
   listOf(
-    NavigationTabItem(TAB_DASHBOARD, R.string.nav_tab_dashboard, Icons.Filled.AccountBalanceWallet),
+    NavigationTabItem(TAB_DASHBOARD, R.string.nav_tab_dashboard, Icons.Filled.Dashboard),
     NavigationTabItem(TAB_ASSISTANT, R.string.nav_tab_assistant, Icons.Filled.AutoAwesome),
     NavigationTabItem(TAB_DEBTS, R.string.nav_tab_debts, Icons.Filled.AccountBalance)
   )

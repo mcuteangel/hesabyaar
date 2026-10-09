@@ -31,6 +31,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 011  | Personal loan ledger redesign (`plans/011-personal-loan-ledger-redesign.md`, planned at `f425bd0`) | P1 | XL | — | IN PROGRESS on `feature/person-loan-ledger` (Phase 0 loan bug fixes done and committed; Phase 1 done — schema + persons table + `personId` on `loans` & `transactions`, migration backfill, rename sync, backup persons round-trip; Phases 2-5 pending) |
 | 012  | Unified test coverage: Kotlin/JaCoCo exclusions + Rust core Codacy upload (`plans/archive/012-unified-test-coverage-kotlin-rust.md`, issue #231, PR #301) | P1 | S | — | DONE (merged in PR #301) |
 | 013  | UI/UX overhaul (`plans/013-ui-ux-overhaul.md`, planned at `ad0504c`) — fix review findings in priority order: Phase 0 docs baseline, Phase 1 broken dialogs/forms, Phase 2 dialog system, Phase 3 navigation/headers, Phase 4 loading/empty states, Phase 5 design-system hardening, Phase 6 feedback/polish, Phase 7 screen structure | P1 | XL | — | TODO (plan under review) |
+| 014  | Navigation consistency: BackHandler for overlays, distinct tab icons, and padding (`plans/archive/014-navigation-consistency-back-icons-padding.md`, issue #360, PR #385) | P2 | S | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

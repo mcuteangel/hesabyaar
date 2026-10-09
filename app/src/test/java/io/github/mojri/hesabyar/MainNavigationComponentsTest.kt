@@ -2,6 +2,9 @@ package io.github.mojri.hesabyar
 
 import android.content.Context
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -10,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -188,5 +192,25 @@ class MainNavigationComponentsTest {
     composeRule.waitForIdle()
 
     assertEquals("Rail tab selection updates callback", TAB_ASSISTANT, selectedTab)
+  }
+
+  @Test
+  fun navigationDestinationsHaveDistinctIcons() {
+    val icons = MAIN_TABS.map { it.icon }
+    val uniqueIcons = icons.toSet()
+    assertEquals("All MAIN_TABS must have distinct icons", icons.size, uniqueIcons.size)
+
+    val dashboardTab = MAIN_TABS.first { it.id == TAB_DASHBOARD }
+    assertEquals("Dashboard icon must be Icons.Filled.Dashboard", Icons.Filled.Dashboard, dashboardTab.icon)
+    assertNotEquals(
+      "Dashboard icon must not be AccountBalanceWallet (reserved for Accounts)",
+      Icons.Filled.AccountBalanceWallet,
+      dashboardTab.icon
+    )
+  }
+
+  @Test
+  fun debtsTabLabelIsConcise() {
+    assertEquals("Debts tab label must be shortened to 'بدهی‌ها'", "بدهی‌ها", labelDebts)
   }
 }
