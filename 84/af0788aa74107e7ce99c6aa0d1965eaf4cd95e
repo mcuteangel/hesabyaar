@@ -1,0 +1,31 @@
+.github/scripts/ci-warnings.test.mjs
+  s_d86b032f465ec5::t_3ac4efbb146d85 794-858
+  s_d86b032f465ec5::t_5f3792efd1a3ed 20
+  s_d86b032f465ec5::t_9c3eaf76a790e0 859-933
+.github/scripts/ci-warnings.mjs
+  s_d86b032f465ec5::t_3551dc55062f03 285,287,289-290,292,322-330,362
+  s_d86b032f465ec5::t_207faf7ea5b3e9 185
+  s_d86b032f465ec5::t_b6f52c548c2734 846
+  s_d86b032f465ec5::t_664ef5f118cc1d 645,653-654,658,666,698-700,710-712,715,756,759-763,766-771
+  s_d86b032f465ec5::t_7fd72dd536ae4a 501-503,521,535-536,548-560,562-574,576-579,581-593
+  s_d86b032f465ec5::t_51b6096ab3951e 136,144
+  s_d86b032f465ec5::t_d65d6725e3350b 186,189
+  s_d86b032f465ec5::t_1c5620df5e31bc 513-517,519-520,524
+  s_d86b032f465ec5::t_9bf710ccbda5f9 414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "84af0788aa74107e7ce99c6aa0d1965eaf4cd95e",
+  "prompts": {},
+  "sessions": {
+    "s_d86b032f465ec5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69f872f5-772a-4e8e-84f1-173caef382ae",
+        "model": "hy3"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
