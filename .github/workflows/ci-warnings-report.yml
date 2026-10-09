@@ -64,7 +64,7 @@ jobs:
       checks: read
       contents: read
       issues: write
-      pull-requests: read  # Needed only to read PR metadata, not to mutate
+      pull-requests: write  # Needed to post/update the sticky PR comment (issues:write alone 403s on PRs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
