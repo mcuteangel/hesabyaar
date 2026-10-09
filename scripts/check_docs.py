@@ -20,6 +20,7 @@ Usage: scripts/check_docs.py [--warn]
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -61,10 +62,13 @@ def clean(target: str) -> str:
     return target.rstrip("/.,;")
 
 
+GIT = shutil.which("git") or "git"
+
+
 def is_gitignored(path: Path) -> bool:
     """Generated or build output (gitignored) is legitimately absent."""
     result = subprocess.run(
-        ["git", "check-ignore", "-q", str(path)], cwd=ROOT, check=False
+        [GIT, "check-ignore", "-q", str(path)], cwd=ROOT, check=False
     )
     return result.returncode == 0
 
@@ -75,6 +79,33 @@ def resolves(target: str, base: Path) -> bool:
     if base == ROOT:
         candidates.append(APP_PKG / target)
     return any(c.exists() or is_gitignored(c) for c in candidates)
+
+
+def _check_links(line: str, lineno: int, base: Path) -> list[tuple[int, str]]:
+    findings: list[tuple[int, str]] = []
+    for raw in LINK_RE.findall(line):
+        if re.match(r"^[a-z]+:", raw) or raw.startswith("#"):
+            continue
+        target = clean(raw)
+        if target and "..." not in target and not SKIP_CHARS & set(target):
+            if not resolves(target, base):
+                findings.append((lineno, raw))
+    return findings
+
+
+def _check_code_spans(
+    line: str, lineno: int, in_new_files: bool
+) -> list[tuple[int, str]]:
+    if in_new_files:
+        return []
+    findings: list[tuple[int, str]] = []
+    for raw in CODE_RE.findall(line):
+        if not raw.startswith(PATH_ROOTS) or "..." in raw or SKIP_CHARS & set(raw):
+            continue
+        target = clean(raw)
+        if target and not resolves(target, ROOT):
+            findings.append((lineno, raw))
+    return findings
 
 
 def broken_refs(md: Path) -> list[tuple[int, str]]:
@@ -90,19 +121,8 @@ def broken_refs(md: Path) -> list[tuple[int, str]]:
         if HEADING_RE.match(line):
             in_new_files = bool(NEW_FILES_RE.search(line))
             continue
-        for raw in LINK_RE.findall(line):
-            if re.match(r"^[a-z]+:", raw) or raw.startswith("#"):
-                continue
-            target = clean(raw)
-            if target and "..." not in target and not SKIP_CHARS & set(target):
-                if not resolves(target, md.parent):
-                    findings.append((lineno, raw))
-        for raw in [] if in_new_files else CODE_RE.findall(line):
-            if not raw.startswith(PATH_ROOTS) or "..." in raw or SKIP_CHARS & set(raw):
-                continue
-            target = clean(raw)
-            if target and not resolves(target, ROOT):
-                findings.append((lineno, raw))
+        findings += _check_links(line, lineno, md.parent)
+        findings += _check_code_spans(line, lineno, in_new_files)
     return findings
 
 
