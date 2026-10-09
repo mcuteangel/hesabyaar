@@ -10,11 +10,5 @@
   "rules": {
     "no-undef": "error",
     "semi": ["error", "always"]
-  },
-  "overrides": [
-    {
-      "files": ["**/*.js"],
-      "rules": {}
-    }
-  ]
+  }
 }

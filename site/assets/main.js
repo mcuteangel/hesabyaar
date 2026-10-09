@@ -13,40 +13,57 @@
   };
 
   // Screenshots
-  const shots = Array.isArray(window.HESABYAR_SCREENSHOTS)
-    ? window.HESABYAR_SCREENSHOTS
-    : [];
-  if (shots.length) {
-    const list = document.getElementById("shots-list");
-    if (list) {
-      shots.forEach((shot) => {
-        const itemElement = document.createElement("li");
-        const fig = document.createElement("figure");
-        const img = document.createElement("img");
-        img.src = shot.src;
-        img.alt = shot.caption || "تصویر صفحهٔ حسابیار";
-        img.loading = "lazy";
-        img.width = 260;
-        fig.appendChild(img);
-        if (shot.caption) {
-          const cap = document.createElement("figcaption");
-          cap.textContent = shot.caption;
-          fig.appendChild(cap);
-        }
-        fig.style.margin = "0";
-        itemElement.appendChild(fig);
-        list.appendChild(itemElement);
-      });
-      const screenshotsSection = document.getElementById("screenshots");
-      if (screenshotsSection) {
-        screenshotsSection.hidden = false;
-      }
+  const buildScreenshotItem = (shot) => {
+    const itemElement = document.createElement("li");
+    const figureElement = document.createElement("figure");
+    const imageElement = document.createElement("img");
+    imageElement.src = shot.src;
+    imageElement.alt = shot.caption || "تصویر صفحهٔ حسابیار";
+    imageElement.loading = "lazy";
+    imageElement.width = 260;
+    figureElement.appendChild(imageElement);
+    if (shot.caption) {
+      const captionElement = document.createElement("figcaption");
+      captionElement.textContent = shot.caption;
+      figureElement.appendChild(captionElement);
     }
-  } else {
+    figureElement.style.margin = "0";
+    itemElement.appendChild(figureElement);
+    return itemElement;
+  };
+
+  const renderScreenshots = (shots) => {
+    const list = document.getElementById("shots-list");
+    if (!list) {
+      return;
+    }
+    shots.forEach((shot) => {
+      list.appendChild(buildScreenshotItem(shot));
+    });
+    const screenshotsSection = document.getElementById("screenshots");
+    if (screenshotsSection) {
+      screenshotsSection.hidden = false;
+    }
+  };
+
+  const hideScreenshotsPlaceholders = () => {
     document.querySelectorAll("[data-requires-shots]").forEach((element) => {
       element.parentElement.hidden = true;
     });
-  }
+  };
+
+  const initScreenshots = () => {
+    const shots = Array.isArray(window.HESABYAR_SCREENSHOTS)
+      ? window.HESABYAR_SCREENSHOTS
+      : [];
+    if (shots.length) {
+      renderScreenshots(shots);
+    } else {
+      hideScreenshotsPlaceholders();
+    }
+  };
+
+  initScreenshots();
 
   // Latest release: direct APK links. Falls back to the static
   // /releases/latest links already in the HTML when the API is unreachable.
@@ -59,19 +76,71 @@
 
   const isHttps = (url) => typeof url === "string" && url.startsWith("https://");
 
-  const buildDownloadItem = (item) => {
+  const buildDownloadItem = (downloadItem) => {
     const listItem = document.createElement("li");
-    const link = document.createElement("a");
-    link.className = "dl";
-    link.href = item.asset.browser_download_url;
-    const strong = document.createElement("strong");
-    strong.textContent = item.abi.label;
-    const span = document.createElement("span");
-    span.textContent = `${item.abi.hint} · ${formatSize(item.asset.size)}`;
-    link.appendChild(strong);
-    link.appendChild(span);
-    listItem.appendChild(link);
+    const linkElement = document.createElement("a");
+    linkElement.className = "dl";
+    linkElement.href = downloadItem.asset.browser_download_url;
+    const labelStrong = document.createElement("strong");
+    labelStrong.textContent = downloadItem.abi.label;
+    const detailSpan = document.createElement("span");
+    detailSpan.textContent = `${downloadItem.abi.hint} · ${formatSize(downloadItem.asset.size)}`;
+    linkElement.appendChild(labelStrong);
+    linkElement.appendChild(detailSpan);
+    listItem.appendChild(linkElement);
     return listItem;
+  };
+
+  const updateVersion = (release) => {
+    const versionElement = document.getElementById("release-version");
+    if (versionElement) {
+      versionElement.textContent = release.tag_name;
+    }
+  };
+
+  const findMatchingAsset = (assets, key) =>
+    assets.find((candidateAsset) =>
+      candidateAsset.name.toLowerCase().endsWith(`-${key}.apk`));
+
+  const filterValidDownload = (assets, abiItem) => {
+    const asset = findMatchingAsset(assets, abiItem.key);
+    if (!asset || !isHttps(asset.browser_download_url)) {
+      return null;
+    }
+    return { abi: abiItem, asset };
+  };
+
+  const getValidDownloads = (assets) =>
+    ABIS.map((abiItem) => filterValidDownload(assets, abiItem)).filter(Boolean);
+
+  const renderDownloads = (validDownloads) => {
+    const downloadsList = document.getElementById("downloads");
+    if (!downloadsList) {
+      return;
+    }
+    downloadsList.textContent = "";
+    validDownloads.forEach((downloadItem) => {
+      downloadsList.appendChild(buildDownloadItem(downloadItem));
+    });
+  };
+
+  const updateHeroDownload = (validDownloads) => {
+    const universal = validDownloads.find((downloadItem) => downloadItem.abi.key === "universal");
+    const heroDownload = document.getElementById("hero-download");
+    if (universal && heroDownload) {
+      heroDownload.href = universal.asset.browser_download_url;
+    }
+  };
+
+  const handleRelease = (release) => {
+    updateVersion(release);
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    const validDownloads = getValidDownloads(assets);
+    if (!validDownloads.length) {
+      return;
+    }
+    renderDownloads(validDownloads);
+    updateHeroDownload(validDownloads);
   };
 
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
@@ -83,40 +152,7 @@
       }
       return res.json();
     })
-    .then((release) => {
-      const versionElement = document.getElementById("release-version");
-      if (versionElement) {
-        versionElement.textContent = release.tag_name;
-      }
-
-      const assets = release.assets || [];
-      const validDownloads = ABIS.map((abi) => {
-        const asset = assets.find((candidate) =>
-          candidate.name.toLowerCase().endsWith(`-${abi.key}.apk`));
-        if (asset && isHttps(asset.browser_download_url)) {
-          return { abi, asset };
-        }
-        return null;
-      }).filter(Boolean);
-
-      if (!validDownloads.length) {
-        return;
-      }
-
-      const downloadsList = document.getElementById("downloads");
-      if (downloadsList) {
-        downloadsList.textContent = "";
-        validDownloads.forEach((item) => {
-          downloadsList.appendChild(buildDownloadItem(item));
-        });
-      }
-
-      const universal = validDownloads.find((item) => item.abi.key === "universal");
-      const heroDownload = document.getElementById("hero-download");
-      if (universal && heroDownload) {
-        heroDownload.href = universal.asset.browser_download_url;
-      }
-    })
+    .then(handleRelease)
     .catch((error) => {
       // Keep static fallback links; log so failures are discoverable.
       console.warn("Unable to fetch latest release from GitHub API:", error);
