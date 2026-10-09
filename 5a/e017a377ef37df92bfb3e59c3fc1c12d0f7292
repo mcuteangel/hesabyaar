@@ -1,0 +1,24 @@
+scripts/tests/test_check_docs.py
+  s_9ac9c2ed34511f::t_5556f4111faeca 106
+  s_9ac9c2ed34511f::t_ab2bd638cf055e 32-38
+.github/workflows/docs-check.yml
+  s_9ac9c2ed34511f::t_71b3f7a848af4b 27-29
+scripts/check_docs.py
+  s_9ac9c2ed34511f::t_194aa52dec289a 99,114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ae017a377ef37df92bfb3e59c3fc1c12d0f7292",
+  "prompts": {},
+  "sessions": {
+    "s_9ac9c2ed34511f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a2ceb7c-353c-493b-8dec-359c4fd14b19",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
