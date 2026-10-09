@@ -13,8 +13,8 @@
 function stripLogPrefix(line) {
   // Remove ISO timestamp with microseconds + 'Z ' prefix
   let s = line.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z\s*/, "");
-  // Remove ANSI escape sequences
-  s = s.replace(/\x1b\[[0-9;]*m/g, "");
+  // Remove ANSI escape sequences (use unicode escape to avoid no-control-regex lint warning)
+  s = s.replace(/\u001b\[[0-9;]*m/g, "");
   return s;
 }
 
@@ -29,7 +29,7 @@ function normalizeMessage(msg) {
  * Make a path repo-relative by stripping the GitHub Actions runner prefix.
  * "/home/runner/work/<repo>/<repo>/..." -> "app/src/..."
  */
-function makeRepoRelative(path, repo) {
+function makeRepoRelative(path) {
   // Runner checkouts live at /home/runner/work/<name>/<name>/; <name> is the
   // repo name (not owner/repo), so match any two segments rather than `repo`.
   return path.replace(/^(?:file:\/\/)?\/?home\/runner\/work\/[^/]+\/[^/]+\//, "");
@@ -115,7 +115,7 @@ function parseLogLine(line, repo, workflow, job) {
   );
   if (kotlinMatch) {
     const [, file, lineStr, message] = kotlinMatch;
-    const relFile = makeRepoRelative(file, repo);
+    const relFile = makeRepoRelative(file);
     const category = categoriseKotlinMessage(message);
     return { category, file: relFile, line: parseInt(lineStr, 10), message, workflow, job };
   }
@@ -147,7 +147,7 @@ function parseLogLine(line, repo, workflow, job) {
     const [, file, lineStr, , message] = workflowCmdMatch;
     return {
       category: "script",
-      file: file ? makeRepoRelative(file, repo) : undefined,
+      file: file ? makeRepoRelative(file) : undefined,
       line: lineStr ? parseInt(lineStr, 10) : undefined,
       message,
       workflow,
@@ -229,7 +229,7 @@ function parseLog(text, repo, workflow, job) {
         const locMatch = nextLine.match(/^\s*-->\s*([^:]+):(\d+):\d+/);
         if (locMatch) {
           const [, file, lineStr] = locMatch;
-          const relFile = makeRepoRelative(file, repo);
+          const relFile = makeRepoRelative(file);
           findings.push({
             category: "rust",
             file: relFile,
@@ -300,7 +300,7 @@ function categoriseAnnotation(annotation, repo) {
 
   // If annotation points to a source file, categorise by file extension/content
   if (path) {
-    const relPath = makeRepoRelative(path, repo);
+    const relPath = makeRepoRelative(path);
     if (relPath.endsWith(".kt") || relPath.endsWith(".kts")) {
       // Could be a Kotlin compiler annotation
       const cat = categoriseKotlinMessage(message);
@@ -539,8 +539,7 @@ async function gh(path, opts = {}) {
   // standard redirect following is preserved for GitHub API responses.
   const url = buildApiUrl(path);
   const targetUrl = new URL(url);
-  const isSafeHost = ALLOWED_API_HOSTS.includes(targetUrl.hostname);
-  if (!isSafeHost) {
+  if (!ALLOWED_API_HOSTS.includes(targetUrl.hostname)) {
     throw new Error(`SSRF blocked: ${url}`);
   }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
@@ -701,17 +700,15 @@ async function collectRunFindings(selectedRuns, repo) {
       try {
         const logPath = `/repos/${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`;
         const logRes = await gh(logPath, { rawText: true });
-        if (logRes && logRes.data) {
-          const logText = logRes.data;
-          const findings = parseLog(logText, repo, run.name, job.name);
-          allFindings.push(...findings.map((f) => ({ ...f, jobUrl: job.html_url })));
+        const logText = logRes.data;
+        const findings = parseLog(logText, repo, run.name, job.name);
+        allFindings.push(...findings.map((f) => ({ ...f, jobUrl: job.html_url })));
 
-          // Detect codeCompiled: look for compileDebugKotlin not UP-TO-DATE/FROM-CACHE.
-          // If any Android job actually compiled, report true. Only report false
-          // when an Android job existed but every compile was cached/UP-TO-DATE.
-          if (run.name.includes("Android")) {
-            codeCompiled = detectCodeCompiled(codeCompiled, logText);
-          }
+        // Detect codeCompiled: look for compileDebugKotlin not UP-TO-DATE/FROM-CACHE.
+        // If any Android job actually compiled, report true. Only report false
+        // when an Android job existed but every compile was cached/UP-TO-DATE.
+        if (run.name.includes("Android")) {
+          codeCompiled = detectCodeCompiled(codeCompiled, logText);
         }
       } catch (e) {
         if (/GitHub API (?:404|410)/.test(e.message)) {

@@ -50,17 +50,17 @@ test("stripLogPrefix handles empty line", () => {
 
 test("makeRepoRelative strips runner prefix", () => {
   const path = "/home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt";
-  assert.equal(makeRepoRelative(path, "hesabyaar"), "app/src/main/java/Foo.kt");
+  assert.equal(makeRepoRelative(path), "app/src/main/java/Foo.kt");
 });
 
 test("makeRepoRelative strips file:// URL prefix", () => {
   const path = "file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt";
-  assert.equal(makeRepoRelative(path, "hesabyaar"), "app/src/main/java/Foo.kt");
+  assert.equal(makeRepoRelative(path), "app/src/main/java/Foo.kt");
 });
 
 test("makeRepoRelative leaves other paths unchanged", () => {
   const path = "/some/other/path/Foo.kt";
-  assert.equal(makeRepoRelative(path, "hesabyaar"), path);
+  assert.equal(makeRepoRelative(path), path);
 });
 
 // ---------------------------------------------------------------------------
@@ -775,7 +775,7 @@ test("gh helper rejects SSRF targets and does not retry 5xx on POST writes", asy
 
     // Verify GET retries 5xx
     let getAttempts = 0;
-    globalThis.fetch = async (url, opts) => {
+    globalThis.fetch = async () => {
       getAttempts++;
       if (getAttempts < 2) {
         return new Response("Server error", { status: 502 });
@@ -942,7 +942,7 @@ test("resolvePrNumber skips lookup on default branch and returns null", async ()
   const originalFetch = globalThis.fetch;
 
   let fetchCalled = false;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async () => {
     fetchCalled = true;
     return new Response("", { status: 200 });
   };
@@ -962,7 +962,7 @@ test("resolvePrNumber returns initialPrNumber without any API call", async () =>
   const originalFetch = globalThis.fetch;
 
   let fetchCalled = false;
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async () => {
     fetchCalled = true;
     return new Response("", { status: 200 });
   };
@@ -1038,7 +1038,7 @@ test("gh returns raw text when opts.rawText is true", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
-    globalThis.fetch = async (url, opts) => {
+    globalThis.fetch = async (url) => {
       assert.equal(url, "https://api.github.com/repos/test/logs");
       return new Response("raw log content here", {
         status: 200,
@@ -1066,7 +1066,7 @@ test("collectRunFindings suppresses 404/410 errors and warns on other failures",
   try {
     // Simulate a 404 for logs (should be suppressed) and a generic error (should warn)
     let callCount = 0;
-    globalThis.fetch = async (url, opts) => {
+    globalThis.fetch = async () => {
       callCount++;
       if (callCount === 1) {
         // First call: /repositories/.../jobs succeeds
