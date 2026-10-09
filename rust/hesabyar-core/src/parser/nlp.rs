@@ -1258,7 +1258,7 @@ pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedRes
 
     ParsedResult {
         tx_type: TransactionType::from_str(&classification.tx_type),
-        amount: amount_toman * 10,
+        amount: amount_toman.saturating_mul(10),
         category: classification.category,
         person_name,
         description: classification.description,
