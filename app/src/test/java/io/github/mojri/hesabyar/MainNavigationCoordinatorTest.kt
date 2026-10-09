@@ -27,6 +27,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class MainNavigationCoordinatorTest {
+  companion object {
+    private const val MSG_DISPATCHER_NOT_CAPTURED = "Dispatcher was not captured"
+    private const val MSG_CALLBACKS_NOT_CAPTURED = "Callbacks were not captured"
+    private const val DIALOG_TITLE_EXIT = "خروج از حسابیار"
+    private const val DIALOG_BUTTON_CONFIRM_EXIT = "خروج"
+  }
+
   @get:Rule
   val composeRule = createComposeRule()
 
@@ -60,7 +67,7 @@ class MainNavigationCoordinatorTest {
     composeRule.waitForIdle()
     assertEquals(TAB_ASSISTANT, observedTab)
 
-    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    val safeDispatcher = checkNotNull(dispatcher) { MSG_DISPATCHER_NOT_CAPTURED }
     composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     assertEquals(TAB_DASHBOARD, observedTab)
@@ -85,12 +92,12 @@ class MainNavigationCoordinatorTest {
     }
     composeRule.onNodeWithTag(tagMain).assertIsDisplayed()
 
-    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    val safeDispatcher = checkNotNull(dispatcher) { MSG_DISPATCHER_NOT_CAPTURED }
     composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
-    composeRule.onNodeWithText("خروج از حسابیار").assertIsDisplayed()
+    composeRule.onNodeWithText(DIALOG_TITLE_EXIT).assertIsDisplayed()
 
-    composeRule.onNodeWithText("خروج").performClick()
+    composeRule.onNodeWithText(DIALOG_BUTTON_CONFIRM_EXIT).performClick()
     composeRule.waitForIdle()
     assertEquals(true, exitConfirmed)
   }
@@ -118,12 +125,12 @@ class MainNavigationCoordinatorTest {
 
     composeRule.onNodeWithTag(tagMain).assertIsDisplayed()
 
-    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    val safeCallbacks = checkNotNull(callbacks) { MSG_CALLBACKS_NOT_CAPTURED }
     composeRule.runOnUiThread { safeCallbacks.onNavigateToCategories() }
     composeRule.waitForIdle()
     composeRule.onNodeWithTag(tagCategory).assertIsDisplayed()
 
-    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    val safeDispatcher = checkNotNull(dispatcher) { MSG_DISPATCHER_NOT_CAPTURED }
     composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     composeRule.onNodeWithTag(tagCategory).assertDoesNotExist()
@@ -149,12 +156,12 @@ class MainNavigationCoordinatorTest {
       )
     }
 
-    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    val safeCallbacks = checkNotNull(callbacks) { MSG_CALLBACKS_NOT_CAPTURED }
     composeRule.runOnUiThread { safeCallbacks.onNavigateToAssistant() }
     composeRule.waitForIdle()
     assertEquals(TAB_ASSISTANT, observedTab)
 
-    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    val safeDispatcher = checkNotNull(dispatcher) { MSG_DISPATCHER_NOT_CAPTURED }
     composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     assertEquals(TAB_DASHBOARD, observedTab)
@@ -180,7 +187,7 @@ class MainNavigationCoordinatorTest {
       )
     }
 
-    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    val safeCallbacks = checkNotNull(callbacks) { MSG_CALLBACKS_NOT_CAPTURED }
     composeRule.runOnUiThread { safeCallbacks.onShowDebtors() }
     composeRule.waitForIdle()
 
