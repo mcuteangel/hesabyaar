@@ -1,0 +1,29 @@
+.github/scripts/ci-warnings.mjs
+  s_d86b032f465ec5::t_98c1d77e4870f5 557-585,618,625
+  s_d86b032f465ec5::t_e99f351f628545 320
+  s_d86b032f465ec5::t_beb67ba177d08c 780-830,844,867,872
+  s_d86b032f465ec5::t_2324a568343ce0 98-148,164-165,167-168,188-189,197-198
+  s_d86b032f465ec5::t_6628bd72d58bf9 286-315,348,351
+  s_d86b032f465ec5::t_702e597bb012f2 437-482,505,509-510
+  s_d86b032f465ec5::t_67dbdee5ca1145 9-11,19-20
+  s_d86b032f465ec5::t_e77141ed8e69be 711
+.github/scripts/ci-warnings.test.mjs
+  s_d86b032f465ec5::t_6ae433e679aaab 392,397,404,411,418,427,435,442
+  s_d86b032f465ec5::t_3c619e5f0776f7 818,822,827,831
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "72b190ffbcebdf3066c1c70cba10a1254d01a1e2",
+  "prompts": {},
+  "sessions": {
+    "s_d86b032f465ec5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69f872f5-772a-4e8e-84f1-173caef382ae",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
