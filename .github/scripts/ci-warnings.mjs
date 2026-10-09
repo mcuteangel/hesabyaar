@@ -465,8 +465,18 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
 async function gh(path, opts = {}) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN not set");
-  const base = "https://api.github.com";
-  const url = `${base}${path}`;
+  // Build and validate the URL against the GitHub API origin only. `path` is a
+  // server-controlled API path (never user input), but we pin it to the API
+  // origin so a crafted path cannot redirect fetch to an external host (SSRF).
+  let url;
+  try {
+    url = new URL(path, "https://api.github.com").toString();
+  } catch {
+    throw new Error(`Invalid GitHub API path: ${path}`);
+  }
+  if (!url.startsWith("https://api.github.com/")) {
+    throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
+  }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
   // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
   const hasBody = Boolean(opts.body);
@@ -618,7 +628,12 @@ async function main() {
 
       // Job logs
       try {
-        const logRes = await fetch(`https://api.github.com/repos/${repo}/actions/jobs/${job.id}/logs`, {
+        const logPath = `/repos/${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`;
+        const logUrl = new URL(logPath, "https://api.github.com").toString();
+        if (!logUrl.startsWith("https://api.github.com/")) {
+          throw new Error(`Invalid log URL: ${logUrl}`);
+        }
+        const logRes = await fetch(logUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: "application/vnd.github+json",
