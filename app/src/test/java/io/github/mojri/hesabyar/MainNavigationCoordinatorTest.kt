@@ -32,17 +32,16 @@ class MainNavigationCoordinatorTest {
 
   private val tagMain = "main_content"
   private val tagCategory = "category_content"
-  private val tagAccount = "account_content"
 
   @Test
   fun backFromSecondTabReturnsToPreviousTab() {
     var observedTab = TAB_DASHBOARD
     var exitConfirmed = false
-    lateinit var dispatcher: OnBackPressedDispatcher
+    var dispatcher: OnBackPressedDispatcher? = null
     var navToAssistant: (() -> Unit)? = null
 
     composeRule.setContent {
-      dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+      dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
       MainNavigationCoordinator(
         startTab = TAB_DASHBOARD,
         startDebtSection = DebtSection.INSTALLMENTS,
@@ -56,11 +55,13 @@ class MainNavigationCoordinatorTest {
     }
     composeRule.onNodeWithTag(tagMain).assertIsDisplayed()
 
-    composeRule.runOnUiThread { navToAssistant!!() }
+    val safeNav = checkNotNull(navToAssistant) { "Navigation action was not captured" }
+    composeRule.runOnUiThread { safeNav() }
     composeRule.waitForIdle()
     assertEquals(TAB_ASSISTANT, observedTab)
 
-    composeRule.runOnUiThread { dispatcher.onBackPressed() }
+    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     assertEquals(TAB_DASHBOARD, observedTab)
     assertEquals(false, exitConfirmed)
@@ -69,10 +70,10 @@ class MainNavigationCoordinatorTest {
   @Test
   fun backOnDashboardShowsExitDialogAndConfirmsExit() {
     var exitConfirmed = false
-    lateinit var dispatcher: OnBackPressedDispatcher
+    var dispatcher: OnBackPressedDispatcher? = null
 
     composeRule.setContent {
-      dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+      dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
       MainNavigationCoordinator(
         startTab = TAB_DASHBOARD,
         startDebtSection = DebtSection.INSTALLMENTS,
@@ -84,7 +85,8 @@ class MainNavigationCoordinatorTest {
     }
     composeRule.onNodeWithTag(tagMain).assertIsDisplayed()
 
-    composeRule.runOnUiThread { dispatcher.onBackPressed() }
+    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     composeRule.onNodeWithText("خروج از حسابیار").assertIsDisplayed()
 
@@ -95,18 +97,16 @@ class MainNavigationCoordinatorTest {
 
   @Test
   fun navigateToCategoriesOpensAndClosesOverlay() {
-    var overlayDrawn = false
-    lateinit var callbacks: MainNavCallbacks
-    lateinit var dispatcher: OnBackPressedDispatcher
+    var callbacks: MainNavCallbacks? = null
+    var dispatcher: OnBackPressedDispatcher? = null
 
     composeRule.setContent {
-      dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+      dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
       MainNavigationCoordinator(
         startTab = TAB_DASHBOARD,
         startDebtSection = DebtSection.INSTALLMENTS,
         onExitConfirmed = {},
-        categoryContent = { onBack ->
-          overlayDrawn = true
+        categoryContent = {
           Box(Modifier.fillMaxSize().testTag(tagCategory))
         },
         mainContent = { _, _, cbs ->
@@ -118,13 +118,13 @@ class MainNavigationCoordinatorTest {
 
     composeRule.onNodeWithTag(tagMain).assertIsDisplayed()
 
-    composeRule.runOnUiThread { callbacks.onNavigateToCategories() }
+    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    composeRule.runOnUiThread { safeCallbacks.onNavigateToCategories() }
     composeRule.waitForIdle()
     composeRule.onNodeWithTag(tagCategory).assertIsDisplayed()
 
-    // Back on the overlay should close it without exiting.
-    var exitConfirmed = false
-    composeRule.runOnUiThread { dispatcher.onBackPressed() }
+    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     composeRule.onNodeWithTag(tagCategory).assertDoesNotExist()
   }
@@ -132,11 +132,11 @@ class MainNavigationCoordinatorTest {
   @Test
   fun navigateToAssistantAdvancesCurrentTab() {
     var observedTab = TAB_DASHBOARD
-    lateinit var callbacks: MainNavCallbacks
-    lateinit var dispatcher: OnBackPressedDispatcher
+    var callbacks: MainNavCallbacks? = null
+    var dispatcher: OnBackPressedDispatcher? = null
 
     composeRule.setContent {
-      dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+      dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
       MainNavigationCoordinator(
         startTab = TAB_DASHBOARD,
         startDebtSection = DebtSection.INSTALLMENTS,
@@ -149,11 +149,13 @@ class MainNavigationCoordinatorTest {
       )
     }
 
-    composeRule.runOnUiThread { callbacks.onNavigateToAssistant() }
+    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    composeRule.runOnUiThread { safeCallbacks.onNavigateToAssistant() }
     composeRule.waitForIdle()
     assertEquals(TAB_ASSISTANT, observedTab)
 
-    composeRule.runOnUiThread { dispatcher.onBackPressed() }
+    val safeDispatcher = checkNotNull(dispatcher) { "Dispatcher was not captured" }
+    composeRule.runOnUiThread { safeDispatcher.onBackPressed() }
     composeRule.waitForIdle()
     assertEquals(TAB_DASHBOARD, observedTab)
   }
@@ -162,7 +164,7 @@ class MainNavigationCoordinatorTest {
   fun tabSelectedResetsPersonSearchAndSwitchesTab() {
     var searchResetCount = 0
     var observedTab = TAB_DASHBOARD
-    lateinit var callbacks: MainNavCallbacks
+    var callbacks: MainNavCallbacks? = null
 
     composeRule.setContent {
       MainNavigationCoordinator(
@@ -178,7 +180,8 @@ class MainNavigationCoordinatorTest {
       )
     }
 
-    composeRule.runOnUiThread { callbacks.onShowDebtors() }
+    val safeCallbacks = checkNotNull(callbacks) { "Callbacks were not captured" }
+    composeRule.runOnUiThread { safeCallbacks.onShowDebtors() }
     composeRule.waitForIdle()
 
     assertEquals(TAB_DEBTS, observedTab)
