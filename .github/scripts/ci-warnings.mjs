@@ -63,8 +63,9 @@ function escapeMarkdown(s) {
 function codeSpan(s, max = 300) {
   const t = normalizeMessage(s).slice(0, max) + (s.length > max ? "…" : "");
   if (t.includes("`")) {
-    // 3-backtick fence: cannot be closed by a 1-2 backtick run in the message.
-    return "``` " + t + " ```";
+    const maxConsecutive = (t.match(/`+/g) || []).reduce((max, m) => Math.max(max, m.length), 0);
+    const fence = "`".repeat(Math.max(3, maxConsecutive + 1));
+    return `${fence} ${t} ${fence}`;
   }
   return `\`${t}\``;
 }
@@ -491,21 +492,29 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
 // GitHub API helper
 // ---------------------------------------------------------------------------
 
-async function gh(path, opts = {}) {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) throw new Error("GITHUB_TOKEN not set");
-  // Build and validate the URL against the GitHub API origin. `path` is a
-  // server-controlled API path (never user input); we pin it to the API origin
-  // to avoid SSRF when resolving relative API endpoints.
-  let url;
+function buildApiUrl(path) {
+  if (typeof path !== "string" || path.startsWith("//")) {
+    throw new Error(`Invalid GitHub API path: ${path}`);
+  }
+  let parsed;
   try {
-    url = new URL(path, "https://api.github.com").toString();
+    parsed = new URL(path, "https://api.github.com");
   } catch {
     throw new Error(`Invalid GitHub API path: ${path}`);
   }
-  if (!url.startsWith("https://api.github.com/")) {
+  if (parsed.origin !== "https://api.github.com") {
     throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
   }
+  return parsed.toString();
+}
+
+async function gh(path, opts = {}) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN not set");
+  // Pin relative endpoint resolution to api.github.com to prevent SSRF if paths
+  // contain unexpected host syntax. Note this validates the initial request URL;
+  // standard redirect following is preserved for GitHub API responses.
+  const url = buildApiUrl(path);
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
   // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
   const hasBody = Boolean(opts.body);
@@ -556,7 +565,7 @@ async function gh(path, opts = {}) {
       return { data, link };
     } catch (e) {
       lastErr = e;
-      if (attempt === 2 || /^GitHub API 4/.test(e.message)) throw e;
+      if (attempt === 2 || /^GitHub API 4/.test(e.message) || (isWrite && /^GitHub API 5/.test(e.message))) throw e;
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
     }
   }
@@ -603,6 +612,23 @@ async function ghAllPages(path) {
  * annotations plus the raw job logs. Also tracks whether any Android job
  * actually compiled Kotlin (vs. cache) so the report can note stale results.
  */
+function detectCodeCompiled(currentStatus, logText) {
+  const lines = logText.split(/\r?\n/);
+  for (const l of lines) {
+    if (l.includes(":app:compileDebugKotlin") || l.includes(":app:compileReleaseKotlin")) {
+      const compiled = !l.includes("UP-TO-DATE") && !l.includes("FROM-CACHE");
+      if (compiled) {
+        return true; // a real compile overrides any prior cached signal
+      }
+      if (currentStatus === undefined) {
+        return false; // seen a cached compile, but none have compiled yet
+      }
+      return currentStatus;
+    }
+  }
+  return currentStatus;
+}
+
 async function collectRunFindings(selectedRuns, repo, token) {
   const allFindings = [];
   let codeCompiled = undefined; // true/false/undefined
@@ -635,10 +661,7 @@ async function collectRunFindings(selectedRuns, repo, token) {
       // Job logs
       try {
         const logPath = `/repos/${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`;
-        const logUrl = new URL(logPath, "https://api.github.com").toString();
-        if (!logUrl.startsWith("https://api.github.com/")) {
-          throw new Error(`Invalid log URL: ${logUrl}`);
-        }
+        const logUrl = buildApiUrl(logPath);
         const logRes = await fetch(logUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -655,18 +678,7 @@ async function collectRunFindings(selectedRuns, repo, token) {
           // If any Android job actually compiled, report true. Only report false
           // when an Android job existed but every compile was cached/UP-TO-DATE.
           if (run.name.includes("Android")) {
-            const lines = logText.split(/\r?\n/);
-            for (const l of lines) {
-              if (l.includes(":app:compileDebugKotlin") || l.includes(":app:compileReleaseKotlin")) {
-                const compiled = !l.includes("UP-TO-DATE") && !l.includes("FROM-CACHE");
-                if (compiled) {
-                  codeCompiled = true; // a real compile overrides any prior cached signal
-                } else if (codeCompiled === undefined) {
-                  codeCompiled = false; // seen a cached compile, but none have compiled yet
-                }
-                break;
-              }
-            }
+            codeCompiled = detectCodeCompiled(codeCompiled, logText);
           }
         } else if (logRes.status === 404 || logRes.status === 410) {
           // Log expired or not available
@@ -794,7 +806,10 @@ export {
   renderComment,
   normalizeMessage,
   escapeMarkdown,
+  codeSpan,
   buildSourceLink,
+  buildApiUrl,
+  detectCodeCompiled,
   shortSha,
   collectRunFindings,
   gh,

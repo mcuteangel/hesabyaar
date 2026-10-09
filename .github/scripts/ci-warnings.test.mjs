@@ -13,8 +13,12 @@ import {
   renderComment,
   normalizeMessage,
   escapeMarkdown,
+  codeSpan,
   buildSourceLink,
+  buildApiUrl,
+  detectCodeCompiled,
   shortSha,
+  gh,
 } from "./ci-warnings.mjs";
 
 const REPO = "owner/repo";
@@ -675,4 +679,114 @@ test("renderComment safely handles markdown delimiters and path characters", () 
   assert.ok(md.includes("\\[with\\]"));
   // Check that message with backticks is fenced
   assert.ok(md.includes("``` warning with backticks `x` and brackets [link](https://evil.com) ```"));
+});
+
+test("codeSpan dynamically fences runs of 3 or more backticks", () => {
+  assert.equal(codeSpan("simple warning"), "`simple warning`");
+  assert.equal(codeSpan("warning with `inline`"), "``` warning with `inline` ```");
+  assert.equal(codeSpan("warning with ```triple``` backticks"), "```` warning with ```triple``` backticks ````");
+  assert.equal(codeSpan("warning with ````quad```` backticks"), "````` warning with ````quad```` backticks `````");
+});
+
+test("detectCodeCompiled tracks compilation states across cached and uncached jobs", () => {
+  const cachedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin UP-TO-DATE",
+    "2026-10-04T05:12:33.1234568Z > Task :app:compileReleaseKotlin FROM-CACHE",
+  ].join("\n");
+  const compiledLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin",
+  ].join("\n");
+  const unrelatedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileRustCore",
+  ].join("\n");
+
+  // Initial scan on cached job yields false
+  const state1 = detectCodeCompiled(undefined, cachedLog);
+  assert.equal(state1, false);
+
+  // Subsequent compiled job upgrades state to true
+  const state2 = detectCodeCompiled(state1, compiledLog);
+  assert.equal(state2, true);
+
+  // Subsequent cached job does not downgrade true
+  const state3 = detectCodeCompiled(state2, cachedLog);
+  assert.equal(state3, true);
+
+  // Unrelated log does not mutate existing status
+  assert.equal(detectCodeCompiled(undefined, unrelatedLog), undefined);
+  assert.equal(detectCodeCompiled(false, unrelatedLog), false);
+  assert.equal(detectCodeCompiled(true, unrelatedLog), true);
+});
+
+test("buildApiUrl pins resolution to api.github.com origin and rejects external URLs", () => {
+  // Valid relative endpoints
+  assert.equal(
+    buildApiUrl("/repos/owner/repo/actions/jobs/123/logs"),
+    "https://api.github.com/repos/owner/repo/actions/jobs/123/logs"
+  );
+  assert.equal(
+    buildApiUrl("https://api.github.com/repos/owner/repo/pulls"),
+    "https://api.github.com/repos/owner/repo/pulls"
+  );
+
+  // Reject protocol-relative URLs
+  assert.throws(() => buildApiUrl("//evil.com/fake/api"), /Invalid GitHub API path/);
+
+  // Reject different origins and lookalike hosts
+  assert.throws(() => buildApiUrl("https://evil.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl("https://api.github.com.attacker.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl("http://api.github.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl(123), /Invalid GitHub API path/);
+});
+
+test("gh helper rejects SSRF targets and does not retry 5xx on POST writes", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  try {
+    // SSRF rejection before fetch
+    await assert.rejects(
+      async () => gh("//attacker.com/api"),
+      /Invalid GitHub API path/
+    );
+    await assert.rejects(
+      async () => gh("https://attacker.com/api"),
+      /GitHub API path must stay on api\.github\.com/
+    );
+
+    // Verify Content-Type and no-retry on 5xx write
+    let postAttempts = 0;
+    globalThis.fetch = async (url, opts) => {
+      postAttempts++;
+      assert.equal(opts.headers["Content-Type"], "application/json");
+      assert.equal(opts.method, "POST");
+      return new Response("Internal Server Error", { status: 500 });
+    };
+
+    await assert.rejects(
+      async () => gh("/repos/owner/repo/issues", { method: "POST", body: { title: "fail" } }),
+      /GitHub API 500: Internal Server Error/
+    );
+    // Must NOT retry 500 for POST
+    assert.equal(postAttempts, 1);
+
+    // Verify GET retries 5xx
+    let getAttempts = 0;
+    globalThis.fetch = async (url, opts) => {
+      getAttempts++;
+      if (getAttempts < 2) {
+        return new Response("Server error", { status: 502 });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const res = await gh("/repos/owner/repo/issues");
+    assert.deepEqual(res, { data: { ok: true }, link: null });
+    assert.equal(getAttempts, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
