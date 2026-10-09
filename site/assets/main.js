@@ -18,28 +18,30 @@
     : [];
   if (shots.length) {
     const list = document.getElementById("shots-list");
-    if (!list) {
-      return;
-    }
-    shots.forEach((shot) => {
-      const itemElement = document.createElement("li");
-      const fig = document.createElement("figure");
-      const img = document.createElement("img");
-      img.src = shot.src;
-      img.alt = shot.caption || "تصویر صفحهٔ حسابیار";
-      img.loading = "lazy";
-      img.width = 260;
-      fig.appendChild(img);
-      if (shot.caption) {
-        const cap = document.createElement("figcaption");
-        cap.textContent = shot.caption;
-        fig.appendChild(cap);
+    if (list) {
+      shots.forEach((shot) => {
+        const itemElement = document.createElement("li");
+        const fig = document.createElement("figure");
+        const img = document.createElement("img");
+        img.src = shot.src;
+        img.alt = shot.caption || "تصویر صفحهٔ حسابیار";
+        img.loading = "lazy";
+        img.width = 260;
+        fig.appendChild(img);
+        if (shot.caption) {
+          const cap = document.createElement("figcaption");
+          cap.textContent = shot.caption;
+          fig.appendChild(cap);
+        }
+        fig.style.margin = "0";
+        itemElement.appendChild(fig);
+        list.appendChild(itemElement);
+      });
+      const screenshotsSection = document.getElementById("screenshots");
+      if (screenshotsSection) {
+        screenshotsSection.hidden = false;
       }
-      fig.style.margin = "0";
-      itemElement.appendChild(fig);
-      list.appendChild(itemElement);
-    });
-    document.getElementById("screenshots").hidden = false;
+    }
   } else {
     document.querySelectorAll("[data-requires-shots]").forEach((element) => {
       element.parentElement.hidden = true;
