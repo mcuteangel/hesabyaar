@@ -1,0 +1,33 @@
+.github/scripts/ci-warnings.mjs
+  s_d86b032f465ec5::t_fe4a70c4684392 42-50
+  s_d86b032f465ec5::t_ffbdeb72895c64 54-56
+  s_d86b032f465ec5::t_1292d298a533eb 99,103
+  s_d86b032f465ec5::t_c5693876ae71fb 58-61,66-67
+  s_d86b032f465ec5::t_7649f75fde3150 470-472,483,486
+  s_d86b032f465ec5::t_56bc2bcd470593 633-636,640-644
+  s_d86b032f465ec5::t_5fcab6f2871505 3
+  s_d86b032f465ec5::t_8c7cdce3233b72 76-79
+  s_d86b032f465ec5::t_12f7698e49e626 57,65,68-69
+.github/scripts/ci-warnings.test.mjs
+  s_d86b032f465ec5::t_a54d757b3bc3f7 613
+.github/workflows/ci-warnings-report.yml
+  s_d86b032f465ec5::t_0de85c179e9f9e 37
+.github/linters/zizmor.yaml
+  s_d86b032f465ec5::t_92ccbdc0db4eb4 22-24,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ff6ff2bcec19134c3aea8788c1495e4e85994d7e",
+  "prompts": {},
+  "sessions": {
+    "s_d86b032f465ec5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69f872f5-772a-4e8e-84f1-173caef382ae",
+        "model": "hy3"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
