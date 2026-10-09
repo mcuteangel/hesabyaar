@@ -969,6 +969,8 @@ test("resolvePrNumber skips lookup on default branch and returns null", async ()
 
 test("resolvePrNumber returns initialPrNumber without any API call", async () => {
   process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
   const originalFetch = globalThis.fetch;
 
   let fetchCalled = false;
@@ -984,6 +986,7 @@ test("resolvePrNumber returns initialPrNumber without any API call", async () =>
     assert.equal(result, 391);
     assert.ok(!fetchCalled, "should not call API when PR number is provided");
   } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
     delete process.env.GITHUB_TOKEN;
     globalThis.fetch = originalFetch;
   }
@@ -991,6 +994,8 @@ test("resolvePrNumber returns initialPrNumber without any API call", async () =>
 
 test("resolvePrNumber falls back through open-match → any-open → first PR", async () => {
   process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
   const originalFetch = globalThis.fetch;
 
   // Mock fetch to return a PR list with multiple entries; verify the matching open PR wins
@@ -1010,6 +1015,7 @@ test("resolvePrNumber falls back through open-match → any-open → first PR", 
     const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
     assert.equal(result, 391);
   } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
     delete process.env.GITHUB_TOKEN;
     globalThis.fetch = originalFetch;
   }
@@ -1017,6 +1023,8 @@ test("resolvePrNumber falls back through open-match → any-open → first PR", 
 
 test("resolvePrNumber returns first OPEN PR when no branch match exists", async () => {
   process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url) => {
@@ -1034,6 +1042,7 @@ test("resolvePrNumber returns first OPEN PR when no branch match exists", async 
     const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
     assert.equal(result, 200);
   } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
     delete process.env.GITHUB_TOKEN;
     globalThis.fetch = originalFetch;
   }
@@ -1041,6 +1050,8 @@ test("resolvePrNumber returns first OPEN PR when no branch match exists", async 
 
 test("resolvePrNumber returns null when only closed PRs exist", async () => {
   process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url) => {
@@ -1057,6 +1068,7 @@ test("resolvePrNumber returns null when only closed PRs exist", async () => {
     const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
     assert.equal(result, null);
   } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
     delete process.env.GITHUB_TOKEN;
     globalThis.fetch = originalFetch;
   }
