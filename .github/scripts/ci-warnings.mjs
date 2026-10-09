@@ -133,7 +133,7 @@ function parseLogLine(line, repo, workflow, job) {
   // AGP/Android Gradle warnings print as `WARNING: <...>` with a known AGP/Gradle
   // token. Require the recognised prefix so a script warning merely mentioning
   // "android.enableR8" does not get mis-filed as a Gradle deprecation.
-  if (clean.match(/^WARNING:\s/) && clean.match(/\b(AGP|Android Gradle Plugin|android\.enableR8|android\.useAndroidX|Gradle \d|deprecated Gradle)\b/i)) {
+  if (clean.match(/^WARNING:\s/) && clean.match(/\b(AGP|Android Gradle Plugin|android\.enableR8|android\.useAndroidX|Gradle \d+|deprecated Gradle)\b/i)) {
     return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
   }
 
@@ -141,7 +141,7 @@ function parseLogLine(line, repo, workflow, job) {
   // ::warning file=...,line=...::message (properties independently optional,
   // commas optional between parameters)
   const workflowCmdMatch = clean.match(
-    /^::warning\s+(?:file=([^,:\s]+),?)?\s*(?:line=(\d+),?)?\s*(?:col=(\d+),?)?::(.+)$/
+    /^::warning\s+(?:file=([^,\s]+),?)?\s*(?:line=(\d+),?)?\s*(?:col=(\d+),?)?::(.+)$/
   );
   if (workflowCmdMatch) {
     const [, file, lineStr, , message] = workflowCmdMatch;
@@ -182,10 +182,11 @@ function parseLogLine(line, repo, workflow, job) {
   }
 
   // Catch-all: anything that looks like a warning but didn't match above
-  // Heuristic: contains "warning" or "deprecat" (case-insensitive) and not an error
+  // Heuristic: contains "warning" or "deprecat" (case-insensitive) and not an error.
+  // Kotlin compiler errors start with `e:`, which must also be excluded.
   if (
     clean.match(/\b(warning|warn)\b\s*[:\]!]|\bdeprecat(ed|ion)\b/i) &&
-    !clean.match(/^(error|Error|ERROR)\b/)
+    !clean.match(/^(?:e:|error|Error|ERROR)/)
   ) {
     return { category: "other", file: undefined, line: undefined, message: clean, workflow, job };
   }
@@ -281,17 +282,14 @@ function categoriseAnnotation(annotation, repo) {
   const line = annotation.start_line;
 
   // Actions runtime deprecations: only match known GH Actions deprecation messages.
-  if (
+  const isKnownActionsRuntime =
     message.includes("Node.js 20 actions are deprecated") ||
-    message.includes("actions are deprecated") && message.includes("will be removed") ||
+    (message.includes("actions are deprecated") && message.includes("will be removed")) ||
     message.includes("The `set-output` command is deprecated") ||
-    message.includes("The `set-env` command is deprecated")
-  ) {
-    return { category: "actions-runtime", file: undefined, line: undefined, message };
-  }
+    message.includes("The `set-env` command is deprecated") ||
+    /runner version.*deprecated/i.test(message);
 
-  // Generic catch-all for "action ... deprecated" patterns that are likely GitHub Actions runtime
-  if (/deprecated.*(?:GitHub\s+)?Actions|GitHub\s+Actions.*deprecated/i.test(message)) {
+  if (isKnownActionsRuntime) {
     return { category: "actions-runtime", file: undefined, line: undefined, message };
   }
 
@@ -321,8 +319,15 @@ function categoriseAnnotation(annotation, repo) {
   }
 
   // A path-less annotation is either a runner/action notice or a script's
-  // `::warning::`; only the former is an actions-runtime problem.
-  const category = /deprecat|node\.js|runner|will be removed/i.test(message) ? "actions-runtime" : "script";
+  // `::warning::`. Only classify as actions-runtime when the message matches a
+  // known GitHub Actions deprecation signature; otherwise treat as script.
+  const isActionsRuntime =
+    /Node\.js \d+ actions are deprecated/i.test(message) ||
+    /actions are deprecated.*will be removed/i.test(message) ||
+    /set-output command is deprecated/i.test(message) ||
+    /set-env command is deprecated/i.test(message) ||
+    /runner version.*deprecated/i.test(message);
+  const category = isActionsRuntime ? "actions-runtime" : "script";
   return { category, file: undefined, line: undefined, message };
 }
 
@@ -354,7 +359,7 @@ function dedupe(findings) {
     entry.count++;
     const loc = `${f.workflow}/${f.job}`;
     entry.locations.add(loc);
-    if (f.jobUrl && !entry.jobUrls.has(loc)) {
+    if (f.jobUrl) {
       entry.jobUrls.set(loc, f.jobUrl);
     }
   }
@@ -406,13 +411,7 @@ function categoryLabel(cat) {
 
 function isGeneratedFile(file) {
   if (!file) return false;
-  return (
-    file.endsWith("hesabyar_core.kt") ||
-    file.endsWith("hesabyar_api.kt") ||
-    file.endsWith("hesabyar_common.kt") ||
-    file.includes("/generated/") ||
-    file.includes("/uniffi/")
-  );
+  return file.endsWith("hesabyar_core.kt") || file.includes("/uniffi/");
 }
 
 /**
@@ -499,6 +498,9 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
 // GitHub API helper
 // ---------------------------------------------------------------------------
 
+const ALLOWED_API_PREFIXES = ["/repos/", "/repositories/"];
+const ALLOWED_API_HOSTS = ["api.github.com"];
+
 function buildApiUrl(path) {
   if (typeof path !== "string" || path.startsWith("//")) {
     throw new Error(`Invalid GitHub API path: ${path}`);
@@ -508,12 +510,18 @@ function buildApiUrl(path) {
     ? path.slice("https://api.github.com".length)
     : path;
 
-  // Enforce that all paths are restricted to /repos/ or /repositories/ prefixes
-  // to prevent SSRF or arbitrary host redirects.
-  if (!cleaned.startsWith("/repos/") && !cleaned.startsWith("/repositories/")) {
+  const normalized = new URL(cleaned, "https://api.github.com");
+  if (normalized.origin !== "https://api.github.com") {
     throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
   }
-  return `https://api.github.com${cleaned}`;
+
+  // Enforce that all paths are restricted to /repos/ or /repositories/ prefixes
+  // using the normalized pathname to prevent SSRF, path traversal, or non-repo endpoints.
+  const isAllowedPath = ALLOWED_API_PREFIXES.find((p) => normalized.pathname.startsWith(p)) !== undefined;
+  if (!isAllowedPath) {
+    throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
+  }
+  return normalized.href;
 }
 
 async function gh(path, opts = {}) {
@@ -524,7 +532,8 @@ async function gh(path, opts = {}) {
   // standard redirect following is preserved for GitHub API responses.
   const url = buildApiUrl(path);
   const targetUrl = new URL(url);
-  if (targetUrl.origin !== "https://api.github.com") {
+  const isSafeHost = ALLOWED_API_HOSTS.includes(targetUrl.hostname);
+  if (!isSafeHost) {
     throw new Error(`SSRF blocked: ${url}`);
   }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
@@ -536,45 +545,53 @@ async function gh(path, opts = {}) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await fetch(targetUrl.href, {
-        method: opts.method || "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(hasBody ? { "Content-Type": "application/json" } : {}),
-          ...opts.headers,
-        },
-        body: hasBody ? JSON.stringify(opts.body) : undefined,
-      });
+      if (isSafeHost) {
+        const res = await fetch(targetUrl.href, {
+          method: opts.method || "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            ...(hasBody ? { "Content-Type": "application/json" } : {}),
+            ...opts.headers,
+          },
+          body: hasBody ? JSON.stringify(opts.body) : undefined,
+          redirect: "follow",
+        });
 
-      const rateLimited =
-        res.status === 429 ||
-        (res.status === 403 &&
-          (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
-      // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
-      // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
-      const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
-      if (attempt < 2 && shouldRetryStatus) {
-        const retryAfter = res.headers.get("retry-after");
-        const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
-        await new Promise((r) => setTimeout(r, wait));
-        continue;
-      }
+        const rateLimited =
+          res.status === 429 ||
+          (res.status === 403 &&
+            (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
+        // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
+        // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
+        const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
+        if (attempt < 2 && shouldRetryStatus) {
+          const retryAfter = res.headers.get("retry-after");
+          const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`GitHub API ${res.status}: ${text}`);
-      }
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`GitHub API ${res.status}: ${text}`);
+        }
 
-      // Handle pagination via Link header
-      const link = res.headers.get("link");
-      const data = await res.json();
-      if (!link || !link.includes('rel="next"')) {
-        return { data, link: null };
+        if (opts.rawText) {
+          const text = await res.text();
+          return { data: text, link: null };
+        }
+
+        // Handle pagination via Link header
+        const link = res.headers.get("link");
+        const data = await res.json();
+        if (!link || !link.includes('rel="next"')) {
+          return { data, link: null };
+        }
+        // For simplicity, we only return first page; caller should handle pagination if needed
+        return { data, link };
       }
-      // For simplicity, we only return first page; caller should handle pagination if needed
-      return { data, link };
     } catch (e) {
       lastErr = e;
       if (attempt === 2 || /^GitHub API 4/.test(e.message) || (isWrite && /^GitHub API 5/.test(e.message))) throw e;
@@ -625,6 +642,7 @@ async function ghAllPages(path) {
  * or preserves currentStatus if no compilation task line is present.
  */
 function detectCodeCompiled(currentStatus, logText) {
+  let status = currentStatus;
   const lines = logText.split(/\r?\n/);
   for (const l of lines) {
     if (l.includes(":app:compileDebugKotlin") || l.includes(":app:compileReleaseKotlin")) {
@@ -632,13 +650,12 @@ function detectCodeCompiled(currentStatus, logText) {
       if (compiled) {
         return true; // a real compile overrides any prior cached signal
       }
-      if (currentStatus === undefined) {
-        return false; // seen a cached compile, but none have compiled yet
+      if (status === undefined) {
+        status = false; // seen a cached compile, but none have compiled yet
       }
-      return currentStatus;
     }
   }
-  return currentStatus;
+  return status;
 }
 
 /**
@@ -646,7 +663,7 @@ function detectCodeCompiled(currentStatus, logText) {
  * annotations plus the raw job logs. Also tracks whether any Android job
  * actually compiled Kotlin (vs. cache) so the report can note stale results.
  */
-async function collectRunFindings(selectedRuns, repo, token) {
+async function collectRunFindings(selectedRuns, repo) {
   const allFindings = [];
   let codeCompiled = undefined; // true/false/undefined
 
@@ -678,20 +695,9 @@ async function collectRunFindings(selectedRuns, repo, token) {
       // Job logs
       try {
         const logPath = `/repos/${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`;
-        const logUrl = buildApiUrl(logPath);
-        const logEndpoint = new URL(logUrl);
-        if (logEndpoint.origin !== "https://api.github.com") {
-          throw new Error(`SSRF blocked: ${logUrl}`);
-        }
-        const logRes = await fetch(logEndpoint.href, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github+json",
-          },
-          redirect: "follow",
-        });
-        if (logRes.ok) {
-          const logText = await logRes.text();
+        const logRes = await gh(logPath, { rawText: true });
+        if (logRes && logRes.data) {
+          const logText = logRes.data;
           const findings = parseLog(logText, repo, run.name, job.name);
           allFindings.push(...findings.map((f) => ({ ...f, jobUrl: job.html_url })));
 
@@ -701,13 +707,13 @@ async function collectRunFindings(selectedRuns, repo, token) {
           if (run.name.includes("Android")) {
             codeCompiled = detectCodeCompiled(codeCompiled, logText);
           }
-        } else if (logRes.status === 404 || logRes.status === 410) {
-          // Log expired or not available
-        } else {
-          console.warn(`Failed to fetch logs for job ${job.id}: ${logRes.status}`);
         }
       } catch (e) {
-        console.warn(`Error fetching logs for job ${job.id}: ${e.message}`);
+        if (/GitHub API (?:404|410)/.test(e.message)) {
+          // Log expired or not available
+        } else {
+          console.warn(`Failed to fetch logs for job ${job.id}: ${e.message}`);
+        }
       }
     }
   }
@@ -747,15 +753,22 @@ async function main() {
   }
 
   // 2. Collect findings from all selected runs
-  const { allFindings, codeCompiled } = await collectRunFindings(selectedRuns, repo, token);
+  const { allFindings, codeCompiled } = await collectRunFindings(selectedRuns, repo);
   const runsScanned = selectedRuns.length;
 
-  // 3. Resolve PR number if not provided (fork PRs or push-to-branch for open PRs)
-  if (!prNumber) {
+  const headBranch = process.env.HEAD_BRANCH || "";
+  const isDefaultBranch = headBranch === "main" || process.env.GITHUB_REF_NAME === "main";
+
+  // 3. Resolve PR number if not provided (skip for default branch)
+  if (!prNumber && !isDefaultBranch) {
     try {
       const pulls = await ghAllPages(`/repos/${repo}/commits/${headSha}/pulls`);
-      if (pulls.length > 0 && pulls[0].number) {
-        prNumber = pulls[0].number;
+      const matchingPull =
+        pulls.find((p) => p.state === "open" && (!headBranch || p.head?.ref === headBranch)) ||
+        pulls.find((p) => p.state === "open") ||
+        pulls[0];
+      if (matchingPull && matchingPull.number) {
+        prNumber = matchingPull.number;
       }
     } catch (e) {
       console.warn(`Could not resolve PR number: ${e.message}`);
@@ -830,6 +843,7 @@ export {
   buildSourceLink,
   buildApiUrl,
   detectCodeCompiled,
+  isGeneratedFile,
   shortSha,
   collectRunFindings,
   gh,

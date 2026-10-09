@@ -17,6 +17,7 @@ import {
   buildSourceLink,
   buildApiUrl,
   detectCodeCompiled,
+  isGeneratedFile,
   shortSha,
   gh,
 } from "./ci-warnings.mjs";
@@ -790,3 +791,143 @@ test("gh helper rejects SSRF targets and does not retry 5xx on POST writes", asy
     globalThis.fetch = originalFetch;
   }
 });
+
+test("isGeneratedFile correctly identifies uniffi and core generated files", () => {
+  assert.equal(isGeneratedFile("app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt"), true);
+  assert.equal(isGeneratedFile("path/to/uniffi/binding.kt"), true);
+  assert.equal(isGeneratedFile("app/src/main/java/io/github/mojri/hesabyar/ui/MainScreen.kt"), false);
+  assert.equal(isGeneratedFile("app/build/generated/source/buildConfig/debug/BuildConfig.java"), false);
+  assert.equal(isGeneratedFile(""), false);
+  assert.equal(isGeneratedFile(null), false);
+});
+
+test("detectCodeCompiled scans all lines and returns true if any real compile occurs after cached", () => {
+  const mixedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin UP-TO-DATE",
+    "2026-10-04T05:12:33.1234568Z > Task :app:compileReleaseKotlin",
+  ].join("\n");
+  assert.equal(detectCodeCompiled(undefined, mixedLog), true);
+  assert.equal(detectCodeCompiled(false, mixedLog), true);
+});
+
+test("categoriseAnnotation strictly classifies path-less deprecations as script vs actions-runtime", () => {
+  // Known actions-runtime signatures
+  assert.equal(
+    categoriseAnnotation({ message: "Node.js 20 actions are deprecated" }, REPO).category,
+    "actions-runtime"
+  );
+  assert.equal(
+    categoriseAnnotation({ message: "The `set-output` command is deprecated" }, REPO).category,
+    "actions-runtime"
+  );
+  // Script warning that merely mentions deprecation without being a runner deprecation
+  assert.equal(
+    categoriseAnnotation({ message: "::warning::Deprecated: custom function in deployment script" }, REPO).category,
+    "script"
+  );
+  assert.equal(
+    categoriseAnnotation({ message: "Deprecated API usage in setup task" }, REPO).category,
+    "script"
+  );
+});
+
+test("parseLogLine parses Gradle 10+ and colons in workflow commands", () => {
+  const gradle10 = "2026-10-04T05:12:33.1234567Z WARNING: Deprecated feature scheduled to be removed in Gradle 10";
+  const f1 = parseLogLine(gradle10, REPO, "CI", "build");
+  assert.ok(f1);
+  assert.equal(f1.category, "gradle");
+
+  const cmdWithColon = "2026-10-04T05:12:33.1234567Z ::warning file=src/main:test/Foo.kt,line=42::Message here";
+  const f2 = parseLogLine(cmdWithColon, REPO, "CI", "build");
+  assert.ok(f2);
+  assert.equal(f2.category, "script");
+  assert.equal(f2.file, "src/main:test/Foo.kt");
+  assert.equal(f2.line, 42);
+});
+
+test("dedupe updates to the latest jobUrl for repeated locations", () => {
+  const findings = [
+    { category: "rust", message: "warn", workflow: "CI", job: "lint", jobUrl: "https://old-run/job/1" },
+    { category: "rust", message: "warn", workflow: "CI", job: "lint", jobUrl: "https://new-run/job/2" },
+  ];
+  const deduped = dedupe(findings);
+  assert.equal(deduped.length, 1);
+  assert.equal(deduped[0].count, 2);
+  assert.equal(deduped[0].jobUrls.get("CI/lint"), "https://new-run/job/2");
+});
+
+test("buildApiUrl supports /repositories/ endpoints and blocks dot-segments traversal or /users/ paths", () => {
+  // Success coverage for /repositories/... in both relative and full-host forms
+  assert.equal(
+    buildApiUrl("/repositories/12345/actions/runs"),
+    "https://api.github.com/repositories/12345/actions/runs"
+  );
+  assert.equal(
+    buildApiUrl("https://api.github.com/repositories/12345/actions/runs?page=2"),
+    "https://api.github.com/repositories/12345/actions/runs?page=2"
+  );
+
+  // Failure coverage for same-origin non-repository endpoints
+  assert.throws(
+    () => buildApiUrl("/users/octocat"),
+    /GitHub API path must stay on api\.github\.com: \/users\/octocat/
+  );
+  assert.throws(
+    () => buildApiUrl("https://api.github.com/user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/orgs/anthropic"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+
+  // Failure coverage for path traversal via dot-segments attempting to bypass /repos/
+  assert.throws(
+    () => buildApiUrl("/repos/../user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/repositories/../user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+});
+
+test("renderComment distinguishes generated UniFFI files from non-generated files", () => {
+  const uniffiFindings = [
+    {
+      category: "unused",
+      file: "app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt",
+      line: 42,
+      message: "generated warning",
+      workflow: "CI",
+      job: "build",
+    },
+    {
+      category: "unused",
+      file: "app/src/main/java/io/github/mojri/hesabyar/ui/MainScreen.kt",
+      line: 10,
+      message: "app warning",
+      workflow: "CI",
+      job: "build",
+    },
+  ];
+
+  const md = renderComment({
+    findings: uniffiFindings,
+    sha: SHA,
+    repo: REPO,
+    runsScanned: 1,
+    codeCompiled: true,
+  });
+
+  assert.ok(md.includes("hesabyar_core.kt"));
+  assert.ok(md.includes("MainScreen.kt"));
+});
+
+test("parseLogLine excludes Kotlin compiler errors starting with e: from matching catch-all warnings", () => {
+  const kotlinCompileError = "e: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:142: error: deprecation notice causes compilation failure";
+  const result = parseLogLine(kotlinCompileError, REPO, "CI", "build");
+  assert.equal(result, null);
+});
+
+
