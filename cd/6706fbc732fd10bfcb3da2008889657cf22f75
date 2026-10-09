@@ -1,0 +1,31 @@
+.github/scripts/ci-warnings.mjs
+  s_d86b032f465ec5::t_156b8441de6557 729-755,760,791-792
+  s_d86b032f465ec5::t_e16abdb03fddb5 555-566,568-580,582-585,587-590,592-596,598-599
+  s_d86b032f465ec5::t_bef5f4338cf4ed 323-327,335-336
+  s_d86b032f465ec5::t_300a091bd64be2 865
+  s_d86b032f465ec5::t_6a50dfe2b9657d 322,333-334
+.github/scripts/ci-warnings.test.mjs
+  s_d86b032f465ec5::t_06176e9015a008 23
+  s_d86b032f465ec5::t_4e4e64a8da5dd0 1003
+  s_d86b032f465ec5::t_ade45ae10c0fe5 24
+  s_d86b032f465ec5::t_faba76bb90ba14 1042,1053
+  s_d86b032f465ec5::t_50dfd44127416d 935-959,961-970,1000,1002,1004-1006,1021,1030-1041,1043-1052,1054-1102
+  s_d86b032f465ec5::t_e4baf17a469e47 1008,1023,1025
+  s_d86b032f465ec5::t_deebe38b76ac91 960,971-999,1001,1007,1009-1020,1022,1024,1026-1029
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cd6706fbc732fd10bfcb3da2008889657cf22f75",
+  "prompts": {},
+  "sessions": {
+    "s_d86b032f465ec5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69f872f5-772a-4e8e-84f1-173caef382ae",
+        "model": "hy3"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
