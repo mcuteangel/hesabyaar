@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 
-import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # Add repo root to import path
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -40,7 +40,14 @@ class CheckDocsTests(unittest.TestCase):
     def test_gitignored_or_existing_path_resolves(self) -> None:
         self.assertTrue(check_docs.resolves("AGENTS.md", ROOT))
         self.assertTrue(check_docs.resolves("app/build.gradle.kts", ROOT))
+        self.assertTrue(check_docs.resolves("rust/lcov.info", ROOT))
         self.assertFalse(check_docs.resolves("non_existent_folder/file.kt", ROOT))
+
+    def test_is_gitignored_logic(self) -> None:
+        self.assertTrue(check_docs.is_gitignored(ROOT / "rust/lcov.info"))
+        self.assertTrue(check_docs.is_gitignored(ROOT / "app/build/generated.jar"))
+        self.assertFalse(check_docs.is_gitignored(ROOT / "AGENTS.md"))
+        self.assertFalse(check_docs.is_gitignored(ROOT / "some_random_source_file.kt"))
 
     def test_broken_refs_detects_missing_paths(self) -> None:
         content = """# Test Document
@@ -98,14 +105,9 @@ See [ref1] and [ref2].
         self.assertNotIn("app/src/main/another_planned_file.kt", refs)
 
     def test_cli_warn_flag_exits_zero(self) -> None:
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "check_docs.py"), "--warn"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0)
+        with patch.object(sys, "argv", ["check_docs.py", "--warn"]):
+            return_code = check_docs.main()
+        self.assertEqual(return_code, 0)
 
 
 if __name__ == "__main__":

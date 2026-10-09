@@ -19,9 +19,8 @@ Usage: scripts/check_docs.py [--warn]
 
 from __future__ import annotations
 
+import fnmatch
 import re
-import shutil
-import subprocess
 import sys
 import urllib.parse
 from pathlib import Path
@@ -75,17 +74,41 @@ def clean(target: str) -> str:
     return target.rstrip("/.,;")
 
 
-GIT = shutil.which("git")
+def _load_gitignore_patterns() -> list[str]:
+    gitignore = ROOT / ".gitignore"
+    if not gitignore.is_file():
+        return []
+    patterns: list[str] = []
+    for line in gitignore.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and not line.startswith("!"):
+            patterns.append(line)
+    return patterns
+
+
+GITIGNORE_PATTERNS = _load_gitignore_patterns()
 
 
 def is_gitignored(path: Path) -> bool:
-    """Generated or build output (gitignored) is legitimately absent."""
-    if not GIT:
-        return False
-    result = subprocess.run(
-        [GIT, "check-ignore", "-q", str(path)], cwd=ROOT, check=False
-    )
-    return result.returncode == 0
+    """Generated or build output matching .gitignore is legitimately absent."""
+    try:
+        rel = path.relative_to(ROOT).as_posix()
+    except ValueError:
+        rel = path.as_posix()
+
+    name = path.name
+    for pat in GITIGNORE_PATTERNS:
+        clean_pat = pat.strip("/")
+        if (
+            fnmatch.fnmatch(name, pat)
+            or fnmatch.fnmatch(rel, pat)
+            or fnmatch.fnmatch(rel, clean_pat)
+            or fnmatch.fnmatch(rel, f"*/{clean_pat}")
+            or fnmatch.fnmatch(rel, f"*/{clean_pat}/*")
+            or fnmatch.fnmatch(rel, f"{clean_pat}/*")
+        ):
+            return True
+    return False
 
 
 def resolves(target: str, base: Path) -> bool:
