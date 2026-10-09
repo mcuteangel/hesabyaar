@@ -87,8 +87,13 @@
       if (!downloadsList) {
         return;
       }
+      const isHttps = (url) => typeof url === "string" && url.startsWith("https://");
+
       downloadsList.textContent = "";
       found.forEach((item) => {
+        if (!isHttps(item.asset.browser_download_url)) {
+          return;
+        }
         const listItem = document.createElement("li");
         const link = document.createElement("a");
         link.className = "dl";
@@ -105,7 +110,7 @@
 
       const universal = found.find((item) => item.abi.key === "universal");
       const heroDownload = document.getElementById("hero-download");
-      if (universal && heroDownload) {
+      if (universal && heroDownload && isHttps(universal.asset.browser_download_url)) {
         heroDownload.href = universal.asset.browser_download_url;
       }
     })

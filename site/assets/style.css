@@ -104,6 +104,7 @@ img {
   position: sticky;
   top: 0;
   z-index: 5;
+  background: var(--bg);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--outline);
@@ -160,6 +161,7 @@ img {
 /* Hero */
 .hero {
   padding: clamp(3rem, 8vw, 6rem) 0;
+  background: var(--bg);
   background:
     radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--teal) 18%, transparent), transparent),
     radial-gradient(50rem 30rem at 0% 110%, color-mix(in srgb, var(--indigo) 16%, transparent), transparent);
@@ -269,6 +271,7 @@ h3 {
 
 .phone {
   width: min(300px, 80vw);
+  height: 620px;
   aspect-ratio: 9 / 18.5;
   padding: 12px;
   border-radius: 42px;
