@@ -65,24 +65,30 @@ Ensure robust back navigation across tabs and management overlays, optimize stri
 - [jacoco/jacoco#2210](https://github.com/jacoco/jacoco/issues/2210) (Open)
 - [gcacace/android-signaturepad#193](https://github.com/gcacace/android-signaturepad/pull/193) (PR example)
 
+- **Task:** plans/011 Phase 3 — Personal loan ledger on branch `feature/person-loan-ledger`
+- **Status:** Completed and merged
+- **Completed Date:** 2026-10-06
+- **Deliverables:**
+    - [x] Rust `compute_person_balances` + unit tests (`rust/hesabyar-core/src/models/mod.rs:430`)
+    - [x] Rust FFI wrapper (`rust/hesabyar-core/src/ffi/mod.rs`) and UniFFI bindings
+    - [x] Bridge façade `RustBridgePersons` and Kotlin fallback `PersonBalanceCalculator`
+    - [x] UseCase `GetPersonBalancesUseCase` and ViewModel `PersonViewModel`
+    - [x] UI: `PersonsScreen`, `PersonDetailSheet`, Debts hub tab integration, Dashboard links
+    - [x] Parity test `PersonBalanceParityTest`
+
 ## In Progress
 
-plans/011 Phase 3 on branch `feature/person-loan-ledger`.
+PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
 
 | Item | File | State |
 |---|---|---|
-| Rust `compute_person_balances` + 5 unit tests | `rust/hesabyar-core/src/models/mod.rs:430` | done |
-| Rust FFI wrapper | `rust/hesabyar-core/src/ffi/mod.rs` | done |
-| UniFFI template line | `app/buildSrc/template/HesabyarCore.template.kt` | done |
-| Bridge façade `RustBridgePersons` | `app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgePersons.kt` | done |
-| Kotlin fallback mirror | `app/src/main/java/io/github/mojri/hesabyar/domain/utils/PersonBalanceCalculator.kt` | done |
-| Use case + Hilt provider | `domain/usecase/GetPersonBalancesUseCase.kt`, `di/UseCaseModule.kt` | done |
-| ViewModel | `app/src/main/java/io/github/mojri/hesabyar/ui/PersonViewModel.kt` | done |
-| Persons list screen | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt` | done |
-| Person detail sheet | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt` | done |
-| Debts hub third tab | `ui/screens/DebtSection.kt`, `ui/screens/DebtHubScreen.kt` | done |
-| Dashboard direction-filtered links | `ui/screens/DashboardScreen.kt`, `ui/screens/dashboard/components/DebtorCreditorCards.kt`, `MainActivity.kt` | done |
-| Kotlin/Rust parity test | `app/src/test/java/io/github/mojri/hesabyar/rust/PersonBalanceParityTest.kt` | done |
+| MainNavigationCoordinator extraction and slot testing | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
+| Precompute tab labels outside Compose loops | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
+| Document showExitDialog retention across rotation | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
+| MoreMenuSheetTest suite | `app/src/test/java/io/github/mojri/hesabyar/MoreMenuSheetTest.kt` | done |
+| MainNavigationCoordinatorTest overlay and callback coverage | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt` | done |
+| Replace hardcoded strings with Context.getString in tests | `app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt` | done |
+| Address bot review findings (DeepSource, Kilo Code, Cubic) | PR #385 review threads | done |
 
 ## Blocked
 
@@ -111,27 +117,19 @@ None.
 
 ## Verification
 
-Run on 2026-10-06, branch `feature/person-loan-ledger` (code head `a14c196` / PR head `d96460f`):
+Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 | Check | Command | Result |
 |---|---|---|
-| Rust unit tests | `cargo test --manifest-path rust/Cargo.toml` | PASS (496 passed; 0 failures) |
-| Kotlin style | `./gradlew --no-daemon ktlintFormat` | PASS |
-| Static analysis | `./gradlew --no-daemon ktlintCheck detekt` | PASS (BUILD SUCCESSFUL, 0 findings after `native.size == persons.size` heuristic refinement) |
-| Kotlin compile | `./gradlew --no-daemon compileDebugKotlin compileReleaseKotlin` | PASS (BUILD SUCCESSFUL) |
-| Kotlin unit tests | `./gradlew --no-daemon testDebugUnitTest --tests "io.github.mojri.hesabyar.domain.usecase.GetPersonBalancesUseCaseTest"` | PASS (BUILD SUCCESSFUL, 4/4 passed: `fromNativeMapsEverySummaryField`, `emptyInputsReturnEmptyList`, `fallbackProducesBalancesWhenRustDisabled`, `computePersonBalancesDispatchesToNativeOrFallback`) |
-| Rust-bridge JVM tests | `./gradlew --no-daemon testDebugUnitTestRust` | PASS (BUILD SUCCESSFUL, 206 tests, 0 failures; `PersonBalanceParityTest` 6/6 pass; cache-eligible per progress.md:107) |
-| Android lint | `./scripts/check-android.sh` | FAILED at lintDebug (4 pre-existing errors in `local.properties` and `ManualTransactionDialog.kt`; per Blocked item 4) |
-| OpenCodeReview bot | PR #279 review run | PASS (0 findings across 27 selected items) |
-| Codacy PR analysis | PR #279 quality gate | PASS (0 issues, +1.85% coverage variation, 74.27% diff coverage) |
+| Navigation unit tests | `./gradlew.bat testDebugUnitTest --tests "io.github.mojri.hesabyar.MoreMenuSheetTest" --tests "io.github.mojri.hesabyar.MainNavigationCoordinatorTest" --tests "io.github.mojri.hesabyar.MainActivityBackNavigationTest" --tests "io.github.mojri.hesabyar.MainActivityNavigationTest"` | PASS (37 tests, 0 failures, BUILD SUCCESSFUL) |
+| Kotlin style | `./gradlew.bat ktlintFormat --no-daemon` | PASS |
+| Static analysis | `./gradlew.bat ktlintCheck detekt --no-daemon` | PASS (BUILD SUCCESSFUL, 0 findings) |
+| GitHub CI | PR #385 actions | PASS / In-progress |
 
 ## Next Steps
 
-1. Merge plans/011 Phase 3 (`feature/person-loan-ledger`) after review.
-2. plans/011 Phase 4 — shared `PersonPicker` in `ui/components` and transaction-form integration.
-3. Address pre-existing `LocalContextGetResourceValueCall` lint errors in `ManualTransactionDialog.kt` in a dedicated task.
-4. Align `docs/DATABASE_SCHEMA.md` and `docs/MIGRATION_NOTES.md` with database version 9.
-5. Configure Room schema export and add `MigrationTestHelper` integration tests.
+1. Await CI workflow completion and verify coverage report upload on PR #385.
+2. Confirm PR auto-merge once all required checks pass.
 
 ## Last Updated
 
