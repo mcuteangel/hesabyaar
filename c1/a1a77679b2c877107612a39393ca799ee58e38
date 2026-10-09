@@ -1,0 +1,20 @@
+.github/scripts/ci-warnings.mjs
+  s_d86b032f465ec5::t_2b50b6635a022c 9-10
+  s_d86b032f465ec5::t_376e382b3c560d 594-595,606-618,620-625,627-628
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c1a1a77679b2c877107612a39393ca799ee58e38",
+  "prompts": {},
+  "sessions": {
+    "s_d86b032f465ec5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69f872f5-772a-4e8e-84f1-173caef382ae",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
