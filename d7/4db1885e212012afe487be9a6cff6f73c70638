@@ -1,0 +1,24 @@
+.hound.yml
+  s_7b7ec0a7da6229::t_4fb5619fae847b 1-3
+site/.eslintrc.json
+  s_7b7ec0a7da6229::t_da8b3fe73ad75b 1-20
+site/assets/main.js
+  s_7b7ec0a7da6229::t_ff946f0b1b8c9a 1
+  s_7b7ec0a7da6229::t_8381997005e283 2-3,19-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d74db1885e212012afe487be9a6cff6f73c70638",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
