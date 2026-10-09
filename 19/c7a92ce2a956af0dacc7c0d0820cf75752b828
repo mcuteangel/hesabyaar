@@ -1,0 +1,20 @@
+scripts/check_docs.py
+  s_9ac9c2ed34511f::t_64da051e8d8301 119-121
+  s_9ac9c2ed34511f::t_dd8345b8390bb4 130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "19c7a92ce2a956af0dacc7c0d0820cf75752b828",
+  "prompts": {},
+  "sessions": {
+    "s_9ac9c2ed34511f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a2ceb7c-353c-493b-8dec-359c4fd14b19",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
