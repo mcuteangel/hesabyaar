@@ -103,6 +103,7 @@ internal fun TabBackHandler(
   onExitConfirmed: () -> Unit,
   onResetPersonSearch: () -> Unit = {},
 ) {
+  // Preserved across configuration changes so an in-flight exit dialog is not lost on rotation.
   var showExitDialog by rememberSaveable { mutableStateOf(false) }
 
   BackHandler {

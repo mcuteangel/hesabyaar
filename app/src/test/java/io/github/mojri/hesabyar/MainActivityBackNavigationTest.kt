@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar
 
+import android.content.Context
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.getValue
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -29,15 +31,17 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE, sdk = [34])
 class MainActivityBackNavigationTest {
   companion object {
-    private const val DIALOG_TITLE = "خروج از حسابیار"
-    private const val DIALOG_MESSAGE = "می‌خواهید از برنامه خارج شوید؟"
-    private const val BTN_CONFIRM_EXIT = "خروج"
-    private const val BTN_DISMISS_CANCEL = "انصراف"
     private const val MSG_DISPATCHER_PROVIDED = "OnBackPressedDispatcher should be provided"
   }
 
   @get:Rule
   val composeRule = createComposeRule()
+
+  private val context: Context = ApplicationProvider.getApplicationContext()
+  private val dialogTitle by lazy { context.getString(R.string.exit_dialog_title) }
+  private val dialogMessage by lazy { context.getString(R.string.exit_dialog_message) }
+  private val btnConfirmExit by lazy { context.getString(R.string.exit_dialog_confirm) }
+  private val btnDismissCancel by lazy { context.getString(R.string.cancel_label) }
 
   @Test
   fun backWalksHistoryWhenMultipleTabsVisited() {
@@ -108,8 +112,8 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
-    composeRule.onNodeWithText(DIALOG_MESSAGE).assertIsDisplayed()
+    composeRule.onNodeWithText(dialogTitle).assertIsDisplayed()
+    composeRule.onNodeWithText(dialogMessage).assertIsDisplayed()
     assertFalse("Exit not confirmed before user action", exitConfirmed)
   }
 
@@ -132,7 +136,7 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText(BTN_CONFIRM_EXIT).performClick()
+    composeRule.onNodeWithText(btnConfirmExit).performClick()
     composeRule.waitForIdle()
 
     assertTrue("Exit callback invoked after clicking confirm", exitConfirmed)
@@ -157,11 +161,11 @@ class MainActivityBackNavigationTest {
     composeRule.runOnUiThread { dispatcher?.onBackPressed() }
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText(BTN_DISMISS_CANCEL).performClick()
+    composeRule.onNodeWithText(btnDismissCancel).performClick()
     composeRule.waitForIdle()
 
     assertFalse("Exit callback should not be invoked on dismiss", exitConfirmed)
-    composeRule.onNodeWithText(DIALOG_TITLE).assertDoesNotExist()
+    composeRule.onNodeWithText(dialogTitle).assertDoesNotExist()
   }
 
   @Test
@@ -175,7 +179,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    composeRule.onNodeWithText(BTN_CONFIRM_EXIT).performClick()
+    composeRule.onNodeWithText(btnConfirmExit).performClick()
     composeRule.waitForIdle()
     assertTrue("Confirm callback called", confirmed)
   }
@@ -191,7 +195,7 @@ class MainActivityBackNavigationTest {
       )
     }
 
-    composeRule.onNodeWithText(BTN_DISMISS_CANCEL).performClick()
+    composeRule.onNodeWithText(btnDismissCancel).performClick()
     composeRule.waitForIdle()
     assertTrue("Dismiss callback called", dismissed)
   }

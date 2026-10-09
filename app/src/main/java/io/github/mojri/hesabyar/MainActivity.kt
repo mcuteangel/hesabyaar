@@ -388,12 +388,14 @@ private fun MainBottomNavigation(
   onTabSelected: (String) -> Unit,
   onMoreClick: () -> Unit,
 ) {
+  val moreLabel = stringResource(R.string.nav_tab_more)
+  val tabLabels = tabs.associate { it.id to stringResource(it.labelRes) }
   NavigationBar(
     containerColor = MaterialTheme.colorScheme.surface,
     tonalElevation = ElevationTokens.Level4
   ) {
     tabs.forEach { item ->
-      val label = stringResource(item.labelRes)
+      val label = tabLabels.getValue(item.id)
       NavigationBarItem(
         selected = currentTab == item.id,
         onClick = { onTabSelected(item.id) },
@@ -413,7 +415,6 @@ private fun MainBottomNavigation(
           )
       )
     }
-    val moreLabel = stringResource(R.string.nav_tab_more)
     NavigationBarItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
@@ -442,12 +443,14 @@ private fun MainNavigationRail(
   onTabSelected: (String) -> Unit,
   onMoreClick: () -> Unit,
 ) {
+  val moreLabel = stringResource(R.string.nav_tab_more)
+  val tabLabels = tabs.associate { it.id to stringResource(it.labelRes) }
   NavigationRail(
     modifier = Modifier.fillMaxHeight(),
     containerColor = MaterialTheme.colorScheme.surface
   ) {
     tabs.forEach { item ->
-      val label = stringResource(item.labelRes)
+      val label = tabLabels.getValue(item.id)
       NavigationRailItem(
         selected = currentTab == item.id,
         onClick = { onTabSelected(item.id) },
@@ -467,7 +470,6 @@ private fun MainNavigationRail(
           )
       )
     }
-    val moreLabel = stringResource(R.string.nav_tab_more)
     NavigationRailItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
