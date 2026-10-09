@@ -1,131 +1,131 @@
-# Phase 3: استخراج کامپوننت‌های UI
+# Phase 3: Extract the UI Components
 
-## پیش‌نیاز
+## Prerequisites
 
-- **فاز قبلی:** Phase 2 باید کامل شده باشه (AccountUiState و AccountEvent آماده‌ان)
-- **تصمیمات معلق:** ندارد
+- **Previous phase:** Phase 2 must be complete (AccountUiState and AccountEvent are ready)
+- **Pending decisions:** None
 
-## زمینه
+## Context
 
-`AccountManagementScreen.kt` فعلی ۷۳۱ خط و شامل ۱۲+ کامپوننت خصوصیه. این فاز کامپوننت‌ها رو از فایل اصلی استخراج می‌کنه و به فایل‌های جداگانه منتقل می‌کنه. در پایان، `AccountManagementScreen.kt` باید ≤ ۲۰۰ خط باشه.
+The current `AccountManagementScreen.kt` has 731 lines and holds 12+ private components. This phase extracts the components from the main file and moves them to separate files. At the end, `AccountManagementScreen.kt` must be at most 200 lines.
 
-## هدف دقیق این فاز
+## Exact Goal of This Phase
 
-استخراج ۷ کامپوننت از `AccountManagementScreen.kt` به فایل‌های جداگانه در `ui/components/account/`، و اضافه کردن `@Preview` به هر کدوم.
+Extract 7 components from `AccountManagementScreen.kt` to separate files in `ui/components/account/`, and add a `@Preview` to each one.
 
-## فایل‌های درگیر
+## Files Involved
 
-### فایل‌های جدید
-| فایل | توضیح |
+### New files
+| File | Description |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountListCard.kt` | کارت لیست حساب |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountFormContent.kt` | بدنه فرم (مشترک Add/Edit) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountColorPicker.kt` | انتخابگر رنگ |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountTypeDropdown.kt` | انتخابگر نوع حساب |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountBankFields.kt` | فیلدهای بانکی (شرطی) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountPreviewRow.kt` | پیش‌نمایش زنده |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountOverflowMenu.kt` | منوی overflow |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountListCard.kt` | Account list card |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountFormContent.kt` | Form body (shared by Add/Edit) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountColorPicker.kt` | Color picker |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountTypeDropdown.kt` | Account type picker |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountBankFields.kt` | Bank fields (conditional) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountPreviewRow.kt` | Live preview |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountOverflowMenu.kt` | Overflow menu |
 
-### فایل ویرایشی
-| فایل | تغییر |
+### File to edit
+| File | Change |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | حذف composable‌های خصوصی، import کامپوننت‌های جدید |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Remove the private composables, import the new components |
 
-## گام‌های اجرا
+## Execution Steps
 
-### گام ۳.۱: ساخت دایرکتوری و فایل‌های خالی
+### Step 3.1: Create the directory and the empty files
 ```bash
 mkdir -p app/src/main/java/io/github/mojri/hesabyar/ui/components/account
 ```
 
-### گام ۳.۲: استخراج AccountListCard
+### Step 3.2: Extract AccountListCard
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۳۲۶-۳۹۷ (`AccountItem`)  
-**ورودی‌ها:** `account: AccountEntity`, `onOverflow: (AccountEntity) -> Unit`  
-**ساختار:** `HesabyarCard` → `Row` → `IconCircle` + `Column` + `IconButton`  
-**@Preview:** با یک `AccountEntity` نمونه
+**Source:** `AccountManagementScreen.kt` lines 326-397 (`AccountItem`)  
+**Parameters:** `account: AccountEntity`, `onOverflow: (AccountEntity) -> Unit`  
+**Structure:** `HesabyarCard` → `Row` → `IconCircle` + `Column` + `IconButton`  
+**@Preview:** with a sample `AccountEntity`
 
-### گام ۳.۳: استخراج AccountFormContent
+### Step 3.3: Extract AccountFormContent
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۴۶۸-۵۵۱ (`AccountDialogForm`)  
-**ورودی‌ها:** `formState: AccountFormState`, `onFormChange: (AccountFormState) -> Unit`, `onSave: () -> Unit`, `isSaving: Boolean`  
-**نکته:** در Phase 4، state از `remember` به `AccountFormState` از ViewModel تغییر می‌کنه. در این فاز، هنوز `remember` استفاده می‌شه.  
-**@Preview:** فرم خالی + فرم پر
+**Source:** `AccountManagementScreen.kt` lines 468-551 (`AccountDialogForm`)  
+**Parameters:** `formState: AccountFormState`, `onFormChange: (AccountFormState) -> Unit`, `onSave: () -> Unit`, `isSaving: Boolean`  
+**Note:** In Phase 4, the state changes from `remember` to `AccountFormState` from the ViewModel. In this phase, it still uses `remember`.  
+**@Preview:** an empty form and a filled form
 
-### گام ۳.۴: استخراج AccountColorPicker
+### Step 3.4: Extract AccountColorPicker
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۶۴۶-۶۹۳  
-**ورودی‌ها:** `selectedColor: Long`, `palette: List<Long>`, `columns: Int`, `onColorSelected: (Long) -> Unit`  
-**@Preview:** با رنگ‌های نمونه
+**Source:** `AccountManagementScreen.kt` lines 646-693  
+**Parameters:** `selectedColor: Long`, `palette: List<Long>`, `columns: Int`, `onColorSelected: (Long) -> Unit`  
+**@Preview:** with sample colors
 
-### گام ۳.۵: استخراج AccountTypeDropdown
+### Step 3.5: Extract AccountTypeDropdown
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۵۵۴-۵۹۶  
-**ورودی‌ها:** `selectedType: AccountType`, `onTypeSelected: (AccountType) -> Unit`  
-**@Preview:** با نوع پیش‌فرض
+**Source:** `AccountManagementScreen.kt` lines 554-596  
+**Parameters:** `selectedType: AccountType`, `onTypeSelected: (AccountType) -> Unit`  
+**@Preview:** with the default type
 
-### گام ۳.۶: استخراج AccountBankFields
+### Step 3.6: Extract AccountBankFields
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۵۹۸-۶۴۴  
-**ورودی‌ها:** bankName, cardNumber, accountNumber, iban + callbacks  
-**@Preview:** با مقادیر نمونه
+**Source:** `AccountManagementScreen.kt` lines 598-644  
+**Parameters:** bankName, cardNumber, accountNumber, iban + callbacks  
+**@Preview:** with sample values
 
-### گام ۳.۷: استخراج AccountPreviewRow
+### Step 3.7: Extract AccountPreviewRow
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۶۹۵-۷۳۰  
-**ورودی‌ها:** `name: String`, `type: AccountType`, `color: Long`  
-**@Preview:** با مقادیر نمونه
+**Source:** `AccountManagementScreen.kt` lines 695-730  
+**Parameters:** `name: String`, `type: AccountType`, `color: Long`  
+**@Preview:** with sample values
 
-### گام ۳.۸: استخراج AccountOverflowMenu
+### Step 3.8: Extract AccountOverflowMenu
 
-**منبع:** `AccountManagementScreen.kt` خطوط ۴۰۰-۴۴۳  
-**ورودی‌ها:** `onEdit`, `onArchive`, `onDelete`, `onDismiss`  
-**@Preview:** با expanded=true
+**Source:** `AccountManagementScreen.kt` lines 400-443  
+**Parameters:** `onEdit`, `onArchive`, `onDelete`, `onDismiss`  
+**@Preview:** with expanded=true
 
-### گام ۳.۹: به‌روزرسانی AccountManagementScreen
+### Step 3.9: Update AccountManagementScreen
 
-- تمام composable‌های خصوصی حذف بشن
-- import‌های جدید اضافه بشن
-- فایل باید ≤ ۲۰۰ خط باشه
-- `ACCOUNT_TYPE_ICONS` map (اگر در Phase 0 حذف نشده) حذف بشه
+- Remove all the private composables
+- Add the new imports
+- The file must be at most 200 lines
+- Remove the `ACCOUNT_TYPE_ICONS` map (if Phase 0 did not already remove it)
 
-### گام ۳.۱۰: اضافه کردن ColorPickerGrid (Generic)
+### Step 3.10: Add ColorPickerGrid (Generic)
 
-- فایل جدید `ui/components/shared/ColorPickerGrid.kt`
-- `AccountColorPicker` از این component استفاده کنه
-- **قابل بازاستفاده:** برای رنگ دسته‌بندی، تگ، و هر انتخابگر رنگ دیگه
+- New file `ui/components/shared/ColorPickerGrid.kt`
+- `AccountColorPicker` uses this component
+- **Reusable:** for the category colors, tags, and every other color picker
 
-## نکات خاص این فاز
+## Special Notes for This Phase
 
-- از چک‌لیست مرکزی:
-  - **R2** (نمایش اعداد منفی): اگر `AccountListCard` مبلغ منفی نمایش بده، از الگوی LRM استفاده کنه
-  - **R4** (تأیید grep): بعد از حذف composable‌ها از فایل اصلی، grep کنید که هیچ reference قدیمی باقی نمونده
-- **مهم:** در این فاز state هنوز `remember`-based هست. هدف فقط استخراج فیزیکی فایل‌هاست، نه تغییر state architecture (اون Phase 4 هست).
-- هر composable باید `Modifier` parameter داشته باشه برای testability
-- هر composable باید `@Preview` function داشته باشه
+- From the central checklist:
+  - **R2** (negative number display): if `AccountListCard` shows a negative amount, use the LRM pattern
+  - **R4** (grep confirmation): after you remove the composables from the main file, grep to confirm that no old reference remains
+- **Important:** In this phase, the state is still `remember`-based. The goal is only the physical extraction of the files, not a change to the state architecture (that is Phase 4).
+- Each composable must have a `Modifier` parameter for testability
+- Each composable must have a `@Preview` function
 
-## معیار پذیرش
+## Acceptance Criteria
 
-- [ ] ۷ فایل جدید در `ui/components/account/` وجود داره
-- [ ] ۱ فایل جدید `ColorPickerGrid.kt` در `ui/components/shared/` وجود داره
-- [ ] `AccountManagementScreen.kt` ≤ ۲۰۰ خط هست
-- [ ] هر فایل جدید `@Preview` function داره
-- [ ] با grep تأیید: `AccountItem`، `AccountDialogForm`، `AccountDialogColorPicker`، `AccountDialogTypeField`، `AccountDialogBankDetailsFields`، `AccountDialogPreviewRow`، `AccountOverflowMenu` در فایل اصلی وجود ندارن
+- [ ] 7 new files exist in `ui/components/account/`
+- [ ] 1 new file `ColorPickerGrid.kt` exists in `ui/components/shared/`
+- [ ] `AccountManagementScreen.kt` is at most 200 lines
+- [ ] Each new file has a `@Preview` function
+- [ ] A grep confirms: `AccountItem`, `AccountDialogForm`, `AccountDialogColorPicker`, `AccountDialogTypeField`, `AccountDialogBankDetailsFields`, `AccountDialogPreviewRow`, and `AccountOverflowMenu` are not in the main file
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
-- [ ] `./gradlew ktlintCheck detekt --no-daemon` → بدون خطا
-- [ ] Previewها در Android Studio render می‌شن
+- [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
+- [ ] The previews render in Android Studio
 
 ## Rollback
 
 ```bash
-# rollback کل Phase 3:
+# Roll back the whole Phase 3:
 git log --oneline -10
 git revert <phase-3-commits>
 
-# یا rollback دستی:
-# فایل‌های جدید رو حذف کنید
+# Or roll back manually:
+# Delete the new files
 rm app/src/main/java/.../ui/components/account/*.kt
 rm app/src/main/java/.../ui/components/shared/ColorPickerGrid.kt
-# فایل اصلی رو از git برگردونید
+# Restore the main file from git
 git checkout HEAD -- app/src/main/java/.../ui/screens/account/AccountManagementScreen.kt
 ```

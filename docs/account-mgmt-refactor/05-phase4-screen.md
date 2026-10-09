@@ -1,42 +1,42 @@
-# Phase 4: بازنویسی Screen به Shell + دیالوگ‌ها
+# Phase 4: Rewrite the Screen as Shell + Dialogs
 
-## پیش‌نیاز
+## Prerequisites
 
-- **فاز قبلی:** Phase 3 باید کامل شده باشه (کامپوننت‌ها استخراج شدن) و Phase 2 (ViewModel event-based)
-- **تصمیمات معلق:** ندارد
+- **Previous phase:** Phase 3 must be complete (the components are extracted) and Phase 2 (the ViewModel is event-based)
+- **Pending decisions:** None
 
-## زمینه
+## Context
 
-`AccountManagementScreen.kt` بعد از Phase 3 کوچکتر شده ولی هنوز state management قدیمی (`remember { mutableStateOf }`) رو استفاده می‌کنه. `AccountDialogState` هنوز محلیه. این فاز Screen رو به ViewModel-connected shell تبدیل می‌کنه و state management رو کامل می‌کنه.
+`AccountManagementScreen.kt` is smaller after Phase 3, but it still uses the old state management (`remember { mutableStateOf }`). `AccountDialogState` is still local. This phase converts the Screen to a ViewModel-connected shell, and it completes the state management.
 
-## هدف دقیق این فاز
+## Exact Goal of This Phase
 
-اتصال `AccountManagementScreen` به `AccountUiState` از ViewModel، حذف state محلی، و ایجاد دیالوگ‌های جداگانه. در پایان:
-- Screen ≤ ۱۰۰ خط (فقط shell)
-- تمام state از ViewModel میاد
-- `dialogState` از ViewModel collect بشه
-- `formState` از ViewModel بیاد
-- SideEffect (Snackbar) از ViewModel مدیریت بشه
+Connect `AccountManagementScreen` to `AccountUiState` from the ViewModel, remove the local state, and create separate dialogs. At the end:
+- The Screen is at most 100 lines (shell only)
+- All the state comes from the ViewModel
+- `dialogState` is collected from the ViewModel
+- `formState` comes from the ViewModel
+- The side effect (Snackbar) is managed by the ViewModel
 
-## فایل‌های درگیر
+## Files Involved
 
-### فایل‌های جدید
-| فایل | توضیح |
+### New files
+| File | Description |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountFormDialog.kt` | دیالوگ افزودن/ویرایش |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountDeleteDialog.kt` | دیالوگ حذف |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountArchiveDialog.kt` | دیالوگ آرشیو |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountFormDialog.kt` | Add/edit dialog |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountDeleteDialog.kt` | Delete dialog |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountArchiveDialog.kt` | Archive dialog |
 
-### فایل ویرایشی
-| فایل | تغییر |
+### File to edit
+| File | Change |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | بازنویسی کامل به shell ساده |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Full rewrite to a simple shell |
 
-## گام‌های اجرا
+## Execution Steps
 
-### گام ۴.۱: بازنویسی AccountManagementScreen
+### Step 4.1: Rewrite AccountManagementScreen
 
-**ساختار جدید:**
+**New structure:**
 ```kotlin
 @Composable
 fun AccountManagementScreen(
@@ -81,12 +81,12 @@ fun AccountManagementScreen(
 }
 ```
 
-**نکات:**
-- `AccountDialogState` از `AccountUiState` گرفته بشه (نه `remember`)
-- `dialogState` با `remember { mutableStateOf }` حذف بشه
-- `formState` از `remember` حذف بشه — از ViewModel بیاد
+**Notes:**
+- Take `AccountDialogState` from `AccountUiState` (not from `remember`)
+- Remove the `dialogState` that uses `remember { mutableStateOf }`
+- Remove the `formState` from `remember` — take it from the ViewModel
 
-### گام ۴.۲: ایجاد AccountFormDialog
+### Step 4.2: Create AccountFormDialog
 
 ```kotlin
 @Composable
@@ -118,7 +118,7 @@ fun AccountFormDialog(
 }
 ```
 
-### گام ۴.۳: ایجاد AccountDeleteDialog
+### Step 4.3: Create AccountDeleteDialog
 
 ```kotlin
 @Composable
@@ -138,7 +138,7 @@ fun AccountDeleteDialog(
 }
 ```
 
-### گام ۴.۴: ایجاد AccountArchiveDialog
+### Step 4.4: Create AccountArchiveDialog
 
 ```kotlin
 @Composable
@@ -154,21 +154,21 @@ fun AccountArchiveDialog(
     dismissText = "انصراف",
     onConfirm = onConfirm,
     onDismiss = onDismiss,
-    confirmColor = MaterialTheme.colorScheme.primary  // نه error — آرشیو destructive نیست
+    confirmColor = MaterialTheme.colorScheme.primary  // Not error — archive is not destructive
   )
 }
 ```
 
-### گام ۴.۵: اتصال FormState به ViewModel
+### Step 4.5: Connect FormState to the ViewModel
 
 - `AccountViewModel.onEvent(OnFormChange(newForm))` → `_uiState.update { it.copy(formState = newForm) }`
 - `AccountFormDialog` → `onFormChange = { accountViewModel.onEvent(OnFormChange(it)) }`
-- فیلدها رو `formState.name`، `formState.type`، etc. بخونن (نه `remember`)
+- The fields read `formState.name`, `formState.type`, etc. (not `remember`)
 
-### گام ۴.۶: اتصال Snackbar
+### Step 4.6: Connect the Snackbar
 
 ```kotlin
-// در AccountManagementScreen:
+// In AccountManagementScreen:
 LaunchedEffect(Unit) {
   accountViewModel.sideEffect.collect { effect ->
     when (effect) {
@@ -180,47 +180,47 @@ LaunchedEffect(Unit) {
 }
 ```
 
-### گام ۴.۷: اتصال OverflowMenu
+### Step 4.7: Connect the OverflowMenu
 
 ```kotlin
-// OverflowMenu باید داخل Box اطراف IconButton باشه (Phase 0 bug #1)
-// یا از BoxScope استفاده بشه
+// The OverflowMenu must be inside the Box that surrounds the IconButton (Phase 0 bug #1)
+// Or use BoxScope
 Box {
   IconButton(onClick = { onOverflow(account) }) {
     Icon(Icons.Filled.MoreVert, ...)
   }
-  // DropdownMenu اینجا رندر بشه
+  // Render the DropdownMenu here
 }
 ```
 
-**نکته:** این گام Phase 0 bug #1 رو نهایی می‌کنه. اگر Phase 0 انجام شده باشه، فقط تأیید کنید که anchoring درسته.
+**Note:** This step completes Phase 0 bug #1. If Phase 0 is done, only confirm that the anchoring is correct.
 
-## نکات خاص این فاز
+## Special Notes for This Phase
 
-- از چک‌لیست مرکزی:
-  - **R2** (اعداد منفی): اگر `AccountFormDialog` مبلغ منفی نمایش بده، از الگوی LRM استفاده کنه
-  - **R4** (grep): بعد از بازنویسی، grep کنید که `remember { mutableStateOf<AccountDialogState> }` در فایل اصلی وجود نداره
-- **مهم:** `LaunchedEffect(currentDialog.account)` برای `PendingDelete` باید حفظ بشه — این async check برای `canDeleteAccount` هست
-- Snackbar duration برای اعمال destructive (حذف/آرشیو) باید ۷ ثانیه باشه
+- From the central checklist:
+  - **R2** (negative numbers): if `AccountFormDialog` shows a negative amount, use the LRM pattern
+  - **R4** (grep): after the rewrite, grep to confirm that `remember { mutableStateOf<AccountDialogState> }` is not in the main file
+- **Important:** Keep `LaunchedEffect(currentDialog.account)` for `PendingDelete` — this is the async check for `canDeleteAccount`
+- The Snackbar duration for destructive actions (delete/archive) must be 7 seconds
 
-## معیار پذیرش
+## Acceptance Criteria
 
-- [ ] `AccountManagementScreen.kt` ≤ ۱۰۰ خط
-- [ ] `AccountFormDialog.kt`، `AccountDeleteDialog.kt`، `AccountArchiveDialog.kt` وجود دارن
-- [ ] `dialogState` از `remember { mutableStateOf }` حذف شده و از `uiState.dialogState` collect می‌شه
-- [ ] `formState` از `remember` حذف شده و از `uiState.formState` میاد
-- [ ] Snackbar بعد از CRUD operations نمایش داده می‌شه
-- [ ] OverflowMenu داخل `Box` اطراف `IconButton` رندر بشه (Phase 0 bug #1 نهایی)
+- [ ] `AccountManagementScreen.kt` is at most 100 lines
+- [ ] `AccountFormDialog.kt`, `AccountDeleteDialog.kt`, and `AccountArchiveDialog.kt` exist
+- [ ] `dialogState` is removed from `remember { mutableStateOf }` and is collected from `uiState.dialogState`
+- [ ] `formState` is removed from `remember` and comes from `uiState.formState`
+- [ ] A Snackbar is shown after the CRUD operations
+- [ ] The OverflowMenu renders inside the `Box` that surrounds the `IconButton` (Phase 0 bug #1 finalized)
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
-- [ ] `./gradlew ktlintCheck detekt --no-daemon` → بدون خطا
-- [ ] Manual QA: افزودن، ویرایش، حذف، آرشیو — همه کار کنن
+- [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
+- [ ] Manual QA: add, edit, delete, and archive — all work
 
 ## Rollback
 
 ```bash
 git log --oneline -10
 git revert <phase-4-commits>
-# یا
+# Or
 git checkout HEAD -- app/src/main/java/.../ui/screens/account/AccountManagementScreen.kt
 rm app/src/main/java/.../ui/screens/account/AccountFormDialog.kt
 rm app/src/main/java/.../ui/screens/account/AccountDeleteDialog.kt

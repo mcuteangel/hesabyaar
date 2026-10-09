@@ -1,143 +1,143 @@
-# چک‌لیست ریفکتور مدیریت حساب‌ها
+# Account Management Refactor Checklist
 
-> **شروع:** ۲۰۲۶-۰۷-۳۱  
-> **آخرین به‌روزرسانی:** ۲۰۲۶-۰۷-۳۱  
-> **شاخه:** `feature/multi-account-wallet`
-
----
-
-## وضعیت فازها
-
-- [ ] **Phase 0:** رفع باگ‌های واقعی (بدون تغییر معماری)
-- [ ] **Phase 1:** استخراج Domain/Data layer (Dao, Repository, UseCase, Validator)
-- [ ] **Phase 2:** معماری State (Event, UiState, ViewModel refactor)
-- [ ] **Phase 3:** استخراج کامپوننت‌های UI
-- [ ] **Phase 4:** بازنویسی Screen به shell + دیالوگ‌ها
-- [ ] **Phase 5:** بهبودهای UX (Undo، Unarchive، Progressive disclosure)
-- [ ] **Phase 6:** تست‌ها و Accessibility
+> **Start:** 2026-07-31  
+> **Last update:** 2026-07-31  
+> **Branch:** `feature/multi-account-wallet`
 
 ---
 
-## تصمیمات معلق
+## Phase Status
 
-> هر تصمیم باید **قبل از فاز وابسته** روشن بشه. وضعیت هر تصمیم با ✅ (روشن) یا ⏳ (معلق) مشخص می‌شه.
+- [ ] **Phase 0:** Fix real bugs (no architecture change)
+- [ ] **Phase 1:** Extract the domain/data layer (Dao, Repository, UseCase, Validator)
+- [ ] **Phase 2:** State architecture (Event, UiState, ViewModel refactor)
+- [ ] **Phase 3:** Extract the UI components
+- [ ] **Phase 4:** Rewrite the screen as shell + dialogs
+- [ ] **Phase 5:** UX improvements (Undo, Unarchive, progressive disclosure)
+- [ ] **Phase 6:** Tests and accessibility
 
-### ۱. یکتایی نام حساب
-- **وضعیت:** ⏳ معلق
-- **سوال:** آیا نام تکراری حساب مجاز باشه یا validation سخت‌گیر اعمال بشه؟
-- **گزینه‌ها:**
-  - الف) Validation سخت‌گیر: insert/update رد بشه اگر نام تکراری وجود داشته باشه
-  - B) Warning غیرمسدودکننده: پیام هشدار نشون داده بشه ولی عملیات انجام بشه
-  - ج) بدون محدودیت: وضعیت فعلی
-- **وابسته به:** Phase 1 (`AccountValidator`)
-- **تاثیر:** اگر الف یا ب انتخاب بشه، `AccountValidator` باید `getAllAccounts()` رو بخونه
+---
 
-### ۲. FK Constraint برای حذف حساب
-- **وضعیت:** ⏳ معلق
-- **سوال:** حذف حساب دارای تراکنش: فقط app-level check (`canDeleteAccount`) بمونه یا FK constraint واقعی (`onDelete=RESTRICT`) اضافه بشه؟
-- **گزینه‌ها:**
-  - الف) فقط app-level check (وضعیت فعلی) — ساده‌تر، ولی backup/restore ممکنه data integrity رو بشکنه
-  - ب) FK constraint `onDelete=RESTRICT` — ایمن‌تر، ولی Room migration نیاز داره
-- **وابسته به:** Phase 1 (Room schema)
-- **تاثیر:** اگر ب انتخاب بشه، Room migration لازمه و `HesabyarRepository.replaceAllFromBackup` باید order حذف رو رعایت کنه
+## Pending Decisions
 
-### ۳. ابزارهای تست
-- **وضعیت:** ⏳ معلق
-- **سوال:** آیا Roborazzi و Detekt واقعاً در پروژه نصب/پیکربندی شدن؟
-- **اقدام:** قبل از Phase 6 با grep در `build.gradle.kts` تأیید بشه:
+> Resolve each decision **before the phase that depends on it**. The status of each decision is marked with ✅ (resolved) or ⏳ (pending).
+
+### 1. Account name uniqueness
+- **Status:** ⏳ pending
+- **Question:** Are duplicate account names allowed, or does strict validation apply?
+- **Options:**
+  - a) Strict validation: reject insert/update when a duplicate name exists
+  - b) Non-blocking warning: show a warning message, but complete the operation
+  - c) No restriction: the current behavior
+- **Depends on:** Phase 1 (`AccountValidator`)
+- **Effect:** If option a or b is selected, `AccountValidator` must read `getAllAccounts()`
+
+### 2. FK constraint for account deletion
+- **Status:** ⏳ pending
+- **Question:** For deletion of an account that has transactions: keep only the app-level check (`canDeleteAccount`), or add a real FK constraint (`onDelete=RESTRICT`)?
+- **Options:**
+  - a) App-level check only (the current behavior) — simpler, but backup/restore can break data integrity
+  - b) FK constraint `onDelete=RESTRICT` — safer, but it needs a Room migration
+- **Depends on:** Phase 1 (Room schema)
+- **Effect:** If option b is selected, a Room migration is necessary, and `HesabyarRepository.replaceAllFromBackup` must respect the deletion order
+
+### 3. Test tooling
+- **Status:** ⏳ pending
+- **Question:** Are Roborazzi and Detekt really installed/configured in the project?
+- **Action:** Confirm before Phase 6 with a grep in `build.gradle.kts`:
   ```bash
   grep -rn "roborazzi\|detekt" app/build.gradle.kts build.gradle.kts
   ```
-- **وابسته به:** Phase 6
+- **Depends on:** Phase 6
 
-### ۴. DEFAULT_ACCOUNT_COLOR یکسان‌سازی
-- **وضعیت:** ⏳ معلق
-- **سوال:** سه نسخه `DEFAULT_ACCOUNT_COLOR` باید یکسان باشن — تأیید مقدار دقیق:
+### 4. DEFAULT_ACCOUNT_COLOR unification
+- **Status:** ⏳ pending
+- **Question:** The three `DEFAULT_ACCOUNT_COLOR` values must be the same — confirm the exact value:
   - `FinancialColors.kt:37` → `0xFF4CAF50L`
   - `ManageBackupUseCase.kt:30` → `0xFF4CAF50L`
   - Rust `default_color()` → `0xFF4CAF50`
-- **اقدام تأیید:**
+- **Confirmation action:**
   ```bash
   grep -n "DEFAULT_ACCOUNT_COLOR\|default_color" app/src/main/java/.../FinancialColors.kt app/src/main/java/.../ManageBackupUseCase.kt rust/hesabyar-core/src/models/mod.rs
   ```
-- **وابسته به:** Phase 0 یا Phase 1
+- **Depends on:** Phase 0 or Phase 1
 
 ---
 
-## ریسک‌های خاص این پروژه
+## Project-Specific Risks
 
-> این موارد باید **در هر فاز** چک بشن — نه فقط فاز مربوطه.
+> Check these items **in every phase** — not only in the phase that they relate to.
 
-### R1. تطابق Rust vs Kotlin Fallback
-- [ ] هرجا محاسبه‌ی موجودی (initial + محاسبه‌شده) نمایش داده می‌شه، مسیر Rust و Kotlin fallback مقایسه بشن
-- [ ] مخصوصاً فیلتر حساب آرشیوشده در هر دو مسیر یکسان عمل کنه
-- [ ] **تست تأیید:** `./gradlew test --tests "io.github.mojri.hesabyar.GetDashboardDataUseCaseTest.rustAndKotlinFallbackProduceSameResultWithFixedNow" --no-daemon`
-- [ ] **قانون جدید:** این چک‌لیست صرفاً برای کد fallback موجود اعمال می‌شود. هیچ‌گاه منطق جدید یا محاسبه‌ای به سمت طرف Kotlin fallback اضافه نکنید — فقط در Rust. برنامه حذف fallbackهای غیردائم در `plans/2026-08-19-rust-fallback-consolidation-plan.md` مرجع شود.
+### R1. Rust vs Kotlin fallback alignment
+- [ ] Compare the Rust path and the Kotlin fallback wherever the balance (initial + calculated) is shown
+- [ ] In particular, the archived-account filter must behave the same in both paths
+- [ ] **Confirmation test:** `./gradlew test --tests "io.github.mojri.hesabyar.GetDashboardDataUseCaseTest.rustAndKotlinFallbackProduceSameResultWithFixedNow" --no-daemon`
+- [ ] **New rule:** Apply this checklist only to existing fallback code. Never add new logic or calculations on the Kotlin fallback side — add them only in Rust. The plan that removes the non-permanent fallbacks is `plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
-### R2. نمایش اعداد منفی (RTL/BIDI)
-- [ ] هرجا مبلغ منفی نمایش داده می‌شه (خصوصاً کامپوننت جدید «موجودی محاسبه‌شده» در Phase 5)، از الگوی تست‌شده‌ی موجود استفاده بشه:
-  - LRM (`\u200E`) قبل از عدد
-  - جداسازی sign و amount در Text جداگانه (طبق `CurrencyFormatter.formatSignedParts`)
-  - `LocalLayoutDirection.Ltr` روی کانتینر عددی
-- [ ] **رجوع کنید به:** `CurrencyFormatter.kt:87` (الگوی LRM) و `AccountBalanceCard.kt` (الگوی sign/amount separation)
+### R2. Negative number display (RTL/BIDI)
+- [ ] Use the existing tested pattern wherever a negative amount is shown (especially the new «calculated balance» component in Phase 5):
+  - LRM (`\u200E`) before the number
+  - Separate the sign and the amount in different `Text` elements (as in `CurrencyFormatter.formatSignedParts`)
+  - `LocalLayoutDirection.Ltr` on the number container
+- [ ] **Refer to:** `CurrencyFormatter.kt:87` (the LRM pattern) and `AccountBalanceCard.kt` (the sign/amount separation pattern)
 
-### R3. تأیید تست‌ها
-- [ ] ادعای "تست شد" agent در هر فاز باید با **عدد تست، خروجی دقیقِ دستور اجرا، و در صورت لزوم اسکرین‌شات** تأیید بشه
-- [ ] دستور اجرای تست: `./gradlew test --rerun-tasks --no-daemon` (نه `./gradlew test` ساده — چون build cache ممکنه نتایج قدیمی رو برگردونه)
+### R3. Test confirmation
+- [ ] An agent's claim that work is "tested" must be verified with a **test count, the exact output of the run command, and a screenshot when necessary**
+- [ ] Test command: `./gradlew test --rerun-tasks --no-daemon` (not a plain `./gradlew test` — the build cache can return old results)
 
-### R4. تأیید "انجام شد در همه‌جا"
-- [ ] ادعای "کامل انجام شد در همه‌جا" باید با **grep مستقل** چک بشه قبل از قبول
-- [ ] مثال: اگر قراره `ACCOUNT_TYPE_ICONS` حذف بشه، grep کنید که هیچ reference‌ای باقی نمونده
+### R4. Confirmation of "done everywhere"
+- [ ] A claim that work is "complete everywhere" must be checked with an **independent grep** before you accept it
+- [ ] Example: if `ACCOUNT_TYPE_ICONS` is to be removed, grep to confirm that no reference remains
 
-### R5. Rust JNI State Leakage
-- [ ] اگر هر فازی کد Rust رو لمس کنه (حتی فقط mappers)، قبل از merge با `./gradlew clean test --no-daemon` تأیید بشه
-- [ ] `forkEvery = 1` در `build.gradle.kts` باید فعال باشه
+### R5. Rust JNI state leakage
+- [ ] If any phase touches Rust code (even mappers only), confirm it with `./gradlew clean test --no-daemon` before the merge
+- [ ] `forkEvery = 1` must be enabled in `build.gradle.kts`
 
 ---
 
-## Log تکمیل فازها
+## Phase Completion Log
 
-> بعد از هر فاز پر بشه.
+> Fill this in after each phase.
 
 ### Phase 0
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
-- **تعداد commit:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
+- **Number of commits:**
 
 ### Phase 1
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
 
 ### Phase 2
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
 
 ### Phase 3
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
 
 ### Phase 4
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
 
 ### Phase 5
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
 
 ### Phase 6
-- **تاریخ:**
-- **خلاصه تغییرات:**
-- **نتیجه تست:**
-- **لینک گزارش تأیید:**
+- **Date:**
+- **Summary of changes:**
+- **Test result:**
+- **Verification report link:**
