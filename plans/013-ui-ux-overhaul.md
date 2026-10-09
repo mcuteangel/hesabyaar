@@ -1,5 +1,7 @@
 # Plan 013: UI/UX overhaul — fix review findings in prioritized phases
 
+Status: TODO (plan under review)
+
 > **Executor instructions**: Follow this plan phase by phase, in order.
 > Phases are priority-ordered (P1 first). Do not start a later phase
 > before the earlier one is merged. Run every verification command and
@@ -107,7 +109,7 @@ tests", read it as "add new Roborazzi tests".
    IDs + boolean overlays; no Navigation Compose dependency)".
 2. **Testing**: remove "MockK" — zero hits in `app/src/test`. Replace
    "Compose UI Test" with "Robolectric (unit) + Roborazzi (screenshot,
-   infra applied, no tests yet)". `app/src/androidTest` is empty.
+   infra applied, no tests yet)". `app/src/androidTest` is empty. <!-- check-docs: ignore -->
 3. **Add missing entries**: Detekt, ktlint (static analysis —
    `app/build.gradle.kts:171,173`; `detekt {}` config at `:643-650`,
    `ktlint {}` at `:657-661`), Robolectric.
@@ -127,7 +129,7 @@ tests", read it as "add new Roborazzi tests".
 4. Testing "UI Tests (Compose)" stays `[ ]` but reword to "UI screenshot
    tests (Roborazzi)" — infra applied, no tests written yet.
 5. Add a "UI/UX" category listing this plan's phases as `[ ]` items with
-   a link to `plans/012-ui-ux-overhaul.md`, so the overhaul is visible
+   a link to `plans/013-ui-ux-overhaul.md`, so the overhaul is visible
    on the roadmap.
 6. `docs/DATABASE_SCHEMA.md:5` says "Current schema version: **3**" —
    fix to **9** (same stale claim as ROADMAP; `AppDatabase.kt:31`).

@@ -1,0 +1,29 @@
+name: Docs references
+
+# Fails when AGENTS.md, README.md, docs/ or active plans/ name a repo path
+# that no longer exists. Runs on every PR because renaming or deleting a
+# source file can break a doc that the PR never touched.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-docs:
+    name: Check doc path references
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Check docs
+        run: |
+          python3 -m unittest scripts.tests.test_check_docs
+          python3 scripts/check_docs.py
