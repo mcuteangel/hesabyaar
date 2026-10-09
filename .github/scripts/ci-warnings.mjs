@@ -503,16 +503,17 @@ function buildApiUrl(path) {
   if (typeof path !== "string" || path.startsWith("//")) {
     throw new Error(`Invalid GitHub API path: ${path}`);
   }
-  let parsed;
-  try {
-    parsed = new URL(path, "https://api.github.com");
-  } catch {
-    throw new Error(`Invalid GitHub API path: ${path}`);
-  }
-  if (parsed.origin !== "https://api.github.com") {
+  // Sanitize: normalize to absolute URL and strip any protocol/host prefix
+  const cleaned = path.startsWith("https://api.github.com/")
+    ? path.slice("https://api.github.com".length)
+    : path;
+
+  // Enforce that all paths are restricted to /repos/ or /repositories/ prefixes
+  // to prevent SSRF or arbitrary host redirects.
+  if (!cleaned.startsWith("/repos/") && !cleaned.startsWith("/repositories/")) {
     throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
   }
-  return parsed.toString();
+  return `https://api.github.com${cleaned}`;
 }
 
 async function gh(path, opts = {}) {
