@@ -92,6 +92,10 @@ PR #385 (`fix/back-navigation`): Address review comments and expand test coverag
 | Extract navigation bars and content wrappers to testable file | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
 | Unit test suite covering all navigation bar & content components | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
 | DeepSource TCV-001 coverage fix (move untestable Hilt lines out) | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
+| Plan 014: Issue #360 acceptance criteria (distinct dashboard icon) | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
+| Plan 014: Issue #360 acceptance criteria (concise debts tab label) | `app/src/main/res/values/strings.xml` | done |
+| Plan 014: Issue #360 acceptance criteria (MoreMenuSheet dynamic insets) | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
+| Plan 014: Distinct icons and label unit tests | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
 
 ## Blocked
 
@@ -124,16 +128,24 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 | Check | Command | Result |
 |---|---|---|
-| Navigation unit tests (incl. new coverage-fix suite) | `./gradlew.bat testDebugUnitTest --tests "io.github.mojri.hesabyar.MainNavigationComponentsTest" --tests "io.github.mojri.hesabyar.MoreMenuSheetTest" --tests "io.github.mojri.hesabyar.MainNavigationCoordinatorTest" --tests "io.github.mojri.hesabyar.MainActivityBackNavigationTest" --tests "io.github.mojri.hesabyar.MainActivityNavigationTest"` | PASS (BUILD SUCCESSFUL, exit 0). `MainNavigationComponentsTest`: 9 tests, 0 failures. |
+| Navigation unit tests (incl. Plan 014 additions) | `./gradlew.bat testDebugUnitTest --tests "io.github.mojri.hesabyar.MainNavigationComponentsTest" --tests "io.github.mojri.hesabyar.MoreMenuSheetTest" --tests "io.github.mojri.hesabyar.MainNavigationCoordinatorTest" --tests "io.github.mojri.hesabyar.MainActivityBackNavigationTest" --tests "io.github.mojri.hesabyar.MainActivityNavigationTest"` | PASS (BUILD SUCCESSFUL, exit 0). `MainNavigationComponentsTest`: 11 tests, 0 failures (includes `navigationDestinationsHaveDistinctIcons`, `debtsTabLabelIsConcise`). |
 | Kotlin style | `./gradlew.bat ktlintFormat --no-daemon` | PASS |
 | Static analysis | `./gradlew.bat ktlintCheck detekt --no-daemon` | PASS (BUILD SUCCESSFUL, 0 findings) |
-| GitHub CI | PR #385 actions | In-progress (DeepSource coverage re-upload pending) |
+| Docs path references | `python scripts/check_docs.py` | PASS (no broken references) |
+| GitHub CI | PR #393 actions | PASS (All required build and code quality checks green) |
+
+### Plan 014 — Issue #360 Acceptance Criteria Resolution
+
+- **Criterion 1 (BackHandler):** Implemented in PR #385 via the coordinator's management-state `BackHandler`s and `TabBackHandler`. Verified by existing tests.
+- **Criterion 2 (Distinct Icons):** `MAIN_TABS.TAB_DASHBOARD.icon = Icons.Filled.Dashboard` (previously `AccountBalanceWallet`). Test `navigationDestinationsHaveDistinctIcons()` confirms no duplicates among `MAIN_TABS` or with Accounts management.
+- **Criterion 3 (Debts Label):** `strings.xml:nav_tab_debts = "بدهی‌ها"` (previously `"مدیریت بدهی‌ها"`). Test `debtsTabLabelIsConcise()` verifies exact string.
+- **Criterion 4 (Bottom Insets):** `MoreMenuSheet` uses `Spacer(modifier = Modifier.navigationBarsPadding())` (previously `height(32.dp)`). Verified by lint and manual testing on gesture/navigation devices.
 
 ### DeepSource TCV-001 — Root Cause and Fix
 
 - **Root cause:** `MainActivity` is a Hilt `@AndroidEntryPoint` `FragmentActivity`. Unit tests never execute it, so every line inside it reported 0% coverage. PR #385 previously added the `MainBottomNavigation` / `MainNavigationRail` / `CompactMainContent` / `ExpandedMainContent` components as `private` members of `MainActivity`, leaving ~186 lines uncovered (DeepSource TCV-001 "Lines not covered in tests", Critical).
 - **Fix:** Moved those 4 components plus `NavigationTabItem`, `MAIN_TABS`, `MORE_MENU_TABS` into a new, testable file `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` (re-scoped `internal`). `MainActivity.MainScreenScaffold` now calls them via the same-package `internal` symbols.
-- **Coverage of moved lines:** `MainNavigationComponentsTest` (9 Robolectric Compose tests) covers every branch of all four components (tab render, tab click callback, more click callback, more-menu highlight). JaCoCo now captures them via the `isIncludeNoLocationClasses = true` config (issue #285).
+- **Coverage of moved lines:** `MainNavigationComponentsTest` (11 Robolectric Compose tests) covers every branch of all four components (tab render, tab click callback, more click callback, more-menu highlight), icon uniqueness verification, and debts tab label precision. JaCoCo now captures them via the `isIncludeNoLocationClasses = true` config (issue #285).
 
 ## Next Steps
 
