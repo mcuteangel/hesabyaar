@@ -1,0 +1,21 @@
+site/.eslintrc.json
+  s_7b7ec0a7da6229::t_c73c9b243d0911 4,7,13-25
+site/assets/main.js
+  s_7b7ec0a7da6229::t_5c89dc6698c638 15-17,19-23,26-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "176a8ff77ea88ac217445e9c7f1570d62548828f",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
