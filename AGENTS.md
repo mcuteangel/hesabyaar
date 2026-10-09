@@ -141,9 +141,13 @@ The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core
 ## Keeping Docs in Sync
 
 - When a change renames, moves, or deletes a file, update every doc that names it in the same PR. `python3 scripts/check_docs.py` lists broken path references; CI (`docs-check.yml`) fails on them.
-- Before executing a plan, run the plan's drift check and `scripts/check_docs.py`; fix stale references in that plan first.
-- Only `plans/*.md` are executable. `plans/archive/` holds finished plans: never execute them or trust their file references.
+- Before executing a plan, run the plan's drift check (if defined) and `scripts/check_docs.py`; fix stale references in that plan first.
+- Only approved `plans/*.md` are executable. `plans/archive/` holds finished plans: never execute them or trust their file references.
 - A plan that reaches DONE or REJECTED moves to `plans/archive/` in the same PR, with its row in `plans/README.md` updated.
+- Reference suppression markers:
+  - `<!-- check-docs: ignore -->` skips an intentional non-existent path on that line.
+  - `<!-- check-docs: planned -->` in a heading suppresses code span checks in that section for paths planned in future phases.
+  - Explicit new-file headings (such as `## Files to Create` or `### فایل‌های جدید`) suppress code span checks in that section.
 
 ## Reference Docs
 

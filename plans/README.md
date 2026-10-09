@@ -6,10 +6,10 @@ Planned at commit `44dd519`, 2026-07-23.
 
 ## Layout
 
-- `plans/*.md` — active or not-yet-started plans. Agents may execute these.
+- `plans/*.md` — active or not-yet-started plans. Agents may execute approved active plans.
 - `plans/archive/*.md` — finished (DONE) or abandoned plans, kept for history.
   Do not execute them or treat their file references as current.
-- Every plan carries a `Status:` line at the top matching its row below.
+- Every active plan carries a `Status:` line at the top matching its row below.
   When a plan reaches DONE or REJECTED, move it to `plans/archive/` in the
   same PR and update its row.
 
