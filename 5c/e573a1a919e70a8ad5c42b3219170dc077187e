@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt
+  s_573f3ddb7a6de3::t_938d3c8fb34e12 30-36,70,95,98,100,128,133,159,164,190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ce573a1a919e70a8ad5c42b3219170dc077187e",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
