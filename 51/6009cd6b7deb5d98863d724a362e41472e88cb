@@ -1,0 +1,19 @@
+site/assets/main.js
+  s_7b7ec0a7da6229::t_828343915d482a 11-16,21,24,27-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "516009cd6b7deb5d98863d724a362e41472e88cb",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "auto"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
