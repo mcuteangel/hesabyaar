@@ -137,8 +137,8 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 ## Next Steps
 
-1. Push the refactor to `origin/fix/back-navigation` (fast-forward; no force-push).
-2. Await DeepSource "Test coverage" re-run on PR #385 and confirm it turns green.
+1. Pushed (commit `40eb61a`): merged `origin/fix/back-navigation` (PR #387 docs split) and resolved the AGENTS.md conflict by porting the Graphify rule into `docs/agents/code-intelligence.md`.
+2. Await DeepSource "Test coverage" re-run on PR #385 (currently pending on run for `40eb61a`) and confirm it turns green.
 3. Confirm PR auto-merge once all required checks pass.
 
 ## Last Updated
