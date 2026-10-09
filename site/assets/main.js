@@ -1,11 +1,11 @@
-(() => {
-  "use strict";
+"use strict";
 
+(() => {
   const REPO = "mcuteangel/hesabyaar";
   const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
   const toFa = (text) =>
-    String(text).replace(/\d/g, (d) => FA_DIGITS[Number(d)]);
+    String(text).replace(/\d/g, (digit) => FA_DIGITS[Number(digit)]);
 
   const formatSize = (bytes) => {
     const formatted = (bytes / (1024 * 1024)).toFixed(1).replace(".", "٫");
@@ -19,7 +19,7 @@
   if (shots.length) {
     const list = document.getElementById("shots-list");
     shots.forEach((shot) => {
-      const li = document.createElement("li");
+      const itemElement = document.createElement("li");
       const fig = document.createElement("figure");
       const img = document.createElement("img");
       img.src = shot.src;
@@ -33,13 +33,13 @@
         fig.appendChild(cap);
       }
       fig.style.margin = "0";
-      li.appendChild(fig);
-      list.appendChild(li);
+      itemElement.appendChild(fig);
+      list.appendChild(itemElement);
     });
     document.getElementById("screenshots").hidden = false;
   } else {
-    document.querySelectorAll("[data-requires-shots]").forEach((el) => {
-      el.parentElement.hidden = true;
+    document.querySelectorAll("[data-requires-shots]").forEach((element) => {
+      element.parentElement.hidden = true;
     });
   }
 
@@ -64,28 +64,28 @@
     .then((release) => {
       const assets = release.assets || [];
       const found = ABIS.map((abi) => {
-        const asset = assets.find((a) => a.name.endsWith(`-${abi.key}.apk`));
+        const asset = assets.find((candidate) => candidate.name.endsWith(`-${abi.key}.apk`));
         return asset ? { abi, asset } : null;
       }).filter(Boolean);
       if (!found.length) {
         return;
       }
 
-      const ul = document.getElementById("downloads");
-      ul.textContent = "";
+      const downloadsList = document.getElementById("downloads");
+      downloadsList.textContent = "";
       found.forEach((item) => {
-        const li = document.createElement("li");
-        const a = document.createElement("a");
-        a.className = "dl";
-        a.href = item.asset.browser_download_url;
+        const listItem = document.createElement("li");
+        const link = document.createElement("a");
+        link.className = "dl";
+        link.href = item.asset.browser_download_url;
         const strong = document.createElement("strong");
         strong.textContent = item.abi.label;
         const span = document.createElement("span");
         span.textContent = `${item.abi.hint} · ${formatSize(item.asset.size)}`;
-        a.appendChild(strong);
-        a.appendChild(span);
-        li.appendChild(a);
-        ul.appendChild(li);
+        link.appendChild(strong);
+        link.appendChild(span);
+        listItem.appendChild(link);
+        downloadsList.appendChild(listItem);
       });
 
       const universal = found.find((item) => item.abi.key === "universal");
