@@ -34,4 +34,4 @@ The core is bundled with the app. It is not published separately. It has its own
 The backup envelope carries two version fields. They are independent from the app `VERSION` file and the core `CORE_VERSION`.
 
 - `version` is the backup format/schema version. The single source of truth is the Rust const `BACKUP_SCHEMA_VERSION` in `hesabyar-core/src/models/mod.rs`. The Kotlin side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from it at build time (see `app/build.gradle.kts`). They cannot drift. Bump it only on a breaking change to the serialized backup structure.
-- `appVersion` is the app version that made the backup. At export time, it is written as `BuildConfig.VERSION_NAME` (Kotlin) or `env!("CORE_VERSION")` (Rust default). Do not hardcode a placeholder like `"1.0"`.
+- `appVersion` is the app version that made the backup. At export time, write it as `BuildConfig.VERSION_NAME` (Kotlin). In pure Rust standalone contexts, `env!("CORE_VERSION")` identifies the core engine version until the host app sets `VERSION_NAME`. Do not hardcode a placeholder like `"1.0"`.
