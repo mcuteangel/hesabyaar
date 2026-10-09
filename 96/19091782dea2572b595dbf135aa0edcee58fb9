@@ -1,0 +1,26 @@
+plans/archive/014-navigation-consistency-back-icons-padding.md
+  s_573f3ddb7a6de3::t_2f77eba6576a1c 4
+  s_573f3ddb7a6de3::t_6718ec160f3b18 41
+progress.md
+  s_573f3ddb7a6de3::t_726044fa29dfca 135,139-140
+app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt
+  s_573f3ddb7a6de3::t_c75e363df59e7c 205-212
+plans/README.md
+  s_573f3ddb7a6de3::t_f50f7194f54e82 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9619091782dea2572b595dbf135aa0edcee58fb9",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
