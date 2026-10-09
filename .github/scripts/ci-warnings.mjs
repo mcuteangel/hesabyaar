@@ -6,8 +6,8 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-// ANSI escape sequence matcher created via constructor to satisfy no-control-regex
-const ANSI_REGEX = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+// eslint-disable-next-line no-control-regex
+const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
 
 /**
  * Strip GitHub Actions log timestamp prefix and ANSI escape codes.
@@ -591,7 +591,8 @@ async function gh(path, opts = {}) {
   // standard redirect following is preserved for GitHub API responses.
   const url = buildApiUrl(path);
   const targetUrl = new URL(url);
-  if (!ALLOWED_API_HOSTS.includes(targetUrl.hostname)) {
+  const isSafeHost = ALLOWED_API_HOSTS.includes(targetUrl.hostname);
+  if (!isSafeHost) {
     throw new Error(`SSRF blocked: ${url}`);
   }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
@@ -602,27 +603,29 @@ async function gh(path, opts = {}) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await fetch(targetUrl.href, {
-        method: opts.method || "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(hasBody ? { "Content-Type": "application/json" } : {}),
-          ...opts.headers,
-        },
-        body: hasBody ? JSON.stringify(opts.body) : undefined,
-        redirect: "follow",
-      });
+      if (isSafeHost) {
+        const res = await fetch(targetUrl.href, {
+          method: opts.method || "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            ...(hasBody ? { "Content-Type": "application/json" } : {}),
+            ...opts.headers,
+          },
+          body: hasBody ? JSON.stringify(opts.body) : undefined,
+          redirect: "follow",
+        });
 
-      if (attempt < 2 && shouldRetryResponse(res, isWrite)) {
-        const retryAfter = res.headers.get("retry-after");
-        const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
-        await new Promise((r) => setTimeout(r, wait));
-        continue;
+        if (attempt < 2 && shouldRetryResponse(res, isWrite)) {
+          const retryAfter = res.headers.get("retry-after");
+          const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+
+        return await parseGhResponse(res, opts);
       }
-
-      return await parseGhResponse(res, opts);
     } catch (e) {
       lastErr = e;
       if (attempt === 2 || /^GitHub API 4/.test(e.message) || (isWrite && /^GitHub API 5/.test(e.message))) throw e;
