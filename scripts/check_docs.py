@@ -74,19 +74,25 @@ def clean(target: str) -> str:
     return target.rstrip("/.,;")
 
 
-def _load_gitignore_patterns() -> list[str]:
+def _load_gitignore_patterns() -> tuple[list[tuple[bool, str]], list[str]]:
     gitignore = ROOT / ".gitignore"
     if not gitignore.is_file():
-        return []
-    patterns: list[str] = []
+        return [], []
+    patterns: list[tuple[bool, str]] = []
+    negations: list[str] = []
     for line in gitignore.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if line and not line.startswith("#") and not line.startswith("!"):
-            patterns.append(line)
-    return patterns
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("!"):
+            negations.append(line[1:].strip())
+        else:
+            is_root = line.startswith("/")
+            patterns.append((is_root, line.strip("/")))
+    return patterns, negations
 
 
-GITIGNORE_PATTERNS = _load_gitignore_patterns()
+GITIGNORE_PATTERNS, GITIGNORE_NEGATIONS = _load_gitignore_patterns()
 
 
 def is_gitignored(path: Path) -> bool:
@@ -97,17 +103,25 @@ def is_gitignored(path: Path) -> bool:
         rel = path.as_posix()
 
     name = path.name
-    for pat in GITIGNORE_PATTERNS:
-        clean_pat = pat.strip("/")
-        if (
-            fnmatch.fnmatch(name, pat)
-            or fnmatch.fnmatch(rel, pat)
-            or fnmatch.fnmatch(rel, clean_pat)
-            or fnmatch.fnmatch(rel, f"*/{clean_pat}")
-            or fnmatch.fnmatch(rel, f"*/{clean_pat}/*")
-            or fnmatch.fnmatch(rel, f"{clean_pat}/*")
-        ):
-            return True
+
+    for neg in GITIGNORE_NEGATIONS:
+        if fnmatch.fnmatch(name, neg) or fnmatch.fnmatch(rel, neg):
+            return False
+
+    for is_root, pat in GITIGNORE_PATTERNS:
+        if is_root:
+            if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(rel, f"{pat}/*"):
+                return True
+        else:
+            if (
+                fnmatch.fnmatch(name, pat)
+                or fnmatch.fnmatch(rel, pat)
+                or fnmatch.fnmatch(rel, clean_pat := pat)
+                or fnmatch.fnmatch(rel, f"*/{clean_pat}")
+                or fnmatch.fnmatch(rel, f"*/{clean_pat}/*")
+                or fnmatch.fnmatch(rel, f"{clean_pat}/*")
+            ):
+                return True
     return False
 
 

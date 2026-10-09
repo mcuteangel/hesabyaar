@@ -46,7 +46,10 @@ class CheckDocsTests(unittest.TestCase):
     def test_is_gitignored_logic(self) -> None:
         self.assertTrue(check_docs.is_gitignored(ROOT / "rust/lcov.info"))
         self.assertTrue(check_docs.is_gitignored(ROOT / "app/build/generated.jar"))
+        self.assertTrue(check_docs.is_gitignored(ROOT / "captures/screenshot.png"))
         self.assertFalse(check_docs.is_gitignored(ROOT / "AGENTS.md"))
+        self.assertFalse(check_docs.is_gitignored(ROOT / ".env.example"))
+        self.assertFalse(check_docs.is_gitignored(ROOT / "docs/captures/screenshot.png"))
         self.assertFalse(check_docs.is_gitignored(ROOT / "some_random_source_file.kt"))
 
     def test_broken_refs_detects_missing_paths(self) -> None:
