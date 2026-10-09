@@ -1,0 +1,21 @@
+scripts/check_docs.py
+  s_7075cf94006e68::t_9cb6c2a1aba8f1 23
+  s_7075cf94006e68::t_b62b1f19c2d498 65-67,71
+  s_7075cf94006e68::t_7d9f1b384387e2 84-110,124-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "420371072d841eb9db87896054a7b35fe17aa92d",
+  "prompts": {},
+  "sessions": {
+    "s_7075cf94006e68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a25113e-5f33-4ec4-a2f4-f44f8449bb90",
+        "model": "poolside/laguna-s-2.1:free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
