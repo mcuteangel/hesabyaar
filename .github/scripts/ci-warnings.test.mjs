@@ -883,6 +883,16 @@ test("buildApiUrl supports /repositories/ endpoints and blocks dot-segments trav
     /GitHub API path must stay on api\.github\.com/
   );
 
+  // Reject bare prefix paths without trailing segments
+  assert.throws(
+    () => buildApiUrl("/repos/"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/repositories/"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+
   // Failure coverage for path traversal via dot-segments attempting to bypass /repos/
   assert.throws(
     () => buildApiUrl("/repos/../user"),
@@ -1023,6 +1033,29 @@ test("resolvePrNumber returns first OPEN PR when no branch match exists", async 
     // No PR matches branch; first OPEN PR (200) is picked, not first overall (100, closed)
     const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
     assert.equal(result, 200);
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns null when only closed PRs exist", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 101, state: "closed", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, null);
   } finally {
     delete process.env.GITHUB_TOKEN;
     globalThis.fetch = originalFetch;

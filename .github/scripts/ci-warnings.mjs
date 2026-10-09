@@ -530,24 +530,27 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
 
 const ALLOWED_API_PREFIXES = ["/repos/", "/repositories/"];
 const ALLOWED_API_HOSTS = ["api.github.com"];
+const API_BASE = "https://api.github.com";
 
 function buildApiUrl(path) {
   if (typeof path !== "string" || path.startsWith("//")) {
     throw new Error(`Invalid GitHub API path: ${path}`);
   }
   // Sanitize: normalize to absolute URL and strip any protocol/host prefix
-  const cleaned = path.startsWith("https://api.github.com/")
-    ? path.slice("https://api.github.com".length)
+  const cleaned = path.startsWith(API_BASE + "/")
+    ? path.slice(API_BASE.length)
     : path;
 
-  const normalized = new URL(cleaned, "https://api.github.com");
-  if (normalized.origin !== "https://api.github.com") {
+  const normalized = new URL(cleaned, API_BASE);
+  if (normalized.origin !== API_BASE) {
     throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
   }
 
   // Enforce that all paths are restricted to /repos/ or /repositories/ prefixes
   // using the normalized pathname to prevent SSRF, path traversal, or non-repo endpoints.
-  const isAllowedPath = ALLOWED_API_PREFIXES.find((p) => normalized.pathname.startsWith(p)) !== undefined;
+  const isAllowedPath =
+    ALLOWED_API_PREFIXES.find((p) => normalized.pathname.startsWith(p) && normalized.pathname.length > p.length) !==
+    undefined;
   if (!isAllowedPath) {
     throw new Error(`GitHub API path must stay on api.github.com: ${path}`);
   }
@@ -759,8 +762,8 @@ async function collectRunFindings(selectedRuns, repo) {
  * Priority: explicit PR_NUMBER env, then a PR lookup by HEAD_SHA.
  * On the default branch (main) PR lookup is skipped and `null` is returned so
  * the report goes to the "CI warnings on main" issue instead.
- * Lookup fallbacks: an open PR whose head matches HEAD_BRANCH, then any open PR,
- * then the first returned PR. Lookup failures are logged and treated as no-PR.
+ * Lookup fallbacks: an open PR whose head matches HEAD_BRANCH, then any open PR.
+ * Closed PRs are never selected. Lookup failures are logged and treated as no-PR.
  */
 async function resolvePrNumber(repo, headSha, headBranch, prNumber) {
   if (prNumber) return prNumber;
@@ -770,8 +773,7 @@ async function resolvePrNumber(repo, headSha, headBranch, prNumber) {
     const pulls = await ghAllPages(`/repos/${repo}/commits/${headSha}/pulls`);
     const matchingPull =
       pulls.find((p) => p.state === "open" && (!headBranch || p.head?.ref === headBranch)) ||
-      pulls.find((p) => p.state === "open") ||
-      pulls[0];
+      pulls.find((p) => p.state === "open");
     if (matchingPull && matchingPull.number) {
       return matchingPull.number;
     }
@@ -857,6 +859,7 @@ async function main() {
 
   // 3. Resolve PR number (skips lookup on default branch)
   const prNumber = await resolvePrNumber(repo, headSha, process.env.HEAD_BRANCH || "", initialPrNumber);
+  const isDefaultBranch = process.env.HEAD_BRANCH === "main" || process.env.GITHUB_REF_NAME === "main";
 
   // 4. Render and post
   const commentBody = renderComment({
@@ -869,9 +872,9 @@ async function main() {
 
   if (prNumber) {
     await postPrComment(repo, prNumber, commentBody);
-  } else if (process.env.HEAD_BRANCH !== "main") {
+  } else if (!isDefaultBranch) {
     // Push to a feature branch with no PR yet: nothing to report into.
-    console.log(`No PR for ${headSha} on ${process.env.HEAD_BRANCH}; skipping`);
+    console.log(`No PR for ${headSha} on ${process.env.HEAD_BRANCH || process.env.GITHUB_REF_NAME}; skipping`);
   } else {
     await postMainBranchIssue(repo, commentBody);
   }
