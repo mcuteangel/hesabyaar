@@ -102,8 +102,8 @@ impl Decimal {
 
         // Scale a down to match (b.scale + target_diff), rounding half-up.
         let drop_scale = scale_diff - target_diff;
-        // Since i128::MAX < 10^39, any mantissa scaled down by >= 39 decimal digits
-        // produces a value strictly < 10^-38 / 10 = 10^-39, which rounds half-up to 0.
+        // Since i128::MAX < 5×10^38, any mantissa scaled down by >= 39 digits
+        // is < (5×10^38) / 10^39 = 0.5, so round-half-up always yields 0.
         let a_mantissa = if drop_scale >= 39 {
             0
         } else if drop_scale > 0 {
@@ -129,8 +129,8 @@ impl Decimal {
     }
 
     /// Round half-up to a whole unit using quotient and remainder to prevent overflow.
-    /// Scale >= 39 means the fractional part dominates (< 10^-38) and rounds half-up to 0:
-    /// i128::MAX < 10^39, so `mantissa / 10^39 < 1` and the value can never reach 0.5.
+    /// Scale >= 39 means mantissa / 10^scale < (5×10^38) / 10^39 = 0.5
+    /// (since i128::MAX < 5×10^38), so the value always rounds half-up to 0.
     fn round_half_up(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
@@ -150,8 +150,8 @@ impl Decimal {
     }
 
     /// Whole part only (fraction truncated), matching the old `f64 as i64`.
-    /// Scale >= 39 means the fractional part dominates (< 10^-38) and the
-    /// integer part is 0: i128::MAX < 10^39, so `mantissa / 10^39 == 0`.
+    /// Scale >= 39 means mantissa / 10^scale < (5×10^38) / 10^39 = 0.5 < 1
+    /// (since i128::MAX < 5×10^38), so the integer part is always 0.
     fn truncated(self) -> Option<i128> {
         if self.scale == 0 {
             Some(self.mantissa)
