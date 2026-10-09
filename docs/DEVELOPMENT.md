@@ -97,6 +97,6 @@ Rules:
 1. Does this break offline functionality?
 2. Does this bypass the Jalali calendar?
 3. Does this affect financial calculation accuracy?
-4. Does this require a Room migration? (See the migration checklist in `AGENTS.md`.)
+4. Does this require a Room migration? (See the migration checklist in `docs/agents/room-migrations.md`.)
 5. Do local backups stay compatible?
 6. Does this add business logic in Kotlin that belongs in the Rust core?

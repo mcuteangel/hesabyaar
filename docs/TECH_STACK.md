@@ -43,7 +43,7 @@ Calendar:
 
 Native (Core):
 - Rust (Cargo) — sole location for NEW feature business logic, calculations, validation, and rule-driven data transformations; Kotlin retains only ADR-001-approved permanent fallbacks (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation). Structural/type mapping (DTO conversion, entity mapping) is a separate Kotlin-permitted activity and is not "data transformation" in the Rust-first sense.
-- UniFFI — Kotlin ↔ Rust FFI bindings: `hesabyar_core.kt` is UniFFI-generated; a small hand-maintained compat wrapper (`HesabyarCore.template.kt`) is appended during `:app:generateAndFixBindings` — see AGENTS.md "Rust Changes Require Binding Regeneration" for the regeneration workflow
+- UniFFI — Kotlin ↔ Rust FFI bindings: `hesabyar_core.kt` is UniFFI-generated; a small hand-maintained compat wrapper (`HesabyarCore.template.kt`) is appended during `:app:generateAndFixBindings` — see `docs/agents/rust.md` "Rust Changes Require Binding Regeneration" for the regeneration workflow
 - cargo-ndk — cross-compilation to Android ABIs
 
 Minimum SDK:
