@@ -1,0 +1,21 @@
+docs/agents/rust.md
+  s_9ac9c2ed34511f::t_572be97fa28daa 29
+docs/agents/room-migrations.md
+  s_9ac9c2ed34511f::t_f43257a2b6361d 7,11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "713ffce75f4d31465a504bca37add21b00634631",
+  "prompts": {},
+  "sessions": {
+    "s_9ac9c2ed34511f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a2ceb7c-353c-493b-8dec-359c4fd14b19",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
