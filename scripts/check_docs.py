@@ -116,10 +116,9 @@ def is_gitignored(path: Path) -> bool:
             if (
                 fnmatch.fnmatch(name, pat)
                 or fnmatch.fnmatch(rel, pat)
-                or fnmatch.fnmatch(rel, clean_pat := pat)
-                or fnmatch.fnmatch(rel, f"*/{clean_pat}")
-                or fnmatch.fnmatch(rel, f"*/{clean_pat}/*")
-                or fnmatch.fnmatch(rel, f"{clean_pat}/*")
+                or fnmatch.fnmatch(rel, f"*/{pat}")
+                or fnmatch.fnmatch(rel, f"*/{pat}/*")
+                or fnmatch.fnmatch(rel, f"{pat}/*")
             ):
                 return True
     return False
@@ -128,7 +127,7 @@ def is_gitignored(path: Path) -> bool:
 def resolves(target: str, base: Path) -> bool:
     candidates = [base / target]
     # Docs often write Kotlin paths relative to the app package (rust/RustBridge.kt).
-    if base == ROOT:
+    if base == ROOT and APP_PKG.is_dir():
         candidates.append(APP_PKG / target)
     return any(c.exists() or is_gitignored(c) for c in candidates)
 
