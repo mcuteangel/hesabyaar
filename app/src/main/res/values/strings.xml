@@ -171,7 +171,7 @@
     <!-- Navigation tabs & More menu -->
     <string name="nav_tab_dashboard">داشبورد</string>
     <string name="nav_tab_assistant">دستیار هوشمند</string>
-    <string name="nav_tab_debts">مدیریت بدهی‌ها</string>
+    <string name="nav_tab_debts">بدهی‌ها</string>
     <string name="nav_tab_analytics">تحلیل و آمار</string>
     <string name="nav_tab_reports">گزارش‌ها</string>
     <string name="nav_tab_accounts">مدیریت حساب‌ها</string>
