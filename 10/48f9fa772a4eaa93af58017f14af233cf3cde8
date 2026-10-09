@@ -1,0 +1,30 @@
+AGENTS.md
+  s_9ac9c2ed34511f::t_567cd30047e1f1 41,44
+docs/agents/room-migrations.md
+  s_9ac9c2ed34511f::t_e3497dfe75c5e5 28
+docs/agents/code-guidelines.md
+  s_9ac9c2ed34511f::t_71af5fa1883561 95
+docs/agents/detekt.md
+  s_9ac9c2ed34511f::t_f34feed0341999 49
+  s_9ac9c2ed34511f::t_7965cbd604490f 31
+docs/agents/testing.md
+  s_9ac9c2ed34511f::t_c09c07fa63d492 96
+  s_9ac9c2ed34511f::t_20fa7d00d76947 50
+  s_9ac9c2ed34511f::t_1e14ab1360b7b8 120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1048f9fa772a4eaa93af58017f14af233cf3cde8",
+  "prompts": {},
+  "sessions": {
+    "s_9ac9c2ed34511f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a2ceb7c-353c-493b-8dec-359c4fd14b19",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
