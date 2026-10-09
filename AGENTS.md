@@ -559,6 +559,10 @@ Every change to the database schema or an `@Entity` class must satisfy this chec
 Required completion statement:
 یک ایجنت نباید تغییر اسکیما را «انجام‌شده» گزارش کند بدون اشاره‌ی مستقیم به فایل JSON اسکیمای جدید و نام دقیق تست MigrationTestHelper که پاس شده است.
 
+## CI Warnings Report
+
+`.github/workflows/ci-warnings-report.yml` collects warnings and deprecations from every workflow run of a commit (check-run annotations plus raw job logs) and keeps one sticky PR comment, or the open "CI warnings on main" issue for runs with no PR (#303). When you add or rename a workflow, add its exact `name:` to that file's `workflow_run.workflows` list; `.github/scripts/ci-warnings.test.mjs` fails until you do. New warning kinds land in "Other"; teach the parser in `.github/scripts/ci-warnings.mjs` with a test instead of ignoring them.
+
 ## Progress Tracking
 
 ### Role of `progress.md`

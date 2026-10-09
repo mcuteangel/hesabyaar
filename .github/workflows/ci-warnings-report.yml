@@ -1,0 +1,82 @@
+# Collects every warning and deprecation that any CI workflow produced for a
+# commit (check-run annotations from actions/runners, plus Kotlin, Gradle,
+# Rust, Node, Python and script warnings from the raw job logs) and posts one
+# sticky PR comment, updated in place on every push (#303). Runs that belong
+# to no PR on main (release, pin manager, schedules) update the single open
+# "CI warnings on main" issue instead.
+#
+# Safety: workflow_run executes in the base repo's context with this file from
+# the default branch. It checks out only .github/scripts from the default
+# branch and never runs PR code, so the write token cannot be reached by a
+# fork. Data from the PR (log text) is only parsed and rendered as markdown.
+#
+# Every other workflow must be listed under workflow_run.workflows by its
+# exact `name:`; .github/scripts/ci-warnings.test.mjs fails when one is missing.
+name: CI Warnings Report
+
+on:
+  workflow_run:
+    workflows:
+      - "AI Issue OS v2 (Self-Healing + Context-Aware Manual)"
+      - "Android CI"
+      - "CodSpeed Benchmarks (Rust)"
+      - "Coveralls Parallel Finish"
+      - "GitGuardian scan"
+      - "GitHub Actions Pin Manager"
+      - "Issue Labeler"
+      - "keep PRs up to date with main"
+      - "Pull Request Labeler"
+      - "Lint GitHub Actions"
+      - "OCR Resolver Tests"
+      - "OpenCodeReview PR Review"
+      - "PR Agent (Gemini 3.1 Flash Lite)"
+      - "Release"
+      - "Rust Lint"
+      - "Summarize new issues"
+      - "Super Linter"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        description: "Commit SHA to report on"
+        required: true
+      pr_number:
+        description: "PR to comment on (empty: report into the main issue)"
+        required: false
+
+permissions: {}
+
+# Each finished workflow re-renders the whole report for its commit, so a newer
+# trigger for the same SHA makes an in-flight one redundant.
+concurrency:
+  group: ci-warnings-${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Default branch only; never the PR head (see header comment).
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Build and post warnings report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || 'main' }}
+          # Empty for fork PRs; the script then looks it up via commits/{sha}/pulls.
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          EVENT: ${{ github.event.workflow_run.event || (inputs.pr_number && 'pull_request') || 'push' }}
+          SELF_WORKFLOW_NAME: ${{ github.workflow }}
+        run: node .github/scripts/ci-warnings.mjs
