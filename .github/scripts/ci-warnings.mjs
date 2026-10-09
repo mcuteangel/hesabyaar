@@ -405,7 +405,14 @@ function categoryLabel(cat) {
 }
 
 function isGeneratedFile(file) {
-  return file && file.endsWith("hesabyar_core.kt");
+  if (!file) return false;
+  return (
+    file.endsWith("hesabyar_core.kt") ||
+    file.endsWith("hesabyar_api.kt") ||
+    file.endsWith("hesabyar_common.kt") ||
+    file.includes("/generated/") ||
+    file.includes("/uniffi/")
+  );
 }
 
 /**
@@ -466,7 +473,7 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
       } else if (f.locations.size > 0) {
         // Link to the specific job corresponding to the location
         const firstLoc = f.locations.values().next().value;
-        const jobUrl = f.jobUrls ? f.jobUrls.get(firstLoc) : f.jobUrl;
+        const jobUrl = f.jobUrls?.get(firstLoc);
         loc = jobUrl ? `[${escapeMarkdown(firstLoc)}](${jobUrl})` : codeSpan(firstLoc);
       }
       const countSuffix = f.count > 1 ? ` ×${f.count} · ${escapeMarkdown([...f.locations].join(", "))}` : "";
@@ -515,6 +522,10 @@ async function gh(path, opts = {}) {
   // contain unexpected host syntax. Note this validates the initial request URL;
   // standard redirect following is preserved for GitHub API responses.
   const url = buildApiUrl(path);
+  const targetUrl = new URL(url);
+  if (targetUrl.origin !== "https://api.github.com") {
+    throw new Error(`SSRF blocked: ${url}`);
+  }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
   // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
   const hasBody = Boolean(opts.body);
@@ -524,7 +535,7 @@ async function gh(path, opts = {}) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl.href, {
         method: opts.method || "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -608,9 +619,9 @@ async function ghAllPages(path) {
 // ---------------------------------------------------------------------------
 
 /**
- * Collect warnings/deprecations from every selected workflow run: check-run
- * annotations plus the raw job logs. Also tracks whether any Android job
- * actually compiled Kotlin (vs. cache) so the report can note stale results.
+ * Detect whether Kotlin compilation actually ran based on Gradle log lines.
+ * Returns true if a real compile occurred, false if only cached/up-to-date,
+ * or preserves currentStatus if no compilation task line is present.
  */
 function detectCodeCompiled(currentStatus, logText) {
   const lines = logText.split(/\r?\n/);
@@ -629,6 +640,11 @@ function detectCodeCompiled(currentStatus, logText) {
   return currentStatus;
 }
 
+/**
+ * Collect warnings/deprecations from every selected workflow run: check-run
+ * annotations plus the raw job logs. Also tracks whether any Android job
+ * actually compiled Kotlin (vs. cache) so the report can note stale results.
+ */
 async function collectRunFindings(selectedRuns, repo, token) {
   const allFindings = [];
   let codeCompiled = undefined; // true/false/undefined
@@ -662,7 +678,11 @@ async function collectRunFindings(selectedRuns, repo, token) {
       try {
         const logPath = `/repos/${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`;
         const logUrl = buildApiUrl(logPath);
-        const logRes = await fetch(logUrl, {
+        const logEndpoint = new URL(logUrl);
+        if (logEndpoint.origin !== "https://api.github.com") {
+          throw new Error(`SSRF blocked: ${logUrl}`);
+        }
+        const logRes = await fetch(logEndpoint.href, {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: "application/vnd.github+json",
@@ -700,7 +720,6 @@ async function main() {
   const headSha = process.env.HEAD_SHA;
   let prNumber = process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER, 10) : null;
   const selfWorkflowName = process.env.SELF_WORKFLOW_NAME;
-  const eventType = process.env.EVENT; // triggering run's event: pull_request, push, schedule...
 
   if (!token || !repo || !headSha) {
     throw new Error("Missing required env: GITHUB_TOKEN, GITHUB_REPOSITORY, HEAD_SHA");
