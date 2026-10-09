@@ -344,11 +344,11 @@ jobs:
 
       - name: Generate Rust bindings
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        run: ./gradlew :app:generateAndFixBindings
+        run: ./gradlew :app:generateAndFixBindings --warning-mode all
 
       - name: Run unit tests
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --warning-mode all
 
       - name: Build release APK and AAB
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
@@ -360,8 +360,8 @@ jobs:
           # APKs need per-ABI splits (GitHub release distribution);
           # the AAB must be built WITHOUT splits, otherwise AGP emits
           # multiple shrunk-resources files and buildReleasePreBundle fails.
-          ./gradlew assembleRelease -PenableAbiSplits=true --no-daemon && \
-          ./gradlew bundleRelease -PenableAbiSplits=false --no-daemon
+          ./gradlew assembleRelease -PenableAbiSplits=true --warning-mode all --no-daemon && \
+          ./gradlew bundleRelease -PenableAbiSplits=false --warning-mode all --no-daemon
 
       - name: Generate checksums
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'

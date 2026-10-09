@@ -149,6 +149,15 @@ test("parseLogLine parses Kotlin warning without file:// prefix", () => {
   assert.equal(f.line, 10);
 });
 
+test("parseLogLine parses Kotlin warning without column number", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt:42 Unused import`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unused");
+  assert.equal(f.file, "app/src/main/java/Foo.kt");
+  assert.equal(f.line, 42);
+});
+
 test("parseLogLine parses Kotlin always-true condition", () => {
   const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt:332:13 Condition 'x > 0' is always 'true'`;
   const f = parseLogLine(line, REPO, "Android CI", "build");
@@ -216,6 +225,16 @@ test("parseLogLine parses ::warning command", () => {
   assert.equal(f.category, "script");
   assert.equal(f.file, "app/src/Foo.kt");
   assert.equal(f.line, 10);
+});
+
+test("parseLogLine parses ::warning command without commas", () => {
+  const line = "::warning file=app/src/Foo.kt::Deprecated API used";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+  assert.equal(f.file, "app/src/Foo.kt");
+  assert.equal(f.line, undefined);
+  assert.equal(f.message, "Deprecated API used");
 });
 
 // ---------------------------------------------------------------------------
@@ -337,6 +356,13 @@ test("parseLog parses Rust warning without location", () => {
   assert.equal(findings[0].category, "rust");
   assert.equal(findings[0].file, undefined);
   assert.equal(findings[0].line, undefined);
+});
+
+test("parseLog does not misclassify generic warning as Rust", () => {
+  const text = "warning: something deprecated in script\n";
+  const findings = parseLog(text, REPO, "Script CI", "build");
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].category, "script");
 });
 
 test("parseLog handles mixed lines", () => {
@@ -507,26 +533,41 @@ test("renderComment does not include codeCompiled note when true or undefined", 
   assert.ok(!md.includes("Kotlin compile was cached"));
 });
 
-test("renderComment truncates long category lists", () => {
+test("renderComment truncates long category lists with weighted counts", () => {
   const findings = [];
   for (let i = 0; i < 60; i++) {
+    // Each finding has count 2 (via duplicate)
     findings.push({ category: "unused", file: `a${i}.kt`, line: i, message: `unused ${i}`, workflow: "CI", job: "build" });
+    findings.push({ category: "unused", file: `a${i}.kt`, line: i, message: `unused ${i}`, workflow: "CI", job: "test" });
   }
   const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
-  assert.ok(md.includes("…and"));
-  assert.ok(md.includes("more (see job logs)"));
+  // Remaining items: 10 items with count 2 = 20 weighted warnings
+  assert.ok(md.includes("…and 20 more (see job logs)"));
 });
 
 test("renderComment truncates overall comment at 60000 chars", () => {
   const findings = [];
-  for (let i = 0; i < 2000; i++) {
-    findings.push({ category: "unused", file: `a${i}.kt`, line: i, message: `unused ${i}`.repeat(10), workflow: "CI", job: "build" });
+  // Use multiple categories with long unique messages to bypass per-category 50 limit
+  // and force the total markdown length past 60000 characters.
+  const categories = [
+    "actions-runtime", "deprecation", "gradle", "unsafe-call", "tautology",
+    "redundant-cast", "unused", "rust", "node", "python", "script", "other"
+  ];
+  for (const cat of categories) {
+    for (let i = 0; i < 50; i++) {
+      findings.push({
+        category: cat,
+        file: `very/long/nested/path/to/source/file/number_${i}.kt`,
+        line: i * 10,
+        message: `Extremely long warning message intended to blow past sixty thousand characters `.repeat(5),
+        workflow: "Workflow Name",
+        job: "Job Name",
+      });
+    }
   }
   const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
-  assert.ok(md.length <= 60100); // Allow small overhead
-  if (md.length > 60000) {
-    assert.ok(md.includes("(comment truncated"));
-  }
+  assert.ok(md.length <= 60000);
+  assert.ok(md.includes("(comment truncated, see job logs for full details)"));
 });
 
 test("renderComment includes count suffix and locations for duplicates", () => {
@@ -612,4 +653,26 @@ test("renderComment survives backticks and links path-less items to their job", 
   const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1 });
   assert.ok(md.includes("``` unused variable: `x` ```"));
   assert.ok(md.includes("[Rust Lint/clippy](https://github.com/o/r/actions/runs/1/job/2)"));
+});
+
+test("renderComment safely handles markdown delimiters and path characters", () => {
+  const findings = [
+    {
+      category: "unused",
+      file: "path/[with]/brackets & (parens)/file#1.kt",
+      line: 15,
+      message: "warning with backticks `x` and brackets [link](https://evil.com)",
+      workflow: "CI",
+      job: "build",
+    },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  // Check that the source link safely encodes the path
+  assert.ok(md.includes("%5Bwith%5D"));
+  assert.ok(md.includes("%26"));
+  assert.ok(md.includes("%231.kt"));
+  // Check that the label brackets are escaped to avoid Markdown injection
+  assert.ok(md.includes("\\[with\\]"));
+  // Check that message with backticks is fenced
+  assert.ok(md.includes("``` warning with backticks `x` and brackets [link](https://evil.com) ```"));
 });

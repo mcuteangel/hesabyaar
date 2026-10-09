@@ -64,13 +64,6 @@ jobs:
       - name: Generate Rust bindings
         run: ./gradlew :app:generateAndFixBindings --warning-mode all
 
-      - name: Compile Rust core (Android .so)
-        # Builds libhesabyar_core.so for every ABI into src/main/jniLibs.
-        # Implicitly wired into KotlinCompile via app/build.gradle.kts, so any
-        # gradle task that compiles Kotlin (testDebugUnitTest, assembleDebug)
-        # also triggers this when Rust sources change.
-        run: ./gradlew :app:compileRustCore --warning-mode all
-
       - name: Run ktlint
         run: ./gradlew ktlintCheck --warning-mode all
 

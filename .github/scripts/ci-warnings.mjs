@@ -98,15 +98,19 @@ function shortSha(sha) {
 function parseLogLine(line, repo, workflow, job) {
   const clean = stripLogPrefix(line);
   // `##[warning]` lines are also published as check-run annotations, which
-  // carry file/line; `##[group]Run ...` and `+ cmd` are command echoes whose
-  // text (e.g. `--warning-mode all`) is not a warning.
-  if (/^##\[/.test(clean) || /^\+ /.test(clean) || /--warning-mode/.test(clean)) return null;
+  // carry file/line; `+ cmd` are command echoes. The Gradle invocation is
+  // echoed as a log line (`./gradlew … --warning-mode all`); that text is not
+  // a warning. Skip only lines that actually look like a gradlew command, not
+  // any line that merely mentions the flag.
+  if (/^##\[/.test(clean) || /^\+ /.test(clean)) return null;
+  if ((/--warning-mode/.test(clean) && /gradlew/.test(clean)) || /^##\[group\]Run\b.*--warning-mode/.test(clean)) return null;
   if (!clean) return null;
 
   // Kotlin compiler warnings: w: file:///home/.../Foo.kt:142:23 Unnecessary safe call ...
-  // Also non-file:// form: w: /home/.../Foo.kt:142:23 ...
+  // Also non-file:// form: w: /home/.../Foo.kt:142:23 ...  The column is
+  // optional: some compiler outputs emit only line:message.
   const kotlinMatch = clean.match(
-    /^w:\s+(?:file:\/\/\/)?([^\s:]+):(\d+):\d+\s+(.+)$/
+    /^w:\s+(?:file:\/\/\/)?([^\s:]+):(\d+)(?::\d+)?\s+(.+)$/
   );
   if (kotlinMatch) {
     const [, file, lineStr, message] = kotlinMatch;
@@ -125,12 +129,19 @@ function parseLogLine(line, repo, workflow, job) {
   if (clean.match(/^w:\s+Kapt support/)) {
     return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
   }
-  if (clean.match(/^WARNING:/) && clean.match(/\b(AGP|Android Gradle|android\.\w+|Gradle)\b/)) {
+  // AGP/Android Gradle warnings print as `WARNING: <...>` with a known AGP/Gradle
+  // token. Require the recognised prefix so a script warning merely mentioning
+  // "android.enableR8" does not get mis-filed as a Gradle deprecation.
+  if (clean.match(/^WARNING:\s/) && clean.match(/\b(AGP|Android Gradle Plugin|android\.enableR8|android\.useAndroidX|Gradle \d|deprecated Gradle)\b/i)) {
     return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
   }
 
-  // Generic workflow command warnings echoed in logs: ::warning file=...,line=...::message
-  const workflowCmdMatch = clean.match(/^::warning\s+(?:file=([^,]+),)?(?:line=(\d+),?)?(?:col=(\d+),?)?::(.+)$/);
+  // Generic workflow command warnings echoed in logs:
+  // ::warning file=...,line=...::message (properties independently optional,
+  // commas optional between parameters)
+  const workflowCmdMatch = clean.match(
+    /^::warning\s+(?:file=([^,:\s]+),?)?\s*(?:line=(\d+),?)?\s*(?:col=(\d+),?)?::(.+)$/
+  );
   if (workflowCmdMatch) {
     const [, file, lineStr, , message] = workflowCmdMatch;
     return {
@@ -152,7 +163,8 @@ function parseLogLine(line, repo, workflow, job) {
     return { category: "python", file: undefined, line: undefined, message: clean, workflow, job };
   }
 
-  // Lines starting with warning:/Warning:/WARN
+  // Lines starting with warning:/Warning:/WARN that are not a Rust diagnostic
+  // (Rust is handled earlier by looking ahead for the `--> loc` line) land here.
   if (clean.match(/^(warning:|Warning:|WARN\s+)/i)) {
     return { category: "script", file: undefined, line: undefined, message: clean, workflow, job };
   }
@@ -208,7 +220,8 @@ function parseLog(text, repo, workflow, job) {
     const rustFirst = line.match(/^warning:\s*(.+)$/i);
     if (rustFirst) {
       const message = rustFirst[1];
-      // Look ahead for the location line
+      // Look ahead for the location line (`--> file:line:col`). A Rust compiler
+      // diagnostic always prints the location on the next line.
       if (i + 1 < lines.length) {
         const nextLine = stripLogPrefix(lines[i + 1]);
         const locMatch = nextLine.match(/^\s*-->\s*([^:]+):(\d+):\d+/);
@@ -227,17 +240,22 @@ function parseLog(text, repo, workflow, job) {
           continue;
         }
       }
-      // No location line found, treat as rust without location
-      findings.push({
-        category: "rust",
-        file: undefined,
-        line: undefined,
-        message,
-        workflow,
-        job,
-      });
-      i++;
-      continue;
+      // If no Rust `-->` location follows, this is either a location-less
+      // rustc warning (like unused crate dependency) or a generic script warning.
+      // Check if it's a known rustc message or let parseLogLine classify it.
+      if (/unused\s+crate\s+dependency|cannot\s+find|clippy::/i.test(message)) {
+        findings.push({
+          category: "rust",
+          file: undefined,
+          line: undefined,
+          message,
+          workflow,
+          job,
+        });
+        i++;
+        continue;
+      }
+      // Fall through to normal line parsing so generic script warnings are not misfiled as Rust.
     }
     // Normal single-line parsing
     const finding = parseLogLine(line, repo, workflow, job);
@@ -253,21 +271,26 @@ function parseLog(text, repo, workflow, job) {
  */
 function categoriseAnnotation(annotation, repo) {
   const level = annotation.annotation_level;
-  if (level === "failure") return null; // Exclude failures
-
   const message = annotation.message || "";
+  // Exclude failures except deprecation-related ones (GitHub Actions runtime
+  // deprecations can be reported at failure level).
+  if (level === "failure" && !/deprecat/i.test(message)) return null;
+
   const path = annotation.path;
   const line = annotation.start_line;
 
-  // Actions runtime deprecations
+  // Actions runtime deprecations: only match known GH Actions deprecation messages.
   if (
     message.includes("Node.js 20 actions are deprecated") ||
-    message.includes("actions are deprecated") ||
+    message.includes("actions are deprecated") && message.includes("will be removed") ||
     message.includes("The `set-output` command is deprecated") ||
-    message.includes("The `set-env` command is deprecated") ||
-    message.includes("command is deprecated") ||
-    message.includes("deprecated") && message.includes("action")
+    message.includes("The `set-env` command is deprecated")
   ) {
+    return { category: "actions-runtime", file: undefined, line: undefined, message };
+  }
+
+  // Generic catch-all for "action ... deprecated" patterns that are likely GitHub Actions runtime
+  if (/deprecated.*(?:GitHub\s+)?Actions|GitHub\s+Actions.*deprecated/i.test(message)) {
     return { category: "actions-runtime", file: undefined, line: undefined, message };
   }
 
@@ -308,7 +331,7 @@ function categoriseAnnotation(annotation, repo) {
 
 /**
  * Deduplicate findings by category+file+line+normalised message.
- * Returns array of { category, file, line, message, count, locations: Set<"workflow/job"> }
+ * Returns array of { category, file, line, message, count, locations: Set<"workflow/job">, jobUrls: Map<"workflow/job", jobUrl> }
  */
 function dedupe(findings) {
   const map = new Map();
@@ -323,12 +346,16 @@ function dedupe(findings) {
         message: f.message, // Keep original first message for display
         count: 0,
         locations: new Set(),
-        jobUrl: f.jobUrl,
+        jobUrls: new Map(), // Map of location string -> jobUrl
       });
     }
     const entry = map.get(key);
     entry.count++;
-    entry.locations.add(`${f.workflow}/${f.job}`);
+    const loc = `${f.workflow}/${f.job}`;
+    entry.locations.add(loc);
+    if (f.jobUrl && !entry.jobUrls.has(loc)) {
+      entry.jobUrls.set(loc, f.jobUrl);
+    }
   }
   return Array.from(map.values());
 }
@@ -423,8 +450,9 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
     const MAX_ITEMS_PER_CAT = 50;
     for (const f of items) {
       if (displayed >= MAX_ITEMS_PER_CAT) {
-        const remaining = items.length - displayed;
-        md += `…and ${remaining} more (see job logs)\n`;
+        // Calculate the remaining weighted count to match the category total in header
+        const remainingWeighted = items.slice(displayed).reduce((sum, item) => sum + item.count, 0);
+        md += `…and ${remainingWeighted} more (see job logs)\n`;
         break;
       }
       displayed++;
@@ -435,9 +463,10 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
         const genTag = isGeneratedFile(f.file) ? " *(generated — fix in Rust/uniffi, not by hand)*" : "";
         loc = `[${escapeMarkdown(f.file)}${f.line ? `:${f.line}` : ""}](${link})${genTag}`;
       } else if (f.locations.size > 0) {
-        // Link to first job
+        // Link to the specific job corresponding to the location
         const firstLoc = f.locations.values().next().value;
-        loc = f.jobUrl ? `[${escapeMarkdown(firstLoc)}](${f.jobUrl})` : codeSpan(firstLoc);
+        const jobUrl = f.jobUrls ? f.jobUrls.get(firstLoc) : f.jobUrl;
+        loc = jobUrl ? `[${escapeMarkdown(firstLoc)}](${jobUrl})` : codeSpan(firstLoc);
       }
       const countSuffix = f.count > 1 ? ` ×${f.count} · ${escapeMarkdown([...f.locations].join(", "))}` : "";
       md += `- ${loc}: ${codeSpan(f.message)}${countSuffix}\n`;
@@ -465,9 +494,9 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
 async function gh(path, opts = {}) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN not set");
-  // Build and validate the URL against the GitHub API origin only. `path` is a
-  // server-controlled API path (never user input), but we pin it to the API
-  // origin so a crafted path cannot redirect fetch to an external host (SSRF).
+  // Build and validate the URL against the GitHub API origin. `path` is a
+  // server-controlled API path (never user input); we pin it to the API origin
+  // to avoid SSRF when resolving relative API endpoints.
   let url;
   try {
     url = new URL(path, "https://api.github.com").toString();
@@ -480,6 +509,8 @@ async function gh(path, opts = {}) {
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
   // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
   const hasBody = Boolean(opts.body);
+
+  const isWrite = opts.method && opts.method !== "GET" && opts.method !== "HEAD";
 
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -500,7 +531,10 @@ async function gh(path, opts = {}) {
         res.status === 429 ||
         (res.status === 403 &&
           (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
-      if (attempt < 2 && (rateLimited || (res.status >= 500 && res.status < 600))) {
+      // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
+      // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
+      const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
+      if (attempt < 2 && shouldRetryStatus) {
         const retryAfter = res.headers.get("retry-after");
         const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
         await new Promise((r) => setTimeout(r, wait));
@@ -564,43 +598,15 @@ async function ghAllPages(path) {
 // Main orchestration
 // ---------------------------------------------------------------------------
 
-async function main() {
-  const token = process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPOSITORY;
-  const headSha = process.env.HEAD_SHA;
-  let prNumber = process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER, 10) : null;
-  const selfWorkflowName = process.env.SELF_WORKFLOW_NAME;
-  const eventType = process.env.EVENT; // triggering run's event: pull_request, push, schedule...
-
-  if (!token || !repo || !headSha) {
-    throw new Error("Missing required env: GITHUB_TOKEN, GITHUB_REPOSITORY, HEAD_SHA");
-  }
-
-  // 1. List workflow runs for HEAD_SHA
-  const runs = await ghAllPages(`/repos/${repo}/actions/runs?head_sha=${headSha}&per_page=100`);
-
-  // Keep latest attempt per workflow, skip self, skip incomplete
-  const latestByWorkflow = new Map();
-  for (const run of runs) {
-    if (run.conclusion === null) continue; // Not completed
-    if (selfWorkflowName && run.name === selfWorkflowName) continue;
-    const existing = latestByWorkflow.get(run.workflow_id);
-    if (!existing || run.run_attempt > existing.run_attempt) {
-      latestByWorkflow.set(run.workflow_id, run);
-    }
-  }
-
-  const selectedRuns = Array.from(latestByWorkflow.values());
-  if (selectedRuns.length === 0) {
-    console.log("No completed workflow runs found for this SHA");
-    return;
-  }
-
-  let allFindings = [];
+/**
+ * Collect warnings/deprecations from every selected workflow run: check-run
+ * annotations plus the raw job logs. Also tracks whether any Android job
+ * actually compiled Kotlin (vs. cache) so the report can note stale results.
+ */
+async function collectRunFindings(selectedRuns, repo, token) {
+  const allFindings = [];
   let codeCompiled = undefined; // true/false/undefined
-  const runsScanned = selectedRuns.length;
 
-  // 2. For each run, fetch jobs, annotations, logs
   for (const run of selectedRuns) {
     const jobs = await ghAllPages(`/repos/${repo}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`);
 
@@ -673,13 +679,50 @@ async function main() {
     }
   }
 
-  // 3. Resolve PR number if not provided (fork PRs)
-  if (!prNumber && eventType === "pull_request") {
-    // Try to get from workflow_run event payload (would need to be passed differently)
-    // Fallback: query commits/{sha}/pulls
+  return { allFindings, codeCompiled };
+}
+
+async function main() {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY;
+  const headSha = process.env.HEAD_SHA;
+  let prNumber = process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER, 10) : null;
+  const selfWorkflowName = process.env.SELF_WORKFLOW_NAME;
+  const eventType = process.env.EVENT; // triggering run's event: pull_request, push, schedule...
+
+  if (!token || !repo || !headSha) {
+    throw new Error("Missing required env: GITHUB_TOKEN, GITHUB_REPOSITORY, HEAD_SHA");
+  }
+
+  // 1. List workflow runs for HEAD_SHA
+  const runs = await ghAllPages(`/repos/${repo}/actions/runs?head_sha=${headSha}&per_page=100`);
+
+  // Keep latest attempt per workflow, skip self, skip incomplete
+  const latestByWorkflow = new Map();
+  for (const run of runs) {
+    if (run.conclusion === null) continue; // Not completed
+    if (selfWorkflowName && run.name === selfWorkflowName) continue;
+    const existing = latestByWorkflow.get(run.workflow_id);
+    if (!existing || run.run_attempt > existing.run_attempt) {
+      latestByWorkflow.set(run.workflow_id, run);
+    }
+  }
+
+  const selectedRuns = Array.from(latestByWorkflow.values());
+  if (selectedRuns.length === 0) {
+    console.log("No completed workflow runs found for this SHA");
+    return;
+  }
+
+  // 2. Collect findings from all selected runs
+  const { allFindings, codeCompiled } = await collectRunFindings(selectedRuns, repo, token);
+  const runsScanned = selectedRuns.length;
+
+  // 3. Resolve PR number if not provided (fork PRs or push-to-branch for open PRs)
+  if (!prNumber) {
     try {
       const pulls = await ghAllPages(`/repos/${repo}/commits/${headSha}/pulls`);
-      if (pulls.length > 0) {
+      if (pulls.length > 0 && pulls[0].number) {
         prNumber = pulls[0].number;
       }
     } catch (e) {
@@ -753,6 +796,7 @@ export {
   escapeMarkdown,
   buildSourceLink,
   shortSha,
+  collectRunFindings,
   gh,
   ghAllPages,
   main,

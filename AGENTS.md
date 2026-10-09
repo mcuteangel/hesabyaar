@@ -140,7 +140,11 @@ The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core
 
 ## CI Warnings Report
 
-`.github/workflows/ci-warnings-report.yml` collects warnings and deprecations from every workflow run of a commit (check-run annotations plus raw job logs) and keeps one sticky PR comment, or updates the open "CI warnings on main" issue for non-PR runs on `main` (#303; non-main runs without a PR are skipped). When you add or rename a workflow, add its exact `name:` to that file's `workflow_run.workflows` list; `.github/scripts/ci-warnings.test.mjs` fails until you do. New warning kinds land in "Other"; teach the parser in `.github/scripts/ci-warnings.mjs` with a test instead of ignoring them.
+`.github/workflows/ci-warnings-report.yml` collects warnings and deprecations from every workflow run of a commit. It collects check-run annotations and raw job logs.
+For pull requests, it maintains one sticky PR comment.
+For non-PR runs on `main`, it updates the open "CI warnings on main" issue (#303). Other branches without a PR are skipped.
+When you add or rename a workflow, add its exact `name:` to that file's `workflow_run.workflows` list. `.github/scripts/ci-warnings.test.mjs` fails until you do.
+New warning kinds land in "Other". Teach the parser in `.github/scripts/ci-warnings.mjs` with a test instead of ignoring them.
 
 ## Keeping Docs in Sync
 
