@@ -389,33 +389,33 @@ w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:10:5 Unused impor
 
 test("categoriseAnnotation returns null for failure level", () => {
   const ann = { annotation_level: "failure", message: "error", path: "Foo.kt", start_line: 10 };
-  assert.equal(categoriseAnnotation(ann, REPO), null);
+  assert.equal(categoriseAnnotation(ann), null);
 });
 
 test("categoriseAnnotation detects Node.js 20 actions deprecated", () => {
   const ann = { annotation_level: "warning", message: "Node.js 20 actions are deprecated", path: undefined, start_line: undefined };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "actions-runtime");
 });
 
 test("categoriseAnnotation detects set-output deprecation", () => {
   const ann = { annotation_level: "warning", message: "The `set-output` command is deprecated", path: undefined, start_line: undefined };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "actions-runtime");
 });
 
 test("categoriseAnnotation detects unexpected input", () => {
   const ann = { annotation_level: "notice", message: "Unexpected input 'foo'", path: undefined, start_line: undefined };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "actions-input");
 });
 
 test("categoriseAnnotation categorises Kotlin file by message", () => {
   const ann = { annotation_level: "warning", message: "Unnecessary safe call", path: "app/src/Foo.kt", start_line: 10 };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "unsafe-call");
   assert.equal(cat.file, "app/src/Foo.kt");
@@ -424,7 +424,7 @@ test("categoriseAnnotation categorises Kotlin file by message", () => {
 
 test("categoriseAnnotation categorises Rust file", () => {
   const ann = { annotation_level: "warning", message: "unused variable", path: "src/main.rs", start_line: 5 };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "rust");
   assert.equal(cat.file, "src/main.rs");
@@ -432,14 +432,14 @@ test("categoriseAnnotation categorises Rust file", () => {
 
 test("categoriseAnnotation categorises JS file", () => {
   const ann = { annotation_level: "warning", message: "deprecated", path: "script.js", start_line: 1 };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "node");
 });
 
 test("categoriseAnnotation categorises Python file", () => {
   const ann = { annotation_level: "warning", message: "deprecated", path: "script.py", start_line: 1 };
-  const cat = categoriseAnnotation(ann, REPO);
+  const cat = categoriseAnnotation(ann);
   assert.ok(cat);
   assert.equal(cat.category, "python");
 });
@@ -815,20 +815,20 @@ test("detectCodeCompiled scans all lines and returns true if any real compile oc
 test("categoriseAnnotation strictly classifies path-less deprecations as script vs actions-runtime", () => {
   // Known actions-runtime signatures
   assert.equal(
-    categoriseAnnotation({ message: "Node.js 20 actions are deprecated" }, REPO).category,
+    categoriseAnnotation({ message: "Node.js 20 actions are deprecated" }).category,
     "actions-runtime"
   );
   assert.equal(
-    categoriseAnnotation({ message: "The `set-output` command is deprecated" }, REPO).category,
+    categoriseAnnotation({ message: "The `set-output` command is deprecated" }).category,
     "actions-runtime"
   );
   // Script warning that merely mentions deprecation without being a runner deprecation
   assert.equal(
-    categoriseAnnotation({ message: "::warning::Deprecated: custom function in deployment script" }, REPO).category,
+    categoriseAnnotation({ message: "::warning::Deprecated: custom function in deployment script" }).category,
     "script"
   );
   assert.equal(
-    categoriseAnnotation({ message: "Deprecated API usage in setup task" }, REPO).category,
+    categoriseAnnotation({ message: "Deprecated API usage in setup task" }).category,
     "script"
   );
 });

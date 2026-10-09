@@ -6,6 +6,9 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
+// ANSI escape sequence matcher created via constructor to satisfy no-control-regex
+const ANSI_REGEX = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
 /**
  * Strip GitHub Actions log timestamp prefix and ANSI escape codes.
  * Example prefix: "2026-10-04T05:12:33.1234567Z "
@@ -13,8 +16,8 @@
 function stripLogPrefix(line) {
   // Remove ISO timestamp with microseconds + 'Z ' prefix
   let s = line.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z\s*/, "");
-  // Remove ANSI escape sequences (use unicode escape to avoid no-control-regex lint warning)
-  s = s.replace(/\u001b\[[0-9;]*m/g, "");
+  // Remove ANSI escape sequences
+  s = s.replace(ANSI_REGEX, "");
   return s;
 }
 
@@ -92,6 +95,57 @@ function shortSha(sha) {
 // Parsers for individual log lines
 // ---------------------------------------------------------------------------
 
+function parseKotlinLine(clean, workflow, job) {
+  // Kotlin compiler warnings: w: file:///home/.../Foo.kt:142:23 Unnecessary safe call ...
+  // Also non-file:// form: w: /home/.../Foo.kt:142:23 ... The column is optional.
+  const match = clean.match(/^w:\s+(?:file:\/\/\/)?([^\s:]+):(\d+)(?::\d+)?\s+(.+)$/);
+  if (!match) return null;
+  const [, file, lineStr, message] = match;
+  return {
+    category: categoriseKotlinMessage(message),
+    file: makeRepoRelative(file),
+    line: parseInt(lineStr, 10),
+    message,
+    workflow,
+    job,
+  };
+}
+
+function parseGradleLine(clean, workflow, job) {
+  if (
+    clean.includes("Deprecated Gradle features were used") ||
+    clean.match(/has been deprecated\.\s*This is scheduled to be removed in Gradle/) ||
+    clean.match(/^w:\s+Kapt support/) ||
+    (clean.match(/^WARNING:\s/) &&
+      clean.match(/\b(AGP|Android Gradle Plugin|android\.enableR8|android\.useAndroidX|Gradle \d+|deprecated Gradle)\b/i))
+  ) {
+    return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
+  }
+  return null;
+}
+
+function parsePythonLine(clean, workflow, job) {
+  if (
+    clean.match(/^(DeprecationWarning|FutureWarning|UserWarning):/) ||
+    clean.match(/^DEPRECATION:\s/) ||
+    (clean.match(/^WARNING:\s/) && clean.match(/\b(pip|python|setuptools|wheel|venv)\b/i))
+  ) {
+    return { category: "python", file: undefined, line: undefined, message: clean, workflow, job };
+  }
+  return null;
+}
+
+function parseNodeLine(clean, workflow, job) {
+  if (
+    clean.match(/^npm\s+(warn|WARN)\s+deprecated\s+/i) ||
+    clean.match(/^\(node:\d+\)\s+\[DEP\d+\]\s+DeprecationWarning:/) ||
+    clean.includes("ExperimentalWarning")
+  ) {
+    return { category: "node", file: undefined, line: undefined, message: clean, workflow, job };
+  }
+  return null;
+}
+
 /**
  * Parse a single log line into a finding object or null.
  * Returns { category, file, line, message, rawLine, workflow, job }
@@ -107,35 +161,11 @@ function parseLogLine(line, repo, workflow, job) {
   if ((/--warning-mode/.test(clean) && /gradlew/.test(clean)) || /^##\[group\]Run\b.*--warning-mode/.test(clean)) return null;
   if (!clean) return null;
 
-  // Kotlin compiler warnings: w: file:///home/.../Foo.kt:142:23 Unnecessary safe call ...
-  // Also non-file:// form: w: /home/.../Foo.kt:142:23 ...  The column is
-  // optional: some compiler outputs emit only line:message.
-  const kotlinMatch = clean.match(
-    /^w:\s+(?:file:\/\/\/)?([^\s:]+):(\d+)(?::\d+)?\s+(.+)$/
-  );
-  if (kotlinMatch) {
-    const [, file, lineStr, message] = kotlinMatch;
-    const relFile = makeRepoRelative(file);
-    const category = categoriseKotlinMessage(message);
-    return { category, file: relFile, line: parseInt(lineStr, 10), message, workflow, job };
-  }
+  const kotlin = parseKotlinLine(clean, workflow, job);
+  if (kotlin) return kotlin;
 
-  // Gradle deprecation warnings
-  if (clean.includes("Deprecated Gradle features were used")) {
-    return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  if (clean.match(/has been deprecated\.\s*This is scheduled to be removed in Gradle/)) {
-    return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  if (clean.match(/^w:\s+Kapt support/)) {
-    return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  // AGP/Android Gradle warnings print as `WARNING: <...>` with a known AGP/Gradle
-  // token. Require the recognised prefix so a script warning merely mentioning
-  // "android.enableR8" does not get mis-filed as a Gradle deprecation.
-  if (clean.match(/^WARNING:\s/) && clean.match(/\b(AGP|Android Gradle Plugin|android\.enableR8|android\.useAndroidX|Gradle \d+|deprecated Gradle)\b/i)) {
-    return { category: "gradle", file: undefined, line: undefined, message: clean, workflow, job };
-  }
+  const gradle = parseGradleLine(clean, workflow, job);
+  if (gradle) return gradle;
 
   // Generic workflow command warnings echoed in logs:
   // ::warning file=...,line=...::message (properties independently optional,
@@ -155,14 +185,8 @@ function parseLogLine(line, repo, workflow, job) {
     };
   }
 
-  // Python warnings
-  if (clean.match(/^(DeprecationWarning|FutureWarning|UserWarning):/)) {
-    return { category: "python", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  if (clean.match(/^DEPRECATION:\s/) || (clean.match(/^WARNING:\s/) && clean.match(/\b(pip|python|setuptools|wheel|venv)\b/i))) {
-    // pip warnings
-    return { category: "python", file: undefined, line: undefined, message: clean, workflow, job };
-  }
+  const python = parsePythonLine(clean, workflow, job);
+  if (python) return python;
 
   // Lines starting with warning:/Warning:/WARN that are not a Rust diagnostic
   // (Rust is handled earlier by looking ahead for the `--> loc` line) land here.
@@ -170,16 +194,8 @@ function parseLogLine(line, repo, workflow, job) {
     return { category: "script", file: undefined, line: undefined, message: clean, workflow, job };
   }
 
-  // Node/npm deprecation warnings
-  if (clean.match(/^npm\s+(warn|WARN)\s+deprecated\s+/i)) {
-    return { category: "node", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  if (clean.match(/^\(node:\d+\)\s+\[DEP\d+\]\s+DeprecationWarning:/)) {
-    return { category: "node", file: undefined, line: undefined, message: clean, workflow, job };
-  }
-  if (clean.includes("ExperimentalWarning")) {
-    return { category: "node", file: undefined, line: undefined, message: clean, workflow, job };
-  }
+  const node = parseNodeLine(clean, workflow, job);
+  if (node) return node;
 
   // Catch-all: anything that looks like a warning but didn't match above
   // Heuristic: contains "warning" or "deprecat" (case-insensitive) and not an error.
@@ -267,11 +283,41 @@ function parseLog(text, repo, workflow, job) {
   return findings;
 }
 
+function categoriseFileAnnotation(path, line, message) {
+  const relPath = makeRepoRelative(path);
+  if (relPath.endsWith(".kt") || relPath.endsWith(".kts")) {
+    return { category: categoriseKotlinMessage(message), file: relPath, line, message };
+  }
+  if (relPath.endsWith(".rs")) {
+    return { category: "rust", file: relPath, line, message };
+  }
+  if (relPath.endsWith(".js") || relPath.endsWith(".ts") || relPath.endsWith(".mjs")) {
+    return { category: "node", file: relPath, line, message };
+  }
+  if (relPath.endsWith(".py")) {
+    return { category: "python", file: relPath, line, message };
+  }
+  return { category: "other", file: relPath, line, message };
+}
+
+function categorisePathlessAnnotation(message) {
+  const isActionsRuntime =
+    /Node\.js \d+ actions are deprecated/i.test(message) ||
+    /actions are deprecated.*will be removed/i.test(message) ||
+    /set-output command is deprecated/i.test(message) ||
+    /set-env command is deprecated/i.test(message) ||
+    /runner version.*deprecated/i.test(message) ||
+    /\bdeprecated[- ]action\b/i.test(message) ||
+    /\bgithub action[s]?\b.*\bdeprecated\b/i.test(message) ||
+    /\bdeprecated\b.*\bgithub action[s]?\b/i.test(message);
+  return { category: isActionsRuntime ? "actions-runtime" : "script", file: undefined, line: undefined, message };
+}
+
 /**
  * Categorise a check-run annotation into a warning category.
  * Only processes warning/notice level; failures are excluded unless deprecation-related.
  */
-function categoriseAnnotation(annotation, repo) {
+function categoriseAnnotation(annotation) {
   const level = annotation.annotation_level;
   const message = annotation.message || "";
   // Exclude failures except deprecation-related ones (GitHub Actions runtime
@@ -298,44 +344,11 @@ function categoriseAnnotation(annotation, repo) {
     return { category: "actions-input", file: undefined, line: undefined, message };
   }
 
-  // If annotation points to a source file, categorise by file extension/content
   if (path) {
-    const relPath = makeRepoRelative(path);
-    if (relPath.endsWith(".kt") || relPath.endsWith(".kts")) {
-      // Could be a Kotlin compiler annotation
-      const cat = categoriseKotlinMessage(message);
-      return { category: cat, file: relPath, line, message };
-    }
-    if (relPath.endsWith(".rs")) {
-      return { category: "rust", file: relPath, line, message };
-    }
-    if (relPath.endsWith(".js") || relPath.endsWith(".ts") || relPath.endsWith(".mjs")) {
-      return { category: "node", file: relPath, line, message };
-    }
-    if (relPath.endsWith(".py")) {
-      return { category: "python", file: relPath, line, message };
-    }
-    return { category: "other", file: relPath, line, message };
+    return categoriseFileAnnotation(path, line, message);
   }
 
-  // A path-less annotation is either a runner/action notice or a script's
-  // `::warning::`. Classify as actions-runtime when the message matches a known
-  // GitHub Actions deprecation signature OR explicitly names a deprecated action
-  // (e.g. "deprecated-action", "action ... deprecated"). Otherwise treat as
-  // script so unrelated deprecations aren't mislabeled as runtime ones. The
-  // action-context match is anchored so it only fires on clear action references,
-  // not any sentence that merely contains "action" and "deprecated" far apart.
-  const isActionsRuntime =
-    /Node\.js \d+ actions are deprecated/i.test(message) ||
-    /actions are deprecated.*will be removed/i.test(message) ||
-    /set-output command is deprecated/i.test(message) ||
-    /set-env command is deprecated/i.test(message) ||
-    /runner version.*deprecated/i.test(message) ||
-    /\bdeprecated[- ]action\b/i.test(message) ||
-    /\bgithub action[s]?\b.*\bdeprecated\b/i.test(message) ||
-    /\bdeprecated\b.*\bgithub action[s]?\b/i.test(message);
-  const category = isActionsRuntime ? "actions-runtime" : "script";
-  return { category, file: undefined, line: undefined, message };
+  return categorisePathlessAnnotation(message);
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +434,52 @@ function isGeneratedFile(file) {
   return file.endsWith("hesabyar_core.kt") || file.includes("/uniffi/");
 }
 
+function renderFindingLocation(f, repo, sha) {
+  if (f.file) {
+    const link = buildSourceLink(repo, sha, f.file, f.line || 1);
+    const genTag = isGeneratedFile(f.file) ? " *(generated — fix in Rust/uniffi, not by hand)*" : "";
+    return `[${escapeMarkdown(f.file)}${f.line ? `:${f.line}` : ""}](${link})${genTag}`;
+  }
+  if (f.locations.size > 0) {
+    const firstLoc = f.locations.values().next().value;
+    const jobUrl = f.jobUrls?.get(firstLoc);
+    return jobUrl ? `[${escapeMarkdown(firstLoc)}](${jobUrl})` : codeSpan(firstLoc);
+  }
+  return "";
+}
+
+function renderCategoryDetails(items, cat, repo, sha) {
+  const total = items.reduce((sum, f) => sum + f.count, 0);
+  let md = `<details><summary>${categoryLabel(cat)} (${total})</summary>\n\n`;
+
+  let displayed = 0;
+  const MAX_ITEMS_PER_CAT = 50;
+  for (const f of items) {
+    if (displayed >= MAX_ITEMS_PER_CAT) {
+      const remainingWeighted = items.slice(displayed).reduce((sum, item) => sum + item.count, 0);
+      md += `…and ${remainingWeighted} more (see job logs)\n`;
+      break;
+    }
+    displayed++;
+
+    const loc = renderFindingLocation(f, repo, sha);
+    const countSuffix = f.count > 1 ? ` ×${f.count} · ${escapeMarkdown([...f.locations].join(", "))}` : "";
+    md += `- ${loc}: ${codeSpan(f.message)}${countSuffix}\n`;
+  }
+  md += "\n</details>\n\n";
+  return md;
+}
+
+function renderSummaryTable(byCat) {
+  let md = "Category | Count\n---------|------\n";
+  for (const cat of CATEGORY_ORDER) {
+    if (byCat.has(cat)) {
+      md += `${categoryLabel(cat)} | ${byCat.get(cat).reduce((sum, f) => sum + f.count, 0)}\n`;
+    }
+  }
+  return md + "\n";
+}
+
 /**
  * Render the markdown comment body.
  */
@@ -443,49 +502,13 @@ function renderComment({ findings, sha, repo, runsScanned, codeCompiled }) {
   md += `**Commit:** ${shortSha(sha)}  \n`;
   md += `**Total:** ${findings.length} warnings (${deduped.length} unique) in ${runsScanned} workflows\n\n`;
 
-  // Summary table
-  md += "Category | Count\n";
-  md += "---------|------\n";
-  for (const cat of CATEGORY_ORDER) {
-    if (byCat.has(cat)) {
-      md += `${categoryLabel(cat)} | ${byCat.get(cat).reduce((sum, f) => sum + f.count, 0)}\n`;
-    }
-  }
-  md += "\n";
+  md += renderSummaryTable(byCat);
 
   // Details per category
   for (const cat of CATEGORY_ORDER) {
-    if (!byCat.has(cat)) continue;
-    const items = byCat.get(cat);
-    const total = items.reduce((sum, f) => sum + f.count, 0);
-    md += `<details><summary>${categoryLabel(cat)} (${total})</summary>\n\n`;
-
-    let displayed = 0;
-    const MAX_ITEMS_PER_CAT = 50;
-    for (const f of items) {
-      if (displayed >= MAX_ITEMS_PER_CAT) {
-        // Calculate the remaining weighted count to match the category total in header
-        const remainingWeighted = items.slice(displayed).reduce((sum, item) => sum + item.count, 0);
-        md += `…and ${remainingWeighted} more (see job logs)\n`;
-        break;
-      }
-      displayed++;
-
-      let loc = "";
-      if (f.file) {
-        const link = buildSourceLink(repo, sha, f.file, f.line || 1);
-        const genTag = isGeneratedFile(f.file) ? " *(generated — fix in Rust/uniffi, not by hand)*" : "";
-        loc = `[${escapeMarkdown(f.file)}${f.line ? `:${f.line}` : ""}](${link})${genTag}`;
-      } else if (f.locations.size > 0) {
-        // Link to the specific job corresponding to the location
-        const firstLoc = f.locations.values().next().value;
-        const jobUrl = f.jobUrls?.get(firstLoc);
-        loc = jobUrl ? `[${escapeMarkdown(firstLoc)}](${jobUrl})` : codeSpan(firstLoc);
-      }
-      const countSuffix = f.count > 1 ? ` ×${f.count} · ${escapeMarkdown([...f.locations].join(", "))}` : "";
-      md += `- ${loc}: ${codeSpan(f.message)}${countSuffix}\n`;
+    if (byCat.has(cat)) {
+      md += renderCategoryDetails(byCat.get(cat), cat, repo, sha);
     }
-    md += "\n</details>\n\n";
   }
 
   if (codeCompiled === false) {
@@ -531,6 +554,35 @@ function buildApiUrl(path) {
   return normalized.href;
 }
 
+function shouldRetryResponse(res, isWrite) {
+  const rateLimited =
+    res.status === 429 ||
+    (res.status === 403 &&
+      (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
+  // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
+  // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
+  return rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
+}
+
+async function parseGhResponse(res, opts) {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub API ${res.status}: ${text}`);
+  }
+
+  if (opts.rawText) {
+    const text = await res.text();
+    return { data: text, link: null };
+  }
+
+  const link = res.headers.get("link");
+  const data = await res.json();
+  if (!link || !link.includes('rel="next"')) {
+    return { data, link: null };
+  }
+  return { data, link };
+}
+
 async function gh(path, opts = {}) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN not set");
@@ -545,7 +597,6 @@ async function gh(path, opts = {}) {
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
   // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
   const hasBody = Boolean(opts.body);
-
   const isWrite = opts.method && opts.method !== "GET" && opts.method !== "HEAD";
 
   let lastErr;
@@ -564,38 +615,14 @@ async function gh(path, opts = {}) {
         redirect: "follow",
       });
 
-      const rateLimited =
-        res.status === 429 ||
-        (res.status === 403 &&
-          (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after")));
-      // Only retry 5xx errors for idempotent read requests (GET). For POST/PATCH,
-      // retry only on rate-limiting so a 5xx does not duplicate a comment or issue.
-      const shouldRetryStatus = rateLimited || (!isWrite && res.status >= 500 && res.status < 600);
-      if (attempt < 2 && shouldRetryStatus) {
+      if (attempt < 2 && shouldRetryResponse(res, isWrite)) {
         const retryAfter = res.headers.get("retry-after");
         const wait = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * (attempt + 1);
         await new Promise((r) => setTimeout(r, wait));
         continue;
       }
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`GitHub API ${res.status}: ${text}`);
-      }
-
-      if (opts.rawText) {
-        const text = await res.text();
-        return { data: text, link: null };
-      }
-
-      // Handle pagination via Link header
-      const link = res.headers.get("link");
-      const data = await res.json();
-      if (!link || !link.includes('rel="next"')) {
-        return { data, link: null };
-      }
-      // For simplicity, we only return first page; caller should handle pagination if needed
-      return { data, link };
+      return await parseGhResponse(res, opts);
     } catch (e) {
       lastErr = e;
       if (attempt === 2 || /^GitHub API 4/.test(e.message) || (isWrite && /^GitHub API 5/.test(e.message))) throw e;
@@ -681,7 +708,7 @@ async function collectRunFindings(selectedRuns, repo) {
       try {
         const annotations = await ghAllPages(`/repos/${repo}/check-runs/${job.id}/annotations?per_page=100`);
         for (const ann of annotations) {
-          const cat = categoriseAnnotation(ann, repo);
+          const cat = categoriseAnnotation(ann);
           if (cat) {
             allFindings.push({
               ...cat,
@@ -750,6 +777,57 @@ async function resolvePrNumber(repo, headSha, headBranch, prNumber) {
   return null;
 }
 
+function selectLatestRuns(runs, selfWorkflowName) {
+  const latestByWorkflow = new Map();
+  for (const run of runs) {
+    if (run.conclusion === null) continue; // Not completed
+    if (selfWorkflowName && run.name === selfWorkflowName) continue;
+    const existing = latestByWorkflow.get(run.workflow_id);
+    if (!existing || run.run_attempt > existing.run_attempt) {
+      latestByWorkflow.set(run.workflow_id, run);
+    }
+  }
+  return Array.from(latestByWorkflow.values());
+}
+
+async function postPrComment(repo, prNumber, commentBody) {
+  const comments = await ghAllPages(`/repos/${repo}/issues/${prNumber}/comments?per_page=100`);
+  const existing = comments.find(
+    (c) => c.user?.login === "github-actions[bot]" && (c.body || "").includes("<!-- ci-warnings-report -->"),
+  );
+  if (existing) {
+    await gh(`/repos/${repo}/issues/comments/${existing.id}`, {
+      method: "PATCH",
+      body: { body: commentBody },
+    });
+    console.log(`Updated existing comment #${existing.id}`);
+  } else {
+    await gh(`/repos/${repo}/issues/${prNumber}/comments`, {
+      method: "POST",
+      body: { body: commentBody },
+    });
+    console.log("Created new comment");
+  }
+}
+
+async function postMainBranchIssue(repo, commentBody) {
+  const issues = await ghAllPages(`/repos/${repo}/issues?state=open&labels=ci&per_page=100`);
+  const issue = issues.find((i) => i.title === "CI warnings on main");
+  if (issue) {
+    await gh(`/repos/${repo}/issues/${issue.number}`, {
+      method: "PATCH",
+      body: { body: commentBody },
+    });
+    console.log(`Updated issue #${issue.number}`);
+  } else {
+    const created = await gh(`/repos/${repo}/issues`, {
+      method: "POST",
+      body: { title: "CI warnings on main", body: commentBody, labels: ["ci"] },
+    });
+    console.log(`Created issue #${created.data.number}`);
+  }
+}
+
 async function main() {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -763,19 +841,7 @@ async function main() {
 
   // 1. List workflow runs for HEAD_SHA
   const runs = await ghAllPages(`/repos/${repo}/actions/runs?head_sha=${headSha}&per_page=100`);
-
-  // Keep latest attempt per workflow, skip self, skip incomplete
-  const latestByWorkflow = new Map();
-  for (const run of runs) {
-    if (run.conclusion === null) continue; // Not completed
-    if (selfWorkflowName && run.name === selfWorkflowName) continue;
-    const existing = latestByWorkflow.get(run.workflow_id);
-    if (!existing || run.run_attempt > existing.run_attempt) {
-      latestByWorkflow.set(run.workflow_id, run);
-    }
-  }
-
-  const selectedRuns = Array.from(latestByWorkflow.values());
+  const selectedRuns = selectLatestRuns(runs, selfWorkflowName);
   if (selectedRuns.length === 0) {
     console.log("No completed workflow runs found for this SHA");
     return;
@@ -798,45 +864,12 @@ async function main() {
   });
 
   if (prNumber) {
-    // Find existing comment by marker
-    const comments = await ghAllPages(`/repos/${repo}/issues/${prNumber}/comments?per_page=100`);
-    const existing = comments.find(
-      (c) => c.user?.login === "github-actions[bot]" && (c.body || "").includes("<!-- ci-warnings-report -->"),
-    );
-    if (existing) {
-      await gh(`/repos/${repo}/issues/comments/${existing.id}`, {
-        method: "PATCH",
-        body: { body: commentBody },
-      });
-      console.log(`Updated existing comment #${existing.id}`);
-    } else {
-      await gh(`/repos/${repo}/issues/${prNumber}/comments`, {
-        method: "POST",
-        body: { body: commentBody },
-      });
-      console.log("Created new comment");
-    }
+    await postPrComment(repo, prNumber, commentBody);
   } else if (process.env.HEAD_BRANCH !== "main") {
     // Push to a feature branch with no PR yet: nothing to report into.
     console.log(`No PR for ${headSha} on ${process.env.HEAD_BRANCH}; skipping`);
   } else {
-    // Find or create issue "CI warnings on main"
-    let issue = null;
-    const issues = await ghAllPages(`/repos/${repo}/issues?state=open&labels=ci&per_page=100`);
-    issue = issues.find((i) => i.title === "CI warnings on main");
-    if (issue) {
-      await gh(`/repos/${repo}/issues/${issue.number}`, {
-        method: "PATCH",
-        body: { body: commentBody },
-      });
-      console.log(`Updated issue #${issue.number}`);
-    } else {
-      const created = await gh(`/repos/${repo}/issues`, {
-        method: "POST",
-        body: { title: "CI warnings on main", body: commentBody, labels: ["ci"] },
-      });
-      console.log(`Created issue #${created.data.number}`);
-    }
+    await postMainBranchIssue(repo, commentBody);
   }
 }
 
