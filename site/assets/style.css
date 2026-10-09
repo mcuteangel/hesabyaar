@@ -48,6 +48,11 @@ html {
   html {
     scroll-behavior: auto;
   }
+
+  .btn:hover,
+  .dl:hover {
+    transform: none;
+  }
 }
 
 body {
@@ -334,6 +339,10 @@ h3 {
 /* Sections */
 .section {
   padding: clamp(3rem, 7vw, 5rem) 0;
+}
+
+section[id] {
+  scroll-margin-top: calc(64px + 1rem);
 }
 
 .section--alt {

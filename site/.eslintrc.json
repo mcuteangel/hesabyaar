@@ -13,7 +13,7 @@
   },
   "overrides": [
     {
-      "files": ["site/**/*.js"],
+      "files": ["**/*.js"],
       "rules": {}
     }
   ]

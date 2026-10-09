@@ -18,6 +18,9 @@
     : [];
   if (shots.length) {
     const list = document.getElementById("shots-list");
+    if (!list) {
+      return;
+    }
     shots.forEach((shot) => {
       const itemElement = document.createElement("li");
       const fig = document.createElement("figure");
@@ -64,14 +67,24 @@
     .then((release) => {
       const assets = release.assets || [];
       const found = ABIS.map((abi) => {
-        const asset = assets.find((candidate) => candidate.name.endsWith(`-${abi.key}.apk`));
+        const asset = assets.find((candidate) =>
+          candidate.name.toLowerCase().endsWith(`-${abi.key}.apk`));
         return asset ? { abi, asset } : null;
       }).filter(Boolean);
+
+      const versionElement = document.getElementById("release-version");
+      if (versionElement) {
+        versionElement.textContent = release.tag_name;
+      }
+
       if (!found.length) {
         return;
       }
 
       const downloadsList = document.getElementById("downloads");
+      if (!downloadsList) {
+        return;
+      }
       downloadsList.textContent = "";
       found.forEach((item) => {
         const listItem = document.createElement("li");
@@ -89,13 +102,13 @@
       });
 
       const universal = found.find((item) => item.abi.key === "universal");
-      if (universal) {
-        document.getElementById("hero-download").href =
-          universal.asset.browser_download_url;
+      const heroDownload = document.getElementById("hero-download");
+      if (universal && heroDownload) {
+        heroDownload.href = universal.asset.browser_download_url;
       }
-      document.getElementById("release-version").textContent = release.tag_name;
     })
-    .catch(() => {
-      // Keep the static fallback links.
+    .catch((error) => {
+      // Keep static fallback links; log so failures are discoverable.
+      console.warn("Unable to fetch latest release from GitHub API:", error);
     });
 })();

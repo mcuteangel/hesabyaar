@@ -9,6 +9,7 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
+      - "VERSION"
   workflow_dispatch:
 
 permissions:
