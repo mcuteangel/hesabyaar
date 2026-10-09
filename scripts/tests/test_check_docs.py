@@ -29,13 +29,13 @@ class CheckDocsTests(unittest.TestCase):
         self.assertEqual(check_docs.clean("AGENTS.md?query=test#heading"), "AGENTS.md")
 
     def test_is_external_or_anchor(self) -> None:
-        self.assertTrue(check_docs._is_external_or_anchor("#section-heading"))
-        self.assertTrue(check_docs._is_external_or_anchor("https://github.com/foo/bar"))
-        self.assertTrue(check_docs._is_external_or_anchor("HTTP://EXAMPLE.COM"))
-        self.assertTrue(check_docs._is_external_or_anchor("mailto:dev@example.com"))
-        self.assertTrue(check_docs._is_external_or_anchor("//cdn.example.com/asset.js"))
-        self.assertFalse(check_docs._is_external_or_anchor("docs/ROADMAP.md"))
-        self.assertFalse(check_docs._is_external_or_anchor("../AGENTS.md"))
+        self.assertTrue(check_docs.is_external_or_anchor("#section-heading"))
+        self.assertTrue(check_docs.is_external_or_anchor("https://github.com/foo/bar"))
+        self.assertTrue(check_docs.is_external_or_anchor("HTTP://EXAMPLE.COM"))
+        self.assertTrue(check_docs.is_external_or_anchor("mailto:dev@example.com"))
+        self.assertTrue(check_docs.is_external_or_anchor("//cdn.example.com/asset.js"))
+        self.assertFalse(check_docs.is_external_or_anchor("docs/ROADMAP.md"))
+        self.assertFalse(check_docs.is_external_or_anchor("../AGENTS.md"))
 
     def test_gitignored_or_existing_path_resolves(self) -> None:
         self.assertTrue(check_docs.resolves("AGENTS.md", ROOT))
@@ -103,6 +103,7 @@ See [ref1] and [ref2].
             cwd=ROOT,
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertEqual(result.returncode, 0)
 

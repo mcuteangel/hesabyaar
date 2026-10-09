@@ -96,7 +96,7 @@ def resolves(target: str, base: Path) -> bool:
     return any(c.exists() or is_gitignored(c) for c in candidates)
 
 
-def _is_external_or_anchor(raw: str) -> bool:
+def is_external_or_anchor(raw: str) -> bool:
     if raw.startswith("#"):
         return True
     parsed = urllib.parse.urlsplit(raw)
@@ -111,7 +111,7 @@ def _check_links(line: str, lineno: int, base: Path) -> list[tuple[int, str]]:
 
     findings: list[tuple[int, str]] = []
     for raw in raw_targets:
-        if _is_external_or_anchor(raw):
+        if is_external_or_anchor(raw):
             continue
         target = clean(raw)
         if (

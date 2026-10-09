@@ -24,4 +24,6 @@ jobs:
           persist-credentials: false
 
       - name: Check docs
-        run: python3 scripts/check_docs.py
+        run: |
+          python3 -m unittest scripts.tests.test_check_docs
+          python3 scripts/check_docs.py
