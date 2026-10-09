@@ -25,7 +25,7 @@
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UnarchiveAccountUseCase.kt` | بازیابی حساب |
 
-### فایل‌های ویرایشی
+### فایل‌های ویرایشی <!-- check-docs: planned -->
 | فایل | تغییر |
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountEvent.kt` | اضافه کردن OnUnarchiveAccount |

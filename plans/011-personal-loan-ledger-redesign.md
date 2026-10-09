@@ -1,3 +1,5 @@
+Status: In progress (see `plans/README.md`)
+
 > **Executor instructions**: Follow this plan phase by phase. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
