@@ -89,6 +89,9 @@ PR #385 (`fix/back-navigation`): Address review comments and expand test coverag
 | MainNavigationCoordinatorTest overlay and callback coverage | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt` | done |
 | Replace hardcoded strings with Context.getString in tests | `app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt` | done |
 | Address bot review findings (DeepSource, Kilo Code, Cubic) | PR #385 review threads | done |
+| Extract navigation bars and content wrappers to testable file | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
+| Unit test suite covering all navigation bar & content components | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
+| DeepSource TCV-001 coverage fix (move untestable Hilt lines out) | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
 
 ## Blocked
 
@@ -121,15 +124,22 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 | Check | Command | Result |
 |---|---|---|
-| Navigation unit tests | `./gradlew.bat testDebugUnitTest --tests "io.github.mojri.hesabyar.MoreMenuSheetTest" --tests "io.github.mojri.hesabyar.MainNavigationCoordinatorTest" --tests "io.github.mojri.hesabyar.MainActivityBackNavigationTest" --tests "io.github.mojri.hesabyar.MainActivityNavigationTest"` | PASS (37 tests, 0 failures, BUILD SUCCESSFUL) |
+| Navigation unit tests (incl. new coverage-fix suite) | `./gradlew.bat testDebugUnitTest --tests "io.github.mojri.hesabyar.MainNavigationComponentsTest" --tests "io.github.mojri.hesabyar.MoreMenuSheetTest" --tests "io.github.mojri.hesabyar.MainNavigationCoordinatorTest" --tests "io.github.mojri.hesabyar.MainActivityBackNavigationTest" --tests "io.github.mojri.hesabyar.MainActivityNavigationTest"` | PASS (BUILD SUCCESSFUL, exit 0). `MainNavigationComponentsTest`: 9 tests, 0 failures. |
 | Kotlin style | `./gradlew.bat ktlintFormat --no-daemon` | PASS |
 | Static analysis | `./gradlew.bat ktlintCheck detekt --no-daemon` | PASS (BUILD SUCCESSFUL, 0 findings) |
-| GitHub CI | PR #385 actions | PASS / In-progress |
+| GitHub CI | PR #385 actions | In-progress (DeepSource coverage re-upload pending) |
+
+### DeepSource TCV-001 — Root Cause and Fix
+
+- **Root cause:** `MainActivity` is a Hilt `@AndroidEntryPoint` `FragmentActivity`. Unit tests never execute it, so every line inside it reported 0% coverage. PR #385 previously added the `MainBottomNavigation` / `MainNavigationRail` / `CompactMainContent` / `ExpandedMainContent` components as `private` members of `MainActivity`, leaving ~186 lines uncovered (DeepSource TCV-001 "Lines not covered in tests", Critical).
+- **Fix:** Moved those 4 components plus `NavigationTabItem`, `MAIN_TABS`, `MORE_MENU_TABS` into a new, testable file `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` (re-scoped `internal`). `MainActivity.MainScreenScaffold` now calls them via the same-package `internal` symbols.
+- **Coverage of moved lines:** `MainNavigationComponentsTest` (9 Robolectric Compose tests) covers every branch of all four components (tab render, tab click callback, more click callback, more-menu highlight). JaCoCo now captures them via the `isIncludeNoLocationClasses = true` config (issue #285).
 
 ## Next Steps
 
-1. Await CI workflow completion and verify coverage report upload on PR #385.
-2. Confirm PR auto-merge once all required checks pass.
+1. Push the refactor to `origin/fix/back-navigation` (fast-forward; no force-push).
+2. Await DeepSource "Test coverage" re-run on PR #385 and confirm it turns green.
+3. Confirm PR auto-merge once all required checks pass.
 
 ## Last Updated
 

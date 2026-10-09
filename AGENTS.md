@@ -381,6 +381,7 @@ Graphify builds a persistent knowledge graph of the codebase. It maps code struc
 
 ### When to use it
 
+- Always use Graphify when finding connections, references, callers, or dependencies between components.
 - Before answering "why does X connect to Y?", "what calls Z?", or "trace the data flow".
 - When exploring cross-cutting concerns across multiple modules.
 - When a question requires understanding relationships that span Rust, Kotlin, FFI, and UI layers.
@@ -398,7 +399,7 @@ graphify path "AccountEntity" "RustBridge" --undirected
 graphify explain "AccountEntity"
 
 # Incremental update (after code changes)
-graphify --update
+graphify update .
 ```
 
 ### Setup
@@ -414,7 +415,7 @@ graphify --update
 
 ### Rules
 
-- Use `graphify query` for cross-cutting questions ("why does X connect to Y?"). Use Serena `find_symbol`/`find_referencing_symbols` for live symbol lookup. Neither replaces reading code.
+- Use `graphify query` to find connections, references, callers, dependencies, and cross-cutting relationships. Use Serena `find_symbol`/`find_referencing_symbols` for live symbol lookup. Neither replaces reading code.
 - Treat community boundaries as hypotheses — verify against actual code dependencies before acting on them.
 - God nodes (highest degree) are central abstractions. Changes to them affect many modules.
 
