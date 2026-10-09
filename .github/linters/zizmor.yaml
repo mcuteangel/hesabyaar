@@ -11,9 +11,8 @@ rules:
   # in these files.
   impostor-commit:
     ignore:
-      - rust-lint.yml:38
-      - codspeed-rust.yml:33
       - .github/actions/setup-rust-android/action.yml:22
+      - .github/actions/setup-rust/action.yml:15
   # OpenCodeReview requires pull_request_target and issues/pull-requests write
   # to review fork pull requests and post/update review comments securely.
   # coveralls-finish.yml uses workflow_run but never checks out code; it only
