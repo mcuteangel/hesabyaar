@@ -62,27 +62,20 @@ jobs:
         run: chmod +x gradlew
 
       - name: Generate Rust bindings
-        run: ./gradlew :app:generateAndFixBindings
-
-      - name: Compile Rust core (Android .so)
-        # Builds libhesabyar_core.so for every ABI into src/main/jniLibs.
-        # Implicitly wired into KotlinCompile via app/build.gradle.kts, so any
-        # gradle task that compiles Kotlin (testDebugUnitTest, assembleDebug)
-        # also triggers this when Rust sources change.
-        run: ./gradlew :app:compileRustCore
+        run: ./gradlew :app:generateAndFixBindings --warning-mode all
 
       - name: Run ktlint
-        run: ./gradlew ktlintCheck
+        run: ./gradlew ktlintCheck --warning-mode all
 
       - name: Run detekt
-        run: ./gradlew detekt
+        run: ./gradlew detekt --warning-mode all
 
       - name: Run Unit Tests with Coverage (including Rust-bridge JNI)
         # Name the test tasks explicitly: if the dependsOn chain in
         # gradle/jacoco-coverage.gradle.kts breaks, this step still fails
         # instead of publishing a report from stale exec files.
         # Gradle runs each task once per invocation (no duplicate work).
-        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport
+        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport --warning-mode all
 
       - name: Assert coverage report exists
         run: test -s app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
@@ -184,7 +177,7 @@ jobs:
           coverage-files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --warning-mode all
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

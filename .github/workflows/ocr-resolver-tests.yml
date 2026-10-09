@@ -1,4 +1,5 @@
-# Unit tests for the OCR stale-thread audit decision core. Pure node:test;
+# Unit tests for .github/scripts: the OCR stale-thread audit decision core
+# and the CI warnings report parser (#303). Pure node:test;
 # no framework, no setup-node needed (ubuntu-latest ships a current Node).
 name: OCR Resolver Tests
 
@@ -7,10 +8,12 @@ on:
     paths:
       - ".github/scripts/**"
       - ".github/workflows/ocr-resolver-tests.yml"
+      - ".github/workflows/ci-warnings-report.yml"
   pull_request:
     paths:
       - ".github/scripts/**"
       - ".github/workflows/ocr-resolver-tests.yml"
+      - ".github/workflows/ci-warnings-report.yml"
   workflow_dispatch:
 
 permissions:
@@ -40,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run OCR resolver tests with coverage
-        run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-ocr.xml --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/ocr-resolve.test.mjs
+        run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-ocr.xml --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/*.test.mjs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
