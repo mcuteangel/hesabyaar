@@ -1,6 +1,3 @@
-/* eslint-env browser, es2022 */
-/* eslint-disable no-var */
-
 (() => {
   "use strict";
 
