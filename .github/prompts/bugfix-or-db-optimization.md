@@ -12,7 +12,7 @@ Use this template when diagnosing and fixing bugs or optimizing queries and data
 - [ ] Reproduced failure with a failing automated test BEFORE making implementation changes.
 - [ ] Documented the exact reproduction command and failure output.
 - [ ] Verified whether the defect is pre-existing using `git log` / `git blame` rather than assuming.
-- [ ] If Room schema or entity is affected, verified the change against the `Room Migration Checklist` in `AGENTS.md`.
+- [ ] If Room schema or entity is affected, verified the change against the `Room Migration Checklist` in `docs/agents/room-migrations.md`.
 - [ ] If business logic is affected, verified canonical fix belongs in `rust/hesabyar-core`.
 - [ ] If FFI boundary is touched, verified binding regeneration and isolated bridge tests.
 
