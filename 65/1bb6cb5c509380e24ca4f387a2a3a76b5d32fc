@@ -1,0 +1,21 @@
+scripts/check_docs.py
+  s_9ac9c2ed34511f::t_b38539c6daa54a 77,80-82,85-92,95,106-124
+scripts/tests/test_check_docs.py
+  s_9ac9c2ed34511f::t_93a82ef4f0e855 49,51-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "651bb6cb5c509380e24ca4f387a2a3a76b5d32fc",
+  "prompts": {},
+  "sessions": {
+    "s_9ac9c2ed34511f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a2ceb7c-353c-493b-8dec-359c4fd14b19",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
