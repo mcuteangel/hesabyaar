@@ -1,0 +1,25 @@
+site/assets/style.css
+  s_7b7ec0a7da6229::t_fc173d7be6f098 107
+  s_7b7ec0a7da6229::t_a4afc315600e37 164
+  s_7b7ec0a7da6229::t_798f5e0dd552ad 274
+.github/workflows/pages.yml
+  s_7b7ec0a7da6229::t_bb4494eb1c4026 45-49
+site/assets/main.js
+  s_7b7ec0a7da6229::t_15c2b5d6d16223 90-91,94-96,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7ff821f9bb04ba3cab477c3cf7b4310c14207e71",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
