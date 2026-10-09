@@ -1,0 +1,19 @@
+site/assets/main.js
+  s_7b7ec0a7da6229::t_51fbb3b82c2993 1,3,8,22,36-37,41-42,67,74-75,77-80,85-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2a65c1187c4b6f041a181b1442c585bd0c1897b1",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
