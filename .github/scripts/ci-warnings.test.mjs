@@ -625,7 +625,7 @@ test("ci-warnings-report.yml lists every other workflow by name", async () => {
     if (!/\.ya?ml$/.test(file) || file === "ci-warnings-report.yml") continue;
     const text = fs.readFileSync(path.join(dir, file), "utf8");
     const on = text.match(/^on:\s*\n((?:[ \t]+.*\n|\s*\n)+)/m);
-    const triggers = on ? [...on[1].matchAll(/^  ([a-z_]+):/gm)].map((m) => m[1]) : [];
+    const triggers = on ? [...on[1].matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]) : [];
     // Reusable workflows report under the caller's run.
     if (triggers.length === 1 && triggers[0] === "workflow_call") continue;
     const name = text.match(/^name:\s*"?(.+?)"?\s*$/m)?.[1];
