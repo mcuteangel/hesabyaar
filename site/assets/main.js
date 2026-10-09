@@ -1,3 +1,6 @@
+/* eslint-env browser, es2022 */
+/* eslint-disable no-var */
+
 (() => {
   "use strict";
 
@@ -13,7 +16,9 @@
   };
 
   // Screenshots
-  const shots = window.HESABYAR_SCREENSHOTS || [];
+  const shots = Array.isArray(window.HESABYAR_SCREENSHOTS)
+    ? window.HESABYAR_SCREENSHOTS
+    : [];
   if (shots.length) {
     const list = document.getElementById("shots-list");
     shots.forEach((shot) => {

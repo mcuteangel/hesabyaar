@@ -1,0 +1,20 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-undef": "error",
+    "semi": ["error", "always"]
+  },
+  "overrides": [
+    {
+      "files": ["site/**/*.js"],
+      "rules": {}
+    }
+  ]
+}
