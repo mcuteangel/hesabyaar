@@ -1,14 +1,26 @@
 {
   "env": {
     "browser": true,
-    "es2022": true
+    "es6": true
   },
   "parserOptions": {
-    "ecmaVersion": 2022,
+    "ecmaVersion": 2018,
     "sourceType": "script"
   },
   "rules": {
     "no-undef": "error",
     "semi": ["error", "always"]
-  }
+  },
+  "overrides": [
+    {
+      "files": [".github/scripts/**/*.js", "scripts/**/*.js", "scripts/**/*.mjs"],
+      "env": {
+        "node": true,
+        "es6": true
+      },
+      "parserOptions": {
+        "sourceType": "module"
+      }
+    }
+  ]
 }

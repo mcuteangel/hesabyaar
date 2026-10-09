@@ -12,11 +12,19 @@
     if (typeof bytes !== "number" || bytes <= 0) {
       return "";
     }
+    if (bytes < 1024) {
+      return `${toFa(bytes)} بایت`;
+    }
     if (bytes < 1024 * 1024) {
-      const formatted = (bytes / 1024).toFixed(1).replace(".", "٫");
+      const kb = bytes / 1024;
+      if (kb >= 1023.95) {
+        return `${toFa("۱٫۰")} مگابایت`;
+      }
+      const formatted = kb.toFixed(1).replace(".", "٫");
       return `${toFa(formatted)} کیلوبایت`;
     }
-    const formatted = (bytes / (1024 * 1024)).toFixed(1).replace(".", "٫");
+    const mb = bytes / (1024 * 1024);
+    const formatted = mb.toFixed(1).replace(".", "٫");
     return `${toFa(formatted)} مگابایت`;
   };
 
