@@ -3,7 +3,7 @@ package io.github.mojri.hesabyar
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Analytics
@@ -23,7 +23,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
@@ -295,6 +294,6 @@ internal fun MoreMenuSheet(
       leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
       modifier = Modifier.clickable { onSelect(TAB_SETTINGS) }
     )
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.navigationBarsPadding())
   }
 }
