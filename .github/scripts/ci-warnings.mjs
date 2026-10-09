@@ -591,8 +591,7 @@ async function gh(path, opts = {}) {
   // standard redirect following is preserved for GitHub API responses.
   const url = buildApiUrl(path);
   const targetUrl = new URL(url);
-  const isSafeHost = ALLOWED_API_HOSTS.includes(targetUrl.hostname);
-  if (!isSafeHost) {
+  if (!ALLOWED_API_HOSTS.includes(targetUrl.hostname)) {
     throw new Error(`SSRF blocked: ${url}`);
   }
   // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
@@ -603,7 +602,9 @@ async function gh(path, opts = {}) {
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      if (isSafeHost) {
+      // Allow-list check repeated here for taint analysis tool recognition;
+      // already checked above, but needed so Semgrep recognizes the pattern.
+      if (ALLOWED_API_HOSTS.includes(targetUrl.hostname)) {
         const res = await fetch(targetUrl.href, {
           method: opts.method || "GET",
           headers: {
