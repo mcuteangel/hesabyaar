@@ -109,6 +109,17 @@ class MainActivityNavigationTest {
   }
 
   @Test
+  fun debtsTabStateSaverFallsBackOnEmptyOrTruncatedList() {
+    val fromEmpty = DebtsTabStateSaver.restore(emptyList<String>())
+    assertEquals("Empty list falls back section to INSTALLMENTS", DebtSection.INSTALLMENTS, fromEmpty?.section)
+    assertEquals("Empty list falls back filter to ALL", LoanDirectionFilter.ALL, fromEmpty?.filter)
+
+    val fromSingle = DebtsTabStateSaver.restore(listOf(DebtSection.BANK_LOANS.name))
+    assertEquals("Single element retains section BANK_LOANS", DebtSection.BANK_LOANS, fromSingle?.section)
+    assertEquals("Missing second element falls back filter to ALL", LoanDirectionFilter.ALL, fromSingle?.filter)
+  }
+
+  @Test
   fun dashboardDebtorCardNavigationClearsQueryAndSwitchesToDebtors() {
     var searchCleared = false
     var currentTab = TAB_DASHBOARD

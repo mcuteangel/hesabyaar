@@ -5,33 +5,24 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.clickable
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -46,9 +37,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +46,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -80,14 +67,12 @@ import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.TransactionViewModel
-import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.screens.AnalyticsScreen
 import io.github.mojri.hesabyar.ui.screens.CategoryManagementScreen
 import io.github.mojri.hesabyar.ui.screens.DashboardScreen
 import io.github.mojri.hesabyar.ui.screens.DebtHubScreen
 import io.github.mojri.hesabyar.ui.screens.DebtSection
-import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
 import io.github.mojri.hesabyar.ui.screens.ReportsScreen
 import io.github.mojri.hesabyar.ui.screens.SettingsScreen
 import io.github.mojri.hesabyar.ui.screens.SmartAssistantScreen
@@ -165,79 +150,34 @@ class MainActivity : FragmentActivity() {
             onUnlocked = {}
           )
         } else {
-          MainContentHost(startTab = startTab, startDebtSection = startDebtSection)
-        }
-      }
-    }
-  }
-
-  @Composable
-  private fun MainContentHost(
-    startTab: String,
-    startDebtSection: DebtSection,
-  ) {
-    // Tabs the user visited, newest last. System back walks this history
-    // instead of closing the app; rememberSaveable keeps it across rotation.
-    var tabHistory by rememberSaveable(startTab, stateSaver = TabHistorySaver) {
-      mutableStateOf(listOf(startTab))
-    }
-    val currentTab = tabHistory.last()
-    var debtsState by rememberSaveable(stateSaver = DebtsTabStateSaver) {
-      mutableStateOf(DebtsTabState(section = startDebtSection, filter = LoanDirectionFilter.ALL))
-    }
-    var showCategoryManagement by rememberSaveable { mutableStateOf(false) }
-    var showAccountManagement by rememberSaveable { mutableStateOf(false) }
-
-    // Called before the screens below, so their own back handlers (sheets,
-    // overlays, management screens) take precedence over tab history.
-    TabBackHandler(
-      tabHistoryProvider = { tabHistory },
-      onHistoryChange = { tabHistory = it },
-      onExitConfirmed = { finish() },
-      onResetPersonSearch = { personViewModel.setSearchQuery("") }
-    )
-
-    when {
-      showCategoryManagement -> {
-        BackHandler { showCategoryManagement = false }
-        CategoryManagementScreen(
-          categoryViewModel = categoryViewModel,
-          onBack = { showCategoryManagement = false },
-          modifier = Modifier.fillMaxSize()
-        )
-      }
-
-      showAccountManagement -> {
-        BackHandler { showAccountManagement = false }
-        AccountManagementScreen(
-          accountViewModel = accountViewModel,
-          onBack = { showAccountManagement = false },
-          modifier = Modifier.fillMaxSize()
-        )
-      }
-
-      else -> {
-        val debtsNav =
-          createDebtsNavActions(
-            currentTabProvider = { currentTab },
-            onCurrentTabChange = { tabHistory = tabHistory.pushTab(it) },
-            onDebtsStateChange = { debtsState = it },
-            onResetPersonSearch = { personViewModel.setSearchQuery("") }
+          MainNavigationCoordinator(
+            startTab = startTab,
+            startDebtSection = startDebtSection,
+            onExitConfirmed = { finish() },
+            onResetPersonSearch = { personViewModel.setSearchQuery("") },
+            categoryContent = { onBack ->
+              CategoryManagementScreen(
+                categoryViewModel = categoryViewModel,
+                onBack = onBack,
+                modifier = Modifier.fillMaxSize()
+              )
+            },
+            accountContent = { onBack ->
+              AccountManagementScreen(
+                accountViewModel = accountViewModel,
+                onBack = onBack,
+                modifier = Modifier.fillMaxSize()
+              )
+            },
+            mainContent = { currentTab, debtsState, callbacks ->
+              MainScreenScaffold(
+                currentTab = currentTab,
+                debtsState = debtsState,
+                callbacks = callbacks
+              )
+            }
           )
-        MainScreenScaffold(
-          currentTab = currentTab,
-          debtsState = debtsState,
-          callbacks =
-            MainNavCallbacks(
-              onTabSelected = debtsNav.onTabSelected,
-              onNavigateToAssistant = { tabHistory = tabHistory.pushTab(TAB_ASSISTANT) },
-              onNavigateToCategories = { showCategoryManagement = true },
-              onNavigateToAccounts = { showAccountManagement = true },
-              onShowDebtors = debtsNav.onShowDebtors,
-              onShowCreditors = debtsNav.onShowCreditors,
-              onDebtsStateChange = { debtsState = it }
-            )
-        )
+        }
       }
     }
   }
@@ -404,41 +344,6 @@ class MainActivity : FragmentActivity() {
   }
 }
 
-internal fun resolveInitialNavigation(openTab: String?): Pair<String, DebtSection> {
-  val startTab =
-    when (openTab) {
-      DEEP_LINK_LOANS,
-      DEEP_LINK_INSTALLMENTS,
-      DEEP_LINK_BANK_LOANS,
-      DEEP_LINK_DEBTS,
-      DEEP_LINK_PERSONS -> TAB_DEBTS
-
-      else -> TAB_DASHBOARD
-    }
-  val startDebtSection =
-    when (openTab) {
-      DEEP_LINK_LOANS, DEEP_LINK_PERSONS -> DebtSection.PERSONS
-      DEEP_LINK_BANK_LOANS -> DebtSection.BANK_LOANS
-      else -> DebtSection.INSTALLMENTS
-    }
-  return startTab to startDebtSection
-}
-
-@Composable
-internal fun ExitConfirmDialog(
-  onConfirm: () -> Unit,
-  onDismiss: () -> Unit,
-) {
-  ConfirmDialog(
-    title = stringResource(R.string.exit_dialog_title),
-    message = stringResource(R.string.exit_dialog_message),
-    confirmText = stringResource(R.string.exit_dialog_confirm),
-    dismissText = stringResource(R.string.cancel_label),
-    onConfirm = onConfirm,
-    onDismiss = onDismiss
-  )
-}
-
 @Composable
 private fun CompactMainContent(
   innerPadding: PaddingValues,
@@ -488,13 +393,14 @@ private fun MainBottomNavigation(
     tonalElevation = ElevationTokens.Level4
   ) {
     tabs.forEach { item ->
+      val label = stringResource(item.labelRes)
       NavigationBarItem(
         selected = currentTab == item.id,
         onClick = { onTabSelected(item.id) },
-        icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
+        icon = { Icon(imageVector = item.icon, contentDescription = label) },
         label = {
           Text(
-            item.label,
+            label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold
           )
@@ -507,13 +413,14 @@ private fun MainBottomNavigation(
           )
       )
     }
+    val moreLabel = stringResource(R.string.nav_tab_more)
     NavigationBarItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
-      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = MORE_MENU_LABEL) },
+      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = moreLabel) },
       label = {
         Text(
-          MORE_MENU_LABEL,
+          moreLabel,
           style = MaterialTheme.typography.labelSmall,
           fontWeight = FontWeight.Bold
         )
@@ -540,13 +447,14 @@ private fun MainNavigationRail(
     containerColor = MaterialTheme.colorScheme.surface
   ) {
     tabs.forEach { item ->
+      val label = stringResource(item.labelRes)
       NavigationRailItem(
         selected = currentTab == item.id,
         onClick = { onTabSelected(item.id) },
-        icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
+        icon = { Icon(imageVector = item.icon, contentDescription = label) },
         label = {
           Text(
-            item.label,
+            label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold
           )
@@ -559,13 +467,14 @@ private fun MainNavigationRail(
           )
       )
     }
+    val moreLabel = stringResource(R.string.nav_tab_more)
     NavigationRailItem(
       selected = currentTab in MORE_MENU_TABS,
       onClick = onMoreClick,
-      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = MORE_MENU_LABEL) },
+      icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = moreLabel) },
       label = {
         Text(
-          MORE_MENU_LABEL,
+          moreLabel,
           style = MaterialTheme.typography.labelSmall,
           fontWeight = FontWeight.Bold
         )
@@ -580,162 +489,9 @@ private fun MainNavigationRail(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MoreMenuSheet(
-  show: Boolean,
-  onDismiss: () -> Unit,
-  onSelect: (String) -> Unit,
-  onSelectAccounts: () -> Unit,
-) {
-  if (!show) return
-  ModalBottomSheet(onDismissRequest = onDismiss) {
-    ListItem(
-      headlineContent = { Text("تحلیل و آمار") },
-      leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_ANALYTICS) }
-    )
-    ListItem(
-      headlineContent = { Text("گزارش‌ها") },
-      leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_REPORTS) }
-    )
-    ListItem(
-      headlineContent = { Text("مدیریت حساب‌ها") },
-      leadingContent = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null) },
-      modifier = Modifier.clickable { onSelectAccounts() }
-    )
-    ListItem(
-      headlineContent = { Text("تنظیمات") },
-      leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_SETTINGS) }
-    )
-    Spacer(modifier = Modifier.height(32.dp))
-  }
-}
-
-internal data class DebtsTabState(
-  val section: DebtSection,
-  val filter: LoanDirectionFilter,
-)
-
-internal val TabHistorySaver: Saver<List<String>, Any> =
-  listSaver(
-    save = { it.toList() },
-    restore = { it.filterIsInstance<String>().ifEmpty { listOf(TAB_DASHBOARD) } }
-  )
-
-internal val DebtsTabStateSaver: Saver<DebtsTabState, Any> =
-  listSaver(
-    save = { listOf(it.section.name, it.filter.name) },
-    restore = {
-      val section = runCatching { DebtSection.valueOf(it[0]) }.getOrDefault(DebtSection.INSTALLMENTS)
-      val filter = runCatching { LoanDirectionFilter.valueOf(it[1]) }.getOrDefault(LoanDirectionFilter.ALL)
-      DebtsTabState(section = section, filter = filter)
-    }
-  )
-
-/**
- * System back walks the visited tabs, then returns to the dashboard, and
- * only there asks before leaving the app.
- */
-@Composable
-internal fun TabBackHandler(
-  tabHistoryProvider: () -> List<String>,
-  onHistoryChange: (List<String>) -> Unit,
-  onExitConfirmed: () -> Unit,
-  onResetPersonSearch: () -> Unit = {},
-) {
-  var showExitDialog by rememberSaveable { mutableStateOf(false) }
-
-  BackHandler {
-    val current = tabHistoryProvider()
-    val previous = current.popTab(home = TAB_DASHBOARD)
-    if (previous != null) {
-      if (previous.lastOrNull() == TAB_DEBTS) {
-        onResetPersonSearch()
-      }
-      onHistoryChange(previous)
-    } else {
-      showExitDialog = true
-    }
-  }
-
-  if (showExitDialog) {
-    ExitConfirmDialog(
-      onConfirm = {
-        showExitDialog = false
-        onExitConfirmed()
-      },
-      onDismiss = { showExitDialog = false }
-    )
-  }
-}
-
-internal data class MainNavCallbacks(
-  val onTabSelected: (String) -> Unit,
-  val onNavigateToAssistant: () -> Unit,
-  val onNavigateToCategories: () -> Unit,
-  val onNavigateToAccounts: () -> Unit,
-  val onShowDebtors: () -> Unit,
-  val onShowCreditors: () -> Unit,
-  val onDebtsStateChange: (DebtsTabState) -> Unit,
-)
-
-/**
- * Moves [tab] to the top of the visited-tabs history. A tab appears at most
- * once, so back never cycles between two tabs the user bounced between.
- */
-internal fun List<String>.pushTab(tab: String): List<String> =
-  if (lastOrNull() == tab) this else filterNot { it == tab } + tab
-
-/**
- * The history after one system back press, or `null` when back should ask
- * to leave the app: previous tab first, then [home], then exit.
- */
-internal fun List<String>.popTab(home: String): List<String>? =
-  when {
-    size > 1 -> dropLast(1)
-    lastOrNull() != home -> listOf(home)
-    else -> null
-  }
-
-internal data class DebtsNavActions(
-  val onTabSelected: (String) -> Unit,
-  val onShowDebtors: () -> Unit,
-  val onShowCreditors: () -> Unit,
-)
-
-internal fun createDebtsNavActions(
-  currentTabProvider: () -> String,
-  onCurrentTabChange: (String) -> Unit,
-  onDebtsStateChange: (DebtsTabState) -> Unit,
-  onResetPersonSearch: () -> Unit,
-): DebtsNavActions =
-  DebtsNavActions(
-    onTabSelected = { newTab ->
-      // Entering DEBTS from another tab starts a fresh search: the query is
-      // Activity-scoped and would otherwise keep narrowing the persons list.
-      if (newTab == TAB_DEBTS && currentTabProvider() != TAB_DEBTS) {
-        onResetPersonSearch()
-      }
-      onCurrentTabChange(newTab)
-    },
-    onShowDebtors = {
-      onResetPersonSearch()
-      onDebtsStateChange(DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.DEBTOR))
-      onCurrentTabChange(TAB_DEBTS)
-    },
-    onShowCreditors = {
-      onResetPersonSearch()
-      onDebtsStateChange(DebtsTabState(DebtSection.PERSONS, LoanDirectionFilter.CREDITOR))
-      onCurrentTabChange(TAB_DEBTS)
-    }
-  )
-
 private data class NavigationTabItem(
   val id: String,
-  val label: String,
+  @StringRes val labelRes: Int,
   val icon: ImageVector,
 )
 
@@ -745,7 +501,6 @@ internal const val TAB_DEBTS = "DEBTS"
 internal const val TAB_ANALYTICS = "ANALYTICS"
 internal const val TAB_REPORTS = "REPORTS"
 internal const val TAB_SETTINGS = "SETTINGS"
-internal const val MORE_MENU_LABEL = "بیشتر"
 
 internal const val OPEN_TAB_EXTRA = "OPEN_TAB"
 internal const val DEEP_LINK_LOANS = "LOANS"
@@ -757,7 +512,7 @@ internal const val DEEP_LINK_DEBTS = TAB_DEBTS
 private val MORE_MENU_TABS = listOf(TAB_ANALYTICS, TAB_REPORTS, TAB_SETTINGS)
 private val MAIN_TABS =
   listOf(
-    NavigationTabItem(TAB_DASHBOARD, "داشبورد", Icons.Filled.AccountBalanceWallet),
-    NavigationTabItem(TAB_ASSISTANT, "دستیار هوشمند", Icons.Filled.AutoAwesome),
-    NavigationTabItem(TAB_DEBTS, "مدیریت بدهی‌ها", Icons.Filled.AccountBalance)
+    NavigationTabItem(TAB_DASHBOARD, R.string.nav_tab_dashboard, Icons.Filled.AccountBalanceWallet),
+    NavigationTabItem(TAB_ASSISTANT, R.string.nav_tab_assistant, Icons.Filled.AutoAwesome),
+    NavigationTabItem(TAB_DEBTS, R.string.nav_tab_debts, Icons.Filled.AccountBalance)
   )
