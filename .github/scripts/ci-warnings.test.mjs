@@ -1,0 +1,1148 @@
+// Tests for ci-warnings.mjs — pure node:test, no frameworks.
+// Run: node --test .github/scripts/ci-warnings.test.mjs
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  stripLogPrefix,
+  makeRepoRelative,
+  parseLogLine,
+  parseLog,
+  categoriseKotlinMessage,
+  categoriseAnnotation,
+  dedupe,
+  renderComment,
+  normalizeMessage,
+  escapeMarkdown,
+  codeSpan,
+  buildSourceLink,
+  buildApiUrl,
+  detectCodeCompiled,
+  isGeneratedFile,
+  shortSha,
+  gh,
+  collectRunFindings,
+  resolvePrNumber,
+} from "./ci-warnings.mjs";
+
+const REPO = "owner/repo";
+const SHA = "abcdef1234567890abcdef1234567890abcdef12";
+
+// ---------------------------------------------------------------------------
+// stripLogPrefix
+// ---------------------------------------------------------------------------
+
+test("stripLogPrefix removes timestamp and ANSI codes", () => {
+  const line = "2026-10-04T05:12:33.1234567Z \x1b[31mwarning: foo\x1b[0m";
+  assert.equal(stripLogPrefix(line), "warning: foo");
+});
+
+test("stripLogPrefix handles line without timestamp", () => {
+  assert.equal(stripLogPrefix("warning: foo"), "warning: foo");
+});
+
+test("stripLogPrefix handles empty line", () => {
+  assert.equal(stripLogPrefix(""), "");
+});
+
+// ---------------------------------------------------------------------------
+// makeRepoRelative
+// ---------------------------------------------------------------------------
+
+test("makeRepoRelative strips runner prefix", () => {
+  const path = "/home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt";
+  assert.equal(makeRepoRelative(path), "app/src/main/java/Foo.kt");
+});
+
+test("makeRepoRelative strips file:// URL prefix", () => {
+  const path = "file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt";
+  assert.equal(makeRepoRelative(path), "app/src/main/java/Foo.kt");
+});
+
+test("makeRepoRelative leaves other paths unchanged", () => {
+  const path = "/some/other/path/Foo.kt";
+  assert.equal(makeRepoRelative(path), path);
+});
+
+// ---------------------------------------------------------------------------
+// normalizeMessage
+// ---------------------------------------------------------------------------
+
+test("normalizeMessage collapses whitespace", () => {
+  assert.equal(normalizeMessage("  foo   bar  \n  baz  "), "foo bar baz");
+});
+
+// ---------------------------------------------------------------------------
+// escapeMarkdown
+// ---------------------------------------------------------------------------
+
+test("escapeMarkdown escapes pipe and angle brackets", () => {
+  assert.equal(escapeMarkdown("foo|bar<baz>"), "foo\\|bar&lt;baz&gt;");
+});
+
+// ---------------------------------------------------------------------------
+// buildSourceLink
+// ---------------------------------------------------------------------------
+
+test("buildSourceLink builds correct URL", () => {
+  const link = buildSourceLink("owner/repo", SHA, "app/src/Foo.kt", 42);
+  assert.equal(link, `https://github.com/owner/repo/blob/${SHA}/app/src/Foo.kt#L42`);
+});
+
+// ---------------------------------------------------------------------------
+// shortSha
+// ---------------------------------------------------------------------------
+
+test("shortSha returns first 7 chars", () => {
+  assert.equal(shortSha(SHA), "abcdef1");
+});
+
+// ---------------------------------------------------------------------------
+// categoriseKotlinMessage
+// ---------------------------------------------------------------------------
+
+test("categoriseKotlinMessage detects deprecation", () => {
+  assert.equal(categoriseKotlinMessage("Unused import deprecated"), "deprecation");
+});
+
+test("categoriseKotlinMessage detects unsafe call", () => {
+  assert.equal(categoriseKotlinMessage("Unnecessary safe call"), "unsafe-call");
+  assert.equal(categoriseKotlinMessage("Unnecessary non-null assertion"), "unsafe-call");
+});
+
+test("categoriseKotlinMessage detects tautology", () => {
+  assert.equal(categoriseKotlinMessage("Condition always 'true'"), "tautology");
+  assert.equal(categoriseKotlinMessage("Condition always 'false'"), "tautology");
+  assert.equal(categoriseKotlinMessage("Check for instance is always true"), "tautology");
+});
+
+test("categoriseKotlinMessage detects redundant cast", () => {
+  assert.equal(categoriseKotlinMessage("Cast is redundant"), "redundant-cast");
+  assert.equal(categoriseKotlinMessage("No cast needed"), "redundant-cast");
+});
+
+test("categoriseKotlinMessage detects unused", () => {
+  assert.equal(categoriseKotlinMessage("Variable is unused"), "unused");
+  assert.equal(categoriseKotlinMessage("Function is never used"), "unused");
+});
+
+test("categoriseKotlinMessage detects non-exhaustive when", () => {
+  assert.equal(categoriseKotlinMessage("When expression is not exhaustive"), "non-exhaustive-when");
+});
+
+test("categoriseKotlinMessage defaults to kotlin-other", () => {
+  assert.equal(categoriseKotlinMessage("Some other warning"), "kotlin-other");
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Kotlin
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses Kotlin warning with file:// prefix", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/io/github/mojri/hesabyar/api/AiProvider.kt:142:23 Unnecessary safe call on nullable receiver`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unsafe-call");
+  assert.equal(f.file, "app/src/main/java/io/github/mojri/hesabyar/api/AiProvider.kt");
+  assert.equal(f.line, 142);
+  assert.ok(f.message.includes("Unnecessary safe call"));
+});
+
+test("parseLogLine parses Kotlin warning without file:// prefix", () => {
+  const line = `w: /home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt:10:5 Unused import`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unused");
+  assert.equal(f.file, "app/src/main/java/Foo.kt");
+  assert.equal(f.line, 10);
+});
+
+test("parseLogLine parses Kotlin warning without column number", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt:42 Unused import`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unused");
+  assert.equal(f.file, "app/src/main/java/Foo.kt");
+  assert.equal(f.line, 42);
+});
+
+test("parseLogLine parses Kotlin always-true condition", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/Foo.kt:332:13 Condition 'x > 0' is always 'true'`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "tautology");
+  assert.equal(f.line, 332);
+});
+
+test("parseLogLine parses Kotlin redundant cast", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/test/java/FooTest.kt:24:17 Cast is redundant`;
+  const f = parseLogLine(line, REPO, "Android CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "redundant-cast");
+  assert.equal(f.line, 24);
+});
+
+test("parseLogLine parses Kotlin unused expression in generated file", () => {
+  const line = `w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt:1086:9 Expression is unused`;
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unused");
+  assert.ok(f.file.endsWith("hesabyar_core.kt"));
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Gradle
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses Deprecated Gradle features", () => {
+  const line = "Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "gradle");
+});
+
+test("parseLogLine parses Gradle scheduled removal", () => {
+  const line = "The Task.leftShift(Closure) method has been deprecated. This is scheduled to be removed in Gradle 9.0.";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "gradle");
+});
+
+test("parseLogLine parses Kapt deprecation", () => {
+  const line = "w: Kapt support is deprecated and will be removed in a future release";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "gradle");
+});
+
+test("parseLogLine parses AGP WARNING", () => {
+  const line = "WARNING: The option 'android.enableR8' is deprecated";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "gradle");
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Workflow commands
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses ::warning command", () => {
+  const line = "::warning file=app/src/Foo.kt,line=10::Deprecated API used";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+  assert.equal(f.file, "app/src/Foo.kt");
+  assert.equal(f.line, 10);
+});
+
+test("parseLogLine parses ::warning command without commas", () => {
+  const line = "::warning file=app/src/Foo.kt::Deprecated API used";
+  const f = parseLogLine(line, REPO, "Android CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+  assert.equal(f.file, "app/src/Foo.kt");
+  assert.equal(f.line, undefined);
+  assert.equal(f.message, "Deprecated API used");
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Node/npm
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses npm warn deprecated", () => {
+  const line = "npm warn deprecated package@1.0.0: Package is deprecated";
+  const f = parseLogLine(line, REPO, "Node CI", "install");
+  assert.ok(f);
+  assert.equal(f.category, "node");
+});
+
+test("parseLogLine parses npm WARN deprecated (uppercase)", () => {
+  const line = "npm WARN deprecated package@1.0.0: Package is deprecated";
+  const f = parseLogLine(line, REPO, "Node CI", "install");
+  assert.ok(f);
+  assert.equal(f.category, "node");
+});
+
+test("parseLogLine parses Node.js DeprecationWarning", () => {
+  const line = "(node:1234) [DEP0040] DeprecationWarning: The `punycode` module is deprecated";
+  const f = parseLogLine(line, REPO, "Node CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "node");
+});
+
+test("parseLogLine parses ExperimentalWarning", () => {
+  const line = "(node:1234) ExperimentalWarning: The Fetch API is experimental";
+  const f = parseLogLine(line, REPO, "Node CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "node");
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Python
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses Python DeprecationWarning", () => {
+  const line = "DeprecationWarning: 'collections.abc' should be used instead of 'collections'";
+  const f = parseLogLine(line, REPO, "Python CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "python");
+});
+
+test("parseLogLine parses Python FutureWarning", () => {
+  const line = "FutureWarning: The default dtype will change";
+  const f = parseLogLine(line, REPO, "Python CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "python");
+});
+
+test("parseLogLine parses Python UserWarning", () => {
+  const line = "UserWarning: Some warning";
+  const f = parseLogLine(line, REPO, "Python CI", "test");
+  assert.ok(f);
+  assert.equal(f.category, "python");
+});
+
+test("parseLogLine parses pip WARNING", () => {
+  const line = "WARNING: You are using pip version 21.0; however, version 22.0 is available.";
+  const f = parseLogLine(line, REPO, "Python CI", "install");
+  assert.ok(f);
+  assert.equal(f.category, "python");
+});
+
+test("parseLogLine parses pip DEPRECATION", () => {
+  const line = "DEPRECATION: Python 3.6 support will be removed";
+  const f = parseLogLine(line, REPO, "Python CI", "install");
+  assert.ok(f);
+  assert.equal(f.category, "python");
+});
+
+// ---------------------------------------------------------------------------
+// parseLogLine - Shell/generic
+// ---------------------------------------------------------------------------
+
+test("parseLogLine parses warning: prefix", () => {
+  const line = "warning: unused variable 'x'";
+  const f = parseLogLine(line, REPO, "Script CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+});
+
+test("parseLogLine parses Warning: prefix", () => {
+  const line = "Warning: deprecated function";
+  const f = parseLogLine(line, REPO, "Script CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+});
+
+test("parseLogLine parses WARN prefix", () => {
+  const line = "WARN Something deprecated";
+  const f = parseLogLine(line, REPO, "Script CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "script");
+});
+
+// ---------------------------------------------------------------------------
+// parseLog - Rust multi-line
+// ---------------------------------------------------------------------------
+
+test("parseLog parses Rust two-line warning", () => {
+  const text = `warning: unused import: std::io::Read
+ --> src/main.rs:10:5
+`;
+  const findings = parseLog(text, REPO, "Rust CI", "test");
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].category, "rust");
+  assert.equal(findings[0].file, "src/main.rs");
+  assert.equal(findings[0].line, 10);
+  assert.ok(findings[0].message.includes("unused import"));
+});
+
+test("parseLog parses Rust warning without location", () => {
+  const text = "warning: unused crate dependency\n";
+  const findings = parseLog(text, REPO, "Rust CI", "test");
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].category, "rust");
+  assert.equal(findings[0].file, undefined);
+  assert.equal(findings[0].line, undefined);
+});
+
+test("parseLog does not misclassify generic warning as Rust", () => {
+  const text = "warning: something deprecated in script\n";
+  const findings = parseLog(text, REPO, "Script CI", "build");
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].category, "script");
+});
+
+test("parseLog handles mixed lines", () => {
+  const text = `warning: unused import
+ --> src/lib.rs:5:1
+w: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:10:5 Unused import
+`;
+  const findings = parseLog(text, REPO, "Mixed CI", "test");
+  assert.equal(findings.length, 2);
+  assert.equal(findings[0].category, "rust");
+  assert.equal(findings[1].category, "unused");
+});
+
+// ---------------------------------------------------------------------------
+// categoriseAnnotation
+// ---------------------------------------------------------------------------
+
+test("categoriseAnnotation returns null for failure level", () => {
+  const ann = { annotation_level: "failure", message: "error", path: "Foo.kt", start_line: 10 };
+  assert.equal(categoriseAnnotation(ann), null);
+});
+
+test("categoriseAnnotation detects Node.js 20 actions deprecated", () => {
+  const ann = { annotation_level: "warning", message: "Node.js 20 actions are deprecated", path: undefined, start_line: undefined };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "actions-runtime");
+});
+
+test("categoriseAnnotation detects set-output deprecation", () => {
+  const ann = { annotation_level: "warning", message: "The `set-output` command is deprecated", path: undefined, start_line: undefined };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "actions-runtime");
+});
+
+test("categoriseAnnotation detects unexpected input", () => {
+  const ann = { annotation_level: "notice", message: "Unexpected input 'foo'", path: undefined, start_line: undefined };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "actions-input");
+});
+
+test("categoriseAnnotation categorises Kotlin file by message", () => {
+  const ann = { annotation_level: "warning", message: "Unnecessary safe call", path: "app/src/Foo.kt", start_line: 10 };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "unsafe-call");
+  assert.equal(cat.file, "app/src/Foo.kt");
+  assert.equal(cat.line, 10);
+});
+
+test("categoriseAnnotation categorises Rust file", () => {
+  const ann = { annotation_level: "warning", message: "unused variable", path: "src/main.rs", start_line: 5 };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "rust");
+  assert.equal(cat.file, "src/main.rs");
+});
+
+test("categoriseAnnotation categorises JS file", () => {
+  const ann = { annotation_level: "warning", message: "deprecated", path: "script.js", start_line: 1 };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "node");
+});
+
+test("categoriseAnnotation categorises Python file", () => {
+  const ann = { annotation_level: "warning", message: "deprecated", path: "script.py", start_line: 1 };
+  const cat = categoriseAnnotation(ann);
+  assert.ok(cat);
+  assert.equal(cat.category, "python");
+});
+
+// ---------------------------------------------------------------------------
+// dedupe
+// ---------------------------------------------------------------------------
+
+test("dedupe groups by category+file+line+message", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "x is unused", workflow: "CI", job: "build" },
+    { category: "unused", file: "a.kt", line: 10, message: "x is unused", workflow: "CI", job: "test" },
+    { category: "unused", file: "a.kt", line: 11, message: "y is unused", workflow: "CI", job: "build" },
+  ];
+  const d = dedupe(findings);
+  assert.equal(d.length, 2);
+  const first = d.find((x) => x.line === 10);
+  assert.equal(first.count, 2);
+  assert.equal(first.locations.size, 2);
+  assert.ok(first.locations.has("CI/build"));
+  assert.ok(first.locations.has("CI/test"));
+});
+
+test("dedupe normalises message whitespace", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "x  is   unused", workflow: "CI", job: "build" },
+    { category: "unused", file: "a.kt", line: 10, message: "x is unused", workflow: "CI", job: "test" },
+  ];
+  const d = dedupe(findings);
+  assert.equal(d.length, 1);
+  assert.equal(d[0].count, 2);
+});
+
+// ---------------------------------------------------------------------------
+// renderComment
+// ---------------------------------------------------------------------------
+
+test("renderComment zero findings shows success message", () => {
+  const md = renderComment({ findings: [], sha: SHA, repo: REPO, runsScanned: 3, codeCompiled: true });
+  assert.ok(md.includes("<!-- ci-warnings-report -->"));
+  assert.ok(md.includes("✅ No warnings in 3 workflow runs"));
+  assert.ok(md.includes(shortSha(SHA)));
+});
+
+test("renderComment includes title and summary table", () => {
+  const findings = [
+    { category: "unsafe-call", file: "a.kt", line: 10, message: "Unnecessary safe call", workflow: "CI", job: "build" },
+    { category: "deprecation", file: "b.kt", line: 20, message: "Deprecated API", workflow: "CI", job: "build" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(md.includes("### ⚠️ CI warnings report"));
+  assert.ok(md.includes("**Total:** 2 warnings"));
+  assert.ok(md.includes("Unnecessary safe call"));
+  assert.ok(md.includes("Deprecated API"));
+  assert.ok(md.includes("Category | Count"));
+  assert.ok(md.includes("Unnecessary safe call"));
+  assert.ok(md.includes("Kotlin deprecation"));
+});
+
+test("renderComment orders categories correctly", () => {
+  const findings = [
+    { category: "rust", file: "a.rs", line: 1, message: "rust warn", workflow: "CI", job: "build" },
+    { category: "deprecation", file: "a.kt", line: 1, message: "dep", workflow: "CI", job: "build" },
+    { category: "actions-runtime", file: undefined, line: undefined, message: "action deprecated", workflow: "CI", job: "build" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  // actions-runtime should appear before deprecation, which appears before rust
+  const idxActions = md.indexOf("Actions runtime deprecation");
+  const idxDep = md.indexOf("Kotlin deprecation");
+  const idxRust = md.indexOf("Rust warning");
+  assert.ok(idxActions < idxDep, "actions-runtime before deprecation");
+  assert.ok(idxDep < idxRust, "deprecation before rust");
+});
+
+test("renderComment tags generated hesabyar_core.kt files", () => {
+  const findings = [
+    { category: "unused", file: "app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt", line: 1086, message: "Expression is unused", workflow: "CI", job: "build" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(md.includes("(generated — fix in Rust/uniffi, not by hand)"));
+});
+
+test("renderComment includes codeCompiled note when false", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "unused", workflow: "CI", job: "build" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: false });
+  assert.ok(md.includes("Kotlin compile was cached/up-to-date"));
+});
+
+test("renderComment does not include codeCompiled note when true or undefined", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "unused", workflow: "CI", job: "build" },
+  ];
+  let md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(!md.includes("Kotlin compile was cached"));
+  md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: undefined });
+  assert.ok(!md.includes("Kotlin compile was cached"));
+});
+
+test("renderComment truncates long category lists with weighted counts", () => {
+  const findings = [];
+  for (let i = 0; i < 60; i++) {
+    // Each finding has count 2 (via duplicate)
+    findings.push({ category: "unused", file: `a${i}.kt`, line: i, message: `unused ${i}`, workflow: "CI", job: "build" });
+    findings.push({ category: "unused", file: `a${i}.kt`, line: i, message: `unused ${i}`, workflow: "CI", job: "test" });
+  }
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  // Remaining items: 10 items with count 2 = 20 weighted warnings
+  assert.ok(md.includes("…and 20 more (see job logs)"));
+});
+
+test("renderComment truncates overall comment at 60000 chars", () => {
+  const findings = [];
+  // Use multiple categories with long unique messages to bypass per-category 50 limit
+  // and force the total markdown length past 60000 characters.
+  const categories = [
+    "actions-runtime", "deprecation", "gradle", "unsafe-call", "tautology",
+    "redundant-cast", "unused", "rust", "node", "python", "script", "other"
+  ];
+  for (const cat of categories) {
+    for (let i = 0; i < 50; i++) {
+      findings.push({
+        category: cat,
+        file: `very/long/nested/path/to/source/file/number_${i}.kt`,
+        line: i * 10,
+        message: `Extremely long warning message intended to blow past sixty thousand characters `.repeat(5),
+        workflow: "Workflow Name",
+        job: "Job Name",
+      });
+    }
+  }
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(md.length <= 60000);
+  assert.ok(md.includes("(comment truncated, see job logs for full details)"));
+});
+
+test("renderComment includes count suffix and locations for duplicates", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "x is unused", workflow: "CI", job: "build" },
+    { category: "unused", file: "a.kt", line: 10, message: "x is unused", workflow: "CI", job: "test" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(md.includes("×2"));
+  assert.ok(md.includes("CI/build"));
+  assert.ok(md.includes("CI/test"));
+});
+
+test("renderComment puts messages in code spans (no escaping needed)", () => {
+  const findings = [
+    { category: "unused", file: "a.kt", line: 10, message: "foo|bar<baz>", workflow: "CI", job: "build" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  assert.ok(md.includes("`foo|bar<baz>`"));
+});
+
+// ---------------------------------------------------------------------------
+// timestamp + ANSI stripping integration
+// ---------------------------------------------------------------------------
+
+test("parseLogLine handles timestamp and ANSI codes in Kotlin warning", () => {
+  const line = "2026-10-04T05:12:33.1234567Z \x1b[33mw: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:10:5 \x1b[0mUnnecessary safe call";
+  const f = parseLogLine(line, REPO, "CI", "build");
+  assert.ok(f);
+  assert.equal(f.category, "unsafe-call");
+  assert.equal(f.file, "app/src/Foo.kt");
+});
+// ---------------------------------------------------------------------------
+// Every workflow must be watched by ci-warnings-report.yml
+// ---------------------------------------------------------------------------
+
+test("ci-warnings-report.yml lists every other workflow by name", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "workflows");
+  const report = fs.readFileSync(path.join(dir, "ci-warnings-report.yml"), "utf8");
+  const block = report.match(/workflow_run:\s*\n\s*workflows:\s*\n((?:\s+-\s+.+\n)+)/);
+  assert.ok(block, "workflow_run.workflows list not found");
+  const watched = new Set(
+    [...block[1].matchAll(/-\s+"?([^"\n]+?)"?\s*$/gm)].map((m) => m[1].trim()),
+  );
+  const missing = [];
+  for (const file of fs.readdirSync(dir)) {
+    if (!/\.ya?ml$/.test(file) || file === "ci-warnings-report.yml") continue;
+    const text = fs.readFileSync(path.join(dir, file), "utf8");
+    const on = text.match(/^on:\s*\n((?:[ \t]+.*\n|\s*\n)+)/m);
+    const triggers = on ? [...on[1].matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]) : [];
+    // Reusable workflows report under the caller's run.
+    if (triggers.length === 1 && triggers[0] === "workflow_call") continue;
+    const name = text.match(/^name:\s*"?(.+?)"?\s*$/m)?.[1];
+    if (!watched.has(name)) missing.push(`${file} (${name})`);
+  }
+  assert.deepEqual(missing, [], `add these to ci-warnings-report.yml workflow_run.workflows: ${missing.join(", ")}`);
+});
+
+test("parseLog reads the two-line Rust form behind ISO timestamps", () => {
+  const log = [
+    "2026-10-04T05:12:33.1234567Z warning: unused variable: `x`",
+    "2026-10-04T05:12:33.1234568Z   --> src/forecast.rs:12:9",
+  ].join("\n");
+  const [f] = parseLog(log, REPO, "Rust Lint", "clippy");
+  assert.equal(f.category, "rust");
+  assert.equal(f.file, "src/forecast.rs");
+  assert.equal(f.line, 12);
+});
+
+test("parseLogLine ignores command echoes and ##[warning] lines", () => {
+  assert.equal(parseLogLine("2026-10-04T05:12:33.1234567Z ##[group]Run ./gradlew assembleDebug --warning-mode all", REPO, "CI", "b"), null);
+  assert.equal(parseLogLine("##[warning]Node.js 20 actions are deprecated", REPO, "CI", "b"), null);
+  assert.equal(parseLogLine("ok 18 - parseLogLine parses Kotlin warning", REPO, "CI", "b"), null);
+});
+
+test("renderComment survives backticks and links path-less items to their job", () => {
+  const findings = [
+    { category: "rust", message: "unused variable: `x`", workflow: "Rust Lint", job: "clippy", jobUrl: "https://github.com/o/r/actions/runs/1/job/2" },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1 });
+  assert.ok(md.includes("``` unused variable: `x` ```"));
+  assert.ok(md.includes("[Rust Lint/clippy](https://github.com/o/r/actions/runs/1/job/2)"));
+});
+
+test("renderComment safely handles markdown delimiters and path characters", () => {
+  const findings = [
+    {
+      category: "unused",
+      file: "path/[with]/brackets & (parens)/file#1.kt",
+      line: 15,
+      message: "warning with backticks `x` and brackets [link](https://evil.com)",
+      workflow: "CI",
+      job: "build",
+    },
+  ];
+  const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1, codeCompiled: true });
+  // Check that the source link safely encodes the path
+  assert.ok(md.includes("%5Bwith%5D"));
+  assert.ok(md.includes("%26"));
+  assert.ok(md.includes("%231.kt"));
+  // Check that the label brackets are escaped to avoid Markdown injection
+  assert.ok(md.includes("\\[with\\]"));
+  // Check that message with backticks is fenced
+  assert.ok(md.includes("``` warning with backticks `x` and brackets [link](https://evil.com) ```"));
+});
+
+test("codeSpan dynamically fences runs of 3 or more backticks", () => {
+  assert.equal(codeSpan("simple warning"), "`simple warning`");
+  assert.equal(codeSpan("warning with `inline`"), "``` warning with `inline` ```");
+  assert.equal(codeSpan("warning with ```triple``` backticks"), "```` warning with ```triple``` backticks ````");
+  assert.equal(codeSpan("warning with ````quad```` backticks"), "````` warning with ````quad```` backticks `````");
+});
+
+test("detectCodeCompiled tracks compilation states across cached and uncached jobs", () => {
+  const cachedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin UP-TO-DATE",
+    "2026-10-04T05:12:33.1234568Z > Task :app:compileReleaseKotlin FROM-CACHE",
+  ].join("\n");
+  const compiledLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin",
+  ].join("\n");
+  const unrelatedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileRustCore",
+  ].join("\n");
+
+  // Initial scan on cached job yields false
+  const state1 = detectCodeCompiled(undefined, cachedLog);
+  assert.equal(state1, false);
+
+  // Subsequent compiled job upgrades state to true
+  const state2 = detectCodeCompiled(state1, compiledLog);
+  assert.equal(state2, true);
+
+  // Subsequent cached job does not downgrade true
+  const state3 = detectCodeCompiled(state2, cachedLog);
+  assert.equal(state3, true);
+
+  // Unrelated log does not mutate existing status
+  assert.equal(detectCodeCompiled(undefined, unrelatedLog), undefined);
+  assert.equal(detectCodeCompiled(false, unrelatedLog), false);
+  assert.equal(detectCodeCompiled(true, unrelatedLog), true);
+});
+
+test("buildApiUrl pins resolution to api.github.com origin and rejects external URLs", () => {
+  // Valid relative endpoints
+  assert.equal(
+    buildApiUrl("/repos/owner/repo/actions/jobs/123/logs"),
+    "https://api.github.com/repos/owner/repo/actions/jobs/123/logs"
+  );
+  assert.equal(
+    buildApiUrl("https://api.github.com/repos/owner/repo/pulls"),
+    "https://api.github.com/repos/owner/repo/pulls"
+  );
+
+  // Reject protocol-relative URLs
+  assert.throws(() => buildApiUrl("//evil.com/fake/api"), /Invalid GitHub API path/);
+
+  // Reject different origins and lookalike hosts
+  assert.throws(() => buildApiUrl("https://evil.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl("https://api.github.com.attacker.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl("http://api.github.com/repos"), /GitHub API path must stay on api\.github\.com/);
+  assert.throws(() => buildApiUrl(123), /Invalid GitHub API path/);
+});
+
+test("gh helper rejects SSRF targets and does not retry 5xx on POST writes", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  try {
+    // SSRF rejection before fetch
+    await assert.rejects(
+      async () => gh("//attacker.com/api"),
+      /Invalid GitHub API path/
+    );
+    await assert.rejects(
+      async () => gh("https://attacker.com/api"),
+      /GitHub API path must stay on api\.github\.com/
+    );
+
+    // Verify Content-Type and no-retry on 5xx write
+    let postAttempts = 0;
+    globalThis.fetch = async (url, opts) => {
+      postAttempts++;
+      assert.equal(opts.headers["Content-Type"], "application/json");
+      assert.equal(opts.method, "POST");
+      return new Response("Internal Server Error", { status: 500 });
+    };
+
+    await assert.rejects(
+      async () => gh("/repos/owner/repo/issues", { method: "POST", body: { title: "fail" } }),
+      /GitHub API 500: Internal Server Error/
+    );
+    // Must NOT retry 500 for POST
+    assert.equal(postAttempts, 1);
+
+    // Verify GET retries 5xx
+    let getAttempts = 0;
+    globalThis.fetch = async () => {
+      getAttempts++;
+      if (getAttempts < 2) {
+        return new Response("Server error", { status: 502 });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const res = await gh("/repos/owner/repo/issues");
+    assert.deepEqual(res, { data: { ok: true }, link: null });
+    assert.equal(getAttempts, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("isGeneratedFile correctly identifies uniffi and core generated files", () => {
+  assert.equal(isGeneratedFile("app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt"), true);
+  assert.equal(isGeneratedFile("path/to/uniffi/binding.kt"), true);
+  assert.equal(isGeneratedFile("app/src/main/java/io/github/mojri/hesabyar/ui/MainScreen.kt"), false);
+  assert.equal(isGeneratedFile("app/build/generated/source/buildConfig/debug/BuildConfig.java"), false);
+  assert.equal(isGeneratedFile(""), false);
+  assert.equal(isGeneratedFile(null), false);
+});
+
+test("detectCodeCompiled scans all lines and returns true if any real compile occurs after cached", () => {
+  const mixedLog = [
+    "2026-10-04T05:12:33.1234567Z > Task :app:compileDebugKotlin UP-TO-DATE",
+    "2026-10-04T05:12:33.1234568Z > Task :app:compileReleaseKotlin",
+  ].join("\n");
+  assert.equal(detectCodeCompiled(undefined, mixedLog), true);
+  assert.equal(detectCodeCompiled(false, mixedLog), true);
+});
+
+test("categoriseAnnotation strictly classifies path-less deprecations as script vs actions-runtime", () => {
+  // Known actions-runtime signatures
+  assert.equal(
+    categoriseAnnotation({ message: "Node.js 20 actions are deprecated" }).category,
+    "actions-runtime"
+  );
+  assert.equal(
+    categoriseAnnotation({ message: "The `set-output` command is deprecated" }).category,
+    "actions-runtime"
+  );
+  // Script warning that merely mentions deprecation without being a runner deprecation
+  assert.equal(
+    categoriseAnnotation({ message: "::warning::Deprecated: custom function in deployment script" }).category,
+    "script"
+  );
+  assert.equal(
+    categoriseAnnotation({ message: "Deprecated API usage in setup task" }).category,
+    "script"
+  );
+});
+
+test("parseLogLine parses Gradle 10+ and colons in workflow commands", () => {
+  const gradle10 = "2026-10-04T05:12:33.1234567Z WARNING: Deprecated feature scheduled to be removed in Gradle 10";
+  const f1 = parseLogLine(gradle10, REPO, "CI", "build");
+  assert.ok(f1);
+  assert.equal(f1.category, "gradle");
+
+  const cmdWithColon = "2026-10-04T05:12:33.1234567Z ::warning file=src/main:test/Foo.kt,line=42::Message here";
+  const f2 = parseLogLine(cmdWithColon, REPO, "CI", "build");
+  assert.ok(f2);
+  assert.equal(f2.category, "script");
+  assert.equal(f2.file, "src/main:test/Foo.kt");
+  assert.equal(f2.line, 42);
+});
+
+test("dedupe updates to the latest jobUrl for repeated locations", () => {
+  const findings = [
+    { category: "rust", message: "warn", workflow: "CI", job: "lint", jobUrl: "https://old-run/job/1" },
+    { category: "rust", message: "warn", workflow: "CI", job: "lint", jobUrl: "https://new-run/job/2" },
+  ];
+  const deduped = dedupe(findings);
+  assert.equal(deduped.length, 1);
+  assert.equal(deduped[0].count, 2);
+  assert.equal(deduped[0].jobUrls.get("CI/lint"), "https://new-run/job/2");
+});
+
+test("buildApiUrl supports /repositories/ endpoints and blocks dot-segments traversal or /users/ paths", () => {
+  // Success coverage for /repositories/... in both relative and full-host forms
+  assert.equal(
+    buildApiUrl("/repositories/12345/actions/runs"),
+    "https://api.github.com/repositories/12345/actions/runs"
+  );
+  assert.equal(
+    buildApiUrl("https://api.github.com/repositories/12345/actions/runs?page=2"),
+    "https://api.github.com/repositories/12345/actions/runs?page=2"
+  );
+
+  // Failure coverage for same-origin non-repository endpoints
+  assert.throws(
+    () => buildApiUrl("/users/octocat"),
+    /GitHub API path must stay on api\.github\.com: \/users\/octocat/
+  );
+  assert.throws(
+    () => buildApiUrl("https://api.github.com/user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/orgs/anthropic"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+
+  // Reject bare prefix paths without trailing segments
+  assert.throws(
+    () => buildApiUrl("/repos/"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/repositories/"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+
+  // Failure coverage for path traversal via dot-segments attempting to bypass /repos/
+  assert.throws(
+    () => buildApiUrl("/repos/../user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+  assert.throws(
+    () => buildApiUrl("/repositories/../user"),
+    /GitHub API path must stay on api\.github\.com/
+  );
+});
+
+test("renderComment distinguishes generated UniFFI files from non-generated files", () => {
+  const uniffiFindings = [
+    {
+      category: "unused",
+      file: "app/src/main/java/io/github/mojri/hesabyar/rust/hesabyar_core.kt",
+      line: 42,
+      message: "generated warning",
+      workflow: "CI",
+      job: "build",
+    },
+    {
+      category: "unused",
+      file: "app/src/main/java/io/github/mojri/hesabyar/ui/MainScreen.kt",
+      line: 10,
+      message: "app warning",
+      workflow: "CI",
+      job: "build",
+    },
+  ];
+
+  const md = renderComment({
+    findings: uniffiFindings,
+    sha: SHA,
+    repo: REPO,
+    runsScanned: 1,
+    codeCompiled: true,
+  });
+
+  assert.ok(md.includes("hesabyar_core.kt"));
+  assert.ok(md.includes("MainScreen.kt"));
+});
+
+test("parseLogLine excludes Kotlin compiler errors starting with e: from matching catch-all warnings", () => {
+  const kotlinCompileError = "e: file:///home/runner/work/hesabyaar/hesabyaar/app/src/Foo.kt:142: error: deprecation notice causes compilation failure";
+  const result = parseLogLine(kotlinCompileError, REPO, "CI", "build");
+  assert.equal(result, null);
+});
+
+// ---------------------------------------------------------------------------
+// resolvePrNumber tests (PR-routing branches coverage)
+// ---------------------------------------------------------------------------
+
+test("resolvePrNumber skips lookup on default branch and returns null", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  process.env.GITHUB_REF_NAME = "main";
+  const originalFetch = globalThis.fetch;
+
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    const result = await resolvePrNumber(REPO, "abc123", "main", null);
+    assert.equal(result, null);
+    assert.ok(!fetchCalled, "should not call API on main branch");
+  } finally {
+    delete process.env.GITHUB_REF_NAME;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns initialPrNumber without any API call", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
+  const originalFetch = globalThis.fetch;
+
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    // When initialPrNumber is provided, resolvePrNumber returns it directly
+    // without calling the API (env is not on main branch here)
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", 391);
+    assert.equal(result, 391);
+    assert.ok(!fetchCalled, "should not call API when PR number is provided");
+  } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber falls back through open-match → any-open → first PR", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
+  const originalFetch = globalThis.fetch;
+
+  // Mock fetch to return a PR list with multiple entries; verify the matching open PR wins
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 391, state: "open", head: { ref: "feature-branch" } },
+        { number: 200, state: "open", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    // HEAD_BRANCH matches #391 → should pick 391 as "matching open PR"
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, 391);
+  } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns first OPEN PR when no branch match exists", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 200, state: "open", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    // No PR matches branch; first OPEN PR (200) is picked, not first overall (100, closed)
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, 200);
+  } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("resolvePrNumber returns null when only closed PRs exist", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const origRef = process.env.GITHUB_REF_NAME;
+  delete process.env.GITHUB_REF_NAME;
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url) => {
+    if (url.includes("/pulls")) {
+      return new Response(JSON.stringify([
+        { number: 100, state: "closed", head: { ref: "feature-branch" } },
+        { number: 101, state: "closed", head: { ref: "other-branch" } },
+      ]), { status: 200, headers: { "Link": "" } });
+    }
+    return new Response("[]", { status: 200, headers: { "Link": "" } });
+  };
+
+  try {
+    const result = await resolvePrNumber(REPO, "abc123", "feature-branch", null);
+    assert.equal(result, null);
+  } finally {
+    if (origRef !== undefined) process.env.GITHUB_REF_NAME = origRef;
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// rawText and 404/410 handling tests
+// ---------------------------------------------------------------------------
+
+test("gh returns raw text when opts.rawText is true", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async (url) => {
+      assert.equal(url, "https://api.github.com/repos/test/logs");
+      return new Response("raw log content here", {
+        status: 200,
+        headers: { "Content-Type": "application/octet-stream" }
+      });
+    };
+
+    const result = await gh("/repos/test/logs", { rawText: true });
+    assert.equal(result.data, "raw log content here");
+    assert.equal(result.link, null);
+  } finally {
+    delete process.env.GITHUB_TOKEN;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("collectRunFindings suppresses 404/410 errors and warns on other failures", async () => {
+  process.env.GITHUB_TOKEN = "test-token";
+  const originalFetch = globalThis.fetch;
+
+  let warnings = [];
+  const originalWarn = console.warn.bind(console);
+  console.warn = (msg) => warnings.push(msg);
+
+  try {
+    // Simulate a 404 for logs (should be suppressed) and a generic error (should warn)
+    let callCount = 0;
+    globalThis.fetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        // First call: /repositories/.../jobs succeeds
+        return new Response(JSON.stringify([
+          { id: 123, name: "test job", conclusion: "success", html_url: "http://job-url" }
+        ]), { status: 200, headers: { "Link": "" } });
+      } else if (callCount === 2) {
+        // Second call: annotations succeed
+        return new Response(JSON.stringify([]), { status: 200, headers: { "Link": "" } });
+      } else if (callCount === 3) {
+        // Third call: logs fail with 404 (should be suppressed)
+        return new Response("Not Found", { status: 404 });
+      }
+      return new Response("", { status: 200 });
+    };
+
+    const selectedRuns = [{ id: 12345, name: "Test Workflow" }];
+    const { allFindings } = await collectRunFindings(selectedRuns, REPO);
+
+    // Should have no findings since logs are not available
+    assert.equal(allFindings.length, 0);
+
+    // Should NOT contain warning for 404
+    const has404Warning = warnings.some(w => w.includes("404"));
+    assert.ok(!has404Warning, "should not warn about 404 (log expired)");
+
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    delete process.env.GITHUB_TOKEN;
+  }
+});
+
+

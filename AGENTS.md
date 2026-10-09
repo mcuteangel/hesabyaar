@@ -138,6 +138,20 @@ The data flow is: `Screen → ViewModel → UseCase → RustBridge → Rust core
 - Use the AI abstraction. `AiProvider` is the interface with `AiProviderConfig`. Business logic must not link to a specific provider.
 - Use the Persian-first UX. Use full RTL, the Vazirmatn font, and Persian terms in the UI strings.
 
+## CI Warnings Report
+
+`.github/workflows/ci-warnings-report.yml` collects warnings and deprecations from every workflow run of a commit. It collects check-run annotations and raw job logs.
+For pull requests, it maintains one sticky PR comment.
+For non-PR runs on `main`, it updates the open "CI warnings on main" issue. Other branches without a PR are skipped.
+When you add or rename a workflow, add its exact `name:` to that file's `workflow_run.workflows` list. `.github/scripts/ci-warnings.test.mjs` fails until you do.
+New warning kinds land in "Other". Teach the parser in `.github/scripts/ci-warnings.mjs` with a test instead of ignoring them.
+
+## Out-of-Scope Review Feedback
+
+When review comments highlight valid suggestions that are outside the scope of the current pull request, do not ignore them.
+Create a new GitHub issue with complete details for each valid out-of-scope item.
+Link the pull request and the original discussion in the issue description.
+
 ## Keeping Docs in Sync
 
 - When a change renames, moves, or deletes a file, update every doc that names it in the same PR. `python3 scripts/check_docs.py` lists broken path references; CI (`docs-check.yml`) fails on them.
