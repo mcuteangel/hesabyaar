@@ -1,8 +1,11 @@
 package io.github.mojri.hesabyar
 
+import androidx.compose.runtime.saveable.SaverScope
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -11,6 +14,12 @@ import org.junit.Test
  * Runs without Robolectric so the jacoco report records the mapping coverage.
  */
 class MainActivityNavigationTest {
+  companion object {
+    private const val MSG_SEARCH_QUERY_RESET = "Search query reset"
+    private const val MSG_NAVIGATED_TO_DEBTS = "Navigated to DEBTS tab"
+    private const val MSG_DEBTS_SECTION_PERSONS = "Debts section set to PERSONS"
+  }
+
   @Test
   fun deepLinksOpenDebtsTab() {
     val deepLinks =
@@ -59,6 +68,58 @@ class MainActivityNavigationTest {
   }
 
   @Test
+  fun debtsTabStateSaverPreservesSectionAndFilter() {
+    val state = DebtsTabState(DebtSection.BANK_LOANS, LoanDirectionFilter.CREDITOR)
+    val saved =
+      with(DebtsTabStateSaver) {
+        SaverScope { true }.save(state)
+      }
+    assertNotNull("Saved state should not be null", saved)
+    val restored = DebtsTabStateSaver.restore(saved!!)
+    assertEquals("DebtsTabState section restored", state.section, restored?.section)
+    assertEquals("DebtsTabState filter restored", state.filter, restored?.filter)
+  }
+
+  @Test
+  fun tabHistorySaverPreservesVisitedTabs() {
+    val history = listOf(TAB_DASHBOARD, TAB_DEBTS, TAB_REPORTS)
+    val saved =
+      with(TabHistorySaver) {
+        SaverScope { true }.save(history)
+      }
+    assertNotNull("Saved tab history should not be null", saved)
+    val restored = TabHistorySaver.restore(saved!!)
+    assertEquals("Tab history restored", history, restored)
+  }
+
+  @Test
+  fun tabHistorySaverFallsBackToDashboardWhenEmpty() {
+    val restored = TabHistorySaver.restore(emptyList<Any>())
+    assertEquals("Empty restore falls back to dashboard", listOf(TAB_DASHBOARD), restored)
+
+    val nonStringOnly = TabHistorySaver.restore(listOf(42, true))
+    assertEquals("Non-string entries fall back to dashboard", listOf(TAB_DASHBOARD), nonStringOnly)
+  }
+
+  @Test
+  fun debtsTabStateSaverFallsBackOnInvalidValues() {
+    val restored = DebtsTabStateSaver.restore(listOf("INVALID_SECTION", "INVALID_FILTER"))
+    assertEquals("Invalid section falls back to INSTALLMENTS", DebtSection.INSTALLMENTS, restored?.section)
+    assertEquals("Invalid filter falls back to ALL", LoanDirectionFilter.ALL, restored?.filter)
+  }
+
+  @Test
+  fun debtsTabStateSaverFallsBackOnEmptyOrTruncatedList() {
+    val fromEmpty = DebtsTabStateSaver.restore(emptyList<String>())
+    assertEquals("Empty list falls back section to INSTALLMENTS", DebtSection.INSTALLMENTS, fromEmpty?.section)
+    assertEquals("Empty list falls back filter to ALL", LoanDirectionFilter.ALL, fromEmpty?.filter)
+
+    val fromSingle = DebtsTabStateSaver.restore(listOf(DebtSection.BANK_LOANS.name))
+    assertEquals("Single element retains section BANK_LOANS", DebtSection.BANK_LOANS, fromSingle?.section)
+    assertEquals("Missing second element falls back filter to ALL", LoanDirectionFilter.ALL, fromSingle?.filter)
+  }
+
+  @Test
   fun dashboardDebtorCardNavigationClearsQueryAndSwitchesToDebtors() {
     var searchCleared = false
     var currentTab = TAB_DASHBOARD
@@ -74,9 +135,9 @@ class MainActivityNavigationTest {
 
     debtsNav.onShowDebtors()
 
-    assertEquals("Search query reset", true, searchCleared)
-    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
-    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals(MSG_SEARCH_QUERY_RESET, true, searchCleared)
+    assertEquals(MSG_NAVIGATED_TO_DEBTS, TAB_DEBTS, currentTab)
+    assertEquals(MSG_DEBTS_SECTION_PERSONS, DebtSection.PERSONS, debtsState.section)
     assertEquals("Filter set to DEBTOR", LoanDirectionFilter.DEBTOR, debtsState.filter)
   }
 
@@ -96,9 +157,9 @@ class MainActivityNavigationTest {
 
     debtsNav.onShowCreditors()
 
-    assertEquals("Search query reset", true, searchCleared)
-    assertEquals("Navigated to DEBTS tab", TAB_DEBTS, currentTab)
-    assertEquals("Debts section set to PERSONS", DebtSection.PERSONS, debtsState.section)
+    assertEquals(MSG_SEARCH_QUERY_RESET, true, searchCleared)
+    assertEquals(MSG_NAVIGATED_TO_DEBTS, TAB_DEBTS, currentTab)
+    assertEquals(MSG_DEBTS_SECTION_PERSONS, DebtSection.PERSONS, debtsState.section)
     assertEquals("Filter set to CREDITOR", LoanDirectionFilter.CREDITOR, debtsState.filter)
   }
 
@@ -120,5 +181,34 @@ class MainActivityNavigationTest {
 
     assertEquals("Search query reset on entering DEBTS", true, searchCleared)
     assertEquals("Current tab updated to DEBTS", TAB_DEBTS, currentTab)
+  }
+
+  @Test
+  fun backWalksVisitedTabsThenHomeThenAsksToExit() {
+    var history = listOf(TAB_DASHBOARD).pushTab(TAB_DEBTS).pushTab(TAB_REPORTS)
+    assertEquals(listOf(TAB_DASHBOARD, TAB_DEBTS, TAB_REPORTS), history)
+
+    history = history.popTab(TAB_DASHBOARD)!!
+    assertEquals("Back returns to the previous tab", TAB_DEBTS, history.last())
+    history = history.popTab(TAB_DASHBOARD)!!
+    assertEquals("Back reaches the dashboard", TAB_DASHBOARD, history.last())
+    assertNull("Back on the dashboard asks to exit", history.popTab(TAB_DASHBOARD))
+  }
+
+  @Test
+  fun deepLinkStartFallsBackToDashboardBeforeExit() {
+    val history = listOf(TAB_DEBTS).popTab(TAB_DASHBOARD)
+    assertEquals(listOf(TAB_DASHBOARD), history)
+  }
+
+  @Test
+  fun revisitingTabMovesItToTopWithoutDuplicates() {
+    val history =
+      listOf(TAB_DASHBOARD)
+        .pushTab(TAB_DEBTS)
+        .pushTab(TAB_REPORTS)
+        .pushTab(TAB_DEBTS)
+        .pushTab(TAB_DEBTS)
+    assertEquals(listOf(TAB_DASHBOARD, TAB_REPORTS, TAB_DEBTS), history)
   }
 }
