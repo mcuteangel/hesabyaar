@@ -22,6 +22,43 @@
 ./gradlew --no-daemon bundleRelease
 ```
 
+### Building from Iran (Maven mirrors)
+
+`settings.gradle.kts` declares the en-mirror.ir and Tencent mirrors. These
+mirrors are opt-in. A default build uses `google()` and `mavenCentral()` only.
+
+Enable the mirrors with one of these values: `1`, `true`, or `yes`. The value is
+not case-sensitive.
+
+Linux and macOS:
+
+```bash
+HESABYAR_USE_MIRRORS=1 ./gradlew --no-daemon installDebug
+```
+
+Windows PowerShell:
+
+```powershell
+$env:HESABYAR_USE_MIRRORS = "1"
+.\gradlew.bat --no-daemon installDebug
+```
+
+Windows Command Prompt:
+
+```cmd
+set HESABYAR_USE_MIRRORS=1
+gradlew.bat --no-daemon installDebug
+```
+
+The variable applies to any Gradle task. The examples use `installDebug` to
+match the build section above.
+
+Use the `--no-daemon` flag every time. A running daemon keeps the environment
+from its start. This means a later change to the variable has no effect.
+
+Never enable this in CI: the mirrors can serve a POM without its JAR/AAR, and
+Gradle then fails instead of falling back to the official repositories (#389).
+
 ## Tests
 
 ```bash
