@@ -22,6 +22,18 @@
 ./gradlew --no-daemon bundleRelease
 ```
 
+### Building from Iran (Maven mirrors)
+
+If `google()` / `mavenCentral()` are unreachable, opt in to the en-mirror.ir and
+Tencent mirrors declared in `settings.gradle.kts`:
+
+```bash
+HESABYAR_USE_MIRRORS=1 ./gradlew --no-daemon assembleDebug
+```
+
+Never enable this in CI: the mirrors can serve a POM without its JAR/AAR, and
+Gradle then fails instead of falling back to the official repositories (#389).
+
 ## Tests
 
 ```bash
