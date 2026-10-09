@@ -40,7 +40,7 @@ assertEquals(2, orders.size, "Should have 2 distinct orders")
   - Bad: `` fun `putForecast then getForecast returns same value`() ``
   - Good: `fun putForecastThenGetForecastReturnsSameValue()`
 - When you touch an existing backtick test, rename it to camelCase as part of the change.
-- Use camelCase names for all new test files.
+- Use PascalCase names for all new test files (e.g., `FooTest.kt`) to match test class names.
 
 ## Architecture Pattern
 
@@ -122,7 +122,7 @@ Real example from `AccountBalanceCard.kt`:
 // percentage, regardless of the page's RTL direction.
 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
   Text(
-    text = "$sign$pct% $arrow",
+    text = stringResource(R.string.account_pct_change, sign, pct, arrow),
     style = MaterialTheme.typography.labelMedium,
     color = color,
     textAlign = TextAlign.End,

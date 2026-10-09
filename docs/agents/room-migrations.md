@@ -4,11 +4,11 @@
 
 ## Room Migration Checklist
 
-Every change to the database schema or an `@Entity` class must satisfy this checklist:
+Every schema-affecting change to the database or an `@Entity` class must satisfy this checklist:
 
 1. **Database version:** Increment `version` in `@Database(...)` in `AppDatabase.kt`.
 2. **Explicit migration:** Create an explicit `Migration(oldVersion, newVersion)` object and register it in the migration list. Using `fallbackToDestructiveMigration()` is strictly forbidden.
-3. **Exported schema:** When Room schema export is enabled (`exportSchema = true`), generate and update the new JSON schema file in the schemas directory. (Note: `exportSchema` is currently `false` in `AppDatabase.kt`; when enabled in the future, schema files become mandatory).
+3. **Exported schema:** Schema export is currently disabled (`exportSchema = false` in `AppDatabase.kt`). When schema exports are enabled, configure the schema output directory in Gradle, enable `exportSchema = true`, and check in the resulting JSON schema for the new version.
 4. **Migration test:** Test every migration with `MigrationTestHelper` when migration testing infrastructure is configured. The test must:
    - Create the database at the old version.
    - Insert representative sample data.

@@ -6,7 +6,7 @@
 
 Run `./gradlew --no-daemon compileDebugKotlin` before a broad test run. This check finds Kotlin type errors early. This check is optional. The test tasks compile test sources separately.
 
-For release-variant Kotlin compilation, use this command. This type-check only. It does not use signing or ProGuard. Use the signing checks above for those tasks.
+For release-variant Kotlin compilation, use this command. This type-check only. It does not use signing or ProGuard. Use the signing checks in `AGENTS.md` (`## Build & Run`) for those tasks.
 
 ```bash
 ./gradlew --no-daemon compileReleaseKotlin

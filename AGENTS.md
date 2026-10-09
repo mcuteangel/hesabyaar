@@ -47,7 +47,7 @@ Read only the guides that match your task. Each one is short.
 
 ## Verification (summary)
 
-Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck detekt --no-daemon`, the matching tests (`testDebugUnitTest`, `testDebugUnitTestRust`, or `cargo test`), and give the evidence below. Details: `docs/agents/testing.md`.
+Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck detekt --no-daemon`, the matching tests (`testDebugUnitTest`, `testDebugUnitTestRust`, or `cargo test --manifest-path rust/Cargo.toml`), and give the evidence below. Details: `docs/agents/testing.md`.
 
 ## Evidence Standard for Completion Reports
 
