@@ -6,12 +6,11 @@
 
 ## Active Task
 
-plans/011 Phase 3 — Persons ledger UI.
+PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
 
 ## Goal
 
-Redesign the personal loan ledger so loans attach to durable person records
-and the debts hub shows a per-person net position.
+Ensure robust back navigation across tabs and management overlays, optimize string lookups, and ensure test coverage for all navigation paths.
 
 ## Completed
 
@@ -136,4 +135,4 @@ Run on 2026-10-06, branch `feature/person-loan-ledger` (code head `a14c196` / PR
 
 ## Last Updated
 
-2026-10-06
+2026-10-09
