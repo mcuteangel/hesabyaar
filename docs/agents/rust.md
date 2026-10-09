@@ -26,7 +26,7 @@ The core is bundled with the app. It is not published separately. It has its own
   - MAJOR — a breaking change to the FFI surface or the backup schema (`BackupPayload.version`).
   - MINOR — a backward-compatible feature or category added to the core API.
   - PATCH — a bug fix with no API or schema change.
-- The build metadata (`+<hash>`) is auto-derived as a source-tree fingerprint. The Gradle `:app:syncCoreVersion` task derives it from a SHA-256 of the `rust/hesabyar-core/src` tree. It is written to the gitignored `rust/hesabyar-core/src/generated/core_version.rs`. It is embedded through `build.rs` into the `CORE_VERSION` env. At runtime, it becomes available through `get_core_version()` (UniFFI). The metadata changes when the core source changes.
+- The build metadata (`+<hash>`) is auto-derived from the workspace `rust/Cargo.toml` and Rust source files under `rust/hesabyar-core/src` (excluding generated files). It is written to the gitignored `rust/hesabyar-core/src/generated/core_version.rs`, embedded through `build.rs` into `CORE_VERSION`, and exposed at runtime through `get_core_version()` (UniFFI); it identifies this source snapshot, not every build input.
 - Do not hand-edit `src/generated/core_version.rs`. It is regenerated on every binding or NDK build. `cargo build` and `cargo test` outside Gradle use the Cargo package version.
 
 ### Backup schema version (`version` / `appVersion`)
