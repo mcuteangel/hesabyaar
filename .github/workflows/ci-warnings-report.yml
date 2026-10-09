@@ -32,6 +32,7 @@ on:
       - "PR Agent (Gemini 3.1 Flash Lite)"
       - "Release"
       - "Rust Lint"
+      - "Deploy landing page"
       - "Summarize new issues"
       - "Super Linter"
       - "Docs references"
