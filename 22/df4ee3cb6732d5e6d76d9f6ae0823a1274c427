@@ -1,0 +1,34 @@
+app/src/test/java/io/github/mojri/hesabyar/MoreMenuSheetTest.kt
+  s_573f3ddb7a6de3::t_855ee117d97eb0 3,8,25-30,43-46,62-63,82-83,102-103,122-123
+  s_573f3ddb7a6de3::t_fb051b4c6b4e6d 1-2,4-7,9-24,31-42,47-61,64-81,84-101,104-121,124-128
+app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt
+  s_573f3ddb7a6de3::t_f5d74dd574f1e3 3,13,40-44
+  s_573f3ddb7a6de3::t_6e591d723f44c4 115-116,139,164,168,182,198
+app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt
+  s_573f3ddb7a6de3::t_e45da36540f430 391-392,398,446-447,453
+app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt
+  s_573f3ddb7a6de3::t_e308ef9a0be1eb 106
+app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt
+  s_573f3ddb7a6de3::t_3c6a8f3f8cbf45 73
+  s_573f3ddb7a6de3::t_8b90a74f895589 36-37,49
+  s_573f3ddb7a6de3::t_9b9b5842bb6c2a 17
+  s_573f3ddb7a6de3::t_53424127845e86 3,15,43-45
+  s_573f3ddb7a6de3::t_c5bd53cc525bb1 106,108
+  s_573f3ddb7a6de3::t_73e1fdc1ebf927 205-369
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "22df4ee3cb6732d5e6d76d9f6ae0823a1274c427",
+  "prompts": {},
+  "sessions": {
+    "s_573f3ddb7a6de3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42c7c8ca-7822-475b-83eb-8d2b146ce6c2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
