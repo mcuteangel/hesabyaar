@@ -26,7 +26,7 @@
 | `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/account/UnarchiveAccountUseCaseTest.kt` | تست بازیابی |
 | `app/src/test/java/io/github/mojri/hesabyar/domain/validation/AccountValidatorTest.kt` | تست کامل validator (اگر Phase 1 ناقص بوده) |
 
-### فایل‌های ویرایشی (accessibility)
+### فایل‌های ویرایشی (accessibility) <!-- check-docs: planned -->
 | فایل | تغییر |
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountListCard.kt` | contentDescription, semantics, testTag |

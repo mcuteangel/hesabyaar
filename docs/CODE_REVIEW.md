@@ -216,7 +216,7 @@ LoanInstallmentTest
 | تست ViewModel | ❌ отсутствует (به‌خاطر نبود DI — §3.3) |
 | تست UI (Compose) | ❌ отсутствует (androidTest خالی است) |
 | Coverage report | ❌ отсутствует |
-| Instrumentation test | ❌ `app/src/androidTest/` خالی |
+| Instrumentation test | ❌ `app/src/androidTest/` خالی | <!-- check-docs: ignore -->
 
 **هدف Phase 4:** coverage > ۸۰٪، افزودن تست ViewModel (پس از Hilt) و تست Compose UI.
 
