@@ -1,3 +1,4 @@
+/* jshint esversion: 6, browser: true */
 "use strict";
 
 (() => {
@@ -8,6 +9,13 @@
     String(text).replace(/\d/g, (digit) => FA_DIGITS[Number(digit)]);
 
   const formatSize = (bytes) => {
+    if (typeof bytes !== "number" || bytes <= 0) {
+      return "";
+    }
+    if (bytes < 1024 * 1024) {
+      const formatted = (bytes / 1024).toFixed(1).replace(".", "٫");
+      return `${toFa(formatted)} کیلوبایت`;
+    }
     const formatted = (bytes / (1024 * 1024)).toFixed(1).replace(".", "٫");
     return `${toFa(formatted)} مگابایت`;
   };
@@ -93,7 +101,7 @@
 
   const updateVersion = (release) => {
     const versionElement = document.getElementById("release-version");
-    if (versionElement) {
+    if (versionElement && typeof release.tag_name === "string" && release.tag_name.trim().length > 0) {
       versionElement.textContent = release.tag_name;
     }
   };

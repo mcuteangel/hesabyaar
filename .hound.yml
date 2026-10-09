@@ -1,3 +1,5 @@
-javascript:
+eslint:
   enabled: true
   config_file: site/.eslintrc.json
+jshint:
+  enabled: false
