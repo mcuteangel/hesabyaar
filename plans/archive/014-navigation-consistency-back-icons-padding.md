@@ -1,7 +1,7 @@
 # Plan 014 — Navigation Consistency: BackHandler for Overlays, Distinct Tab Icons, and Padding
 
 - **Issue:** #360
-- **PR:** #385
+- **PR:** #393
 - **Created:** 2026-10-09
 - **Author:** Claude Code
 - **Status:** DONE
@@ -38,7 +38,7 @@ Issue #360 identifies four navigation and UX consistency defects in `hesabyaar`:
 
 ### Phase 4: Unit & UI Tests
 - In `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt`:
-  - Add test `navigationDestinationsHaveDistinctIcons` verifying no duplicates between `MAIN_TABS` icons and accounts icon.
+  - Add test `navigationDestinationsHaveDistinctIcons` verifying distinct icons across all `MAIN_TABS`, asserting Dashboard icon is `Icons.Filled.Dashboard`, and ensuring no `MAIN_TABS` destination collides with the Accounts icon (`Icons.Filled.AccountBalanceWallet`).
   - Add test `debtsTabLabelIsConcise` asserting string resource is `"بدهی‌ها"`.
 - Run all unit tests with `./gradlew.bat testDebugUnitTest` and static analysis checks (`ktlintCheck`, `detekt`).
 

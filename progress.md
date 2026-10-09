@@ -132,12 +132,12 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 | Kotlin style | `./gradlew.bat ktlintFormat --no-daemon` | PASS |
 | Static analysis | `./gradlew.bat ktlintCheck detekt --no-daemon` | PASS (BUILD SUCCESSFUL, 0 findings) |
 | Docs path references | `python scripts/check_docs.py` | PASS (no broken references) |
-| GitHub CI | PR #385 actions | In-progress (DeepSource coverage re-upload pending) |
+| GitHub CI | PR #393 actions | PASS (All required build and code quality checks green) |
 
 ### Plan 014 — Issue #360 Acceptance Criteria Resolution
 
-- **Criterion 1 (BackHandler):** Implemented in PR #385 via `MainNavigationCoordinator.overlayVisibleState` and `TabBackHandler`. Verified by existing tests.
-- **Criterion 2 (Distinct Icons):** `MAIN_TABS.TAB_DASHBOARD.icon = Icons.Filled.Dashboard` (previously `AccountBalanceWallet`). Test `navigationDestinationsHaveDistinctIcons()` confirms no duplicates.
+- **Criterion 1 (BackHandler):** Implemented in PR #385 via the coordinator's management-state `BackHandler`s and `TabBackHandler`. Verified by existing tests.
+- **Criterion 2 (Distinct Icons):** `MAIN_TABS.TAB_DASHBOARD.icon = Icons.Filled.Dashboard` (previously `AccountBalanceWallet`). Test `navigationDestinationsHaveDistinctIcons()` confirms no duplicates among `MAIN_TABS` or with Accounts management.
 - **Criterion 3 (Debts Label):** `strings.xml:nav_tab_debts = "بدهی‌ها"` (previously `"مدیریت بدهی‌ها"`). Test `debtsTabLabelIsConcise()` verifies exact string.
 - **Criterion 4 (Bottom Insets):** `MoreMenuSheet` uses `Spacer(modifier = Modifier.navigationBarsPadding())` (previously `height(32.dp)`). Verified by lint and manual testing on gesture/navigation devices.
 

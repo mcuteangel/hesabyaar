@@ -202,11 +202,14 @@ class MainNavigationComponentsTest {
 
     val dashboardTab = MAIN_TABS.first { it.id == TAB_DASHBOARD }
     assertEquals("Dashboard icon must be Icons.Filled.Dashboard", Icons.Filled.Dashboard, dashboardTab.icon)
-    assertNotEquals(
-      "Dashboard icon must not be AccountBalanceWallet (reserved for Accounts)",
-      Icons.Filled.AccountBalanceWallet,
-      dashboardTab.icon
-    )
+
+    MAIN_TABS.forEach { tab ->
+      assertNotEquals(
+        "No MAIN_TABS icon (${tab.id}) must be AccountBalanceWallet (reserved for Accounts)",
+        Icons.Filled.AccountBalanceWallet,
+        tab.icon
+      )
+    }
   }
 
   @Test
