@@ -4,7 +4,7 @@
 - **PR:** #301
 - **Created:** 2026-10-02
 - **Author:** Claude Code
-- **Status:** IMPLEMENTATION COMPLETE (PR #301 open, CI pending)
+- **Status:** DONE (merged in PR #301)
 
 ## 1. Problem Statement
 

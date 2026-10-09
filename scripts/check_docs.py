@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Report documentation references to repo paths that no longer exist.
 
-Scans AGENTS.md, README.md, docs/ and plans/ (archived plans excluded) for:
+Scans AGENTS.md, README.md, docs/, plans/ (archived plans excluded), and progress.md for:
   * relative markdown links, resolved against the linking file's folder;
   * inline code spans that name a repo path (``app/...``, ``rust/...`` ...),
     resolved against the repo root.
@@ -23,21 +23,34 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCAN = ["AGENTS.md", "README.md", "docs", "plans"]
+SCAN = ["AGENTS.md", "README.md", "docs", "plans", "progress.md"]
 EXCLUDE_DIRS = {ROOT / "plans" / "archive"}
 PATH_ROOTS = ("app/", "rust/", "docs/", "plans/", "scripts/", "config/", ".github/", "gradle/")
 APP_PKG = ROOT / "app/src/main/java/io/github/mojri/hesabyar"
 SKIP_CHARS = set("*<>{}$ ")
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+REF_LINK_RE = re.compile(r"^\s*\[([^\]]+)\]:\s*<?([^>\s]+)>?(?:\s+.*)?$")
 CODE_RE = re.compile(r"`([^`\n]+)`")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 # Sections that list files a plan will create: their paths do not exist yet.
-NEW_FILES_RE = re.compile(r"(new|create|جدید|check-docs: planned)", re.IGNORECASE)
+NEW_FILES_RE = re.compile(
+    r"(?:^#{1,6}\s+(?:(?:new\s+files?|files?\s+to\s+create|فایل‌های\s+(?:تست\s+)?جدید)\b|.*<!--\s*check-docs:\s*planned\s*-->))|"
+    r"check-docs:\s*planned",
+    re.IGNORECASE,
+)
+
+ROOT_FILES = {
+    p.name
+    for p in ROOT.iterdir()
+    if p.is_file() and not p.name.startswith(".")
+}
+ROOT_FILES.update([".env.example", ".gitignore", ".gitattributes"])
 
 
 def markdown_files() -> list[Path]:
@@ -56,17 +69,19 @@ def markdown_files() -> list[Path]:
 
 
 def clean(target: str) -> str:
-    target = target.split("#", 1)[0].split("?", 1)[0]
+    target = target.strip("<>").split("#", 1)[0].split("?", 1)[0]
     # Drop trailing line refs such as Foo.kt:42 or Foo.kt#L10-L20.
-    target = re.sub(r":[\d,\-\u2013]+$", "", target)
+    target = re.sub(r":[\d,\-–]+$", "", target)
     return target.rstrip("/.,;")
 
 
-GIT = shutil.which("git") or "git"
+GIT = shutil.which("git")
 
 
 def is_gitignored(path: Path) -> bool:
     """Generated or build output (gitignored) is legitimately absent."""
+    if not GIT:
+        return False
     result = subprocess.run(
         [GIT, "check-ignore", "-q", str(path)], cwd=ROOT, check=False
     )
@@ -81,16 +96,42 @@ def resolves(target: str, base: Path) -> bool:
     return any(c.exists() or is_gitignored(c) for c in candidates)
 
 
+def _is_external_or_anchor(raw: str) -> bool:
+    if raw.startswith("#"):
+        return True
+    parsed = urllib.parse.urlsplit(raw)
+    return bool(parsed.scheme or parsed.netloc)
+
+
 def _check_links(line: str, lineno: int, base: Path) -> list[tuple[int, str]]:
+    raw_targets = LINK_RE.findall(line)
+    ref_match = REF_LINK_RE.match(line)
+    if ref_match:
+        raw_targets.append(ref_match.group(2))
+
     findings: list[tuple[int, str]] = []
-    for raw in LINK_RE.findall(line):
-        if re.match(r"^[a-z]+:", raw) or raw.startswith("#"):
+    for raw in raw_targets:
+        if _is_external_or_anchor(raw):
             continue
         target = clean(raw)
-        if target and "..." not in target and not SKIP_CHARS & set(target):
-            if not resolves(target, base):
-                findings.append((lineno, raw))
+        if (
+            target
+            and "..." not in target
+            and not SKIP_CHARS & set(target)
+            and not resolves(target, base)
+        ):
+            findings.append((lineno, raw))
     return findings
+
+
+def _is_root_file_ref(raw: str) -> bool:
+    target = clean(raw)
+    return bool(
+        target
+        and target in ROOT_FILES
+        and "/" not in target
+        and "\\" not in target
+    )
 
 
 def _check_code_spans(
@@ -100,7 +141,11 @@ def _check_code_spans(
         return []
     findings: list[tuple[int, str]] = []
     for raw in CODE_RE.findall(line):
-        if not raw.startswith(PATH_ROOTS) or "..." in raw or SKIP_CHARS & set(raw):
+        if "..." in raw or SKIP_CHARS & set(raw):
+            continue
+        is_path_root = raw.startswith(PATH_ROOTS)
+        is_root_file = _is_root_file_ref(raw)
+        if not (is_path_root or is_root_file):
             continue
         target = clean(raw)
         if target and not resolves(target, ROOT):
