@@ -1,0 +1,27 @@
+.jshintrc
+  s_7b7ec0a7da6229::t_00824bff0a30cb 1-4
+.hound.yml
+  s_7b7ec0a7da6229::t_3f15aa74a5a396 1,4-5
+site/assets/main.js
+  s_7b7ec0a7da6229::t_1aa3b397fcdae7 1,12-18
+  s_7b7ec0a7da6229::t_d0122827be0def 104
+site/assets/style.css
+  s_7b7ec0a7da6229::t_9a36a178118aae 17-18,36-37
+  s_7b7ec0a7da6229::t_be220cdcbc9564 281-282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "68800855bd1c9873734630e47a3df17933b0d72d",
+  "prompts": {},
+  "sessions": {
+    "s_7b7ec0a7da6229": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "debce92d-5b84-479d-92d8-b3220bcb8b0b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
