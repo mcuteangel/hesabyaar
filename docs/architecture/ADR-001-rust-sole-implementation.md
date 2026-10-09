@@ -88,7 +88,7 @@ The consolidated plan lives at `plans/2026-08-19-rust-fallback-consolidation-pla
 ### Neutral
 
 - New contributors must understand both Kotlin (UI, persistence) and Rust (business logic). The `README.md` "Getting Started" and `AGENTS.md` now document this split.
-- Rust binding regeneration is now a required step for any Rust change. `AGENTS.md` §"Rust Changes Require Binding Regeneration" documents the workflow.
+- Rust binding regeneration is now a required step for any Rust change. `docs/agents/rust.md` §"Rust Changes Require Binding Regeneration" documents the workflow.
 
 ---
 
