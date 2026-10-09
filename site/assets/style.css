@@ -78,8 +78,9 @@ img {
   inset-inline-start: -999px;
   top: 0;
   padding: 0.5rem 1rem;
-  background: var(--primary);
-  color: #fff;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 700;
   z-index: 10;
 }
 
@@ -127,6 +128,13 @@ img {
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav a {
@@ -136,17 +144,12 @@ img {
   color: var(--muted);
   text-decoration: none;
   font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .nav a:hover {
   background: var(--surface-alt);
   color: var(--text);
-}
-
-@media (max-width: 640px) {
-  .nav li:not(:last-child) {
-    display: none;
-  }
 }
 
 /* Hero */
