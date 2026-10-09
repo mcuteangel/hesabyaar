@@ -19,11 +19,15 @@ rules:
   # coveralls-finish.yml uses workflow_run but never checks out code; it only
   # reads workflow-run statuses via the API and sends the Coveralls webhook,
   # so the trigger cannot execute untrusted PR code.
+  # ci-warnings-report.yml uses workflow_run but only checks out default-branch
+  # .github/scripts (never PR code) and parses/renders log text as markdown,
+  # so the write token cannot be reached by a fork (see its header comment).
   # Scoped to exact lines so other triggers remain audited.
   dangerous-triggers:
     ignore:
       - ocr-review.yml:57
       - coveralls-finish.yml:18
+      - ci-warnings-report.yml:17
   excessive-permissions:
     ignore:
       - ocr-review.yml:66

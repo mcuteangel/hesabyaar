@@ -610,6 +610,6 @@ test("renderComment survives backticks and links path-less items to their job", 
     { category: "rust", message: "unused variable: `x`", workflow: "Rust Lint", job: "clippy", jobUrl: "https://github.com/o/r/actions/runs/1/job/2" },
   ];
   const md = renderComment({ findings, sha: SHA, repo: REPO, runsScanned: 1 });
-  assert.ok(md.includes("`` unused variable: `x` ``"));
+  assert.ok(md.includes("``` unused variable: `x` ```"));
   assert.ok(md.includes("[Rust Lint/clippy](https://github.com/o/r/actions/runs/1/job/2)"));
 });

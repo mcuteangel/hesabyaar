@@ -1,7 +1,6 @@
 // CI Warnings Report — parse GitHub Actions logs and annotations into a single PR comment.
 // Pure ESM, Node 20+ built-ins only. Export pure functions for testability.
-import { createRequire } from "node:module";
-const require_ = createRequire(import.meta.url);
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,24 +39,44 @@ function makeRepoRelative(path, repo) {
  * Escape characters that break markdown tables or links.
  */
 function escapeMarkdown(s) {
-  return s.replace(/\|/g, "\\|").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s)
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/\|/g, "\\|")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /**
- * Render text as an inline code span that survives backticks in the text
- * (Rust/Kotlin messages quote identifiers with them). Code spans need no
- * HTML escaping; long messages are cut to keep the comment scannable.
+ * Render text as an inline code span.
+ *
+ * The source text is log/annotation content that a fork PR can influence, so
+ * we must not let a backtick run in it close the span and inject Markdown. When
+ * the message itself contains backticks, wrap it in a fence of 3 backticks
+ * (longer than any single backtick run in the message); otherwise use a single
+ * backtick. A single backtick inside a 1-backtick span would close it, so the
+ * 3-backtick fence is required for backtick-bearing messages.
  */
 function codeSpan(s, max = 300) {
   const t = normalizeMessage(s).slice(0, max) + (s.length > max ? "…" : "");
-  return t.includes("`") ? `\`\` ${t} \`\`` : `\`${t}\``;
+  if (t.includes("`")) {
+    // 3-backtick fence: cannot be closed by a 1-2 backtick run in the message.
+    return "``` " + t + " ```";
+  }
+  return `\`${t}\``;
 }
 
 /**
  * Build a GitHub source link for a file at a specific line on a given SHA.
  */
 function buildSourceLink(repo, sha, file, line) {
-  return `https://github.com/${repo}/blob/${sha}/${file}#L${line}`;
+  // Percent-encode each path segment so an untrusted path cannot break the URL
+  // (e.g. inject "#" or ")") and escape out of the link destination.
+  const encodedPath = file.split("/").map(encodeURIComponent).join("/");
+  return `https://github.com/${repo}/blob/${sha}/${encodedPath}#L${line}`;
 }
 
 
@@ -77,12 +96,11 @@ function shortSha(sha) {
  * Returns { category, file, line, message, rawLine, workflow, job }
  */
 function parseLogLine(line, repo, workflow, job) {
-  const raw = stripLogPrefix(line);
+  const clean = stripLogPrefix(line);
   // `##[warning]` lines are also published as check-run annotations, which
   // carry file/line; `##[group]Run ...` and `+ cmd` are command echoes whose
   // text (e.g. `--warning-mode all`) is not a warning.
-  if (/^##\[/.test(raw) || /^\+ /.test(raw) || /--warning-mode/.test(raw)) return null;
-  const clean = stripLogPrefix(line);
+  if (/^##\[/.test(clean) || /^\+ /.test(clean) || /--warning-mode/.test(clean)) return null;
   if (!clean) return null;
 
   // Kotlin compiler warnings: w: file:///home/.../Foo.kt:142:23 Unnecessary safe call ...
@@ -449,6 +467,9 @@ async function gh(path, opts = {}) {
   if (!token) throw new Error("GITHUB_TOKEN not set");
   const base = "https://api.github.com";
   const url = `${base}${path}`;
+  // Send a JSON Content-Type whenever we are POSTing/PATCHing a body, so
+  // GitHub parses it as JSON instead of rejecting it or guessing text/plain.
+  const hasBody = Boolean(opts.body);
 
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -459,9 +480,10 @@ async function gh(path, opts = {}) {
           Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
+          ...(hasBody ? { "Content-Type": "application/json" } : {}),
           ...opts.headers,
         },
-        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        body: hasBody ? JSON.stringify(opts.body) : undefined,
       });
 
       const rateLimited =
@@ -608,15 +630,18 @@ async function main() {
           const findings = parseLog(logText, repo, run.name, job.name);
           allFindings.push(...findings.map((f) => ({ ...f, jobUrl: job.html_url })));
 
-          // Detect codeCompiled: look for compileDebugKotlin not UP-TO-DATE/FROM-CACHE
-          if (codeCompiled === undefined && run.name.includes("Android")) {
+          // Detect codeCompiled: look for compileDebugKotlin not UP-TO-DATE/FROM-CACHE.
+          // If any Android job actually compiled, report true. Only report false
+          // when an Android job existed but every compile was cached/UP-TO-DATE.
+          if (run.name.includes("Android")) {
             const lines = logText.split(/\r?\n/);
             for (const l of lines) {
               if (l.includes(":app:compileDebugKotlin") || l.includes(":app:compileReleaseKotlin")) {
-                if (!l.includes("UP-TO-DATE") && !l.includes("FROM-CACHE")) {
-                  codeCompiled = true;
-                } else {
-                  codeCompiled = false;
+                const compiled = !l.includes("UP-TO-DATE") && !l.includes("FROM-CACHE");
+                if (compiled) {
+                  codeCompiled = true; // a real compile overrides any prior cached signal
+                } else if (codeCompiled === undefined) {
+                  codeCompiled = false; // seen a cached compile, but none have compiled yet
                 }
                 break;
               }
