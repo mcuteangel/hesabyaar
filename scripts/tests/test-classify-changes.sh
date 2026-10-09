@@ -14,10 +14,12 @@ touch app/A.kt rust/lib.rs site/index.html .github/workflows/x.yml scripts/a.sh 
 git add -A
 git commit -qm base
 BASE="$(git rev-parse HEAD)"
+N=0
 
 check() {
-  # $1 = changed file, $2 = expected KEY=true line
-  git checkout -q -b "t$1" 2>/dev/null || git checkout -q "t$1"
+  # $1 = changed file, $2 = expected KEY=value line
+  N=$((N + 1))
+  git checkout -q -b "t$N" "$BASE"
   echo x >> "$1"
   git add -A
   git commit -qm "change $1"
