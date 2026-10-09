@@ -8,25 +8,24 @@
   const toFa = (text) =>
     String(text).replace(/\d/g, (digit) => FA_DIGITS[Number(digit)]);
 
-  const formatSize = (bytes) => {
-    if (typeof bytes !== "number" || bytes <= 0) {
-      return "";
-    }
+  const formatKilobytes = (kb) =>
+    kb >= 1023.95
+      ? `${toFa("۱٫۰")} مگابایت`
+      : `${toFa(kb.toFixed(1).replace(".", "٫"))} کیلوبایت`;
+
+  const formatPositiveSize = (bytes) => {
     if (bytes < 1024) {
       return `${toFa(bytes)} بایت`;
     }
     if (bytes < 1024 * 1024) {
-      const kb = bytes / 1024;
-      if (kb >= 1023.95) {
-        return `${toFa("۱٫۰")} مگابایت`;
-      }
-      const formatted = kb.toFixed(1).replace(".", "٫");
-      return `${toFa(formatted)} کیلوبایت`;
+      return formatKilobytes(bytes / 1024);
     }
     const mb = bytes / (1024 * 1024);
-    const formatted = mb.toFixed(1).replace(".", "٫");
-    return `${toFa(formatted)} مگابایت`;
+    return `${toFa(mb.toFixed(1).replace(".", "٫"))} مگابایت`;
   };
+
+  const formatSize = (bytes) =>
+    Number(bytes) > 0 ? formatPositiveSize(bytes) : "";
 
   // Screenshots
   const buildScreenshotItem = (shot) => {
