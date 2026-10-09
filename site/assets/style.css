@@ -271,12 +271,17 @@ h3 {
 
 .phone {
   width: min(300px, 80vw);
-  height: 620px;
   aspect-ratio: 9 / 18.5;
   padding: 12px;
   border-radius: 42px;
   background: #111;
   box-shadow: var(--shadow), 0 0 0 2px #2a2a2a inset;
+}
+
+@supports not (aspect-ratio: 9 / 18.5) {
+  .phone {
+    height: 620px;
+  }
 }
 
 .phone__screen {

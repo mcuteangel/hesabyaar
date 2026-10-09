@@ -57,6 +57,23 @@
     { key: "x86_64", label: "x86_64", hint: "شبیه‌ساز و تبلت‌های اینتل" }
   ];
 
+  const isHttps = (url) => typeof url === "string" && url.startsWith("https://");
+
+  const buildDownloadItem = (item) => {
+    const listItem = document.createElement("li");
+    const link = document.createElement("a");
+    link.className = "dl";
+    link.href = item.asset.browser_download_url;
+    const strong = document.createElement("strong");
+    strong.textContent = item.abi.label;
+    const span = document.createElement("span");
+    span.textContent = `${item.abi.hint} · ${formatSize(item.asset.size)}`;
+    link.appendChild(strong);
+    link.appendChild(span);
+    listItem.appendChild(link);
+    return listItem;
+  };
+
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
     headers: { Accept: "application/vnd.github+json" }
   })
@@ -67,50 +84,36 @@
       return res.json();
     })
     .then((release) => {
-      const assets = release.assets || [];
-      const found = ABIS.map((abi) => {
-        const asset = assets.find((candidate) =>
-          candidate.name.toLowerCase().endsWith(`-${abi.key}.apk`));
-        return asset ? { abi, asset } : null;
-      }).filter(Boolean);
-
       const versionElement = document.getElementById("release-version");
       if (versionElement) {
         versionElement.textContent = release.tag_name;
       }
 
-      if (!found.length) {
+      const assets = release.assets || [];
+      const validDownloads = ABIS.map((abi) => {
+        const asset = assets.find((candidate) =>
+          candidate.name.toLowerCase().endsWith(`-${abi.key}.apk`));
+        if (asset && isHttps(asset.browser_download_url)) {
+          return { abi, asset };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (!validDownloads.length) {
         return;
       }
 
       const downloadsList = document.getElementById("downloads");
-      if (!downloadsList) {
-        return;
+      if (downloadsList) {
+        downloadsList.textContent = "";
+        validDownloads.forEach((item) => {
+          downloadsList.appendChild(buildDownloadItem(item));
+        });
       }
-      const isHttps = (url) => typeof url === "string" && url.startsWith("https://");
 
-      downloadsList.textContent = "";
-      found.forEach((item) => {
-        if (!isHttps(item.asset.browser_download_url)) {
-          return;
-        }
-        const listItem = document.createElement("li");
-        const link = document.createElement("a");
-        link.className = "dl";
-        link.href = item.asset.browser_download_url;
-        const strong = document.createElement("strong");
-        strong.textContent = item.abi.label;
-        const span = document.createElement("span");
-        span.textContent = `${item.abi.hint} · ${formatSize(item.asset.size)}`;
-        link.appendChild(strong);
-        link.appendChild(span);
-        listItem.appendChild(link);
-        downloadsList.appendChild(listItem);
-      });
-
-      const universal = found.find((item) => item.abi.key === "universal");
+      const universal = validDownloads.find((item) => item.abi.key === "universal");
       const heroDownload = document.getElementById("hero-download");
-      if (universal && heroDownload && isHttps(universal.asset.browser_download_url)) {
+      if (universal && heroDownload) {
         heroDownload.href = universal.asset.browser_download_url;
       }
     })
