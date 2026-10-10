@@ -1,115 +1,116 @@
-# Phase 5: بهبودهای UX
+# Phase 5: UX Improvements
 
-## پیش‌نیاز
+## Prerequisites
 
-- **فاز قبلی:** Phase 4 باید کامل شده باشه (Screen بازنویسی شده و state از ViewModel میاد)
-- **تصمیمات معلق:** ندارد
+- **Previous phase:** Phase 4 must be complete (the Screen is rewritten, and the state comes from the ViewModel)
+- **Pending decisions:** None
 
-## زمینه
+## Context
 
-بعد از Phase 4، ساختار معماری کامله. این فاز فقط بهبودهای UX اضافه می‌کنه: بازیابی حساب آرشیوشده، undo برای حذف/آرشیو، و بهبود empty state. هیچ‌کدام تغییر معماری نمی‌خوان — فقط feature additions.
+After Phase 4, the architecture is complete. This phase only adds UX improvements: restore an archived account, undo for delete/archive, and a better empty state. None of them needs an architecture change — they are only feature additions.
 
-## هدف دقیق این فاز
+## Exact Goal of This Phase
 
-اضافه کردن ۵ قابلیت UX:
-1. **Unarchive** — بازیابی حساب آرشیوشده
-2. **Undo Delete** — واگردانی حذف از Snackbar
-3. **Undo Archive** — واگردانی آرشیو از Snackbar
-4. **بهبود Empty State** — توضیح + CTA
-5. **Progressive Disclosure** — فیلدهای بانکی فقط برای نوع بانکی
+Add 5 UX capabilities:
+1. **Unarchive** — restore an archived account
+2. **Undo Delete** — revert a delete from the Snackbar
+3. **Undo Archive** — revert an archive from the Snackbar
+4. **Empty state improvement** — an explanation and a CTA
+5. **Progressive disclosure** — show the bank fields only for the bank type
 
-## فایل‌های درگیر
+## Files Involved
 
-### فایل‌های جدید
-| فایل | توضیح |
+### New files
+| File | Description |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UnarchiveAccountUseCase.kt` | بازیابی حساب |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UnarchiveAccountUseCase.kt` | Restore an account |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/RestoreAccountUseCase.kt` | Re-insert a deleted account (undo) |
 
-### فایل‌های ویرایشی <!-- check-docs: planned -->
-| فایل | تغییر |
+### Files to edit <!-- check-docs: planned -->
+| File | Change |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountEvent.kt` | اضافه کردن OnUnarchiveAccount |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | پردازش undo + unarchive |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountUiState.kt` | اضافه کردن lastDeletedAccount برای undo |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | empty state بهبودیافته + Snackbar undo |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountOverflowMenu.kt` | گزینه "فعال‌سازی مجدد" برای حساب آرشیوشده |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountListCard.kt` | StatusBadge برای حساب آرشیوشده |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountBankFields.kt` | conditional rendering |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountEvent.kt` | Add OnUnarchiveAccount |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Process undo + unarchive |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountUiState.kt` | Add lastDeletedAccount for undo |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Better empty state + Snackbar undo |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountOverflowMenu.kt` | The "فعال‌سازی مجدد" option for an archived account |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountListCard.kt` | StatusBadge for an archived account |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/account/AccountBankFields.kt` | Conditional rendering |
 
-## گام‌های اجرا
+## Execution Steps
 
-### گام ۵.۱: Unarchive
+### Step 5.1: Unarchive
 
 - `UnarchiveAccountUseCase`: `suspend fun invoke(account: AccountEntity)` → `account.copy(isArchived = false, updatedAt = now)` → update
 - `AccountEvent.OnUnarchiveAccount(account)`
-- در `AccountOverflowMenu`: اگر حساب آرشیوشده باشه، گزینه "فعال‌سازی مجدد" نشون داده بشه (به‌جای "آرشیو")
-- اضافه کردن `AccountStatusBadge` به `AccountListCard` — فقط اگر `isArchived` true باشه
+- In `AccountOverflowMenu`: if the account is archived, show the "فعال‌سازی مجدد" option (instead of "آرشیو")
+- Add `AccountStatusBadge` to `AccountListCard` — only if `isArchived` is true
 
-### گام ۵.۲: Undo Delete
+### Step 5.2: Undo Delete
 
-- در `AccountUiState`: اضافه کردن `lastDeletedAccount: AccountEntity? = null`
-- بعد از حذف: `lastDeletedAccount = account` + snackbar message = "حساب «{name}» حذف شد" + actionLabel = "واگردانی"
-- در Screen: اگر snackbar action "واگردانی" کلیک بشه → `OnUndoDelete` event
-- `OnUndoDelete`: `addAccountUseCase(lastDeletedAccount!!)` → `lastDeletedAccount = null`
-- **نکته:** برای undo، حساب قبل از حذف کامل باید cache بشه. `lastDeletedAccount` این کار رو می‌کنه.
-- **محدودیت:** فقط آخرین حذف قابل undo هست (۵ ثانیه window)
+- In `AccountUiState`: add `lastDeletedAccount: AccountEntity? = null`
+- After the delete: set `lastDeletedAccount = account`, the snackbar message is "حساب «{name}» حذف شد", and actionLabel is "واگردانی"
+- In the Screen: if the snackbar action "واگردانی" is clicked → `OnUndoDelete` event
+- `OnUndoDelete`: `lastDeletedAccount?.let { restoreAccountUseCase(it) }` → `lastDeletedAccount = null`. `RestoreAccountUseCase` (`suspend operator fun invoke(account: AccountEntity)`) re-inserts the cached entity through the repository, preserving all its fields (`isArchived`, display order, and the generated ID) — `AddAccountUseCase` takes `AccountFormModel` and cannot restore them. During restore, normalize installments with `bankLoanId != null` to `tracked = false, accountId = null` (plan 011 DECISION 2: bank-loan installments must stay untracked), so re-inserting the ID cannot reactivate a violating link
+- **Note:** for undo, cache the account completely before the delete. `lastDeletedAccount` does this.
+- **Limitation:** only the last delete can be undone (a 7 second window)
 
-### گام ۵.۳: Undo Archive
+### Step 5.3: Undo Archive
 
-- مشابه Undo Delete
-- در `AccountUiState`: `lastArchivedAccount: AccountEntity? = null`
-- بعد از آرشیو: snackbar + actionLabel = "واگردانی"
-- `OnUndoArchive`: `unarchiveAccountUseCase(lastArchivedAccount!!)`
+- Similar to Undo Delete
+- In `AccountUiState`: `lastArchivedAccount: AccountEntity? = null`
+- After the archive: show a snackbar, and actionLabel is "واگردانی"
+- `OnUndoArchive`: `lastArchivedAccount?.let { unarchiveAccountUseCase(it) }`
 
-### گام ۵.۴: بهبود Empty State
+### Step 5.4: Improve the empty state
 
-- استفاده از `EmptyState` component (از `ui/components/EmptyState.kt` — قبلاً وجود داره)
-- محتوا:
+- Use the `EmptyState` component (from `ui/components/EmptyState.kt` — it already exists)
+- Content:
   - Icon: `Icons.Filled.AccountBalance`
   - Title: "حسابی ثبت نشده است"
   - Description: "حساب‌ها به شما کمک می‌کنند تراکنش‌ها را دسته‌بندی کنید و موجودی هر حساب را جداگانه مدیریت کنید."
   - Action: "ایجاد حساب" → `onEvent(OnAddAccount)`
 
-### گام ۵.۵: Progressive Disclosure فیلدهای بانکی
+### Step 5.5: Progressive disclosure of the bank fields
 
-- در `AccountFormContent`: فیلدهای `AccountBankFields` فقط زمانی نمایش داده بشن که `formState.type == AccountType.BANK`
-- برای سایر انواع (CASH_WALLET, SAVINGS_INVESTMENT, OTHER): فیلدهای بانکی مخفی باشن
-- با `AnimatedVisibility` یا `if` ساده
+- In `AccountFormContent`: show the `AccountBankFields` fields only when `formState.type == AccountType.BANK`
+- For the other types (CASH_WALLET, SAVINGS_INVESTMENT, OTHER): hide the bank fields
+- Use `AnimatedVisibility` or a simple `if`
 
-### گام ۵.۶: StatusBadge component
+### Step 5.6: StatusBadge component
 
-- فایل جدید `ui/components/account/AccountStatusBadge.kt`
-- نمایش "آرشیو" badge روی حساب‌های آرشیوشده
-- فقط در management list نمایش داده بشه (نه dashboard)
-- رنگ: `MaterialTheme.colorScheme.surfaceVariant` با `onSurfaceVariant` text
+- New file `ui/components/account/AccountStatusBadge.kt`
+- Show an "آرشیو" badge on archived accounts
+- Show it only in the management list (not in the dashboard)
+- Color: `MaterialTheme.colorScheme.surfaceVariant` with `onSurfaceVariant` text
 
-## نکات خاص این فاز
+## Special Notes for This Phase
 
-- از چک‌لیست مرکزی:
-  - **R2** (اعداد منفی): اگر "موجودی محاسبه‌شده" جدیدی اضافه بشه (مثلاً در `AccountListCard`)، از الگوی LRM و sign/amount separation استفاده بشه
-  - **R1** (تطابق Rust/Kotlin): Unarchive حساب باید dashboard sync رو فعال کنه — تأیید کنید که Room Flow بعد از update خودکار emit می‌کنه
-- **مهم:** `lastDeletedAccount` و `lastArchivedAccount` باید بعد از Snackbar dismiss پاک بشن
-- Undo window: ۵ ثانیه (duration Snackbar)
-- اگر کاربر قبل از dismiss Snackbar اپ رو ببنده، undo از بین می‌ره — این قابل قبوله
+- From the central checklist:
+  - **R2** (negative numbers): if a new "calculated balance" is added (for example in `AccountListCard`), use the LRM pattern and sign/amount separation
+  - **R1** (Rust/Kotlin alignment): Unarchive must activate the dashboard sync — confirm that the Room Flow emits automatically after the update
+- **Important:** Clear `lastDeletedAccount` and `lastArchivedAccount` after the Snackbar is dismissed
+- Undo window: 7 seconds (the Snackbar duration)
+- If the user closes the app before the Snackbar is dismissed, the undo is lost — this is acceptable
 
-## معیار پذیرش
+## Acceptance Criteria
 
-- [ ] `UnarchiveAccountUseCase` وجود داره و تست شده
-- [ ] `AccountOverflowMenu` گزینه "فعال‌سازی مجدد" برای حساب آرشیوشده داره
-- [ ] بعد از حذف، Snackbar با "واگردانی" نمایش داده می‌شه
-- [ ] بعد از آرشیو، Snackbar با "واگردانی" نمایش داده می‌شه
-- [ ] کلیک "واگردانی" حساب رو برمی‌گردونه
-- [ ] Empty state شامل title + description + CTA button هست
-- [ ] فیلدهای بانکی فقط برای `AccountType.BANK` نمایش داده می‌شن
-- [ ] `AccountStatusBadge` روی حساب‌های آرشیوشده نمایش داده می‌شه
+- [ ] `UnarchiveAccountUseCase` exists and is tested
+- [ ] `AccountOverflowMenu` has the "فعال‌سازی مجدد" option for an archived account
+- [ ] After a delete, a Snackbar is shown with "واگردانی"
+- [ ] After an archive, a Snackbar is shown with "واگردانی"
+- [ ] A click on "واگردانی" restores the account
+- [ ] The empty state has a title, a description, and a CTA button
+- [ ] The bank fields are shown only for `AccountType.BANK`
+- [ ] `AccountStatusBadge` is shown on archived accounts
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
-- [ ] `./gradlew ktlintCheck detekt --no-daemon` → بدون خطا
-- [ ] Manual QA: آرشیو → بازیابی، حذف → undo، empty state جدید
+- [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
+- [ ] Manual QA: archive → restore, delete → undo, and the new empty state
 
 ## Rollback
 
 ```bash
 git log --oneline -5
 git revert <phase-5-commits>
-# یا حذف فایل‌های جدید و revert فایل‌های ویرایشی
+# Or delete the new files and revert the edited files
 ```
