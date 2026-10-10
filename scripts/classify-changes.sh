@@ -30,7 +30,7 @@ SELF_PATH="${3:-}"
 # initializers and the final emit loop all iterate over this, so adding a
 # class means editing exactly one line and the fail-open and normal paths
 # cannot drift apart.
-CLASSES="kotlin gradle rust site docs workflows actions ci_scripts config"
+CLASSES="kotlin gradle rust site docs workflows actions ci_scripts config self"
 
 emit() {
   # $1 = key, $2 = value
