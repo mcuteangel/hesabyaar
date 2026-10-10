@@ -53,7 +53,10 @@ jobs:
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 3 attempts x 30m per-attempt budget: a late transient failure (e.g. an
+    # upload error after the benchmarks finish) must leave room for a full
+    # retry instead of dying on the job timeout with a generic error.
+    timeout-minutes: 90
     permissions:
       contents: read # required for actions/checkout
       id-token: write # required for OIDC authentication with CodSpeed
@@ -104,6 +107,13 @@ jobs:
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@c4fd08a3a159bd0cc208da1e0edf32b8c47d75e5 # v5.4.0
+        env:
+            # ERE (case-insensitive) identifying transient infrastructure
+            # failures of `cargo codspeed run` that are safe to retry.
+            # Anything else fails fast, so a real benchmark regression
+            # always fails the gate. Kept on one line: YAML folding would
+            # inject spaces that break matches at the start of a log line.
+            TRANSIENT_ERROR_PATTERNS: "connection (timed out|refused|reset)|network is unreachable|temporary failure in name resolution|failed to download|failed to fetch|could not download|curl: \\([0-9]+\\)|TLS|SSL|certificate|handshake failure|rustls|HTTP [1-9]\\.[0-9] [45][0-9][0-9]|\\b(429|502|503|504)\\b|lost communication with the server|the runner has received a shutdown signal|no space left on device|upload.*(failed|timed out)"
         with:
           # Simulation mode: deterministic CPU simulation, <1% variance,
           # automatic flamegraphs. Best for the CPU-bound Rust core.
@@ -125,17 +135,38 @@ jobs:
             cargo remove criterion --dev -p hesabyar-core
             cargo add codspeed-criterion-compat@5 --rename criterion --dev -p hesabyar-core
             cargo codspeed build -p hesabyar-core -m simulation
-            # Retry the benchmark run: transient infra flakes (network, runner)
-            # should not fail the gate. A genuinely broken benchmark fails all
-            # attempts and the real result still surfaces.
+            # Retry ONLY transient infrastructure failures (network, TLS,
+            # HTTP, runner). Each failure is classified by grepping the
+            # attempt log: deterministic benchmark/harness failures fail
+            # fast, so a later pass can never hide an earlier failure from
+            # the merge gate.
             for attempt in 1 2 3; do
               echo "Benchmark run attempt $attempt/3"
-              if cargo codspeed run -p hesabyar-core; then
+              # Bound each attempt: a healthy run finishes well inside 30m.
+              # A hung run fails here with a clear error instead of burning
+              # the job's timeout budget.
+              rc=0
+              timeout -k 2m 30m cargo codspeed run -p hesabyar-core \
+                >"$RUNNER_TEMP/codspeed-attempt.log" 2>&1 || rc=$?
+              cat "$RUNNER_TEMP/codspeed-attempt.log"
+              if [ "$rc" -eq 0 ]; then
                 echo "Benchmarks completed on attempt $attempt"
-                break
+                exit 0
               fi
-              echo "::warning::Benchmark run attempt $attempt failed"
-              [ "$attempt" -eq 3 ] && exit 1
+              if [ "$rc" -eq 124 ]; then
+                echo "::error::Benchmark attempt $attempt exceeded the 30m per-attempt budget"
+                exit 1
+              fi
+              if grep -Ei -q "$TRANSIENT_ERROR_PATTERNS" "$RUNNER_TEMP/codspeed-attempt.log"; then
+                echo "::warning::Transient infrastructure error on attempt $attempt - retrying"
+              else
+                echo "::error::Non-transient benchmark/harness failure on attempt $attempt - failing without retry"
+                exit 1
+              fi
+              [ "$attempt" -eq 3 ] && break
               sleep 30
             done
+            echo "::error::Benchmark run failed with transient errors on all 3 attempts"
+            exit 1
           working-directory: rust
+
