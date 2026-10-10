@@ -156,12 +156,14 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 Each use case is a separate file:
 
 **AddAccountUseCase:**
-- `suspend operator fun invoke(form: AccountFormModel): Long`
-- Validate: proceed on `Valid` or `Warning` (surface warnings non-blockingly); abort on `Invalid` → insert → return the ID
+- `suspend operator fun invoke(form: AccountFormModel): AddAccountResult`
+- `sealed interface AddAccountResult { data class Success(val id: Long, val warnings: Map<String, String> = emptyMap()) : AddAccountResult; data class ValidationFailed(val errors: Map<String, String>) : AddAccountResult }`
+- Inside (single validation owner): `AccountValidator.validate(form)` → `Invalid` → return `ValidationFailed(errors)` (no insert); `Warning`/`Valid` → insert → `Success(id, warnings)`
+- The ViewModel maps `ValidationFailed.errors` to `formState.errors` and surfaces `Warning` warnings non-blockingly
 
 **UpdateAccountUseCase:**
-- `suspend operator fun invoke(account: AccountEntity)`
-- `account.copy(updatedAt = System.currentTimeMillis())` → update
+- `suspend operator fun invoke(account: AccountEntity, form: AccountFormModel): AddAccountResult`
+- Same single-owner validation as `AddAccountUseCase`: `Invalid` → `ValidationFailed(errors)` (no update); otherwise `account.copy(updatedAt = System.currentTimeMillis())` → update → `Success(account.id, warnings)`
 
 **DeleteAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
