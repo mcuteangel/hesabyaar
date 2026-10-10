@@ -51,7 +51,7 @@ Add 5 UX capabilities:
 - In `AccountUiState`: add `lastDeletedAccount: AccountEntity? = null`
 - After the delete: set `lastDeletedAccount = account`, the snackbar message is "حساب «{name}» حذف شد", and actionLabel is "واگردانی"
 - In the Screen: if the snackbar action "واگردانی" is clicked → `OnUndoDelete` event
-- `OnUndoDelete`: `lastDeletedAccount?.let { restoreAccountUseCase(it) }` → `lastDeletedAccount = null`. `RestoreAccountUseCase` (`suspend operator fun invoke(account: AccountEntity)`) re-inserts the cached entity through the repository, preserving all its fields (`isArchived`, display order, and the generated ID) — `AddAccountUseCase` takes `AccountFormModel` and cannot restore them
+- `OnUndoDelete`: `lastDeletedAccount?.let { restoreAccountUseCase(it) }` → `lastDeletedAccount = null`. `RestoreAccountUseCase` (`suspend operator fun invoke(account: AccountEntity)`) re-inserts the cached entity through the repository, preserving all its fields (`isArchived`, display order, and the generated ID) — `AddAccountUseCase` takes `AccountFormModel` and cannot restore them. During restore, normalize installments with `bankLoanId != null` to `tracked = false, accountId = null` (plan 011 DECISION 2: bank-loan installments must stay untracked), so re-inserting the ID cannot reactivate a violating link
 - **Note:** for undo, cache the account completely before the delete. `lastDeletedAccount` does this.
 - **Limitation:** only the last delete can be undone (a 7 second window)
 

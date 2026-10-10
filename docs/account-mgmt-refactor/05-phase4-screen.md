@@ -173,15 +173,21 @@ LaunchedEffect(Unit) {
   accountViewModel.sideEffect.collect { effect ->
     when (effect) {
       is AccountSideEffect.ShowSnackbar -> {
-        // Explicit duration: destructive actions (delete/archive) stay 7 seconds
-        // to match the undo window. SnackbarDuration has no 7s step, so show
-        // Indefinite and auto-dismiss after 7_000 ms.
-        launch { delay(7_000); snackbarHostState.currentSnackbarData?.dismiss() }
+        // Destructive actions (delete/archive) carry the undo action label and
+        // stay 7 seconds to match the undo window. SnackbarDuration has no 7s
+        // step, so show Indefinite and auto-dismiss after 7_000 ms. The timer
+        // is cancelled when this snackbar resolves, so it never dismisses a
+        // later snackbar. Other snackbars use Short.
+        val destructive = effect.actionLabel != null
+        val dismissJob = if (destructive) {
+          launch { delay(7_000); snackbarHostState.currentSnackbarData?.dismiss() }
+        } else null
         snackbarHostState.showSnackbar(
           message = effect.message,
           actionLabel = effect.actionLabel,
-          duration = SnackbarDuration.Indefinite,
+          duration = if (destructive) SnackbarDuration.Indefinite else SnackbarDuration.Short,
         )
+        dismissJob?.cancel()
       }
     }
   }

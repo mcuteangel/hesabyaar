@@ -50,6 +50,7 @@ mkdir -p app/src/main/java/io/github/mojri/hesabyar/ui/components/account
 **Source:** `AccountManagementScreen.kt` lines 468-551 (`AccountDialogForm`)  
 **Parameters:** `initialAccount: AccountEntity?`, `onSave: (AccountFormData) -> Unit`  
 **Note:** The form keeps its `remember`-based state in this phase. Phase 4 switches it to the ViewModel-backed `AccountFormState`.  
+**Note:** `AccountFormData` is currently `private` in `AccountManagementScreen.kt:88`; make it `internal` (or move it into the new component file) so the extracted component compiles.  
 **@Preview:** an empty form and a filled form
 
 ### Step 3.4: Extract AccountColorPicker

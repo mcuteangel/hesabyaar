@@ -149,7 +149,7 @@ class AccountViewModel @Inject constructor(
 ### Step 2.4: Add error handling
 
 - Put all the use case calls in `try-catch`
-- On error, emit a localized message via `AccountSideEffect.ShowSnackbar(context.getString(R.string.account_operation_error))` through `_sideEffect` (add the string resource; do not hard-code user-visible text)
+- On error, emit a localized message via `AccountSideEffect.ShowSnackbar(context.getString(R.string.account_operation_error, opName, e.message))` through `_sideEffect` (the existing string takes two format arguments — the operation and the error detail; do not hard-code user-visible text)
 - Set `isSaving = false` in the finally block
 
 ### Step 2.5: Write the ViewModel tests

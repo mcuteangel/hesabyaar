@@ -207,7 +207,7 @@ LoanInstallmentTest
 | Note | Status |
 |------|-------|
 | Pure logic coverage | ✅ good (Jalali, parser, repository logic, budget advisor, backup) |
-| ViewModel test | ✅ present | `AccountViewModelTest` (ViewModels use Hilt — §3.3) |
+| ViewModel test | ✅ present — `AccountViewModelTest` (ViewModels use Hilt, §3.3) |
 | UI test (Compose) | ❌ missing (androidTest is empty) |
 | Coverage report | ❌ missing |
 | Instrumentation test | ❌ `app/src/androidTest/` is empty | <!-- check-docs: ignore -->

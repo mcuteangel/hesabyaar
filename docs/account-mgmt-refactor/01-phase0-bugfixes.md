@@ -21,6 +21,8 @@ Fix the four listed bugs without an architecture change. The result is four clea
 | `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` | Bug #3 ('icon OTHER' — it may not need a change) |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt` | Bug #4 (remove the top-level duplicate) |
 | `app/src/main/java/io/github/mojri/hesabyar/data/AccountEntity.kt` | Bug #4 (keep `AccountEntity.DEFAULT_COLOR` as the single source) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Bug #4 (import `AccountEntity.DEFAULT_COLOR` instead) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Bug #4 (import `AccountEntity.DEFAULT_COLOR` instead) |
 
 ## Execution Steps
 
@@ -112,7 +114,8 @@ grep -n "AccountType.icon\|\.icon()" app/src/main/java/io/github/mojri/hesabyar/
 **Solution:**
 1. Confirm the exact value of all three (they must be the same)
 2. Delete the top-level `DEFAULT_ACCOUNT_COLOR` in `FinancialColors.kt` and reference `AccountEntity.DEFAULT_COLOR` instead
-3. The Rust value must not change (remove only the Kotlin-side duplicate)
+3. Update the two callers (`AccountViewModel.kt:15,105`, `AccountManagementScreen.kt:78,573`) to import `AccountEntity.DEFAULT_COLOR`
+4. The Rust value must not change (remove only the Kotlin-side duplicate)
 > **Architecture note:** Rust is the single source of truth for business logic. This fix only removes a duplicate on the Kotlin side. Rust remains the primary reference. Never add new logic or calculations to Kotlin.
 
 **Check after the change:**
