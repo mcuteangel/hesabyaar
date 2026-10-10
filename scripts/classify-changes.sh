@@ -13,6 +13,11 @@
 #
 # POSIX sh compatible. Unknown refs fail open (all classes true) so a
 # misconfigured diff never silently skips CI.
+#
+# shellcheck disable=SC2034
+# (the per-class flags are assigned in the case arms below and read back
+# through eval in the final emit loop; ShellCheck cannot see through that
+# indirection, hence the file-wide SC2034 exemption)
 set -eu
 
 BASE_REF="${1:-}"
@@ -86,7 +91,11 @@ while IFS= read -r f; do
     .github/actions/*) actions=true ;;
     .github/scripts/*|scripts/*) ci_scripts=true ;;
     *.md|docs/*|plans/*) docs=true ;;
-    VERSION|.github/dependabot.yml|.github/labeler.yml|.github/pull_request_template.md|\
+    # NOTE: .github/pull_request_template.md is intentionally absent here:
+    # *.md above already classifies it as docs (and Super-Linter excludes
+    # *.md from linting anyway), so listing it would be dead weight that
+    # ShellCheck flags as shadowed (SC2222).
+    VERSION|.github/dependabot.yml|.github/labeler.yml|\
 .codacy.yml|.codefactor.json|.editorconfig|.gitattributes|.hound.yml|.jshintrc|\
 .env.example) config=true ;;
     # Any other .github/* file (e.g. a future dependabot-style config not
