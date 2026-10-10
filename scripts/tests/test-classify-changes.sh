@@ -14,7 +14,7 @@ git config user.email t@t.t
 git config user.name t
 mkdir -p app rust site .github/workflows .github/actions/ci-test scripts gradle/wrapper config/detekt
 touch app/A.kt app/build.gradle.kts rust/lib.rs site/index.html \
-  .github/workflows/x.yml .github/actions/ci-test/action.yml scripts/a.sh \
+  .github/workflows/x.yml .github/workflows/other.yml .github/actions/ci-test/action.yml scripts/a.sh \
   README.md gradle.properties gradlew VERSION .codacy.yml .gitignore codecov.yml \
   config/detekt/detekt.yml
 git add -A
@@ -100,6 +100,12 @@ echo "ok: self=true"
 out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/other.yml")"
 echo "$out" | grep -q "^self=false$" || { echo "FAIL: expected self=false"; exit 1; }
 echo "ok: self=false"
+
+# stale self-path (absent from HEAD): warn loudly and fail open with self=true
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/renamed.yml" 2>"$TMP/stderr.txt")"
+echo "$out" | grep -q "^self=true$" || { echo "FAIL: stale self-path should fail open with self=true, got:"; echo "$out"; exit 1; }
+grep -q "self-path '.github/workflows/renamed.yml' not found" "$TMP/stderr.txt" || { echo "FAIL: stale self-path should warn"; exit 1; }
+echo "ok: stale self-path warns and fails open"
 
 # empty base fails open (everything true)
 out="$(sh "$SCRIPT" "" HEAD)"
