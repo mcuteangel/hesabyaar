@@ -119,7 +119,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Render UI | Presentation | Screen composable |
 | Manage UI state | State | UiState sealed class |
 | Handle user events | Presentation → ViewModel | Event sealed class |
-| Validate form data (data-shape) | Presentation → ViewModel | `AccountViewModel` (inline data-shape checks; no dedicated validator class exists today) |
+| Validate form data (data-shape) | Presentation (instant feedback) → Domain (submit gate) | Dialog/screen inline checks (7th exception); authoritative validation in `domain/validation/AccountValidator` — pure rules via Rust `validate_account`, DB-bound duplicate-name check in Kotlin — called by use cases |
 | Enforce business rules / validation | FFI | Rust core (`validation.rs`) — results surfaced by outer-layer Kotlin adapters (for example `BackupJsonValidator`, which calls `RustBridge.validateBackupPayloadSync`) |
 | Execute CRUD operations | Domain | UseCase classes (depend on Domain-defined ports; Data implements persistence ports, FFI provides Rust computation) |
 | Coordinate side effects | ViewModel | ViewModel |
@@ -143,7 +143,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 >
 > **Permitted in Kotlin:** Persistence operations, DTO/entity mapping, and structural type mapping needed to call Rust or to persist/display Rust's results. Kotlin-side validators may surface Rust's validation results to the UI.
 >
-> **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation).
+> **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (see ADR-001 `### Permanent Kotlin Fallbacks (Exception List)`).
 >
 > The full policy, exception list, and rationale are in `architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`). See also `../plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
@@ -597,14 +597,14 @@ User taps FAB
 
 User fills form, taps Save
   → AccountEvent.OnSaveNewAccount(form)
-  → ViewModel: 
-      1. Validate form via AccountValidator
-      2. If invalid → update formState.errors
-      3. If valid → AddAccountUseCase(form)
-         → Repository.insertAccount()
+  → ViewModel: AddAccountUseCase(form)
+      → (inside use case, single validation owner) AccountValidator.validate(form)
+      → If invalid → ValidationFailed(errors) → ViewModel updates formState.errors
+      → If valid → Repository.insertAccount()
          → Room inserts → Flow emits
-      4. On success → dialogState = None
+      → On success → Success(id, warnings) → dialogState = None
                     → snackbarMessage = "حساب «{name}» ایجاد شد"
+                    → If warnings non-empty → surface non-blockingly (e.g. warning note in the snackbar)
   → Screen: dialog closes, Snackbar appears
 
 User taps undo on Snackbar
@@ -632,15 +632,14 @@ User taps undo on Snackbar
 User fills form
   → AccountEvent.OnSaveNewAccount(AccountFormState)
   → ViewModel.onEvent()
-  → AccountValidator.validate(form)
-    → [invalid] → formState.errors = mapOf("name" to "نام حساب الزامی است")
-    → [valid] → continue
-  → AddAccountUseCase(form.toAccountEntity())
-  → HesabyarRepository.insertAccount(entity)
-  → AccountDao.insert(entity) → Room INSERT
-  → Room emits updated getAllAccounts() Flow
-  → ViewModel.accounts StateFlow updates
-  → Screen LazyColumn recomposes with new item
+  → AddAccountUseCase(form)
+    → (inside use case) AccountValidator.validate(form)
+    → [invalid] → ValidationFailed(errors) → formState.errors = errors
+    → [valid/warning] → HesabyarRepository.insertAccount(entity)
+      → AccountDao.insert(entity) → Room INSERT → returns id
+    → Success(id, warnings)
+  → (async, not sequenced) Room re-emits updated getAllAccounts() Flow → ViewModel.accounts updates → Screen recomposes
+  → If warnings non-empty → surface non-blockingly
   → SideEffect: ShowSnackbar("حساب «{name}» ایجاد شد", "واگردانی")
 ```
 
@@ -650,14 +649,14 @@ User fills form
 User edits form
   → AccountEvent.OnSaveEditedAccount(account, form)
   → ViewModel.onEvent()
-  → AccountValidator.validate(form)
-    → [invalid] → formState.errors
-    → [valid] → continue
-  → UpdateAccountUseCase(account.copy(...))
-  → HesabyarRepository.updateAccount(updated)
-  → AccountDao.update(updated) → Room UPDATE
-  → Room emits updated Flow
-  → Screen recomposes
+  → UpdateAccountUseCase(account, form)
+    → (inside use case) AccountValidator.validate(form)
+    → [invalid] → ValidationFailed(errors) → formState.errors = errors
+    → [valid/warning] → HesabyarRepository.updateAccount(updated)
+      → AccountDao.update(updated) → Room UPDATE
+    → Success(id, warnings)
+  → (async, not sequenced) Room re-emits updated Flow → Screen recomposes
+  → If warnings non-empty → surface non-blockingly
   → SideEffect: ShowSnackbar("حساب «{name}» به‌روزرسانی شد")
 ```
 
