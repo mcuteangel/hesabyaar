@@ -112,6 +112,7 @@ sealed interface AccountSideEffect {
 ```kotlin
 @HiltViewModel
 class AccountViewModel @Inject constructor(
+  @ApplicationContext private val context: Context,
   private val addAccountUseCase: AddAccountUseCase,
   private val updateAccountUseCase: UpdateAccountUseCase,
   private val deleteAccountUseCase: DeleteAccountUseCase,
@@ -124,7 +125,9 @@ class AccountViewModel @Inject constructor(
   private val _uiState = MutableStateFlow(AccountUiState())
   val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
 
-  private val _sideEffect = Channel<AccountSideEffect>()
+  // BUFFERED: the Screen does not collect side effects until Phase 4;
+  // a rendezvous channel would suspend the ViewModel on send
+  private val _sideEffect = Channel<AccountSideEffect>(Channel.BUFFERED)
   val sideEffect: Flow<AccountSideEffect> = _sideEffect.receiveAsFlow()
 
   init {
@@ -146,7 +149,7 @@ class AccountViewModel @Inject constructor(
 ### Step 2.4: Add error handling
 
 - Put all the use case calls in `try-catch`
-- On error, emit `AccountSideEffect.ShowSnackbar("Failed to complete the operation")` via `_sideEffect`
+- On error, emit a localized message via `AccountSideEffect.ShowSnackbar(context.getString(R.string.account_operation_error))` through `_sideEffect` (add the string resource; do not hard-code user-visible text)
 - Set `isSaving = false` in the finally block
 
 ### Step 2.5: Write the ViewModel tests

@@ -175,11 +175,12 @@ LaunchedEffect(Unit) {
       is AccountSideEffect.ShowSnackbar -> {
         // Explicit duration: destructive actions (delete/archive) stay 7 seconds
         // to match the undo window. SnackbarDuration has no 7s step, so show
-        // Indefinite and dismiss after 7_000 ms.
+        // Indefinite and auto-dismiss after 7_000 ms.
+        launch { delay(7_000); snackbarHostState.currentSnackbarData?.dismiss() }
         snackbarHostState.showSnackbar(
           message = effect.message,
           actionLabel = effect.actionLabel,
-          duration = SnackbarDuration.Indefinite, // dismissed after 7s for destructive actions
+          duration = SnackbarDuration.Indefinite,
         )
       }
     }

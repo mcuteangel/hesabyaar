@@ -24,6 +24,7 @@ Add 5 UX capabilities:
 | File | Description |
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UnarchiveAccountUseCase.kt` | Restore an account |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/RestoreAccountUseCase.kt` | Re-insert a deleted account (undo) |
 
 ### Files to edit <!-- check-docs: planned -->
 | File | Change |
@@ -50,7 +51,7 @@ Add 5 UX capabilities:
 - In `AccountUiState`: add `lastDeletedAccount: AccountEntity? = null`
 - After the delete: set `lastDeletedAccount = account`, the snackbar message is "حساب «{name}» حذف شد", and actionLabel is "واگردانی"
 - In the Screen: if the snackbar action "واگردانی" is clicked → `OnUndoDelete` event
-- `OnUndoDelete`: `lastDeletedAccount?.let { cached -> addAccountUseCase(cached.toFormModel()) }` → `lastDeletedAccount = null`. `AddAccountUseCase` accepts `AccountFormModel` (not `AccountEntity`), so map the cached entity to the form model first. The restore inserts a new row — the deleted row's generated ID is not preserved
+- `OnUndoDelete`: `lastDeletedAccount?.let { restoreAccountUseCase(it) }` → `lastDeletedAccount = null`. `RestoreAccountUseCase` (`suspend operator fun invoke(account: AccountEntity)`) re-inserts the cached entity through the repository, preserving all its fields (`isArchived`, display order, and the generated ID) — `AddAccountUseCase` takes `AccountFormModel` and cannot restore them
 - **Note:** for undo, cache the account completely before the delete. `lastDeletedAccount` does this.
 - **Limitation:** only the last delete can be undone (a 7 second window)
 

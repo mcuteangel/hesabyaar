@@ -137,7 +137,7 @@ grep -rn "DEFAULT_ACCOUNT_COLOR" app/src/main/java/ | grep -v "build/"
 - [ ] Bug #1: `AccountOverflowMenu` renders inside the `Box` that surrounds the `IconButton` (not at Scaffold level)
 - [ ] Bug #2: Archive needs a confirmation dialog
 - [ ] Bug #3: The `ACCOUNT_TYPE_ICONS` map is removed and `AccountType.icon()` is used
-- [ ] Bug #4: `ManageBackupUseCase.kt` no longer has a separate `DEFAULT_ACCOUNT_COLOR`
+- [ ] Bug #4: `FinancialColors.kt` no longer defines `DEFAULT_ACCOUNT_COLOR`, and callers use `AccountEntity.DEFAULT_COLOR`
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
 - [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
 - [ ] Four separate commits on the branch

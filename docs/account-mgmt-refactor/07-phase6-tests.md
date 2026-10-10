@@ -169,7 +169,7 @@ Modifier.testTag("accountList")
 - [ ] `ArchiveAccountUseCaseTest` → all tests pass
 - [ ] `UnarchiveAccountUseCaseTest` → all tests pass
 - [ ] `AccountValidatorTest` → all tests pass
-- [ ] Meaningful content and controls without an accessible name have appropriate semantics (confirmed by grep); do not add a `contentDescription` to every component
+- [ ] All the components have a `contentDescription` (confirmed by grep)
 - [ ] All the components have a `testTag` (confirmed by grep)
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
 - [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors (if detekt is installed)

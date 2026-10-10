@@ -19,9 +19,9 @@
 | **Transaction atomicity** | 🔴 critical | Multi-step financial operations without `@Transaction` |
 | **Parser calculation accuracy** | 🔴 critical | The parse path passes through `Double` |
 | **AI output validation** | 🟡 weak | No validation on type/hour/amount/confidence |
-| **ViewModel testability** | 🟡 weak | No DI, the ViewModels are not unit-testable |
+| **ViewModel testability** | ✅ good | Hilt DI in all ViewModels; `AccountViewModelTest` exists |
 | **Documentation** | ✅ strong | 9 files in `docs/` |
-| **Tests** | 🟡 medium | 14 files of pure logic tests, no ViewModel/UI tests |
+| **Tests** | 🟡 medium | 14 files of pure logic tests plus `AccountViewModelTest`; no UI tests |
 
 **Note:** The foundations (coroutines, the money type, key security) are solid. The work of the later phases is mostly **hardening and testability**, not the correction of fundamental bugs.
 
@@ -103,7 +103,7 @@ The model output is read with `optString`/`optDouble` and default values, and it
 **File:** `reminder/InstallmentReminderWorker.kt`, `reminder/LoanReminderWorker.kt`
 **Proposed phase:** Phase 1 (architecture)
 
-The ViewModels already use `@HiltViewModel` constructor injection (all 13 in `ui/`), and `AccountViewModelTest` exists — that part of the original finding is resolved. The reminder Workers still build their dependencies manually: both call `AppDatabase.getDatabase(applicationContext)` directly, with no Hilt setup.
+All 13 ViewModels in `ui/` use `@HiltViewModel` constructor injection. `AccountViewModelTest` also exists, so the original ViewModel finding is resolved. The reminder Workers still build their dependencies manually: both call `AppDatabase.getDatabase(applicationContext)` directly, with no Hilt setup.
 
 **Action:** Introduce Hilt workers (`@HiltWorker` + `@AssistedInject`), and inject the Repository (as an interface) into the Workers' constructors.
 
@@ -207,12 +207,12 @@ LoanInstallmentTest
 | Note | Status |
 |------|-------|
 | Pure logic coverage | ✅ good (Jalali, parser, repository logic, budget advisor, backup) |
-| ViewModel test | ❌ missing (because there is no DI — §3.3) |
+| ViewModel test | ✅ present | `AccountViewModelTest` (ViewModels use Hilt — §3.3) |
 | UI test (Compose) | ❌ missing (androidTest is empty) |
 | Coverage report | ❌ missing |
 | Instrumentation test | ❌ `app/src/androidTest/` is empty | <!-- check-docs: ignore -->
 
-**Phase 4 goal:** coverage above 80%, add ViewModel tests (after Hilt), and add Compose UI tests.
+**Phase 4 goal:** coverage above 80% and Compose UI tests.
 
 ---
 

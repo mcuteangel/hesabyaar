@@ -38,7 +38,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt` | Remove `AccountDao` (move it to a separate file) |
 | `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | No change needed — the account methods already live in `AccountDelegate` |
-| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | Keep the account-related methods (deprecated until all consumers migrate) — see Special Notes (line 153) |
+| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | Keep the account-related methods (deprecated until all consumers migrate) — see Special Notes |
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Change from Repository to use cases |
@@ -114,7 +114,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
 - **Scope:** this validator covers form-input validation at the UI boundary. New business rules, calculations, and rule-driven validations go to the Rust core per ADR-001.
 - File `domain/validation/AccountValidator.kt`:
-  - `fun validate(form: AccountFormModel): ValidationResult`
+  - `fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create)
   - Rules (as in decision #1):
     - `name`: not empty, at most 100 characters
     - `type`: valid
@@ -122,9 +122,9 @@ Build an independent domain and data layer for accounts. Add a separate `Account
     - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
     - `initialBalance`: `toLongOrNull()` must succeed
   - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
-    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` already contains the name
+    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
     - **"warning" (non-blocking):** `validate` returns `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
-  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test; warning → a save-allowed test
+  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
 - **Rollback:** Delete the files
 
 ### Step 1.5: Create the use cases
@@ -162,7 +162,7 @@ Each use case is a separate file:
 ### Step 1.7: Write the tests
 
 - `AccountValidatorTest`: test all the validation rules (valid, empty name, duplicate name, invalid IBAN, invalid card number)
-- `AddAccountUseCaseTest`: test with a FakeRepository — a successful insert, and a validation error
+- `AddAccountUseCaseTest`: test with a FakeRepository — a successful insert, a validation error, and a `Warning` result (the insert still succeeds and the warning is surfaced)
 - `DeleteAccountUseCaseTest`: test a successful delete, and a delete that has transactions (it must throw an error)
 
 ## Special Notes for This Phase
