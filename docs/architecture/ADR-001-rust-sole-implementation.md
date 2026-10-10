@@ -3,7 +3,8 @@
 **Status:** Accepted  
 **Date:** 2026-08-19  
 **Decision Maker:** مجتبی (project owner)  
-**Context:** Rust Core Integration Audit Report (2026-08-19)
+**Context:** Rust Core Integration Audit Report (2026-08-19)  
+**Amendment (2026-10-10):** Seventh permanent exception added: form input validation at the UI boundary.
 
 ---
 
@@ -40,6 +41,9 @@ The following features retain Kotlin-side fallback implementations permanently. 
 | Backup JSON parse/validate | Recovery path must not depend on Rust; backup is a data-recovery lifeline |
 | AI advice validation | Lightweight sanitization that must work independently of Rust |
 | Person-name normalization (dedup-key derivation) | Room migrations cannot load the native library; the migration backfill must run inside the migration itself (plans/011-personal-loan-ledger-redesign.md §D4). One shared Kotlin util in `domain/utils`; runtime create/rename/merge paths reuse it so dedup semantics never drift between migration and runtime. This is persisted-identity data hygiene (entity mapping), not financial calculation |
+| Form input validation at the UI boundary | Synchronous presence/format checks on raw user input with user-facing messages. These checks need no domain state and no database access. They give instant field-level feedback at the dialog/screen. A Rust bridge call per keystroke adds cost with no domain benefit. |
+
+**Boundary of the seventh exception.** Kotlin keeps only checks that run on raw input text at the dialog/screen boundary and need no domain state or database access. Examples: `name.isBlank()`, `toLongOrNull()` on an amount field, "a category is selected" checks. Any rule on a persisted entity or on domain data MUST stay in Rust. Examples: IBAN format as an entity invariant, card-number length, domain amount caps, cross-field business rules. This matches `docs/blueprint-account-management.md` §2.2, which assigns "Validate form data (data-shape)" to Presentation → ViewModel.
 
 ### Temporary Kotlin Fallbacks (Scheduled for Removal)
 
