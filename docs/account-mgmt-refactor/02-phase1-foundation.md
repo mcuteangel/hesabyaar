@@ -158,7 +158,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
     - **"warning" (non-blocking):** return `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
   - **Important:** the Rust validator must have a production caller — `AccountValidator` (called by `AddAccountUseCase`) is it; an unwired Rust validator is dead code
   - **Layering:** instant field-level feedback stays inline at the dialog/screen (7th exception); this validator is the authoritative submit-time gate. Inline checks must remain a strict subset of these rules — the Domain validator is the authority, so the two layers cannot drift.
-  - Add `AccountValidatorTest` cases: Rust-rule failures through the mapping (bad IBAN, 15-digit card, invalid type, non-numeric initialBalance, 101-char name) plus an explicit all-valid case; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
+  - Add `AccountValidatorTest` cases, one named test per rule mapping through the bridge — `rustBadIban_mapsToInvalid`, `rustShortCardNumber_mapsToInvalid`, `rustInvalidType_mapsToInvalid`, `rustNonNumericInitialBalance_mapsToInvalid`, `rustNameTooLong_mapsToInvalid`, plus `rustAllValid_mapsToValid`; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
 - **Rollback:** Delete the Kotlin files and revert `validation.rs`
 
 ### Step 1.5: Create the use cases
