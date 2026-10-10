@@ -10,8 +10,9 @@
 # Prints KEY=true/false lines for each class and appends them to
 # $GITHUB_OUTPUT when that variable is set (GitHub Actions).
 #
-# Classes: kotlin gradle rust site docs workflows actions ci_scripts config
+# Classes: kotlin gradle rust site docs workflows actions ci_scripts config self
 #   code = kotlin || gradle || rust  (anything feeding the Android build)
+#   self = the caller's own file (self-path); true when that exact path changed
 #
 # POSIX sh compatible. Unknown refs fail open (all classes true) so a
 # misconfigured diff never silently skips CI.
@@ -69,6 +70,17 @@ else
   exit 0
 fi
 
+# Validate self-path against the head tree. A mistyped or stale self-path
+# (e.g. the workflow file was renamed without updating it) would otherwise
+# yield self=false forever while the changes job stays green, silently
+# skipping the gated job. Fail open instead: warn loudly and treat the
+# caller's own file as changed.
+SELF_KNOWN=true
+if [ -n "$SELF_PATH" ] && ! git cat-file -e "$HEAD_REF:$SELF_PATH" 2>/dev/null; then
+  echo "::warning::classify-changes: self-path '$SELF_PATH' not found at $HEAD_REF; failing open (self=true)" >&2
+  SELF_KNOWN=false
+fi
+
 LIST="$(mktemp "${TMPDIR:-/tmp}/classify-changes.XXXXXX")"
 trap 'rm -f "$LIST"' EXIT
 printf '%s\n' "$changed" > "$LIST"
@@ -77,6 +89,9 @@ printf '%s\n' "$changed" > "$LIST"
 for k in $CLASSES; do
   eval "$k=false"
 done
+# Unresolvable self-path (warned above): fail open, the caller's own file
+# counts as changed.
+if [ "$SELF_KNOWN" = false ]; then self=true; fi
 
 while IFS= read -r f; do
   [ -z "$f" ] && continue
