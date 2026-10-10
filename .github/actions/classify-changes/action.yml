@@ -14,6 +14,10 @@ inputs:
   head-ref:
     description: Head ref for the diff
     required: true
+  self-path:
+    description: Repo-relative path of the caller's own workflow file (enables the `self` output)
+    required: false
+    default: ''
 
 outputs:
   kotlin:
@@ -46,6 +50,9 @@ outputs:
   code:
     description: "true when anything feeding the Android build changed (kotlin || gradle || rust)"
     value: ${{ steps.classify.outputs.code }}
+  self:
+    description: "true when self-path itself changed (empty self-path always yields false)"
+    value: ${{ steps.classify.outputs.self }}
 
 runs:
   using: composite
