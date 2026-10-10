@@ -43,7 +43,7 @@ The following features retain Kotlin-side fallback implementations permanently. 
 | Person-name normalization (dedup-key derivation) | Room migrations cannot load the native library; the migration backfill must run inside the migration itself (plans/011-personal-loan-ledger-redesign.md §D4). One shared Kotlin util in `domain/utils`; runtime create/rename/merge paths reuse it so dedup semantics never drift between migration and runtime. This is persisted-identity data hygiene (entity mapping), not financial calculation |
 | Form input validation at the UI boundary | Synchronous presence/format checks on raw user input with user-facing messages. These checks need no domain state and no database access. They give instant field-level feedback at the dialog/screen. A Rust bridge call per keystroke adds cost with no domain benefit. |
 
-**Boundary of the seventh exception.** Kotlin keeps only checks that run on raw input text at the dialog/screen boundary and need no domain state or database access. Examples: `name.isBlank()`, `toLongOrNull()` on an amount field, "a category is selected" checks. Any rule on a persisted entity or on domain data MUST stay in Rust. Examples: IBAN format as an entity invariant, card-number length, domain amount caps, cross-field business rules. This matches `docs/blueprint-account-management.md` §2.2, which assigns "Validate form data (data-shape)" to Presentation → ViewModel.
+**Boundary of the seventh exception.** Kotlin keeps only checks that run on raw input text at the dialog/screen boundary and need no domain state or database access. Examples: `name.isBlank()`, locale-aware amount parsing through `DisplayAmountInput.toRialOrNull()`, "a category is selected in the dialog" checks. (Do not use `toLongOrNull()` for amount fields: it rejects Persian digits and grouping separators.) Any rule on a persisted entity or on domain data MUST stay in Rust. Examples: IBAN format as an entity invariant, card-number length, domain amount caps, cross-field business rules such as "this category is valid for this transaction type". This matches `docs/blueprint-account-management.md` §2.2, which assigns "Validate form data (data-shape)" to Presentation → ViewModel.
 
 ### Temporary Kotlin Fallbacks (Scheduled for Removal)
 
@@ -102,12 +102,16 @@ The consolidated plan lives at `plans/2026-08-19-rust-fallback-consolidation-pla
 New feature request
         ↓
 Is it a NEW business rule, calculation, validation, or data transformation?
-        ├── YES → Implement in rust/hesabyar-core, export via #[uniffi::export]
-        │          → Regenerate bindings: ./gradlew :app:generateAndFixBindings --rerun-tasks
-        │          → Call from Kotlin via RustBridge wrapper
-        │          → Add Rust-side tests in rust/hesabyar-core/src/
-        │          → If it replaces a Kotlin fallback, remove the Kotlin fallback after
-        │            the UX/consistency parity is verified
+        ├── YES → Is it a form-input check at the UI boundary
+        │          (7th permanent exception: raw-input presence/format check,
+        │           no domain state, no database)?
+        │          ├── YES → Implement in Kotlin at the dialog/screen boundary
+        │          └── NO ─→ Implement in rust/hesabyar-core, export via #[uniffi::export]
+        │                     → Regenerate bindings: ./gradlew :app:generateAndFixBindings --rerun-tasks
+        │                     → Call from Kotlin via RustBridge wrapper
+        │                     → Add Rust-side tests in rust/hesabyar-core/src/
+        │                     → If it replaces a Kotlin fallback, remove the Kotlin fallback after
+        │                       the UX/consistency parity is verified
         │
         └── NO (UI rendering, persistence, DI, Android framework integration) → Kotlin
 ```
