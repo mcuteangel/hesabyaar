@@ -635,10 +635,11 @@ User fills form
   → AddAccountUseCase(form)
     → (inside use case) AccountValidator.validate(form)
     → [invalid] → ValidationFailed(errors) → formState.errors = errors
-    → [valid/warning] → HesabyarRepository.insertAccount(entity) → Success(id, warnings)
-  → If warnings non-empty → surface non-blockingly
-  → AccountDao.insert(entity) → Room INSERT
+    → [valid/warning] → HesabyarRepository.insertAccount(entity)
+      → AccountDao.insert(entity) → Room INSERT → returns id
+    → Success(id, warnings)
   → Room emits updated getAllAccounts() Flow
+  → If warnings non-empty → surface non-blockingly
   → ViewModel.accounts StateFlow updates
   → Screen LazyColumn recomposes with new item
   → SideEffect: ShowSnackbar("حساب «{name}» ایجاد شد", "واگردانی")
@@ -653,10 +654,11 @@ User edits form
   → UpdateAccountUseCase(account, form)
     → (inside use case) AccountValidator.validate(form)
     → [invalid] → ValidationFailed(errors) → formState.errors = errors
-    → [valid/warning] → HesabyarRepository.updateAccount(updated) → Success(id, warnings)
-  → If warnings non-empty → surface non-blockingly
-  → AccountDao.update(updated) → Room UPDATE
+    → [valid/warning] → HesabyarRepository.updateAccount(updated)
+      → AccountDao.update(updated) → Room UPDATE
+    → Success(id, warnings)
   → Room emits updated Flow
+  → If warnings non-empty → surface non-blockingly
   → Screen recomposes
   → SideEffect: ShowSnackbar("حساب «{name}» به‌روزرسانی شد")
 ```
