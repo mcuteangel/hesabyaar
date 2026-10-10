@@ -65,4 +65,5 @@ runs:
       env:
         BASE_REF: ${{ inputs.base-ref }}
         HEAD_REF: ${{ inputs.head-ref }}
-      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "$BASE_REF" "$HEAD_REF"
+        SELF_PATH: ${{ inputs.self-path }}
+      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "$BASE_REF" "$HEAD_REF" "$SELF_PATH"
