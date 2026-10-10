@@ -1,8 +1,8 @@
 name: Classify changed files
 description: >-
   Classify files changed between two refs into change classes
-  (kotlin, gradle, rust, site, docs, workflows, actions, ci_scripts, config)
-  plus the derived `code` class (kotlin || gradle || rust). Backs the
+  (kotlin, gradle, rust, site, docs, workflows, actions, ci_scripts, config,
+  self) plus the derived `code` class (kotlin || gradle || rust). Backs the
   smart-gating pattern: a cheap `changes` job runs on every event, heavy
   jobs gate on `needs.changes.outputs.<class> == 'true'`, so required
   status checks still report (as skipped) instead of deadlocking the merge.
@@ -14,6 +14,10 @@ inputs:
   head-ref:
     description: Head ref for the diff
     required: true
+  self-path:
+    description: Repo-relative path of the caller's own workflow file (enables the `self` output)
+    required: false
+    default: ''
 
 outputs:
   kotlin:
@@ -46,6 +50,9 @@ outputs:
   code:
     description: "true when anything feeding the Android build changed (kotlin || gradle || rust)"
     value: ${{ steps.classify.outputs.code }}
+  self:
+    description: "true when self-path itself changed (empty self-path yields false in the normal path; fail-open emits true for every class)"
+    value: ${{ steps.classify.outputs.self }}
 
 runs:
   using: composite
@@ -58,4 +65,5 @@ runs:
       env:
         BASE_REF: ${{ inputs.base-ref }}
         HEAD_REF: ${{ inputs.head-ref }}
-      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "$BASE_REF" "$HEAD_REF"
+        SELF_PATH: ${{ inputs.self-path }}
+      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "$BASE_REF" "$HEAD_REF" "$SELF_PATH"

@@ -14,7 +14,7 @@ git config user.email t@t.t
 git config user.name t
 mkdir -p app rust site .github/workflows .github/actions/ci-test scripts gradle/wrapper config/detekt
 touch app/A.kt app/build.gradle.kts rust/lib.rs site/index.html \
-  .github/workflows/x.yml .github/actions/ci-test/action.yml scripts/a.sh \
+  .github/workflows/x.yml .github/workflows/other.yml .github/actions/ci-test/action.yml scripts/a.sh \
   README.md gradle.properties gradlew VERSION .codacy.yml .gitignore codecov.yml \
   config/detekt/detekt.yml
 git add -A
@@ -88,6 +88,25 @@ check_multi "app/A.kt" "rust/lib.rs" "code=true"
 check_multi "README.md" "VERSION" "docs=true"
 check_multi "README.md" "VERSION" "config=true"
 
+# self-path detection
+N=$((N + 1))
+git checkout -q -b "t$N" "$BASE"
+echo x >> ".github/workflows/x.yml"
+git add -A
+git commit -qm "change workflow"
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/x.yml")"
+echo "$out" | grep -q "^self=true$" || { echo "FAIL: expected self=true"; exit 1; }
+echo "ok: self=true"
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/other.yml")"
+echo "$out" | grep -q "^self=false$" || { echo "FAIL: expected self=false"; exit 1; }
+echo "ok: self=false"
+
+# stale self-path (absent from HEAD): warn loudly and fail open with self=true
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/renamed.yml" 2>"$TMP/stderr.txt")"
+echo "$out" | grep -q "^self=true$" || { echo "FAIL: stale self-path should fail open with self=true, got:"; echo "$out"; exit 1; }
+grep -q "self-path '.github/workflows/renamed.yml' not found" "$TMP/stderr.txt" || { echo "FAIL: stale self-path should warn"; exit 1; }
+echo "ok: stale self-path warns and fails open"
+
 # empty base fails open (everything true)
 out="$(sh "$SCRIPT" "" HEAD)"
 echo "$out" | grep -q "^code=true$" || { echo "FAIL: empty base should fail open"; exit 1; }
@@ -123,8 +142,8 @@ GOUT="$(mktemp)"
 GITHUB_OUTPUT="$GOUT" sh "$SCRIPT" "$BASE" "$BASE" > /dev/null
 grep -q "^kotlin=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing kotlin=false"; exit 1; }
 grep -q "^code=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing code=false"; exit 1; }
-# 9 classes in CLASSES plus the derived `code` output = 10 lines total.
-[ "$(wc -l < "$GOUT")" -eq 10 ] || { echo "FAIL: GITHUB_OUTPUT should have 10 lines (9 classes + code), got $(wc -l < "$GOUT")"; exit 1; }
+# 10 classes in CLASSES plus the derived `code` output = 11 lines total.
+[ "$(wc -l < "$GOUT")" -eq 11 ] || { echo "FAIL: GITHUB_OUTPUT should have 11 lines (10 classes + code), got $(wc -l < "$GOUT")"; exit 1; }
 rm -f "$GOUT"
 echo "ok: GITHUB_OUTPUT contract"
 
