@@ -626,11 +626,11 @@ fn bench_currency(c: &mut Criterion) {
     });
 
     c.bench_function("to_rial_toman", |b| {
-        b.iter(|| to_rial(black_box(500_000), CurrencyUnit::Toman))
+        b.iter(|| black_box(to_rial(black_box(500_000), CurrencyUnit::Toman)))
     });
 
     c.bench_function("from_rial_toman", |b| {
-        b.iter(|| from_rial(black_box(5_000_000), CurrencyUnit::Toman))
+        b.iter(|| black_box(from_rial(black_box(5_000_000), CurrencyUnit::Toman)))
     });
 }
 
