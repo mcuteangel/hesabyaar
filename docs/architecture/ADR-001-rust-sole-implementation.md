@@ -119,6 +119,6 @@ Is it a NEW business rule, calculation, validation, or data transformation?
 - `AGENTS.md` — `## Business Logic Policy` and `## Hard Constraints` sections
 - `docs/architecture/ARCHITECTURE.md` — `## Business Logic Policy` under Core Principles
 - `docs/blueprint-account-management.md` — §2.1 Layer Responsibilities, §2.2 Responsibility Matrix
-- `docs/CODE_REVIEW.md` — §۹ معیارهای معماری Rust-First
+- `docs/CODE_REVIEW.md` — §9 Rust-First Architecture Criteria
 - `plans/2026-08-19-rust-fallback-consolidation-plan.md` — 14-phase consolidation plan
 - `rust/hesabyar-core/README.md` — Rust core module documentation

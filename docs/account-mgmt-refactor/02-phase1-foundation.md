@@ -1,68 +1,69 @@
-# Phase 1: استخراج Domain/Data Layer
+# Phase 1: Extract the Domain/Data Layer
 
-## پیش‌نیاز
+## Prerequisites
 
-- **فاز قبلی:** Phase 0 باید کامل شده باشه (۴ باگ فیکس شده)
-- **تصمیمات معلق:**
-  - تصمیم #1 (یکتایی نام) — باید قبل از نوشتن `AccountValidator` روشن بشه
-  - تصمیم #2 (FK Constraint) — باید قبل از نوشتن Room migration (اگر انتخاب بشه) روشن بشه
-  - تصمیم #4 (رنگ) — باید قبلاً در Phase 0 تأیید شده باشه
+- **Previous phase:** Phase 0 must be complete (4 bugs fixed)
+- **Pending decisions:**
+  - Decision #1 (name uniqueness) — resolve it before you write `AccountValidator`
+  - Decision #2 (FK constraint) — resolve it before you write the Room migration (if it is selected)
+  - Decision #4 (color) — it must already be confirmed in Phase 0
 
-## زمینه
+## Context
 
-فایل‌های فعلی `Daos.kt`، `HesabyarRepository.kt`، و `HesabyarRepositoryInterface.kt` شامل تمام DAOها و Repositoryهای app هستن. `AccountViewModel` منطق Business رو مستقیماً اجرا می‌کنه بدون UseCase واسط. این فاز لایه Domain رو معرفی می‌کنه و Account CRUD رو از بقیه جدا می‌کنه.
+The current files `Daos.kt`, `HesabyarRepository.kt`, and `HesabyarRepositoryInterface.kt` hold all the DAOs and all the Repositories of the app. `AccountViewModel` runs business logic directly, with no intermediate use case. This phase introduces the domain layer, and it separates account CRUD from the rest of the app.
 
-## هدف دقیق این فاز
+## Exact Goal of This Phase
 
-ایجاد لایه Domain و Data مستقل برای حساب‌ها: `AccountDao` جداگانه، `AccountRepository` interface + impl، ۵ UseCase، و `AccountValidator`. در پایان این فاز، `AccountViewModel` باید از UseCaseها استفاده کنه (نه مستقیماً از Repository).
+Build an independent domain and data layer for accounts. Add a separate `AccountDao`, an `AccountRepository` interface and implementation, five use cases, and `AccountValidator`. At the end of this phase, `AccountViewModel` must use the use cases (not the Repository directly).
 
-## فایل‌های درگیر
+## Files Involved
 
-### فایل‌های جدید (ساخته بشن)
-| فایل | توضیح |
+### New files (create them)
+| File | Description |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountDao.kt` | استخراج از `Daos.kt` |
-| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountRepository.kt` | interface |
-| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountRepositoryImpl.kt` | پیاده‌سازی |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/AddAccountUseCase.kt` | افزودن حساب |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UpdateAccountUseCase.kt` | ویرایش حساب |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/DeleteAccountUseCase.kt` | حذف حساب |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/ArchiveAccountUseCase.kt` | آرشیو |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/GetAccountsUseCase.kt` | لیست حساب‌ها |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/validation/AccountValidator.kt` | قوانین اعتبارسنجی |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/validation/ValidationResult.kt` | نوع نتیجه اعتبارسنجی |
+| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountDao.kt` | Extract from `Daos.kt` |
+| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountRepository.kt` | Interface |
+| `app/src/main/java/io/github/mojri/hesabyar/data/account/AccountRepositoryImpl.kt` | Implementation |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/AddAccountUseCase.kt` | Add an account |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/UpdateAccountUseCase.kt` | Edit an account |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/DeleteAccountUseCase.kt` | Delete an account |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/ArchiveAccountUseCase.kt` | Archive |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/GetAccountsUseCase.kt` | Account list |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/validation/AccountValidator.kt` | Validation rules |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/model/AccountFormModel.kt` | Form model shared by the validator and `AddAccountUseCase` |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/validation/ValidationResult.kt` | Validation result type |
 
-### فایل‌های ویرایشی
-| فایل | تغییر |
+### Files to edit
+| File | Change |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt` | حذف `AccountDao` (انتقال به فایل جداگانه) |
-| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | حذف Account CRUD methods (انتقال به `AccountRepositoryImpl`) |
-| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | نگه‌داشتن Account-related methods (deprecated تا همه consumers مهاجرت کنن) — دیده‌شده در نکات خاص (خط ۱۵۳) |
-| `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | اضافه کردن `AccountRepository` binding |
-| `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | اضافه کردن `AccountDao` provision |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | تغییر از Repository به UseCaseها |
+| `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt` | Remove `AccountDao` (move it to a separate file) |
+| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | No change needed — the account methods already live in `AccountDelegate` |
+| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | Keep the account-related methods (deprecated until all consumers migrate) — see Special Notes |
+| `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
+| `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Change from Repository to use cases |
 
-### فایل‌های تست جدید
-| فایل | توضیح |
+### New files (tests)
+| File | Description |
 |---|---|
-| `app/src/test/java/io/github/mojri/hesabyar/domain/validation/AccountValidatorTest.kt` | تست validator |
-| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/account/AddAccountUseCaseTest.kt` | تست UseCase |
-| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/account/DeleteAccountUseCaseTest.kt` | تست UseCase |
+| `app/src/test/java/io/github/mojri/hesabyar/domain/validation/AccountValidatorTest.kt` | Test the validator |
+| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/account/AddAccountUseCaseTest.kt` | Test the use case |
+| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/account/DeleteAccountUseCaseTest.kt` | Test the use case |
 
-## گام‌های اجرا
+## Execution Steps
 
-### گام ۱.۱: استخراج AccountDao
+### Step 1.1: Extract AccountDao
 
-- از `Daos.kt` (خطوط ۱۸۶-۲۱۷) interface `AccountDao` رو به فایل جدید `data/account/AccountDao.kt` منتقل کنید
-- اطمینان حاصل کنید که Room annotationها (`@Dao`, `@Query`, `@Insert`, `@Update`, `@Delete`) حفظ شدن
-- در `Daos.kt` اصلی، `AccountDao` رو حذف کنید
-- در `DatabaseModule.kt` تأیید کنید که `database.accountDao()` هنوز کار می‌کنه (Room DAOs از interfaces ساخته می‌شن)
+- Move the `AccountDao` interface from `Daos.kt` (lines 342-376) to the new file `data/account/AccountDao.kt`
+- Confirm that the Room annotations (`@Dao`, `@Query`, `@Insert`, `@Update`, `@Delete`) are kept
+- Remove `AccountDao` from the main `Daos.kt`
+- In `DatabaseModule.kt`, confirm that `database.accountDao()` still works (Room builds DAOs from interfaces)
 - **Rollback:** `git checkout HEAD -- app/src/main/java/.../data/Daos.kt`
 
-### گام ۱.۲: ایجاد AccountRepository Interface
+### Step 1.2: Create the AccountRepository interface
 
-- فایل جدید `data/account/AccountRepository.kt` بسازید
-- شامل methods:
+- Create the new file `data/account/AccountRepository.kt`
+- Include these methods:
   ```kotlin
   interface AccountRepository {
     val allAccounts: Flow<List<AccountEntity>>
@@ -75,45 +76,64 @@
     suspend fun getTransactionCountForAccount(accountId: Long): Int
   }
   ```
-- **Rollback:** حذف فایل
+- **Rollback:** Delete the file
 
-### گام ۱.۳: پیاده‌سازی AccountRepositoryImpl
+### Step 1.3: Implement AccountRepositoryImpl
 
-- فایل جدید `data/account/AccountRepositoryImpl.kt` بسازید
-- `@Inject constructor(private val accountDao: AccountDao)`
-- تمام methods رو از `HesabyarRepository.kt` (خطوط ۱۹۶-۲۰۶) منتقل کنید
-- در `RepositoryModule.kt`:
-  - `AccountRepository` رو bind کنید: `@Binds abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository`
-  - یا `@Provides` با `AccountDao` parameter
-- **Rollback:** حذف فایل + revert `RepositoryModule.kt`
+- The account data-access methods already live in the checked-in `AccountDelegate` (which implements `AccountOps`); there is nothing left to move out of `HesabyarRepository.kt`
+- Create the new file `data/account/AccountRepositoryImpl.kt`
+- Use `@Inject constructor(private val accountOps: AccountOps)` and delegate each `AccountRepository` method to it (this keeps the existing `database.withTransaction` in `AccountDelegate.deleteAccount`)
+- In `RepositoryModule.kt`:
+  - Bind `AccountRepository`: `@Binds abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository`
+  - Or use `@Provides` with an `AccountOps` parameter
+- **Rollback:** Delete the file and revert `RepositoryModule.kt`
 
-### گام ۱.۴: ایجاد AccountValidator
+### Step 1.4: Create AccountValidator
 
-- فایل `domain/validation/ValidationResult.kt`:
+- File `domain/validation/ValidationResult.kt`:
   ```kotlin
   sealed interface ValidationResult {
     data object Valid : ValidationResult
     data class Invalid(val errors: Map<String, String>) : ValidationResult
+    data class Warning(val warnings: Map<String, String>) : ValidationResult
   }
   ```
-- فایل `domain/validation/AccountValidator.kt`:
-  - `fun validate(form: AccountFormState): ValidationResult`
-  - قوانین (طبق تصمیم #1):
-    - `name`: خالی نباشه، حداکثر ۱۰۰ کاراکتر
-    - `type`: معتبر باشه
-    - `cardNumber`: اگر پر بود، ۱۶ رقم باشه
-    - `iban`: اگر پر بود، regex `^IR\d{24}$`
-    - `initialBalance`: `toLongOrNull()` موفق باشه
-  - **اگر تصمیم #1 = "سخت‌گیر":** `name` unique check با `getAllAccounts()` اضافه بشه
-- **Rollback:** حذف فایل‌ها
+- File `domain/model/AccountFormModel.kt` (define it here, in Phase 1): the form type shared by the validator and `AddAccountUseCase`, so the validator can feed the use case without conversion:
+  ```kotlin
+  data class AccountFormModel(
+    val name: String,
+    val type: AccountType,
+    val bankName: String = "",
+    val cardNumber: String = "",
+    val accountNumber: String = "",
+    val iban: String = "",
+    val initialBalance: String = "0",
+    val color: Long = AccountEntity.DEFAULT_COLOR,
+  )
+  ```
+  (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
+- **Scope:** this validator covers form-input validation at the UI boundary. New business rules, calculations, and rule-driven validations go to the Rust core per ADR-001.
+- File `domain/validation/AccountValidator.kt`:
+  - `fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create)
+  - Rules (as in decision #1):
+    - `name`: not empty, at most 100 characters
+    - `type`: valid
+    - `cardNumber`: if it is filled, it must have 16 digits
+    - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
+    - `initialBalance`: `toLongOrNull()` must succeed
+  - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
+    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
+    - **"warning" (non-blocking):** `validate` returns `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
+  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
+- **Rollback:** Delete the files
 
-### گام ۱.۵: ایجاد UseCaseها
+### Step 1.5: Create the use cases
 
-هر UseCase یک فایل جداگانه:
+Each use case is a separate file:
 
 **AddAccountUseCase:**
 - `suspend operator fun invoke(form: AccountFormModel): Long`
-- Validation → insert → return ID
+- Validate: proceed on `Valid` or `Warning` (surface warnings non-blockingly); abort on `Invalid` → insert → return the ID
 
 **UpdateAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
@@ -121,7 +141,7 @@
 
 **DeleteAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
-- `getTransactionCountForAccount(account.id)` → if 0, delete; else throw exception
+- Delegate to the repository, which must retain the existing atomic deletion safeguards (as in the checked-in `AccountDelegate.deleteAccount`): inside a single transaction, reject when the account is the last active one (`CannotDeleteLastActiveAccountException`), reject when `getTransactionCountForAccount(account.id) > 0`, otherwise delete. Do not replace this with a separate count-then-delete sequence — the checks and the delete must stay atomic
 
 **ArchiveAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
@@ -131,49 +151,49 @@
 - `val allAccounts: Flow<List<AccountEntity>>` → repository.allAccounts
 - `suspend fun getActiveAccounts(): List<AccountEntity>` → repository.getActiveAccounts()
 
-### گام ۱.۶: به‌روزرسانی AccountViewModel
+### Step 1.6: Update AccountViewModel
 
-- `AccountViewModel` رو تغییر بدید تا به‌جای `HesabyarRepositoryInterface` از UseCaseها استفاده کنه
-- constructor: `@Inject constructor(private val addAccount: AddAccountUseCase, private val updateAccount: UpdateAccountUseCase, ...)`
-- `addAccount()` method: `addAccount(form)` فراخوانی بشه
-- `canDeleteAccount()` method: `deleteAccountUseCase.canDelete(accountId)` (یا method جداگانه)
-- **مهم:** رفتار بیرونی نباید تغییر کنه — فقط dependency internal عوض شده
+- Change `AccountViewModel` to use the use cases instead of `HesabyarRepositoryInterface`
+- Constructor: `@Inject constructor(private val addAccount: AddAccountUseCase, private val updateAccount: UpdateAccountUseCase, ...)`
+- The `addAccount()` method: call `addAccount(form)`
+- The `canDeleteAccount()` method: `deleteAccountUseCase.canDelete(accountId)` (or a separate method)
+- **Important:** The external behavior must not change — only the internal dependency changes
 
-### گام ۱.۷: نوشتن تست‌ها
+### Step 1.7: Write the tests
 
-- `AccountValidatorTest`: تست تمام قوانین validation (valid, empty name, duplicate name, invalid IBAN, invalid card number)
-- `AddAccountUseCaseTest`: تست با FakeRepository — insert موفق، validation خطا
-- `DeleteAccountUseCaseTest`: تست حذف موفق، حذف با تراکنش (باید خطا بده)
+- `AccountValidatorTest`: test all the validation rules (valid, empty name, duplicate name, invalid IBAN, invalid card number)
+- `AddAccountUseCaseTest`: test with a FakeRepository — a successful insert, a validation error, and a `Warning` result (the insert still succeeds and the warning is surfaced)
+- `DeleteAccountUseCaseTest`: test a successful delete, and a delete that has transactions (it must throw an error)
 
-## نکات خاص این فاز
+## Special Notes for This Phase
 
-- از چک‌لیست مرکزی:
-  - **R1** (تطابق Rust/Kotlin): این فاز تغییری در محاسبات ایجاد نمی‌کنه — فقط ساختار عوض می‌شه
-  - **R5** (JNI state): اگر هیچ کد Rust لمس نشه، R5 نیاز به اجرا نداره
-- **مهم:** `HesabyarRepositoryInterface` باید هنوز Account methods رو داشته باشه چون بقیه ViewModels (Dashboard, Analytics, Backup) هنوز از اون استفاده می‌کنن. فقط `AccountViewModel` به UseCaseها switch می‌شه.
-- اگر `HesabyarRepository` interface از account methods خالی بشه، باید تأیید کنید که هیچ caller دیگه‌ای نداره (grep!)
+- From the central checklist:
+  - **R1** (Rust/Kotlin alignment): this phase makes no calculation change — only the structure changes
+  - **R5** (JNI state): if no Rust code is touched, R5 does not need to run
+- **Important:** `HesabyarRepositoryInterface` must still have the account methods, because the other ViewModels (Dashboard, Analytics, Backup) still use them. Only `AccountViewModel` switches to the use cases.
+- If `HesabyarRepository` becomes empty of account methods, confirm that no other caller remains (grep!)
 
-## معیار پذیرش
+## Acceptance Criteria
 
-- [ ] `AccountDao.kt` جداگانه وجود داره و `Daos.kt` دیگه `AccountDao` نداره
-- [ ] `AccountRepository` interface و `AccountRepositoryImpl` وجود دارن
-- [ ] `AccountValidator` تمام قوانین validation رو پوشش می‌ده
-- [ ] `AccountValidatorTest` → همه تستها pass
-- [ ] `AddAccountUseCaseTest` → همه تستها pass
-- [ ] `DeleteAccountUseCaseTest` → همه تستها pass
-- [ ] `AccountViewModel` از UseCaseها استفاده می‌کنه (نه مستقیماً از Repository)
-- [ ] `AccountViewModel` methods رفتار قبلی رو حفظ کردن (signature یکسان)
-- [ ] DI modules به‌روزرسانی شدن و `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
-- [ ] `./gradlew ktlintCheck detekt --no-daemon` → بدون خطا
-- [ ] با grep تأیید بشه: `AccountViewModel` دیگه `repository.insertAccount` مستقیم نداره
+- [ ] A separate `AccountDao.kt` exists, and `Daos.kt` no longer has `AccountDao`
+- [ ] The `AccountRepository` interface and `AccountRepositoryImpl` exist
+- [ ] `AccountValidator` covers all the validation rules
+- [ ] `AccountValidatorTest` → all tests pass
+- [ ] `AddAccountUseCaseTest` → all tests pass
+- [ ] `DeleteAccountUseCaseTest` → all tests pass
+- [ ] `AccountViewModel` uses the use cases (not the Repository directly)
+- [ ] The `AccountViewModel` methods keep the previous behavior (the same signature)
+- [ ] The DI modules are updated, and `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
+- [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
+- [ ] A grep confirms: `AccountViewModel` no longer has a direct `repository.insertAccount`
 
 ## Rollback
 
 ```bash
-# rollback کل Phase 1:
-git log --oneline -10  # Phase 1 commits رو شناسایی کنید
+# Roll back the whole Phase 1:
+git log --oneline -10  # Identify the Phase 1 commits
 git revert <last-phase-1-commit>..<first-phase-1-commit>
 
-# یا rollback یک گام خاص:
-git checkout HEAD -- app/src/main/java/.../data/Daos.kt  # rollback گام ۱.۱
+# Or roll back one specific step:
+git checkout HEAD -- app/src/main/java/.../data/Daos.kt  # Roll back step 1.1
 ```

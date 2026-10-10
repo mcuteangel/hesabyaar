@@ -1,157 +1,160 @@
-# Phase 0: رفع باگ‌های واقعی (بدون تغییر معماری)
+# Phase 0: Fix Real Bugs (No Architecture Change)
 
-## پیش‌نیاز
+## Prerequisites
 
-- **فاز قبلی:** ندارد — این اولین فاز است
-- **تصمیمات معلق:** تصمیم #4 (یکسان‌سازی `DEFAULT_ACCOUNT_COLOR`) باید قبل از شروع تأیید بشه
+- **Previous phase:** None — this is the first phase
+- **Pending decisions:** Decision #4 (unify `DEFAULT_ACCOUNT_COLOR`) must be confirmed before the start
 
-## زمینه
+## Context
 
-گزارش Gap Analysis چهار باگ واقعی در Account Management شناسایی کرده که هیچ‌کدام تغییر معماری نمی‌خوان — فقط فیکس‌های کوچک و کم‌ریسک در فایل‌های موجود. هر کدوم باید commit جداگانه داشته باشه.
+The Gap Analysis report identified four real bugs in Account Management. No bug needs an architecture change. Each bug is a small, low-risk fix in an existing file. Each bug needs a separate commit.
 
-## هدف دقیق این فاز
+## Exact Goal of This Phase
 
-رفع ۴ باگ مشخص بدون تغییر ساختار معماری. خروجی: ۴ commit تمیز روی شاخه `feature/multi-account-wallet`.
+Fix the four listed bugs without an architecture change. The result is four clean commits on the `feature/multi-account-wallet` branch.
 
-## فایل‌های درگیر
+## Files Involved
 
-| فایل | تغییر |
+| File | Change |
 |---|---|
-| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | باگ #1 (overflow anchoring) + باگ #2 (archive confirmation) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` | باگ #3 ('icon OTHER' — ممکنه نیاز به تغییر نداشته باشه) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt` | باگ #4 (منبع اصلی) |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageBackupUseCase.kt` | باگ #4 (حذف کپی تکراری) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Bug #1 (overflow anchoring) + bug #2 (archive confirmation) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` | Bug #3 ('icon OTHER' — it may not need a change) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt` | Bug #4 (remove the top-level duplicate) |
+| `app/src/main/java/io/github/mojri/hesabyar/data/AccountEntity.kt` | Bug #4 (keep `AccountEntity.DEFAULT_COLOR` as the single source) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Bug #4 (import `AccountEntity.DEFAULT_COLOR` instead) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Bug #4 (import `AccountEntity.DEFAULT_COLOR` instead) |
 
-## گام‌های اجرا
+## Execution Steps
 
-### باگ #1: فیکس anchoring نادرست AccountOverflowMenu
+### Bug #1: Fix the incorrect anchoring of AccountOverflowMenu
 
-**مشکل:** `AccountOverflowMenu` (DropdownMenu) در `AccountManagementDialogs` رندر می‌شه که sibling Scaffold content هست، نه داخل `Box` اطراف `IconButton`. DropdownMenu باید نسبت به والد `Box` خودش لنگر بگیره.
+**Problem:** `AccountOverflowMenu` (DropdownMenu) renders in `AccountManagementDialogs`, which is a sibling of the Scaffold content. It is not inside the `Box` that surrounds the `IconButton`. A DropdownMenu must anchor to its own parent `Box`.
 
-**مسیر فایل:** `AccountManagementScreen.kt`  
-**مسیر کد فعلی:** خطوط ۳۸۳-۳۹۵ (IconButton داخل Box) و خطوط ۱۸۸-۲۲۸ (AccountManagementDialogs)
+**File path:** `AccountManagementScreen.kt`  
+**Current code path:** lines 383-395 (IconButton inside Box) and lines 188-228 (AccountManagementDialogs)
 
-**راه‌حل:**
-- `AccountOverflowMenu` باید مستقیماً داخل `Box` اطراف `IconButton` در `AccountItem` رندر بشه
-- state `OverflowMenu(account)` باید از `AccountManagementDialogs` به `AccountItem` منتقل بشه
-- یکی از دو راه:
-  - الف) `dialogState` رو به `AccountItem` پاس بدیم و overflow menu رو داخل `Box` رندر کنیم
-  - ب) `AccountOverflowMenu` رو به‌عنوان child مستقیم `IconButton` wrapper کنیم
+**Solution:**
+- Render `AccountOverflowMenu` directly inside the `Box` that surrounds the `IconButton` in `AccountItem`
+- Move the `OverflowMenu(account)` state from `AccountManagementDialogs` to `AccountItem`
+- Use one of two ways:
+  - a) Pass `dialogState` to `AccountItem` and render the overflow menu inside the `Box`
+  - b) Make `AccountOverflowMenu` a direct child of the `IconButton` wrapper
 
-**چک بعد از اجرا:**
+**Check after the change:**
 ```bash
 grep -n "AccountOverflowMenu" app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
-# باید داخل Box/Column مربوط به AccountItem باشه، نه در سطح Scaffold
+# Must be inside the Box/Column of AccountItem, not at Scaffold level
 ```
 
 **Commit:** `fix(ui): anchor AccountOverflowMenu to overflow button instead of Scaffold`
 
 ---
 
-### باگ #2: اضافه کردن دیالوگ تأیید قبل از آرشیو
+### Bug #2: Add a confirmation dialog before archive
 
-**مشکل:** آرشیو کردن حساب با یک تپ انجام می‌شه (خط ۲۲۴) بدون هیچ confirmation. حساب آرشیوشده از داشبورد حذف می‌شه و راه بازیابی آسانی نداره.
+**Problem:** A tap archives the account (line 224) with no confirmation. An archived account disappears from the dashboard and has no easy recovery path.
 
-**مسیر فایل:** `AccountManagementScreen.kt`  
-**مسیر کد فعلی:** خط ۲۲۴ — `OverflowAction.ARCHIVE -> accountViewModel.archiveAccount(account)`
+**File path:** `AccountManagementScreen.kt`  
+**Current code path:** line 224 — `OverflowAction.ARCHIVE -> accountViewModel.archiveAccount(account)`
 
-**راه‌حل:**
-- یک state جدید `ArchiveConfirmation(account: AccountEntity)` به `AccountDialogState` اضافه بشه
-- در `onOverflowAction` وقتی `OverflowAction.ARCHIVE` انتخاب می‌شه، `dialogState = ArchiveConfirmation(account)` بشه نه `archiveAccount`
-- در `AccountManagementDialogs` case جدید `ArchiveConfirmation` با `ConfirmDialog` اضافه بشه
-- پیام تأیید: `آیا از آرشیو کردن حساب «{name}» اطمینان دارید؟ حساب از داشبورد حذف خواهد شد.`
-- دکمه تأیید: "آرشیو" با رنگ `MaterialTheme.colorScheme.primary` (نه error — چون آرشیو destructive نیست)
+**Solution:**
+- Add a new state `ArchiveConfirmation(account: AccountEntity)` to `AccountDialogState`
+- In `onOverflowAction`, when `OverflowAction.ARCHIVE` is selected, set `dialogState = ArchiveConfirmation(account)` instead of `archiveAccount`
+- In `AccountManagementDialogs`, add a new `ArchiveConfirmation` case with a `ConfirmDialog`
+- Confirmation message: `آیا از آرشیو کردن حساب «{name}» اطمینان دارید؟ حساب از داشبورد حذف خواهد شد.`
+- Confirm button: "آرشیو" with `MaterialTheme.colorScheme.primary` color (not error — archive is not destructive)
 
-**چک بعد از اجرا:**
+**Check after the change:**
 ```bash
 grep -n "ArchiveConfirmation" app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
-# باید حداقل ۳ reference باشه: sealed interface, when case, ConfirmDialog call
+# Must have at least 3 references: sealed interface, when case, ConfirmDialog call
 ```
 
 **Commit:** `fix(ui): add confirmation dialog before archiving an account`
 
 ---
 
-### باگ #3: رفع ناهماهنگی نقشه آیکون OTHER
+### Bug #3: Fix the OTHER icon map mismatch
 
-**مشکل:** نگاشت `AccountType → icon` در دو مکان وجود دارد و برای نوع `OTHER` متفاوته:
+**Problem:** The `AccountType → icon` mapping exists in two places, and it is different for the `OTHER` type:
 - `AccountManagementScreen.kt:91` → `ACCOUNT_TYPE_ICONS[OTHER] = Icons.Filled.Payments`
 - `AccountTypeIcon.kt:30` → `AccountType.icon(OTHER) = Icons.Filled.MoreHoriz`
 
-**مسیر فایل:**
-- `AccountManagementScreen.kt` — خطوط ۸۶-۹۲ (`ACCOUNT_TYPE_ICONS`)
-- `ui/components/AccountTypeIcon.kt` — خطوط ۲۵-۳۱ (`AccountType.icon()`)
+**File paths:**
+- `AccountManagementScreen.kt` — lines 86-92 (`ACCOUNT_TYPE_ICONS`)
+- `ui/components/AccountTypeIcon.kt` — lines 25-31 (`AccountType.icon()`)
 
-**راه‌حل:**
-- `ACCOUNT_TYPE_ICONS` map در `AccountManagementScreen.kt` حذف بشه
-- در تمام جاهایی که از `ACCOUNT_TYPE_ICONS` استفاده شده (خطوط ۳۳۱، ۷۱۲)، به `AccountType.icon()` رفرنس داده بشه
-- یکی از دو آیکون انتخاب بشه: `MoreHoriz` (از `AccountTypeIcon.kt`) یا `Payments`
-- **توصیه:** `MoreHoriz` بهتره چون معنای "سایر" رو بهتر می‌رسونه و در جاهای دیگه app استفاده شده
+**Solution:**
+- Remove the `ACCOUNT_TYPE_ICONS` map in `AccountManagementScreen.kt`
+- Reference `AccountType.icon()` everywhere that used `ACCOUNT_TYPE_ICONS` (lines 331, 712)
+- Choose one of the two icons: `MoreHoriz` (from `AccountTypeIcon.kt`) or `Payments`
+- **Recommendation:** `MoreHoriz` is better. It gives the meaning of "other" more clearly, and the app already uses it elsewhere
 
-**چک بعد از اجرا:**
+**Check after the change:**
 ```bash
 grep -n "ACCOUNT_TYPE_ICONS" app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
-# باید ۰ نتیجه برگردونه (حذف شده)
+# Must return 0 results (removed)
 grep -n "AccountType.icon\|\.icon()" app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
-# باید حداقل ۲ reference باشه
+# Must have at least 2 references
 ```
 
 **Commit:** `fix(ui): remove duplicate icon mapping, use AccountType.icon() consistently`
 
 ---
 
-### باگ #4: یکسان‌سازی DEFAULT_ACCOUNT_COLOR
+### Bug #4: Unify DEFAULT_ACCOUNT_COLOR
 
-**مشکل:** `DEFAULT_ACCOUNT_COLOR` در سه مکان تعریف شده. هر سه مقدار `0xFF4CAF50L` هستن ولی منبع واحد نیستن.
+**Problem:** The default account color is defined twice on the Kotlin side: the top-level `const val DEFAULT_ACCOUNT_COLOR` in `ui/designsystem/FinancialColors.kt:37` and `AccountEntity.DEFAULT_COLOR` (`data/AccountEntity.kt:58`, companion object). Both are `0xFF4CAF50L`, but there is no single source. (`ManageBackupUseCase` has no such constant — its companion object only holds `TAG`.)
 
-**مسیر فایلها:**
-- `ui/designsystem/FinancialColors.kt:37` — `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L`
-- `domain/usecase/ManageBackupUseCase.kt:30` — `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L`
+**File paths:**
+- `ui/designsystem/FinancialColors.kt:37` — top-level `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L` (not a `FinancialColors` member)
+- `data/AccountEntity.kt:58` — `companion object` `const val DEFAULT_COLOR: Long = 0xFF4CAF50L`
 - `rust/hesabyar-core/src/models/mod.rs:116` — `fn default_color() -> i64 { 0xFF4CAF50 }`
 
-**راه‌حل:**
-1. مقدار دقیق هر سه رو تأیید کنید (باید یکسان باشن)
-2. `ManageBackupUseCase.kt:30` رو حذف کنید و import از `FinancialColors.DEFAULT_ACCOUNT_COLOR` اضافه کنید
-3. مقدار Rust نباید تغییر کنه (فقط Kotlin-side duplicate حذف بشه)
-> **یادآوری معماری:** Rust منبع تک‌حقیقت منطق تجاری است. این برطرف‌سازی صرفاً حذف یک duplicate طرف Kotlin است — Rust ارجاع اصلی محسوب می‌شود. هیچ‌گاه منطق یا محاسبه‌ جدیدی به سمت Kotlin اضافه نکنید.
+**Solution:**
+1. Confirm the exact value of all three (they must be the same)
+2. Delete the top-level `DEFAULT_ACCOUNT_COLOR` in `FinancialColors.kt` and reference `AccountEntity.DEFAULT_COLOR` instead
+3. Update the two callers (`AccountViewModel.kt:15,105`, `AccountManagementScreen.kt:78,573`) to import `AccountEntity.DEFAULT_COLOR`
+4. The Rust value must not change (remove only the Kotlin-side duplicate)
+> **Architecture note:** Rust is the single source of truth for business logic. This fix only removes a duplicate on the Kotlin side. Rust remains the primary reference. Never add new logic or calculations to Kotlin.
 
-**چک بعد از اجرا:**
+**Check after the change:**
 ```bash
 grep -rn "DEFAULT_ACCOUNT_COLOR" app/src/main/java/ | grep -v "build/"
-# باید فقط FinancialColors.kt و import‌های اون رو برگردونه
+# Must return nothing; the color must resolve to AccountEntity.DEFAULT_COLOR
 ```
 
-**Commit:** `fix: remove duplicate DEFAULT_ACCOUNT_COLOR in ManageBackupUseCase`
+**Commit:** `fix: unify DEFAULT_ACCOUNT_COLOR on AccountEntity.DEFAULT_COLOR`
 
 ---
 
-## نکات خاص این فاز
+## Special Notes for This Phase
 
-- از چک‌لیست مرکزی: **تصمیم #4** (یکسان‌سازی رنگ) باید قبل از شروع باگ #4 تأیید بشه
-- از چک‌لیست مرکزی: **R1** (تطابق Rust/Kotlin) — باگ #4 فقط Kotlin-side duplicate رو حذف می‌کنه، مقدار Rust تغییر نمی‌کنه پس R1 نقض نمی‌شه. یادآوری: این صرفاً یک اصلاح fallback موجود است — راهنمایی برای اضافه کردن منطق جدید در Kotlin نیست.
-- هر باگ باید **commit جداگانه** داشته باشه تا rollback آسان باشه
-- بعد از هر باگ، `./gradlew test --no-daemon` اجرا بشه
+- From the central checklist: confirm **decision #4** (color unification) before bug #4 starts
+- From the central checklist: **R1** (Rust/Kotlin alignment) — bug #4 only removes the Kotlin-side duplicate. The Rust value does not change, so R1 is not broken. Note: this is only the correction of an existing fallback — it is not guidance to add new logic in Kotlin.
+- Each bug needs a **separate commit** so that rollback is easy
+- After each bug, run `./gradlew test --no-daemon`
 
-## معیار پذیرش
+## Acceptance Criteria
 
-- [ ] باگ #1: `AccountOverflowMenu` داخل `Box` اطراف `IconButton` رندر بشه (نه در سطح Scaffold)
-- [ ] باگ #2: آرشیو کردن با confirmation dialog انجام بشه
-- [ ] باگ #3: `ACCOUNT_TYPE_ICONS` map حذف شده و `AccountType.icon()` استفاده بشه
-- [ ] باگ #4: `ManageBackupUseCase.kt` دیگه `DEFAULT_ACCOUNT_COLOR` جداگانه نداشته باشه
+- [ ] Bug #1: `AccountOverflowMenu` renders inside the `Box` that surrounds the `IconButton` (not at Scaffold level)
+- [ ] Bug #2: Archive needs a confirmation dialog
+- [ ] Bug #3: The `ACCOUNT_TYPE_ICONS` map is removed and `AccountType.icon()` is used
+- [ ] Bug #4: `FinancialColors.kt` no longer defines `DEFAULT_ACCOUNT_COLOR`, and callers use `AccountEntity.DEFAULT_COLOR`
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
-- [ ] `./gradlew ktlintCheck detekt --no-daemon` → بدون خطا
-- [ ] ۴ commit جداگانه روی شاخه
-- [ ] با grep تأیید بشه که هیچ reference قدیمی باقی نمونده
+- [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors
+- [ ] Four separate commits on the branch
+- [ ] A grep confirms that no old reference remains
 
 ## Rollback
 
-هر باگ جداگانه قابل rollback هست:
+Each bug can be rolled back separately:
 ```bash
-git log --oneline  # شماره commit مورد نظر رو پیدا کنید
+git log --oneline  # Find the commit hash that you want
 git revert <commit-hash>
 ```
-یا همه باگ‌ها با هم:
+Or roll back all bugs together:
 ```bash
-git diff HEAD~4..HEAD --stat  # تأیید ۴ commit آخر
+git diff HEAD~4..HEAD --stat  # Confirm the last 4 commits
 git reset --hard HEAD~4
 ```
