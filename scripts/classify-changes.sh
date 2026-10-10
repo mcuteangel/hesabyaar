@@ -1,9 +1,11 @@
 #!/bin/sh
 # classify-changes.sh - Classify changed files between two refs into change classes.
 #
-# Usage: classify-changes.sh [base_ref] [head_ref]
+# Usage: classify-changes.sh [base_ref] [head_ref] [self_path]
 #   base_ref defaults to empty (treated as "everything changed").
 #   head_ref defaults to HEAD.
+#   self_path is an optional repo-relative path (e.g. the caller's own
+#   workflow file); emits self=true when that exact path changed.
 #
 # Prints KEY=true/false lines for each class and appends them to
 # $GITHUB_OUTPUT when that variable is set (GitHub Actions).
@@ -22,6 +24,7 @@ set -eu
 
 BASE_REF="${1:-}"
 HEAD_REF="${2:-HEAD}"
+SELF_PATH="${3:-}"
 
 # Single source of truth for the class list. emit_all, the per-class
 # initializers and the final emit loop all iterate over this, so adding a
@@ -77,6 +80,7 @@ done
 
 while IFS= read -r f; do
   [ -z "$f" ] && continue
+  if [ -n "$SELF_PATH" ] && [ "$f" = "$SELF_PATH" ]; then self=true; fi
   case "$f" in
     # Note: *.gradle.kts already covers settings.gradle.kts, and *.md
     # already covers CHANGELOG.md - keep the lists free of such
