@@ -638,10 +638,8 @@ User fills form
     → [valid/warning] → HesabyarRepository.insertAccount(entity)
       → AccountDao.insert(entity) → Room INSERT → returns id
     → Success(id, warnings)
-  → Room emits updated getAllAccounts() Flow
+  → (async, not sequenced) Room re-emits updated getAllAccounts() Flow → ViewModel.accounts updates → Screen recomposes
   → If warnings non-empty → surface non-blockingly
-  → ViewModel.accounts StateFlow updates
-  → Screen LazyColumn recomposes with new item
   → SideEffect: ShowSnackbar("حساب «{name}» ایجاد شد", "واگردانی")
 ```
 
@@ -657,9 +655,8 @@ User edits form
     → [valid/warning] → HesabyarRepository.updateAccount(updated)
       → AccountDao.update(updated) → Room UPDATE
     → Success(id, warnings)
-  → Room emits updated Flow
+  → (async, not sequenced) Room re-emits updated Flow → Screen recomposes
   → If warnings non-empty → surface non-blockingly
-  → Screen recomposes
   → SideEffect: ShowSnackbar("حساب «{name}» به‌روزرسانی شد")
 ```
 
