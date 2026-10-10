@@ -44,6 +44,31 @@
 - امنیت حافظه و عملکرد بالا بدون کد `unsafe`
 - بنچمارک‌های Criterion برای رصد رگرسیون‌های عملکردی
 
+## 📸 تصاویر
+
+<p align="center">
+  <img src="site/screenshots/dashboard.webp" width="220" alt="داشبورد">
+  <img src="site/screenshots/assistant.webp" width="220" alt="دستیار هوشمند">
+  <img src="site/screenshots/persons.webp" width="220" alt="دفتر اشخاص و بدهی‌ها">
+</p>
+<p align="center">
+  <img src="site/screenshots/installments.webp" width="220" alt="دفتر مدیریت اقساط">
+  <img src="site/screenshots/analytics.webp" width="220" alt="تحلیل و آمار پیشرفته">
+  <img src="site/screenshots/reports.webp" width="220" alt="گزارش‌های تحلیلی">
+</p>
+
+<details>
+<summary>حالت تیره</summary>
+<p align="center">
+  <img src="site/screenshots/dashboard-dark.webp" width="220" alt="داشبورد (حالت تیره)">
+  <img src="site/screenshots/assistant-dark.webp" width="220" alt="دستیار هوشمند (حالت تیره)">
+</p>
+</details>
+
+<p align="center">
+  🌐 <a href="https://mcuteangel.github.io/hesabyaar/">صفحهٔ معرفی حسابیار</a>
+</p>
+
 ## ✨ ویژگی‌های کلیدی
 
 ### 💰 مدیریت تراکنش‌ها
