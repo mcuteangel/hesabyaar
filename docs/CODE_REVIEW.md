@@ -99,19 +99,13 @@ The model output is read with `optString`/`optDouble` and default values, and it
 
 ---
 
-### 3.3. The ViewModels are not unit-testable (no DI)
-**File:** All 9 ViewModels in `ui/`
+### 3.3. The Workers are not unit-testable (no DI)
+**File:** `reminder/InstallmentReminderWorker.kt`, `reminder/LoanReminderWorker.kt`
 **Proposed phase:** Phase 1 (architecture)
 
-Each ViewModel builds its dependencies internally:
-```kotlin
-class DashboardViewModel(application: Application) : AndroidViewModel(application) {
-    private val database = AppDatabase.getDatabase(application)
-    private val repository = HesabyarRepository(database.transactionDao(), …)
-```
-For this reason, the tests only cover the pure logic helpers, not the ViewModels. `InstallmentReminderWorker` also calls `AppDatabase.getDatabase(applicationContext)` directly.
+The ViewModels already use `@HiltViewModel` constructor injection (all 13 in `ui/`), and `AccountViewModelTest` exists — that part of the original finding is resolved. The reminder Workers still build their dependencies manually: both call `AppDatabase.getDatabase(applicationContext)` directly, with no Hilt setup.
 
-**Action:** Introduce Hilt (Task 1-2), and inject the Repository (as an interface) into the constructors of the ViewModels and the Workers.
+**Action:** Introduce Hilt workers (`@HiltWorker` + `@AssistedInject`), and inject the Repository (as an interface) into the Workers' constructors.
 
 ---
 

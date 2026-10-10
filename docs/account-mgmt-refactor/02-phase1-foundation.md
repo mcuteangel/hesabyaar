@@ -54,7 +54,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 
 ### Step 1.1: Extract AccountDao
 
-- Move the `AccountDao` interface from `Daos.kt` (lines 186-217) to the new file `data/account/AccountDao.kt`
+- Move the `AccountDao` interface from `Daos.kt` (lines 342-376) to the new file `data/account/AccountDao.kt`
 - Confirm that the Room annotations (`@Dao`, `@Query`, `@Insert`, `@Update`, `@Delete`) are kept
 - Remove `AccountDao` from the main `Daos.kt`
 - In `DatabaseModule.kt`, confirm that `database.accountDao()` still works (Room builds DAOs from interfaces)
@@ -82,7 +82,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 
 - The account data-access methods already live in the checked-in `AccountDelegate` (which implements `AccountOps`); there is nothing left to move out of `HesabyarRepository.kt`
 - Create the new file `data/account/AccountRepositoryImpl.kt`
-- Use `@Inject constructor(private val accountOps: AccountOps)` and delegate each `AccountRepository` method to it
+- Use `@Inject constructor(private val accountOps: AccountOps)` and delegate each `AccountRepository` method to it (this keeps the existing `database.withTransaction` in `AccountDelegate.deleteAccount`)
 - In `RepositoryModule.kt`:
   - Bind `AccountRepository`: `@Binds abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository`
   - Or use `@Provides` with an `AccountOps` parameter
@@ -95,6 +95,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   sealed interface ValidationResult {
     data object Valid : ValidationResult
     data class Invalid(val errors: Map<String, String>) : ValidationResult
+    data class Warning(val warnings: Map<String, String>) : ValidationResult
   }
   ```
 - File `domain/model/AccountFormModel.kt` (define it here, in Phase 1): the form type shared by the validator and `AddAccountUseCase`, so the validator can feed the use case without conversion:
@@ -111,6 +112,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   )
   ```
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
+- **Scope:** this validator covers form-input validation at the UI boundary. New business rules, calculations, and rule-driven validations go to the Rust core per ADR-001.
 - File `domain/validation/AccountValidator.kt`:
   - `fun validate(form: AccountFormModel): ValidationResult`
   - Rules (as in decision #1):
@@ -121,7 +123,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
     - `initialBalance`: `toLongOrNull()` must succeed
   - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
     - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` already contains the name
-    - **"warning" (non-blocking):** allow the save; surface the duplicate as a non-blocking warning next to the form instead of failing validation
+    - **"warning" (non-blocking):** `validate` returns `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
   - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test; warning → a save-allowed test
 - **Rollback:** Delete the files
 
@@ -131,7 +133,7 @@ Each use case is a separate file:
 
 **AddAccountUseCase:**
 - `suspend operator fun invoke(form: AccountFormModel): Long`
-- Validate → insert → return the ID
+- Validate: proceed on `Valid` or `Warning` (surface warnings non-blockingly); abort on `Invalid` → insert → return the ID
 
 **UpdateAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`

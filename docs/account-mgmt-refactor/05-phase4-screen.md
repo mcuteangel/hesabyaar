@@ -173,7 +173,14 @@ LaunchedEffect(Unit) {
   accountViewModel.sideEffect.collect { effect ->
     when (effect) {
       is AccountSideEffect.ShowSnackbar -> {
-        snackbarHostState.showSnackbar(effect.message)
+        // Explicit duration: destructive actions (delete/archive) stay 7 seconds
+        // to match the undo window. SnackbarDuration has no 7s step, so show
+        // Indefinite and dismiss after 7_000 ms.
+        snackbarHostState.showSnackbar(
+          message = effect.message,
+          actionLabel = effect.actionLabel,
+          duration = SnackbarDuration.Indefinite, // dismissed after 7s for destructive actions
+        )
       }
     }
   }

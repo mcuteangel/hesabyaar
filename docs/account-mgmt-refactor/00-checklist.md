@@ -52,13 +52,13 @@
 
 ### 4. DEFAULT_ACCOUNT_COLOR unification
 - **Status:** ⏳ pending
-- **Question:** The three `DEFAULT_ACCOUNT_COLOR` values must be the same — confirm the exact value:
-  - `FinancialColors.kt:37` → `0xFF4CAF50L`
-  - `ManageBackupUseCase.kt:30` → `0xFF4CAF50L`
+- **Question:** The Kotlin default color must resolve to a single source — confirm the exact value:
+  - `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt:37` (top-level `DEFAULT_ACCOUNT_COLOR`) → `0xFF4CAF50L`
+  - `app/src/main/java/io/github/mojri/hesabyar/data/AccountEntity.kt:58` (`AccountEntity.DEFAULT_COLOR`) → `0xFF4CAF50L`
   - Rust `default_color()` → `0xFF4CAF50`
 - **Confirmation action:**
   ```bash
-  grep -n "DEFAULT_ACCOUNT_COLOR\|default_color" app/src/main/java/.../FinancialColors.kt app/src/main/java/.../ManageBackupUseCase.kt rust/hesabyar-core/src/models/mod.rs
+  grep -n "DEFAULT_ACCOUNT_COLOR\|DEFAULT_COLOR\|default_color" app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt app/src/main/java/io/github/mojri/hesabyar/data/AccountEntity.kt rust/hesabyar-core/src/models/mod.rs
   ```
 - **Depends on:** Phase 0 or Phase 1
 

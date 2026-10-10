@@ -52,7 +52,7 @@ Add 5 UX capabilities:
 - In the Screen: if the snackbar action "واگردانی" is clicked → `OnUndoDelete` event
 - `OnUndoDelete`: `lastDeletedAccount?.let { cached -> addAccountUseCase(cached.toFormModel()) }` → `lastDeletedAccount = null`. `AddAccountUseCase` accepts `AccountFormModel` (not `AccountEntity`), so map the cached entity to the form model first. The restore inserts a new row — the deleted row's generated ID is not preserved
 - **Note:** for undo, cache the account completely before the delete. `lastDeletedAccount` does this.
-- **Limitation:** only the last delete can be undone (a 5 second window)
+- **Limitation:** only the last delete can be undone (a 7 second window)
 
 ### Step 5.3: Undo Archive
 
@@ -89,7 +89,7 @@ Add 5 UX capabilities:
   - **R2** (negative numbers): if a new "calculated balance" is added (for example in `AccountListCard`), use the LRM pattern and sign/amount separation
   - **R1** (Rust/Kotlin alignment): Unarchive must activate the dashboard sync — confirm that the Room Flow emits automatically after the update
 - **Important:** Clear `lastDeletedAccount` and `lastArchivedAccount` after the Snackbar is dismissed
-- Undo window: 5 seconds (the Snackbar duration)
+- Undo window: 7 seconds (the Snackbar duration)
 - If the user closes the app before the Snackbar is dismissed, the undo is lost — this is acceptable
 
 ## Acceptance Criteria
