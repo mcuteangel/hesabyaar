@@ -3,8 +3,9 @@
 #
 # A typo in a gate can silently skip a required check while the `changes`
 # job succeeds, so each gated job's required classes are asserted here.
-# The tokens checked (needs.changes.outputs.<class>) only appear in gate
-# expressions - the changes job itself uses steps.classify.outputs.*.
+# Matching is scoped to job-level if: expressions (gate_text): a token
+# that only appears in a comment or a step-level if: must NOT satisfy
+# the check, or the test would give false confidence about a broken gate.
 set -eu
 
 # Resolve to an absolute path: callers may run this from any directory.
@@ -12,11 +13,36 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 WF="$HERE/../../.github/workflows"
 
 fail=0
+
+gate_text() {
+  # $1 = workflow file: print each job-level (4-space indented) if:
+  # expression, joining YAML folded (deeper-indented) continuation lines.
+  # Tokens are matched against these expressions ONLY - never against
+  # comments or step-level ifs, so a token mentioned in a comment cannot
+  # mask a typo in the actual gate.
+  awk '
+    /^    if:/ {
+      sub(/^    if:[[:space:]]*/, "")
+      sub(/^>-[[:space:]]*$/, "")
+      t = $0
+      while ((getline nxt) > 0) {
+        if (nxt ~ /^[[:space:]]*$/) continue
+        if (nxt !~ /^     /) break
+        sub(/^[[:space:]]+/, "", nxt)
+        t = t " " nxt
+      }
+      print t
+      t = ""
+    }
+  ' "$1"
+}
+
 check_gate() {
   # $1 = workflow file, $2.. = required class names
   file="$1"; shift
+  gates="$(gate_text "$file")"
   for class in "$@"; do
-    if ! grep -q "needs\\.changes\\.outputs\\.$class == 'true'" "$file"; then
+    if ! printf '%s\n' "$gates" | grep -Fq "needs.changes.outputs.$class == 'true'"; then
       echo "FAIL: $file gate missing class '$class'"
       fail=1
     fi
@@ -26,7 +52,7 @@ check_gate() {
   # classifier job skip the gate instead of running it. (-F: fixed strings;
   # the tokens contain regex metacharacters like ( ) and .)
   for token in "needs.changes.result != 'success'" '!cancelled()'; do
-    if ! grep -Fq "$token" "$file"; then
+    if ! printf '%s\n' "$gates" | grep -Fq "$token"; then
       echo "FAIL: $file gate missing fail-open token: $token"
       fail=1
     fi
@@ -35,10 +61,11 @@ check_gate() {
 
 # The codspeed gate additionally isolates fork PRs (id-token is stripped
 # on forks, so benchmarks must not run there). That guard is
-# security-critical, so it gets its own assertion.
+# security-critical, so it gets its own assertion - scoped to the gate
+# expressions like everything else.
 check_fork_guard() {
   # $1 = workflow file
-  if ! grep -Fq "github.event.pull_request.head.repo.full_name == github.repository" "$1"; then
+  if ! gate_text "$1" | grep -Fq "github.event.pull_request.head.repo.full_name == github.repository"; then
     echo "FAIL: $1 gate missing fork-PR isolation guard"
     fail=1
   fi
