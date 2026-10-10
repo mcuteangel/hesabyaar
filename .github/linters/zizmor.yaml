@@ -3,7 +3,7 @@
 # `zizmor --config`, so every rule listed here runs on every pull
 # request that touches a workflow.
 rules:
-  # All three dtolnay/rust-toolchain pins below use the same commit,
+  # Both dtolnay/rust-toolchain pins below use the same commit,
   # 4cda84d5c5c54efe2404f9d843567869ab1699d4 ("toolchain: stable", the
   # newest version table). The audit cannot confirm an upstream pin from
   # a shallow checkout, so it reports a false positive. Each ignore entry

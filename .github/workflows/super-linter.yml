@@ -19,6 +19,8 @@ jobs:
     name: Classify changed files
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       kotlin: ${{ steps.classify.outputs.kotlin }}
       gradle: ${{ steps.classify.outputs.gradle }}
@@ -45,7 +47,13 @@ jobs:
     needs: [changes]
     # Merge-gate: lint only when CI files changed. Skipped still satisfies
     # required status checks.
-    if: ${{ needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' }}
+    # code/rust are included because VALIDATE_GITLEAKS is on: app and Rust
+    # changes must still be secret-scanned. config is included so YAML
+    # config changes (.codacy.yml, dependabot.yml, ...) get validated.
+    # needs.changes.result != 'success' keeps the fail-open guarantee at the
+    # workflow level: if the classifier job itself fails before emitting
+    # outputs, the linter runs instead of silently passing.
+    if: ${{ needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' || needs.changes.outputs.config == 'true' || needs.changes.outputs.code == 'true' || needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

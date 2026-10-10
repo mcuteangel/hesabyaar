@@ -2,15 +2,20 @@
 # test-classify-changes.sh - Regression tests for scripts/classify-changes.sh
 set -eu
 
-SCRIPT="$(dirname "$0")/../classify-changes.sh"
+# Resolve to an absolute path BEFORE cd'ing into the temp repo below.
+# A relative path would no longer resolve after the directory change and
+# every invocation would fail.
+SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/classify-changes.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 cd "$TMP"
 git init -q -b main
 git config user.email t@t.t
 git config user.name t
-mkdir -p app rust site .github/workflows scripts
-touch app/A.kt rust/lib.rs site/index.html .github/workflows/x.yml scripts/a.sh README.md
+mkdir -p app rust site .github/workflows .github/actions/ci-test scripts gradle/wrapper
+touch app/A.kt app/build.gradle.kts rust/lib.rs site/index.html \
+  .github/workflows/x.yml .github/actions/ci-test/action.yml scripts/a.sh \
+  README.md gradle.properties gradlew VERSION .codacy.yml
 git add -A
 git commit -qm base
 BASE="$(git rev-parse HEAD)"
@@ -28,20 +33,55 @@ check() {
   echo "ok: $1 -> $2"
 }
 
+check_multi() {
+  # $1,$2 = changed files, $3 = expected KEY=value line for the combined commit
+  N=$((N + 1))
+  git checkout -q -b "t$N" "$BASE"
+  echo x >> "$1"
+  echo x >> "$2"
+  git add -A
+  git commit -qm "change $1 $2"
+  out="$(sh "$SCRIPT" "$BASE" HEAD)"
+  echo "$out" | grep -q "^$3$" || { echo "FAIL: $1+$2 expected $3, got:"; echo "$out"; exit 1; }
+  echo "ok: $1 + $2 -> $3"
+}
+
 check "app/A.kt" "kotlin=true"
 check "app/A.kt" "code=true"
+check "app/build.gradle.kts" "gradle=true"
+check "app/build.gradle.kts" "code=true"
+check "gradle.properties" "gradle=true"
+check "gradle.properties" "code=true"
+check "gradlew" "gradle=true"
+check "gradlew" "code=true"
 check "rust/lib.rs" "rust=true"
 check "rust/lib.rs" "code=true"
 check "site/index.html" "site=true"
 check "site/index.html" "code=false"
 check ".github/workflows/x.yml" "workflows=true"
+check ".github/actions/ci-test/action.yml" "actions=true"
+check ".github/actions/ci-test/action.yml" "code=false"
 check "scripts/a.sh" "ci_scripts=true"
 check "README.md" "docs=true"
 check "README.md" "code=false"
+check "VERSION" "config=true"
+check "VERSION" "code=false"
+check ".codacy.yml" "config=true"
+check_multi "app/A.kt" "rust/lib.rs" "kotlin=true"
+check_multi "app/A.kt" "rust/lib.rs" "rust=true"
+check_multi "app/A.kt" "rust/lib.rs" "code=true"
+check_multi "README.md" "VERSION" "docs=true"
+check_multi "README.md" "VERSION" "config=true"
 
 # empty base fails open (everything true)
 out="$(sh "$SCRIPT" "" HEAD)"
 echo "$out" | grep -q "^code=true$" || { echo "FAIL: empty base should fail open"; exit 1; }
 echo "ok: empty base fails open"
+
+# unresolvable non-empty refs fail open (everything true)
+out="$(sh "$SCRIPT" deadbeefdeadbeefdeadbeefdeadbeefdeadbeef HEAD 2>/dev/null)"
+echo "$out" | grep -q "^kotlin=true$" || { echo "FAIL: bad base should fail open"; exit 1; }
+echo "$out" | grep -q "^code=true$" || { echo "FAIL: bad base should fail open (code)"; exit 1; }
+echo "ok: unresolvable refs fail open"
 
 echo "ALL PASS"

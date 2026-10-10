@@ -53,4 +53,9 @@ runs:
     - id: classify
       shell: bash
       # The script appends KEY=value lines to $GITHUB_OUTPUT itself.
-      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "${{ inputs.base-ref }}" "${{ inputs.head-ref }}"
+      # Refs travel via env, not template expansion in run: (zizmor
+      # template-injection would flag inline ${{ inputs.* }} here).
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+        HEAD_REF: ${{ inputs.head-ref }}
+      run: bash "$GITHUB_WORKSPACE/scripts/classify-changes.sh" "$BASE_REF" "$HEAD_REF"

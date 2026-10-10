@@ -18,6 +18,12 @@ set -eu
 BASE_REF="${1:-}"
 HEAD_REF="${2:-HEAD}"
 
+# Single source of truth for the class list. emit_all, the per-class
+# initializers and the final emit loop all iterate over this, so adding a
+# class means editing exactly one line and the fail-open and normal paths
+# cannot drift apart.
+CLASSES="kotlin gradle rust site docs workflows actions ci_scripts config"
+
 emit() {
   # $1 = key, $2 = value
   echo "$1=$2"
@@ -28,9 +34,13 @@ emit() {
 
 emit_all() {
   # $1 = value for every class
-  for k in kotlin gradle rust site docs workflows actions ci_scripts config code; do
+  # shellcheck disable=SC2086
+  for k in $CLASSES; do
     emit "$k" "$1"
   done
+  # code is derived (kotlin || gradle || rust); in the fail-open paths all
+  # inputs are true, so code follows the same value.
+  emit code "$1"
 }
 
 # Zero-SHA (initial push) or empty base: treat as "everything changed".
@@ -38,9 +48,12 @@ case "$BASE_REF" in
   ""|0000000000000000000000000000000000000000) emit_all true; exit 0 ;;
 esac
 
-if changed=$(git diff --name-only "$BASE_REF...$HEAD_REF" 2>/dev/null); then
+# --no-renames: a pure rename is listed as delete+add, so both the source
+# and the destination path are classified and moving a file out of its
+# class cannot silently skip the corresponding checks.
+if changed=$(git diff --no-renames --name-only "$BASE_REF...$HEAD_REF" 2>/dev/null); then
   :
-elif changed=$(git diff --name-only "$BASE_REF..$HEAD_REF" 2>/dev/null); then
+elif changed=$(git diff --no-renames --name-only "$BASE_REF..$HEAD_REF" 2>/dev/null); then
   :
 else
   # Unresolvable refs (shallow/missing history): fail open.
@@ -52,23 +65,32 @@ LIST="$(mktemp "${TMPDIR:-/tmp}/classify-changes.XXXXXX")"
 trap 'rm -f "$LIST"' EXIT
 printf '%s\n' "$changed" > "$LIST"
 
-kotlin=false; gradle=false; rust=false; site=false; docs=false
-workflows=false; actions=false; ci_scripts=false; config=false
+# shellcheck disable=SC2086
+for k in $CLASSES; do
+  eval "$k=false"
+done
 
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   case "$f" in
-    *.gradle.kts|gradle/*|settings.gradle.kts) gradle=true ;;
+    # Note: *.gradle.kts already covers settings.gradle.kts, and *.md
+    # already covers CHANGELOG.md - keep the lists free of such
+    # redundancies (ShellCheck SC2221/SC2222).
+    # Root gradle.properties/gradlew/gradlew.bat are build inputs too:
+    # a PR touching only them must still trigger the Android build.
+    *.gradle.kts|gradle/*|gradle.properties|gradlew|gradlew.bat) gradle=true ;;
     app/*) kotlin=true ;;
     rust/*) rust=true ;;
     site/*) site=true ;;
     .github/workflows/*) workflows=true ;;
     .github/actions/*) actions=true ;;
     .github/scripts/*|scripts/*) ci_scripts=true ;;
-    *.md|docs/*|plans/*|CHANGELOG.md) docs=true ;;
+    *.md|docs/*|plans/*) docs=true ;;
     VERSION|.github/dependabot.yml|.github/labeler.yml|.github/pull_request_template.md|\
 .codacy.yml|.codefactor.json|.editorconfig|.gitattributes|.hound.yml|.jshintrc|\
 .env.example) config=true ;;
+    # Any other .github/* file (e.g. a future dependabot-style config not
+    # listed above) falls through to ci_scripts rather than being skipped.
     .github/*) ci_scripts=true ;;
   esac
 done < "$LIST"
@@ -79,13 +101,8 @@ else
   code=false
 fi
 
-emit kotlin "$kotlin"
-emit gradle "$gradle"
-emit rust "$rust"
-emit site "$site"
-emit docs "$docs"
-emit workflows "$workflows"
-emit actions "$actions"
-emit ci_scripts "$ci_scripts"
-emit config "$config"
+# shellcheck disable=SC2086
+for k in $CLASSES; do
+  eval "emit \"\$k\" \"\$$k\""
+done
 emit code "$code"

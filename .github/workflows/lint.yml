@@ -11,12 +11,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 
 jobs:
   changes:
     name: Classify changed files
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       kotlin: ${{ steps.classify.outputs.kotlin }}
       gradle: ${{ steps.classify.outputs.gradle }}
@@ -38,12 +43,29 @@ jobs:
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
+  classify-regression-test:
+    name: Change-classification regression tests
+    # Deliberately NOT gated on the classifier's own output: the classifier
+    # decides whether the gated jobs run, so its regression test must run
+    # unconditionally or a false ci_scripts=false would skip the very test
+    # that could expose it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Run change-classification regression tests
+        run: bash scripts/tests/test-classify-changes.sh
   actionlint:
     name: Run actionlint
     needs: [changes]
     # Merge-gate: lint only when CI files changed. Skipped still satisfies
     # required status checks.
-    if: ${{ needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' }}
+    # needs.changes.result != 'success' keeps the fail-open guarantee at the
+    # workflow level: if the classifier job itself fails before emitting
+    # outputs, actionlint runs instead of silently passing.
+    if: ${{ needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' }}
     runs-on: ubuntu-latest
     env:
       HAS_DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN != '' }}
@@ -75,9 +97,6 @@ jobs:
 
        - name: Run change-detection regression tests
          run: bash scripts/tests/test-detect-changes.sh
-
-       - name: Run change-classification regression tests
-         run: bash scripts/tests/test-classify-changes.sh
 
        - name: Run parse-commits regression tests
          run: bash scripts/tests/test-parse-commits.sh

@@ -9,11 +9,16 @@ on:
 
 permissions:
   contents: read # required for actions/checkout
-  id-token: write # required for OIDC authentication with CodSpeed
+  # NOTE: id-token: write lives on the benchmarks job only (needed for
+  # CodSpeed OIDC auth). Keeping it off the workflow level means the
+  # changes job (which checks out PR-head code) never inherits it.
 
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Manual dispatches get their own group: sharing github.ref with push
+  # runs would let every push to main cancel an in-progress ~30-minute
+  # benchmark run (and vice versa).
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
   cancel-in-progress: true
 
 
@@ -22,6 +27,8 @@ jobs:
     name: Classify changed files
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       kotlin: ${{ steps.classify.outputs.kotlin }}
       gradle: ${{ steps.classify.outputs.gradle }}
@@ -47,16 +54,23 @@ jobs:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read # required for actions/checkout
+      id-token: write # required for OIDC authentication with CodSpeed
     env:
       RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
     # `id-token: write` (needed for CodSpeed OIDC auth) is stripped by GitHub on
     # pull requests from forked repositories, which would make this job fail.
     # Only run on pushes and same-repo PRs; community-fork PRs skip benchmarking.
     needs: [changes]
+    # needs.changes.result != 'success' keeps the fail-open guarantee at the
+    # workflow level: if the classifier job itself fails before emitting
+    # outputs, benchmarks run instead of silently passing.
     if: >-
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository) &&
-      (needs.changes.outputs.rust == 'true' ||
+      (needs.changes.result != 'success' ||
+      needs.changes.outputs.rust == 'true' ||
       needs.changes.outputs.actions == 'true' ||
       needs.changes.outputs.workflows == 'true')
     steps:
