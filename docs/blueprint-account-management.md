@@ -119,7 +119,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 | Render UI | Presentation | Screen composable |
 | Manage UI state | State | UiState sealed class |
 | Handle user events | Presentation → ViewModel | Event sealed class |
-| Validate form data (data-shape) | Presentation → ViewModel | `AccountViewModel` (inline data-shape checks; no dedicated validator class exists today) |
+| Validate form data (data-shape) | Presentation (instant feedback) → Domain (submit gate) | Dialog/screen inline checks (7th exception); authoritative validation in `domain/validation/AccountValidator` — pure rules via Rust `validate_account`, DB-bound duplicate-name check in Kotlin — called by use cases |
 | Enforce business rules / validation | FFI | Rust core (`validation.rs`) — results surfaced by outer-layer Kotlin adapters (for example `BackupJsonValidator`, which calls `RustBridge.validateBackupPayloadSync`) |
 | Execute CRUD operations | Domain | UseCase classes (depend on Domain-defined ports; Data implements persistence ports, FFI provides Rust computation) |
 | Coordinate side effects | ViewModel | ViewModel |
