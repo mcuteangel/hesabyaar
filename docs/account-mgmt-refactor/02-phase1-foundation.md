@@ -42,6 +42,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Change from Repository to use cases |
+| `rust/hesabyar-core/src/validation.rs` | Add `validate_account` (UniFFI-exported pure rules) |
 
 ### New files (tests)
 | File | Description |
@@ -112,20 +113,32 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   )
   ```
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
-- **Scope:** this validator covers form-input validation at the UI boundary. New business rules, calculations, and rule-driven validations go to the Rust core per ADR-001.
+- **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core; the DB-bound duplicate-name check stays in Kotlin.
+- **Rust** — add to `rust/hesabyar-core/src/validation.rs` (`#[uniffi::export]`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`):
+  ```rust
+  pub fn validate_account(
+    name: &str,
+    account_type: &str, // AccountType.name; checked against VALID_ACCOUNT_TYPES
+    card_number: &str,
+    iban: &str,
+    initial_balance: &str,
+  ) -> ValidationResult // is_valid + field-keyed errors, e.g. "iban:format"
+  ```
+  Pure rules (no DB access):
+  - `name`: not empty, at most 100 characters
+  - `type`: one of `VALID_ACCOUNT_TYPES`
+  - `cardNumber`: if it is filled, it must have 16 digits
+  - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
+  - `initialBalance`: must parse as an integer
 - File `domain/validation/AccountValidator.kt`:
   - `fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create)
-  - Rules (as in decision #1):
-    - `name`: not empty, at most 100 characters
-    - `type`: valid
-    - `cardNumber`: if it is filled, it must have 16 digits
-    - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
-    - `initialBalance`: `toLongOrNull()` must succeed
-  - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
-    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
-    - **"warning" (non-blocking):** `validate` returns `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
-  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
-- **Rollback:** Delete the files
+  - Step 1: call the Rust `validate_account` through the UniFFI bridge and map each error entry to `Invalid` (field → message)
+  - Step 2: duplicate-name check in Kotlin (see decision #1 in `00-checklist.md` — resolve it before this phase; it needs `getAllAccounts()`, so it cannot live in Rust):
+    - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
+    - **"warning" (non-blocking):** return `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
+  - **Important:** the Rust validator must have a production caller — `AccountValidator` (called by `AddAccountUseCase`) is it; an unwired Rust validator is dead code
+  - Add `AccountValidatorTest` cases: Rust-rule failures (bad IBAN, 15-digit card) through the mapping; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
+- **Rollback:** Delete the Kotlin files and revert `validation.rs`
 
 ### Step 1.5: Create the use cases
 
