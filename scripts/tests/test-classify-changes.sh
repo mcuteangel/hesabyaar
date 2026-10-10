@@ -123,7 +123,8 @@ GOUT="$(mktemp)"
 GITHUB_OUTPUT="$GOUT" sh "$SCRIPT" "$BASE" "$BASE" > /dev/null
 grep -q "^kotlin=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing kotlin=false"; exit 1; }
 grep -q "^code=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing code=false"; exit 1; }
-[ "$(wc -l < "$GOUT")" -eq 10 ] || { echo "FAIL: GITHUB_OUTPUT should have 10 lines, got $(wc -l < "$GOUT")"; exit 1; }
+# 9 classes in CLASSES plus the derived `code` output = 10 lines total.
+[ "$(wc -l < "$GOUT")" -eq 10 ] || { echo "FAIL: GITHUB_OUTPUT should have 10 lines (9 classes + code), got $(wc -l < "$GOUT")"; exit 1; }
 rm -f "$GOUT"
 echo "ok: GITHUB_OUTPUT contract"
 

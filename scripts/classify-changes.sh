@@ -95,9 +95,12 @@ while IFS= read -r f; do
     # *.md above already classifies it as docs (and Super-Linter excludes
     # *.md from linting anyway), so listing it would be dead weight that
     # ShellCheck flags as shadowed (SC2222).
-    # config/* covers config/detekt/detekt.yml and the baseline, which
-    # app/build.gradle.kts wires into the detekt run: a detekt-config-only
-    # PR must still trigger the Android build that validates it.
+    # config/* covers config/detekt/detekt.yml and the baseline. Note: in
+    # case patterns (unlike pathname expansion) * matches / too, so
+    # config/* matches nested paths like config/detekt/detekt.yml.
+    # app/build.gradle.kts wires detekt via config.setFrom(...), so a
+    # detekt-config-only PR must still trigger the Android build that
+    # validates it.
     VERSION|config/*|.gitignore|codecov.yml|metadata.json|\
 .github/dependabot.yml|.github/labeler.yml|\
 .codacy.yml|.codefactor.json|.editorconfig|.gitattributes|.hound.yml|.jshintrc|\
