@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   # Manual dispatches get their own group: sharing github.ref with push
-  # runs would let every push to main cancel an in-progress ~30-minute
+  # runs would let every push to main cancel an in-progress ~2-hour
   # benchmark run (and vice versa).
   group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
   cancel-in-progress: true
@@ -55,7 +55,13 @@ jobs:
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Budget: 3 attempts x 30m per-attempt cap (+2m SIGKILL grace each if the
+    # process ignores TERM), two 30s inter-attempt sleeps, and setup
+    # (checkout, Rust toolchain, benchmark build; a cold cargo-codspeed
+    # install adds ~10-20m). A late transient failure (e.g. an upload error
+    # after the benchmarks finish) must leave room for a full retry instead
+    # of dying on the job timeout with a generic error.
+    timeout-minutes: 120
     permissions:
       contents: read # required for actions/checkout
       id-token: write # required for OIDC authentication with CodSpeed
@@ -106,6 +112,16 @@ jobs:
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@c4fd08a3a159bd0cc208da1e0edf32b8c47d75e5 # v5.4.0
+        env:
+            # ERE (case-insensitive) identifying transient infrastructure
+            # failures of `cargo codspeed run` that are safe to retry.
+            # Anything else fails fast, so a real benchmark regression
+            # always fails the gate. Kept on one line: YAML folding would
+            # inject spaces that break matches at the start of a log line.
+            # Numeric codes and TLS keywords are scoped to failure contexts
+            # so benchmark timing output (e.g. `1.503 ms`) can't
+            # false-positive into a retry.
+            TRANSIENT_ERROR_PATTERNS: "connection (timed out|refused|reset)|network is unreachable|temporary failure in name resolution|failed to download|failed to fetch|could not download|curl: \\([0-9]+\\)|(rustls|TLS|SSL|certificate).{0,40}(fail|error|verif.*(fail|error)|expir|handshake.*fail|unable|invalid|timed out|reset.*(fail|error|peer)|revok)|handshake failure|HTTP/?[0-9](\\.[0-9])?\\s+[45][0-9][0-9]|(status|error|code)[^0-9]{0,8}(429|502|503|504)|lost communication with the server|the runner has received a shutdown signal|no space left on device|upload.*(failed|timed out)"
         with:
           # Simulation mode: deterministic CPU simulation, <1% variance,
           # automatic flamegraphs. Best for the CPU-bound Rust core.
@@ -127,5 +143,42 @@ jobs:
             cargo remove criterion --dev -p hesabyar-core
             cargo add codspeed-criterion-compat@5 --rename criterion --dev -p hesabyar-core
             cargo codspeed build -p hesabyar-core -m simulation
-            cargo codspeed run -p hesabyar-core
+            # Retry ONLY transient infrastructure failures (network, TLS,
+            # HTTP, runner). Each failure is classified by grepping the
+            # attempt log: deterministic benchmark/harness failures fail
+            # fast, so a later pass can never hide an earlier failure from
+            # the merge gate. A per-attempt timeout (exit 124) is retried on
+            # attempts 1-2, since a slow runner is indistinguishable from
+            # a hang.
+            for attempt in 1 2 3; do
+              echo "Benchmark run attempt $attempt/3"
+              # Bound each attempt: a healthy run finishes well inside 30m.
+              # A 124 (timeout) is retried on attempts 1-2; only the final
+              # attempt's 124 fails the gate.
+              rc=0
+              timeout -k 2m 30m cargo codspeed run -p hesabyar-core \
+                >"$RUNNER_TEMP/codspeed-attempt.log" 2>&1 || rc=$?
+              cat "$RUNNER_TEMP/codspeed-attempt.log"
+              if [ "$rc" -eq 0 ]; then
+                echo "Benchmarks completed on attempt $attempt"
+                exit 0
+              fi
+              if [ "$rc" -eq 124 ] && [ "$attempt" -lt 3 ]; then
+                # A slow or noisy shared runner can trip the per-attempt cap
+                # without hanging; retry it like any other transient failure.
+                echo "::warning::Benchmark attempt $attempt exceeded the 30m per-attempt budget (exit code $rc) - retrying"
+              elif [ "$rc" -eq 124 ]; then
+                echo "::error::Benchmark attempt $attempt exceeded the 30m per-attempt budget on the final attempt"
+                exit 1
+              elif grep -Ei -q "$TRANSIENT_ERROR_PATTERNS" "$RUNNER_TEMP/codspeed-attempt.log"; then
+                echo "::warning::Transient infrastructure error on attempt $attempt (exit code $rc) - retrying"
+              else
+                echo "::error::Non-transient benchmark/harness failure on attempt $attempt (exit code $rc) - failing without retry"
+                exit 1
+              fi
+              [ "$attempt" -lt 3 ] && sleep 30
+            done
+            echo "::error::Benchmark run failed with transient errors on all 3 attempts"
+            exit 1
           working-directory: rust
+
