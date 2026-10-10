@@ -42,6 +42,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Change from Repository to use cases |
+| `rust/hesabyar-core/src/validation.rs` | Add `validate_account` + `is_account_name_unique` (UniFFI-exported pure rules) |
 
 ### New files (tests)
 | File | Description |
@@ -112,32 +113,67 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   )
   ```
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
-- **Scope:** this validator covers form-input validation at the UI boundary. New business rules, calculations, and rule-driven validations go to the Rust core per ADR-001.
+- **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core. The duplicate-name check is split: the database *read* stays in Kotlin, the uniqueness *decision* is a Rust pure function.
+- **Rust** — add pure logic to `rust/hesabyar-core/src/validation.rs`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`. (Note: `validation.rs` already defines a `ValidationResult` record for batch validation — the account type below uses a distinct name to avoid the conflict.) Expose both functions through `ffi/mod.rs` with `#[uniffi::export]` wrappers, like the existing `validate_transaction` wrapper (ffi/mod.rs:290):
+  ```rust
+  // The Kotlin adapter maps this to the sealed interface:
+  // is_valid && warnings empty -> Valid,
+  // !is_valid -> Invalid(errors),
+  // is_valid && warnings non-empty -> Warning(warnings)
+  #[derive(Debug, Clone, uniffi::Record)]
+  pub struct AccountValidationResult {
+    pub is_valid: bool,
+    pub errors: HashMap<String, String>,   // field -> error key, e.g. "iban" -> "format"
+    pub warnings: HashMap<String, String>, // field -> warning key
+  }
+
+  pub fn validate_account(
+    name: &str,
+    account_type: &str, // AccountType enum variant name (e.g. "BANK"); checked against VALID_ACCOUNT_TYPES
+    card_number: &str,
+    iban: &str,
+    initial_balance: &str,
+  ) -> AccountValidationResult
+  ```
+  Pure rules (no DB access):
+  - `name`: not empty, at most 100 characters
+  - `type`: one of `VALID_ACCOUNT_TYPES`
+  - `cardNumber`: if it is filled, it must have 16 digits
+  - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
+  - `initialBalance`: must parse as a Long (64-bit integer, Rial)
 - File `domain/validation/AccountValidator.kt`:
-  - `fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create)
-  - Rules (as in decision #1):
-    - `name`: not empty, at most 100 characters
-    - `type`: valid
-    - `cardNumber`: if it is filled, it must have 16 digits
-    - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
-    - `initialBalance`: `toLongOrNull()` must succeed
-  - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
-    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
-    - **"warning" (non-blocking):** `validate` returns `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
-  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
-- **Rollback:** Delete the files
+  - `suspend fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create; suspend because the duplicate-name check calls `getAllAccounts()`)
+  - Step 1: call the Rust `validate_account` through the UniFFI bridge and map each error entry to `Invalid` (field → message)
+  - Step 2: duplicate-name check — IO in Kotlin, decision in Rust (see decision #1 in `00-checklist.md` — resolve it before this phase):
+    - **Rust** — add pure function next to `validate_account` (exposed via `ffi/mod.rs` like above):
+    ```rust
+    #[derive(Debug, Clone, uniffi::Record)]
+    pub struct AccountNameEntry { pub id: i64, pub name: String }
+
+    // Pure: true when no other account has this exact name
+    pub fn is_account_name_unique(name: &str, existing: Vec<AccountNameEntry>, exclude_id: Option<i64>) -> bool
+    ```
+    - **Kotlin** — read `getAllAccounts()` (suspend), map to `AccountNameEntry` list, call the Rust function:
+    - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when the Rust function returns false
+    - **"warning" (non-blocking):** return `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
+  - **Important:** the Rust validator must have a production caller — `AccountValidator` (called by `AddAccountUseCase`) is it; an unwired Rust validator is dead code
+  - **Layering:** instant field-level feedback stays inline at the dialog/screen (7th exception); this validator is the authoritative submit-time gate. Inline checks must remain a strict subset of these rules — the Domain validator is the authority, so the two layers cannot drift.
+  - Add `AccountValidatorTest` cases, one named test per rule mapping through the bridge — `rustBadIban_mapsToInvalid`, `rustShortCardNumber_mapsToInvalid`, `rustInvalidType_mapsToInvalid`, `rustNonNumericInitialBalance_mapsToInvalid`, `rustNameTooLong_mapsToInvalid`, plus `rustAllValid_mapsToValid`; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
+- **Rollback:** Delete the Kotlin files and revert `validation.rs`
 
 ### Step 1.5: Create the use cases
 
 Each use case is a separate file:
 
 **AddAccountUseCase:**
-- `suspend operator fun invoke(form: AccountFormModel): Long`
-- Validate: proceed on `Valid` or `Warning` (surface warnings non-blockingly); abort on `Invalid` → insert → return the ID
+- `suspend operator fun invoke(form: AccountFormModel): AccountOperationResult`
+- `sealed interface AccountOperationResult { data class Success(val id: Long, val warnings: Map<String, String> = emptyMap()) : AccountOperationResult; data class ValidationFailed(val errors: Map<String, String>) : AccountOperationResult }`
+- Inside (single validation owner): `AccountValidator.validate(form)` → `Invalid` → return `ValidationFailed(errors)` (no insert); `Warning`/`Valid` → insert → `Success(id, warnings)`
+- The ViewModel maps `ValidationFailed.errors` to `formState.errors` and surfaces `Warning` warnings non-blockingly
 
 **UpdateAccountUseCase:**
-- `suspend operator fun invoke(account: AccountEntity)`
-- `account.copy(updatedAt = System.currentTimeMillis())` → update
+- `suspend operator fun invoke(account: AccountEntity, form: AccountFormModel): AccountOperationResult`
+- Same single-owner validation as `AddAccountUseCase`: `Invalid` → `ValidationFailed(errors)` (no update); otherwise `account.copy(updatedAt = System.currentTimeMillis())` → update → `Success(account.id, warnings)`
 
 **DeleteAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
