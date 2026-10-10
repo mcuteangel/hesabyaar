@@ -41,15 +41,15 @@ mkdir -p app/src/main/java/io/github/mojri/hesabyar/ui/components/account
 ### Step 3.2: Extract AccountListCard
 
 **Source:** `AccountManagementScreen.kt` lines 326-397 (`AccountItem`)  
-**Parameters:** `account: AccountEntity`, `onOverflow: (AccountEntity) -> Unit`  
+**Parameters:** `account: AccountEntity`, `onOverflowEdit: (AccountEntity) -> Unit`, `onOverflowArchive: (AccountEntity) -> Unit`, `onOverflowDelete: (AccountEntity) -> Unit`  
 **Structure:** `HesabyarCard` → `Row` → `IconCircle` + `Column` + `IconButton`  
 **@Preview:** with a sample `AccountEntity`
 
 ### Step 3.3: Extract AccountFormContent
 
 **Source:** `AccountManagementScreen.kt` lines 468-551 (`AccountDialogForm`)  
-**Parameters:** `formState: AccountFormState`, `onFormChange: (AccountFormState) -> Unit`, `onSave: () -> Unit`, `isSaving: Boolean`  
-**Note:** In Phase 4, the state changes from `remember` to `AccountFormState` from the ViewModel. In this phase, it still uses `remember`.  
+**Parameters:** `initialAccount: AccountEntity?`, `onSave: (AccountFormData) -> Unit`  
+**Note:** The form keeps its `remember`-based state in this phase. Phase 4 switches it to the ViewModel-backed `AccountFormState`.  
 **@Preview:** an empty form and a filled form
 
 ### Step 3.4: Extract AccountColorPicker

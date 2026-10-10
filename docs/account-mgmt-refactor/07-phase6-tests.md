@@ -4,15 +4,15 @@
 
 - **Previous phase:** Phase 5 must be complete (all the features are ready)
 - **Pending decisions:**
-  - Decision #3 (test tooling): before the start, confirm that Roborazzi and Detekt are really installed/configured
+  - Decision #3 (test tooling): before starting, confirm that Roborazzi and Detekt are installed and configured
 
 ## Context
 
-After Phase 5, all the features are ready, but the test coverage is weak: AccountViewModel and AccountManagementScreen are not tested at all. This phase completes the test coverage and improves accessibility.
+After Phase 5, all features are ready. Test coverage is weak. AccountViewModel and AccountManagementScreen have no tests. This phase adds tests and improves accessibility.
 
 ## Exact Goal of This Phase
 
-Reach at least 90% line coverage for the ViewModel and the use cases, write Compose UI tests for all the user flows, and add accessibility semantics to all the components.
+Reach at least 90% line coverage for the ViewModel and use cases. Write Compose UI tests for every user flow. Add accessibility semantics to every component.
 
 ## Files Involved
 
@@ -169,7 +169,7 @@ Modifier.testTag("accountList")
 - [ ] `ArchiveAccountUseCaseTest` → all tests pass
 - [ ] `UnarchiveAccountUseCaseTest` → all tests pass
 - [ ] `AccountValidatorTest` → all tests pass
-- [ ] All the components have a `contentDescription` (confirmed by grep)
+- [ ] Meaningful content and controls without an accessible name have appropriate semantics (confirmed by grep); do not add a `contentDescription` to every component
 - [ ] All the components have a `testTag` (confirmed by grep)
 - [ ] `./gradlew test --rerun-tasks --no-daemon` → BUILD SUCCESSFUL
 - [ ] `./gradlew ktlintCheck detekt --no-daemon` → no errors (if detekt is installed)

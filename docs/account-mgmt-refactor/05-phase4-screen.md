@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Previous phase:** Phase 3 must be complete (the components are extracted) and Phase 2 (the ViewModel is event-based)
+- **Previous phases:** Phase 2 must be complete (the ViewModel is event-based), and Phase 3 must be complete (the components are extracted)
 - **Pending decisions:** None
 
 ## Context

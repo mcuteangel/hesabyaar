@@ -14,7 +14,7 @@ The current files `Daos.kt`, `HesabyarRepository.kt`, and `HesabyarRepositoryInt
 
 ## Exact Goal of This Phase
 
-Build an independent domain and data layer for accounts: a separate `AccountDao`, an `AccountRepository` interface and implementation, five use cases, and `AccountValidator`. At the end of this phase, `AccountViewModel` must use the use cases (not the Repository directly).
+Build an independent domain and data layer for accounts. Add a separate `AccountDao`, an `AccountRepository` interface and implementation, five use cases, and `AccountValidator`. At the end of this phase, `AccountViewModel` must use the use cases (not the Repository directly).
 
 ## Files Involved
 
@@ -30,13 +30,14 @@ Build an independent domain and data layer for accounts: a separate `AccountDao`
 | `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/ArchiveAccountUseCase.kt` | Archive |
 | `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/account/GetAccountsUseCase.kt` | Account list |
 | `app/src/main/java/io/github/mojri/hesabyar/domain/validation/AccountValidator.kt` | Validation rules |
+| `app/src/main/java/io/github/mojri/hesabyar/domain/model/AccountFormModel.kt` | Form model shared by the validator and `AddAccountUseCase` |
 | `app/src/main/java/io/github/mojri/hesabyar/domain/validation/ValidationResult.kt` | Validation result type |
 
 ### Files to edit
 | File | Change |
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt` | Remove `AccountDao` (move it to a separate file) |
-| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | Remove the account CRUD methods (move them to `AccountRepositoryImpl`) |
+| `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt` | No change needed — the account methods already live in `AccountDelegate` |
 | `app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt` | Keep the account-related methods (deprecated until all consumers migrate) — see Special Notes (line 153) |
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
@@ -79,12 +80,12 @@ Build an independent domain and data layer for accounts: a separate `AccountDao`
 
 ### Step 1.3: Implement AccountRepositoryImpl
 
+- The account data-access methods already live in the checked-in `AccountDelegate` (which implements `AccountOps`); there is nothing left to move out of `HesabyarRepository.kt`
 - Create the new file `data/account/AccountRepositoryImpl.kt`
-- Use `@Inject constructor(private val accountDao: AccountDao)`
-- Move all the methods from `HesabyarRepository.kt` (lines 196-206)
+- Use `@Inject constructor(private val accountOps: AccountOps)` and delegate each `AccountRepository` method to it
 - In `RepositoryModule.kt`:
   - Bind `AccountRepository`: `@Binds abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository`
-  - Or use `@Provides` with an `AccountDao` parameter
+  - Or use `@Provides` with an `AccountOps` parameter
 - **Rollback:** Delete the file and revert `RepositoryModule.kt`
 
 ### Step 1.4: Create AccountValidator
@@ -96,15 +97,32 @@ Build an independent domain and data layer for accounts: a separate `AccountDao`
     data class Invalid(val errors: Map<String, String>) : ValidationResult
   }
   ```
+- File `domain/model/AccountFormModel.kt` (define it here, in Phase 1): the form type shared by the validator and `AddAccountUseCase`, so the validator can feed the use case without conversion:
+  ```kotlin
+  data class AccountFormModel(
+    val name: String,
+    val type: AccountType,
+    val bankName: String = "",
+    val cardNumber: String = "",
+    val accountNumber: String = "",
+    val iban: String = "",
+    val initialBalance: String = "0",
+    val color: Long = AccountEntity.DEFAULT_COLOR,
+  )
+  ```
+  (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
 - File `domain/validation/AccountValidator.kt`:
-  - `fun validate(form: AccountFormState): ValidationResult`
+  - `fun validate(form: AccountFormModel): ValidationResult`
   - Rules (as in decision #1):
     - `name`: not empty, at most 100 characters
     - `type`: valid
     - `cardNumber`: if it is filled, it must have 16 digits
     - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
     - `initialBalance`: `toLongOrNull()` must succeed
-  - **If decision #1 = "strict":** add a `name` unique check with `getAllAccounts()`
+  - Duplicate-name check (see decision #1 in `00-checklist.md` — resolve it before this phase):
+    - **"strict" (reject):** `validate` returns `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` already contains the name
+    - **"warning" (non-blocking):** allow the save; surface the duplicate as a non-blocking warning next to the form instead of failing validation
+  - Add `AccountValidatorTest` cases for the selected option: strict → a rejection test; warning → a save-allowed test
 - **Rollback:** Delete the files
 
 ### Step 1.5: Create the use cases
@@ -121,7 +139,7 @@ Each use case is a separate file:
 
 **DeleteAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`
-- `getTransactionCountForAccount(account.id)` → if 0, delete; else throw an exception
+- Delegate to the repository, which must retain the existing atomic deletion safeguards (as in the checked-in `AccountDelegate.deleteAccount`): inside a single transaction, reject when the account is the last active one (`CannotDeleteLastActiveAccountException`), reject when `getTransactionCountForAccount(account.id) > 0`, otherwise delete. Do not replace this with a separate count-then-delete sequence — the checks and the delete must stay atomic
 
 **ArchiveAccountUseCase:**
 - `suspend operator fun invoke(account: AccountEntity)`

@@ -59,7 +59,6 @@ sealed interface AccountEvent {
 
   // UI
   data object OnDismissDialog : AccountEvent
-  data object OnDismissSnackbar : AccountEvent
 }
 ```
 
@@ -72,7 +71,6 @@ data class AccountUiState(
   val formState: AccountFormState = AccountFormState(),
   val isLoading: Boolean = false,
   val isSaving: Boolean = false,
-  val snackbarMessage: String? = null,
 )
 
 data class AccountFormState(
@@ -83,7 +81,7 @@ data class AccountFormState(
   val accountNumber: String = "",
   val iban: String = "",
   val initialBalance: String = "0",
-  val color: Long = DEFAULT_ACCOUNT_COLOR,
+  val color: Long = AccountEntity.DEFAULT_COLOR,
   val errors: Map<String, String> = emptyMap(),
 )
 
@@ -142,13 +140,13 @@ class AccountViewModel @Inject constructor(
 ```
 
 **Side effect management:**
-- Show a snackbar message after each CRUD operation
-- `onDismissSnackbar` → `snackbarMessage = null`
+- Emit `AccountSideEffect.ShowSnackbar(message)` after each CRUD operation (one-shot flow; the Screen collects it in Phase 4)
+- There is no `snackbarMessage` state — success and error delivery go only through the side-effect channel
 
 ### Step 2.4: Add error handling
 
 - Put all the use case calls in `try-catch`
-- On error, set `snackbarMessage = "خطا در انجام عملیات"`
+- On error, emit `AccountSideEffect.ShowSnackbar("Failed to complete the operation")` via `_sideEffect`
 - Set `isSaving = false` in the finally block
 
 ### Step 2.5: Write the ViewModel tests
@@ -166,7 +164,6 @@ class AccountViewModelTest {
   @Test fun onConfirmArchive_archivesAndShowsSnackbar()
   @Test fun onFormChange_updatesFormState()
   @Test fun onDismissDialog_clearsDialogState()
-  @Test fun onDismissSnackbar_clearsSnackbarMessage()
 }
 ```
 

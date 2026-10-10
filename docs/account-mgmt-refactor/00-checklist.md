@@ -34,7 +34,7 @@
 
 ### 2. FK constraint for account deletion
 - **Status:** ⏳ pending
-- **Question:** For deletion of an account that has transactions: keep only the app-level check (`canDeleteAccount`), or add a real FK constraint (`onDelete=RESTRICT`)?
+- **Question:** For an account with transactions, should deletion use only the app-level check (`canDeleteAccount`) or a database FK constraint (`onDelete=RESTRICT`)?
 - **Options:**
   - a) App-level check only (the current behavior) — simpler, but backup/restore can break data integrity
   - b) FK constraint `onDelete=RESTRICT` — safer, but it needs a Room migration
@@ -82,7 +82,7 @@
 - [ ] **Refer to:** `CurrencyFormatter.kt:87` (the LRM pattern) and `AccountBalanceCard.kt` (the sign/amount separation pattern)
 
 ### R3. Test confirmation
-- [ ] An agent's claim that work is "tested" must be verified with a **test count, the exact output of the run command, and a screenshot when necessary**
+- [ ] Verify an agent's claim that work is "tested" with a **test count** and the **exact run output**. Add a **screenshot** when necessary
 - [ ] Test command: `./gradlew test --rerun-tasks --no-daemon` (not a plain `./gradlew test` — the build cache can return old results)
 
 ### R4. Confirmation of "done everywhere"

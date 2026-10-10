@@ -18,9 +18,9 @@ Fix the four listed bugs without an architecture change. The result is four clea
 | File | Change |
 |---|---|
 | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt` | Bug #1 (overflow anchoring) + bug #2 (archive confirmation) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` | Bug #3 ('icon OTHER' — it can need no change) |
-| `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt` | Bug #4 (the main source) |
-| `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageBackupUseCase.kt` | Bug #4 (remove the duplicate copy) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/components/AccountTypeIcon.kt` | Bug #3 ('icon OTHER' — it may not need a change) |
+| `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/FinancialColors.kt` | Bug #4 (remove the top-level duplicate) |
+| `app/src/main/java/io/github/mojri/hesabyar/data/AccountEntity.kt` | Bug #4 (keep `AccountEntity.DEFAULT_COLOR` as the single source) |
 
 ## Execution Steps
 
@@ -102,26 +102,26 @@ grep -n "AccountType.icon\|\.icon()" app/src/main/java/io/github/mojri/hesabyar/
 
 ### Bug #4: Unify DEFAULT_ACCOUNT_COLOR
 
-**Problem:** `DEFAULT_ACCOUNT_COLOR` is defined in three places. All three values are `0xFF4CAF50L`, but there is no single source.
+**Problem:** The default account color is defined twice on the Kotlin side: the top-level `const val DEFAULT_ACCOUNT_COLOR` in `ui/designsystem/FinancialColors.kt:37` and `AccountEntity.DEFAULT_COLOR` (`data/AccountEntity.kt:58`, companion object). Both are `0xFF4CAF50L`, but there is no single source. (`ManageBackupUseCase` has no such constant — its companion object only holds `TAG`.)
 
 **File paths:**
-- `ui/designsystem/FinancialColors.kt:37` — `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L`
-- `domain/usecase/ManageBackupUseCase.kt:30` — `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L`
+- `ui/designsystem/FinancialColors.kt:37` — top-level `const val DEFAULT_ACCOUNT_COLOR = 0xFF4CAF50L` (not a `FinancialColors` member)
+- `data/AccountEntity.kt:58` — `companion object` `const val DEFAULT_COLOR: Long = 0xFF4CAF50L`
 - `rust/hesabyar-core/src/models/mod.rs:116` — `fn default_color() -> i64 { 0xFF4CAF50 }`
 
 **Solution:**
 1. Confirm the exact value of all three (they must be the same)
-2. Delete `ManageBackupUseCase.kt:30` and add an import of `FinancialColors.DEFAULT_ACCOUNT_COLOR`
+2. Delete the top-level `DEFAULT_ACCOUNT_COLOR` in `FinancialColors.kt` and reference `AccountEntity.DEFAULT_COLOR` instead
 3. The Rust value must not change (remove only the Kotlin-side duplicate)
 > **Architecture note:** Rust is the single source of truth for business logic. This fix only removes a duplicate on the Kotlin side. Rust remains the primary reference. Never add new logic or calculations to Kotlin.
 
 **Check after the change:**
 ```bash
 grep -rn "DEFAULT_ACCOUNT_COLOR" app/src/main/java/ | grep -v "build/"
-# Must return only FinancialColors.kt and its imports
+# Must return nothing; the color must resolve to AccountEntity.DEFAULT_COLOR
 ```
 
-**Commit:** `fix: remove duplicate DEFAULT_ACCOUNT_COLOR in ManageBackupUseCase`
+**Commit:** `fix: unify DEFAULT_ACCOUNT_COLOR on AccountEntity.DEFAULT_COLOR`
 
 ---
 

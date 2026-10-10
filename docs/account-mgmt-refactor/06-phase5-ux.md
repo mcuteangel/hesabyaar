@@ -7,7 +7,7 @@
 
 ## Context
 
-After Phase 4, the architecture structure is complete. This phase only adds UX improvements: restore an archived account, undo for delete/archive, and a better empty state. None of them needs an architecture change — they are only feature additions.
+After Phase 4, the architecture is complete. This phase only adds UX improvements: restore an archived account, undo for delete/archive, and a better empty state. None of them needs an architecture change — they are only feature additions.
 
 ## Exact Goal of This Phase
 
@@ -50,7 +50,7 @@ Add 5 UX capabilities:
 - In `AccountUiState`: add `lastDeletedAccount: AccountEntity? = null`
 - After the delete: set `lastDeletedAccount = account`, the snackbar message is "حساب «{name}» حذف شد", and actionLabel is "واگردانی"
 - In the Screen: if the snackbar action "واگردانی" is clicked → `OnUndoDelete` event
-- `OnUndoDelete`: `addAccountUseCase(lastDeletedAccount!!)` → `lastDeletedAccount = null`
+- `OnUndoDelete`: `lastDeletedAccount?.let { cached -> addAccountUseCase(cached.toFormModel()) }` → `lastDeletedAccount = null`. `AddAccountUseCase` accepts `AccountFormModel` (not `AccountEntity`), so map the cached entity to the form model first. The restore inserts a new row — the deleted row's generated ID is not preserved
 - **Note:** for undo, cache the account completely before the delete. `lastDeletedAccount` does this.
 - **Limitation:** only the last delete can be undone (a 5 second window)
 
@@ -59,7 +59,7 @@ Add 5 UX capabilities:
 - Similar to Undo Delete
 - In `AccountUiState`: `lastArchivedAccount: AccountEntity? = null`
 - After the archive: show a snackbar, and actionLabel is "واگردانی"
-- `OnUndoArchive`: `unarchiveAccountUseCase(lastArchivedAccount!!)`
+- `OnUndoArchive`: `lastArchivedAccount?.let { unarchiveAccountUseCase(it) }`
 
 ### Step 5.4: Improve the empty state
 

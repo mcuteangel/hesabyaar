@@ -109,7 +109,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val database = AppDatabase.getDatabase(application)
     private val repository = HesabyarRepository(database.transactionDao(), …)
 ```
-```
 For this reason, the tests only cover the pure logic helpers, not the ViewModels. `InstallmentReminderWorker` also calls `AppDatabase.getDatabase(applicationContext)` directly.
 
 **Action:** Introduce Hilt (Task 1-2), and inject the Repository (as an interface) into the constructors of the ViewModels and the Workers.
@@ -253,4 +252,4 @@ LoanInstallmentTest
 
 ## 9. Rust-First Architecture Criteria
 
-**Business logic policy:** The Rust core (`rust/hesabyar-core`) is the only place for business logic, calculations, rules, validation, and new rule-driven data transformations. Any pull request that contains business logic, calculations, or new validation directly in Kotlin must be flagged in review and routed to Rust. The list of the five permanent exceptions (the Jalali calendar, currency formatting, the offline NLP parser, backup JSON analysis/validation, and AI advice validation) is in [business logic policy (Rust-first)](architecture/ADR-001-rust-sole-implementation.md). These exceptions are permanent, and they are kept as Kotlin fallbacks, otherwise these implementations must be removed. The plan that removes the non-exception fallbacks is in `../plans/2026-08-19-rust-fallback-consolidation-plan.md`, the permanent-exception fallbacks are not in this plan.
+**Business logic policy:** The Rust core (`rust/hesabyar-core`) is the only place for business logic, calculations, rules, validation, and new rule-driven data transformations. Flag any pull request with business logic, calculations, or new validation directly in Kotlin. Route it to Rust. The six permanent exceptions are the Jalali calendar, currency formatting, and the offline NLP parser. They also cover backup JSON analysis/validation, AI advice validation, and person-name normalization. See [business logic policy (Rust-first)](architecture/ADR-001-rust-sole-implementation.md). These exceptions stay permanent and stay Kotlin fallbacks. Otherwise, remove these implementations. Reference the fallback-removal plan only in `../plans/2026-08-19-rust-fallback-consolidation-plan.md`. That plan does not cover the permanent-exception fallbacks.
