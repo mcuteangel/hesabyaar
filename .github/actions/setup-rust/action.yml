@@ -1,0 +1,23 @@
+name: Setup Rust toolchain
+description: Install the Rust toolchain (channel from rust/rust-toolchain.toml) and cache cargo dependencies
+
+inputs:
+  components:
+    description: Comma-separated extra rustup components (empty = none)
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      # The SHA pins the action's known-version table, not the installed
+      # toolchain. The toolchain resolves through rust/rust-toolchain.toml.
+      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable (version table; toolchain from rust-toolchain.toml) # zizmor: ignore[impostor-commit]
+      with:
+        # Empty string is safe: the action emits no --component flags for it.
+        components: ${{ inputs.components }}
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        workspaces: "rust"

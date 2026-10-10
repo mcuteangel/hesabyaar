@@ -9,33 +9,79 @@ on:
 
 permissions:
   contents: read # required for actions/checkout
-  id-token: write # required for OIDC authentication with CodSpeed
+  # NOTE: id-token: write lives on the benchmarks job only (needed for
+  # CodSpeed OIDC auth). Keeping it off the workflow level means the
+  # changes job (which checks out PR-head code) never inherits it.
+
+
+concurrency:
+  # Manual dispatches get their own group: sharing github.ref with push
+  # runs would let every push to main cancel an in-progress ~30-minute
+  # benchmark run (and vice versa).
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
+  cancel-in-progress: true
+
 
 jobs:
+  changes:
+    name: Classify changed files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      kotlin: ${{ steps.classify.outputs.kotlin }}
+      gradle: ${{ steps.classify.outputs.gradle }}
+      rust: ${{ steps.classify.outputs.rust }}
+      site: ${{ steps.classify.outputs.site }}
+      docs: ${{ steps.classify.outputs.docs }}
+      workflows: ${{ steps.classify.outputs.workflows }}
+      actions: ${{ steps.classify.outputs.actions }}
+      ci_scripts: ${{ steps.classify.outputs.ci_scripts }}
+      config: ${{ steps.classify.outputs.config }}
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: classify
+        uses: ./.github/actions/classify-changes
+        with:
+          base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          head-ref: ${{ github.sha }}
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read # required for actions/checkout
+      id-token: write # required for OIDC authentication with CodSpeed
     env:
       RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
     # `id-token: write` (needed for CodSpeed OIDC auth) is stripped by GitHub on
     # pull requests from forked repositories, which would make this job fail.
     # Only run on pushes and same-repo PRs; community-fork PRs skip benchmarking.
+    needs: [changes]
+    # Fail-open: run when the classifier job did NOT succeed, so a broken
+    # classifier can never silently skip the benchmarks. NOTE: the explicit
+    # !cancelled() is load-bearing - without a status-check function GitHub
+    # wraps job-level if: in implicit success().
     if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      !cancelled() &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      (needs.changes.result != 'success' ||
+      needs.changes.outputs.rust == 'true' ||
+      needs.changes.outputs.actions == 'true' ||
+      needs.changes.outputs.workflows == 'true')
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          workspaces: "rust"
+        uses: ./.github/actions/setup-rust
 
       - name: Cache cargo-codspeed binary
         id: cache

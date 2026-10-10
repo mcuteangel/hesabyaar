@@ -2,19 +2,78 @@ name: Lint GitHub Actions
 
 on:
   pull_request:
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/**'
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/**'
   workflow_dispatch:
 
+
+concurrency:
+  # Manual dispatches get their own group: sharing github.ref with push
+  # runs would let a push to main cancel an in-progress manual run
+  # (and vice versa) with cancel-in-progress: true.
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+
 jobs:
+  changes:
+    name: Classify changed files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      kotlin: ${{ steps.classify.outputs.kotlin }}
+      gradle: ${{ steps.classify.outputs.gradle }}
+      rust: ${{ steps.classify.outputs.rust }}
+      site: ${{ steps.classify.outputs.site }}
+      docs: ${{ steps.classify.outputs.docs }}
+      workflows: ${{ steps.classify.outputs.workflows }}
+      actions: ${{ steps.classify.outputs.actions }}
+      ci_scripts: ${{ steps.classify.outputs.ci_scripts }}
+      config: ${{ steps.classify.outputs.config }}
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: classify
+        uses: ./.github/actions/classify-changes
+        with:
+          base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          head-ref: ${{ github.sha }}
+  classify-regression-test:
+    name: CI gating regression tests
+    # Deliberately NOT gated on the classifier's own output: the classifier
+    # decides whether the gated jobs run, so its regression tests must run
+    # unconditionally or a false ci_scripts=false would skip the very tests
+    # that could expose it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Run change-classification regression tests
+        run: bash scripts/tests/test-classify-changes.sh
+      - name: Run merge-gate regression tests
+        run: bash scripts/tests/test-workflow-gates.sh
   actionlint:
     name: Run actionlint
+    needs: [changes]
+    # Merge-gate: lint only when CI files changed. Skipped still satisfies
+    # required status checks.
+    # Fail-open: run when the classifier job did NOT succeed, so a broken
+    # classifier can never silently skip this check. NOTE: the explicit
+    # !cancelled() is load-bearing - without a status-check function GitHub
+    # wraps job-level if: in implicit success(), which would make a failed
+    # `changes` job skip this gate (and only skip it after cancellation
+    # is the desired behavior).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true') }}
     runs-on: ubuntu-latest
     env:
       HAS_DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN != '' }}
