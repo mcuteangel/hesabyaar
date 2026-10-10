@@ -71,9 +71,12 @@ check_fork_guard() {
   fi
 }
 
-check_gate "$WF/android-ci.yml" code actions workflows config
-check_gate "$WF/rust-lint.yml" rust actions workflows
-check_gate "$WF/codspeed-rust.yml" rust actions workflows
+# android-ci, rust-lint and codspeed-rust gate on their own file (`self`),
+# not on any workflow change: a codspeed-only edit must not run the full
+# Android build. lint.yml keeps the coarse `workflows` trigger.
+check_gate "$WF/android-ci.yml" code actions self config
+check_gate "$WF/rust-lint.yml" rust actions self
+check_gate "$WF/codspeed-rust.yml" rust actions self
 check_fork_guard "$WF/codspeed-rust.yml"
 # code/rust are in the super-linter gate so VALIDATE_GITLEAKS scans app and
 # Rust changes for secrets - keep this coupling documented here too.

@@ -40,6 +40,7 @@ jobs:
       ci_scripts: ${{ steps.classify.outputs.ci_scripts }}
       config: ${{ steps.classify.outputs.config }}
       code: ${{ steps.classify.outputs.code }}
+      self: ${{ steps.classify.outputs.self }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -50,6 +51,7 @@ jobs:
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
+          self-path: .github/workflows/codspeed-rust.yml
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
@@ -77,7 +79,7 @@ jobs:
       (needs.changes.result != 'success' ||
       needs.changes.outputs.rust == 'true' ||
       needs.changes.outputs.actions == 'true' ||
-      needs.changes.outputs.workflows == 'true')
+      needs.changes.outputs.self == 'true')
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
