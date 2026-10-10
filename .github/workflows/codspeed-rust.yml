@@ -125,5 +125,17 @@ jobs:
             cargo remove criterion --dev -p hesabyar-core
             cargo add codspeed-criterion-compat@5 --rename criterion --dev -p hesabyar-core
             cargo codspeed build -p hesabyar-core -m simulation
-            cargo codspeed run -p hesabyar-core
+            # Retry the benchmark run: transient infra flakes (network, runner)
+            # should not fail the gate. A genuinely broken benchmark fails all
+            # attempts and the real result still surfaces.
+            for attempt in 1 2 3; do
+              echo "Benchmark run attempt $attempt/3"
+              if cargo codspeed run -p hesabyar-core; then
+                echo "Benchmarks completed on attempt $attempt"
+                break
+              fi
+              echo "::warning::Benchmark run attempt $attempt failed"
+              [ "$attempt" -eq 3 ] && exit 1
+              sleep 30
+            done
           working-directory: rust
