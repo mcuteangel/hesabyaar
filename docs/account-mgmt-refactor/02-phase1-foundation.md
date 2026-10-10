@@ -116,28 +116,38 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 - **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core; the DB-bound duplicate-name check stays in Kotlin.
 - **Rust** — add to `rust/hesabyar-core/src/validation.rs` (`#[uniffi::export]`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`):
   ```rust
+  // UniFFI record. The Kotlin adapter maps it to the sealed interface:
+  // is_valid && warnings empty -> Valid,
+  // !is_valid -> Invalid(errors),
+  // is_valid && warnings non-empty -> Warning(warnings)
+  pub struct ValidationResult {
+    pub is_valid: bool,
+    pub errors: HashMap<String, String>,   // field -> error key, e.g. "iban" -> "format"
+    pub warnings: HashMap<String, String>, // field -> warning key
+  }
+
   pub fn validate_account(
     name: &str,
-    account_type: &str, // AccountType.name; checked against VALID_ACCOUNT_TYPES
+    account_type: &str, // AccountType enum variant name (e.g. "BANK"); checked against VALID_ACCOUNT_TYPES
     card_number: &str,
     iban: &str,
     initial_balance: &str,
-  ) -> ValidationResult // is_valid + field-keyed errors, e.g. "iban:format"
+  ) -> ValidationResult
   ```
   Pure rules (no DB access):
   - `name`: not empty, at most 100 characters
   - `type`: one of `VALID_ACCOUNT_TYPES`
   - `cardNumber`: if it is filled, it must have 16 digits
   - `iban`: if it is filled, it must match the regex `^IR\d{24}$`
-  - `initialBalance`: must parse as an integer
+  - `initialBalance`: must parse as a Long (64-bit integer, Rial)
 - File `domain/validation/AccountValidator.kt`:
-  - `fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create)
+  - `suspend fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create; suspend because the duplicate-name check calls `getAllAccounts()`)
   - Step 1: call the Rust `validate_account` through the UniFFI bridge and map each error entry to `Invalid` (field → message)
   - Step 2: duplicate-name check in Kotlin (see decision #1 in `00-checklist.md` — resolve it before this phase; it needs `getAllAccounts()`, so it cannot live in Rust):
     - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
     - **"warning" (non-blocking):** return `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
   - **Important:** the Rust validator must have a production caller — `AccountValidator` (called by `AddAccountUseCase`) is it; an unwired Rust validator is dead code
-  - Add `AccountValidatorTest` cases: Rust-rule failures (bad IBAN, 15-digit card) through the mapping; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
+  - Add `AccountValidatorTest` cases: Rust-rule failures through the mapping (bad IBAN, 15-digit card, invalid type, non-numeric initialBalance, 101-char name) plus an explicit all-valid case; strict → a rejection test plus an edit-keeping-name test (own row excluded via `excludeId`); warning → a save-allowed test
 - **Rollback:** Delete the Kotlin files and revert `validation.rs`
 
 ### Step 1.5: Create the use cases
