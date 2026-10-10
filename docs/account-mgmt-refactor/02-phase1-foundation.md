@@ -42,7 +42,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 | `app/src/main/java/io/github/mojri/hesabyar/di/RepositoryModule.kt` | Add the `AccountRepository` binding |
 | `app/src/main/java/io/github/mojri/hesabyar/di/DatabaseModule.kt` | Add the `AccountDao` provision |
 | `app/src/main/java/io/github/mojri/hesabyar/ui/AccountViewModel.kt` | Change from Repository to use cases |
-| `rust/hesabyar-core/src/validation.rs` | Add `validate_account` (UniFFI-exported pure rules) |
+| `rust/hesabyar-core/src/validation.rs` | Add `validate_account` + `is_account_name_unique` (UniFFI-exported pure rules) |
 
 ### New files (tests)
 | File | Description |
@@ -113,7 +113,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   )
   ```
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
-- **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core; the DB-bound duplicate-name check stays in Kotlin.
+- **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core. The duplicate-name check is split: the database *read* stays in Kotlin, the uniqueness *decision* is a Rust pure function.
 - **Rust** — add to `rust/hesabyar-core/src/validation.rs` (`#[uniffi::export]`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`):
   ```rust
   // UniFFI record. The Kotlin adapter maps it to the sealed interface:
@@ -143,8 +143,16 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 - File `domain/validation/AccountValidator.kt`:
   - `suspend fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create; suspend because the duplicate-name check calls `getAllAccounts()`)
   - Step 1: call the Rust `validate_account` through the UniFFI bridge and map each error entry to `Invalid` (field → message)
-  - Step 2: duplicate-name check in Kotlin (see decision #1 in `00-checklist.md` — resolve it before this phase; it needs `getAllAccounts()`, so it cannot live in Rust):
-    - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when `getAllAccounts()` contains another account with the same name (`it.id != excludeId`)
+  - Step 2: duplicate-name check — IO in Kotlin, decision in Rust (see decision #1 in `00-checklist.md` — resolve it before this phase):
+    - **Rust** — add pure function next to `validate_account`:
+    ```rust
+    pub struct AccountNameEntry { pub id: i64, pub name: String }
+
+    // Pure: true when no other account has this exact name
+    pub fn is_account_name_unique(name: &str, existing: &[AccountNameEntry], exclude_id: Option<i64>) -> bool
+    ```
+    - **Kotlin** — read `getAllAccounts()` (suspend), map to `AccountNameEntry` list, call the Rust function:
+    - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when the Rust function returns false
     - **"warning" (non-blocking):** return `Warning(mapOf("name" to "duplicate"))`; the save proceeds and the warning is shown non-blockingly next to the form
   - **Important:** the Rust validator must have a production caller — `AccountValidator` (called by `AddAccountUseCase`) is it; an unwired Rust validator is dead code
   - **Layering:** instant field-level feedback stays inline at the dialog/screen (7th exception); this validator is the authoritative submit-time gate. Inline checks must remain a strict subset of these rules — the Domain validator is the authority, so the two layers cannot drift.
