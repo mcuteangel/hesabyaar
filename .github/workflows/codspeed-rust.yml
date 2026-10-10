@@ -121,7 +121,7 @@ jobs:
             # Numeric codes and TLS keywords are scoped to failure contexts
             # so benchmark timing output (e.g. `1.503 ms`) can't
             # false-positive into a retry.
-            TRANSIENT_ERROR_PATTERNS: "connection (timed out|refused|reset)|network is unreachable|temporary failure in name resolution|failed to download|failed to fetch|could not download|curl: \\([0-9]+\\)|(rustls|TLS|SSL|certificate).{0,40}(fail|error|verif|expir|handshake|unable|invalid|timed out|reset|revok)|handshake failure|HTTP/?[0-9](\\.[0-9])? [45][0-9][0-9]|(status|error|code)[^0-9]{0,8}(429|502|503|504)|lost communication with the server|the runner has received a shutdown signal|no space left on device|upload.*(failed|timed out)"
+            TRANSIENT_ERROR_PATTERNS: "connection (timed out|refused|reset)|network is unreachable|temporary failure in name resolution|failed to download|failed to fetch|could not download|curl: \\([0-9]+\\)|(rustls|TLS|SSL|certificate).{0,40}(fail|error|verif.*(fail|error)|expir|handshake.*fail|unable|invalid|timed out|reset.*(fail|error|peer)|revok)|handshake failure|HTTP/?[0-9](\\.[0-9])?\\s+[45][0-9][0-9]|(status|error|code)[^0-9]{0,8}(429|502|503|504)|lost communication with the server|the runner has received a shutdown signal|no space left on device|upload.*(failed|timed out)"
         with:
           # Simulation mode: deterministic CPU simulation, <1% variance,
           # automatic flamegraphs. Best for the CPU-bound Rust core.
@@ -176,8 +176,7 @@ jobs:
                 echo "::error::Non-transient benchmark/harness failure on attempt $attempt (exit code $rc) - failing without retry"
                 exit 1
               fi
-              [ "$attempt" -eq 3 ] && break
-              sleep 30
+              [ "$attempt" -lt 3 ] && sleep 30
             done
             echo "::error::Benchmark run failed with transient errors on all 3 attempts"
             exit 1
