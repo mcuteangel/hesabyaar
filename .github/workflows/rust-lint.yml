@@ -34,6 +34,7 @@ jobs:
       ci_scripts: ${{ steps.classify.outputs.ci_scripts }}
       config: ${{ steps.classify.outputs.config }}
       code: ${{ steps.classify.outputs.code }}
+      self: ${{ steps.classify.outputs.self }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -44,6 +45,7 @@ jobs:
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
+          self-path: .github/workflows/rust-lint.yml
 
   lint:
     name: Format, Clippy, Test
@@ -55,7 +57,7 @@ jobs:
     # wraps job-level if: in implicit success(), which would make a failed
     # `changes` job skip this gate (and only skip it after cancellation
     # is the desired behavior).
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.rust == 'true' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.self == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

@@ -35,6 +35,7 @@ jobs:
       ci_scripts: ${{ steps.classify.outputs.ci_scripts }}
       config: ${{ steps.classify.outputs.config }}
       code: ${{ steps.classify.outputs.code }}
+      self: ${{ steps.classify.outputs.self }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -45,6 +46,7 @@ jobs:
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
+          self-path: .github/workflows/android-ci.yml
 
   build:
     needs: [changes]
@@ -56,7 +58,7 @@ jobs:
     # wraps job-level if: in implicit success(), which would make a failed
     # `changes` job skip this gate (and only skip it after cancellation
     # is the desired behavior).
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.config == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.self == 'true' || needs.changes.outputs.config == 'true') }}
     runs-on: ubuntu-latest
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
