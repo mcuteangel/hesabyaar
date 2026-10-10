@@ -143,7 +143,7 @@ Redesign the Account Management module into a **scalable, testable, maintainable
 >
 > **Permitted in Kotlin:** Persistence operations, DTO/entity mapping, and structural type mapping needed to call Rust or to persist/display Rust's results. Kotlin-side validators may surface Rust's validation results to the UI.
 >
-> **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (Jalali calendar, currency formatting, offline NLP parser, backup JSON parse/validate, AI advice validation).
+> **Prohibited in Kotlin:** Calculations, normalization, validation, and any rule-driven data transformation — these MUST be implemented in Rust, subject to the ADR-001 exception list (see ADR-001 `### Permanent Kotlin Fallbacks (Exception List)`).
 >
 > The full policy, exception list, and rationale are in `architecture/ADR-001-rust-sole-implementation.md` (`## Decision` and `### Permanent Kotlin Fallbacks (Exception List)`). See also `../plans/2026-08-19-rust-fallback-consolidation-plan.md`.
 
