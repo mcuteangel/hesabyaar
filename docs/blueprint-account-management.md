@@ -597,13 +597,12 @@ User taps FAB
 
 User fills form, taps Save
   → AccountEvent.OnSaveNewAccount(form)
-  → ViewModel: 
-      1. Validate form via AccountValidator
-      2. If invalid → update formState.errors
-      3. If valid → AddAccountUseCase(form)
-         → Repository.insertAccount()
+  → ViewModel: AddAccountUseCase(form)
+      → (inside use case, single validation owner) AccountValidator.validate(form)
+      → If invalid → ValidationFailed(errors) → ViewModel updates formState.errors
+      → If valid → Repository.insertAccount()
          → Room inserts → Flow emits
-      4. On success → dialogState = None
+      → On success → Success(id) → dialogState = None
                     → snackbarMessage = "حساب «{name}» ایجاد شد"
   → Screen: dialog closes, Snackbar appears
 
@@ -632,11 +631,10 @@ User taps undo on Snackbar
 User fills form
   → AccountEvent.OnSaveNewAccount(AccountFormState)
   → ViewModel.onEvent()
-  → AccountValidator.validate(form)
-    → [invalid] → formState.errors = mapOf("name" to "نام حساب الزامی است")
-    → [valid] → continue
-  → AddAccountUseCase(form.toAccountEntity())
-  → HesabyarRepository.insertAccount(entity)
+  → AddAccountUseCase(form)
+    → (inside use case) AccountValidator.validate(form)
+    → [invalid] → ValidationFailed(errors) → formState.errors = errors
+    → [valid] → HesabyarRepository.insertAccount(entity)
   → AccountDao.insert(entity) → Room INSERT
   → Room emits updated getAllAccounts() Flow
   → ViewModel.accounts StateFlow updates
@@ -650,11 +648,10 @@ User fills form
 User edits form
   → AccountEvent.OnSaveEditedAccount(account, form)
   → ViewModel.onEvent()
-  → AccountValidator.validate(form)
-    → [invalid] → formState.errors
-    → [valid] → continue
-  → UpdateAccountUseCase(account.copy(...))
-  → HesabyarRepository.updateAccount(updated)
+  → UpdateAccountUseCase(account, form)
+    → (inside use case) AccountValidator.validate(form)
+    → [invalid] → ValidationFailed(errors) → formState.errors = errors
+    → [valid] → HesabyarRepository.updateAccount(updated)
   → AccountDao.update(updated) → Room UPDATE
   → Room emits updated Flow
   → Screen recomposes
