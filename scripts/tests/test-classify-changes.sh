@@ -88,6 +88,19 @@ check_multi "app/A.kt" "rust/lib.rs" "code=true"
 check_multi "README.md" "VERSION" "docs=true"
 check_multi "README.md" "VERSION" "config=true"
 
+# self-path detection
+N=$((N + 1))
+git checkout -q -b "t$N" "$BASE"
+echo x >> ".github/workflows/x.yml"
+git add -A
+git commit -qm "change workflow"
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/x.yml")"
+echo "$out" | grep -q "^self=true$" || { echo "FAIL: expected self=true"; exit 1; }
+echo "ok: self=true"
+out="$(sh "$SCRIPT" "$BASE" HEAD ".github/workflows/other.yml")"
+echo "$out" | grep -q "^self=false$" || { echo "FAIL: expected self=false"; exit 1; }
+echo "ok: self=false"
+
 # empty base fails open (everything true)
 out="$(sh "$SCRIPT" "" HEAD)"
 echo "$out" | grep -q "^code=true$" || { echo "FAIL: empty base should fail open"; exit 1; }
