@@ -602,8 +602,9 @@ User fills form, taps Save
       → If invalid → ValidationFailed(errors) → ViewModel updates formState.errors
       → If valid → Repository.insertAccount()
          → Room inserts → Flow emits
-      → On success → Success(id) → dialogState = None
+      → On success → Success(id, warnings) → dialogState = None
                     → snackbarMessage = "حساب «{name}» ایجاد شد"
+                    → If warnings non-empty → surface non-blockingly (e.g. warning note in the snackbar)
   → Screen: dialog closes, Snackbar appears
 
 User taps undo on Snackbar
@@ -634,7 +635,8 @@ User fills form
   → AddAccountUseCase(form)
     → (inside use case) AccountValidator.validate(form)
     → [invalid] → ValidationFailed(errors) → formState.errors = errors
-    → [valid] → HesabyarRepository.insertAccount(entity)
+    → [valid/warning] → HesabyarRepository.insertAccount(entity) → Success(id, warnings)
+  → If warnings non-empty → surface non-blockingly
   → AccountDao.insert(entity) → Room INSERT
   → Room emits updated getAllAccounts() Flow
   → ViewModel.accounts StateFlow updates
@@ -651,7 +653,8 @@ User edits form
   → UpdateAccountUseCase(account, form)
     → (inside use case) AccountValidator.validate(form)
     → [invalid] → ValidationFailed(errors) → formState.errors = errors
-    → [valid] → HesabyarRepository.updateAccount(updated)
+    → [valid/warning] → HesabyarRepository.updateAccount(updated) → Success(id, warnings)
+  → If warnings non-empty → surface non-blockingly
   → AccountDao.update(updated) → Room UPDATE
   → Room emits updated Flow
   → Screen recomposes
