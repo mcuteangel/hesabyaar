@@ -114,13 +114,14 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   ```
   (`AccountFormModel` is the domain-layer form type. Phase 2's `AccountFormState` is the UI-layer equivalent — it adds the `errors` map.)
 - **Scope (ADR-001, 7th exception boundary):** pure, stateless rules live in the Rust core. The duplicate-name check is split: the database *read* stays in Kotlin, the uniqueness *decision* is a Rust pure function.
-- **Rust** — add to `rust/hesabyar-core/src/validation.rs` (`#[uniffi::export]`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`):
+- **Rust** — add pure logic to `rust/hesabyar-core/src/validation.rs`, following the existing `validate_*` pattern; reuse `VALID_ACCOUNT_TYPES`. (Note: `validation.rs` already defines a `ValidationResult` record for batch validation — the account type below uses a distinct name to avoid the conflict.) Expose both functions through `ffi/mod.rs` with `#[uniffi::export]` wrappers, like the existing `validate_transaction` wrapper (ffi/mod.rs:290):
   ```rust
-  // UniFFI record. The Kotlin adapter maps it to the sealed interface:
+  // The Kotlin adapter maps this to the sealed interface:
   // is_valid && warnings empty -> Valid,
   // !is_valid -> Invalid(errors),
   // is_valid && warnings non-empty -> Warning(warnings)
-  pub struct ValidationResult {
+  #[derive(Debug, Clone, uniffi::Record)]
+  pub struct AccountValidationResult {
     pub is_valid: bool,
     pub errors: HashMap<String, String>,   // field -> error key, e.g. "iban" -> "format"
     pub warnings: HashMap<String, String>, // field -> warning key
@@ -132,7 +133,7 @@ Build an independent domain and data layer for accounts. Add a separate `Account
     card_number: &str,
     iban: &str,
     initial_balance: &str,
-  ) -> ValidationResult
+  ) -> AccountValidationResult
   ```
   Pure rules (no DB access):
   - `name`: not empty, at most 100 characters
@@ -144,12 +145,13 @@ Build an independent domain and data layer for accounts. Add a separate `Account
   - `suspend fun validate(form: AccountFormModel, excludeId: Long? = null): ValidationResult` (pass the edited account's ID on update so its own unchanged name is not flagged; null on create; suspend because the duplicate-name check calls `getAllAccounts()`)
   - Step 1: call the Rust `validate_account` through the UniFFI bridge and map each error entry to `Invalid` (field → message)
   - Step 2: duplicate-name check — IO in Kotlin, decision in Rust (see decision #1 in `00-checklist.md` — resolve it before this phase):
-    - **Rust** — add pure function next to `validate_account`:
+    - **Rust** — add pure function next to `validate_account` (exposed via `ffi/mod.rs` like above):
     ```rust
+    #[derive(Debug, Clone, uniffi::Record)]
     pub struct AccountNameEntry { pub id: i64, pub name: String }
 
     // Pure: true when no other account has this exact name
-    pub fn is_account_name_unique(name: &str, existing: &[AccountNameEntry], exclude_id: Option<i64>) -> bool
+    pub fn is_account_name_unique(name: &str, existing: Vec<AccountNameEntry>, exclude_id: Option<i64>) -> bool
     ```
     - **Kotlin** — read `getAllAccounts()` (suspend), map to `AccountNameEntry` list, call the Rust function:
     - **"strict" (reject):** return `Invalid(mapOf("name" to "duplicate"))` when the Rust function returns false
@@ -164,13 +166,13 @@ Build an independent domain and data layer for accounts. Add a separate `Account
 Each use case is a separate file:
 
 **AddAccountUseCase:**
-- `suspend operator fun invoke(form: AccountFormModel): AddAccountResult`
-- `sealed interface AddAccountResult { data class Success(val id: Long, val warnings: Map<String, String> = emptyMap()) : AddAccountResult; data class ValidationFailed(val errors: Map<String, String>) : AddAccountResult }`
+- `suspend operator fun invoke(form: AccountFormModel): AccountOperationResult`
+- `sealed interface AccountOperationResult { data class Success(val id: Long, val warnings: Map<String, String> = emptyMap()) : AccountOperationResult; data class ValidationFailed(val errors: Map<String, String>) : AccountOperationResult }`
 - Inside (single validation owner): `AccountValidator.validate(form)` → `Invalid` → return `ValidationFailed(errors)` (no insert); `Warning`/`Valid` → insert → `Success(id, warnings)`
 - The ViewModel maps `ValidationFailed.errors` to `formState.errors` and surfaces `Warning` warnings non-blockingly
 
 **UpdateAccountUseCase:**
-- `suspend operator fun invoke(account: AccountEntity, form: AccountFormModel): AddAccountResult`
+- `suspend operator fun invoke(account: AccountEntity, form: AccountFormModel): AccountOperationResult`
 - Same single-owner validation as `AddAccountUseCase`: `Invalid` → `ValidationFailed(errors)` (no update); otherwise `account.copy(updatedAt = System.currentTimeMillis())` → update → `Success(account.id, warnings)`
 
 **DeleteAccountUseCase:**
