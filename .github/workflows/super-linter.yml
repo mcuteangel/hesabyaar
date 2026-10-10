@@ -10,7 +10,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Manual dispatches get their own group: sharing github.ref with push
+  # runs would let a push to main cancel an in-progress manual run
+  # (and vice versa) with cancel-in-progress: true.
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
   cancel-in-progress: true
 
 # Super-Linter runs many linters in parallel. Each one needs room.
@@ -50,10 +53,13 @@ jobs:
     # code/rust are included because VALIDATE_GITLEAKS is on: app and Rust
     # changes must still be secret-scanned. config is included so YAML
     # config changes (.codacy.yml, dependabot.yml, ...) get validated.
-    # needs.changes.result != 'success' keeps the fail-open guarantee at the
-    # workflow level: if the classifier job itself fails before emitting
-    # outputs, the linter runs instead of silently passing.
-    if: ${{ needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' || needs.changes.outputs.config == 'true' || needs.changes.outputs.code == 'true' || needs.changes.outputs.rust == 'true' }}
+    # Fail-open: run when the classifier job did NOT succeed, so a broken
+    # classifier can never silently skip this check. NOTE: the explicit
+    # !cancelled() is load-bearing - without a status-check function GitHub
+    # wraps job-level if: in implicit success(), which would make a failed
+    # `changes` job skip this gate (and only skip it after cancellation
+    # is the desired behavior).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' || needs.changes.outputs.config == 'true' || needs.changes.outputs.code == 'true' || needs.changes.outputs.rust == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

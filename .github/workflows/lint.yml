@@ -8,7 +8,10 @@ on:
 
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Manual dispatches get their own group: sharing github.ref with push
+  # runs would let a push to main cancel an in-progress manual run
+  # (and vice versa) with cancel-in-progress: true.
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -44,10 +47,10 @@ jobs:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
   classify-regression-test:
-    name: Change-classification regression tests
+    name: CI gating regression tests
     # Deliberately NOT gated on the classifier's own output: the classifier
-    # decides whether the gated jobs run, so its regression test must run
-    # unconditionally or a false ci_scripts=false would skip the very test
+    # decides whether the gated jobs run, so its regression tests must run
+    # unconditionally or a false ci_scripts=false would skip the very tests
     # that could expose it.
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -57,15 +60,20 @@ jobs:
           persist-credentials: false
       - name: Run change-classification regression tests
         run: bash scripts/tests/test-classify-changes.sh
+      - name: Run merge-gate regression tests
+        run: bash scripts/tests/test-workflow-gates.sh
   actionlint:
     name: Run actionlint
     needs: [changes]
     # Merge-gate: lint only when CI files changed. Skipped still satisfies
     # required status checks.
-    # needs.changes.result != 'success' keeps the fail-open guarantee at the
-    # workflow level: if the classifier job itself fails before emitting
-    # outputs, actionlint runs instead of silently passing.
-    if: ${{ needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true' }}
+    # Fail-open: run when the classifier job did NOT succeed, so a broken
+    # classifier can never silently skip this check. NOTE: the explicit
+    # !cancelled() is load-bearing - without a status-check function GitHub
+    # wraps job-level if: in implicit success(), which would make a failed
+    # `changes` job skip this gate (and only skip it after cancellation
+    # is the desired behavior).
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.actions == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.ci_scripts == 'true') }}
     runs-on: ubuntu-latest
     env:
       HAS_DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN != '' }}

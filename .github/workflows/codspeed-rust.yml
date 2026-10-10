@@ -63,10 +63,12 @@ jobs:
     # pull requests from forked repositories, which would make this job fail.
     # Only run on pushes and same-repo PRs; community-fork PRs skip benchmarking.
     needs: [changes]
-    # needs.changes.result != 'success' keeps the fail-open guarantee at the
-    # workflow level: if the classifier job itself fails before emitting
-    # outputs, benchmarks run instead of silently passing.
+    # Fail-open: run when the classifier job did NOT succeed, so a broken
+    # classifier can never silently skip the benchmarks. NOTE: the explicit
+    # !cancelled() is load-bearing - without a status-check function GitHub
+    # wraps job-level if: in implicit success().
     if: >-
+      !cancelled() &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository) &&
       (needs.changes.result != 'success' ||

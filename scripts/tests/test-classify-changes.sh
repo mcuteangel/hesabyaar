@@ -12,10 +12,11 @@ cd "$TMP"
 git init -q -b main
 git config user.email t@t.t
 git config user.name t
-mkdir -p app rust site .github/workflows .github/actions/ci-test scripts gradle/wrapper
+mkdir -p app rust site .github/workflows .github/actions/ci-test scripts gradle/wrapper config/detekt
 touch app/A.kt app/build.gradle.kts rust/lib.rs site/index.html \
   .github/workflows/x.yml .github/actions/ci-test/action.yml scripts/a.sh \
-  README.md gradle.properties gradlew VERSION .codacy.yml
+  README.md gradle.properties gradlew VERSION .codacy.yml .gitignore codecov.yml \
+  config/detekt/detekt.yml
 git add -A
 git commit -qm base
 BASE="$(git rev-parse HEAD)"
@@ -67,6 +68,20 @@ check "README.md" "code=false"
 check "VERSION" "config=true"
 check "VERSION" "code=false"
 check ".codacy.yml" "config=true"
+check "config/detekt/detekt.yml" "config=true"
+check "config/detekt/detekt.yml" "code=false"
+check ".gitignore" "config=true"
+check "codecov.yml" "config=true"
+# negative assertions: catch over-classification that would needlessly
+# trigger heavy jobs (rust-lint, CodSpeed, Super-Linter) on unrelated changes
+check "app/A.kt" "rust=false"
+check "app/A.kt" "workflows=false"
+check "app/A.kt" "config=false"
+check "scripts/a.sh" "code=false"
+check "scripts/a.sh" "rust=false"
+check ".github/workflows/x.yml" "code=false"
+check ".github/workflows/x.yml" "config=false"
+check "README.md" "workflows=false"
 check_multi "app/A.kt" "rust/lib.rs" "kotlin=true"
 check_multi "app/A.kt" "rust/lib.rs" "rust=true"
 check_multi "app/A.kt" "rust/lib.rs" "code=true"
@@ -83,5 +98,33 @@ out="$(sh "$SCRIPT" deadbeefdeadbeefdeadbeefdeadbeefdeadbeef HEAD 2>/dev/null)"
 echo "$out" | grep -q "^kotlin=true$" || { echo "FAIL: bad base should fail open"; exit 1; }
 echo "$out" | grep -q "^code=true$" || { echo "FAIL: bad base should fail open (code)"; exit 1; }
 echo "ok: unresolvable refs fail open"
+
+# zero-SHA base (initial push) fails open (everything true)
+out="$(sh "$SCRIPT" 0000000000000000000000000000000000000000 HEAD)"
+echo "$out" | grep -q "^workflows=true$" || { echo "FAIL: zero-SHA base should fail open"; exit 1; }
+echo "$out" | grep -q "^code=true$" || { echo "FAIL: zero-SHA base should fail open (code)"; exit 1; }
+echo "ok: zero-SHA base fails open"
+
+# three-dot to two-dot fallback: orphan branches share no merge base, so
+# the A...B diff fails and the script must fall back to A..B
+git checkout -q --orphan orphan
+mkdir -p rust
+echo x > rust/orphan.rs
+git add -A
+git commit -qm orphan
+ORPHAN="$(git rev-parse HEAD)"
+out="$(sh "$SCRIPT" "$BASE" "$ORPHAN")"
+echo "$out" | grep -q "^rust=true$" || { echo "FAIL: orphan fallback should classify rust=true, got:"; echo "$out"; exit 1; }
+echo "$out" | grep -q "^kotlin=false$" || { echo "FAIL: orphan fallback should classify kotlin=false, got:"; echo "$out"; exit 1; }
+echo "ok: three-dot to two-dot fallback"
+
+# GITHUB_OUTPUT contract: KEY=value lines are appended to the file
+GOUT="$(mktemp)"
+GITHUB_OUTPUT="$GOUT" sh "$SCRIPT" "$BASE" "$BASE" > /dev/null
+grep -q "^kotlin=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing kotlin=false"; exit 1; }
+grep -q "^code=false$" "$GOUT" || { echo "FAIL: GITHUB_OUTPUT missing code=false"; exit 1; }
+[ "$(wc -l < "$GOUT")" -eq 10 ] || { echo "FAIL: GITHUB_OUTPUT should have 10 lines, got $(wc -l < "$GOUT")"; exit 1; }
+rm -f "$GOUT"
+echo "ok: GITHUB_OUTPUT contract"
 
 echo "ALL PASS"
