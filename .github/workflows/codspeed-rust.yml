@@ -55,10 +55,12 @@ jobs:
   benchmarks:
     name: Run Rust benchmarks
     runs-on: ubuntu-latest
-    # 3 attempts x 30m per-attempt budget: a late transient failure (e.g. an
-    # upload error after the benchmarks finish) must leave room for a full
-    # retry instead of dying on the job timeout with a generic error.
-    timeout-minutes: 90
+    # Budget: 3 attempts x 30m per-attempt cap, plus setup (checkout, Rust
+    # toolchain, benchmark build) and two 30s inter-attempt sleeps. A late
+    # transient failure (e.g. an upload error after the benchmarks finish)
+    # must leave room for a full retry instead of dying on the job timeout
+    # with a generic error.
+    timeout-minutes: 105
     permissions:
       contents: read # required for actions/checkout
       id-token: write # required for OIDC authentication with CodSpeed
@@ -160,9 +162,9 @@ jobs:
                 exit 1
               fi
               if grep -Ei -q "$TRANSIENT_ERROR_PATTERNS" "$RUNNER_TEMP/codspeed-attempt.log"; then
-                echo "::warning::Transient infrastructure error on attempt $attempt - retrying"
+                echo "::warning::Transient infrastructure error on attempt $attempt (exit code $rc) - retrying"
               else
-                echo "::error::Non-transient benchmark/harness failure on attempt $attempt - failing without retry"
+                echo "::error::Non-transient benchmark/harness failure on attempt $attempt (exit code $rc) - failing without retry"
                 exit 1
               fi
               [ "$attempt" -eq 3 ] && break
