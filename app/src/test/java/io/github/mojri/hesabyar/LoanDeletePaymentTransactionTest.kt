@@ -305,8 +305,8 @@ class LoanDeletePaymentTransactionTest {
       val fixedDate = 1_700_000_000_000L
 
       // Tracked loan without an initial disbursement recorded, simulating a
-      // pre-migration loan whose disbursement was field-matched. The row
-      // inserted by hand carries no loanId and should be cleaned by the
+      // pre-migration loan whose disbursement was field-matched. The rows
+      // inserted by hand carry no loanId and should be cleaned by the
       // legacy fallback.
       val loanId =
         repo.insertLoan(
@@ -332,13 +332,37 @@ class LoanDeletePaymentTransactionTest {
           accountId = 1L
         )
       )
-      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+      // Transaction matching modified caller snapshot fields
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId,
+          amount = 9_000_000L,
+          description = "Legacy disbursement with edited fields",
+          personName = "LegacyEdited",
+          date = fixedDate + 5000L,
+          accountId = 1L
+        )
+      )
+      assertEquals(2, database.transactionDao().getAllTransactionsBlocking().size)
 
-      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
-      repo.deleteLoan(loan)
+      val storedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      // Caller snapshot has modified name, amount, and date to exercise the
+      // full fallback cleaning loop over all names and modified values.
+      val modifiedSnapshot =
+        storedLoan.copy(
+          personName = "LegacyEdited",
+          originalAmount = 9_000_000L,
+          date = fixedDate + 5000L
+        )
+      repo.deleteLoan(modifiedSnapshot)
 
       val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals("Legacy disbursement removed via the field-matching fallback", 0, allTxAfter.size)
+      assertEquals(
+        "Both existing and caller-modified disbursements removed via fallback",
+        0,
+        allTxAfter.size
+      )
     }
 
   @Test
@@ -442,5 +466,36 @@ class LoanDeletePaymentTransactionTest {
       val remainingPayments =
         database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId)
       assertEquals(0, remainingPayments.size)
+    }
+
+  @Test
+  fun deleteUntrackedLoanDeletesOnlyPaymentHistory() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      val loanId =
+        repo.insertLoan(
+          Loan(
+            personName = "Untracked",
+            type = LoanType.CREDITOR,
+            originalAmount = 3_000_000L,
+            remainingAmount = 3_000_000L,
+            description = "Untracked loan",
+            tracked = false,
+            accountId = null,
+            date = fixedDate
+          )
+        )
+      repo.addPaymentToLoan(loanId, 500_000L, "untracked repayment", fixedDate)
+      assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
+      assertEquals(1, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      assertNull(database.loanDao().getLoanById(loanId))
+      assertEquals(0, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
+      assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
     }
 }
