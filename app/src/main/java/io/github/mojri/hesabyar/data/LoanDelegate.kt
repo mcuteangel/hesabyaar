@@ -83,19 +83,25 @@ internal class LoanDelegate(
       // Issue #242: delete generated transactions by stable id, not by
       // mutable field matching. Payments stamped with linkedTransactionId
       // are deleted by primary key; the initial disbursement is deleted by
-      // loanId. Legacy rows (NULL link) fall back to the old path.
+      // loanId. Legacy rows (NULL link, or a disbursement predating the
+      // stamp) fall back to the old path.
       val payments = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id)
-      val hasLinkedPayments = payments.any { it.linkedTransactionId != null }
-      if (hasLinkedPayments) {
-        payments.forEach { payment ->
-          payment.linkedTransactionId?.let { txId ->
-            transactionLinkDao.deleteTransactionById(txId)
-          }
-        }
-        if (existing.tracked) {
-          transactionLinkDao.deleteTransactionsByLoanId(loan.id)
-        }
-      } else {
+      val linkedTransactionIds =
+        payments.mapNotNull { it.linkedTransactionId }
+      if (linkedTransactionIds.isNotEmpty()) {
+        transactionLinkDao.deleteTransactionsByIds(linkedTransactionIds)
+      }
+      // Delete the initial disbursement by stable key. When it deletes
+      // nothing (tracked legacy loan created before the stamp), the
+      // field-matching fallback below must still run for the
+      // disbursement leg.
+      var disbursementDeletedById = true
+      if (existing.tracked) {
+        disbursementDeletedById =
+          transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
+      }
+      val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
+      if (unlinkedPayments.isNotEmpty() || !disbursementDeletedById) {
         // Legacy fallback: match on personName + Loans category + amount + date.
         val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
         if (loansCategoryId != null) {
@@ -105,7 +111,7 @@ internal class LoanDelegate(
               add(loan.personName)
             }
           for (name in namesToClean) {
-            payments.forEach { payment ->
+            unlinkedPayments.forEach { payment ->
               transactionLinkDao.deleteLoanPaymentTransaction(
                 personName = name,
                 categoryId = loansCategoryId,
@@ -113,7 +119,7 @@ internal class LoanDelegate(
                 date = payment.date
               )
             }
-            if (existing.tracked) {
+            if (existing.tracked && !disbursementDeletedById) {
               transactionLinkDao.deleteLoanPaymentTransaction(
                 personName = name,
                 categoryId = loansCategoryId,

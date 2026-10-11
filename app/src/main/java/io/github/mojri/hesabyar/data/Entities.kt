@@ -103,7 +103,12 @@ data class Person(
   val isArchived: Boolean = false
 )
 
-@Entity(tableName = "transactions")
+@Entity(
+  tableName = "transactions",
+  // Issue #242: deleteTransactionsByLoanId filters on loanId; without this
+  // index every tracked-loan deletion scans the whole transactions table.
+  indices = [Index(value = ["loanId"])]
+)
 data class Transaction(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
   val type: TransactionType,

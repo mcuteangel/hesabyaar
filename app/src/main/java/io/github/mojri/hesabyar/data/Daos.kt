@@ -149,16 +149,18 @@ interface TransactionLinkDao {
     description: String? = null
   ): Int
 
-  // Issue #242: delete one transaction by its primary key. Used by
-  // deleteLoan via PaymentHistory.linkedTransactionId.
-  @Query("DELETE FROM transactions WHERE id = :id")
-  suspend fun deleteTransactionById(id: Long)
+  // Issue #242: delete repayment transactions by their primary keys in one
+  // statement. Used by deleteLoan via PaymentHistory.linkedTransactionId.
+  @Query("DELETE FROM transactions WHERE id IN (:ids)")
+  suspend fun deleteTransactionsByIds(ids: List<Long>)
 
   // Issue #242: delete the initial disbursement transaction created by
   // insertLoanWithInitial. The row carries loanId, so no category filter or
-  // field matching is needed.
+  // field matching is needed. Returns the deleted row count so deleteLoan
+  // knows whether the stamped row existed (legacy rows return 0 and need
+  // the field-matching fallback).
   @Query("DELETE FROM transactions WHERE loanId = :loanId")
-  suspend fun deleteTransactionsByLoanId(loanId: Long)
+  suspend fun deleteTransactionsByLoanId(loanId: Long): Int
 }
 
 @Dao

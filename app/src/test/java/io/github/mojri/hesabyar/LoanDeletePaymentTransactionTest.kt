@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import kotlinx.coroutines.flow.first
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -39,18 +41,20 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class LoanDeletePaymentTransactionTest {
-  private lateinit var database: AppDatabase
+  private var databaseInstance: AppDatabase? = null
+  private val database: AppDatabase
+    get() = requireNotNull(databaseInstance) { "Database must be initialized" }
   private var loansCategoryId: Long = 0L
 
   @Before
   fun setUp() {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    database =
+    val db =
       Room
         .inMemoryDatabaseBuilder(context, AppDatabase::class.java)
         .allowMainThreadQueries()
         .build()
-    database.accountDao().insertAllBlocking(
+    db.accountDao().insertAllBlocking(
       listOf(
         AccountEntity.DEFAULT_ACCOUNT,
         AccountEntity(
@@ -62,7 +66,7 @@ class LoanDeletePaymentTransactionTest {
         )
       )
     )
-    database.categoryDao().insertAllBlocking(
+    db.categoryDao().insertAllBlocking(
       listOf(
         Category(
           id = 1L,
@@ -75,12 +79,14 @@ class LoanDeletePaymentTransactionTest {
         )
       )
     )
+    databaseInstance = db
     loansCategoryId = 1L
   }
 
   @After
   fun tearDown() {
-    database.close()
+    databaseInstance?.close()
+    databaseInstance = null
   }
 
   private fun createRepository(): HesabyarRepository =
@@ -142,15 +148,15 @@ class LoanDeletePaymentTransactionTest {
       assertEquals(1, payments2.size)
       assertNotNull(payments1[0].linkedTransactionId)
       assertNotNull(payments2[0].linkedTransactionId)
-      val tx1Id = payments1[0].linkedTransactionId!!
-      val tx2Id = payments2[0].linkedTransactionId!!
+      val tx1Id = requireNotNull(payments1[0].linkedTransactionId)
+      val tx2Id = requireNotNull(payments2[0].linkedTransactionId)
       assertTrue("Transactions must have distinct IDs", tx1Id != tx2Id)
 
       val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
       assertEquals(2, allTxBefore.size)
 
       // Delete loan 1
-      val loan1 = database.loanDao().getLoanById(loan1Id)!!
+      val loan1 = requireNotNull(database.loanDao().getLoanById(loan1Id))
       repo.deleteLoan(loan1)
 
       // CRITICAL: loan 2's payment transaction MUST survive
@@ -206,7 +212,7 @@ class LoanDeletePaymentTransactionTest {
       assertEquals(2, allTxBefore.size)
 
       // Delete the loan
-      val loan = database.loanDao().getLoanById(loanId)!!
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
       repo.deleteLoan(loan)
 
       // The manually entered transaction MUST survive
@@ -246,12 +252,163 @@ class LoanDeletePaymentTransactionTest {
       assertEquals(1, allTxBefore.size)
       assertEquals(loanId, allTxBefore[0].loanId)
 
+      // An unrelated transaction with the same field values (as if entered
+      // manually or generated for a colliding loan) must survive: the delete
+      // path must use the loanId stamp, not the fields.
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId,
+          amount = 2_000_000L,
+          description = "Colliding manual entry",
+          personName = "Omid",
+          date = fixedDate,
+          accountId = 1L
+        )
+      )
+      assertEquals(2, database.transactionDao().getAllTransactionsBlocking().size)
+
       // Delete the loan
-      val loan = database.loanDao().getLoanById(loanId)!!
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
       repo.deleteLoan(loan)
 
-      // Initial transaction should be deleted
+      // Initial transaction should be deleted; the colliding row survives
       val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals("Initial disbursement transaction should be deleted", 0, allTxAfter.size)
+      assertEquals("Only the stamped disbursement should be deleted", 1, allTxAfter.size)
+      assertEquals("Colliding manual entry", allTxAfter[0].description)
+      assertNull(allTxAfter[0].loanId)
+    }
+
+  @Test
+  fun deleteLegacyTrackedLoanWithoutStampedDisbursementUsesFieldMatch() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      // Tracked loan without an initial disbursement recorded, simulating a
+      // pre-migration loan whose disbursement was field-matched. The row
+      // inserted by hand carries no loanId and should be cleaned by the
+      // legacy fallback.
+      val loanId =
+        repo.insertLoan(
+          Loan(
+            personName = "LegacyPay",
+            type = LoanType.DEBTOR,
+            originalAmount = 7_000_000L,
+            remainingAmount = 7_000_000L,
+            description = "Legacy tracked loan",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          )
+        )
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId,
+          amount = 7_000_000L,
+          description = "Legacy disbursement",
+          personName = "LegacyPay",
+          date = fixedDate,
+          accountId = 1L
+        )
+      )
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals("Legacy disbursement removed via the field-matching fallback", 0, allTxAfter.size)
+    }
+
+  @Test
+  fun deleteTrackedLoanWithNoPaymentsStillDeletesInitialDisbursement() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "ZeroPay",
+            type = LoanType.DEBTOR,
+            originalAmount = 5_000_000L,
+            remainingAmount = 5_000_000L,
+            description = "No payments yet",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          ),
+          recordInitial = true
+        )
+
+      // The initial disbursement exists, no repayment payments recorded.
+      val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, allTxBefore.size)
+      assertEquals(loanId, allTxBefore[0].loanId)
+      assertEquals(0, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals("Initial disbursement deleted via loanId even with zero payments", 0, allTxAfter.size)
+    }
+
+  @Test
+  fun deleteLoanHandlesMixedLinkedAndUnlinkedPayments() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Mixed",
+            type = LoanType.DEBTOR,
+            originalAmount = 1_000_000L,
+            remainingAmount = 1_000_000L,
+            description = "Mixed payments",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          ),
+          recordInitial = true
+        )
+
+      // Payment 1: linked (normal flow through addPaymentToLoan)
+      repo.addPaymentToLoan(loanId, 200_000L, "linked payment", fixedDate)
+
+      // Payment 2: inserted directly without a linkedTransactionId (simulates a
+      // legacy/pre-migration payment row).
+      database.paymentHistoryDao().insertAllBlocking(
+        listOf(
+          PaymentHistory(
+            loanId = loanId,
+            amount = 300_000L,
+            date = fixedDate,
+            notes = "legacy unlinked payment"
+          )
+        )
+      )
+
+      val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
+      // Initial + 1 linked payment transaction = 2
+      assertEquals(2, allTxBefore.size)
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      // All transactions for this loan must be gone: the initial disbursement
+      // via loanId, and the linked payment transaction via linkedTransactionId.
+      // The legacy unlinked payment has no matching transaction row (it was
+      // inserted without one), so nothing else should be deleted.
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals("All loan transactions deleted regardless of link status", 0, allTxAfter.size)
+
+      val remainingPayments =
+        database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId)
+      assertEquals(0, remainingPayments.size)
     }
 }

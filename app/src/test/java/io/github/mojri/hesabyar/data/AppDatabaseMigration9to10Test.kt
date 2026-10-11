@@ -7,29 +7,36 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Regression tests for MIGRATION_9_10 — linkedTransactionId on payment_history
- * and loanId on transactions (Issue #242: stable loan-payment transaction link).
+ * Regression tests for MIGRATION_9_10 — linkedTransactionId on payment_history,
+ * loanId on transactions, and index_transactions_loanId (Issue #242).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class AppDatabaseMigration9to10Test {
+  companion object {
+    private const val COL_ID_PK = "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+    private const val COL_TRACKED_DEFAULT = "tracked INTEGER NOT NULL DEFAULT 0, "
+    private const val COL_ACCOUNT_ID_NULL = "accountId INTEGER DEFAULT NULL"
+  }
+
   private fun createV9CoreTables(db: SupportSQLiteDatabase) {
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS categories (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "name TEXT NOT NULL, key TEXT NOT NULL, " +
         "icon TEXT NOT NULL, color INTEGER NOT NULL, " +
         "type TEXT NOT NULL, isDefault INTEGER NOT NULL)"
     )
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS accounts (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "name TEXT NOT NULL, type TEXT NOT NULL, bankName TEXT, " +
         "cardNumber TEXT, accountNumber TEXT, iban TEXT, " +
         "initialBalance INTEGER NOT NULL DEFAULT 0, " +
@@ -41,7 +48,7 @@ class AppDatabaseMigration9to10Test {
     )
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS persons (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "name TEXT NOT NULL, normalizedName TEXT NOT NULL, " +
         "phone TEXT, notes TEXT, createdAt INTEGER NOT NULL, " +
         "isArchived INTEGER NOT NULL DEFAULT 0)"
@@ -61,7 +68,7 @@ class AppDatabaseMigration9to10Test {
   private fun createV9TransactionsAndLoans(db: SupportSQLiteDatabase) {
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS transactions (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "type TEXT NOT NULL, categoryId INTEGER NOT NULL, " +
         "amount INTEGER NOT NULL, description TEXT NOT NULL, " +
         "personName TEXT, date INTEGER NOT NULL, " +
@@ -72,32 +79,34 @@ class AppDatabaseMigration9to10Test {
     )
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS loans (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "personName TEXT NOT NULL, type TEXT NOT NULL, " +
         "originalAmount INTEGER NOT NULL, " +
         "remainingAmount INTEGER NOT NULL, " +
         "description TEXT NOT NULL, date INTEGER NOT NULL, " +
         "isSettled INTEGER NOT NULL, " +
         "personId INTEGER DEFAULT NULL, " +
-        "tracked INTEGER NOT NULL DEFAULT 0, " +
-        "accountId INTEGER DEFAULT NULL)"
+        COL_TRACKED_DEFAULT +
+        COL_ACCOUNT_ID_NULL +
+        ")"
     )
   }
 
   private fun createV9InstallmentsAndPayments(db: SupportSQLiteDatabase) {
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS installments (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "title TEXT NOT NULL, amount INTEGER NOT NULL, " +
         "dueDate INTEGER NOT NULL, isPaid INTEGER NOT NULL, " +
         "reminderEnabled INTEGER NOT NULL, " +
         "notes TEXT NOT NULL, bankLoanId INTEGER, " +
-        "tracked INTEGER NOT NULL DEFAULT 0, " +
-        "accountId INTEGER DEFAULT NULL)"
+        COL_TRACKED_DEFAULT +
+        COL_ACCOUNT_ID_NULL +
+        ")"
     )
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS payment_history (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "loanId INTEGER NOT NULL, amount INTEGER NOT NULL, " +
         "date INTEGER NOT NULL, notes TEXT NOT NULL)"
     )
@@ -106,7 +115,7 @@ class AppDatabaseMigration9to10Test {
   private fun createV9BankLoansAndRoomMaster(db: SupportSQLiteDatabase) {
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS bank_loans (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "bankName TEXT NOT NULL, loanName TEXT NOT NULL, " +
         "receivedAmount INTEGER NOT NULL, " +
         "monthlyInstallmentAmount INTEGER NOT NULL, " +
@@ -116,12 +125,13 @@ class AppDatabaseMigration9to10Test {
         "startDate INTEGER NOT NULL, " +
         "description TEXT NOT NULL, " +
         "isSettled INTEGER NOT NULL, " +
-        "tracked INTEGER NOT NULL DEFAULT 0, " +
-        "accountId INTEGER DEFAULT NULL)"
+        COL_TRACKED_DEFAULT +
+        COL_ACCOUNT_ID_NULL +
+        ")"
     )
     db.execSQL(
       "CREATE TABLE IF NOT EXISTS room_master_table (" +
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        COL_ID_PK +
         "identity_hash TEXT)"
     )
     db.execSQL(
@@ -150,7 +160,9 @@ class AppDatabaseMigration9to10Test {
                 db: SupportSQLiteDatabase,
                 oldVersion: Int,
                 newVersion: Int
-              ) {}
+              ) {
+                // No-op in seed helper
+              }
             }
           ).build()
       )
@@ -205,6 +217,24 @@ class AppDatabaseMigration9to10Test {
       val updatedPayments = migratedDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
       val newPayment = updatedPayments.first { it.loanId == 2L }
       assertEquals(99L, newPayment.linkedTransactionId)
+
+      // Verify index on transactions.loanId exists
+      val cursor =
+        migratedDb.openHelper.readableDatabase.query(
+          "PRAGMA index_list('transactions')"
+        )
+      val indexNames = mutableListOf<String>()
+      while (cursor.moveToNext()) {
+        val nameColIdx = cursor.getColumnIndex("name")
+        if (nameColIdx >= 0) {
+          indexNames.add(cursor.getString(nameColIdx))
+        }
+      }
+      cursor.close()
+      assertTrue(
+        "Expected index_transactions_loanId to be created on transactions table",
+        indexNames.contains("index_transactions_loanId")
+      )
 
       migratedDb.close()
     } finally {

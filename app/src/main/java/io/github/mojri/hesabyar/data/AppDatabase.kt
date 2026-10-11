@@ -412,6 +412,11 @@ abstract class AppDatabase : RoomDatabase() {
         override fun migrate(db: SupportSQLiteDatabase) {
           db.execSQL("ALTER TABLE payment_history ADD COLUMN linkedTransactionId INTEGER")
           db.execSQL("ALTER TABLE transactions ADD COLUMN loanId INTEGER")
+          // Matches @Entity(indices = [Index("loanId")]) on Transaction, so
+          // deleteTransactionsByLoanId does not scan the whole table.
+          db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_transactions_loanId ON transactions (loanId)"
+          )
         }
       }
 

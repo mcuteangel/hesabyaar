@@ -199,8 +199,11 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
-          .build()
+          .addMigrations(
+            AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10
+          ).build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
       // loan1+loan2 share the 'علی' key; loan3 becomes 'علی رضا'. tx3 is
@@ -361,8 +364,11 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
-          .build()
+          .addMigrations(
+            AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10
+          ).build()
 
       // Backfill must complete without aborting on the unique-index violation
       // that would occur if preloadExistingPersons were absent.
@@ -493,8 +499,11 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
-          .build()
+          .addMigrations(
+            AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10
+          ).build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
       assertEquals("Transaction-only name does NOT seed a person row", 0, persons.size)
@@ -600,8 +609,11 @@ class AppDatabaseMigration7to8Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
-          .build()
+          .addMigrations(
+            AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10
+          ).build()
 
       val persons = migratedDb.personDao().getAllPersonsIncludingArchivedBlocking()
       assertEquals("One person for the shared normalized key", 1, persons.size)
