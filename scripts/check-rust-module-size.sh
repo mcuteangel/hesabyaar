@@ -50,8 +50,10 @@ failures = []
 checked = 0
 
 for root, dirs, files in os.walk(rust_dir):
-    # Skip generated sources (e.g. gitignored core_version.rs).
-    dirs[:] = [d for d in dirs if d != "generated"]
+    # Skip generated sources (e.g. gitignored core_version.rs) and Cargo
+    # build output (target/ holds hundreds of generated .rs files that
+    # would otherwise fail the gate).
+    dirs[:] = [d for d in dirs if d not in ("generated", "target")]
     if "generated" in root.replace(os.sep, "/").split("/"):
         continue
     for name in sorted(files):
