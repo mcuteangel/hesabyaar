@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration9to10Test.kt
+  s_d9eef8da96af50::t_8130caf94cf1de 165-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "42ca111568ebba7eff47469a11a39a932dbbb9af",
+  "prompts": {},
+  "sessions": {
+    "s_d9eef8da96af50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55d54432-1549-4f96-bd19-3dff683d0d81",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
