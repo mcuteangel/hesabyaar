@@ -1,0 +1,28 @@
+rust/hesabyar-core/src/validation/tests.rs
+  s_84edb990eb84d0::t_6f6361e20225c0 44
+  s_84edb990eb84d0::t_53312a0a6c4e6f 201
+  s_84edb990eb84d0::t_945b232d459a21 686
+docs/agents/rust-lints.md
+  s_84edb990eb84d0::t_c0b6ba0536828f 12,18-19,26,31,42
+scripts/check-rust-module-size.sh
+  s_84edb990eb84d0::t_2c23c2899ecd66 62
+  s_84edb990eb84d0::t_df4a014b0109cd 48
+rust/Cargo.toml
+  s_84edb990eb84d0::t_4cef1666bfce5c 40-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "67298b8704817e5c6f3da3d76d54b5803b9ad128",
+  "prompts": {},
+  "sessions": {
+    "s_84edb990eb84d0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bed917c1-ccf2-4ca7-ab28-885c7b33d979",
+        "model": "longcat-2.5-preview-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
