@@ -162,7 +162,9 @@ class AppDatabaseMigration9to10Test {
                 db: SupportSQLiteDatabase,
                 oldVersion: Int,
                 newVersion: Int
-              ) {}
+              ) {
+                error("Upgrade not supported in seed helper ($oldVersion -> $newVersion)")
+              }
             }
           ).build()
       )
