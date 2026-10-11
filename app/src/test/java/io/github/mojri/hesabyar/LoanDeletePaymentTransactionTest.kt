@@ -498,4 +498,71 @@ class LoanDeletePaymentTransactionTest {
       assertEquals(0, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
       assertEquals(0, database.transactionDao().getAllTransactionsBlocking().size)
     }
+
+  @Test
+  fun deleteLoanWithMoreThanChunkSizeLinkedPaymentsDeletesAllTransactions() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+      val paymentCount = 950
+
+      val loanId =
+        repo.insertLoan(
+          Loan(
+            personName = "ChunkTest",
+            type = LoanType.CREDITOR,
+            originalAmount = 10_000_000L,
+            remainingAmount = 10_000_000L,
+            description = "Large payment count",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          )
+        )
+
+      val transactions =
+        (1..paymentCount).map { i ->
+          Transaction(
+            id = i.toLong(),
+            type = TransactionType.EXPENSE,
+            categoryId = loansCategoryId,
+            amount = 1_000L,
+            description = "Payment $i",
+            personName = "ChunkTest",
+            date = fixedDate + i,
+            accountId = 1L
+          )
+        }
+      database.transactionDao().insertAllBlocking(transactions)
+
+      val payments =
+        (1..paymentCount).map { i ->
+          PaymentHistory(
+            id = i.toLong(),
+            loanId = loanId,
+            amount = 1_000L,
+            date = fixedDate + i,
+            notes = "Pay $i",
+            linkedTransactionId = i.toLong()
+          )
+        }
+      database.paymentHistoryDao().insertAllBlocking(payments)
+
+      assertEquals(paymentCount, database.transactionDao().getAllTransactionsBlocking().size)
+      assertEquals(
+        paymentCount,
+        database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size
+      )
+
+      val loan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.deleteLoan(loan)
+
+      assertEquals(
+        "All transactions across all chunks must be deleted",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+      assertEquals(0, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
+      assertNull(database.loanDao().getLoanById(loanId))
+    }
 }
