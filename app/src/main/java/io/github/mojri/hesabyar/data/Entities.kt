@@ -127,7 +127,10 @@ data class Transaction(
   // (SubmitManualTransactionUseCase validates accountId before insert).
   val accountId: Long = DEFAULT_ACCOUNT_ID,
   // For internal transfers
-  val destinationAccountId: Long? = null
+  val destinationAccountId: Long? = null,
+  // Set by insertLoanWithInitial for the disbursement row; used by deleteLoan
+  // to find the initial transaction without matching on mutable fields.
+  val loanId: Long? = null
 ) : Serializable
 
 /** Default account ID used for backward-compatible data and new-transaction defaults.
@@ -181,7 +184,10 @@ data class PaymentHistory(
   val loanId: Long,
   val amount: Long, // Rial
   val date: Long = System.currentTimeMillis(),
-  val notes: String = ""
+  val notes: String = "",
+  // Stable link to the generated expense/income transaction. Set by
+  // addPaymentToLoan for tracked loans so deleteLoan can remove the exact row.
+  val linkedTransactionId: Long? = null
 ) : Serializable
 
 @Entity(tableName = "bank_loans")

@@ -148,6 +148,17 @@ interface TransactionLinkDao {
     accountId: Long,
     description: String? = null
   ): Int
+
+  // Issue #242: delete one transaction by its primary key. Used by
+  // deleteLoan via PaymentHistory.linkedTransactionId.
+  @Query("DELETE FROM transactions WHERE id = :id")
+  suspend fun deleteTransactionById(id: Long)
+
+  // Issue #242: delete the initial disbursement transaction created by
+  // insertLoanWithInitial. The row carries loanId, so no category filter or
+  // field matching is needed.
+  @Query("DELETE FROM transactions WHERE loanId = :loanId")
+  suspend fun deleteTransactionsByLoanId(loanId: Long)
 }
 
 @Dao
@@ -283,6 +294,14 @@ interface PaymentHistoryDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertPayment(payment: PaymentHistory): Long
+
+  // Issue #242: stamp the stable transaction link after the generated row is
+  // inserted. The payment row is already stored, so this is a targeted update.
+  @Query("UPDATE payment_history SET linkedTransactionId = :linkedTransactionId WHERE id = :id")
+  suspend fun updateLinkedTransactionId(
+    id: Long,
+    linkedTransactionId: Long
+  )
 
   @Delete
   suspend fun deletePayment(payment: PaymentHistory)

@@ -57,7 +57,10 @@ internal class LoanDelegate(
             personName = stored.personName,
             personId = stored.personId,
             date = stored.date,
-            accountId = accountId
+            accountId = accountId,
+            // Issue #242: stamp loanId so deleteLoan can find this row
+            // without matching on mutable fields.
+            loanId = loanId
           )
         )
       }
@@ -77,42 +80,54 @@ internal class LoanDelegate(
       // Decide from the persisted row when available: the caller may hold a
       // stale snapshot whose tracked flag no longer matches the database.
       val existing = loanDao.getLoanById(loan.id) ?: loan
-      // Payments made through addPaymentToLoan each created a standalone
-      // expense/income Transaction. Delete them together with the payment
-      // history, or reports keep counting money for a loan that no longer
-      // exists. Each generated row is identified by the same fields the
-      // creator used: personName, Loans category, amount and date.
-      val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
-      if (loansCategoryId != null) {
-        val namesToClean =
-          buildSet {
-            add(existing.personName)
-            add(loan.personName)
+      // Issue #242: delete generated transactions by stable id, not by
+      // mutable field matching. Payments stamped with linkedTransactionId
+      // are deleted by primary key; the initial disbursement is deleted by
+      // loanId. Legacy rows (NULL link) fall back to the old path.
+      val payments = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id)
+      val hasLinkedPayments = payments.any { it.linkedTransactionId != null }
+      if (hasLinkedPayments) {
+        payments.forEach { payment ->
+          payment.linkedTransactionId?.let { txId ->
+            transactionLinkDao.deleteTransactionById(txId)
           }
-        val payments = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id)
-        for (name in namesToClean) {
-          payments.forEach { payment ->
-            transactionLinkDao.deleteLoanPaymentTransaction(
-              personName = name,
-              categoryId = loansCategoryId,
-              amount = payment.amount,
-              date = payment.date
-            )
-          }
-          if (existing.tracked) {
-            transactionLinkDao.deleteLoanPaymentTransaction(
-              personName = name,
-              categoryId = loansCategoryId,
-              amount = existing.originalAmount,
-              date = existing.date
-            )
-            if (loan.originalAmount != existing.originalAmount || loan.date != existing.date) {
+        }
+        if (existing.tracked) {
+          transactionLinkDao.deleteTransactionsByLoanId(loan.id)
+        }
+      } else {
+        // Legacy fallback: match on personName + Loans category + amount + date.
+        val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
+        if (loansCategoryId != null) {
+          val namesToClean =
+            buildSet {
+              add(existing.personName)
+              add(loan.personName)
+            }
+          for (name in namesToClean) {
+            payments.forEach { payment ->
               transactionLinkDao.deleteLoanPaymentTransaction(
                 personName = name,
                 categoryId = loansCategoryId,
-                amount = loan.originalAmount,
-                date = loan.date
+                amount = payment.amount,
+                date = payment.date
               )
+            }
+            if (existing.tracked) {
+              transactionLinkDao.deleteLoanPaymentTransaction(
+                personName = name,
+                categoryId = loansCategoryId,
+                amount = existing.originalAmount,
+                date = existing.date
+              )
+              if (loan.originalAmount != existing.originalAmount || loan.date != existing.date) {
+                transactionLinkDao.deleteLoanPaymentTransaction(
+                  personName = name,
+                  categoryId = loansCategoryId,
+                  amount = loan.originalAmount,
+                  date = loan.date
+                )
+              }
             }
           }
         }
@@ -160,7 +175,7 @@ internal class LoanDelegate(
       val updatedLoan = loan.copy(remainingAmount = newRemaining, isSettled = isSettled)
       val payment = PaymentHistory(loanId = loanId, amount = amount, notes = notes, date = date)
       loanDao.updateLoan(updatedLoan)
-      paymentHistoryDao.insertPayment(payment)
+      val paymentId = paymentHistoryDao.insertPayment(payment)
       if (loan.tracked && loansCategory != null) {
         val desc =
           if (loan.type == LoanType.CREDITOR) {
@@ -168,18 +183,22 @@ internal class LoanDelegate(
           } else {
             "دریافت بازپرداخت از ${loan.personName} - $notes"
           }
-        transactionDao.insertTransaction(
-          Transaction(
-            type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
-            categoryId = loansCategory.id,
-            amount = amount,
-            description = desc,
-            personName = loan.personName,
-            personId = loan.personId,
-            date = date,
-            accountId = TrackedLedgerHelper.resolveAccountId(loan.tracked, loan.accountId)
+        val txId =
+          transactionDao.insertTransaction(
+            Transaction(
+              type = if (loan.type == LoanType.CREDITOR) TransactionType.EXPENSE else TransactionType.INCOME,
+              categoryId = loansCategory.id,
+              amount = amount,
+              description = desc,
+              personName = loan.personName,
+              personId = loan.personId,
+              date = date,
+              accountId = TrackedLedgerHelper.resolveAccountId(loan.tracked, loan.accountId)
+            )
           )
-        )
+        // Issue #242: stamp the payment with the transaction id so deleteLoan
+        // can remove the exact row without field matching.
+        paymentHistoryDao.updateLinkedTransactionId(paymentId, txId)
       }
       true
     }

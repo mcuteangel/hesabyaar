@@ -28,7 +28,7 @@ import java.io.File
     AccountEntity::class,
     Person::class
   ],
-  version = 9,
+  version = 10,
   exportSchema = false
 )
 @TypeConverters(io.github.mojri.hesabyar.data.TypeConverters::class)
@@ -395,6 +395,26 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Issue #242: stable loan-payment transaction link.
+     *
+     * payment_history.linkedTransactionId stores the id of the generated
+     * expense/income row so deleteLoan removes exactly that row. transactions
+     * .loanId stores the loan that generated the initial disbursement row so
+     * deleteLoan can remove it without matching on mutable fields.
+     *
+     * Additive-only: nullable INTEGER columns, default NULL, no data rewrite.
+     * Rows created before this migration keep NULL; deleteLoan falls back to
+     * the legacy field-matching path for those rows.
+     */
+    internal val MIGRATION_9_10 =
+      object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL("ALTER TABLE payment_history ADD COLUMN linkedTransactionId INTEGER")
+          db.execSQL("ALTER TABLE transactions ADD COLUMN loanId INTEGER")
+        }
+      }
+
     internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -499,7 +519,8 @@ abstract class AppDatabase : RoomDatabase() {
         MIGRATION_5_6,
         MIGRATION_6_7,
         MIGRATION_7_8,
-        MIGRATION_8_9
+        MIGRATION_8_9,
+        MIGRATION_9_10
       )
 
     fun getDatabase(context: Context): AppDatabase {
