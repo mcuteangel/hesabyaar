@@ -1,0 +1,8 @@
+{
+  "hesabyar-core/src/advisory/budget.rs": { "lines": 1153, "functions": 7 },
+  "hesabyar-core/src/ai_validation.rs": { "lines": 900, "functions": 8 },
+  "hesabyar-core/src/analytics.rs": { "lines": 1118, "functions": 3 },
+  "hesabyar-core/src/dashboard.rs": { "lines": 1956, "functions": 6 },
+  "hesabyar-core/src/models/mod.rs": { "lines": 1454, "functions": 6 },
+  "hesabyar-core/src/parser/nlp.rs": { "lines": 2522, "functions": 23 }
+}

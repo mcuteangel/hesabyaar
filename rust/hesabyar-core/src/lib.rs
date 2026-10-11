@@ -1,7 +1,20 @@
 // Unit tests assert with unwrap/expect/panic. These are loud by design in
 // test code, so the restriction lints stay off for the test harness only.
 // Production code keeps them on (see Cargo.toml `[workspace.lints]`).
-#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
+//
+// `too_many_lines` and `cognitive_complexity` are also allowed in test
+// modules. Test functions are naturally longer due to Arrange-Act-Assert
+// blocks (mirrors the detekt `LongMethod` test-file exception).
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::too_many_lines,
+        clippy::cognitive_complexity
+    )
+)]
 
 pub mod advisory;
 pub mod ai_validation;
@@ -75,10 +88,7 @@ pub fn parse_sentence_offline(raw_sentence: &str) -> Result<ParsedResult, Hesaby
 /// such input yields a 0 offset here. Production code uses the
 /// real-time default via [parse_sentence_offline].
 #[uniffi::export]
-pub fn parse_sentence_offline_at(
-    raw_sentence: &str,
-    now_ms: i64,
-) -> Result<ParsedResult, HesabyarError> {
+pub fn parse_sentence_offline_at(raw_sentence: &str, now_ms: i64) -> Result<ParsedResult, HesabyarError> {
     crate::ffi::catch_unwind_safe(|| parser::nlp::parse_sentence_offline_full(raw_sentence, now_ms))
 }
 
@@ -100,18 +110,15 @@ pub fn infer_expense_category(sentence: &str) -> CategoryGuess {
 /// Returns 0 on error (no panic).
 #[uniffi::export]
 pub fn gregorian_to_jalali(timestamp_ms: i64) -> i64 {
-    crate::ffi::catch_unwind_safe(|| calendar::gregorian_to_jalali_packed(timestamp_ms))
-        .unwrap_or(0)
+    crate::ffi::catch_unwind_safe(|| calendar::gregorian_to_jalali_packed(timestamp_ms)).unwrap_or(0)
 }
 
 /// Convert Jalali date to Gregorian timestamp (ms).
 /// Returns i64::MIN on error (no panic) to match the Kotlin Long.MIN_VALUE sentinel.
 #[uniffi::export]
 pub fn jalali_to_gregorian(year: i32, month: i32, day: i32) -> i64 {
-    crate::ffi::catch_unwind_safe(|| {
-        calendar::jalali_to_gregorian(year, month, day).unwrap_or(i64::MIN)
-    })
-    .unwrap_or(i64::MIN)
+    crate::ffi::catch_unwind_safe(|| calendar::jalali_to_gregorian(year, month, day).unwrap_or(i64::MIN))
+        .unwrap_or(i64::MIN)
 }
 
 /// Parse a Persian amount sentence and return the amount in Toman.
@@ -133,6 +140,7 @@ pub fn parse_backup_json(json: &str) -> Result<BackupPayload, HesabyarError> {
 
 /// Validate a backup payload.
 #[uniffi::export]
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
     let r = crate::ffi::catch_unwind_safe(|| {
         if payload.version < 1 {
@@ -156,8 +164,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
         }
 
         // Validate transactions
-        let category_ids: std::collections::HashSet<_> =
-            payload.categories.iter().map(|c| c.id).collect();
+        let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
         for tx in &payload.transactions {
             if tx.amount <= 0 {
                 return Err(HesabyarError::BackupValidation {
@@ -243,9 +250,7 @@ pub fn validate_backup(payload: &BackupPayload) -> Result<(), HesabyarError> {
 
         // Validate accounts and transaction account references via the
         // shared helper so both FFI and internal paths enforce identical rules.
-        if let Some(first_err) =
-            crate::validation::validate_accounts_and_references(payload).first()
-        {
+        if let Some(first_err) = crate::validation::validate_accounts_and_references(payload).first() {
             return Err(HesabyarError::BackupValidation {
                 detail: first_err.clone(),
             });

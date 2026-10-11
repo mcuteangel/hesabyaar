@@ -120,16 +120,9 @@ fn map_tx_type(s: &str) -> TransactionType {
 // ===========================================================================
 
 /// Clamp an optional i32 to a valid range, returning None if out of range.
-fn clamp_optional_i32(
-    val: Option<i32>,
-    min: i32,
-    max: i32,
-    name: &str,
-) -> (Option<i32>, Option<String>) {
+fn clamp_optional_i32(val: Option<i32>, min: i32, max: i32, name: &str) -> (Option<i32>, Option<String>) {
     match val {
-        Some(v) if v < min || v > max => {
-            (None, Some(format!("{} clamped from {} to None", name, v)))
-        }
+        Some(v) if v < min || v > max => (None, Some(format!("{} clamped from {} to None", name, v))),
         Some(v) => (Some(v), None),
         None => (None, None),
     }
@@ -177,11 +170,11 @@ fn normalize_optional(s: String) -> Option<String> {
 /// # Errors
 /// Returns `HesabyarError::ParseError` if the JSON is malformed.
 /// Returns `HesabyarError::ValidationError` if the amount is ≤ 0 after extraction.
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, HesabyarError> {
-    let raw: AiTransactionJson =
-        serde_json::from_str(json).map_err(|e| HesabyarError::ParseError {
-            detail: format!("Invalid AI JSON: {}", e),
-        })?;
+    let raw: AiTransactionJson = serde_json::from_str(json).map_err(|e| HesabyarError::ParseError {
+        detail: format!("Invalid AI JSON: {}", e),
+    })?;
 
     let mut notes = Vec::new();
     let mut was_repaired = false;
@@ -223,10 +216,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     }
     // Check if f64→i64 lost precision (e.g. 500.7 → 500)
     if (amount - amount_i64 as f64).abs() > f64::EPSILON {
-        notes.push(format!(
-            "amount truncated from {} to {}",
-            amount, amount_i64
-        ));
+        notes.push(format!("amount truncated from {} to {}", amount, amount_i64));
         was_repaired = true;
     }
 
@@ -288,12 +278,11 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     // --- Notes ---
     let result_notes = raw.notes.and_then(normalize_optional);
 
-    let amount_toman =
-        amount_i64
-            .checked_mul(10)
-            .ok_or_else(|| HesabyarError::ValidationError {
-                detail: "Amount overflows i64 range after multiplication".to_string(),
-            })?;
+    let amount_toman = amount_i64
+        .checked_mul(10)
+        .ok_or_else(|| HesabyarError::ValidationError {
+            detail: "Amount overflows i64 range after multiplication".to_string(),
+        })?;
 
     let result = ParsedResult {
         tx_type,
@@ -311,8 +300,7 @@ pub fn parse_ai_transaction_json(json: &str) -> Result<AiParsedTransaction, Hesa
     };
 
     // Final consistency check via existing validation
-    crate::validation::validate_parsed_result(&result)
-        .map_err(|e| HesabyarError::ValidationError { detail: e })?;
+    crate::validation::validate_parsed_result(&result).map_err(|e| HesabyarError::ValidationError { detail: e })?;
 
     Ok(AiParsedTransaction {
         result,
@@ -335,6 +323,7 @@ const MIN_ADVICE_LENGTH: usize = 10;
 /// - Maximum length (truncates with warning)
 /// - Markdown safety (strips dangerous tags)
 /// - Persian content detection (warning only, not rejection)
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 pub fn validate_ai_advice(text: &str) -> AdviceValidation {
     let mut warnings = Vec::new();
     let mut was_truncated = false;
@@ -410,9 +399,7 @@ pub fn validate_ai_advice(text: &str) -> AdviceValidation {
     }
 
     // Persian content detection
-    let has_persian = result
-        .chars()
-        .any(|c| ('\u{0600}'..='\u{06FF}').contains(&c));
+    let has_persian = result.chars().any(|c| ('\u{0600}'..='\u{06FF}').contains(&c));
     if !has_persian {
         warnings.push("No Persian characters detected".to_string());
     }
@@ -438,10 +425,7 @@ mod tests {
     // =====================================================================
 
     fn minimal_json(amount: i64) -> String {
-        format!(
-            r#"{{"amount": {}, "type": "EXPENSE", "category": "Food"}}"#,
-            amount
-        )
+        format!(r#"{{"amount": {}, "type": "EXPENSE", "category": "Food"}}"#, amount)
     }
 
     fn full_json() -> &'static str {
@@ -533,10 +517,7 @@ mod tests {
             ("INSTALLMENT", TransactionType::Installment),
             ("TRANSFER", TransactionType::Transfer),
         ] {
-            let json = format!(
-                r#"{{"type": "{}", "amount": 1000, "category": "Food"}}"#,
-                type_str
-            );
+            let json = format!(r#"{{"type": "{}", "amount": 1000, "category": "Food"}}"#, type_str);
             let result = parse_ai_transaction_json(&json).unwrap();
             assert_eq!(result.result.tx_type, expected);
         }
@@ -548,10 +529,7 @@ mod tests {
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Expense);
         assert!(result.was_repaired);
-        assert!(result
-            .repair_notes
-            .iter()
-            .any(|n| n.contains("UNKNOWN_TYPE")));
+        assert!(result.repair_notes.iter().any(|n| n.contains("UNKNOWN_TYPE")));
     }
 
     #[test]
@@ -563,8 +541,7 @@ mod tests {
 
     #[test]
     fn test_transfer_type_recognized() {
-        let json =
-            r#"{"type": "TRANSFER", "amount": 1000, "category": "Other", "confidence": 0.8}"#;
+        let json = r#"{"type": "TRANSFER", "amount": 1000, "category": "Other", "confidence": 0.8}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.tx_type, TransactionType::Transfer);
         // TRANSFER is always marked as repaired because the AI parser
@@ -661,10 +638,7 @@ mod tests {
             "Income",
             "Other",
         ] {
-            let json = format!(
-                r#"{{"type": "EXPENSE", "amount": 1000, "category": "{}"}}"#,
-                cat
-            );
+            let json = format!(r#"{{"type": "EXPENSE", "amount": 1000, "category": "{}"}}"#, cat);
             let result = parse_ai_transaction_json(&json).unwrap();
             assert_eq!(result.result.category, cat);
         }
@@ -774,8 +748,7 @@ mod tests {
 
     #[test]
     fn test_valid_hour_minute() {
-        let json =
-            r#"{"type": "EXPENSE", "amount": 1000, "category": "Food", "hour": 14, "minute": 30}"#;
+        let json = r#"{"type": "EXPENSE", "amount": 1000, "category": "Food", "hour": 14, "minute": 30}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.hour, Some(14));
         assert_eq!(result.result.minute, Some(30));
@@ -808,8 +781,7 @@ mod tests {
 
     #[test]
     fn test_days_from_now_clamped() {
-        let json =
-            r#"{"type": "EXPENSE", "amount": 1000, "category": "Food", "daysFromNow": 9999}"#;
+        let json = r#"{"type": "EXPENSE", "amount": 1000, "category": "Food", "daysFromNow": 9999}"#;
         let result = parse_ai_transaction_json(json).unwrap();
         assert_eq!(result.result.days_from_now, None);
         assert!(result.was_repaired);
