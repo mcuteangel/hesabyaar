@@ -41,7 +41,7 @@ fn make_inst(amount: i64, title: &str) -> Installment {
         due_date: 1710000000000,
         is_paid: false,
         reminder_enabled: true,
-        notes: String::new(),
+        notes: String::default(),
         bank_loan_id: None,
         tracked: false,
         account_id: None,
@@ -198,7 +198,7 @@ fn test_valid_loan_settled() {
 #[test]
 fn test_loan_empty_person_rejected() {
     let mut loan = make_loan(5000000, 3000000, "DEBTOR");
-    loan.person_name = String::new();
+    loan.person_name = String::default();
     let err = validate_loan(&loan).unwrap_err();
     assert!(err.contains("person_name"));
 }
@@ -683,7 +683,7 @@ fn test_backup_rejects_empty_account_name() {
         categories: vec![],
         accounts: vec![Account {
             id: 1,
-            name: String::new(),
+            name: String::default(),
             account_type: "BANK".to_string(),
             bank_name: None,
             card_number: None,

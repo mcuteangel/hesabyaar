@@ -37,8 +37,10 @@ panic = "warn"
 # detekt `LongMethod`; `clippy.toml` sets `too-many-lines-threshold = 60`.
 too_many_lines = "warn"
 # `cognitive_complexity` is in `complexity` (already warn). Repeated here so
-# the detekt twin (`CyclomaticComplexMethod`, threshold 15) is explicit and
-# `clippy.toml`'s `cognitive-complexity-threshold = 15` is visibly wired.
+# the detekt counterpart (`CyclomaticComplexMethod`, threshold 15) is visibly
+# wired through `clippy.toml`'s `cognitive-complexity-threshold = 15`.
+# Cognitive complexity is an approximate proxy, not the detekt metric itself:
+# the two use different formulas, so the shared threshold 15 is a close match.
 cognitive_complexity = "warn"
 # Restriction lints curated for agent-readability and production hygiene.
 # Core code must not log to stdout/stderr (use structured errors or FFI bridge);

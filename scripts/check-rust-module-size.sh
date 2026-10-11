@@ -45,7 +45,7 @@ rust_dir, baseline_path, max_lines, max_fns = sys.argv[1], sys.argv[2], int(sys.
 with open(baseline_path, encoding="utf-8") as fp:
     baseline = json.load(fp)
 
-fn_re = re.compile(r"^(pub(\([^)]*\))?\s+)?(async\s+)?(const\s+)?fn\s+")
+fn_re = re.compile(r'^(pub(\([^)]*\))?\s+)?(?:(?:async|const|unsafe)\s+)*(?:extern(?:\s+"[^"]+")?\s+)?fn\s+')
 failures = []
 checked = 0
 
@@ -59,7 +59,7 @@ for root, dirs, files in os.walk(rust_dir):
             continue
         # Skip test and benchmark files (mirrors detekt's test exemptions).
         norm_root = root.replace(os.sep, "/")
-        if name == "tests.rs" or "/tests" in norm_root or "/benches" in norm_root:
+        if name == "tests.rs" or "tests" in norm_root.split("/") or "benches" in norm_root.split("/"):
             continue
         path = os.path.join(root, name)
         rel = os.path.relpath(path, rust_dir).replace(os.sep, "/")
