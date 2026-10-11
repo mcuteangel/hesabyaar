@@ -1,0 +1,43 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_d9eef8da96af50::t_73b6d90b4b58a6 139-140
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_d9eef8da96af50::t_e7221ac96cdb71 151-161
+  s_d9eef8da96af50::t_9ae4fffcb69181 298-305
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_d9eef8da96af50::t_3332a45743a092 199-200
+  s_d9eef8da96af50::t_b84e728f962a87 178
+  s_d9eef8da96af50::t_0fd5430cb93cf7 60-63
+  s_d9eef8da96af50::t_e9169e1b5c4aaa 186-197
+  s_d9eef8da96af50::t_a146090c0aeb01 201
+  s_d9eef8da96af50::t_f9a400a46b70ce 83-91,94-95,97-116,120-121,123-130
+  s_d9eef8da96af50::t_ebe64d14cab65e 92,96
+app/src/test/java/io/github/mojri/hesabyar/LoanDeletePaymentTransactionTest.kt
+  s_d9eef8da96af50::t_aef62ca3c098d5 1-257
+app/src/main/java/io/github/mojri/hesabyar/data/AppDatabase.kt
+  s_d9eef8da96af50::t_cbbd6b5fab54d3 522-523
+  s_d9eef8da96af50::t_aa550bee88d4ff 31
+  s_d9eef8da96af50::t_6aa1227aeefe94 398-417
+app/src/main/java/io/github/mojri/hesabyar/data/Entities.kt
+  s_d9eef8da96af50::t_937d77f7dc1c45 130-133
+  s_d9eef8da96af50::t_5b7665d3957d01 187-190
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration9to10Test.kt
+  s_d9eef8da96af50::t_30159b0ba55b3c 56-61,85-87,104-106
+  s_d9eef8da96af50::t_dec739f4cd8a0f 202-203
+  s_d9eef8da96af50::t_f5d80c6cef0c26 1-55,62-84,88-103,107-201,204-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e60045e9e461b3becc5308f1b33163834cc57e8d",
+  "prompts": {},
+  "sessions": {
+    "s_d9eef8da96af50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55d54432-1549-4f96-bd19-3dff683d0d81",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
