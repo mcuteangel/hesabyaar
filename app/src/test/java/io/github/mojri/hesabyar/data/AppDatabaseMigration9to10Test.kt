@@ -24,6 +24,8 @@ class AppDatabaseMigration9to10Test {
     private const val COL_ID_PK = "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
     private const val COL_TRACKED_DEFAULT = "tracked INTEGER NOT NULL DEFAULT 0, "
     private const val COL_ACCOUNT_ID_NULL = "accountId INTEGER DEFAULT NULL"
+    private const val TYPE_EXPENSE = "EXPENSE"
+    private const val DESC_LEGACY_TX = "تراکنش قدیمی"
   }
 
   private fun createV9CoreTables(db: SupportSQLiteDatabase) {
@@ -160,9 +162,7 @@ class AppDatabaseMigration9to10Test {
                 db: SupportSQLiteDatabase,
                 oldVersion: Int,
                 newVersion: Int
-              ) {
-                // No-op in seed helper
-              }
+              ) {}
             }
           ).build()
       )
@@ -186,7 +186,7 @@ class AppDatabaseMigration9to10Test {
         )
         raw.execSQL(
           "INSERT INTO transactions (type, categoryId, amount, description, date, accountId) " +
-            "VALUES ('EXPENSE', 1, 50000, 'تراکنش قدیمی', 1000, 1)"
+            "VALUES ('$TYPE_EXPENSE', 1, 50000, '$DESC_LEGACY_TX', 1000, 1)"
         )
       }
 

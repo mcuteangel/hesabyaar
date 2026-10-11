@@ -89,6 +89,25 @@ class LoanDeletePaymentTransactionTest {
     databaseInstance = null
   }
 
+  private suspend fun insertTransaction(
+    description: String,
+    personName: String,
+    amount: Long,
+    date: Long,
+    type: TransactionType = TransactionType.INCOME
+  ): Long =
+    database.transactionDao().insertTransaction(
+      Transaction(
+        type = type,
+        categoryId = loansCategoryId,
+        amount = amount,
+        description = description,
+        personName = personName,
+        date = date,
+        accountId = 1L
+      )
+    )
+
   private fun createRepository(): HesabyarRepository =
     HesabyarRepository(
       database.transactionDao(),
@@ -393,19 +412,32 @@ class LoanDeletePaymentTransactionTest {
         )
       )
 
+      // Legacy transaction matching Payment 2 (no loanId or stable link).
+      val legacyTxId =
+        insertTransaction("Legacy repayment", "Mixed", 300_000L, fixedDate)
+
+      // Unrelated transaction with the same category, amount, and date for a
+      // different person. Must survive loan deletion.
+      val survivingTxId =
+        insertTransaction("Unrelated transaction", "OtherPerson", 300_000L, fixedDate)
+
       val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
-      // Initial + 1 linked payment transaction = 2
-      assertEquals(2, allTxBefore.size)
+      // Initial (1) + linked payment (1) + legacy payment (1) + unrelated (1) = 4
+      assertEquals(4, allTxBefore.size)
+      assertTrue(allTxBefore.any { it.id == legacyTxId })
 
       val loan = requireNotNull(database.loanDao().getLoanById(loanId))
       repo.deleteLoan(loan)
 
-      // All transactions for this loan must be gone: the initial disbursement
-      // via loanId, and the linked payment transaction via linkedTransactionId.
-      // The legacy unlinked payment has no matching transaction row (it was
-      // inserted without one), so nothing else should be deleted.
+      // Transactions for this loan must be gone:
+      // 1. Initial disbursement via loanId.
+      // 2. Linked payment transaction via linkedTransactionId.
+      // 3. Legacy unlinked payment transaction via field-matching fallback.
+      // The unrelated transaction for "OtherPerson" must survive.
       val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
-      assertEquals("All loan transactions deleted regardless of link status", 0, allTxAfter.size)
+      assertEquals("Only the unrelated transaction should survive", 1, allTxAfter.size)
+      assertEquals(survivingTxId, allTxAfter[0].id)
+      assertEquals("OtherPerson", allTxAfter[0].personName)
 
       val remainingPayments =
         database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId)

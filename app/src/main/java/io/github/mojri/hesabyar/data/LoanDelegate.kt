@@ -89,7 +89,11 @@ internal class LoanDelegate(
       val linkedTransactionIds =
         payments.mapNotNull { it.linkedTransactionId }
       if (linkedTransactionIds.isNotEmpty()) {
-        transactionLinkDao.deleteTransactionsByIds(linkedTransactionIds)
+        // Chunk at 900 to stay well below SQLite's 999 bind parameter limit
+        // on older Android platforms.
+        linkedTransactionIds.chunked(SQLITE_IN_CHUNK_SIZE).forEach { chunk ->
+          transactionLinkDao.deleteTransactionsByIds(chunk)
+        }
       }
       // Delete the initial disbursement by stable key. When it deletes
       // nothing (tracked legacy loan created before the stamp), the
@@ -210,3 +214,7 @@ internal class LoanDelegate(
     }
   }
 }
+
+// SQLite caps an IN clause at 999 bind parameters before API 26. Chunking at
+// 900 keeps the delete below that limit with room for the statement overhead.
+private const val SQLITE_IN_CHUNK_SIZE = 900
