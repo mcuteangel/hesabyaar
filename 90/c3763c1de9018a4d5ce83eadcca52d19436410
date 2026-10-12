@@ -1,0 +1,20 @@
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_5b032d1308722e::t_731a5c2567d3bd 103-107
+  s_5b032d1308722e::t_fa8e6a1c59c680 239-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "90c3763c1de9018a4d5ce83eadcca52d19436410",
+  "prompts": {},
+  "sessions": {
+    "s_5b032d1308722e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "187ecb83-e9a6-490b-9d32-3a18e74630e5",
+        "model": "muse-spark-1.3-contributor-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
