@@ -100,6 +100,11 @@ internal class LoanDelegate(
       // was written at creation time. If it deletes nothing (legacy loan
       // created before the stamp), the field-matching fallback below must
       // still run for the disbursement leg when the loan was tracked.
+      // Use OR of persisted and caller state: updateLoan never creates a
+      // disbursement, so creation-time tracked status is unrecoverable after
+      // a flip. OR favors cleanup of legacy disbursements (tracked->untracked)
+      // over the rarer collateral risk (untracked->tracked with a colliding
+      // unrelated row). Stamped modern rows never reach the fallback.
       val disbursementDeletedById =
         transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
       val wasTracked = existing.tracked || loan.tracked
@@ -231,6 +236,6 @@ internal class LoanDelegate(
   }
 }
 
-// SQLite caps an IN clause at 999 bind parameters before API 26. Chunking at
-// 900 keeps the delete below that limit with room for the statement overhead.
+// SQLite caps an IN clause at 999 bind parameters before API 26 (32766 on API 26+).
+// Chunking at 900 is a conservative floor below the legacy limit with room for overhead.
 private const val SQLITE_IN_CHUNK_SIZE = 900
