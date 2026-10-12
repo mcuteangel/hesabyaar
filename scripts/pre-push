@@ -39,11 +39,14 @@ fi
 : "${OCR_LLM_URL:=https://api.kilo.ai/api/gateway}"
 : "${OCR_LLM_MODEL:=cohere/north-mini-code:free}"
 : "${OCR_LLM_FALLBACK_MODEL:=kilo-auto/free}"
-: "${OCR_USE_ANTHROPIC:=false}"
-export OCR_LLM_URL OCR_LLM_MODEL OCR_USE_ANTHROPIC
+: "${OCR_LLM_USE_ANTHROPIC:=false}"
+export OCR_LLM_URL OCR_LLM_MODEL OCR_LLM_FALLBACK_MODEL OCR_LLM_USE_ANTHROPIC
 # Same as the repo's OpenCodeReview Action: never self-update the CLI
 # in the background during a push (a racing update once broke a CI run).
 export OCR_NO_UPDATE=1
+# Make Python print Unicode status marks even on Windows consoles with a
+# legacy code page (cp1252); otherwise the parser crashes on ✔/✖/⚠.
+export PYTHONIOENCODING=utf-8
 if [ -z "${OCR_LLM_TOKEN:-}" ]; then
   echo "⚠ OCR_LLM_TOKEN is not set — skipping pre-push review (push continues)."
   echo "  Use the same value as the repo secret OCR_LLM_AUTH_TOKEN, e.g.:"
@@ -88,6 +91,8 @@ OUT="$(mktemp 2>/dev/null)" || {
 parse_report() {
   python3 - "$OUT" "$BLOCK_SEVERITIES" "$1" <<'PYEOF'
 import json, sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 out_path, block = sys.argv[1], set(s.strip().lower() for s in sys.argv[2].split(','))
 signal_retry = sys.argv[3] == '--signal-retry'
 try:
@@ -128,17 +133,33 @@ PYEOF
 
 echo "▶ ocr review --from $BASE_REF --to HEAD ($COUNT commits, model $OCR_LLM_MODEL)…"
 set +e
-"${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+ERR="$(mktemp 2>/dev/null)" || ERR=""
+run_ocr() {
+  if [ -n "$ERR" ]; then
+    "${OCR_CMD[@]}" -o "$OUT" 2>"$ERR"
+    ocr_code=$?
+    if [ "$ocr_code" -ne 0 ] && [ -s "$ERR" ]; then
+      echo "⚠ ocr review failed (exit $ocr_code):"
+      tail -n 10 "$ERR"
+    fi
+  else
+    "${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+  fi
+}
+cleanup_tmp() { rm -f "$OUT" ${ERR:+"$ERR"}; }
+trap cleanup_tmp EXIT INT TERM
+run_ocr
 parse_report --signal-retry
 code=$?
 if [ "$code" -eq 4 ] && [ -n "$OCR_LLM_FALLBACK_MODEL" ] && [ "$OCR_LLM_FALLBACK_MODEL" != "$OCR_LLM_MODEL" ]; then
   echo "⚠ review with $OCR_LLM_MODEL failed — retrying once with $OCR_LLM_FALLBACK_MODEL…"
-  OCR_LLM_MODEL="$OCR_LLM_FALLBACK_MODEL" "${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+  OCR_LLM_MODEL="$OCR_LLM_FALLBACK_MODEL" run_ocr
   parse_report --final
   code=$?
 fi
 set -e
-rm -f "$OUT"
+trap - EXIT INT TERM
+cleanup_tmp
 if [ "$code" -eq 3 ]; then
   exit 1
 elif [ "$code" -ne 0 ]; then
