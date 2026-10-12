@@ -13,6 +13,9 @@ set -euo pipefail
 #   OCR_LLM_AUTH_TOKEN. OCR_LLM_URL / OCR_LLM_MODEL default below to the same
 #   free Kilo gateway the repo's OpenCodeReview Action uses, so only the token
 #   is per-machine configuration.
+#   OCR_LLM_MODEL defaults to a fast free model (benchmarked pick); if that
+#   model can't run the review, OCR_LLM_FALLBACK_MODEL (default kilo-auto/free)
+#   is tried once.
 # Bypass once (not recommended): git push --no-verify
 
 BASE_REF="origin/main"
@@ -34,7 +37,8 @@ fi
 # 2. LLM config: mirror the repo's OpenCodeReview Action
 #    (.github/workflows/ocr-review.yml). Only the token is per-machine.
 : "${OCR_LLM_URL:=https://api.kilo.ai/api/gateway}"
-: "${OCR_LLM_MODEL:=kilo-auto/free}"
+: "${OCR_LLM_MODEL:=cohere/north-mini-code:free}"
+: "${OCR_LLM_FALLBACK_MODEL:=kilo-auto/free}"
 : "${OCR_USE_ANTHROPIC:=false}"
 export OCR_LLM_URL OCR_LLM_MODEL OCR_USE_ANTHROPIC
 # Same as the repo's OpenCodeReview Action: never self-update the CLI
@@ -72,27 +76,31 @@ fi
 
 # 6. Run the review. The JSON report is parsed below — the CLI exit code is
 #    not a findings signal (it returns 0 even when the run itself failed).
+#    If the primary model can't run the review, the fallback model is tried once.
 OUT="$(mktemp 2>/dev/null)" || {
   echo "⚠ cannot create temp file — skipping gate (push continues)."
   exit 0
 }
-echo "▶ ocr review --from $BASE_REF --to HEAD ($COUNT commits, pre-push gate)…"
-set +e
-"${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
-set -e
 
-# 7. Gate decision from the JSON report.
-set +e
-python3 - "$OUT" "$BLOCK_SEVERITIES" <<'PYEOF'
+# Gate decision from the JSON report in $OUT.
+# $1: --signal-retry (exit 4 when the review didn't run) or --final.
+# Exit codes: 0 = push, 3 = block on findings, 4 = review didn't run (retryable).
+parse_report() {
+  python3 - "$OUT" "$BLOCK_SEVERITIES" "$1" <<'PYEOF'
 import json, sys
 out_path, block = sys.argv[1], set(s.strip().lower() for s in sys.argv[2].split(','))
+signal_retry = sys.argv[3] == '--signal-retry'
 try:
     with open(out_path, encoding='utf-8') as f:
         d = json.load(f)
 except Exception as e:
+    if signal_retry:
+        sys.exit(4)
     print(f"⚠ could not parse ocr output ({e}) — skipping gate (push continues).")
     sys.exit(0)
 if d.get('status') != 'complete':
+    if signal_retry:
+        sys.exit(4)
     print(f"⚠ ocr review could not run (status={d.get('status')}): {d.get('message', 'unknown error')}")
     print("  skipping gate (push continues).")
     sys.exit(0)
@@ -116,7 +124,19 @@ if blocked:
 print("  No blocking-severity findings — pushing.")
 sys.exit(0)
 PYEOF
+}
+
+echo "▶ ocr review --from $BASE_REF --to HEAD ($COUNT commits, model $OCR_LLM_MODEL)…"
+set +e
+"${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+parse_report --signal-retry
 code=$?
+if [ "$code" -eq 4 ] && [ -n "$OCR_LLM_FALLBACK_MODEL" ] && [ "$OCR_LLM_FALLBACK_MODEL" != "$OCR_LLM_MODEL" ]; then
+  echo "⚠ review with $OCR_LLM_MODEL failed — retrying once with $OCR_LLM_FALLBACK_MODEL…"
+  OCR_LLM_MODEL="$OCR_LLM_FALLBACK_MODEL" "${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+  parse_report --final
+  code=$?
+fi
 set -e
 rm -f "$OUT"
 if [ "$code" -eq 3 ]; then

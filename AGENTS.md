@@ -55,6 +55,7 @@ Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck
 Before every `git push`, run `ocr review --from origin/main --to HEAD --audience agent` (OpenCodeReview CLI).
 The CLI needs `OCR_LLM_TOKEN` in the environment (same value as the repo secret `OCR_LLM_AUTH_TOKEN`); `OCR_LLM_URL`/`OCR_LLM_MODEL` default to the repo's free Kilo gateway config.
 If the CLI cannot run (missing token or network error), report the error and push anyway.
+OCR_LLM_MODEL defaults to cohere/north-mini-code:free (benchmarked fast free pick); OCR_LLM_FALLBACK_MODEL (default kilo-auto/free) is tried once if the primary model can't run.
 Fix all critical/high findings and re-run the review until none remain. Then push.
 The `pre-push` git hook enforces this gate. It blocks the push on critical/high findings.
 The hook installs from `scripts/pre-push` via `./gradlew copyGitHooks` (also runs on prepare/preBuild tasks).
