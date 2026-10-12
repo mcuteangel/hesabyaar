@@ -2,32 +2,49 @@
 
 set -euo pipefail
 
-# pre-push hook: cubic CLI review gate.
-# Runs `cubic review` on the branch diff before every push and BLOCKS the push
-# when the review reports issues.
+# pre-push hook: OpenCodeReview (ocr) review gate.
+# Runs `ocr review` on the branch diff before every push and BLOCKS the push
+# when the review reports findings at a blocking severity.
 #
 # Installed from scripts/pre-push by the `copyGitHooks` Gradle task
 # (runs automatically on prepare/preBuild tasks).
-# Requires: cubic CLI installed and authenticated (`cubic auth login`, one time).
+# Requires: the ocr CLI (`npm install -g @alibaba-group/open-code-review`)
+#   and OCR_LLM_TOKEN in the environment — the same value as the repo secret
+#   OCR_LLM_AUTH_TOKEN. OCR_LLM_URL / OCR_LLM_MODEL default below to the same
+#   free Kilo gateway the repo's OpenCodeReview Action uses, so only the token
+#   is per-machine configuration.
 # Bypass once (not recommended): git push --no-verify
-#
-# NOTE on exit codes: this gate assumes `cubic review` exits non-zero when it
-# reports findings. If a later cubic version changes that, switch the gate to
-# JSON parsing: `cubic review --base "$BASE_REF" --json` and block when the
-# findings list is non-empty.
-# Tool errors (expired subscription, missing login, network issues) never block:
-# the gate warns and lets the push through. Only real findings block.
 
 BASE_REF="origin/main"
+# Severities that block the push (comma-separated; critical,high,medium,low).
+BLOCK_SEVERITIES="critical,high"
 
 # 1. Never break pushes on a machine without the CLI.
-if ! command -v cubic >/dev/null 2>&1; then
-  echo "⚠ cubic CLI not found — skipping pre-push review (push continues)."
-  echo "  Install it: https://docs.cubic.dev/ide/cli-review"
+if ! command -v ocr >/dev/null 2>&1; then
+  echo "⚠ ocr CLI not found — skipping pre-push review (push continues)."
+  echo "  Install: npm install -g @alibaba-group/open-code-review"
   exit 0
 fi
 
-# 2. Resolve the base ref; fetch once if missing.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "⚠ python3 not found — cannot parse ocr output, skipping gate (push continues)."
+  exit 0
+fi
+
+# 2. LLM config: mirror the repo's OpenCodeReview Action
+#    (.github/workflows/ocr-review.yml). Only the token is per-machine.
+: "${OCR_LLM_URL:=https://api.kilo.ai/api/gateway}"
+: "${OCR_LLM_MODEL:=kilo-auto/free}"
+: "${OCR_USE_ANTHROPIC:=false}"
+export OCR_LLM_URL OCR_LLM_MODEL OCR_USE_ANTHROPIC
+if [ -z "${OCR_LLM_TOKEN:-}" ]; then
+  echo "⚠ OCR_LLM_TOKEN is not set — skipping pre-push review (push continues)."
+  echo "  Use the same value as the repo secret OCR_LLM_AUTH_TOKEN, e.g.:"
+  echo "    export OCR_LLM_TOKEN=\"<token>\"   # add to ~/.bashrc to persist"
+  exit 0
+fi
+
+# 3. Resolve the base ref; fetch once if missing.
 if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   echo "⚠ cannot resolve $BASE_REF — fetching origin/main…"
   if ! git fetch origin main --quiet; then
@@ -36,37 +53,69 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
   fi
 fi
 
-# 3. Nothing new on this branch vs base → nothing to review.
+# 4. Nothing new on this branch vs base → nothing to review.
 COUNT="$(git rev-list --count "$BASE_REF"..HEAD 2>/dev/null || echo 0)"
 if [ "$COUNT" -eq 0 ]; then
   exit 0
 fi
 
-# 4. The gate.
-echo "▶ cubic review --base $BASE_REF ($COUNT commits, pre-push gate)…"
+# 5. Same rule set the Action enforces, when present in this clone.
+RULE_ARGS=()
+if [ -f ".github/ocr-rules.json" ]; then
+  RULE_ARGS=(--rule ".github/ocr-rules.json")
+fi
+
+# 6. Run the review. The JSON report is parsed below — the CLI exit code is
+#    not a findings signal (it returns 0 even when the run itself failed).
+OUT="$(mktemp 2>/dev/null)" || {
+  echo "⚠ cannot create temp file — skipping gate (push continues)."
+  exit 0
+}
+echo "▶ ocr review --from $BASE_REF --to HEAD ($COUNT commits, pre-push gate)…"
 set +e
-review_out="$(cubic review --base "$BASE_REF" 2>&1)"
+ocr review --from "$BASE_REF" --to HEAD --audience agent \
+  --format json -o "$OUT" "${RULE_ARGS[@]}" >/dev/null 2>&1
+set -e
+
+# 7. Gate decision from the JSON report.
+set +e
+python3 - "$OUT" "$BLOCK_SEVERITIES" <<'PYEOF'
+import json, sys
+out_path, block = sys.argv[1], set(s.strip().lower() for s in sys.argv[2].split(','))
+try:
+    with open(out_path, encoding='utf-8') as f:
+        d = json.load(f)
+except Exception as e:
+    print(f"⚠ could not parse ocr output ({e}) — skipping gate (push continues).")
+    sys.exit(0)
+if d.get('status') != 'complete':
+    print(f"⚠ ocr review could not run (status={d.get('status')}): {d.get('message', 'unknown error')}")
+    print("  skipping gate (push continues).")
+    sys.exit(0)
+comments = d.get('comments') or []
+n_files = d.get('summary', {}).get('files_reviewed', '?')
+if not comments:
+    print(f"✔ ocr review clean — {n_files} file(s) reviewed, pushing.")
+    sys.exit(0)
+blocked = [c for c in comments if str(c.get('severity', '')).lower() in block]
+print(f"✖ ocr review: {len(comments)} finding(s), {len(blocked)} at blocking severity [{','.join(sorted(block))}].")
+for c in comments:
+    sev = str(c.get('severity', '?')).upper()
+    cat = c.get('category', '?')
+    where = f"{c.get('path', '?')}:{c.get('start_line') or c.get('end_line') or '?'}"
+    head = (c.get('content') or '').strip().splitlines()
+    print(f"  [{sev} · {cat}] {where} — {head[0][:160] if head else ''}")
+if blocked:
+    print("  push BLOCKED. Fix the findings above, then push again.")
+    print("  To skip this check once: git push --no-verify")
+    sys.exit(3)
+print("  No blocking-severity findings — pushing.")
+sys.exit(0)
+PYEOF
 code=$?
 set -e
-if [ "$code" -eq 0 ]; then
-  echo "✔ cubic review clean — pushing."
-  exit 0
+rm -f "$OUT"
+if [ "$code" -eq 3 ]; then
+  exit 1
 fi
-# The review could not run at all (not a findings report): warn and let the
-# push through. This covers an expired trial/subscription, a missing login,
-# and API/network outages. The gate blocks only on real review findings.
-lower_out="$(printf '%s' "$review_out" | tr '[:upper:]' '[:lower:]')"
-case "$lower_out" in
-  *subscri*|*expir*|*trial*|*not*logged*in*|*logged*out*|*unauthor*|\
-*authenticate*|*api*key*|*network*|*timeout*|*timed*out*|*connection*refused*)
-    echo "⚠ cubic review could not run — skipping gate (push continues)."
-    printf '%s\n' "$review_out" | head -5
-    exit 0
-    ;;
-esac
-echo ""
-echo "✖ cubic review reported issues (exit $code) — push BLOCKED."
-printf '%s\n' "$review_out"
-echo "  Fix the findings above, then push again."
-echo "  To skip this check once: git push --no-verify"
-exit 1
+exit 0

@@ -52,13 +52,13 @@ Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck
 
 ## Pre-Push Review Gate
 
-Before every `git push`, run `cubic review --base origin/main`.
-If the CLI cannot run (expired subscription, login, or network error), report the error and push anyway.
-Fix all reported findings and re-run the review until it is clean. Then push.
-The `pre-push` git hook enforces this gate. It blocks the push when the review reports issues.
+Before every `git push`, run `ocr review --from origin/main --to HEAD --audience agent` (OpenCodeReview CLI).
+The CLI needs `OCR_LLM_TOKEN` in the environment (same value as the repo secret `OCR_LLM_AUTH_TOKEN`); `OCR_LLM_URL`/`OCR_LLM_MODEL` default to the repo's free Kilo gateway config.
+If the CLI cannot run (missing token or network error), report the error and push anyway.
+Fix all critical/high findings and re-run the review until none remain. Then push.
+The `pre-push` git hook enforces this gate. It blocks the push on critical/high findings.
 The hook installs from `scripts/pre-push` via `./gradlew copyGitHooks` (also runs on prepare/preBuild tasks).
 Never use `git push --no-verify` without explicit user approval.
-
 ## Evidence Standard for Completion Reports
 
 When you report that a task, fix, or test is "done," "fixed," "already passes," or "pre-existing," always include the evidence below without a prompt:
