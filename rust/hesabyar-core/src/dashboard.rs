@@ -19,7 +19,7 @@ use crate::models::*;
 /// Historical/report views should pass `true` to retain all transactions.
 // The parameter list mirrors the `#[uniffi::export]` wrapper in ffi/mod.rs.
 // Changing it would change the FFI surface, so the lint stays off here.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::cognitive_complexity)] // RUST-LINT-BASELINE
 pub fn compute_dashboard_data(
     transactions: &[Transaction],
     loans: &[Loan],
@@ -38,11 +38,8 @@ pub fn compute_dashboard_data(
     let non_archived_txs: Vec<&Transaction> = if include_archived {
         transactions.iter().collect()
     } else {
-        let archived_ids: std::collections::HashSet<i64> = accounts
-            .iter()
-            .filter(|a| a.is_archived)
-            .map(|a| a.id)
-            .collect();
+        let archived_ids: std::collections::HashSet<i64> =
+            accounts.iter().filter(|a| a.is_archived).map(|a| a.id).collect();
         if archived_ids.is_empty() {
             transactions.iter().collect()
         } else {
@@ -206,12 +203,8 @@ pub fn compute_dashboard_data(
         }
     }
 
-    let debt_to_income = crate::advisory::calculate_debt_to_income_ratio(
-        loans,
-        &current_month_installments,
-        bank_loans,
-        monthly_income,
-    );
+    let debt_to_income =
+        crate::advisory::calculate_debt_to_income_ratio(loans, &current_month_installments, bank_loans, monthly_income);
 
     // --- Installment summary ---
     let _upcoming_installments: Vec<&Installment> = installments
@@ -255,6 +248,7 @@ const DELTA_PREV_NET_THRESHOLD: i64 = 1_000;
 /// delta summaries.
 ///
 /// Always excludes archived accounts — the card list is a current-state view.
+#[allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::cognitive_complexity)] // RUST-LINT-BASELINE
 fn compute_account_summaries(
     transactions: &[&Transaction],
     accounts: &[Account],
@@ -268,8 +262,7 @@ fn compute_account_summaries(
     if active_accounts.is_empty() {
         return Vec::new();
     }
-    let active_account_ids: std::collections::HashSet<i64> =
-        active_accounts.iter().map(|a| a.id).collect();
+    let active_account_ids: std::collections::HashSet<i64> = active_accounts.iter().map(|a| a.id).collect();
 
     // Single-pass transaction pre-indexing by account ID (O(T + A) instead of O(T * A))
     let mut txs_by_account: HashMap<i64, Vec<&Transaction>> = HashMap::new();
@@ -434,13 +427,7 @@ fn jalali_to_month_start_ms(jy: i32, jm: i32) -> i64 {
 mod tests {
     use super::*;
 
-    fn tx(
-        id: i64,
-        tx_type: TransactionType,
-        amount: i64,
-        date_ms: i64,
-        cat_id: i64,
-    ) -> Transaction {
+    fn tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id: i64) -> Transaction {
         Transaction {
             id,
             tx_type,
@@ -659,17 +646,7 @@ mod tests {
         let txs = vec![tx(1, TransactionType::Income, 1_000_000, now_ms, 1)];
         let loans = vec![loan(1, "CREDITOR", 1_200_000, 600_000, false)];
         let installments = vec![installment(1, 100_000, now_ms, false)];
-        let result = compute_dashboard_data(
-            &txs,
-            &loans,
-            &installments,
-            &[],
-            &[],
-            None,
-            true,
-            now_ms,
-            &[],
-        );
+        let result = compute_dashboard_data(&txs, &loans, &installments, &[], &[], None, true, now_ms, &[]);
         // monthly_debt_payments = 100k (installment) + 600k/12 ≈ 50k = 150k
         // ratio = 150k / 1_000_000 = 0.15
         assert!(result.debt_to_income_ratio > 0.0);
@@ -732,10 +709,7 @@ mod tests {
     #[test]
     fn test_account_filtering_by_account_id() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "حساب اصلی", "BANK"),
-            account(2, "کیف پول", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "حساب اصلی", "BANK"), account(2, "کیف پول", "CASH_WALLET")];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -768,20 +742,17 @@ mod tests {
         ];
 
         // Filter by account 1
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
         assert_eq!(result.current_balance, 1_000_000);
         assert_eq!(result.monthly_income, 1_000_000);
 
         // Filter by account 2
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
         assert_eq!(result.current_balance, 500_000);
         assert_eq!(result.monthly_income, 500_000);
 
         // No filter (all accounts)
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(result.current_balance, 1_500_000);
         assert_eq!(result.monthly_income, 1_500_000);
     }
@@ -789,10 +760,7 @@ mod tests {
     #[test]
     fn test_account_summaries_computed() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "حساب اصلی", "BANK"),
-            account(2, "کیف پول", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "حساب اصلی", "BANK"), account(2, "کیف پول", "CASH_WALLET")];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -838,8 +806,7 @@ mod tests {
             },
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(result.accounts.len(), 2);
 
         // Account 1: +1,000,000 - 200,000 = 800,000
@@ -954,8 +921,7 @@ mod tests {
             },
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
 
         // current_balance: +1M - 300K = 700K (transfer excluded)
         assert_eq!(result.current_balance, 700_000);
@@ -1028,8 +994,7 @@ mod tests {
         ];
 
         // include_archived=false: archived account's transaction excluded from totals
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
         assert_eq!(result.current_balance, 1_000_000);
         assert_eq!(result.monthly_income, 1_000_000);
         // Only 1 account summary (archived excluded)
@@ -1091,8 +1056,7 @@ mod tests {
         ];
 
         // include_archived=true: archived account's transaction included in totals
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(result.current_balance, 1_500_000);
         assert_eq!(result.monthly_income, 1_500_000);
         // Account summaries always exclude archived (current-state view)
@@ -1154,14 +1118,12 @@ mod tests {
         ];
 
         // Filter by active account 1 with include_archived=false
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
         assert_eq!(result.current_balance, 1_000_000);
         assert_eq!(result.monthly_income, 1_000_000);
 
         // Filter by archived account 2 with include_archived=false: excluded
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms, &[]);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
     }
@@ -1199,8 +1161,7 @@ mod tests {
 
         // include_archived=false + archived selected: neither the archived
         // transaction (1M) nor its opening balance (500k) may appear.
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), false, now_ms, &[]);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_income, 0);
     }
@@ -1215,8 +1176,7 @@ mod tests {
 
         // No transactions: current_balance comes purely from the opening balance.
         // include_archived=true + archived selected: opening balance included.
-        let result =
-            compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
         assert_eq!(result.current_balance, 500_000);
     }
 
@@ -1233,8 +1193,7 @@ mod tests {
 
         // No transactions: current_balance comes purely from the opening balance.
         // include_archived=false + active selected: opening balance still included.
-        let result =
-            compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
         assert_eq!(result.current_balance, 200_000);
     }
 
@@ -1277,13 +1236,11 @@ mod tests {
         }];
 
         // include_archived=false: transfer to archived account excluded
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
         assert_eq!(result.current_balance, 0); // transfer is balance-neutral anyway
 
         // include_archived=true: transfer included in totals
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         // But account summaries always exclude archived (current-state view)
         assert_eq!(result.accounts.len(), 1);
         assert_eq!(result.accounts[0].account_id, 1);
@@ -1298,10 +1255,7 @@ mod tests {
     #[test]
     fn test_transfer_debits_source_and_credits_destination_when_account_selected() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "حساب اصلی", "BANK"),
-            account(2, "کیف پول", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "حساب اصلی", "BANK"), account(2, "کیف پول", "CASH_WALLET")];
         let txs = vec![Transaction {
             id: 1,
             tx_type: TransactionType::Transfer,
@@ -1319,15 +1273,13 @@ mod tests {
 
         // Selecting the source account: the transfer must debit its balance
         // (money left the account) instead of being discarded as neutral.
-        let source =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
+        let source = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
         assert_eq!(source.current_balance, -500_000);
         assert_eq!(source.monthly_expenses, 500_000);
         assert_eq!(source.monthly_income, 0);
 
         // Selecting the destination account: the transfer must credit it.
-        let dest =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
+        let dest = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
         assert_eq!(dest.current_balance, 500_000);
         assert_eq!(dest.monthly_income, 500_000);
         assert_eq!(dest.monthly_expenses, 0);
@@ -1358,10 +1310,7 @@ mod tests {
         };
         let prev_month_ts = jalali_to_month_start_ms(prev_jy, prev_jm);
 
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            account(2, "کیف پول", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), account(2, "کیف پول", "CASH_WALLET")];
         let txs = vec![Transaction {
             id: 1,
             tx_type: TransactionType::Transfer,
@@ -1380,8 +1329,7 @@ mod tests {
         // Selecting source account: the transfer debits balance (−500k)
         // and is reflected in current_balance, but monthly aggregates
         // exclude it because it is dated outside the current Jalali month.
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
         assert_eq!(result.current_balance, -500_000);
         assert_eq!(result.monthly_expenses, 0);
         assert_eq!(result.monthly_income, 0);
@@ -1415,8 +1363,7 @@ mod tests {
 
         // include_archived=false + selected active account: transfer to archived
         // counterpart is excluded entirely.
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.monthly_expenses, 0);
         assert_eq!(result.monthly_income, 0);
@@ -1527,8 +1474,7 @@ mod tests {
         ];
 
         // Filter by account 1 with include_archived=false
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), false, now_ms, &[]);
 
         // filtered_txs = only tx 1 (account 1, non-archived)
         // compute_all_time_balance(filtered_txs) = +1_000_000
@@ -1597,8 +1543,7 @@ mod tests {
             tx(4, TransactionType::Expense, 200_000, prev_ms, 1),
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(result.accounts.len(), 1);
         let acc = &result.accounts[0];
         assert_eq!(acc.monthly_income, 500_000);
@@ -1618,8 +1563,7 @@ mod tests {
             tx(2, TransactionType::Expense, 200_000, now_ms, 1),
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         let acc = &result.accounts[0];
         // prevNet=0 (below threshold) → delta=0.0
         assert_eq!(acc.monthly_delta, 0.0);
@@ -1647,8 +1591,7 @@ mod tests {
             tx(2, TransactionType::Expense, 500, prev_ms, 1),
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         let acc = &result.accounts[0];
         // prevNet=-500, abs(500) < 1000 threshold → delta=0.0
         assert_eq!(acc.monthly_delta, 0.0);
@@ -1678,8 +1621,7 @@ mod tests {
             tx(4, TransactionType::Expense, 200_000, prev_ms, 1),
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         let acc = &result.accounts[0];
         // delta = (-100000 - 300000) / 300000 = -400000/300000 ≈ -1.333...
         assert!((acc.monthly_delta - (-4.0 / 3.0)).abs() < 1e-10);
@@ -1699,10 +1641,7 @@ mod tests {
             jalali_month_mid_ms(pjy, pjm)
         };
 
-        let accounts = vec![
-            account(1, "Account A", "BANK"),
-            account(2, "Account B", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "Account A", "BANK"), account(2, "Account B", "CASH_WALLET")];
         let txs = vec![
             // Current month: transfer FROM account 1 TO account 2 (500k)
             // → account 1: current income=0, current expenses=500k
@@ -1725,8 +1664,7 @@ mod tests {
             tx(2, TransactionType::Income, 200_000, prev_ms, 1),
         ];
 
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         let acc1 = result.accounts.iter().find(|a| a.account_id == 1).unwrap();
         // Account 1 current: income=0, expenses=500k → currentNet=-500k
         // Account 1 prev: income=200k, expenses=0 → prevNet=200k
@@ -1782,8 +1720,7 @@ mod tests {
 
         // include_archived=true: active tx (+1M) + archived tx (-300k) + archived initial_balance (500k)
         // expected = 1_000_000 - 300_000 + 500_000 = 1_200_000
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(result.current_balance, 1_200_000);
     }
 
@@ -1829,8 +1766,7 @@ mod tests {
 
         // include_archived=false: only active tx (+1M), no initial_balance from archived
         // expected = 1_000_000
-        let result =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
+        let result = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, false, now_ms, &[]);
         assert_eq!(result.current_balance, 1_000_000);
     }
 
@@ -1854,8 +1790,7 @@ mod tests {
         assert_eq!(result.total_net_worth, 500_000);
 
         // include_archived=false: both figures exclude the archived opening balance.
-        let result =
-            compute_dashboard_data(&[], &[], &[], &[], &accounts, None, false, now_ms, &[]);
+        let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None, false, now_ms, &[]);
         assert_eq!(result.current_balance, 0);
         assert_eq!(result.total_net_worth, 0);
     }
@@ -1885,13 +1820,10 @@ mod tests {
         let accounts = vec![account(1, "Main", "cash")];
 
         // 1. With empty excluded_category_ids: all transactions included in monthly aggregates
-        let unfiltered =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let unfiltered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
         assert_eq!(unfiltered.monthly_income, 1_500_000);
         assert_eq!(unfiltered.monthly_expenses, 500_000);
-        assert!(
-            (unfiltered.savings_rate - ((1_500_000.0 - 500_000.0) / 1_500_000.0)).abs() < 1e-10
-        );
+        assert!((unfiltered.savings_rate - ((1_500_000.0 - 500_000.0) / 1_500_000.0)).abs() < 1e-10);
         assert_eq!(unfiltered.accounts[0].monthly_income, 1_500_000);
         assert_eq!(unfiltered.accounts[0].monthly_expenses, 500_000);
         // Note: lifetime current_balance is an account movement ledger and still reflects all transactions:
@@ -1899,17 +1831,7 @@ mod tests {
         assert_eq!(unfiltered.current_balance, 1_000_000);
 
         // 2. With excluded_category_ids = &[loan_cat_id]: Loans category excluded from monthly KPI aggregates
-        let filtered = compute_dashboard_data(
-            &txs,
-            &[],
-            &[],
-            &[],
-            &accounts,
-            None,
-            true,
-            now_ms,
-            &[loan_cat_id],
-        );
+        let filtered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[loan_cat_id]);
         assert_eq!(filtered.monthly_income, 1_000_000);
         assert_eq!(filtered.monthly_expenses, 300_000);
         assert!((filtered.savings_rate - ((1_000_000.0 - 300_000.0) / 1_000_000.0)).abs() < 1e-10);
@@ -1925,10 +1847,7 @@ mod tests {
         let loan_cat_id = 999;
         let regular_cat_id = 10;
 
-        let accounts = vec![
-            account(1, "Account 1", "BANK"),
-            account(2, "Account 2", "CASH_WALLET"),
-        ];
+        let accounts = vec![account(1, "Account 1", "BANK"), account(2, "Account 2", "CASH_WALLET")];
 
         let txs = vec![
             // Transfer 1 under loan category: 500,000 from Acc 1 to Acc 2
@@ -1966,46 +1885,26 @@ mod tests {
         // 1. With excluded_category_ids = &[loan_cat_id]:
         // When Account 1 is selected: only regular transfer (300k) counts as monthly expense;
         // loan transfer is excluded from monthly KPI expense.
-        let source_filtered = compute_dashboard_data(
-            &txs,
-            &[],
-            &[],
-            &[],
-            &accounts,
-            Some(1),
-            true,
-            now_ms,
-            &[loan_cat_id],
-        );
+        let source_filtered =
+            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[loan_cat_id]);
         assert_eq!(source_filtered.monthly_expenses, 300_000);
         assert_eq!(source_filtered.monthly_income, 0);
         // Lifetime balance reflects all transactions (-500k -300k = -800k)
         assert_eq!(source_filtered.current_balance, -800_000);
 
         // When Account 2 is selected: only regular transfer (300k) counts as monthly income.
-        let dest_filtered = compute_dashboard_data(
-            &txs,
-            &[],
-            &[],
-            &[],
-            &accounts,
-            Some(2),
-            true,
-            now_ms,
-            &[loan_cat_id],
-        );
+        let dest_filtered =
+            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[loan_cat_id]);
         assert_eq!(dest_filtered.monthly_income, 300_000);
         assert_eq!(dest_filtered.monthly_expenses, 0);
         assert_eq!(dest_filtered.current_balance, 800_000);
 
         // 2. Unfiltered baseline (&[]): both transfers count toward monthly KPIs
-        let source_unfiltered =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
+        let source_unfiltered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(1), true, now_ms, &[]);
         assert_eq!(source_unfiltered.monthly_expenses, 800_000);
         assert_eq!(source_unfiltered.monthly_income, 0);
 
-        let dest_unfiltered =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
+        let dest_unfiltered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, Some(2), true, now_ms, &[]);
         assert_eq!(dest_unfiltered.monthly_income, 800_000);
         assert_eq!(dest_unfiltered.monthly_expenses, 0);
     }
@@ -2040,22 +1939,8 @@ mod tests {
         // Previous month excluded income (500k) is ignored -> prev_income = 500,000, prev_net = 500,000.
         // current_net = 1,000,000.
         // monthly_delta = (1,000,000 - 500,000) / 500,000 = +1.0 (+100%)
-        let filtered = compute_dashboard_data(
-            &txs,
-            &[],
-            &[],
-            &[],
-            &accounts,
-            None,
-            true,
-            now_ms,
-            &[loan_cat_id],
-        );
-        let acc = filtered
-            .accounts
-            .iter()
-            .find(|a| a.account_id == 1)
-            .unwrap();
+        let filtered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[loan_cat_id]);
+        let acc = filtered.accounts.iter().find(|a| a.account_id == 1).unwrap();
         assert_eq!(acc.monthly_income, 1_000_000);
         assert!((acc.monthly_delta - 1.0).abs() < 1e-10);
 
@@ -2063,13 +1948,8 @@ mod tests {
         // prev_income = 1,000,000, prev_net = 1,000,000.
         // current_net = 1,000,000.
         // monthly_delta = (1,000,000 - 1,000,000) / 1,000,000 = 0.0
-        let unfiltered =
-            compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
-        let acc_unfiltered = unfiltered
-            .accounts
-            .iter()
-            .find(|a| a.account_id == 1)
-            .unwrap();
+        let unfiltered = compute_dashboard_data(&txs, &[], &[], &[], &accounts, None, true, now_ms, &[]);
+        let acc_unfiltered = unfiltered.accounts.iter().find(|a| a.account_id == 1).unwrap();
         assert_eq!(acc_unfiltered.monthly_income, 1_000_000);
         assert_eq!(acc_unfiltered.monthly_delta, 0.0);
     }
