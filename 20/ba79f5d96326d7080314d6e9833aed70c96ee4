@@ -1,0 +1,28 @@
+scripts/test-pre-push.sh
+  s_5b7857a6a0ed64::t_30394626d0cb96 1-52,57-84,88-149,151-157,164-443
+  s_5b7857a6a0ed64::t_e6c2416bdc6b43 85-87
+  s_5b7857a6a0ed64::t_0f7d95580d1c4f 53-56
+  s_5b7857a6a0ed64::t_f23bdcc4a390d3 150,158-159
+  s_5b7857a6a0ed64::t_d02cf369832757 160-163
+scripts/pre-push
+  s_5b7857a6a0ed64::t_dd692139c8518c 136,138-147
+  s_5b7857a6a0ed64::t_59ace6ef163196 94-95
+  s_5b7857a6a0ed64::t_800c33ea9eb519 137,148-151,156,161-162
+  s_5b7857a6a0ed64::t_00b66c225f0879 42-43,47-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "20ba79f5d96326d7080314d6e9833aed70c96ee4",
+  "prompts": {},
+  "sessions": {
+    "s_5b7857a6a0ed64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eebbf131-ad80-46db-8759-ca2dc8f2b5d5",
+        "model": "muse-spark-1.3-contributor-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
