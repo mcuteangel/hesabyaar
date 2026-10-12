@@ -657,4 +657,17 @@ class LoanDeletePaymentTransactionTest {
         allTxAfter.size
       )
     }
+
+  @Test
+  fun deleteTransactionsByIdsWithEmptyListDoesNotThrow() =
+    runTest {
+      // Guards against `WHERE id IN ()` SQLite syntax errors from
+      // empty delete lists
+      database.transactionLinkDao().deleteTransactionsByIds(emptyList())
+      assertEquals(
+        "Empty list deletes nothing",
+        0,
+        database.transactionDao().getAllTransactionsBlocking().size
+      )
+    }
 }

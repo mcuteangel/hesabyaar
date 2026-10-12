@@ -149,13 +149,20 @@ interface TransactionLinkDao {
     description: String? = null
   ): Int
 
-  // Issue #242: delete repayment transactions by their primary keys in one
-  // statement. Used by deleteLoan via PaymentHistory.linkedTransactionId.
-  // Callers must chunk the list (e.g. at 900) to stay within SQLite's
-  // 999 bind parameter limit on older Android platforms. Callers must also
-  // skip empty lists: `WHERE id IN ()` is a SQLite syntax error.
+  // Issue #242: raw delete by primary keys in one statement. Never call
+  // directly; use the guarded [deleteTransactionsByIds] wrapper below.
   @Query("DELETE FROM transactions WHERE id IN (:ids)")
-  suspend fun deleteTransactionsByIds(ids: List<Long>)
+  suspend fun deleteTransactionsByIdsInternal(ids: List<Long>)
+
+  // Issue #242: delete repayment transactions by their primary keys. Used by
+  // deleteLoan via PaymentHistory.linkedTransactionId. Callers must chunk the
+  // list (e.g. at 900) to stay within SQLite's bind parameter limit on older
+  // Android platforms. Empty lists are a no-op so SQLite never sees `IN ()`.
+  suspend fun deleteTransactionsByIds(ids: List<Long>) {
+    if (ids.isNotEmpty()) {
+      deleteTransactionsByIdsInternal(ids)
+    }
+  }
 
   // Issue #242: delete the initial disbursement transaction created by
   // insertLoanWithInitial. The row carries loanId, so no category filter or
