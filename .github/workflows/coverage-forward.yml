@@ -19,7 +19,10 @@ name: Coverage Forward
 # secret in this job. The DSN itself is only ever passed to the trusted
 # reporting steps, never exported to the job environment.
 
-on:
+on: # zizmor: ignore[dangerous-triggers] -- deliberate secure use: this workflow
+  # handles the DeepSource DSN, so pull_request_target runs the BASE branch's
+  # workflow file, and the checkout below pins the base revision explicitly.
+  # No PR-controlled code ever executes with the secret (see job comment).
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened]

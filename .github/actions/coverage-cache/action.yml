@@ -30,22 +30,31 @@ runs:
     - name: Compute cache scope
       id: scope
       shell: bash
+      env:
+        # Contexts are mapped to env vars instead of being interpolated
+        # into the script: a ${{ }} expansion inside run: is code-injection
+        # surface (zizmor template-injection); an env assignment is data.
+        GH_EVENT_NAME: ${{ github.event_name }}
+        GH_REF: ${{ github.ref }}
+        GH_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        GH_SHA: ${{ github.sha }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
       run: | # zizmor: ignore[github-env]
         # Pin PR entries to the base revision: after the base moves, the PR
         # prefix misses and restore falls back to main's fresh entries
         # instead of forwarding stale coverage. Manual dispatches from
         # non-main branches get a write-only sha scope that can never
         # pollute the main baseline.
-        EVENT="${{ github.event_name }}"
-        if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "pull_request_target" ]; then
-          SCOPE="pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.base.sha }}"
-        elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+        if [ "${GH_EVENT_NAME}" = "pull_request" ] || [ "${GH_EVENT_NAME}" = "pull_request_target" ]; then
+          SCOPE="pr-${GH_PR_NUMBER}-${GH_BASE_SHA}"
+        elif [ "${GH_REF}" = "refs/heads/main" ]; then
           SCOPE="main"
         else
-          SCOPE="sha-${{ github.sha }}"
+          SCOPE="sha-${GH_SHA}"
         fi
         echo "scope=${SCOPE}" >> "$GITHUB_OUTPUT"
-        echo "Cache scope: ${SCOPE} (language: ${{ inputs.language }})"
+        echo "Cache scope: ${SCOPE} (language: ${INPUT_LANGUAGE})"
 
     - name: Save coverage to cache
       # !cancelled(): callers invoke this best-effort after failures, so the
