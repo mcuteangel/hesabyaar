@@ -49,6 +49,14 @@ Read only the guides that match your task. Each one is short.
 
 Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck detekt --no-daemon`, the matching tests (`testDebugUnitTest`, `testDebugUnitTestRust`, or `cargo test --manifest-path rust/Cargo.toml`), and give the evidence below. Details: `docs/agents/testing.md`.
 
+## Pre-Push Review Gate
+
+Before every `git push`, run `cubic review --base origin/main`.
+Fix all reported findings and re-run the review until it is clean. Then push.
+The `pre-push` git hook enforces this gate. It blocks the push when the review reports issues.
+The hook installs from `scripts/pre-push` via `./gradlew copyGitHooks` (also runs on prepare/preBuild tasks).
+Never use `git push --no-verify` without explicit user approval.
+
 ## Evidence Standard for Completion Reports
 
 When you report that a task, fix, or test is "done," "fixed," "already passes," or "pre-existing," always include the evidence below without a prompt:

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# pre-push hook: cubic CLI review gate.
+# Runs `cubic review` on the branch diff before every push and BLOCKS the push
+# when the review reports issues.
+#
+# Installed from scripts/pre-push by the `copyGitHooks` Gradle task
+# (runs automatically on prepare/preBuild tasks).
+# Requires: cubic CLI installed and authenticated (`cubic auth login`, one time).
+# Bypass once (not recommended): git push --no-verify
+#
+# NOTE on exit codes: this gate assumes `cubic review` exits non-zero when it
+# reports findings. If a later cubic version changes that, switch the gate to
+# JSON parsing: `cubic review --base "$BASE_REF" --json` and block when the
+# findings list is non-empty.
+
+BASE_REF="origin/main"
+
+# 1. Never break pushes on a machine without the CLI.
+if ! command -v cubic >/dev/null 2>&1; then
+  echo "⚠ cubic CLI not found — skipping pre-push review (push continues)."
+  echo "  Install it: https://docs.cubic.dev/ide/cli-review"
+  exit 0
+fi
+
+# 2. Resolve the base ref; fetch once if missing.
+if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+  echo "⚠ cannot resolve $BASE_REF — fetching origin/main…"
+  if ! git fetch origin main --quiet; then
+    echo "⚠ fetch failed — skipping pre-push review (push continues)."
+    exit 0
+  fi
+fi
+
+# 3. Nothing new on this branch vs base → nothing to review.
+COUNT="$(git rev-list --count "$BASE_REF"..HEAD 2>/dev/null || echo 0)"
+if [ "$COUNT" -eq 0 ]; then
+  exit 0
+fi
+
+# 4. The gate.
+echo "▶ cubic review --base $BASE_REF ($COUNT commits, pre-push gate)…"
+set +e
+cubic review --base "$BASE_REF"
+code=$?
+set -e
+if [ "$code" -eq 0 ]; then
+  echo "✔ cubic review clean — pushing."
+  exit 0
+fi
+echo ""
+echo "✖ cubic review reported issues (exit $code) — push BLOCKED."
+echo "  Fix the findings above, then push again."
+echo "  To skip this check once: git push --no-verify"
+exit 1

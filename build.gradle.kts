@@ -11,19 +11,21 @@ plugins {
 }
 
 tasks.register("copyGitHooks") {
-  description = "Copies pre-commit hook from scripts/ to .git/hooks/"
+  description = "Copies git hooks from scripts/ to .git/hooks/"
   doLast {
-    val hook = file("${rootDir}/scripts/pre-commit")
     val hooksDir = file("${rootDir}/.git/hooks")
-    if (hook.exists()) {
-      copy {
-        from(hook)
-        into(hooksDir)
+    listOf("pre-commit", "pre-push").forEach { name ->
+      val hook = file("${rootDir}/scripts/$name")
+      if (hook.exists()) {
+        copy {
+          from(hook)
+          into(hooksDir)
+        }
+        file("${hooksDir}/$name").setExecutable(true)
+        logger.lifecycle("✓ $name hook installed")
+      } else {
+        logger.warn("⚠ scripts/$name not found, skipping hook installation")
       }
-      file("${hooksDir}/pre-commit").setExecutable(true)
-      logger.lifecycle("✓ pre-commit hook installed")
-    } else {
-      logger.warn("⚠ scripts/pre-commit not found, skipping hook installation")
     }
   }
 }
