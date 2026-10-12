@@ -59,3 +59,38 @@ The real effect of this change has two parts:
 2. Rust coverage is now visible in Codacy.
 
 Do not treat the merged percentage as a per-language quality gate.
+
+## Coverage Cache and DeepSource Forwarding
+
+DeepSource computes the per-PR aggregate coverage from the language keys
+reported for the PR head SHA (`kotlin`, `rust`, `javascript`). The uploads
+live inside smart-gated build jobs, so when a job is skipped (its file class
+didn't change), its key is never reported: the aggregate is then computed
+from a partial key set and shows bogus drops such as "down 45.8% from main",
+failing the test-coverage check.
+
+To keep the aggregate complete, each producer job saves its coverage file to
+the Actions cache after reporting (`.github/actions/coverage-cache`, save
+mode). Cache entries are per language and per scope:
+
+- Key: `ds-coverage-<language>-<scope>-<sha>`, where scope is `main` or
+  `pr-<number>`.
+- A language's entry is refreshed only when its producer job runs, i.e. only
+  when that language's file class changed. Untouched languages keep their
+  previous report, which is still accurate because their files didn't change.
+
+The `Coverage Forward` workflow (`.github/workflows/coverage-forward.yml`)
+runs ungated on every PR sync. It restores the newest cached report per
+language (this PR first, then main) and re-reports it to DeepSource against
+the PR head SHA. Producer jobs still report fresh coverage when they run and
+overwrite the forwarded values, so the final state converges on real data.
+
+Consequences of this design:
+
+- A Kotlin-only PR forwards the cached Rust and JavaScript reports; the
+  aggregate stays complete instead of collapsing to Kotlin-only.
+- A docs-only sync runs no builds at all and simply re-reports the PR's
+  previous results from the cache.
+- The cache is best-effort and never fails CI: a missing entry is skipped,
+  and the first PRs after this lands report partial keys until the first
+  main-branch push seeds the cache.

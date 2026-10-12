@@ -181,6 +181,20 @@ jobs:
         run: |
           deepsource report --analyzer test-coverage --key rust --commit "$DEEPSOURCE_COMMIT_SHA" --value-file rust/lcov.prefixed.info
 
+      - name: Save Rust coverage to cache
+        # Best-effort: seeds the coverage cache so that PR syncs whose
+        # Rust job is smart-gated away can forward this report to DeepSource
+        # instead of leaving the language key missing.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: ./.github/actions/coverage-cache
+        with:
+          mode: save
+          language: rust
+          file: rust/lcov.prefixed.info
+          scope: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+          commit-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         continue-on-error: true

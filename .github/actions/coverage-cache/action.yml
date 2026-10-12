@@ -1,0 +1,81 @@
+name: "Coverage cache"
+description: >-
+  Save coverage files to the Actions cache (save mode) or re-report cached
+  coverage to DeepSource (forward mode). Keeps DeepSource's per-PR aggregate
+  coverage stable when smart-gated builds are skipped: a language whose files
+  didn't change keeps the coverage it had on the base, so the aggregate is
+  computed from a complete set of keys instead of a partial one.
+
+inputs:
+  mode:
+    description: "'save' stores the coverage file in the cache; 'forward' restores the newest cached file (this PR first, then main) and reports it to DeepSource."
+    required: true
+  language:
+    description: "DeepSource coverage key: kotlin, rust or javascript."
+    required: true
+  file:
+    description: "Repo-relative path of the coverage file to save or restore."
+    required: true
+  scope:
+    description: "Cache scope: 'main', or 'pr-<number>' on pull requests."
+    required: true
+  commit-sha:
+    description: "Commit SHA used in the cache key (save) and reported against (forward)."
+    required: true
+  deepsource-dsn:
+    description: "DeepSource DSN for forward mode. Empty skips reporting."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Save coverage to cache
+      # hashFiles is empty when the file is missing (e.g. the coverage step
+      # failed), so a missing report never fails the save.
+      if: ${{ inputs.mode == 'save' && hashFiles(inputs.file) != '' }}
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ inputs.file }}
+        key: ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-${{ inputs.commit-sha }}
+
+    - name: Restore cached coverage
+      if: ${{ inputs.mode == 'forward' }}
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        # The exact key never exists; restore-keys pick the newest entry for
+        # this PR first, then fall back to the newest main-branch entry.
+        path: ${{ inputs.file }}
+        key: ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-restore-miss
+        restore-keys: |
+          ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-
+          ds-coverage-${{ inputs.language }}-main-
+
+    - name: Report cached coverage to DeepSource
+      if: ${{ inputs.mode == 'forward' }}
+      # Best-effort: forwarding must never fail CI. The producer jobs report
+      # fresh coverage when they run; this only fills in skipped languages.
+      continue-on-error: true
+      shell: bash
+      env:
+        DEEPSOURCE_DSN: ${{ inputs.deepsource-dsn }}
+        COVERAGE_FILE: ${{ inputs.file }}
+        COVERAGE_LANGUAGE: ${{ inputs.language }}
+        COVERAGE_SHA: ${{ inputs.commit-sha }}
+      run: |
+        set -euo pipefail
+        if [ -z "${DEEPSOURCE_DSN}" ]; then
+          echo "DEEPSOURCE_DSN is empty; skipping forward report."
+          exit 0
+        fi
+        if [ ! -f "${COVERAGE_FILE}" ]; then
+          echo "No cached coverage for '${COVERAGE_LANGUAGE}'; skipping."
+          exit 0
+        fi
+        if ! command -v deepsource >/dev/null 2>&1; then
+          echo "::warning::DeepSource CLI not on PATH; skipping forward report."
+          exit 0
+        fi
+        deepsource report --analyzer test-coverage --key "${COVERAGE_LANGUAGE}" \
+          --commit "${COVERAGE_SHA}" --value-file "${COVERAGE_FILE}"
+        echo "Forwarded cached ${COVERAGE_LANGUAGE} coverage for ${COVERAGE_SHA}."
