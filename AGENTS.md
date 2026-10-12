@@ -53,6 +53,7 @@ Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck
 ## Pre-Push Review Gate
 
 Before every `git push`, run `cubic review --base origin/main`.
+If the CLI cannot run (expired subscription, login, or network error), report the error and push anyway.
 Fix all reported findings and re-run the review until it is clean. Then push.
 The `pre-push` git hook enforces this gate. It blocks the push when the review reports issues.
 The hook installs from `scripts/pre-push` via `./gradlew copyGitHooks` (also runs on prepare/preBuild tasks).

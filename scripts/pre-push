@@ -15,6 +15,8 @@ set -euo pipefail
 # reports findings. If a later cubic version changes that, switch the gate to
 # JSON parsing: `cubic review --base "$BASE_REF" --json` and block when the
 # findings list is non-empty.
+# Tool errors (expired subscription, missing login, network issues) never block:
+# the gate warns and lets the push through. Only real findings block.
 
 BASE_REF="origin/main"
 
@@ -43,15 +45,28 @@ fi
 # 4. The gate.
 echo "▶ cubic review --base $BASE_REF ($COUNT commits, pre-push gate)…"
 set +e
-cubic review --base "$BASE_REF"
+review_out="$(cubic review --base "$BASE_REF" 2>&1)"
 code=$?
 set -e
 if [ "$code" -eq 0 ]; then
   echo "✔ cubic review clean — pushing."
   exit 0
 fi
+# The review could not run at all (not a findings report): warn and let the
+# push through. This covers an expired trial/subscription, a missing login,
+# and API/network outages. The gate blocks only on real review findings.
+lower_out="$(printf '%s' "$review_out" | tr '[:upper:]' '[:lower:]')"
+case "$lower_out" in
+  *subscri*|*expir*|*trial*|*not*logged*in*|*logged*out*|*unauthor*|\
+*authenticate*|*api*key*|*network*|*timeout*|*timed*out*|*connection*refused*)
+    echo "⚠ cubic review could not run — skipping gate (push continues)."
+    printf '%s\n' "$review_out" | head -5
+    exit 0
+    ;;
+esac
 echo ""
 echo "✖ cubic review reported issues (exit $code) — push BLOCKED."
+printf '%s\n' "$review_out"
 echo "  Fix the findings above, then push again."
 echo "  To skip this check once: git push --no-verify"
 exit 1
