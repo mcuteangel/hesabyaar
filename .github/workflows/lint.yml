@@ -62,6 +62,8 @@ jobs:
         run: bash scripts/tests/test-classify-changes.sh
       - name: Run merge-gate regression tests
         run: bash scripts/tests/test-workflow-gates.sh
+      - name: Run coverage-cache regression tests
+        run: bash scripts/tests/test-coverage-cache.sh
   actionlint:
     name: Run actionlint
     needs: [changes]
@@ -174,20 +176,6 @@ jobs:
            DEEPSOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
          run: |
            deepsource report --analyzer test-coverage --key javascript --commit "$DEEPSOURCE_COMMIT_SHA" --value-file coverage-pin-manager.lcov
-
-       - name: Save JavaScript coverage to cache
-         # Best-effort: seeds the coverage cache so that PR syncs whose
-         # actionlint job is smart-gated away can forward this report to
-         # DeepSource instead of leaving the language key missing.
-         if: ${{ !cancelled() }}
-         continue-on-error: true
-         uses: ./.github/actions/coverage-cache
-         with:
-           mode: save
-           language: javascript
-           file: coverage-pin-manager.lcov
-           scope: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
-           commit-sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
        - name: Upload test results to Codecov
          if: ${{ !cancelled() }}

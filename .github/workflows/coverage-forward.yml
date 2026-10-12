@@ -12,16 +12,26 @@ name: Coverage Forward
 # didn't change has the same coverage as the base, so forwarding is not a lie.
 # Producer jobs still report fresh coverage when they run and overwrite these
 # forwarded values. See docs/TEST_COVERAGE.md ("Coverage cache").
+#
+# Security: this workflow handles the DeepSource DSN, so it runs on
+# pull_request_target (the BASE branch's workflow file) and checks out the
+# base revision explicitly. No PR-controlled code ever executes with the
+# secret in this job. The DSN itself is only ever passed to the trusted
+# reporting steps, never exported to the job environment.
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # NOTE: github.ref is the base branch under pull_request_target, so the
+  # group must key on the PR number to avoid serializing all PRs together.
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -32,52 +42,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
-      COVERAGE_SCOPE: ${{ format('pr-{0}', github.event.pull_request.number) }}
+      # Boolean, not the secret: the secrets context cannot be read in step
+      # if: conditions, and the DSN value stays scoped to reporting steps.
+      HAS_DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN != '' }}
       COVERAGE_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # pull_request_target already runs this file from the base branch;
+          # pin the checkout to the base revision too, so the local actions
+          # below resolve to trusted code as well.
+          ref: ${{ github.event.pull_request.base.sha }}
+          # Nothing is pushed; keep the token out of the git config.
           persist-credentials: false
 
       - name: Set up DeepSource CLI
         id: setup-deepsource
-        if: ${{ env.DEEPSOURCE_DSN != '' }}
+        if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' }}
         continue-on-error: true
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Forward Kotlin coverage
-        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+        if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
         uses: ./.github/actions/coverage-cache
         with:
           mode: forward
           language: kotlin
           file: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
-          scope: ${{ env.COVERAGE_SCOPE }}
           commit-sha: ${{ env.COVERAGE_SHA }}
           deepsource-dsn: ${{ secrets.DEEPSOURCE_DSN }}
 
       - name: Forward Rust coverage
-        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
+        if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
         uses: ./.github/actions/coverage-cache
         with:
           mode: forward
           language: rust
           file: rust/lcov.prefixed.info
-          scope: ${{ env.COVERAGE_SCOPE }}
-          commit-sha: ${{ env.COVERAGE_SHA }}
-          deepsource-dsn: ${{ secrets.DEEPSOURCE_DSN }}
-
-      - name: Forward JavaScript coverage
-        if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}
-        continue-on-error: true
-        uses: ./.github/actions/coverage-cache
-        with:
-          mode: forward
-          language: javascript
-          file: coverage-pin-manager.lcov
-          scope: ${{ env.COVERAGE_SCOPE }}
           commit-sha: ${{ env.COVERAGE_SHA }}
           deepsource-dsn: ${{ secrets.DEEPSOURCE_DSN }}

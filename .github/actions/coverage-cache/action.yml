@@ -11,13 +11,10 @@ inputs:
     description: "'save' stores the coverage file in the cache; 'forward' restores the newest cached file (this PR first, then main) and reports it to DeepSource."
     required: true
   language:
-    description: "DeepSource coverage key: kotlin, rust or javascript."
+    description: "DeepSource coverage key: kotlin or rust."
     required: true
   file:
-    description: "Repo-relative path of the coverage file to save or restore."
-    required: true
-  scope:
-    description: "Cache scope: 'main', or 'pr-<number>' on pull requests."
+    description: "Repo-relative literal path of the coverage file to save or restore. Must be a literal path: hashFiles treats it as a glob pattern."
     required: true
   commit-sha:
     description: "Commit SHA used in the cache key (save) and reported against (forward)."
@@ -30,25 +27,47 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Compute cache scope
+      id: scope
+      shell: bash
+      run: | # zizmor: ignore[github-env]
+        # Pin PR entries to the base revision: after the base moves, the PR
+        # prefix misses and restore falls back to main's fresh entries
+        # instead of forwarding stale coverage. Manual dispatches from
+        # non-main branches get a write-only sha scope that can never
+        # pollute the main baseline.
+        EVENT="${{ github.event_name }}"
+        if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "pull_request_target" ]; then
+          SCOPE="pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.base.sha }}"
+        elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          SCOPE="main"
+        else
+          SCOPE="sha-${{ github.sha }}"
+        fi
+        echo "scope=${SCOPE}" >> "$GITHUB_OUTPUT"
+        echo "Cache scope: ${SCOPE} (language: ${{ inputs.language }})"
+
     - name: Save coverage to cache
-      # hashFiles is empty when the file is missing (e.g. the coverage step
-      # failed), so a missing report never fails the save.
-      if: ${{ inputs.mode == 'save' && hashFiles(inputs.file) != '' }}
+      # !cancelled(): callers invoke this best-effort after failures, so the
+      # nested step must not inherit the implicit success() guard.
+      # hashFiles is empty when the file is missing, so a missing report
+      # never fails the save.
+      if: ${{ inputs.mode == 'save' && !cancelled() && hashFiles(inputs.file) != '' }}
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ inputs.file }}
-        key: ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-${{ inputs.commit-sha }}
+        key: ds-coverage-${{ inputs.language }}-${{ steps.scope.outputs.scope }}-${{ inputs.commit-sha }}
 
     - name: Restore cached coverage
       if: ${{ inputs.mode == 'forward' }}
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
-        # The exact key never exists; restore-keys pick the newest entry for
-        # this PR first, then fall back to the newest main-branch entry.
+        # The exact key intentionally never matches; restore-keys pick the
+        # newest entry for this PR (pinned to its base) first, then main.
         path: ${{ inputs.file }}
-        key: ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-restore-miss
+        key: ds-coverage-${{ inputs.language }}-${{ steps.scope.outputs.scope }}-nomatch
         restore-keys: |
-          ds-coverage-${{ inputs.language }}-${{ inputs.scope }}-
+          ds-coverage-${{ inputs.language }}-${{ steps.scope.outputs.scope }}-
           ds-coverage-${{ inputs.language }}-main-
 
     - name: Report cached coverage to DeepSource
@@ -73,7 +92,7 @@ runs:
           exit 0
         fi
         if ! command -v deepsource >/dev/null 2>&1; then
-          echo "::warning::DeepSource CLI not on PATH; skipping forward report."
+          echo "::warning::DeepSource CLI not on PATH; skipping forward report for ${COVERAGE_LANGUAGE}."
           exit 0
         fi
         deepsource report --analyzer test-coverage --key "${COVERAGE_LANGUAGE}" \

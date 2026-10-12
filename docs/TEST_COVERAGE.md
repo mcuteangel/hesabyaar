@@ -73,11 +73,21 @@ To keep the aggregate complete, each producer job saves its coverage file to
 the Actions cache after reporting (`.github/actions/coverage-cache`, save
 mode). Cache entries are per language and per scope:
 
-- Key: `ds-coverage-<language>-<scope>-<sha>`, where scope is `main` or
-  `pr-<number>`.
-- A language's entry is refreshed only when its producer job runs, i.e. only
-  when that language's file class changed. Untouched languages keep their
-  previous report, which is still accurate because their files didn't change.
+- Key: `ds-coverage-<language>-<scope>-<sha>`, where scope is `main`,
+  `pr-<number>-<base-sha>`, or a write-only `sha-<sha>` for manual dispatches
+  from non-main branches (so a feature branch can never pollute the main
+  baseline). Pinning PR entries to the base revision means a base change
+  falls back to main's fresh entries instead of forwarding stale coverage.
+- A language's entry is refreshed whenever its producer job runs; jobs can
+  also run for shared code or CI changes (e.g. the Android build runs for
+  Rust changes because of the JNI bridge tests). When a producer is skipped,
+  its previous report is reused because that language's relevant inputs did
+  not change.
+- Only `kotlin` and `rust` are forwarded. The `javascript` key is shared
+  between the pin-manager and OCR workflows' reports; forwarding one
+  producer's file would clobber the other's, and its few hundred lines move
+  the aggregate negligibly, so JavaScript keeps its current report-when-run
+  behavior.
 
 The `Coverage Forward` workflow (`.github/workflows/coverage-forward.yml`)
 runs ungated on every PR sync. It restores the newest cached report per
@@ -94,3 +104,12 @@ Consequences of this design:
 - The cache is best-effort and never fails CI: a missing entry is skipped,
   and the first PRs after this lands report partial keys until the first
   main-branch push seeds the cache.
+
+### Known limitations
+
+- Reverting a language's change inside a PR: the producer is skipped (no
+  diff vs base), so the forward re-reports that language's pre-revert entry
+  from the PR cache. The numbers self-heal on the next producer run or merge.
+- A PR that modifies `.github/actions/coverage-cache` itself takes effect
+  only after merge: the forward workflow runs on `pull_request_target` and
+  executes the base branch's trusted copy of the action.
