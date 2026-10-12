@@ -49,7 +49,7 @@ impl TransactionType {
     // Deliberately not `std::str::FromStr`: this parser is lenient (unknown
     // values map to `Expense`, no `Result`), and the method name is part of
     // the generated UniFFI bindings.
-    #[allow(clippy::should_implement_trait)]
+    #[allow(clippy::should_implement_trait)] // RUST-LINT-BASELINE
     pub fn from_str(s: &str) -> Self {
         match s {
             "INCOME" => Self::Income,
@@ -128,11 +128,7 @@ pub struct Account {
     pub bank_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "cardNumber")]
     pub card_number: Option<String>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "accountNumber"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "accountNumber")]
     pub account_number: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "iban")]
     pub iban: Option<String>,
@@ -983,10 +979,7 @@ mod tests {
         let restored: BackupPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.payment_histories.len(), 2);
         assert_eq!(restored.payment_histories[0].amount, 50000);
-        assert_eq!(
-            restored.payment_histories[1].notes,
-            Some("Second".to_string())
-        );
+        assert_eq!(restored.payment_histories[1].notes, Some("Second".to_string()));
         assert_eq!(restored.payment_histories[1].loan_id, 10);
     }
 
@@ -1393,7 +1386,7 @@ mod tests {
     fn person_balances_settled_excluded_from_balance() {
         let persons = vec![person(1, "Ali")];
         let loans = vec![
-            loan("DEBTOR", 1_000_000, Some(1), true), // settled: counted, no balance
+            loan("DEBTOR", 1_000_000, Some(1), true),  // settled: counted, no balance
             loan("CREDITOR", 300_000, Some(1), false), // i owe
         ];
         let bal = compute_person_balances(&persons, &loans);
@@ -1409,7 +1402,7 @@ mod tests {
     fn person_balances_legacy_loans_ignored() {
         let persons = vec![person(1, "Ali")];
         let loans = vec![
-            loan("DEBTOR", 9_000_000, None, false), // null personId → ignored
+            loan("DEBTOR", 9_000_000, None, false),      // null personId → ignored
             loan("CREDITOR", 1_000_000, Some(2), false), // unknown person → ignored
         ];
         let bal = compute_person_balances(&persons, &loans);
@@ -1425,9 +1418,7 @@ mod tests {
         let persons = vec![person(1, "Ali"), person(2, "Sara")];
         let bal = compute_person_balances(&persons, &[]);
         assert_eq!(bal.len(), 2);
-        assert!(bal
-            .iter()
-            .all(|b| b.net_balance == 0 && b.active_loan_count == 0));
+        assert!(bal.iter().all(|b| b.net_balance == 0 && b.active_loan_count == 0));
     }
 
     #[test]

@@ -24,6 +24,9 @@ static INIT: Once = Once::new();
 pub fn ensure_initialized() {
     INIT.call_once(|| {
         let default_hook = std::panic::take_hook();
+        // RUST-LINT-BASELINE: panic hook must log to stderr before Android
+        // catches the panic; this is the one allowed print in the core.
+        #[allow(clippy::print_stderr)]
         std::panic::set_hook(Box::new(move |panic_info| {
             eprintln!("[hesabyar-core] Rust panic: {}", panic_info);
             default_hook(panic_info);
@@ -68,14 +71,8 @@ pub fn get_offline_budget_advice(
     categories: Vec<Category>,
     excluded_category_ids: Vec<i64>,
 ) -> String {
-    catch_unwind_safe(|| {
-        crate::advisory::get_offline_budget_advice(
-            &transactions,
-            &categories,
-            &excluded_category_ids,
-        )
-    })
-    .unwrap_or_default()
+    catch_unwind_safe(|| crate::advisory::get_offline_budget_advice(&transactions, &categories, &excluded_category_ids))
+        .unwrap_or_default()
 }
 
 /// Get offline budget forecast.
@@ -108,12 +105,7 @@ pub fn calculate_debt_to_income_ratio(
     monthly_income: i64,
 ) -> f64 {
     catch_unwind_safe(|| {
-        crate::advisory::calculate_debt_to_income_ratio(
-            &loans,
-            &installments,
-            &bank_loans,
-            monthly_income,
-        )
+        crate::advisory::calculate_debt_to_income_ratio(&loans, &installments, &bank_loans, monthly_income)
     })
     .unwrap_or(0.0)
 }
@@ -121,10 +113,8 @@ pub fn calculate_debt_to_income_ratio(
 /// Predict time to reach a savings goal.
 #[uniffi::export]
 pub fn predict_time_to_goal(current_savings: i64, monthly_savings: i64, goal_amount: i64) -> i32 {
-    catch_unwind_safe(|| {
-        crate::advisory::predict_time_to_goal(current_savings, monthly_savings, goal_amount)
-    })
-    .unwrap_or(-1)
+    catch_unwind_safe(|| crate::advisory::predict_time_to_goal(current_savings, monthly_savings, goal_amount))
+        .unwrap_or(-1)
 }
 
 /// Calculate financial health score (0-100).
@@ -157,7 +147,7 @@ pub fn calculate_financial_health_score(
 // The parameter list is the UniFFI FFI surface. Kotlin callers pass these
 // arguments positionally through generated bindings, so it cannot change
 // without a breaking release.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // RUST-LINT-BASELINE
 #[uniffi::export]
 pub fn compute_analytics(
     transactions: Vec<Transaction>,
@@ -193,7 +183,7 @@ pub fn compute_analytics(
 // The parameter list is the UniFFI FFI surface. Kotlin callers pass these
 // arguments positionally through generated bindings, so it cannot change
 // without a breaking release.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)] // RUST-LINT-BASELINE
 #[uniffi::export]
 pub fn compute_dashboard_data(
     transactions: Vec<Transaction>,
@@ -232,8 +222,7 @@ pub fn compute_dashboard_data(
 /// All filters are optional — omit a filter by setting its value to 0/false.
 #[uniffi::export]
 pub fn search_transactions(transactions: Vec<Transaction>, query: SearchQuery) -> SearchResponse {
-    catch_unwind_safe(|| crate::search::search_transactions(&transactions, &query))
-        .unwrap_or_default()
+    catch_unwind_safe(|| crate::search::search_transactions(&transactions, &query)).unwrap_or_default()
 }
 
 // ===========================================================================
@@ -249,12 +238,8 @@ pub fn search_transactions(transactions: Vec<Transaction>, query: SearchQuery) -
 /// increase `totalDebts` and decrease `netBalance`. Settled loans are counted
 /// in `settledLoanCount` but do not affect the balance.
 #[uniffi::export]
-pub fn compute_person_balances(
-    persons: Vec<Person>,
-    loans: Vec<Loan>,
-) -> Vec<PersonBalanceSummary> {
-    catch_unwind_safe(|| crate::models::compute_person_balances(&persons, &loans))
-        .unwrap_or_default()
+pub fn compute_person_balances(persons: Vec<Person>, loans: Vec<Loan>) -> Vec<PersonBalanceSummary> {
+    catch_unwind_safe(|| crate::models::compute_person_balances(&persons, &loans)).unwrap_or_default()
 }
 
 // ===========================================================================
@@ -290,8 +275,7 @@ pub fn verify_checksum(data: &[u8], expected: &str) -> bool {
 #[uniffi::export]
 pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
-        crate::validation::validate_transaction(&transaction)
-            .map_err(|e| HesabyarError::ValidationError { detail: e })
+        crate::validation::validate_transaction(&transaction).map_err(|e| HesabyarError::ValidationError { detail: e })
     })?
 }
 
@@ -301,8 +285,7 @@ pub fn validate_transaction(transaction: Transaction) -> Result<(), HesabyarErro
 #[uniffi::export]
 pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
-        crate::validation::validate_loan(&loan)
-            .map_err(|e| HesabyarError::ValidationError { detail: e })
+        crate::validation::validate_loan(&loan).map_err(|e| HesabyarError::ValidationError { detail: e })
     })?
 }
 
@@ -312,8 +295,7 @@ pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
 #[uniffi::export]
 pub fn validate_installment(installment: Installment) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
-        crate::validation::validate_installment(&installment)
-            .map_err(|e| HesabyarError::ValidationError { detail: e })
+        crate::validation::validate_installment(&installment).map_err(|e| HesabyarError::ValidationError { detail: e })
     })?
 }
 
@@ -323,8 +305,7 @@ pub fn validate_installment(installment: Installment) -> Result<(), HesabyarErro
 #[uniffi::export]
 pub fn validate_parsed_result(result: ParsedResult) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
-        crate::validation::validate_parsed_result(&result)
-            .map_err(|e| HesabyarError::ValidationError { detail: e })
+        crate::validation::validate_parsed_result(&result).map_err(|e| HesabyarError::ValidationError { detail: e })
     })?
 }
 
