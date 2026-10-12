@@ -11,3 +11,8 @@ exclude_paths:
   - 'rust/target/**'
   # Local Rust code-generator (build-time CLI, not a runtime security surface)
   - 'rust/uniffi-gen/**'
+  # coverage-forward.yml — new file. Codacy's crude "pull_request_target +
+  # checkout" heuristic fires on any YAML containing actions/checkout, even when
+  # the ref pins the BASE branch (not the PR head). zizmor's more precise check
+  # already passes on this file. Excluded to avoid the false-positive security gate.
+  - '.github/workflows/coverage-forward.yml'
