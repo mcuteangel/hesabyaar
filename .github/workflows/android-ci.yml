@@ -188,6 +188,22 @@ jobs:
           # different path filters; tags keep them from replacing each other.
           tag: android
 
+      - name: Save Kotlin coverage to cache
+        # Best-effort: seeds the coverage cache so that PR syncs whose
+        # Android build is smart-gated away can forward this report to
+        # DeepSource instead of leaving the language key missing.
+        # Runs BEFORE the DeepSource upload: a forward that restores after
+        # this save always sees fresh data, so a stale report can never
+        # overwrite this run's fresh report for the same SHA.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: ./.github/actions/coverage-cache
+        with:
+          mode: save
+          language: kotlin
+          file: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          commit-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Set up DeepSource CLI
         id: setup-deepsource
         if: ${{ env.DEEPSOURCE_DSN != '' }}
