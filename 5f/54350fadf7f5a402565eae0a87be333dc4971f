@@ -1,0 +1,20 @@
+scripts/pre-push
+  s_5b7857a6a0ed64::t_a0dad4c750bfc6 84-95,102-103
+  s_5b7857a6a0ed64::t_1ed8f368ff6412 38-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5f54350fadf7f5a402565eae0a87be333dc4971f",
+  "prompts": {},
+  "sessions": {
+    "s_5b7857a6a0ed64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eebbf131-ad80-46db-8759-ca2dc8f2b5d5",
+        "model": "longcat-2.5-preview-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
