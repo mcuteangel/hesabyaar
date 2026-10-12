@@ -236,6 +236,7 @@ internal class LoanDelegate(
   }
 }
 
-// SQLite caps an IN clause at 999 bind parameters before API 26 (32766 on API 26+).
-// Chunking at 900 is a conservative floor below the legacy limit with room for overhead.
+// minSdk is 26, where SQLite raises the IN-clause bind limit to 32766, so the
+// legacy 999 cap never applies on supported devices. Chunking at 900 stays
+// conservatively below the old limit in case the floor is ever lowered.
 private const val SQLITE_IN_CHUNK_SIZE = 900
