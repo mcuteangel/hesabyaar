@@ -30,6 +30,10 @@ When you modify a file, every pre-existing refactorable clippy baseline suppress
 - The baseline NEVER grows. Never add new files to `.module-size-baseline.json`.
 - Permitted architectural allowances (FFI parameter counts, the emergency panic logger, the CLI generator, and the child-module pattern) are exempt from this rule.
 
+### Tracked follow-up refactors
+
+The frozen baseline entries and refactorable suppressions are tracked for dedicated follow-up work in [#423](https://github.com/mcuteangel/hesabyaar/issues/423). Do not grow the baseline to accommodate them; address them in that issue's scope.
+
 ### Allowed Suppressions (with a justification)
 
 The only permitted `#[allow]` suppressions in Rust core are:
