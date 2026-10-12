@@ -62,6 +62,8 @@ jobs:
         run: bash scripts/tests/test-classify-changes.sh
       - name: Run merge-gate regression tests
         run: bash scripts/tests/test-workflow-gates.sh
+      - name: Run coverage-cache regression tests
+        run: bash scripts/tests/test-coverage-cache.sh
   actionlint:
     name: Run actionlint
     needs: [changes]
