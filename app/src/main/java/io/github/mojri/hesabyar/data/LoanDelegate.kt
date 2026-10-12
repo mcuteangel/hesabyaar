@@ -95,55 +95,71 @@ internal class LoanDelegate(
           transactionLinkDao.deleteTransactionsByIds(chunk)
         }
       }
-      // Delete the initial disbursement by stable key. When it deletes
-      // nothing (tracked legacy loan created before the stamp), the
-      // field-matching fallback below must still run for the
-      // disbursement leg.
-      var disbursementDeletedById = true
-      if (existing.tracked) {
-        disbursementDeletedById =
-          transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
-      }
+      // Delete the initial disbursement by stable key (loanId). This works
+      // regardless of the loan's current tracked status because the stamp
+      // was written at creation time. If it deletes nothing (legacy loan
+      // created before the stamp), the field-matching fallback below must
+      // still run for the disbursement leg when the loan was tracked.
+      val disbursementDeletedById =
+        transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
+      val wasTracked = existing.tracked || loan.tracked
+      val needsDisbursementFallback = wasTracked && !disbursementDeletedById
       val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
-      if (unlinkedPayments.isNotEmpty() || !disbursementDeletedById) {
+      if (unlinkedPayments.isNotEmpty() || needsDisbursementFallback) {
         // Legacy fallback: match on personName + Loans category + amount + date.
         val loansCategoryId = categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
         if (loansCategoryId != null) {
-          val namesToClean =
-            buildSet {
-              add(existing.personName)
-              add(loan.personName)
-            }
-          for (name in namesToClean) {
-            unlinkedPayments.forEach { payment ->
-              transactionLinkDao.deleteLoanPaymentTransaction(
-                personName = name,
-                categoryId = loansCategoryId,
-                amount = payment.amount,
-                date = payment.date
-              )
-            }
-            if (existing.tracked && !disbursementDeletedById) {
-              transactionLinkDao.deleteLoanPaymentTransaction(
-                personName = name,
-                categoryId = loansCategoryId,
-                amount = existing.originalAmount,
-                date = existing.date
-              )
-              if (loan.originalAmount != existing.originalAmount || loan.date != existing.date) {
-                transactionLinkDao.deleteLoanPaymentTransaction(
-                  personName = name,
-                  categoryId = loansCategoryId,
-                  amount = loan.originalAmount,
-                  date = loan.date
-                )
-              }
-            }
-          }
+          deleteLegacyFallbackTransactions(
+            loan = loan,
+            existing = existing,
+            unlinkedPayments = unlinkedPayments,
+            loansCategoryId = loansCategoryId,
+            deleteDisbursementLeg = needsDisbursementFallback
+          )
         }
       }
       paymentHistoryDao.deletePaymentHistoryForLoan(loan.id)
       loanDao.deleteLoan(loan)
+    }
+  }
+
+  private suspend fun deleteLegacyFallbackTransactions(
+    loan: Loan,
+    existing: Loan,
+    unlinkedPayments: List<PaymentHistory>,
+    loansCategoryId: Long,
+    deleteDisbursementLeg: Boolean
+  ) {
+    val namesToClean =
+      buildSet {
+        add(existing.personName)
+        add(loan.personName)
+      }
+    for (name in namesToClean) {
+      unlinkedPayments.forEach { payment ->
+        transactionLinkDao.deleteLoanPaymentTransaction(
+          personName = name,
+          categoryId = loansCategoryId,
+          amount = payment.amount,
+          date = payment.date
+        )
+      }
+      if (deleteDisbursementLeg) {
+        transactionLinkDao.deleteLoanPaymentTransaction(
+          personName = name,
+          categoryId = loansCategoryId,
+          amount = existing.originalAmount,
+          date = existing.date
+        )
+        if (loan.originalAmount != existing.originalAmount || loan.date != existing.date) {
+          transactionLinkDao.deleteLoanPaymentTransaction(
+            personName = name,
+            categoryId = loansCategoryId,
+            amount = loan.originalAmount,
+            date = loan.date
+          )
+        }
+      }
     }
   }
 

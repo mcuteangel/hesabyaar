@@ -565,4 +565,96 @@ class LoanDeletePaymentTransactionTest {
       assertEquals(0, database.paymentHistoryDao().getPaymentHistoriesForLoanSync(loanId).size)
       assertNull(database.loanDao().getLoanById(loanId))
     }
+
+  @Test
+  fun deleteLoanTrackedThenChangedToUntrackedDeletesInitialDisbursement() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      // Insert loan as tracked with initial disbursement (carries loanId stamp)
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "TransitionTracked",
+            type = LoanType.CREDITOR,
+            originalAmount = 4_000_000L,
+            remainingAmount = 4_000_000L,
+            description = "Tracked loan transitioning to untracked",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          ),
+          recordInitial = true
+        )
+
+      val allTxBefore = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(1, allTxBefore.size)
+      assertEquals(loanId, allTxBefore[0].loanId)
+
+      // Later updated to untracked (existing.tracked becomes false in DB)
+      val storedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.updateLoan(storedLoan.copy(tracked = false, accountId = null))
+
+      val untrackedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      org.junit.Assert.assertFalse(untrackedLoan.tracked)
+
+      // Deleting the loan must still delete the initial disbursement by loanId
+      repo.deleteLoan(untrackedLoan)
+
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(
+        "Stamped initial disbursement must be deleted even if loan transitioned to untracked",
+        0,
+        allTxAfter.size
+      )
+    }
+
+  @Test
+  fun deleteLegacyLoanTrackedThenChangedToUntrackedUsesFieldMatchFallback() =
+    runTest {
+      val repo = createRepository()
+      val fixedDate = 1_700_000_000_000L
+
+      // Legacy tracked loan without stamped loanId
+      val loanId =
+        repo.insertLoan(
+          Loan(
+            personName = "LegacyTransition",
+            type = LoanType.DEBTOR,
+            originalAmount = 6_000_000L,
+            remainingAmount = 6_000_000L,
+            description = "Legacy tracked loan transitioning to untracked",
+            tracked = true,
+            accountId = 1L,
+            date = fixedDate
+          )
+        )
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId,
+          amount = 6_000_000L,
+          description = "Legacy unstamped disbursement",
+          personName = "LegacyTransition",
+          date = fixedDate,
+          accountId = 1L
+        )
+      )
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
+      // Updated to untracked in DB
+      val storedLoan = requireNotNull(database.loanDao().getLoanById(loanId))
+      repo.updateLoan(storedLoan.copy(tracked = false, accountId = null))
+
+      // Delete passing the caller snapshot where tracked was true
+      repo.deleteLoan(storedLoan)
+
+      val allTxAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(
+        "Legacy disbursement removed via field-matching fallback when snapshot was tracked",
+        0,
+        allTxAfter.size
+      )
+    }
 }
