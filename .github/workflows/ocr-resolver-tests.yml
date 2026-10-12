@@ -95,7 +95,7 @@ jobs:
         id: setup-deepsource
         if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
-        uses: ./.github/actions/setup-deepsource-cli
+        uses: $/.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}

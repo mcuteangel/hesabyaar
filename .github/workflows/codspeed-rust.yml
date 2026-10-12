@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -89,7 +89,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Rust
-        uses: ./.github/actions/setup-rust
+        uses: $/.github/actions/setup-rust
 
       - name: Cache cargo-codspeed binary
         id: cache

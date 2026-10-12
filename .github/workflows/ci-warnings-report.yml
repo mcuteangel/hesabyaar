@@ -21,6 +21,7 @@ on:
       - "Android CI"
       - "CodSpeed Benchmarks (Rust)"
       - "Coveralls Parallel Finish"
+      - "coverage-forward.yml (Coverage Forward)"
       - "GitGuardian scan"
       - "GitHub Actions Pin Manager"
       - "Issue Labeler"

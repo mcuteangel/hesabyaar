@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -164,7 +164,7 @@ jobs:
          id: setup-deepsource
          if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' }}
          continue-on-error: true
-         uses: ./.github/actions/setup-deepsource-cli
+         uses: $/.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
          if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}

@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -79,7 +79,7 @@ jobs:
           distribution: "temurin"
 
       - name: Setup Rust for Android
-        uses: ./.github/actions/setup-rust-android
+        uses: $/.github/actions/setup-rust-android
 
       - name: Cache Cargo dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -197,7 +197,7 @@ jobs:
         # overwrite this run's fresh report for the same SHA.
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: ./.github/actions/coverage-cache
+        uses: $/.github/actions/coverage-cache
         with:
           mode: save
           language: kotlin
@@ -208,7 +208,7 @@ jobs:
         id: setup-deepsource
         if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
-        uses: ./.github/actions/setup-deepsource-cli
+        uses: $/.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}

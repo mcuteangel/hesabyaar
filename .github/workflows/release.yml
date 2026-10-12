@@ -302,7 +302,7 @@ jobs:
 
       - name: Setup Rust for Android
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
-        uses: ./.github/actions/setup-rust-android
+        uses: $/.github/actions/setup-rust-android
 
       - name: Cache Cargo dependencies
         if: steps.detect.outputs.release_needed == 'true' && steps.check_tag.outputs.tag_exists == 'false'
