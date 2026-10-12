@@ -33,6 +33,7 @@ pub struct WorkbookData {
 /// Generate an XLSX workbook from pre-formatted sheet data.
 ///
 /// Returns raw XLSX bytes (a valid .xlsx file).
+#[allow(clippy::too_many_lines, clippy::cognitive_complexity)] // RUST-LINT-BASELINE
 pub fn generate_excel(workbook: &WorkbookData) -> Result<Vec<u8>, HesabyarError> {
     let mut wb = Workbook::new();
 
@@ -123,11 +124,7 @@ pub fn generate_excel(workbook: &WorkbookData) -> Result<Vec<u8>, HesabyarError>
             let excel_row = (row_idx + 1) as u32;
             for (col_idx, cell) in row.iter().enumerate() {
                 let col = col_idx as u16;
-                let fmt = if cell.bold {
-                    &summary_value_format
-                } else {
-                    &cell_format
-                };
+                let fmt = if cell.bold { &summary_value_format } else { &cell_format };
                 sheet
                     .write_string_with_format(excel_row, col, cell.value.as_str(), fmt)
                     .map_err(|e| HesabyarError::ValidationError {
@@ -156,11 +153,9 @@ pub fn generate_excel(workbook: &WorkbookData) -> Result<Vec<u8>, HesabyarError>
     }
 
     // Serialize to bytes
-    let buffer = wb
-        .save_to_buffer()
-        .map_err(|e| HesabyarError::ValidationError {
-            detail: format!("XLSX serialization failed: {}", e),
-        })?;
+    let buffer = wb.save_to_buffer().map_err(|e| HesabyarError::ValidationError {
+        detail: format!("XLSX serialization failed: {}", e),
+    })?;
 
     Ok(buffer)
 }

@@ -87,6 +87,11 @@ jobs:
         working-directory: rust
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+      - name: Check module sizes
+        # Fails when a non-generated .rs file exceeds 800 lines / 25 top-level
+        # fns or grows past the frozen rust/.module-size-baseline.json.
+        run: ./scripts/check-rust-module-size.sh
+
       - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
         with:

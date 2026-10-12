@@ -29,10 +29,7 @@ pub fn format_number(value: i64) -> String {
 pub fn format_currency(rial: i64, unit: CurrencyUnit) -> String {
     match unit {
         CurrencyUnit::Rial => format!("{} \u{0631}\u{06CC}\u{0627}\u{0644}", format_number(rial)),
-        CurrencyUnit::Toman => format!(
-            "{} \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}",
-            format_number(rial / 10)
-        ),
+        CurrencyUnit::Toman => format!("{} \u{062A}\u{0648}\u{0645}\u{0627}\u{0646}", format_number(rial / 10)),
     }
 }
 
@@ -253,9 +250,6 @@ mod tests {
     fn test_invariant_large_amount() {
         // 1 billion Toman == 10 billion Rial
         assert_eq!(to_rial(1_000_000_000, CurrencyUnit::Toman), 10_000_000_000);
-        assert_eq!(
-            from_rial(10_000_000_000, CurrencyUnit::Toman),
-            1_000_000_000
-        );
+        assert_eq!(from_rial(10_000_000_000, CurrencyUnit::Toman), 1_000_000_000);
     }
 }

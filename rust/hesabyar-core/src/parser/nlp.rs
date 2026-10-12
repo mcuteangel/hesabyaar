@@ -45,6 +45,7 @@ struct TypeClassification {
 
 /// Full Persian expense category inference with 200+ keywords.
 /// Ported from GeminiParser.inferExpenseCategory()
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 pub fn infer_expense_category_full(sentence: &str) -> (String, String) {
     if contains_any(
         sentence,
@@ -239,10 +240,7 @@ pub fn infer_expense_category_full(sentence: &str) -> (String, String) {
             "تست",
         ],
     ) {
-        return (
-            "Personal Care".to_string(),
-            "هزینه شخصی، آرایشی و بهداشتی".to_string(),
-        );
+        return ("Personal Care".to_string(), "هزینه شخصی، آرایشی و بهداشتی".to_string());
     }
 
     if contains_any(
@@ -439,10 +437,7 @@ pub fn infer_expense_category_full(sentence: &str) -> (String, String) {
         return ("Events & Gifts".to_string(), "جشن و هدیه".to_string());
     }
 
-    if contains_any(
-        sentence,
-        &["خیریه", "صدقه", "کمک", "donate", "charity", "philanthropy"],
-    ) {
+    if contains_any(sentence, &["خیریه", "صدقه", "کمک", "donate", "charity", "philanthropy"]) {
         return ("Charity".to_string(), "خیریه و کمک مالی".to_string());
     }
 
@@ -506,9 +501,7 @@ fn replace_word_bounded(s: &str, word: &str, rep: &str) -> String {
             let prev_ok = i == 0 || {
                 let prev = chars[i - 1];
                 // Digit-to-letter transition counts as a boundary
-                !is_word_char(prev)
-                    || (is_digit(prev) && is_letter(w[0]))
-                    || (is_letter(prev) && is_digit(w[0]))
+                !is_word_char(prev) || (is_digit(prev) && is_letter(w[0])) || (is_letter(prev) && is_digit(w[0]))
             };
             let next_ok = i + w.len() == chars.len() || {
                 let next = chars[i + w.len()];
@@ -632,12 +625,7 @@ fn extract_subject(sentence: &str) -> String {
 
 /// Classify the type of a Persian sentence.
 /// Ported from GeminiParser.classifyType()
-fn classify_type(
-    sentence: &str,
-    is_income: bool,
-    person_name: Option<&str>,
-    now_ms: i64,
-) -> TypeClassification {
+fn classify_type(sentence: &str, is_income: bool, person_name: Option<&str>, now_ms: i64) -> TypeClassification {
     if let Some(c) = classify_installment(sentence, now_ms) {
         return c;
     }
@@ -732,8 +720,7 @@ fn classify_loan(sentence: &str, person_name: Option<&str>) -> Option<TypeClassi
 /// Ported from GeminiParser.classifyIncome()
 fn classify_income(sentence: &str) -> TypeClassification {
     let subject = extract_subject(sentence);
-    let description = if contains_any(sentence, &["اضافه کار", "اضافه\u{200C}کار"])
-    {
+    let description = if contains_any(sentence, &["اضافه کار", "اضافه\u{200C}کار"]) {
         "دریافت اضافه کار".to_string()
     } else if sentence.contains("پاداش") {
         "دریافت پاداش".to_string()
@@ -854,9 +841,7 @@ pub fn extract_time(sentence: &str) -> (Option<i32>, Option<i32>) {
                     let min_rest = sentence[min_pos + min_pattern.len()..].trim_start();
                     let raw_min: String = min_rest
                         .chars()
-                        .take_while(|c| {
-                            c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9
-                        })
+                        .take_while(|c| c.is_ascii_digit() || *c as u32 >= 0x06F0 && *c as u32 <= 0x06F9)
                         .collect();
                     let min_clean = to_ascii_digits(&raw_min);
                     min_clean.parse::<i32>().ok()
@@ -893,8 +878,7 @@ fn is_pm_marker_near_time(sentence: &str, saat_start: usize, digits_end: usize) 
     const MINUTE_HALF_WORD: &str = "نیم";
     const MINUTE_UNIT_WORD: &str = "دقیقه";
     const TOKEN_PUNCTUATION: &[char] = &[
-        '،', '؛', '؟', '!', '.', ',', ':', ';', '«', '»', '“', '”', '"', '\'', '(', ')', '[', ']',
-        '{', '}',
+        '،', '؛', '؟', '!', '.', ',', ':', ';', '«', '»', '“', '”', '"', '\'', '(', ')', '[', ']', '{', '}',
     ];
     fn trim_token(token: &str) -> &str {
         token.trim_matches(TOKEN_PUNCTUATION)
@@ -1022,9 +1006,7 @@ fn extract_jalali_days_from_now_inner(sentence: &str, now_ms: i64) -> i32 {
                         let now_date = now_ms / MS_PER_DAY;
                         let target_date = (target_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
                         if target_date < now_date {
-                            if let Ok(next_ts) =
-                                jalali_to_gregorian(current_year + 1, *month_num, day)
-                            {
+                            if let Ok(next_ts) = jalali_to_gregorian(current_year + 1, *month_num, day) {
                                 let next_date = (next_ts + TEHRAN_OFFSET_MS) / MS_PER_DAY;
                                 return (next_date - now_date) as i32;
                             }
@@ -1081,6 +1063,7 @@ pub fn extract_description(sentence: &str) -> String {
 /// Ported from GeminiParser.parseSentenceOffline().
 /// `now_ms` is the current epoch timestamp (UTC ms) — supply a fixed value
 /// for deterministic tests, or `real_now_ms()` for production use.
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 pub fn parse_sentence_offline_full(raw_sentence: &str, now_ms: i64) -> ParsedResult {
     let sentence = preprocess_persian_text(raw_sentence);
     let amount_toman = parse_amount(&sentence, true);
@@ -1389,11 +1372,7 @@ mod tests {
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} گرفتم", kw));
-            assert_eq!(
-                cat, "Transportation",
-                "Keyword '{}' should map to Transportation",
-                kw
-            );
+            assert_eq!(cat, "Transportation", "Keyword '{}' should map to Transportation", kw);
         }
     }
 
@@ -1435,17 +1414,7 @@ mod tests {
 
     #[test]
     fn test_bills_keywords() {
-        let keywords = [
-            "قبض",
-            "برق",
-            "گاز",
-            "تلفن",
-            "اینترنت",
-            "شارژ",
-            "فیبر",
-            "موبایل",
-            "tv",
-        ];
+        let keywords = ["قبض", "برق", "گاز", "تلفن", "اینترنت", "شارژ", "فیبر", "موبایل", "tv"];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} پرداخت کردم", kw));
             assert_eq!(cat, "Bills", "Keyword '{}' should map to Bills", kw);
@@ -1513,11 +1482,7 @@ mod tests {
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} رفتم", kw));
-            assert_eq!(
-                cat, "Personal Care",
-                "Keyword '{}' should map to Personal Care",
-                kw
-            );
+            assert_eq!(cat, "Personal Care", "Keyword '{}' should map to Personal Care", kw);
         }
     }
 
@@ -1634,11 +1599,7 @@ mod tests {
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} دارم", kw));
-            assert_eq!(
-                cat, "Loans & Debt",
-                "Keyword '{}' should map to Loans & Debt",
-                kw
-            );
+            assert_eq!(cat, "Loans & Debt", "Keyword '{}' should map to Loans & Debt", kw);
         }
     }
 
@@ -1669,11 +1630,7 @@ mod tests {
         ];
         for kw in &compounds {
             let (cat, _) = infer_expense_category_full(&format!("{} گرفتم", kw));
-            assert_eq!(
-                cat, "Loans & Debt",
-                "Compound '{}' should map to Loans & Debt",
-                kw
-            );
+            assert_eq!(cat, "Loans & Debt", "Compound '{}' should map to Loans & Debt", kw);
         }
     }
 
@@ -1748,11 +1705,7 @@ mod tests {
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} دارم", kw));
-            assert_eq!(
-                cat, "Events & Gifts",
-                "Keyword '{}' should map to Events & Gifts",
-                kw
-            );
+            assert_eq!(cat, "Events & Gifts", "Keyword '{}' should map to Events & Gifts", kw);
         }
     }
 
@@ -1791,11 +1744,7 @@ mod tests {
         ];
         for kw in &keywords {
             let (cat, _) = infer_expense_category_full(&format!("{} خریدم", kw));
-            assert_eq!(
-                cat, "Investment",
-                "Keyword '{}' should map to Investment",
-                kw
-            );
+            assert_eq!(cat, "Investment", "Keyword '{}' should map to Investment", kw);
         }
     }
 
@@ -2477,8 +2426,7 @@ mod tests {
 
     #[test]
     fn test_parse_installment_paid() {
-        let result =
-            parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
+        let result = parse_sentence_offline_full("قسط ماشین پرداخت کردم ۳۰۰۰۰۰ تومان", test_now_ms());
         assert_eq!(result.tx_type, TransactionType::Expense);
         assert_eq!(result.category, "Installments");
     }
@@ -2505,8 +2453,7 @@ mod tests {
     #[test]
     fn test_parse_confidence_high() {
         // Multiple factors: amount + income keyword + time
-        let result =
-            parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
+        let result = parse_sentence_offline_full("ساعت 14 حقوق ۵۰۰۰۰۰ تومان واریز شد", test_now_ms());
         assert!(result.confidence >= 0.90);
     }
 
