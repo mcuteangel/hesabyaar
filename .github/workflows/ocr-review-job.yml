@@ -223,7 +223,7 @@ jobs:
             core.setOutput('rule_path', '');
 
       - name: Run OpenCodeReview
-        # v1.12.12 release commit (immutable pin; tag object 6b6a6463 dereferences
+        # v1.12.13 release commit (immutable pin; tag object f33ea589 dereferences
         # to this commit). Carries the GHSA-wwg6-qfxw-xffj fix forward from v1.11.1.
         uses: alibaba/open-code-review@fabbdb296b0d97e2140ada8d54ca7d6d6d1d7ad4 # v1.12.13
         with:
@@ -231,10 +231,10 @@ jobs:
           # The CLI is the component the advisory covers, and the Action installs
           # whatever this input names (`npm install -g ...@${OCR_VERSION}`), so a
           # repinned Action with a stale CLI here leaves GHSA-wwg6-qfxw-xffj open.
-          # v1.12.12 also gates on the CLI version: `effort` needs v1.10.0+ and
-          # `stream_progress` needs v1.9.8+ (action.yml 569-581), so a stale CLI
+          # v1.12.13 also gates on the CLI version: `effort` needs v1.10.0+ and
+          # `stream_progress` needs v1.9.8+ (action.yml 566-582), so a stale CLI
           # here breaks those inputs rather than only the advisory.
-          ocr_version: '1.12.12'
+          ocr_version: '1.12.13'
           llm_url: ${{ inputs.llm_url }}
           llm_auth_token: ${{ secrets.auth_token }}
           llm_model: ${{ inputs.llm_model }}
