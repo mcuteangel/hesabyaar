@@ -50,7 +50,7 @@ jobs:
       HAS_DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN != '' }}
       COVERAGE_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # pull_request_target already runs this file from the base branch;
           # pin the checkout to the base revision too, so the local actions
@@ -67,12 +67,12 @@ jobs:
         # action already retries curl and verifies the checksum. The forward
         # steps below still gate on their own outcome for best-effort
         # reporting when producers overwrite stale data later.
-        uses: ./.github/actions/setup-deepsource-cli
+        uses: $/.github/actions/setup-deepsource-cli
 
       - name: Forward Kotlin coverage
         if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
-        uses: ./.github/actions/coverage-cache
+        uses: $/.github/actions/coverage-cache
         with:
           mode: forward
           language: kotlin
@@ -83,7 +83,7 @@ jobs:
       - name: Forward Rust coverage
         if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}
         continue-on-error: true
-        uses: ./.github/actions/coverage-cache
+        uses: $/.github/actions/coverage-cache
         with:
           mode: forward
           language: rust
