@@ -100,12 +100,12 @@ check "cache scope pins PR base SHA" \
 
 # 10. Manual dispatches from non-main branches must not pollute main's cache.
 check "non-main dispatches get a write-only sha scope" \
-  grep -Fq 'SCOPE="sha-${GH_SHA}"' "$ACT"
+  grep -Fq "SCOPE=\"sha-\${GH_SHA}\"" "$ACT"
 # 10b. Contexts must reach scripts via env, never via ${{ }} expansion inside
 # run: blocks (zizmor template-injection; the CI zizmor audit is the
 # enforcer, this just pins the safe pattern in place).
 check "contexts travel to scripts via env" \
-  grep -Fq 'GH_EVENT_NAME: ${{ github.event_name }}' "$ACT"
+  grep -Fq "GH_EVENT_NAME: \${{ github.event_name }}" "$ACT"
 
 # 11. JavaScript is deliberately NOT forwarded: the key is shared with the
 # OCR workflow's report and forwarding one producer's file would clobber
