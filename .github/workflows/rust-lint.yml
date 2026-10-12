@@ -36,12 +36,12 @@ jobs:
       code: ${{ steps.classify.outputs.code }}
       self: ${{ steps.classify.outputs.self }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -67,7 +67,7 @@ jobs:
       # the verify step references this instead of repeating the expression.
       IS_TRUSTED_RUN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -75,7 +75,7 @@ jobs:
         # rust-toolchain.toml pins the channel to "stable" and lists clippy
         # and rustfmt as components. The components input keeps them explicit
         # for this job.
-        uses: ./.github/actions/setup-rust
+        uses: $/.github/actions/setup-rust
         with:
           components: clippy, rustfmt, llvm-tools-preview
 
@@ -102,7 +102,7 @@ jobs:
         run: cargo llvm-cov nextest --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: rust/lcov.info
@@ -178,7 +178,7 @@ jobs:
         # overwrite this run's fresh report for the same SHA.
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: ./.github/actions/coverage-cache
+        uses: $/.github/actions/coverage-cache
         with:
           mode: save
           language: rust
@@ -189,7 +189,7 @@ jobs:
         id: setup-deepsource
         if: ${{ env.DEEPSOURCE_DSN != '' }}
         continue-on-error: true
-        uses: ./.github/actions/setup-deepsource-cli
+        uses: $/.github/actions/setup-deepsource-cli
 
       - name: Upload coverage to DeepSource
         if: ${{ env.DEEPSOURCE_DSN != '' && steps.setup-deepsource.outcome == 'success' }}

@@ -1,0 +1,9 @@
+# actionlint does not understand GitHub's official `$/` self-repository
+# syntax yet (rhysd/actionlint#732, open as of v1.7.12) and reports
+# "ref is missing" for every `$/` reference. These are false positives:
+# `$/` always resolves to the running commit, so it is inherently pinned.
+# Remove this ignore once the bundled actionlint supports `$/`.
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - 'specifying action "\$/[^"]+" in invalid format because ref is missing.+'
