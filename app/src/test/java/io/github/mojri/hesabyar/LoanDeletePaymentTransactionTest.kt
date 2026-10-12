@@ -661,13 +661,17 @@ class LoanDeletePaymentTransactionTest {
   @Test
   fun deleteTransactionsByIdsWithEmptyListDoesNotThrow() =
     runTest {
+      val fixedDate = 1_700_000_000_000L
+      val existingTxId =
+        insertTransaction("Surviving transaction", "PersonA", 500_000L, fixedDate)
+      assertEquals(1, database.transactionDao().getAllTransactionsBlocking().size)
+
       // Guards against `WHERE id IN ()` SQLite syntax errors from
-      // empty delete lists
+      // empty delete lists and verifies existing rows survive
       database.transactionLinkDao().deleteTransactionsByIds(emptyList())
-      assertEquals(
-        "Empty list deletes nothing",
-        0,
-        database.transactionDao().getAllTransactionsBlocking().size
-      )
+
+      val txAfter = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals("Existing transaction must survive empty-list delete", 1, txAfter.size)
+      assertEquals(existingTxId, txAfter[0].id)
     }
 }
