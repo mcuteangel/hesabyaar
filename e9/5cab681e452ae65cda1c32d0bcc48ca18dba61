@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/LoanDeletePaymentTransactionTest.kt
+  s_5b032d1308722e::t_e10d2e9a224f6d 568-659
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_5b032d1308722e::t_40f8c2db4c1896 106,108,112-118,126-162
+  s_5b032d1308722e::t_cb7059f4c2018a 98-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e95cab681e452ae65cda1c32d0bcc48ca18dba61",
+  "prompts": {},
+  "sessions": {
+    "s_5b032d1308722e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "187ecb83-e9a6-490b-9d32-3a18e74630e5",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
