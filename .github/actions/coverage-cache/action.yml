@@ -62,14 +62,14 @@ runs:
       # hashFiles is empty when the file is missing, so a missing report
       # never fails the save.
       if: ${{ inputs.mode == 'save' && !cancelled() && hashFiles(inputs.file) != '' }}
-      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ inputs.file }}
         key: ds-coverage-${{ inputs.language }}-${{ steps.scope.outputs.scope }}-${{ inputs.commit-sha }}
 
     - name: Restore cached coverage
       if: ${{ inputs.mode == 'forward' }}
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # The exact key intentionally never matches; restore-keys pick the
         # newest entry for this PR (pinned to its base) first, then main.

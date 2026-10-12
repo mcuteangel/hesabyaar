@@ -36,12 +36,12 @@ jobs:
       config: ${{ steps.classify.outputs.config }}
       code: ${{ steps.classify.outputs.code }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -73,14 +73,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Super-Linter needs the full history to find changed files.
           fetch-depth: 0
           persist-credentials: false
 
       - name: Super-Linter
-        uses: super-linter/super-linter@4ce20838b8ab83717e78138c5b3a1407148e0918 # v8.7.0
+        uses: super-linter/super-linter@2da136927bd4a73596db63044b504547c62cb854 # v9.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

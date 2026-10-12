@@ -37,12 +37,12 @@ jobs:
       config: ${{ steps.classify.outputs.config }}
       code: ${{ steps.classify.outputs.code }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
-        uses: ./.github/actions/classify-changes
+        uses: $/.github/actions/classify-changes
         with:
           base-ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head-ref: ${{ github.sha }}
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Run change-classification regression tests
@@ -89,7 +89,7 @@ jobs:
       checks: write
     steps:
        - name: Checkout
-         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
          with:
           persist-credentials: false
 
@@ -115,7 +115,7 @@ jobs:
          run: bash scripts/tests/test-generate-release-notes.sh
 
        - name: Upload script coverage to Codecov
-         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
          with:
            token: ${{ secrets.CODECOV_TOKEN }}
            files: coverage-pin-manager.lcov
@@ -164,7 +164,7 @@ jobs:
          id: setup-deepsource
          if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' }}
          continue-on-error: true
-         uses: ./.github/actions/setup-deepsource-cli
+         uses: $/.github/actions/setup-deepsource-cli
 
        - name: Upload coverage to DeepSource
          if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' && steps.setup-deepsource.outcome == 'success' }}
