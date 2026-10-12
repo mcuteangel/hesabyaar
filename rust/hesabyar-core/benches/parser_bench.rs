@@ -27,17 +27,17 @@ fn bench_parse_amount(c: &mut Criterion) {
 
 fn bench_money_detector(c: &mut Criterion) {
     c.bench_function("contains_money", |b| {
-        b.iter(|| contains_money("\u{06F5}\u{06F0}\u{06F0}\u{06F0} \u{0647}\u{0632}\u{0627}\u{0631} \u{062A}\u{0648}\u{0645}\u{0646}"))
+        b.iter(|| {
+            contains_money(
+                "\u{06F5}\u{06F0}\u{06F0}\u{06F0} \u{0647}\u{0632}\u{0627}\u{0631} \u{062A}\u{0648}\u{0645}\u{0646}",
+            )
+        })
     });
 }
 
 fn bench_jalali_calendar(c: &mut Criterion) {
-    c.bench_function("gregorian_to_jalali", |b| {
-        b.iter(|| gregorian_to_jalali(1711000000000))
-    });
-    c.bench_function("jalali_to_gregorian", |b| {
-        b.iter(|| jalali_to_gregorian(1403, 1, 1))
-    });
+    c.bench_function("gregorian_to_jalali", |b| b.iter(|| gregorian_to_jalali(1711000000000)));
+    c.bench_function("jalali_to_gregorian", |b| b.iter(|| jalali_to_gregorian(1403, 1, 1)));
 }
 
 fn bench_budget_advice(c: &mut Criterion) {
@@ -89,16 +89,7 @@ fn bench_budget_advice(c: &mut Criterion) {
     });
 
     c.bench_function("financial_health_score_100tx_filtered", |b| {
-        b.iter(|| {
-            calculate_financial_health_score(
-                &transactions,
-                &[],
-                &[],
-                &[],
-                &categories,
-                &excluded_cat_ids,
-            )
-        })
+        b.iter(|| calculate_financial_health_score(&transactions, &[], &[], &[], &categories, &excluded_cat_ids))
     });
 }
 
@@ -113,10 +104,7 @@ fn bench_search(c: &mut Criterion) {
             },
             category_id: (i % 8),
             amount: (i + 1) * 10000,
-            description: format!(
-                "\u{062E}\u{0631}\u{06CC}\u{062F} \u{0628}\u{0631}\u{0642} {}",
-                i
-            ),
+            description: format!("\u{062E}\u{0631}\u{06CC}\u{062F} \u{0628}\u{0631}\u{0642} {}", i),
             person_name: if i % 5 == 0 {
                 Some(format!("Person {}", i))
             } else {
@@ -175,13 +163,9 @@ fn bench_crypto(c: &mut Criterion) {
             .join(",")
     );
 
-    c.bench_function("checksum_small", |b| {
-        b.iter(|| compute_checksum(small_json.as_bytes()))
-    });
+    c.bench_function("checksum_small", |b| b.iter(|| compute_checksum(small_json.as_bytes())));
 
-    c.bench_function("checksum_large", |b| {
-        b.iter(|| compute_checksum(large_json.as_bytes()))
-    });
+    c.bench_function("checksum_large", |b| b.iter(|| compute_checksum(large_json.as_bytes())));
 }
 
 fn bench_validation(c: &mut Criterion) {
@@ -200,9 +184,7 @@ fn bench_validation(c: &mut Criterion) {
         destination_account_id: None,
     };
 
-    c.bench_function("validate_transaction", |b| {
-        b.iter(|| validate_transaction(&tx))
-    });
+    c.bench_function("validate_transaction", |b| b.iter(|| validate_transaction(&tx)));
 
     // Batch validation with 1000 transactions
     let transactions: Vec<Transaction> = (0..1000)
@@ -283,13 +265,7 @@ fn bench_ai_validation(c: &mut Criterion) {
 // benchmarks (mirrors the structure of the in-module #[cfg(test)] fixtures).
 // =====================================================================
 
-fn make_tx(
-    id: i64,
-    tx_type: TransactionType,
-    amount: i64,
-    date_ms: i64,
-    cat_id: i64,
-) -> Transaction {
+fn make_tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id: i64) -> Transaction {
     Transaction {
         id,
         tx_type,
@@ -390,6 +366,7 @@ fn make_sheet(name: &str, row_count: usize) -> SheetData {
 // Dashboard aggregation (the hot path behind the main screen)
 // =====================================================================
 
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 fn bench_dashboard(c: &mut Criterion) {
     let now_ms = 1_711_000_000_000;
 
@@ -444,9 +421,7 @@ fn bench_dashboard(c: &mut Criterion) {
     let large_installments: Vec<Installment> = (0..500)
         .map(|i| make_installment(i, 100_000, now_ms, i % 3 == 0))
         .collect();
-    let large_bank_loans: Vec<BankLoan> = (0..50)
-        .map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0))
-        .collect();
+    let large_bank_loans: Vec<BankLoan> = (0..50).map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0)).collect();
     let no_accounts: Vec<Account> = vec![];
 
     c.bench_function("dashboard_100_tx", |b| {
@@ -486,6 +461,7 @@ fn bench_dashboard(c: &mut Criterion) {
 // Analytics aggregation (monthly + category breakdown + debt summaries)
 // =====================================================================
 
+#[allow(clippy::too_many_lines)] // RUST-LINT-BASELINE
 fn bench_analytics(c: &mut Criterion) {
     let now_ms = 1_711_000_000_000;
     let categories: Vec<Category> = (0..8).map(make_category).collect();
@@ -587,9 +563,7 @@ fn bench_analytics(c: &mut Criterion) {
             )
         })
         .collect();
-    let bench_bank_loans: Vec<BankLoan> = (0..50)
-        .map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0))
-        .collect();
+    let bench_bank_loans: Vec<BankLoan> = (0..50).map(|i| make_bank_loan(i, 1_000_000, i % 7 == 0)).collect();
 
     c.bench_function("analytics_100_tx_with_bank_loans", |b| {
         b.iter(|| {

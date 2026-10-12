@@ -14,10 +14,7 @@ pub struct Decimal {
 }
 
 impl Decimal {
-    const ZERO: Self = Self {
-        mantissa: 0,
-        scale: 0,
-    };
+    const ZERO: Self = Self { mantissa: 0, scale: 0 };
 
     /// Parses `digits[.digits]`. Returns `None` when the number does not fit.
     fn parse(text: &str) -> Option<Self> {
@@ -229,17 +226,11 @@ const UNIT_WORDS: &[(&str, UnitType)] = &[
         "\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0627}\u{0631}\u{062F}",
         UnitType::Billion,
     ), // میلیارد
-    (
-        "\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646}",
-        UnitType::Million,
-    ), // میلیون
-    (
-        "\u{0645}\u{0644}\u{06CC}\u{0648}\u{0646}",
-        UnitType::Million,
-    ), // ملیون
-    ("\u{0647}\u{0632}\u{0627}\u{0631}", UnitType::Thousand), // هزار
-    ("\u{062A}\u{0648}\u{0645}\u{0627}\u{0646}", UnitType::Tuman), // تومان
-    ("\u{062A}\u{0648}\u{0645}\u{0646}", UnitType::Tuman),    // تومن
+    ("\u{0645}\u{06CC}\u{0644}\u{06CC}\u{0648}\u{0646}", UnitType::Million), // میلیون
+    ("\u{0645}\u{0644}\u{06CC}\u{0648}\u{0646}", UnitType::Million),         // ملیون
+    ("\u{0647}\u{0632}\u{0627}\u{0631}", UnitType::Thousand),                // هزار
+    ("\u{062A}\u{0648}\u{0645}\u{0627}\u{0646}", UnitType::Tuman),           // تومان
+    ("\u{062A}\u{0648}\u{0645}\u{0646}", UnitType::Tuman),                   // تومن
 ];
 
 fn tokenize(text: &str) -> Vec<Token> {
@@ -347,13 +338,7 @@ fn interpret_shorthand(tokens: &[Token]) -> i64 {
     }
     let numbers: Vec<Decimal> = tokens
         .iter()
-        .filter_map(|t| {
-            if let Token::Number(n) = t {
-                Some(*n)
-            } else {
-                None
-            }
-        })
+        .filter_map(|t| if let Token::Number(n) = t { Some(*n) } else { None })
         .collect();
 
     if numbers.is_empty() {
@@ -463,10 +448,7 @@ mod tests {
     #[test]
     fn test_large_amounts_keep_every_digit() {
         // 2^53 + 1: an f64 intermediate would round this to ...992.
-        assert_eq!(
-            parse_amount("9007199254740993 تومان", true),
-            9_007_199_254_740_993
-        );
+        assert_eq!(parse_amount("9007199254740993 تومان", true), 9_007_199_254_740_993);
         assert_eq!(parse_amount("9999999999 تومان", true), 9_999_999_999);
         assert_eq!(parse_amount("9999 میلیارد تومان", true), 9_999_000_000_000);
     }
@@ -494,18 +476,12 @@ mod tests {
         assert_eq!(parse_amount("1.2345 هزار و 1.2345 هزار تومان", true), 2_469);
         // Zeros in fractional part reduce scale cleanly without overflow.
         assert_eq!(
-            parse_amount(
-                "1.00000000000000000000000000000000000000 میلیارد تومان",
-                true
-            ),
+            parse_amount("1.00000000000000000000000000000000000000 میلیارد تومان", true),
             1_000_000_000
         );
         // Large scale difference does not drop the finer-scale addend:
         assert_eq!(
-            parse_amount(
-                "2 میلیون و 1.00000000000000000000000000000000000001 میلیون تومان",
-                true
-            ),
+            parse_amount("2 میلیون و 1.00000000000000000000000000000000000001 میلیون تومان", true),
             3_000_000
         );
     }
@@ -527,26 +503,14 @@ mod tests {
         );
         // Toman values above i64::MAX / 10 would overflow Rial conversion (* 10).
         assert_eq!(parse_amount("922337203685477581 تومان", true), 0);
-        assert_eq!(
-            parse_amount("922337203685477580 تومان", true),
-            922_337_203_685_477_580
-        );
+        assert_eq!(parse_amount("922337203685477580 تومان", true), 922_337_203_685_477_580);
     }
 
     #[test]
     fn test_decimal_parse() {
-        assert_eq!(
-            Decimal::parse("2.5"),
-            Some(Decimal {
-                mantissa: 25,
-                scale: 1
-            })
-        );
+        assert_eq!(Decimal::parse("2.5"), Some(Decimal { mantissa: 25, scale: 1 }));
         assert_eq!(Decimal::parse("12").map(|d| d.truncated()), Some(Some(12)));
-        assert_eq!(
-            Decimal::parse("12.9").map(|d| d.truncated()),
-            Some(Some(12))
-        );
+        assert_eq!(Decimal::parse("12.9").map(|d| d.truncated()), Some(Some(12)));
     }
 
     #[test]
@@ -584,27 +548,15 @@ mod tests {
         let y = Decimal::parse("1.4").unwrap();
         assert_eq!(y.checked_add(one).and_then(|d| d.round_half_up()), Some(2));
         // Extreme scale difference (>= 39) absorbs the negligible operand.
-        let big = Decimal {
-            mantissa: 5,
-            scale: 0,
-        };
-        let tiny = Decimal {
-            mantissa: 1,
-            scale: 40,
-        };
-        assert_eq!(
-            big.checked_add(tiny).and_then(|d| d.round_half_up()),
-            Some(5)
-        );
+        let big = Decimal { mantissa: 5, scale: 0 };
+        let tiny = Decimal { mantissa: 1, scale: 40 };
+        assert_eq!(big.checked_add(tiny).and_then(|d| d.round_half_up()), Some(5));
     }
 
     #[test]
     fn test_extreme_scale_rounds_to_zero() {
         // A value below 10^-38 rounds half-up to 0 and truncates to 0.
-        let tiny = Decimal {
-            mantissa: 1,
-            scale: 39,
-        };
+        let tiny = Decimal { mantissa: 1, scale: 39 };
         assert_eq!(tiny.round_half_up(), Some(0));
         assert_eq!(tiny.truncated(), Some(0));
     }

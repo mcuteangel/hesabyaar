@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
 # Backup state for the Rust worktree materialization. Declared at script scope
 # so the EXIT trap can always clean it up, even on a crash. Paths live only in
 # these Bash arrays. A Git path may contain spaces, tabs, quotes, brackets, or
@@ -668,7 +670,7 @@ try_commit() {
   # Run clippy against the worktree, which now equals the (formatted) commit
   # candidate. Unrelated unstaged edits are excluded by materialization.
   echo ""
-  echo "[5/5] Running cargo clippy (static analysis)..."
+  echo "[5/6] Running cargo clippy (static analysis)..."
   if ! (cd rust && cargo clippy --workspace --all-targets --all-features -- -D warnings); then
     echo "❌ cargo clippy failed — Rust code quality issues detected."
     echo "   Fix the issues or run: (cd rust && cargo clippy --workspace --all-targets --all-features)"
@@ -676,6 +678,19 @@ try_commit() {
     return 1
   fi
   echo "  ✓ cargo clippy passed"
+
+  # Run the module-size gate against the materialized index candidate.
+  # The script reads the frozen baseline and fails when a non-generated .rs
+  # file exceeds 800 lines / 25 top-level fns or grows past its baseline.
+  echo ""
+  echo "[6/6] Running Rust module-size gate..."
+  if ! "$REPO_ROOT/scripts/check-rust-module-size.sh"; then
+    echo "❌ Rust module-size gate failed."
+    echo "   Shrink the file or split it; the baseline never grows."
+    restore_rust_worktree
+    return 1
+  fi
+  echo "  ✓ Rust module-size gate passed"
 
   restore_rust_worktree
   return 0
