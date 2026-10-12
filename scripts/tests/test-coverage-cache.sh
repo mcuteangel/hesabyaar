@@ -40,8 +40,11 @@ check "forward does not run on pull_request" \
 
 # 2. The checkout must pin the base revision so the local actions resolve
 # to trusted code; no PR-controlled code may execute with the DSN.
+# (Double quotes with an escaped dollar: we match the literal GitHub
+# expression text in the YAML; single quotes would also work but trip the
+# shell analyzer's "expressions don't expand" heuristic.)
 check "forward checks out the base SHA" \
-  grep -Fq 'ref: ${{ github.event.pull_request.base.sha }}' "$FWD"
+  grep -Fq "ref: \${{ github.event.pull_request.base.sha }}" "$FWD"
 
 # 3. The forward job must stay ungated: docs-only syncs still re-report.
 check "forward job has no needs.changes gate" \
@@ -97,7 +100,7 @@ check "cache scope pins PR base SHA" \
 
 # 10. Manual dispatches from non-main branches must not pollute main's cache.
 check "non-main dispatches get a write-only sha scope" \
-  grep -Fq 'SCOPE="sha-${{ github.sha }}"' "$ACT"
+  grep -Fq "SCOPE=\"sha-\${{ github.sha }}\"" "$ACT"
 
 # 11. JavaScript is deliberately NOT forwarded: the key is shared with the
 # OCR workflow's report and forwarding one producer's file would clobber
