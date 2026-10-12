@@ -62,7 +62,11 @@ jobs:
       - name: Set up DeepSource CLI
         id: setup-deepsource
         if: ${{ env.HAS_DEEPSOURCE_DSN == 'true' }}
-        continue-on-error: true
+        # No continue-on-error here: a setup failure (network, checksum,
+        # missing action) must fail the job and surface the problem. The
+        # action already retries curl and verifies the checksum. The forward
+        # steps below still gate on their own outcome for best-effort
+        # reporting when producers overwrite stale data later.
         uses: ./.github/actions/setup-deepsource-cli
 
       - name: Forward Kotlin coverage
