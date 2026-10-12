@@ -151,6 +151,8 @@ interface TransactionLinkDao {
 
   // Issue #242: delete repayment transactions by their primary keys in one
   // statement. Used by deleteLoan via PaymentHistory.linkedTransactionId.
+  // Callers must chunk the list (e.g. at 900) to stay within SQLite's
+  // 999 bind parameter limit on older Android platforms.
   @Query("DELETE FROM transactions WHERE id IN (:ids)")
   suspend fun deleteTransactionsByIds(ids: List<Long>)
 
