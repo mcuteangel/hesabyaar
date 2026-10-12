@@ -36,4 +36,11 @@ afterEvaluate {
   }.configureEach {
     dependsOn("copyGitHooks")
   }
+  // The :app module is a separate Gradle project: its own preBuild/prepare
+  // tasks are invisible to the root tasks.matching above, so wire them here.
+  project(":app").tasks.matching {
+    it.name.contains("prepare", ignoreCase = true) || it.name == "preBuild"
+  }.configureEach {
+    dependsOn(rootProject.tasks.named("copyGitHooks"))
+  }
 }
