@@ -1,0 +1,21 @@
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_5b032d1308722e::t_aa4407acb08407 155-156
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_5b032d1308722e::t_363f2969a80f45 239-241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "754cc4fe7cd5b7c7f006a9278306e2b98a53ad4a",
+  "prompts": {},
+  "sessions": {
+    "s_5b032d1308722e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "187ecb83-e9a6-490b-9d32-3a18e74630e5",
+        "model": "longcat-2.5-preview-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
