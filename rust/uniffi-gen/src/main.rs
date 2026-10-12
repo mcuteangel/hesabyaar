@@ -1,3 +1,6 @@
+// CLI generator prints usage and progress to standard streams by design.
+#![allow(clippy::print_stdout, clippy::print_stderr)] // RUST-LINT-BASELINE
+
 use camino::Utf8PathBuf;
 use uniffi_bindgen::bindings::{generate, GenerateOptions, TargetLanguage};
 

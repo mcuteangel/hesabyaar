@@ -39,6 +39,7 @@ Read only the guides that match your task. Each one is short.
 | Change any code (before you report "done") | `docs/agents/testing.md` — verification workflow, Rust JNI test isolation |
 | Write or refactor Kotlin / Compose code | `docs/agents/code-guidelines.md` — DRY, M3, RTL, Jalali, strings, data flow |
 | Edit or refactor any Kotlin file | `docs/agents/detekt.md` — fix on touch, never re-baseline |
+| Write or refactor Rust code | `docs/agents/rust-lints.md` — clippy thresholds, module-size gate |
 | Change `rust/**` or the FFI surface | `docs/agents/rust.md` — binding regeneration, core versioning |
 | Change a Room entity or the schema | `docs/agents/room-migrations.md` |
 | Start, continue, or finish any task | `docs/agents/progress-tracking.md` — `progress.md` rules |

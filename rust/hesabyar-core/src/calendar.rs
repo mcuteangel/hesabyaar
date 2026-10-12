@@ -107,11 +107,7 @@ fn timestamp_to_gregorian(timestamp_ms: i64) -> Result<(i32, i32, i32), Hesabyar
     Ok((year as i32, (month + 1) as i32, (day_of_year + 1) as i32))
 }
 
-pub fn gregorian_to_jalali_date(
-    g_year: i32,
-    g_month: i32,
-    g_day: i32,
-) -> Result<JalaliDate, HesabyarError> {
+pub fn gregorian_to_jalali_date(g_year: i32, g_month: i32, g_day: i32) -> Result<JalaliDate, HesabyarError> {
     if !(1..=12).contains(&g_month) {
         return Err(HesabyarError::CalendarError {
             detail: format!("Invalid Gregorian date: {}/{}/{}", g_year, g_month, g_day),
@@ -178,10 +174,7 @@ pub fn jalali_to_gregorian(j_year: i32, j_month: i32, j_day: i32) -> Result<i64,
     let max_day = get_jalali_days_in_month(j_year, j_month);
     if j_day > max_day {
         return Err(HesabyarError::CalendarError {
-            detail: format!(
-                "Invalid Jalali day {} for month {} (max {})",
-                j_day, j_month, max_day
-            ),
+            detail: format!("Invalid Jalali day {} for month {} (max {})", j_day, j_month, max_day),
         });
     }
     let jy = j_year - 979;
@@ -218,20 +211,7 @@ pub fn jalali_to_gregorian(j_year: i32, j_month: i32, j_day: i32) -> Result<i64,
         g_day_no %= 365;
     }
 
-    let g_days_in_month = [
-        31,
-        if leap { 29 } else { 28 },
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
+    let g_days_in_month = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
     let mut i = 0;
     while i < 12 && g_day_no >= g_days_in_month[i] {
