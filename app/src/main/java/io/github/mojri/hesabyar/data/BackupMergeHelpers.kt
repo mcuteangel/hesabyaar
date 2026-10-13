@@ -147,6 +147,10 @@ private suspend fun backupMergeOneAccount(
   val stableId = account.stableId.takeIf { it.isNotBlank() }
   val idMatch = stableId?.let { index.findByStableId(it) }
   val nameMatch = index.findByName(account.name)
+  // Same name but two different stable identities: never merge — the backup
+  // row is a distinct account that happens to share the name (issue #156).
+  val localId = nameMatch?.stableId?.takeIf { it.isNotBlank() }
+  val isDistinctIdentity = localId != null && stableId != null && localId != stableId
   return when {
     idMatch != null -> {
       // Stable-ID hit wins outright. The row keeps its identity; the backup
@@ -156,13 +160,7 @@ private suspend fun backupMergeOneAccount(
       index.track(updated, previousName = idMatch.name)
       idMatch.id
     }
-    nameMatch != null -> {
-      val localId = nameMatch.stableId.takeIf { it.isNotBlank() }
-      if (localId != null && stableId != null && localId != stableId) {
-        // Same name, two different identities: do NOT merge. The backup row
-        // is a distinct account that happens to share the name (issue #156).
-        return insertNewAccount(account, stableId, index, accountDao)
-      }
+    nameMatch != null && !isDistinctIdentity -> {
       // Legacy fallback: at least one side has no stable ID. Never overwrite
       // a non-blank local ID with a blank backup one; adopt the backup ID
       // when the local row has none, so legacy rows self-heal.
@@ -172,20 +170,13 @@ private suspend fun backupMergeOneAccount(
       index.track(updated)
       nameMatch.id
     }
-    else -> insertNewAccount(account, stableId, index, accountDao)
+    else -> {
+      val freshId = stableId ?: UUID.randomUUID().toString()
+      val insertedId = accountDao.insert(account.copy(id = 0, stableId = freshId))
+      index.track(account.copy(id = insertedId, stableId = freshId))
+      insertedId
+    }
   }
-}
-
-private suspend fun insertNewAccount(
-  account: AccountEntity,
-  stableId: String?,
-  index: AccountMergeIndex,
-  accountDao: AccountDao
-): Long {
-  val freshId = stableId ?: UUID.randomUUID().toString()
-  val insertedId = accountDao.insert(account.copy(id = 0, stableId = freshId))
-  index.track(account.copy(id = insertedId, stableId = freshId))
-  return insertedId
 }
 
 internal suspend fun backupMergePersons(
