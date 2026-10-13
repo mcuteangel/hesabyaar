@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
+import java.util.UUID
 
 internal suspend fun backupClearAllTables(
   transactionDao: TransactionDao,
@@ -25,7 +26,13 @@ internal suspend fun backupReseedDefaultAccountIfNeeded(
   accountDao: AccountDao,
   isEmpty: Boolean
 ) {
-  if (isEmpty) accountDao.insert(AccountEntity.DEFAULT_ACCOUNT)
+  // The reseeded row is a fresh identity: it gets its own stable ID rather
+  // than the blank legacy sentinel on DEFAULT_ACCOUNT.
+  if (isEmpty) {
+    accountDao.insert(
+      AccountEntity.DEFAULT_ACCOUNT.copy(stableId = UUID.randomUUID().toString())
+    )
+  }
 }
 
 internal fun recoverPersonsFromLoansAndTransactions(
