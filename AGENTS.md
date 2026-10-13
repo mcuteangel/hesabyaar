@@ -43,6 +43,7 @@ Read only the guides that match your task. Each one is short.
 | Change `rust/**` or the FFI surface | `docs/agents/rust.md` — binding regeneration, core versioning |
 | Change a Room entity or the schema | `docs/agents/room-migrations.md` |
 | Start, continue, or finish any task | `docs/agents/progress-tracking.md` — `progress.md` rules |
+| Start work on an issue or ship a feature | `docs/agents/project-board.md` — board Status + `docs/ROADMAP.md` hygiene |
 | Search the codebase (Graphify, Serena) | `docs/agents/code-intelligence.md` |
 | Execute a plan | `plans/README.md` and the plan file |
 
