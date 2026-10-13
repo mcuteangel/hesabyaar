@@ -418,6 +418,64 @@ EOF
   assert_log_contains "could not parse ocr output"
 }
 
+case_strict_mode_blocks_missing_token() {
+  echo "=== 11. Strict mode (OCR_STRICT_GATE=1) blocks push on missing token ==="
+  reset_test_repo
+  create_test_commit
+  cat <<'EOF' > "$SHIM_DIR/ocr"
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "$SHIM_DIR/ocr"
+  (
+    cd "$CLONE"
+    unset OCR_LLM_TOKEN
+    export OCR_STRICT_GATE=1
+    bash scripts/pre-push > "$LOG" 2>&1
+  )
+  RC=$?
+  expect_rc nonzero "strict mode blocks push without token (exit 1)"
+  assert_log_contains "OCR_STRICT_GATE=1 — push BLOCKED"
+}
+
+case_partial_review_status() {
+  echo "=== 12. Partial review status continues to check findings ==="
+  reset_test_repo
+  create_test_commit
+  cat <<'EOF' > "$SHIM_DIR/ocr"
+#!/usr/bin/env bash
+out=""
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "-o" ]]; then
+    out="$2"
+    shift 2
+  else
+    shift
+  fi
+done
+cat <<'JSON' > "$out"
+{
+  "status": "partial",
+  "message": "1 of 2 files timed out",
+  "summary": { "files_reviewed": 1 },
+  "comments": []
+}
+JSON
+exit 0
+EOF
+  chmod +x "$SHIM_DIR/ocr"
+  (
+    cd "$CLONE"
+    export OCR_LLM_TOKEN="fake-token"
+    export BASE_REF="HEAD~1"
+    bash scripts/pre-push > "$LOG" 2>&1
+  )
+  RC=$?
+  expect_rc 0 "partial status without blocking comments allows push"
+  assert_log_contains "partially complete"
+  assert_log_contains "ocr review clean"
+}
+
 # --- Execution ---
 
 case_static_syntax
@@ -430,6 +488,8 @@ case_non_blocking_findings
 case_model_fallback_retry
 case_both_models_fail_open
 case_malformed_json_fail_open
+case_strict_mode_blocks_missing_token
+case_partial_review_status
 
 echo ""
 echo "==========================================="

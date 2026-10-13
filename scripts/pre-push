@@ -18,20 +18,41 @@ set -euo pipefail
 #   is tried once.
 # Bypass once (not recommended): git push --no-verify
 
-BASE_REF="origin/main"
+if [ -z "${BASE_REF:-}" ]; then
+  # Dynamically resolve default branch from origin/HEAD; fallback to origin/main.
+  REMOTE_HEAD="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|^refs/remotes/origin/||' || true)"
+  if [ -n "$REMOTE_HEAD" ]; then
+    BASE_REF="origin/$REMOTE_HEAD"
+  else
+    BASE_REF="origin/main"
+  fi
+fi
+
 # Severities that block the push (comma-separated; critical,high,medium,low).
 BLOCK_SEVERITIES="critical,high"
 
-# 1. Never break pushes on a machine without the CLI.
-if ! command -v ocr >/dev/null 2>&1; then
-  echo "⚠ ocr CLI not found — skipping pre-push review (push continues)."
-  echo "  Install: npm install -g @alibaba-group/open-code-review"
+# Configurable gate behavior: default fail-open (0) so missing tools/network
+# don't block developer pushes; set OCR_STRICT_GATE=1 to fail-closed (exit 1).
+: "${OCR_STRICT_GATE:=0}"
+
+fail_open_or_block() {
+  local msg="$1"
+  if [ "$OCR_STRICT_GATE" = "1" ]; then
+    echo "✖ $msg (OCR_STRICT_GATE=1 — push BLOCKED)." >&2
+    exit 1
+  fi
+  echo "⚠ $msg (push continues)."
   exit 0
+}
+
+# 1. Never break pushes on a machine without the CLI (unless strict mode requested).
+if ! command -v ocr >/dev/null 2>&1; then
+  echo "  Install: npm install -g @alibaba-group/open-code-review"
+  fail_open_or_block "ocr CLI not found — skipping pre-push review"
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "⚠ python3 not found — cannot parse ocr output, skipping gate (push continues)."
-  exit 0
+  fail_open_or_block "python3 not found — cannot parse ocr output, skipping gate"
 fi
 
 # 2. LLM config: mirror the repo's OpenCodeReview Action
@@ -40,7 +61,8 @@ fi
 : "${OCR_LLM_MODEL:=cohere/north-mini-code:free}"
 : "${OCR_LLM_FALLBACK_MODEL:=kilo-auto/free}"
 : "${OCR_LLM_USE_ANTHROPIC:=false}"
-export OCR_LLM_URL OCR_LLM_MODEL OCR_LLM_FALLBACK_MODEL OCR_LLM_USE_ANTHROPIC
+: "${OCR_TIMEOUT:=300}"
+export OCR_LLM_URL OCR_LLM_MODEL OCR_LLM_FALLBACK_MODEL OCR_LLM_USE_ANTHROPIC OCR_TIMEOUT
 # Same as the repo's OpenCodeReview Action: never self-update the CLI
 # in the background during a push (a racing update once broke a CI run).
 export OCR_NO_UPDATE=1
@@ -48,18 +70,17 @@ export OCR_NO_UPDATE=1
 # legacy code page (cp1252); otherwise the parser crashes on ✔/✖/⚠.
 export PYTHONIOENCODING=utf-8
 if [ -z "${OCR_LLM_TOKEN:-}" ]; then
-  echo "⚠ OCR_LLM_TOKEN is not set — skipping pre-push review (push continues)."
   echo "  Use the same value as the repo secret OCR_LLM_AUTH_TOKEN, e.g.:"
   echo "    export OCR_LLM_TOKEN=\"<token>\"   # add to ~/.bashrc to persist"
-  exit 0
+  fail_open_or_block "OCR_LLM_TOKEN is not set — skipping pre-push review"
 fi
 
 # 3. Resolve the base ref; fetch once if missing.
 if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
-  echo "⚠ cannot resolve $BASE_REF — fetching origin/main…"
-  if ! git fetch origin main --quiet; then
-    echo "⚠ fetch failed — skipping pre-push review (push continues)."
-    exit 0
+  echo "⚠ cannot resolve $BASE_REF — fetching origin…"
+  TARGET_BRANCH="${BASE_REF#origin/}"
+  if ! git fetch origin "$TARGET_BRANCH" --quiet 2>/dev/null && ! git fetch origin main --quiet; then
+    fail_open_or_block "fetch failed — skipping pre-push review"
   fi
 fi
 
@@ -70,8 +91,7 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 
 # 5. Same rule set the Action enforces, when present in this clone.
-# Assembled as an array: expanding an EMPTY array via "${arr[@]}" under
-# `set -u` aborts on bash < 4.4 (macOS ships 3.2) and would block every push.
+# Array is initialized with elements so expansion under `set -u` is safe on bash 3.2.
 OCR_CMD=(ocr review --from "$BASE_REF" --to HEAD --audience agent --format json)
 if [ -f ".github/ocr-rules.json" ]; then
   OCR_CMD+=(--rule ".github/ocr-rules.json")
@@ -81,8 +101,7 @@ fi
 #    not a findings signal (it returns 0 even when the run itself failed).
 #    If the primary model can't run the review, the fallback model is tried once.
 OUT="$(mktemp 2>/dev/null)" || {
-  echo "⚠ cannot create temp file — skipping gate (push continues)."
-  exit 0
+  fail_open_or_block "cannot create temp file — skipping gate"
 }
 
 # Gate decision from the JSON report in $OUT.
@@ -103,14 +122,18 @@ except Exception as e:
         sys.exit(4)
     print(f"⚠ could not parse ocr output ({e}) — skipping gate (push continues).")
     sys.exit(0)
-if d.get('status') != 'complete':
+status = d.get('status')
+if status and status not in ('complete', 'partial'):
     if signal_retry:
         sys.exit(4)
-    print(f"⚠ ocr review could not run (status={d.get('status')}): {d.get('message', 'unknown error')}")
+    print(f"⚠ ocr review could not run (status={status}): {d.get('message', 'unknown error')}")
     print("  skipping gate (push continues).")
     sys.exit(0)
+if status == 'partial':
+    print(f"⚠ ocr review partially complete: {d.get('message', 'some checks timed out or failed')}")
 comments = d.get('comments') or []
-n_files = d.get('summary', {}).get('files_reviewed', '?')
+summary = d.get('summary') if isinstance(d.get('summary'), dict) else {}
+n_files = summary.get('files_reviewed', '?')
 if not comments:
     print(f"✔ ocr review clean — {n_files} file(s) reviewed, pushing.")
     sys.exit(0)
@@ -135,15 +158,25 @@ echo "▶ ocr review --from $BASE_REF --to HEAD ($COUNT commits, model $OCR_LLM_
 set +e
 ERR="$(mktemp 2>/dev/null)" || ERR=""
 run_ocr() {
+  local -a exec_cmd=()
+  if command -v timeout >/dev/null 2>&1; then
+    exec_cmd=(timeout "$OCR_TIMEOUT" "${OCR_CMD[@]}")
+  else
+    exec_cmd=("${OCR_CMD[@]}")
+  fi
+
   if [ -n "$ERR" ]; then
-    "${OCR_CMD[@]}" -o "$OUT" 2>"$ERR"
+    "${exec_cmd[@]}" -o "$OUT" 2>"$ERR"
     ocr_code=$?
-    if [ "$ocr_code" -ne 0 ] && [ -s "$ERR" ]; then
+    if [ "$ocr_code" -eq 124 ]; then
+      echo "⚠ ocr review timed out after ${OCR_TIMEOUT}s:"
+      tail -n 10 "$ERR"
+    elif [ "$ocr_code" -ne 0 ] && [ -s "$ERR" ]; then
       echo "⚠ ocr review failed (exit $ocr_code):"
       tail -n 10 "$ERR"
     fi
   else
-    "${OCR_CMD[@]}" -o "$OUT" >/dev/null 2>&1
+    "${exec_cmd[@]}" -o "$OUT" >/dev/null 2>&1
   fi
 }
 cleanup_tmp() { rm -f "$OUT" ${ERR:+"$ERR"}; }
