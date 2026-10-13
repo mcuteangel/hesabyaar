@@ -2,6 +2,9 @@
 //! Integration tests live here (not in models/mod.rs) so the new coverage
 //! does not grow the baselined module size.
 
+// Test-only crate: unwrap/expect are loud by design (mirrors lib.rs).
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use hesabyar_core::models::{Account, BackupPayload};
 
 #[test]
