@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2026-10-13
+نسخه 0.11.2 حساب‌یار منتشر شد.
+
+### رفع مشکلات
+* fix(dao): guard deleteTransactionsByIds against empty lists
+* fix(loan): ensure initial disbursement deletion on untracked transition
+* fix(loan): chunk batch transaction deletions and test mixed legacy fallback
+* fix(loan): address review feedback on loan transaction deletion and tests
+* fix(loan): use stable id linkage for loan payment transactions (issue #242)
+
+### بهبودها و تغییرات
+* chore: trigger Codacy re-run after flaky test resolved
+* test(loan): assert existing transactions survive empty deleteTransactionsByIds
+* docs(dao, loan): note minSdk 26 bind limit and empty-list precondition
+* docs(loan): justify tracked-OR fallback and note API 26 bind limit
+* docs(dao): document SQLite bind limit for deleteTransactionsByIds
 ## [0.11.1] - 2026-10-13
 در این به‌روزرسانی، تمرکز اصلی ما بر بهبود پایداری سیستم پشتیبان‌گیری و رفع مشکلات مربوط به شناسایی حساب‌ها بوده است.
 
