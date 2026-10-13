@@ -396,9 +396,32 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /**
+     * Issue #242: stable loan-payment transaction link.
+     *
+     * payment_history.linkedTransactionId stores the id of the generated
+     * expense/income row so deleteLoan removes exactly that row. transactions
+     * .loanId stores the loan that generated the initial disbursement row so
+     * deleteLoan can remove it without matching on mutable fields.
+     *
+     * Issue #156: stableId on accounts gives every account a UUID v4 so backup
+     * merge can match accounts across devices. Blank "" marks legacy rows; the
+     * backfill mints an ID for each existing row.
+     *
+     * Additive-only: nullable INTEGER columns, default NULL, no data rewrite.
+     * Rows created before this migration keep NULL; deleteLoan falls back to
+     * the legacy field-matching path for those rows.
+     */
     internal val MIGRATION_9_10 =
       object : Migration(9, 10) {
         override fun migrate(db: SupportSQLiteDatabase) {
+          db.execSQL("ALTER TABLE payment_history ADD COLUMN linkedTransactionId INTEGER")
+          db.execSQL("ALTER TABLE transactions ADD COLUMN loanId INTEGER")
+          // Matches @Entity(indices = [Index("loanId")]) on Transaction, so
+          // deleteTransactionsByLoanId does not scan the whole table.
+          db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_transactions_loanId ON transactions (loanId)"
+          )
           // Stable identity for backup merge (issue #156). Blank "" marks
           // legacy rows with no ID. The backfill mints a random UUID v4 for
           // every existing row so future exports carry an ID from day one.
