@@ -21,7 +21,6 @@ SRC=$(git rev-parse --show-toplevel) || exit 1
 BASE=$(git -C "$SRC" rev-parse HEAD)
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/hesabyar-push-hooktest.XXXXXX")
 CLONE="$WORK/repo"
-HOOK="$CLONE/scripts/pre-push"
 SHIM_DIR="$WORK/shims"
 LOG="$WORK/hook.log"
 
@@ -94,6 +93,14 @@ create_test_commit() {
   git_clone commit -q -m "test: probe commit"
 }
 
+run_hook() {
+  (
+    cd "$CLONE" || exit 1
+    env "$@" bash scripts/pre-push > "$LOG" 2>&1
+  )
+  RC=$?
+}
+
 # --- Test Cases ---
 
 case_static_syntax() {
@@ -114,15 +121,7 @@ case_missing_ocr_cli() {
   echo "=== 2. Missing ocr CLI (fail-open) ==="
   reset_test_repo
   create_test_commit
-  # Fake PATH without ocr
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    # Hide ocr
-    PATH="/usr/bin:/bin"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook PATH="/usr/bin:/bin" OCR_LLM_TOKEN="fake-token"
   expect_rc 0 "missing ocr CLI allows push"
   assert_log_contains "ocr CLI not found"
 }
@@ -136,12 +135,7 @@ case_missing_token() {
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    unset OCR_LLM_TOKEN
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook -u OCR_LLM_TOKEN
   expect_rc 0 "missing token allows push"
   assert_log_contains "OCR_LLM_TOKEN is not set"
 }
@@ -155,18 +149,13 @@ echo "OCR_SHOULD_NOT_BE_CALLED"
 exit 1
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  # BASE_REF is hardcoded to origin/main in the hook; reset the clone to
+  # BASE_REF resolves to origin/main or origin/HEAD; reset the clone to
   # origin/main so rev-list returns 0 and the gate must exit before ocr.
   git -C "$CLONE" fetch -q origin main 2>/dev/null || true
   git_clone reset -q --hard origin/main || git_clone reset -q --hard "$BASE"
   cp "$SRC/scripts/pre-push" "$CLONE/scripts/pre-push" 2>/dev/null || true
   chmod +x "$CLONE/scripts/pre-push" 2>/dev/null || true
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token"
   expect_rc 0 "clean head exits 0 early without invoking ocr"
   if grep -q "OCR_SHOULD_NOT_BE_CALLED" "$LOG"; then
     fail "ocr was invoked unexpectedly when diff was empty"
@@ -200,13 +189,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1"
   expect_rc 0 "clean review allows push"
   assert_log_contains "ocr review clean"
 }
@@ -244,13 +227,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1"
   expect_rc nonzero "blocking finding stops push with non-zero exit"
   assert_log_contains "push BLOCKED"
 }
@@ -288,13 +265,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1"
   expect_rc 0 "low severity finding does not block push"
   assert_log_contains "No blocking-severity findings — pushing"
 }
@@ -337,15 +308,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    export OCR_LLM_MODEL="cohere/north-mini-code:free"
-    export OCR_LLM_FALLBACK_MODEL="kilo-auto/free"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1" OCR_LLM_MODEL="cohere/north-mini-code:free" OCR_LLM_FALLBACK_MODEL="kilo-auto/free"
   expect_rc 0 "fallback model review succeeds"
   assert_log_contains "retrying once with kilo-auto/free"
   assert_log_contains "ocr review clean"
@@ -375,15 +338,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    export OCR_LLM_MODEL="cohere/north-mini-code:free"
-    export OCR_LLM_FALLBACK_MODEL="kilo-auto/free"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1" OCR_LLM_MODEL="cohere/north-mini-code:free" OCR_LLM_FALLBACK_MODEL="kilo-auto/free"
   expect_rc 0 "two model failures still allows push (fail-open)"
   assert_log_contains "skipping gate (push continues)"
 }
@@ -407,13 +362,7 @@ echo "THIS IS NOT VALID JSON" > "$out"
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1"
   expect_rc 0 "malformed JSON allows push (fail-open)"
   assert_log_contains "could not parse ocr output"
 }
@@ -427,13 +376,7 @@ case_strict_mode_blocks_missing_token() {
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    unset OCR_LLM_TOKEN
-    export OCR_STRICT_GATE=1
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook -u OCR_LLM_TOKEN OCR_STRICT_GATE=1
   expect_rc nonzero "strict mode blocks push without token (exit 1)"
   assert_log_contains "OCR_STRICT_GATE=1 — push BLOCKED"
 }
@@ -464,13 +407,7 @@ JSON
 exit 0
 EOF
   chmod +x "$SHIM_DIR/ocr"
-  (
-    cd "$CLONE"
-    export OCR_LLM_TOKEN="fake-token"
-    export BASE_REF="HEAD~1"
-    bash scripts/pre-push > "$LOG" 2>&1
-  )
-  RC=$?
+  run_hook OCR_LLM_TOKEN="fake-token" BASE_REF="HEAD~1"
   expect_rc 0 "partial status without blocking comments allows push"
   assert_log_contains "partially complete"
   assert_log_contains "ocr review clean"
