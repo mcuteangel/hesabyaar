@@ -831,23 +831,7 @@ mod tests {
     fn test_archived_accounts_excluded_from_summaries() {
         let accounts = vec![
             account(1, "حساب اصلی", "BANK"),
-            Account {
-                id: 2,
-                name: "آرشیو شده".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "آرشیو شده", "BANK", 0),
         ];
 
         let result = compute_dashboard_data(&[], &[], &[], &[], &accounts, None, false, 0, &[]);
@@ -862,23 +846,7 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
-            Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "Archived", "BANK", 0),
         ];
         let txs = vec![
             Transaction {
@@ -949,23 +917,7 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
-            Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "Archived", "BANK", 0),
         ];
         let txs = vec![
             Transaction {
@@ -1012,23 +964,7 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
-            Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "Archived", "BANK", 0),
         ];
         let txs = vec![
             Transaction {
@@ -1075,23 +1011,7 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
-            Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "Archived", "BANK", 0),
         ];
         let txs = vec![
             Transaction {
@@ -1209,23 +1129,7 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
-            Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
+            archived_account(2, "Archived", "BANK", 0),
         ];
         // Transfer FROM active account TO archived account
         let txs = vec![Transaction {
@@ -1400,39 +1304,10 @@ mod tests {
         let now_ms = now_jalali_month_ms();
         let accounts = vec![
             account(1, "Active", "BANK"),
+            archived_account(2, "Archived", "BANK", 0),
             Account {
-                id: 2,
-                name: "Archived".to_string(),
-                account_type: "BANK".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
-                initial_balance: 0,
-                color: 0xFF757575,
-                icon: None,
-                is_archived: true,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
-            },
-            Account {
-                id: 3,
-                name: "Other".to_string(),
-                account_type: "CASH_WALLET".to_string(),
-                bank_name: None,
-                card_number: None,
-                account_number: None,
-                iban: None,
                 initial_balance: 200_000,
-                color: 0xFF4CAF50,
-                icon: None,
-                is_archived: false,
-                display_order: 0,
-                created_at: 0,
-                updated_at: 0,
-                stable_id: None,
+                ..account(3, "Other", "CASH_WALLET")
             },
         ];
         let txs = vec![

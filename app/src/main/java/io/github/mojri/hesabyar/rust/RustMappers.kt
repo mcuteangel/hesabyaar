@@ -446,6 +446,7 @@ object RustMappers {
       displayOrder = account.displayOrder,
       createdAt = account.createdAt,
       updatedAt = account.updatedAt,
+      stableId = account.stableId.ifBlank { null },
     )
 
   fun mapAccounts(accounts: List<AccountEntity>): List<io.github.mojri.hesabyar.rust.Account> =

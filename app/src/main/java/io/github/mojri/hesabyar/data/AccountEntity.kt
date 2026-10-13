@@ -62,6 +62,11 @@ data class AccountEntity(
     /** Default account colour (green) — single source of truth for this value. */
     const val DEFAULT_COLOR: Long = 0xFF4CAF50L
 
+    /**
+     * Seed template for the default account. Its blank [stableId] is the
+     * legacy sentinel — never insert this directly; mint a stable ID first
+     * (see AppDatabase seed callback and BackupReplaceHelpers).
+     */
     val DEFAULT_ACCOUNT =
       AccountEntity(
         id = 1L,

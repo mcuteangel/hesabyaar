@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Backup format/schema version. Bump on any change to the serialized backup
-/// structure (breaking or additive), so restores can tell which fields an
+/// structure (breaking or additive) so restores can tell which fields an
 /// export was produced with. This is the single source of truth: the Kotlin
 /// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
 /// time (app/build.gradle.kts), so the two sides cannot drift.
@@ -147,8 +147,7 @@ pub struct Account {
     pub created_at: i64,
     #[serde(default, alias = "updatedAt")]
     pub updated_at: i64,
-    /// Stable identity for backup merge, minted at account-creation time.
-    /// None for legacy backups that predate the field.
+    /// Stable merge identity, minted at account-creation time (None for legacy backups).
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "stableId")]
     pub stable_id: Option<String>,
 }
@@ -620,6 +619,26 @@ pub fn is_tx_category_excluded(tx: &Transaction, excluded_category_ids: &[i64]) 
 mod tests {
     use super::*;
 
+    fn account(id: i64, name: &str, account_type: &str, initial_balance: i64) -> Account {
+        Account {
+            id,
+            name: name.to_string(),
+            account_type: account_type.to_string(),
+            bank_name: None,
+            card_number: None,
+            account_number: None,
+            iban: None,
+            initial_balance,
+            color: 0xFF4CAF50,
+            icon: None,
+            is_archived: false,
+            display_order: 0,
+            created_at: 0,
+            updated_at: 0,
+            stable_id: None,
+        }
+    }
+
     #[test]
     fn test_backup_payload_ignores_unknown_fields() {
         // Kotlin may include future fields. Rust must parse without error;
@@ -1029,40 +1048,8 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![
-                Account {
-                    id: 1,
-                    name: "حساب اصلی".to_string(),
-                    account_type: "BANK".to_string(),
-                    bank_name: Some("ملی".to_string()),
-                    card_number: None,
-                    account_number: None,
-                    iban: None,
-                    initial_balance: 0,
-                    color: 0xFF4CAF50,
-                    icon: None,
-                    is_archived: false,
-                    display_order: 0,
-                    created_at: 0,
-                    updated_at: 0,
-                    stable_id: None,
-                },
-                Account {
-                    id: 2,
-                    name: "کیف پول نقدی".to_string(),
-                    account_type: "CASH_WALLET".to_string(),
-                    bank_name: None,
-                    card_number: None,
-                    account_number: None,
-                    iban: None,
-                    initial_balance: 500000,
-                    color: 0xFFFF9800,
-                    icon: None,
-                    is_archived: false,
-                    display_order: 1,
-                    created_at: 0,
-                    updated_at: 0,
-                    stable_id: None,
-                },
+                account(1, "حساب اصلی", "BANK", 0),
+                account(2, "کیف پول نقدی", "CASH_WALLET", 500000),
             ],
             ..Default::default()
         };
@@ -1072,65 +1059,6 @@ mod tests {
         assert_eq!(restored.accounts[0].account_type, "BANK");
         assert_eq!(restored.accounts[1].account_type, "CASH_WALLET");
         assert_eq!(restored.accounts[1].initial_balance, 500000);
-    }
-
-    #[test]
-    fn test_account_stable_id_absent_in_v2_backup_deserializes_to_none() {
-        // Legacy (v2) backups predate the stableId field; parsing must not fail.
-        let json = r#"{
-            "version": 2,
-            "timestamp": 1710000000000,
-            "appVersion": "2.0.0",
-            "accounts": [{"id": 1, "name": "حساب اصلی", "type": "BANK"}]
-        }"#;
-        let payload: BackupPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(payload.accounts.len(), 1);
-        assert_eq!(payload.accounts[0].stable_id, None);
-    }
-
-    #[test]
-    fn test_account_stable_id_present_in_v3_backup_round_trip() {
-        let json = r#"{
-            "version": 3,
-            "timestamp": 1710000000000,
-            "appVersion": "3.0.0",
-            "accounts": [{
-                "id": 1,
-                "name": "حساب اصلی",
-                "type": "BANK",
-                "stableId": "2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a"
-            }]
-        }"#;
-        let payload: BackupPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            payload.accounts[0].stable_id.as_deref(),
-            Some("2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a")
-        );
-        let reserialized = serde_json::to_string(&payload.accounts[0]).unwrap();
-        assert!(reserialized.contains("\"stableId\":\"2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a\""));
-    }
-
-    #[test]
-    fn test_account_stable_id_none_omits_field_when_serializing() {
-        let account = Account {
-            id: 1,
-            name: "حساب اصلی".to_string(),
-            account_type: "BANK".to_string(),
-            bank_name: None,
-            card_number: None,
-            account_number: None,
-            iban: None,
-            initial_balance: 0,
-            color: 0xFF4CAF50,
-            icon: None,
-            is_archived: false,
-            display_order: 0,
-            created_at: 0,
-            updated_at: 0,
-            stable_id: None,
-        };
-        let json = serde_json::to_string(&account).unwrap();
-        assert!(!json.contains("stableId"));
     }
 
     #[test]

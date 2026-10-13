@@ -175,6 +175,41 @@ class RepositoryMergeAccountsStableIdTest {
     }
 
   @Test
+  fun differentStableIdsSameNameInsertSeparately() =
+    runTest {
+      val uuidA = "55555555-5555-4555-8555-555555555555"
+      val uuidB = "66666666-6666-4666-8666-666666666666"
+      val repo = createRepository()
+      repo.insertAccount(account(id = 5L, name = "Shared", stableId = uuidA))
+      val backup =
+        backupPayload(
+          accounts = listOf(account(id = 10L, name = "Shared", stableId = uuidB)),
+          transactions =
+            listOf(
+              transaction(id = 1L, type = TransactionType.EXPENSE, accountId = 10L, amount = 1_000L)
+            )
+        )
+      repo.mergeFromBackup(backup)
+
+      val shared = database.accountDao().getAllAccountsBlocking().filter { it.name == "Shared" }
+      assertEquals(
+        "same name but different stable IDs must not merge",
+        2,
+        shared.size
+      )
+      val untouched = shared.first { it.id == 5L }
+      assertEquals("local row keeps its own stable ID", uuidA, untouched.stableId)
+      val inserted = shared.first { it.id != 5L }
+      assertEquals("backup row is inserted as a distinct account", uuidB, inserted.stableId)
+      val txs = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(
+        "backup transaction must remap to the newly inserted row, not the local one",
+        inserted.id,
+        txs.first().accountId
+      )
+    }
+
+  @Test
   fun legacyBackupNameFallbackPreservesLocalStableId() =
     runTest {
       val uuid = "44444444-4444-4434-8444-444444444444"

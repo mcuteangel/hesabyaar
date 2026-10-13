@@ -403,6 +403,9 @@ abstract class AppDatabase : RoomDatabase() {
           // legacy rows with no ID. The backfill mints a random UUID v4 for
           // every existing row so future exports carry an ID from day one.
           // No unique index: "" is a legitimate repeating legacy sentinel.
+          // Randomness note: SQLite random()/randomblob() is a PRNG, not a
+          // CSPRNG. This is a one-time local backfill (not a security
+          // boundary); collision odds at user data volumes are negligible.
           db.execSQL("ALTER TABLE accounts ADD COLUMN stableId TEXT NOT NULL DEFAULT ''")
           db.execSQL(
             """

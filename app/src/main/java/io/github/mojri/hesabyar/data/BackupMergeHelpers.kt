@@ -102,7 +102,9 @@ internal suspend fun backupMergeInstallments(
  * name matching stays as the legacy fallback for backups and rows that
  * predate stable IDs (issue #156).
  */
-private class AccountMergeIndex(locals: List<AccountEntity>) {
+private class AccountMergeIndex(
+  locals: List<AccountEntity>
+) {
   private val byStableId = mutableMapOf<String, AccountEntity>()
   private val byName = mutableMapOf<String, AccountEntity>()
 
@@ -115,7 +117,11 @@ private class AccountMergeIndex(locals: List<AccountEntity>) {
   fun findByName(name: String): AccountEntity? = byName[name]
 
   /** Records a local row; rows without a stable ID are name-indexed only. */
-  fun track(row: AccountEntity) {
+  fun track(
+    row: AccountEntity,
+    previousName: String? = null
+  ) {
+    if (previousName != null && previousName != row.name) byName.remove(previousName)
     byName[row.name] = row
     if (row.stableId.isNotBlank()) byStableId[row.stableId] = row
   }
@@ -143,25 +149,43 @@ private suspend fun backupMergeOneAccount(
   val nameMatch = index.findByName(account.name)
   return when {
     idMatch != null -> {
-      accountDao.update(account.copy(id = idMatch.id))
+      // Stable-ID hit wins outright. The row keeps its identity; the backup
+      // payload refreshes the rest. Re-index under the (possibly new) name.
+      val updated = account.copy(id = idMatch.id)
+      accountDao.update(updated)
+      index.track(updated, previousName = idMatch.name)
       idMatch.id
     }
     nameMatch != null -> {
-      // Never overwrite a non-blank local ID with a blank backup one. Adopt
-      // the backup ID when the local row has none, so legacy rows self-heal.
-      val keptId = nameMatch.stableId.ifBlank { account.stableId }
-      val updated = account.copy(id = nameMatch.id, stableId = keptId)
+      val localId = nameMatch.stableId.takeIf { it.isNotBlank() }
+      if (localId != null && stableId != null && localId != stableId) {
+        // Same name, two different identities: do NOT merge. The backup row
+        // is a distinct account that happens to share the name (issue #156).
+        return insertNewAccount(account, stableId, index, accountDao)
+      }
+      // Legacy fallback: at least one side has no stable ID. Never overwrite
+      // a non-blank local ID with a blank backup one; adopt the backup ID
+      // when the local row has none, so legacy rows self-heal.
+      val resolvedStableId = nameMatch.stableId.ifBlank { account.stableId }
+      val updated = account.copy(id = nameMatch.id, stableId = resolvedStableId)
       accountDao.update(updated)
       index.track(updated)
       nameMatch.id
     }
-    else -> {
-      val freshId = stableId ?: UUID.randomUUID().toString()
-      val insertedId = accountDao.insert(account.copy(id = 0, stableId = freshId))
-      index.track(account.copy(id = insertedId, stableId = freshId))
-      insertedId
-    }
+    else -> insertNewAccount(account, stableId, index, accountDao)
   }
+}
+
+private suspend fun insertNewAccount(
+  account: AccountEntity,
+  stableId: String?,
+  index: AccountMergeIndex,
+  accountDao: AccountDao
+): Long {
+  val freshId = stableId ?: UUID.randomUUID().toString()
+  val insertedId = accountDao.insert(account.copy(id = 0, stableId = freshId))
+  index.track(account.copy(id = insertedId, stableId = freshId))
+  return insertedId
 }
 
 internal suspend fun backupMergePersons(
