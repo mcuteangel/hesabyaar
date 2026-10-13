@@ -463,4 +463,28 @@ class BackupJsonParserFallbackPersonTest {
     assertTrue(result!!.persons.isNotEmpty())
     assertEquals("علی رضا", result.persons[0].normalizedName)
   }
+
+  @Test
+  fun fallbackParserTreatsNullStableIdAsBlank() {
+    // Explicit JSON null must decode to the blank legacy sentinel, never the
+    // literal string "null" (which would look like a real stable ID).
+    val json =
+      buildBackupJson {
+        put(
+          "accounts",
+          JSONArray().put(
+            JSONObject().apply {
+              put("id", 7L)
+              put("name", "حساب اصلی")
+              put("type", "BANK")
+              put("stableId", JSONObject.NULL)
+            }
+          )
+        )
+      }
+    val result = runBlocking { useCase.parseBackupJson(json) }
+    assertNotNull(result)
+    assertEquals(1, result!!.accounts.size)
+    assertEquals("", result.accounts[0].stableId)
+  }
 }

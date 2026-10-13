@@ -45,6 +45,11 @@ data class AccountEntity(
   val icon: String? = null,
   @ColumnInfo(defaultValue = "0") val isArchived: Boolean = false,
   @ColumnInfo(defaultValue = "0") val displayOrder: Int = 0,
+  // Stable identity for backup merge: a UUID v4 generated at account-creation
+  // time. Blank "" is the legacy sentinel (no ID). @ColumnInfo(defaultValue)
+  // must match the SQL DEFAULT in MIGRATION_9_10 so Room's schema validation
+  // passes on upgrade.
+  @ColumnInfo(defaultValue = "''") val stableId: String = "",
   // Timestamps: SQL DEFAULT 0 matches the entity annotation; the Kotlin-level
   // default (System.currentTimeMillis()) is used for new rows at the app layer.
   // MIGRATION_6_7 uses DEFAULT 0 so the schema matches exactly.
@@ -52,11 +57,16 @@ data class AccountEntity(
   @ColumnInfo(defaultValue = "0") val updatedAt: Long = System.currentTimeMillis()
 ) : Serializable {
   companion object {
-    private const val serialVersionUID: Long = 2L
+    private const val serialVersionUID: Long = 3L
 
     /** Default account colour (green) — single source of truth for this value. */
     const val DEFAULT_COLOR: Long = 0xFF4CAF50L
 
+    /**
+     * Seed template for the default account. Its blank [stableId] is the
+     * legacy sentinel — never insert this directly; mint a stable ID first
+     * (see AppDatabase seed callback and BackupReplaceHelpers).
+     */
     val DEFAULT_ACCOUNT =
       AccountEntity(
         id = 1L,
@@ -65,7 +75,8 @@ data class AccountEntity(
         initialBalance = 0L,
         displayOrder = 0,
         createdAt = 0L,
-        updatedAt = 0L
+        updatedAt = 0L,
+        stableId = ""
       )
   }
 }

@@ -156,7 +156,7 @@ class AppDatabaseMigration8to9Test {
         Room
           .databaseBuilder(context, AppDatabase::class.java, dbName)
           .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_8_9)
+          .addMigrations(AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10)
           .build()
 
       assertPreExistingDefaults(migratedDb)

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
@@ -124,7 +125,8 @@ class AccountViewModel
             color = color,
             displayOrder = nextOrder,
             createdAt = now,
-            updatedAt = now
+            updatedAt = now,
+            stableId = UUID.randomUUID().toString()
           )
         repository.insertAccount(account)
         AddAccountResult.Success
