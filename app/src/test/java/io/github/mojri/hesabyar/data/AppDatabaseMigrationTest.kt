@@ -515,10 +515,11 @@ class AppDatabaseMigrationTest {
     // This creates the exact v5 schema (no accounts table, no timestamps).
     createRawV5Database(context, dbName)
 
-    // Step 2: Run MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8 and
-    // MIGRATION_8_9 on the raw database. We open the database via Room with
-    // all migrations; Room will detect the version is 5 and apply 5→6→7→8→9
-    // (the person-ledger migration, then the Phase 2 tracked-ledger columns).
+    // Step 2: Run MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+    // MIGRATION_8_9 and MIGRATION_9_10 on the raw database. We open the
+    // database via Room with all migrations; Room will detect the version is
+    // 5 and apply 5→6→7→8→9→10 (the person-ledger migration, then the
+    // Phase 2 tracked-ledger columns, then the stable-ID backfill).
     val migratedDb =
       Room
         .databaseBuilder(context, AppDatabase::class.java, dbName)
@@ -649,7 +650,7 @@ class AppDatabaseMigrationTest {
 
   /**
    * Verifies that the default account (id=1) seeded by MIGRATION_5_6 survives
-   * through to MIGRATION_6_7 and can be queried at version 7.
+   * the full migration chain to the current version and can be queried.
    */
   @Test
   fun defaultAccountFromMigration5SurvivesToVersion7() {

@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -15,7 +16,9 @@ import org.robolectric.annotation.Config
 
 /**
  * Regression tests for MIGRATION_9_10 — linkedTransactionId on payment_history,
- * loanId on transactions, and index_transactions_loanId (Issue #242).
+ * loanId on transactions, index_transactions_loanId (Issue #242), and the
+ * stableId column on accounts with a UUID v4 backfill for pre-existing rows
+ * (Issue #156).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -27,6 +30,9 @@ class AppDatabaseMigration9to10Test {
     private const val TYPE_EXPENSE = "EXPENSE"
     private const val DESC_LEGACY_TX = "تراکنش قدیمی"
   }
+
+  private val uuidV4Pattern =
+    Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
   private fun createV9CoreTables(db: SupportSQLiteDatabase) {
     db.execSQL(
@@ -244,5 +250,84 @@ class AppDatabaseMigration9to10Test {
       context.getDatabasePath("$dbName-wal").delete()
       context.getDatabasePath("$dbName-shm").delete()
     }
+  }
+
+  @Test
+  fun migration9to10BackfillsDistinctUuidV4StableIds() =
+    runTest {
+      val context = ApplicationProvider.getApplicationContext<Context>()
+      val dbName = "migration_9_10_test_db"
+      val dbFile = context.getDatabasePath(dbName)
+
+      try {
+        createAndSeedV9Database(context, dbName) { raw -> seedV9Accounts(raw) }
+
+        val migratedDb =
+          Room
+            .databaseBuilder(context, AppDatabase::class.java, dbName)
+            .allowMainThreadQueries()
+            .addMigrations(AppDatabase.MIGRATION_9_10)
+            .build()
+
+        assertBackfilledStableIds(migratedDb)
+        assertInsertWithStableId(migratedDb)
+
+        migratedDb.close()
+      } finally {
+        dbFile.delete()
+        context.getDatabasePath("$dbName-wal").delete()
+        context.getDatabasePath("$dbName-shm").delete()
+      }
+    }
+
+  private fun seedV9Accounts(raw: SupportSQLiteDatabase) {
+    // Two rows share a name on purpose: the backfill must still give
+    // each row its own ID (this is the issue #156 failure mode).
+    raw.execSQL(
+      "INSERT INTO accounts (name, type, initialBalance) " +
+        "VALUES ('حساب اصلی', 'BANK', 1000000)"
+    )
+    raw.execSQL(
+      "INSERT INTO accounts (name, type, initialBalance) " +
+        "VALUES ('پس‌انداز', 'SAVINGS_INVESTMENT', 500000)"
+    )
+    raw.execSQL(
+      "INSERT INTO accounts (name, type, initialBalance) " +
+        "VALUES ('پس‌انداز', 'BANK', 250000)"
+    )
+  }
+
+  private fun assertBackfilledStableIds(migratedDb: AppDatabase) {
+    val accounts = migratedDb.accountDao().getAllAccountsBlocking()
+    assertEquals("all pre-existing rows preserved", 3, accounts.size)
+
+    val main = accounts.first { it.name == "حساب اصلی" }
+    assertEquals("pre-existing data untouched", 1000000L, main.initialBalance)
+
+    val ids = accounts.map { it.stableId }
+    assertTrue("backfill leaves no blank stable IDs", ids.all { it.isNotBlank() })
+    assertEquals("backfilled IDs are distinct per row", 3, ids.toSet().size)
+    assertTrue(
+      "backfilled IDs are UUID v4 shaped",
+      ids.all { uuidV4Pattern.matches(it) }
+    )
+  }
+
+  private suspend fun assertInsertWithStableId(migratedDb: AppDatabase) {
+    // New rows inserted after the migration keep working with the new column.
+    val freshId =
+      migratedDb.accountDao().insert(
+        AccountEntity(
+          name = "Fresh",
+          type = AccountType.CASH_WALLET,
+          stableId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+        )
+      )
+    val fresh = migratedDb.accountDao().getAllAccountsBlocking().first { it.id == freshId }
+    assertEquals(
+      "explicit stable ID survives insert",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      fresh.stableId
+    )
   }
 }

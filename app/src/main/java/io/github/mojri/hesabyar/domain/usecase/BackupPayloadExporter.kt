@@ -327,6 +327,11 @@ class BackupPayloadExporter(
           put("displayOrder", it.displayOrder)
           put("createdAt", it.createdAt)
           put("updatedAt", it.updatedAt)
+          // Stable identity for merge matching. Plaintext always: it is not
+          // sensitive and must stay readable without the passphrase. Omitted
+          // for legacy rows so Rust decodes a missing field as None, keeping
+          // "no stable ID" identical on both sides of the bridge.
+          if (it.stableId.isNotBlank()) put("stableId", it.stableId)
         }
       )
     }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
+import java.util.UUID
 
 @Database(
   entities = [
@@ -403,6 +404,10 @@ abstract class AppDatabase : RoomDatabase() {
      * .loanId stores the loan that generated the initial disbursement row so
      * deleteLoan can remove it without matching on mutable fields.
      *
+     * Issue #156: stableId on accounts gives every account a UUID v4 so backup
+     * merge can match accounts across devices. Blank "" marks legacy rows; the
+     * backfill mints an ID for each existing row.
+     *
      * Additive-only: nullable INTEGER columns, default NULL, no data rewrite.
      * Rows created before this migration keep NULL; deleteLoan falls back to
      * the legacy field-matching path for those rows.
@@ -416,6 +421,27 @@ abstract class AppDatabase : RoomDatabase() {
           // deleteTransactionsByLoanId does not scan the whole table.
           db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_transactions_loanId ON transactions (loanId)"
+          )
+          // Stable identity for backup merge (issue #156). Blank "" marks
+          // legacy rows with no ID. The backfill mints a random UUID v4 for
+          // every existing row so future exports carry an ID from day one.
+          // No unique index: "" is a legitimate repeating legacy sentinel.
+          // Randomness note: SQLite random()/randomblob() is a PRNG, not a
+          // CSPRNG. This is a one-time local backfill (not a security
+          // boundary); collision odds at user data volumes are negligible.
+          db.execSQL("ALTER TABLE accounts ADD COLUMN stableId TEXT NOT NULL DEFAULT ''")
+          db.execSQL(
+            """
+            UPDATE accounts SET stableId =
+              lower(
+                substr(hex(randomblob(4)), 1, 8) || '-' ||
+                substr(hex(randomblob(2)), 1, 4) || '-' ||
+                '4' || substr(hex(randomblob(2)), 2, 3) || '-' ||
+                substr('89ab', (random() & 3) + 1, 1) || substr(hex(randomblob(2)), 2, 3) || '-' ||
+                substr(hex(randomblob(6)), 1, 12)
+              )
+            WHERE stableId = ''
+            """.trimIndent()
           )
         }
       }
@@ -504,6 +530,9 @@ abstract class AppDatabase : RoomDatabase() {
               put("displayOrder", defaultAccount.displayOrder)
               put("createdAt", defaultAccount.createdAt)
               put("updatedAt", defaultAccount.updatedAt)
+              // Per-install random ID: the seeded row is a fresh identity,
+              // not a copy of DEFAULT_ACCOUNT.
+              put("stableId", UUID.randomUUID().toString())
             }
           db.insert("accounts", SQLiteDatabase.CONFLICT_IGNORE, values)
         }

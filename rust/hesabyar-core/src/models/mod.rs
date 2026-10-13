@@ -1,19 +1,20 @@
 use serde::{Deserialize, Serialize};
 
-/// Backup format/schema version. Bump ONLY on a breaking change to the
-/// serialized backup structure. This is the single source of truth: the Kotlin
+/// Backup format/schema version. Bump on any change to the serialized backup
+/// structure (breaking or additive) so restores can tell which fields an
+/// export was produced with. This is the single source of truth: the Kotlin
 /// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
 /// time (app/build.gradle.kts), so the two sides cannot drift.
-pub const BACKUP_SCHEMA_VERSION: i32 = 2;
+pub const BACKUP_SCHEMA_VERSION: i32 = 3;
 
-/// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
-/// Also accepts JSON null for compatibility with nullable exports.
-fn deserialize_zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+/// Deserialize an Option where the type default (0, "") means None; also accepts JSON null.
+fn deserialize_empty_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + Default + PartialEq,
 {
-    let val = Option::<i64>::deserialize(deserializer)?;
-    Ok(val.filter(|&v| v != 0))
+    let val = Option::<T>::deserialize(deserializer)?;
+    Ok(val.filter(|v| *v != T::default()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum, Default)]
@@ -77,7 +78,7 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "personId"
     )]
     pub person_id: Option<i64>,
@@ -85,14 +86,14 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "dueDate"
     )]
     pub due_date: Option<i64>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "installmentId"
     )]
     pub installment_id: Option<i64>,
@@ -101,7 +102,7 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "destinationAccountId"
     )]
     pub destination_account_id: Option<i64>,
@@ -146,6 +147,14 @@ pub struct Account {
     pub created_at: i64,
     #[serde(default, alias = "updatedAt")]
     pub updated_at: i64,
+    /// Stable merge identity, minted at account creation; "" normalizes to None.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "stableId",
+        deserialize_with = "deserialize_empty_as_none"
+    )]
+    pub stable_id: Option<String>,
 }
 
 fn default_color() -> i64 {
@@ -161,7 +170,7 @@ pub struct Loan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "personId"
     )]
     pub person_id: Option<i64>,
@@ -180,7 +189,7 @@ pub struct Loan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,
@@ -206,7 +215,7 @@ pub struct Installment {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,
@@ -240,7 +249,7 @@ pub struct BankLoan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,
@@ -614,6 +623,26 @@ pub fn is_tx_category_excluded(tx: &Transaction, excluded_category_ids: &[i64]) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn account(id: i64, name: &str, account_type: &str, initial_balance: i64) -> Account {
+        Account {
+            id,
+            name: name.to_string(),
+            account_type: account_type.to_string(),
+            bank_name: None,
+            card_number: None,
+            account_number: None,
+            iban: None,
+            initial_balance,
+            color: 0xFF4CAF50,
+            icon: None,
+            is_archived: false,
+            display_order: 0,
+            created_at: 0,
+            updated_at: 0,
+            stable_id: None,
+        }
+    }
 
     #[test]
     fn test_backup_payload_ignores_unknown_fields() {
@@ -1000,6 +1029,7 @@ mod tests {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         };
         let json = serde_json::to_string(&account).unwrap();
         let restored: Account = serde_json::from_str(&json).unwrap();
@@ -1023,38 +1053,8 @@ mod tests {
             payment_histories: vec![],
             categories: vec![],
             accounts: vec![
-                Account {
-                    id: 1,
-                    name: "حساب اصلی".to_string(),
-                    account_type: "BANK".to_string(),
-                    bank_name: Some("ملی".to_string()),
-                    card_number: None,
-                    account_number: None,
-                    iban: None,
-                    initial_balance: 0,
-                    color: 0xFF4CAF50,
-                    icon: None,
-                    is_archived: false,
-                    display_order: 0,
-                    created_at: 0,
-                    updated_at: 0,
-                },
-                Account {
-                    id: 2,
-                    name: "کیف پول نقدی".to_string(),
-                    account_type: "CASH_WALLET".to_string(),
-                    bank_name: None,
-                    card_number: None,
-                    account_number: None,
-                    iban: None,
-                    initial_balance: 500000,
-                    color: 0xFFFF9800,
-                    icon: None,
-                    is_archived: false,
-                    display_order: 1,
-                    created_at: 0,
-                    updated_at: 0,
-                },
+                account(1, "حساب اصلی", "BANK", 0),
+                account(2, "کیف پول نقدی", "CASH_WALLET", 500000),
             ],
             ..Default::default()
         };

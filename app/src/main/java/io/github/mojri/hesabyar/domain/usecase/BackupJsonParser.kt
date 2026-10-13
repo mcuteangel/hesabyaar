@@ -273,7 +273,9 @@ class BackupJsonParser(
           isArchived = o.optBoolean("isArchived", false),
           displayOrder = o.optInt("displayOrder", 0),
           createdAt = o.optLong("createdAt", now),
-          updatedAt = o.optLong("updatedAt", now)
+          updatedAt = o.optLong("updatedAt", now),
+          // Absent or explicit JSON null both decode to the blank legacy sentinel.
+          stableId = o.nullableString("stableId") ?: ""
         )
       }
     } ?: emptyList()

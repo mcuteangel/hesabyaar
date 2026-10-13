@@ -696,6 +696,7 @@ fn test_backup_rejects_empty_account_name() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -732,6 +733,7 @@ fn test_backup_rejects_duplicate_account_ids() {
                 display_order: 0,
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
+                stable_id: None,
             },
             Account {
                 id: 1,
@@ -748,6 +750,7 @@ fn test_backup_rejects_duplicate_account_ids() {
                 display_order: 0,
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
+                stable_id: None,
             },
         ],
         ..Default::default()
@@ -784,6 +787,7 @@ fn test_backup_rejects_invalid_account_type() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -821,6 +825,7 @@ fn test_backup_accepts_other_account_type() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -863,6 +868,7 @@ fn test_backup_accepts_account_only_backup() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -998,6 +1004,7 @@ fn test_backup_transfer_missing_destination_not_duplicated() {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -1058,6 +1065,7 @@ fn test_backup_transfer_same_source_dest_not_duplicated() {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -1116,6 +1124,7 @@ fn test_backup_rejects_tx_with_nonexistent_source_account() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -1164,6 +1173,7 @@ fn test_backup_rejects_tx_with_nonexistent_destination_account() {
             display_order: 0,
             created_at: 1710000000000,
             updated_at: 1710000000000,
+            stable_id: None,
         }],
         ..Default::default()
     };
@@ -1216,6 +1226,7 @@ fn test_backup_valid_with_all_accounts_referenced() {
                 display_order: 0,
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
+                stable_id: None,
             },
             Account {
                 id: 2,
@@ -1232,6 +1243,7 @@ fn test_backup_valid_with_all_accounts_referenced() {
                 display_order: 0,
                 created_at: 1710000000000,
                 updated_at: 1710000000000,
+                stable_id: None,
             },
         ],
         ..Default::default()
@@ -1379,6 +1391,7 @@ fn test_backup_rejects_non_existent_source_account_in_modern_backup() {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }],
         transactions: vec![Transaction {
             id: 1,
@@ -1429,6 +1442,7 @@ fn test_backup_rejects_non_existent_destination_account_in_modern_backup() {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }],
         transactions: vec![Transaction {
             id: 1,
@@ -1482,6 +1496,7 @@ fn test_backup_orders_account_ref_errors_before_transfer_structure_errors() {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }],
         transactions: vec![Transaction {
             id: 1,
