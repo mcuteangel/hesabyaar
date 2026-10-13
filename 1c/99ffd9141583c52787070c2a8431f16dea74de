@@ -1,0 +1,19 @@
+docs/agents/project-board.md
+  s_cb29225c4afd64::t_45759c03fe5258 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1c99ffd9141583c52787070c2a8431f16dea74de",
+  "prompts": {},
+  "sessions": {
+    "s_cb29225c4afd64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab8429a2-feb3-4a7a-a3cd-706c18fa9442",
+        "model": "hy3"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
