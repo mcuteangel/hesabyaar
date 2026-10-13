@@ -1,0 +1,19 @@
+AGENTS.md
+  s_cb29225c4afd64::t_bd26a068a31625 139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b0d83f06661a0bc25eb590634067c5470956e778",
+  "prompts": {},
+  "sessions": {
+    "s_cb29225c4afd64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab8429a2-feb3-4a7a-a3cd-706c18fa9442",
+        "model": "hy3"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
