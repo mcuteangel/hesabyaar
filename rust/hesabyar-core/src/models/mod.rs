@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 /// time (app/build.gradle.kts), so the two sides cannot drift.
 pub const BACKUP_SCHEMA_VERSION: i32 = 3;
 
-/// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
-/// Also accepts JSON null for compatibility with nullable exports.
-fn deserialize_zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+/// Deserialize an Option where the type default (0, "") means None; also accepts JSON null.
+fn deserialize_empty_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + Default + PartialEq,
 {
-    let val = Option::<i64>::deserialize(deserializer)?;
-    Ok(val.filter(|&v| v != 0))
+    let val = Option::<T>::deserialize(deserializer)?;
+    Ok(val.filter(|v| *v != T::default()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum, Default)]
@@ -78,7 +78,7 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "personId"
     )]
     pub person_id: Option<i64>,
@@ -86,14 +86,14 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "dueDate"
     )]
     pub due_date: Option<i64>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "installmentId"
     )]
     pub installment_id: Option<i64>,
@@ -102,7 +102,7 @@ pub struct Transaction {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "destinationAccountId"
     )]
     pub destination_account_id: Option<i64>,
@@ -147,8 +147,13 @@ pub struct Account {
     pub created_at: i64,
     #[serde(default, alias = "updatedAt")]
     pub updated_at: i64,
-    /// Stable merge identity, minted at account-creation time (None for legacy backups).
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "stableId")]
+    /// Stable merge identity, minted at account creation; "" normalizes to None.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "stableId",
+        deserialize_with = "deserialize_empty_as_none"
+    )]
     pub stable_id: Option<String>,
 }
 
@@ -165,7 +170,7 @@ pub struct Loan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "personId"
     )]
     pub person_id: Option<i64>,
@@ -184,7 +189,7 @@ pub struct Loan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,
@@ -210,7 +215,7 @@ pub struct Installment {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,
@@ -244,7 +249,7 @@ pub struct BankLoan {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_zero_as_none",
+        deserialize_with = "deserialize_empty_as_none",
         alias = "accountId"
     )]
     pub account_id: Option<i64>,

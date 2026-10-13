@@ -65,3 +65,17 @@ fn none_stable_id_omits_field_when_serializing() {
     let json = serde_json::to_string(&account).unwrap();
     assert!(!json.contains("stableId"));
 }
+
+#[test]
+fn empty_string_stable_id_deserializes_to_none() {
+    // A hand-crafted "" must normalize to None: None stays the sole
+    // representation of "no stable ID" in Rust.
+    let json = r#"{
+        "version": 3,
+        "timestamp": 1710000000000,
+        "appVersion": "3.0.0",
+        "accounts": [{"id": 1, "name": "حساب اصلی", "type": "BANK", "stableId": ""}]
+    }"#;
+    let payload: BackupPayload = serde_json::from_str(json).unwrap();
+    assert_eq!(payload.accounts[0].stable_id, None);
+}
