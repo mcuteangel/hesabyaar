@@ -10,8 +10,15 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.domain.usecase.ManageInstallmentUseCase
 import io.github.mojri.hesabyar.ui.FakeRepository
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,11 +30,14 @@ import org.robolectric.annotation.Config
  * button asks first, confirming deletes exactly the tapped installment (never a
  * row the dialog shifted onto), and dismissing deletes nothing.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class InstallmentDeleteConfirmTest {
   @get:Rule
   val composeRule = createComposeRule()
+
+  private val testDispatcher = StandardTestDispatcher()
 
   private val installment =
     Installment(id = 7, title = "قسط تست", amount = 100000L, dueDate = 0L)
@@ -40,18 +50,36 @@ class InstallmentDeleteConfirmTest {
     }
   }
 
-  private fun viewModelWith(repo: RecordingRepository): InstallmentViewModel =
+  private val repo = RecordingRepository()
+  private val viewModel: InstallmentViewModel by lazy {
     InstallmentViewModel(ManageInstallmentUseCase(repo))
+  }
+
+  @Before
+  fun setUp() {
+    Dispatchers.setMain(testDispatcher)
+    repo.deleted.clear()
+  }
+
+  @After
+  fun tearDown() {
+    Dispatchers.resetMain()
+  }
+
+  private fun settle() {
+    testDispatcher.scheduler.advanceUntilIdle()
+    composeRule.waitForIdle()
+  }
+
+  private fun setContent() {
+    composeRule.setContent {
+      InstallmentListItem(installment = installment, installmentViewModel = viewModel)
+    }
+  }
 
   @Test
   fun deleteButtonOpensConfirmationDialog() {
-    val repo = RecordingRepository()
-    composeRule.setContent {
-      InstallmentListItem(
-        installment = installment,
-        installmentViewModel = viewModelWith(repo)
-      )
-    }
+    setContent()
 
     composeRule.onNodeWithContentDescription("حذف قسط").performClick()
 
@@ -61,34 +89,23 @@ class InstallmentDeleteConfirmTest {
 
   @Test
   fun confirmingDeletesTheTappedInstallment() {
-    val repo = RecordingRepository()
-    composeRule.setContent {
-      InstallmentListItem(
-        installment = installment,
-        installmentViewModel = viewModelWith(repo)
-      )
-    }
+    setContent()
 
     composeRule.onNodeWithContentDescription("حذف قسط").performClick()
     composeRule.onNodeWithText("حذف").performClick()
+    settle()
 
-    composeRule.waitUntil(timeoutMillis = 5000) { repo.deleted.size == 1 }
-    assertEquals(installment, repo.deleted.single())
+    assertEquals(listOf(installment), repo.deleted)
     composeRule.onNodeWithText("حذف قسط").assertDoesNotExist()
   }
 
   @Test
   fun dismissingDeletesNothing() {
-    val repo = RecordingRepository()
-    composeRule.setContent {
-      InstallmentListItem(
-        installment = installment,
-        installmentViewModel = viewModelWith(repo)
-      )
-    }
+    setContent()
 
     composeRule.onNodeWithContentDescription("حذف قسط").performClick()
     composeRule.onNodeWithText("انصراف").performClick()
+    settle()
 
     composeRule.onNodeWithText("حذف قسط").assertDoesNotExist()
     assertTrue(repo.deleted.isEmpty())
