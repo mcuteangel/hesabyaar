@@ -1136,18 +1136,18 @@ private fun ConfigDeleteButton(
   }
 
   if (pendingDelete != null) {
+    val target = pendingDelete!!
     ConfirmDialog(
       title = "حذف پیکربندی",
       message =
-        "آیا از حذف پیکربندی «${pendingDelete!!.displayName}» اطمینان دارید؟" +
+        "آیا از حذف پیکربندی «${target.displayName}» اطمینان دارید؟" +
           " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
       confirmText = "حذف",
       dismissText = "انصراف",
       onDismiss = { pendingDelete = null },
       onConfirm = {
-        val target = pendingDelete
         pendingDelete = null
-        if (target != null) onDelete(target)
+        onDelete(target)
       }
     )
   }
