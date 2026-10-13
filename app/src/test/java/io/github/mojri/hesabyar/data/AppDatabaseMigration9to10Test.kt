@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -150,31 +151,32 @@ class AppDatabaseMigration9to10Test {
   }
 
   @Test
-  fun migration9to10BackfillsDistinctUuidV4StableIds() {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    val dbName = "migration_9_10_test_db"
-    val dbFile = context.getDatabasePath(dbName)
+  fun migration9to10BackfillsDistinctUuidV4StableIds() =
+    runTest {
+      val context = ApplicationProvider.getApplicationContext<Context>()
+      val dbName = "migration_9_10_test_db"
+      val dbFile = context.getDatabasePath(dbName)
 
-    try {
-      createAndSeedV9Database(context, dbName) { raw -> seedV9Accounts(raw) }
+      try {
+        createAndSeedV9Database(context, dbName) { raw -> seedV9Accounts(raw) }
 
-      val migratedDb =
-        Room
-          .databaseBuilder(context, AppDatabase::class.java, dbName)
-          .allowMainThreadQueries()
-          .addMigrations(AppDatabase.MIGRATION_9_10)
-          .build()
+        val migratedDb =
+          Room
+            .databaseBuilder(context, AppDatabase::class.java, dbName)
+            .allowMainThreadQueries()
+            .addMigrations(AppDatabase.MIGRATION_9_10)
+            .build()
 
-      assertBackfilledStableIds(migratedDb)
-      assertInsertWithStableId(migratedDb)
+        assertBackfilledStableIds(migratedDb)
+        assertInsertWithStableId(migratedDb)
 
-      migratedDb.close()
-    } finally {
-      dbFile.delete()
-      context.getDatabasePath("$dbName-wal").delete()
-      context.getDatabasePath("$dbName-shm").delete()
+        migratedDb.close()
+      } finally {
+        dbFile.delete()
+        context.getDatabasePath("$dbName-wal").delete()
+        context.getDatabasePath("$dbName-shm").delete()
+      }
     }
-  }
 
   private fun seedV9Accounts(raw: SupportSQLiteDatabase) {
     // Two rows share a name on purpose: the backfill must still give
@@ -209,7 +211,7 @@ class AppDatabaseMigration9to10Test {
     )
   }
 
-  private fun assertInsertWithStableId(migratedDb: AppDatabase) {
+  private suspend fun assertInsertWithStableId(migratedDb: AppDatabase) {
     // New rows inserted after the migration keep working with the new column.
     val freshId =
       migratedDb.accountDao().insert(

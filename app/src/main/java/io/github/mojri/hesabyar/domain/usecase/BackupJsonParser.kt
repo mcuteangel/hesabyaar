@@ -274,7 +274,7 @@ class BackupJsonParser(
           displayOrder = o.optInt("displayOrder", 0),
           createdAt = o.optLong("createdAt", now),
           updatedAt = o.optLong("updatedAt", now),
-          stableId = o.optString("stableId", "")
+          stableId = o.nullableString("stableId") ?: ""
         )
       }
     } ?: emptyList()
