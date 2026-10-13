@@ -27,6 +27,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
@@ -285,6 +286,7 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
+  var showDeleteConfirm by remember { mutableStateOf(false) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
   HesabyarCard(
@@ -420,7 +422,7 @@ fun InstallmentListItem(
             horizontalArrangement = Arrangement.End
           ) {
             IconButton(
-              onClick = { installmentViewModel.deleteInstallment(installment) },
+              onClick = { showDeleteConfirm = true },
               modifier =
                 Modifier
                   .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
@@ -437,5 +439,19 @@ fun InstallmentListItem(
         }
       }
     }
+  }
+
+  if (showDeleteConfirm) {
+    ConfirmDialog(
+      title = "حذف قسط",
+      message = "آیا از حذف این قسط اطمینان دارید؟ این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { showDeleteConfirm = false },
+      onConfirm = {
+        showDeleteConfirm = false
+        installmentViewModel.deleteInstallment(installment)
+      }
+    )
   }
 }

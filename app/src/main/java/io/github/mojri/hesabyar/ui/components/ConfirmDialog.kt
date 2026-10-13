@@ -1,8 +1,9 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,11 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
  * @param title Heading shown at the top of the dialog.
  * @param message Body text describing the consequence of confirming.
  * @param confirmText Label for the confirm (destructive) action, e.g. "حذف".
- * @param dismissText Label for the dismiss action, e.g. "لغو".
+ * @param dismissText Label for the dismiss action, e.g. "انصراف".
  * @param onConfirm Called when the user accepts the action.
  * @param onDismiss Called when the dialog is dismissed without confirming.
- * @param confirmColor Color used for the confirm button; defaults to the
+ * @param confirmColor Fill color of the confirm button; defaults to the
  *   semantic "expense / destructive" error color from the theme.
+ * @param confirmContentColor Text color of the filled confirm button.
+ *   Defaults to onError, which stays readable on both error and primary.
  */
 @Composable
 fun ConfirmDialog(
@@ -37,8 +40,9 @@ fun ConfirmDialog(
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
   confirmText: String = "تایید",
-  dismissText: String = "لغو",
-  confirmColor: Color = MaterialTheme.colorScheme.error
+  dismissText: String = "انصراف",
+  confirmColor: Color = MaterialTheme.colorScheme.error,
+  confirmContentColor: Color = MaterialTheme.colorScheme.onError
 ) {
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -51,8 +55,11 @@ fun ConfirmDialog(
     },
     text = { Text(text = message) },
     confirmButton = {
-      OutlinedButton(onClick = onConfirm) {
-        Text(text = confirmText, color = confirmColor)
+      Button(
+        onClick = onConfirm,
+        colors = ButtonDefaults.buttonColors(containerColor = confirmColor, contentColor = confirmContentColor)
+      ) {
+        Text(text = confirmText)
       }
     },
     dismissButton = {

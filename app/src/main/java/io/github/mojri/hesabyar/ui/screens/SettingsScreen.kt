@@ -51,6 +51,7 @@ import io.github.mojri.hesabyar.ui.PassphraseDialogState
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.ExportPassphraseDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
@@ -948,6 +949,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingConfig by remember { mutableStateOf<AiProviderConfig?>(null) }
+  var configToDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
 
   HesabyarCard(
     modifier = Modifier.fillMaxWidth()
@@ -1010,7 +1012,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
             isActive = isActive,
             onSelect = { aiAssistantViewModel.setActiveConfig(config.id) },
             onEdit = { editingConfig = config },
-            onDelete = { aiAssistantViewModel.deleteAiConfig(config.id) }
+            onDelete = { configToDelete = config }
           )
         }
       }
@@ -1048,6 +1050,23 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
       },
       modelFetchState = modelFetchState,
       onClearModelFetchState = { aiAssistantViewModel.clearModelFetchState() }
+    )
+  }
+
+  // Delete Config Confirmation
+  if (configToDelete != null) {
+    ConfirmDialog(
+      title = "حذف پیکربندی",
+      message =
+        "آیا از حذف پیکربندی «${configToDelete!!.displayName}» اطمینان دارید؟" +
+          " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { configToDelete = null },
+      onConfirm = {
+        aiAssistantViewModel.deleteAiConfig(configToDelete!!.id)
+        configToDelete = null
+      }
     )
   }
 }

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +87,7 @@ internal fun ExitConfirmDialog(
     message = stringResource(R.string.exit_dialog_message),
     confirmText = stringResource(R.string.exit_dialog_confirm),
     dismissText = stringResource(R.string.cancel_label),
+    confirmColor = MaterialTheme.colorScheme.primary,
     onConfirm = onConfirm,
     onDismiss = onDismiss
   )
