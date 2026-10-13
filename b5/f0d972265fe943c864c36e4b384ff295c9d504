@@ -1,0 +1,20 @@
+docs/agents/project-board.md
+  s_cb29225c4afd64::t_725c80efae2d70 11-12,14,19
+  s_cb29225c4afd64::t_b91334bcc1fb8f 10,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b5f0d972265fe943c864c36e4b384ff295c9d504",
+  "prompts": {},
+  "sessions": {
+    "s_cb29225c4afd64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab8429a2-feb3-4a7a-a3cd-706c18fa9442",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
