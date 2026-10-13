@@ -136,7 +136,8 @@ internal class FakeRepository : HesabyarRepositoryInterface {
           amount = loan.originalAmount,
           description = loan.description.ifBlank { loan.personName },
           date = loan.date,
-          accountId = loan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID
+          accountId = loan.accountId ?: io.github.mojri.hesabyar.data.DEFAULT_ACCOUNT_ID,
+          loanId = id
         )
       )
     }

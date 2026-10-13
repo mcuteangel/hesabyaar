@@ -149,9 +149,11 @@ New warning kinds land in "Other". Teach the parser in `.github/scripts/ci-warni
 
 ## Out-of-Scope Review Feedback
 
-When review comments highlight valid suggestions that are outside the scope of the current pull request, do not ignore them.
-Create a new GitHub issue with complete details for each valid out-of-scope item.
-Link the pull request and the original discussion in the issue description.
+When review comments highlight valid suggestions that are outside the scope of the current pull request, do not ignore them:
+1. Search existing open GitHub issues first (`gh issue list --search "..."`) to ensure the suggestion is not already tracked.
+2. If not already tracked, create a new GitHub issue with complete details for each valid out-of-scope item.
+3. Link the pull request and the original discussion in the issue description.
+4. State in the comment reply that a dedicated GitHub issue was opened (or already exists) to track it, providing the issue number or link.
 
 ## Keeping Docs in Sync
 
