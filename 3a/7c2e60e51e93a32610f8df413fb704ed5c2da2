@@ -1,0 +1,19 @@
+scripts/test-pre-push.sh
+  s_5b7857a6a0ed64::t_8a08ff3f53b64d 96-103,124,138,152,158,192,230,268,311,341,365,379,410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3a7c2e60e51e93a32610f8df413fb704ed5c2da2",
+  "prompts": {},
+  "sessions": {
+    "s_5b7857a6a0ed64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eebbf131-ad80-46db-8759-ca2dc8f2b5d5",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
