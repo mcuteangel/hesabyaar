@@ -444,6 +444,7 @@ mod tests {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }
     }
 
@@ -467,6 +468,12 @@ mod tests {
             account_id,
             ..tx(id, tx_type, amount, date_ms, cat_id)
         }
+    }
+
+    fn transfer_tx(now: i64) -> Transaction {
+        let mut t = tx(1, TransactionType::Transfer, 500_000, now, 1);
+        t.destination_account_id = Some(2);
+        t
     }
 
     fn category(id: i64, name: &str) -> Category {
@@ -879,20 +886,7 @@ mod tests {
     fn test_transfer_neutral_when_account_id_none() {
         let now = now_ms();
         let accounts = vec![account(1, "A", "BANK"), account(2, "B", "BANK")];
-        let txs = vec![Transaction {
-            id: 1,
-            tx_type: TransactionType::Transfer,
-            category_id: 1,
-            amount: 500_000,
-            description: String::new(),
-            person_name: None,
-            person_id: None,
-            date: now,
-            due_date: None,
-            installment_id: None,
-            account_id: 1,
-            destination_account_id: Some(2),
-        }];
+        let txs = vec![transfer_tx(now)];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
         assert!(result.monthly_spending.is_empty());
     }
@@ -902,20 +896,7 @@ mod tests {
     fn test_transfer_source_is_selected_account_counted_as_expense() {
         let now = now_ms();
         let accounts = vec![account(1, "A", "BANK"), account(2, "B", "BANK")];
-        let txs = vec![Transaction {
-            id: 1,
-            tx_type: TransactionType::Transfer,
-            category_id: 1,
-            amount: 500_000,
-            description: String::new(),
-            person_name: None,
-            person_id: None,
-            date: now,
-            due_date: None,
-            installment_id: None,
-            account_id: 1,
-            destination_account_id: Some(2),
-        }];
+        let txs = vec![transfer_tx(now)];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(1), false, &[]);
         assert_eq!(result.monthly_spending[0].expense, 500_000);
         assert_eq!(result.monthly_spending[0].income, 0);
@@ -926,20 +907,7 @@ mod tests {
     fn test_transfer_dest_is_selected_account_counted_as_income() {
         let now = now_ms();
         let accounts = vec![account(1, "A", "BANK"), account(2, "B", "BANK")];
-        let txs = vec![Transaction {
-            id: 1,
-            tx_type: TransactionType::Transfer,
-            category_id: 1,
-            amount: 500_000,
-            description: String::new(),
-            person_name: None,
-            person_id: None,
-            date: now,
-            due_date: None,
-            installment_id: None,
-            account_id: 1,
-            destination_account_id: Some(2),
-        }];
+        let txs = vec![transfer_tx(now)];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(2), false, &[]);
         assert_eq!(result.monthly_spending[0].income, 500_000);
         assert_eq!(result.monthly_spending[0].expense, 0);
@@ -954,20 +922,7 @@ mod tests {
             account(2, "B", "BANK"),
             account(3, "C", "BANK"),
         ];
-        let txs = vec![Transaction {
-            id: 1,
-            tx_type: TransactionType::Transfer,
-            category_id: 1,
-            amount: 500_000,
-            description: String::new(),
-            person_name: None,
-            person_id: None,
-            date: now,
-            due_date: None,
-            installment_id: None,
-            account_id: 1,
-            destination_account_id: Some(2),
-        }];
+        let txs = vec![transfer_tx(now)];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, Some(3), false, &[]);
         assert!(result.monthly_spending.is_empty());
     }

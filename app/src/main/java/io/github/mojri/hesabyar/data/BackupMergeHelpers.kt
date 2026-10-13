@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
+import java.util.UUID
 
 internal suspend fun backupMergeCategories(
   categories: List<Category>,
@@ -96,27 +97,86 @@ internal suspend fun backupMergeInstallments(
   return idMap
 }
 
+/**
+ * Identity index for backup account merge. Matches by stable ID first;
+ * name matching stays as the legacy fallback for backups and rows that
+ * predate stable IDs (issue #156).
+ */
+private class AccountMergeIndex(
+  locals: List<AccountEntity>
+) {
+  private val byStableId = mutableMapOf<String, AccountEntity>()
+  private val byName = mutableMapOf<String, AccountEntity>()
+
+  init {
+    locals.forEach { track(it) }
+  }
+
+  fun findByStableId(stableId: String): AccountEntity? = byStableId[stableId]
+
+  fun findByName(name: String): AccountEntity? = byName[name]
+
+  /** Records a local row; rows without a stable ID are name-indexed only. */
+  fun track(
+    row: AccountEntity,
+    previousName: String? = null
+  ) {
+    if (previousName != null && previousName != row.name) byName.remove(previousName)
+    byName[row.name] = row
+    if (row.stableId.isNotBlank()) byStableId[row.stableId] = row
+  }
+}
+
 internal suspend fun backupMergeAccounts(
   accounts: List<AccountEntity>,
   accountDao: AccountDao
 ): Map<Long, Long> {
-  val accountIdsByName =
-    accountDao
-      .getAllAccountsBlocking()
-      .associateTo(mutableMapOf()) { it.name to it.id }
+  val index = AccountMergeIndex(accountDao.getAllAccountsBlocking())
   val accountIdMap = mutableMapOf<Long, Long>()
   for (account in accounts) {
-    val existingId = accountIdsByName[account.name]
-    if (existingId != null) {
-      accountDao.update(account.copy(id = existingId))
-      accountIdMap[account.id] = existingId
-    } else {
-      val newId = accountDao.insert(account.copy(id = 0))
-      accountIdsByName[account.name] = newId
-      accountIdMap[account.id] = newId
-    }
+    accountIdMap[account.id] = backupMergeOneAccount(account, index, accountDao)
   }
   return accountIdMap
+}
+
+private suspend fun backupMergeOneAccount(
+  account: AccountEntity,
+  index: AccountMergeIndex,
+  accountDao: AccountDao
+): Long {
+  val stableId = account.stableId.takeIf { it.isNotBlank() }
+  val idMatch = stableId?.let { index.findByStableId(it) }
+  val nameMatch = index.findByName(account.name)
+  // Same name but two different stable identities: never merge — the backup
+  // row is a distinct account that happens to share the name (issue #156).
+  val localId = nameMatch?.stableId?.takeIf { it.isNotBlank() }
+  val isDistinctIdentity = localId != null && stableId != null && localId != stableId
+  return when {
+    idMatch != null -> {
+      // Stable-ID hit wins outright. The row keeps its identity; the backup
+      // payload refreshes the rest. Re-index under the (possibly new) name.
+      val updated = account.copy(id = idMatch.id)
+      accountDao.update(updated)
+      index.track(updated, previousName = idMatch.name)
+      idMatch.id
+    }
+    nameMatch != null && !isDistinctIdentity -> {
+      // Legacy fallback: at least one side has no stable ID. Never overwrite
+      // a non-blank local ID with a blank backup one; adopt the backup ID
+      // when the local row has none, so legacy rows self-heal.
+      val resolvedStableId = nameMatch.stableId.ifBlank { account.stableId }
+      val updated = account.copy(id = nameMatch.id, stableId = resolvedStableId)
+      accountDao.update(updated)
+      index.track(updated)
+      nameMatch.id
+    }
+    else -> {
+      val freshId = stableId ?: UUID.randomUUID().toString()
+      val insertedId = accountDao.insert(account.copy(id = 0, stableId = freshId))
+      index.track(account.copy(id = insertedId, stableId = freshId))
+      insertedId
+    }
+  }
 }
 
 internal suspend fun backupMergePersons(
