@@ -949,7 +949,6 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingConfig by remember { mutableStateOf<AiProviderConfig?>(null) }
-  var configToDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
 
   HesabyarCard(
     modifier = Modifier.fillMaxWidth()
@@ -1012,7 +1011,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
             isActive = isActive,
             onSelect = { aiAssistantViewModel.setActiveConfig(config.id) },
             onEdit = { editingConfig = config },
-            onDelete = { configToDelete = config }
+            onDelete = { cfg -> aiAssistantViewModel.deleteAiConfig(cfg.id) }
           )
         }
       }
@@ -1052,23 +1051,6 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
       onClearModelFetchState = { aiAssistantViewModel.clearModelFetchState() }
     )
   }
-
-  // Delete Config Confirmation
-  if (configToDelete != null) {
-    ConfirmDialog(
-      title = "حذف پیکربندی",
-      message =
-        "آیا از حذف پیکربندی «${configToDelete!!.displayName}» اطمینان دارید؟" +
-          " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
-      onDismiss = { configToDelete = null },
-      onConfirm = {
-        aiAssistantViewModel.deleteAiConfig(configToDelete!!.id)
-        configToDelete = null
-      }
-    )
-  }
 }
 
 @Composable
@@ -1077,8 +1059,11 @@ fun ConfigItem(
   isActive: Boolean,
   onSelect: () -> Unit,
   onEdit: () -> Unit,
-  onDelete: () -> Unit
+  onDelete: (AiProviderConfig) -> Unit
 ) {
+  // Holds the tapped config itself, not a boolean: the list is positional, so
+  // a reorder while the dialog is open must not retarget the delete.
+  var pendingDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
   Row(
     modifier =
       Modifier
@@ -1128,7 +1113,7 @@ fun ConfigItem(
       )
     }
 
-    IconButton(onClick = onDelete, modifier = Modifier.size(Dimens.IconLarge)) {
+    IconButton(onClick = { pendingDelete = config }, modifier = Modifier.size(Dimens.IconLarge)) {
       Icon(
         imageVector = Icons.Filled.Delete,
         contentDescription = "حذف",
@@ -1136,6 +1121,23 @@ fun ConfigItem(
         tint = MaterialTheme.colorScheme.error
       )
     }
+  }
+
+  if (pendingDelete != null) {
+    ConfirmDialog(
+      title = "حذف پیکربندی",
+      message =
+        "آیا از حذف پیکربندی «${pendingDelete!!.displayName}» اطمینان دارید؟" +
+          " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { pendingDelete = null },
+      onConfirm = {
+        val target = pendingDelete
+        pendingDelete = null
+        if (target != null) onDelete(target)
+      }
+    )
   }
 }
 

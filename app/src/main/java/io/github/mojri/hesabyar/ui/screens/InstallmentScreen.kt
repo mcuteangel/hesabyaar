@@ -286,7 +286,10 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
-  var showDeleteConfirm by remember { mutableStateOf(false) }
+  // Holds the tapped installment itself, not a boolean: LazyColumn items are
+  // positional (no keys), so a reorder while the dialog is open must not
+  // retarget the delete to a different row.
+  var pendingDelete by remember { mutableStateOf<Installment?>(null) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
   HesabyarCard(
@@ -422,7 +425,7 @@ fun InstallmentListItem(
             horizontalArrangement = Arrangement.End
           ) {
             IconButton(
-              onClick = { showDeleteConfirm = true },
+              onClick = { pendingDelete = installment },
               modifier =
                 Modifier
                   .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
@@ -441,16 +444,17 @@ fun InstallmentListItem(
     }
   }
 
-  if (showDeleteConfirm) {
+  if (pendingDelete != null) {
     ConfirmDialog(
       title = "حذف قسط",
       message = "آیا از حذف این قسط اطمینان دارید؟ این عمل قابل بازگشت نیست.",
       confirmText = "حذف",
       dismissText = "انصراف",
-      onDismiss = { showDeleteConfirm = false },
+      onDismiss = { pendingDelete = null },
       onConfirm = {
-        showDeleteConfirm = false
-        installmentViewModel.deleteInstallment(installment)
+        val target = pendingDelete
+        pendingDelete = null
+        if (target != null) installmentViewModel.deleteInstallment(target)
       }
     )
   }
