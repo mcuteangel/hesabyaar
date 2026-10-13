@@ -11,7 +11,7 @@ The [Hesabyar Project board](https://github.com/users/mcuteangel/projects/1) and
 
 ## Roadmap (`docs/ROADMAP.md`)
 
-- When a roadmap checkbox item ships (merged to main): flip `[ ]` → `[x]`.
-- When work starts on a planned item: `[ ]` → `[~]`. When blocked: `[!]`.
+- When a roadmap checkbox item ships (merged to main): flip its current marker to `[x]`. This applies whether it was `[ ]`, `[~]`, or `[!]` before the merge.
+- When work starts on a planned item (before or as the feature PR opens): `[ ]` → `[~]`. When blocked: `[!]`. If work begins before any PR is open, still set `[~]` immediately and carry the change into the first PR for that feature — never leave the roadmap stale while work is in flight.
 - Keep the item wording accurate to what actually shipped; add new planned items under the right section as scope emerges.
 - The roadmap edit rides in the same PR as the feature — never a separate docs PR.
