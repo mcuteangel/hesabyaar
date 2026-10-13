@@ -844,10 +844,7 @@ mod tests {
     #[test]
     fn test_archived_txs_do_not_leak_into_active_account_balance() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            archived_account(2, "Archived", "BANK", 0),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), archived_account(2, "Archived", "BANK", 0)];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -915,10 +912,7 @@ mod tests {
     #[test]
     fn test_include_archived_false_excludes_archived_txs_from_totals() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            archived_account(2, "Archived", "BANK", 0),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), archived_account(2, "Archived", "BANK", 0)];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -962,10 +956,7 @@ mod tests {
     #[test]
     fn test_include_archived_true_includes_archived_txs_in_totals() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            archived_account(2, "Archived", "BANK", 0),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), archived_account(2, "Archived", "BANK", 0)];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -1009,10 +1000,7 @@ mod tests {
     #[test]
     fn test_include_archived_false_with_account_id_filter() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            archived_account(2, "Archived", "BANK", 0),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), archived_account(2, "Archived", "BANK", 0)];
         let txs = vec![
             Transaction {
                 id: 1,
@@ -1127,10 +1115,7 @@ mod tests {
     #[test]
     fn test_include_archived_false_transfer_destination_archived() {
         let now_ms = now_jalali_month_ms();
-        let accounts = vec![
-            account(1, "Active", "BANK"),
-            archived_account(2, "Archived", "BANK", 0),
-        ];
+        let accounts = vec![account(1, "Active", "BANK"), archived_account(2, "Archived", "BANK", 0)];
         // Transfer FROM active account TO archived account
         let txs = vec![Transaction {
             id: 1,
