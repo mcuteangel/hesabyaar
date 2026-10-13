@@ -1,0 +1,24 @@
+scripts/test-pre-push.sh
+  s_5b7857a6a0ed64::t_a817dd3a317d75 421-478,491-492
+scripts/pre-push
+  s_5b7857a6a0ed64::t_e88613d9da2e9b 125-126,129,132-133,135-136,161-167,169,171-174,179
+  s_5b7857a6a0ed64::t_aa802381fdfc6a 21-30,34-48,51,55,64-65,75,80-83,94,104
+build.gradle.kts
+  s_5b7857a6a0ed64::t_414ae40f276d03 41-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "26ee221eb688b5ada2c6d0f5b0a339216157892f",
+  "prompts": {},
+  "sessions": {
+    "s_5b7857a6a0ed64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eebbf131-ad80-46db-8759-ca2dc8f2b5d5",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
