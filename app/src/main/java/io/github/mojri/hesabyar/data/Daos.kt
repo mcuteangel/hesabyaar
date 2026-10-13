@@ -148,6 +148,29 @@ interface TransactionLinkDao {
     accountId: Long,
     description: String? = null
   ): Int
+
+  // Issue #242: raw delete by primary keys in one statement. Never call
+  // directly; use the guarded [deleteTransactionsByIds] wrapper below.
+  @Query("DELETE FROM transactions WHERE id IN (:ids)")
+  suspend fun deleteTransactionsByIdsInternal(ids: List<Long>)
+
+  // Issue #242: delete repayment transactions by their primary keys. Used by
+  // deleteLoan via PaymentHistory.linkedTransactionId. Callers must chunk the
+  // list (e.g. at 900) to stay within SQLite's bind parameter limit on older
+  // Android platforms. Empty lists are a no-op so SQLite never sees `IN ()`.
+  suspend fun deleteTransactionsByIds(ids: List<Long>) {
+    if (ids.isNotEmpty()) {
+      deleteTransactionsByIdsInternal(ids)
+    }
+  }
+
+  // Issue #242: delete the initial disbursement transaction created by
+  // insertLoanWithInitial. The row carries loanId, so no category filter or
+  // field matching is needed. Returns the deleted row count so deleteLoan
+  // knows whether the stamped row existed (legacy rows return 0 and need
+  // the field-matching fallback).
+  @Query("DELETE FROM transactions WHERE loanId = :loanId")
+  suspend fun deleteTransactionsByLoanId(loanId: Long): Int
 }
 
 @Dao
@@ -283,6 +306,14 @@ interface PaymentHistoryDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertPayment(payment: PaymentHistory): Long
+
+  // Issue #242: stamp the stable transaction link after the generated row is
+  // inserted. The payment row is already stored, so this is a targeted update.
+  @Query("UPDATE payment_history SET linkedTransactionId = :linkedTransactionId WHERE id = :id")
+  suspend fun updateLinkedTransactionId(
+    id: Long,
+    linkedTransactionId: Long
+  )
 
   @Delete
   suspend fun deletePayment(payment: PaymentHistory)
