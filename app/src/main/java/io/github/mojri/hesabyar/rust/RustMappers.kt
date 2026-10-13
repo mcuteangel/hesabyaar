@@ -385,6 +385,7 @@ object RustMappers {
       displayOrder = rust.displayOrder,
       createdAt = if (rust.createdAt != 0L) rust.createdAt else now,
       updatedAt = if (rust.updatedAt != 0L) rust.updatedAt else now,
+      stableId = rust.stableId ?: ""
     )
   }
 

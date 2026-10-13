@@ -444,6 +444,7 @@ mod tests {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         }
     }
 

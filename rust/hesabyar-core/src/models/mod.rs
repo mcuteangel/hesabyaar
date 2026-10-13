@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-/// Backup format/schema version. Bump ONLY on a breaking change to the
-/// serialized backup structure. This is the single source of truth: the Kotlin
+/// Backup format/schema version. Bump on any change to the serialized backup
+/// structure (breaking or additive), so restores can tell which fields an
+/// export was produced with. This is the single source of truth: the Kotlin
 /// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
 /// time (app/build.gradle.kts), so the two sides cannot drift.
-pub const BACKUP_SCHEMA_VERSION: i32 = 2;
+pub const BACKUP_SCHEMA_VERSION: i32 = 3;
 
 /// Deserialize an i64 where 0 means None (sentinel for null from Kotlin exports).
 /// Also accepts JSON null for compatibility with nullable exports.
@@ -146,6 +147,10 @@ pub struct Account {
     pub created_at: i64,
     #[serde(default, alias = "updatedAt")]
     pub updated_at: i64,
+    /// Stable identity for backup merge, minted at account-creation time.
+    /// None for legacy backups that predate the field.
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "stableId")]
+    pub stable_id: Option<String>,
 }
 
 fn default_color() -> i64 {
@@ -1000,6 +1005,7 @@ mod tests {
             display_order: 0,
             created_at: 0,
             updated_at: 0,
+            stable_id: None,
         };
         let json = serde_json::to_string(&account).unwrap();
         let restored: Account = serde_json::from_str(&json).unwrap();
@@ -1038,6 +1044,7 @@ mod tests {
                     display_order: 0,
                     created_at: 0,
                     updated_at: 0,
+                    stable_id: None,
                 },
                 Account {
                     id: 2,
@@ -1054,6 +1061,7 @@ mod tests {
                     display_order: 1,
                     created_at: 0,
                     updated_at: 0,
+                    stable_id: None,
                 },
             ],
             ..Default::default()
@@ -1064,6 +1072,65 @@ mod tests {
         assert_eq!(restored.accounts[0].account_type, "BANK");
         assert_eq!(restored.accounts[1].account_type, "CASH_WALLET");
         assert_eq!(restored.accounts[1].initial_balance, 500000);
+    }
+
+    #[test]
+    fn test_account_stable_id_absent_in_v2_backup_deserializes_to_none() {
+        // Legacy (v2) backups predate the stableId field; parsing must not fail.
+        let json = r#"{
+            "version": 2,
+            "timestamp": 1710000000000,
+            "appVersion": "2.0.0",
+            "accounts": [{"id": 1, "name": "حساب اصلی", "type": "BANK"}]
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(payload.accounts.len(), 1);
+        assert_eq!(payload.accounts[0].stable_id, None);
+    }
+
+    #[test]
+    fn test_account_stable_id_present_in_v3_backup_round_trip() {
+        let json = r#"{
+            "version": 3,
+            "timestamp": 1710000000000,
+            "appVersion": "3.0.0",
+            "accounts": [{
+                "id": 1,
+                "name": "حساب اصلی",
+                "type": "BANK",
+                "stableId": "2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a"
+            }]
+        }"#;
+        let payload: BackupPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            payload.accounts[0].stable_id.as_deref(),
+            Some("2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a")
+        );
+        let reserialized = serde_json::to_string(&payload.accounts[0]).unwrap();
+        assert!(reserialized.contains("\"stableId\":\"2e5944bd-3c3b-41c9-ad1d-773d2c3bfa3a\""));
+    }
+
+    #[test]
+    fn test_account_stable_id_none_omits_field_when_serializing() {
+        let account = Account {
+            id: 1,
+            name: "حساب اصلی".to_string(),
+            account_type: "BANK".to_string(),
+            bank_name: None,
+            card_number: None,
+            account_number: None,
+            iban: None,
+            initial_balance: 0,
+            color: 0xFF4CAF50,
+            icon: None,
+            is_archived: false,
+            display_order: 0,
+            created_at: 0,
+            updated_at: 0,
+            stable_id: None,
+        };
+        let json = serde_json::to_string(&account).unwrap();
+        assert!(!json.contains("stableId"));
     }
 
     #[test]

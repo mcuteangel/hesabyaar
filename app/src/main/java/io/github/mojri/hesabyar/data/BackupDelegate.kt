@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
+import java.util.UUID
 
 internal class BackupDelegate(
   private val transactionDao: TransactionDao,
@@ -60,7 +61,11 @@ internal class BackupDelegate(
       backup.installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
       backup.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
       backup.bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }
-      backup.accounts.forEach { accountDao.insert(it) }
+      // Self-healing: legacy backups carry no stable ID. A replaced database
+      // must not end up with blank IDs, so mint one per inserted row.
+      backup.accounts.forEach {
+        accountDao.insert(it.copy(stableId = it.stableId.ifBlank { UUID.randomUUID().toString() }))
+      }
     }
 
   override suspend fun mergeFromBackup(backup: BackupPayload) =

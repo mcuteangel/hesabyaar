@@ -327,6 +327,9 @@ class BackupPayloadExporter(
           put("displayOrder", it.displayOrder)
           put("createdAt", it.createdAt)
           put("updatedAt", it.updatedAt)
+          // Stable identity for merge matching. Plaintext always: it is not
+          // sensitive and must stay readable without the passphrase.
+          put("stableId", it.stableId)
         }
       )
     }
