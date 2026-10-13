@@ -1061,9 +1061,6 @@ fun ConfigItem(
   onEdit: () -> Unit,
   onDelete: (AiProviderConfig) -> Unit
 ) {
-  // Holds the tapped config itself, not a boolean: the list is positional, so
-  // a reorder while the dialog is open must not retarget the delete.
-  var pendingDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
   Row(
     modifier =
       Modifier
@@ -1113,14 +1110,29 @@ fun ConfigItem(
       )
     }
 
-    IconButton(onClick = { pendingDelete = config }, modifier = Modifier.size(Dimens.IconLarge)) {
-      Icon(
-        imageVector = Icons.Filled.Delete,
-        contentDescription = "حذف",
-        modifier = Modifier.size(Dimens.IconSmall),
-        tint = MaterialTheme.colorScheme.error
-      )
-    }
+    ConfigDeleteButton(config = config, onDelete = onDelete)
+  }
+}
+
+/**
+ * Delete button with a confirmation dialog. Holds the tapped config itself,
+ * not a boolean: the list is positional, so a reorder while the dialog is
+ * open must not retarget the delete to a different row.
+ */
+@Composable
+private fun ConfigDeleteButton(
+  config: AiProviderConfig,
+  onDelete: (AiProviderConfig) -> Unit
+) {
+  var pendingDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
+
+  IconButton(onClick = { pendingDelete = config }, modifier = Modifier.size(Dimens.IconLarge)) {
+    Icon(
+      imageVector = Icons.Filled.Delete,
+      contentDescription = "حذف",
+      modifier = Modifier.size(Dimens.IconSmall),
+      tint = MaterialTheme.colorScheme.error
+    )
   }
 
   if (pendingDelete != null) {
