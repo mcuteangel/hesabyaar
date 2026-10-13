@@ -74,6 +74,9 @@ class InstallmentDeleteConfirmTest {
     composeRule.setContent {
       InstallmentListItem(installment = installment, installmentViewModel = viewModel)
     }
+    // The delete button lives in the expandable section: expand the card first.
+    composeRule.onNodeWithText("قسط تست").performClick()
+    composeRule.waitForIdle()
   }
 
   @Test
