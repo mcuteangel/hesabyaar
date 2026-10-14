@@ -23,6 +23,7 @@ Status: TODO (plan under review)
 - Depends on: none
 - Category: ui/ux
 - Planned at: commit `ad0504c`, 2026-10-04
+- Dead-code note (verified 2026-10-14, HEAD `e1f6da51`): `LoanManagementScreen` has zero call sites (only its own definition at `LoanManagementScreen.kt:106`) and `LoanViewModel` is not injected in `MainActivity`. This plan no longer targets them; open issue #340 decides deletion vs. deprecation. Counts in this plan state both the HEAD total and the live-only figure (excluding the dead file).
 
 ## Why this matters
 
@@ -120,12 +121,14 @@ tests", read it as "add new Roborazzi tests".
 
 1. "Room Database (v3)" → "(v9)" — `AppDatabase.kt:31` says
    `version = 9`.
-2. Analytics "Charts (visual graphs)" `[ ]` → `[x]` —
-   `AnalyticsScreen.kt` has custom Canvas charts (`BarChart:351`,
-   `CombinedLineChartCard:225`, `DonutChart:460`).
-3. Security "Biometric Auth" `[ ]` → `[x]` — `BiometricHelper` is wired
+2. Analytics "Charts (visual graphs)" is already `[x]` —
+   `AnalyticsScreen.kt` has custom Canvas charts (`BarChart:354`,
+   `CombinedLineChartCard:228`, `DonutChart:463`).
+3. Security "Biometric Auth" is already `[x]` — `BiometricHelper` is wired
    through `AuthManager` and surfaced in
    `SettingsScreen.kt:563,613`.
+   Note (verified 2026-10-14, issue #339): Charts was ticked by this PR (#444);
+   Biometric was already `[x]` before it.
 4. Testing "UI Tests (Compose)" stays `[ ]` but reword to "UI screenshot
    tests (Roborazzi)" — infra applied, no tests written yet.
 5. Add a "UI/UX" category listing this plan's phases as `[ ]` items with
@@ -205,20 +208,30 @@ Do not change field order or validation logic.
 ### Step 1.3: Add numeric keyboards to money fields (IBAN is the exception)
 
 Files:
-- `ui/screens/InstallmentScreen.kt:220-224` (amount field)
-- `ui/screens/LoanManagementScreen.kt:765-769` (`LoanFormFields`,
-  "مبلغ قرض") and `:791-795` (`RepaymentFormFields`, "مبلغ پرداختی") —
-  two separate amount fields
-- `ui/screens/account/AccountManagementScreen.kt:726-733` (IBAN field)
+- `ui/screens/InstallmentScreen.kt:221-226` (amount field)
+- `ui/screens/AddPersonLoanDialog.kt:108` (amount field; raw
+  `OutlinedTextField`, no `keyboardOptions`)
+- `ui/screens/account/AccountManagementScreen.kt:743-751` (IBAN field)
 
-Current state: no `keyboardOptions`. `BankLoanScreen.kt:303,309,315`
+Current state: no `keyboardOptions`. `BankLoanScreen.kt:311,319,325`
 already does it right — copy that pattern
-(`keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)`).
+(`keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)`;
+`HesabyarInputField` accepts a `keyboardOptions` param;
+`AddPersonLoanDialog` uses raw `OutlinedTextField`, which also accepts it).
 
-Change: add `KeyboardType.Number` to the **three amount fields**
-(Installment + the two LoanManagement fields). Amount fields stay
+Change: add `KeyboardType.Number` to the **two amount fields**
+(Installment + AddPersonLoanDialog). The two `LoanManagementScreen`
+amount fields this plan originally targeted (`LoanFormFields`,
+`RepaymentFormFields`) are dead code — zero call sites (issue #340).
+Do not touch them. Parse with the normalizing helper: `InstallmentScreen.kt:259` parses with plain `toLongOrNull()`, which returns null for Persian digits, so a valid Persian-digit amount becomes 0 and the save is rejected. Use `toCleanLongOrNull()` / `filterDigits()` (`core/NumberText.kt`) for the Installment field, as `AddPersonLoanDialog` already does. Amount fields stay
 RTL-safe: amounts right-align today; keep that behavior, only change
 the keyboard.
+
+Unit note: both amount fields label the amount with
+`CurrencyFormatter.unitLabel` and convert the typed value with
+`CurrencyFormatter.toRial()` (toman→rial ×10). Do not change the
+conversion here; if the label/unit handling looks wrong, file a separate
+issue — this plan does not assert a unit bug.
 
 **Do NOT put a Number keyboard on the IBAN field**: an IBAN starts with
 a 2-letter country code (`IR...` per the field's own placeholder), which
@@ -227,7 +240,7 @@ alignment for the IBAN (an `AGENTS.md`-sanctioned LTR-forced case, like
 phone numbers).
 
 **Verify**: open each form on device/emulator, tap the field, confirm
-the numeric keyboard opens on the amount fields and an ASCII/LTR
+the numeric keyboard opens on the two amount fields and an ASCII/LTR
 keyboard opens on the IBAN field. Type `IR` into the IBAN field.
 
 ### Step 1.4: BackHandler on overlay screens
@@ -270,7 +283,7 @@ appears on the field. Existing tests pass.
 
 - [ ] Both dialog buttons visible in the assistant confirmation dialog
 - [ ] Account save/cancel in the dialog footer on all screen sizes
-- [ ] Numeric keyboard on the 3 amount fields; ASCII/LTR keyboard on IBAN
+- [ ] Numeric keyboard on the 2 amount fields (Installment + AddPersonLoanDialog); ASCII/LTR keyboard on IBAN
 - [ ] Back dismisses the 3 overlay screens
 - [ ] Inline errors on the 2 forms
 - [ ] `./gradlew test --no-daemon` exits 0
@@ -280,12 +293,18 @@ appears on the field. Existing tests pass.
 
 ## Phase 2 — Unify the dialog system (P1)
 
-**Goal**: one dialog policy. Today raw `AlertDialog` is used 16 times
-with visibly different headers; `HesabyarDialog` 3 times;
-`ConfirmDialog` 6 times (`ReportsScreen.kt:773`,
-`DashboardScreen.kt:309`, `CategoryManagementScreen.kt:245`,
-`BankLoanScreen.kt:114`, `AccountManagementScreen.kt:308` and `:335`);
-`ModalBottomSheet` zero times in `ui/`
+**Goal**: one dialog policy. Today raw `AlertDialog` is used 17 times
+in `ui/` (verified at HEAD `e1f6da51`; 4 of them —
+`LoanManagementScreen.kt:267,572,653,821` — are in the dead
+`LoanManagementScreen`, leaving 13 live) with visibly different headers;
+`HesabyarDialog` 3 times;
+`ConfirmDialog` has 9 call sites (`ReportsScreen.kt:775`,
+`DashboardScreen.kt:315`, `CategoryManagementScreen.kt:245`,
+`BankLoanScreen.kt:118`, `AccountManagementScreen.kt:309` and `:336`,
+`InstallmentScreen.kt:448`, `PersonDetailSheet.kt:195` inside
+`SettleConfirmDialog`, `SettingsScreen.kt:1140`);
+`ModalBottomSheet` is used twice (`MainActivityNavigation.kt:279`
+`MoreMenuSheet`, `PersonDetailSheet.kt:78`)
 despite multi-field forms being the most common violation.
 
 ### Step 2.1: Write the dialog policy (code, not docs)
@@ -308,7 +327,7 @@ Do not invent a fourth dialog component.
 
 ### Step 2.2: Migrate full forms to ModalBottomSheet
 
-Five form surfaces that outgrew dialogs (each has 5+ fields and/or
+Three live form surfaces that outgrew dialogs (each has 5+ fields and/or
 nested pickers):
 - `ManualTransactionDialog` — 9 top-level blocks (`:196`
   `TransactionTypeSelector`, `:213` account `Column`+`AccountSelector`,
@@ -318,8 +337,10 @@ nested pickers):
   `TransactionDescriptionInput`) + nested Jalali pickers
 - `InstallmentScreen.kt:192-279` add form (+ nested `JalaliDateTimePicker`)
 - `BankLoanScreen.kt` add form (+ nested `JalaliDatePickerDialog`)
-- `LoanManagementScreen.kt` add form
-- `LoanManagementScreen.kt` edit form
+
+The plan originally listed two more (`LoanManagementScreen` add + edit
+forms); both are dead code — zero call sites (issue #340 decides
+deletion). Do not migrate them.
 
 Change: present each as a `ModalBottomSheet` with a drag handle,
 scrollable content, and sticky footer actions. Keep all fields, order,
@@ -327,19 +348,22 @@ and validation logic identical. The nested Jalali pickers stay dialogs
 — a picker over a sheet is the correct M3 pattern; dialog-over-dialog
 was the problem.
 
-**Verify**: each of the 5 forms opens as a sheet, scrolls, and submits
-exactly as before. Update or add Roborazzi screenshots for all 5.
+**Verify**: each of the 3 forms opens as a sheet, scrolls, and submits
+exactly as before. Update or add Roborazzi screenshots for all 3.
 
 ### Step 2.3: Migrate remaining raw AlertDialogs to HesabyarDialog
 
-Remaining raw usages after 2.2: `LoanManagementScreen` delete/repay,
+Remaining raw usages after 2.2: `AddPersonLoanDialog.kt:55` (2-field
+dialog — migrate, do not sheet it), `AccountManagementScreen.kt:533`
+(`AccountDialog`, still raw after Step 1.2),
 `CategoryManagementScreen` category dialog, `SettingsScreen`
 restore/verify-PIN/set-PIN, `SmartAssistantScreen` confirmation,
 `TransactionDetailDialog`, `ExportPassphraseDialog.kt:44`,
 `ImportPassphraseDialog.kt:46`, and `ConfirmDialog.kt:43` itself
 (fixing its blank dismiss button in Step 2.1 does not remove its
 `AlertDialog` usage — migrate it to `HesabyarDialog` so the zero-raw
-criterion below can pass).
+criterion below can pass). (`LoanManagementScreen` delete/repay dialogs
+are dead code — zero call sites, issue #340 — do not migrate them.)
 
 Change: mechanical migration to `HesabyarDialog`. Unify the header:
 title + close-X + divider (the `HesabyarDialog` treatment), replacing
@@ -348,14 +372,16 @@ per-screen header variants.
 ### Step 2.4: Fix dialog title alignment
 
 Replace hardcoded `TextAlign.Right` with `TextAlign.Start` on dialog
-titles (`InstallmentScreen.kt:225`, `LoanManagementScreen.kt` ×4,
-`TransactionDetailDialog.kt:63`). In RTL, `Start` is right — same
-visual result, correct semantics.
+titles (`InstallmentScreen.kt:200-210` add-form title,
+`TransactionDetailDialog.kt:63` — re-verify with grep before editing).
+In RTL, `Start` is right — same
+visual result, correct semantics. (`LoanManagementScreen.kt` ×4 titles
+are dead code — zero call sites, issue #340 — do not touch them.)
 
 ## Phase 2 done criteria
 
 - [ ] Zero raw `AlertDialog` in `ui/` (grep proves it)
-- [ ] 5 big forms open as bottom sheets with sticky footers
+- [ ] 3 big forms open as bottom sheets with sticky footers
 - [ ] `ConfirmDialog` with empty dismiss text renders no blank button
 - [ ] Dialog headers visually identical across screens
 - [ ] Screenshot tests updated; `./gradlew test --no-daemon` exits 0
@@ -379,9 +405,15 @@ screens; section titles use emoji prefixes (📈⚙️💡📊).
 Change:
 - Create `ui/components/HesabyarTopBar.kt`: title, optional back action,
   optional actions slot. Built on M3 `TopAppBar`, uses theme tokens only.
-- Apply to: Analytics, Installment, LoanManagement, Reports,
+- Apply to: Analytics, Installment, Reports,
   SmartAssistant, Settings, BankLoan (add the missing header),
-  DebtHub (replace bare tabs with a titled screen).
+  DebtHub (replace bare tabs with a titled screen),
+  `PersonsScreen` (DebtHub Persons tab — embedded below the tab bar; do NOT
+  add a second `TopAppBar` here: the DebtHub-level titled screen above is
+  this tab's single header), `PersonDetailSheet` (DebtHub person detail —
+  a `ModalBottomSheet` today; give it the shared header treatment
+  inside the sheet). (`LoanManagementScreen` is dead code — zero call
+  sites, issue #340 — removed from this list.)
 - Keep `DashboardHeader` (it is a branded header, not a nav header).
 - Remove emoji prefixes from section titles; use the icon system
   (`IconCircle`) where an icon is wanted.
@@ -405,12 +437,13 @@ Do not gold-plate beyond this.
 
 ### Step 3.3: FAB consistency in DebtHub
 
-Current state: BankLoan has a FAB; Installment and LoanManagement use
-header buttons.
+Current state: BankLoan has a FAB; Installment uses header buttons;
+the DebtHub Persons tab (`PersonsScreen`) has no FAB.
 
-Change: give Installment and LoanManagement the same FAB pattern
+Change: give Installment and the Persons tab the same FAB pattern
 (primary container, add icon, bottom-end, testTag). Applies after 3.1
-(the header buttons move into the FAB).
+(the header buttons move into the FAB). (`LoanManagementScreen` is
+dead code — zero call sites, issue #340 — removed as a FAB target.)
 
 ### Step 3.4: Modernize the bottom bar (decision #1, decided 2026-10-04)
 
@@ -490,18 +523,55 @@ Current state: `EmptyState` supports `actionText`/`onAction`, but
 `DashboardScreen.kt:200-206, 228-234` pass icon+title only. Five other
 screens hand-roll bare centered Texts
 (`BankLoanScreen.kt:66`, `CategoryManagementScreen.kt:163-182`,
-`AccountManagementScreen.kt:374-386`, `LoanManagementScreen.kt:175-205`,
-`InstallmentScreen.kt:167-205`).
+`AccountManagementScreen.kt:374-386`,
+`InstallmentScreen.kt:167-205`, `PersonsScreen.kt:273-300` —
+`PersonEmptyState`, a hand-rolled `Box`+`Text` with no action).
+(`LoanManagementScreen.kt:175-205` is dead code — zero call sites,
+issue #340 — removed from this list).
 
 Change: replace all hand-rolled empties with `EmptyState`, always with
 an action that leads somewhere ("ثبت اولین تراکنش", "ثبت وام", ...).
 Wire the actions to the existing FAB/dialog entry points.
+For `PersonsScreen`, there is no dedicated add-person entry point today (persons are created implicitly when a loan/transaction names a new person). Define the empty-state action together with the Step 3.3 Persons-tab FAB work; do not invent a new add-person screen (unapproved new feature).
 
 ### Step 4.3: Correctness fixes
 
-- `KpiCards.kt:61,88`: `"$savingsPct%"` uses Latin digits with no BIDI
-  isolation. Route through a Persian-digits formatter with LRM isolation,
-  like `CurrencyFormatter`.
+- Latin-digit rendering is not limited to KPI percentages — ≈20 live
+  sites (verified at HEAD `e1f6da51`; re-grep at execution, do not trust
+  these line numbers blindly). Route every site through a Persian-digits
+  formatter with LRM isolation, like `CurrencyFormatter`. Verified
+  examples: `KpiCards.kt:61,99` (`"$savingsPct%"`, `"$debtPct%"`);
+  `SettingsScreen.kt:1697` (`String.format("%02d:%02d", ...)` for reminder
+  time, next to Persian-digit slider labels);
+  `AddPersonLoanDialog.kt:121` (description counter
+  `"${description.length}/$DESCRIPTION_MAX_LENGTH"`);
+  `JalaliDatePickerDialog.kt:218` (`"$viewYear"`), `:321,358,396`
+  (`dayNum.toString()` ×3), `:524` (`yr.toString()`);
+  `JalaliDateTimePicker.kt:124` (`jalaliDate.toString()`, `Locale.US`)
+  and `:148` (`String.format(Locale.US, "%02d:%02d", ...)`);
+  `FormatterUtils.kt:15` (`Locale.US` format);
+  `AccountBalanceCard.kt:185` (`String.format(Locale.US, "%.1f", delta)`);
+  `SmartAssistantScreen.kt:821,829` (amount/days `toString()` in input
+  values); `AmountQuickFillButtons.kt:70` (`toString()` in input value).
+  Already correct — do not touch: `CustomTimePickerDialog.kt:162,216`
+  (uses `fa-IR` locale). Dead-code sites that vanish with #340:
+  `LoanManagementScreen.kt:627,649`.
+  Formatting rule: Persian-digit formatting applies to READ-ONLY display
+  text only. Editable inputs must stay ASCII-parseable — several are parsed
+  with plain `toLongOrNull()` / `toIntOrNull()`
+  (`SmartAssistantScreen.kt:1034,1139,1170,1185`), which return null for
+  Persian digits or LRM. Classification of the ≈20 sites above: READ-ONLY
+  display (safe to format) — `KpiCards.kt:61,99`, `SettingsScreen.kt:1697`,
+  `AddPersonLoanDialog.kt:121`, `JalaliDatePickerDialog.kt:218,321,358,396,524`,
+  `JalaliDateTimePicker.kt:124,148`, `FormatterUtils.kt:15`,
+  `AccountBalanceCard.kt:185`, and the `SmartAssistantScreen.kt:1038` preview
+  (already formats via `CurrencyFormatter.format`). EDITABLE-input-related
+  (do NOT format) — `SmartAssistantScreen.kt:821,829` (initial values of the
+  editable amount/days fields), `:1034,1139,1170,1185` (parsers of editable
+  inputs), and `AmountQuickFillButtons.kt:70` (sets the editable amount
+  field's text). Never format an editable value with Persian digits
+  or LRM unless its parser normalizes first (`toCleanLongOrNull()` /
+  `filterDigits()`).
 - `ReportsScreen.kt:165`: "امروز" preset uses UTC midnight
   (`now - (now % 86400000)`), silently dropping 00:00–03:30 Tehran
   transactions. Anchor the preset to Asia/Tehran midnight. Note:
@@ -512,8 +582,6 @@ Wire the actions to the existing FAB/dialog entry points.
   `ZoneId`, called with `ZoneId.of("Asia/Tehran")`) as a sub-task of
   this step, covered by the boundary unit test below. This is UI
   presentation logic; no Rust change.
-- `SettingsScreen.kt:1605`: Latin-digit `String.format` for reminder
-  time next to Persian-digit slider labels — unify on Persian digits.
 
 **Verify**: unit tests for the Tehran-midnight preset boundary and the
 sealed loading state. Manual empty-state walkthrough per screen.
@@ -547,7 +615,7 @@ section is hidden; existing tests pass.
 - [ ] Skeleton on dashboard + analytics first open (Loading until first
   emission; no unreachable Error state)
 - [ ] All empty states use `EmptyState` with a working CTA
-- [ ] Persian digits on KPI percentages; Tehran-midnight "today" preset
+- [ ] Persian digits on all user-visible numbers (≈20 sites); Tehran-midnight "today" preset
 - [ ] Dashboard sections curated + compact; show/hide toggles work
 - [ ] New unit tests pass; full suite exits 0; lint exits 0
 
@@ -604,16 +672,21 @@ replacements into one unverifiable diff):
   0.3f container tint) as named constants next to the existing ones in
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
-  `ui/` (≈43 hits — re-grep at execution and replace every hit; list:
-  `AnalyticsScreen.kt:450,905`, `ReportsScreen.kt:610`,
-  `SmartAssistantScreen.kt:237,435,473,1306`,
-  `LoanManagementScreen.kt:515`, `SettingsScreen.kt:1070`, ...).
+  `ui/` (38 hits at HEAD `e1f6da51` — re-grep at execution and replace
+  every hit; 4 of the 38 are in dead `LoanManagementScreen.kt`, leaving
+  34 live; list — line numbers drifted, re-grep:
+  `AnalyticsScreen.kt`, `ReportsScreen.kt`,
+  `SmartAssistantScreen.kt`, `SettingsScreen.kt`, ...).
   `AnalyticsScreen.kt:905` (`Color.LightGray`) and
   `CategoryChip.kt:43` (`Color.Gray` fallback) must become theme-aware.
-- Replace the 109 raw `.dp` hits in `ui/screens` (165 across
-  `app/src/main`) with `SpacingTokens`/`Dimens` (worst files:
+- Replace the 110 raw numeric-literal `.dp` hits in `ui/screens`
+  (166 across `app/src/main`; count with `rg '[0-9]+\.dp'` — a bare
+  `\.dp` grep also matches imports and `CONST.dp` and overcounts)
+  with `SpacingTokens`/`Dimens` (worst files:
   `CategoryManagementScreen` 14, `SmartAssistantScreen` 12,
-  `ReportsScreen` 11). Add genuinely missing tokens; do not force-fit.
+  `ReportsScreen` 11). 3 of the 110 are in dead
+  `LoanManagementScreen.kt`, leaving 107 live. Add genuinely missing
+  tokens; do not force-fit.
 - Replace the 10 hardcoded `lineHeight` overrides with named styles in
   `Type.kt`.
 - Unify circle shapes: standardize on `ShapeTokens.Full` (6 uses today;
