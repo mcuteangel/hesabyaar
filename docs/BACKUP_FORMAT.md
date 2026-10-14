@@ -54,9 +54,13 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
   "personName": "",
   "date": 1700000000000,
   "dueDate": 0,
-  "installmentId": 0
+  "installmentId": 0,
+  "loanId": null
 }
 ```
+
+`loanId` (optional) is set only on the disbursement row of a tracked loan:
+the transaction `insertLoanWithInitial` created for that loan.
 
 ### Loan
 
@@ -95,9 +99,28 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
   "loanId": 1,
   "amount": 1000000,
   "date": 1700000000000,
-  "notes": "بازپرداخت جزئی"
+  "notes": "بازپرداخت جزئی",
+  "linkedTransactionId": 12
 }
 ```
+
+`linkedTransactionId` (optional) is the id of the ledger transaction a
+tracked repayment generated.
+
+### Stable loan links
+
+`transactions[].loanId` and `paymentHistories[].linkedTransactionId` let
+`deleteLoan` remove exactly the loan's own ledger rows instead of matching on
+person, amount and date (issues #242 and #430). Both are optional:
+
+- Missing, `null`, `0` or a negative value means "no link"; the row falls back
+  to the legacy matching on delete. Backups written before these keys existed
+  restore unchanged.
+- **REPLACE** keeps source ids, so links survive as-is. A link whose target is
+  not in the same backup is dropped, because SQLite can reuse that rowid for
+  an unrelated row later.
+- **MERGE** re-points each link to the merged row's new id. A link to a loan or
+  transaction the merge skipped becomes `null`.
 
 ### Category
 

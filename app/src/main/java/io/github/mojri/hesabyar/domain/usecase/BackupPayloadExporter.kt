@@ -151,6 +151,7 @@ class BackupPayloadExporter(
           put("installmentId", it.installmentId ?: 0L)
           put("accountId", it.accountId)
           put("destinationAccountId", it.destinationAccountId ?: JSONObject.NULL)
+          put(BackupStableLinks.TRANSACTION_LOAN_ID, it.loanId ?: JSONObject.NULL)
         }
       )
     }
@@ -228,6 +229,7 @@ class BackupPayloadExporter(
           put("amount", it.amount)
           put("date", it.date)
           put("notes", it.notes)
+          put(BackupStableLinks.PAYMENT_LINKED_TRANSACTION_ID, it.linkedTransactionId ?: JSONObject.NULL)
         }
       )
     }

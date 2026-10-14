@@ -225,42 +225,54 @@ internal suspend fun backupMergeOnePerson(
   }
 }
 
+/** Source-id to local-id maps the transaction merge resolves references through. */
+internal data class BackupMergeIdMaps(
+  val categoryIdMap: Map<Long, Long>,
+  val installmentIdMap: Map<Long, Long>,
+  val accountIdMap: Map<Long, Long>,
+  val loanIdMap: Map<Long, Long> = emptyMap()
+)
+
+/**
+ * Inserts the backup's transactions under fresh ids and returns the
+ * source-id to local-id map, so payment histories can re-point their
+ * [PaymentHistory.linkedTransactionId] (issue #430). Skipped rows are absent.
+ */
 internal suspend fun backupMergeTransactions(
   transactions: List<Transaction>,
-  categoryIdMap: Map<Long, Long>,
-  installmentIdMap: Map<Long, Long>,
-  accountIdMap: Map<Long, Long>,
+  idMaps: BackupMergeIdMaps,
   categoryDao: CategoryDao,
   accountDao: AccountDao,
   transactionDao: TransactionDao,
   resolvePersonId: (Long?, String?) -> Long?
-) {
+): Map<Long, Long> {
   val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
   val localAccountIds = accountDao.getAllAccountsBlocking().map { it.id }.toSet()
+  val transactionIdMap = mutableMapOf<Long, Long>()
   transactions.forEach { transaction ->
-    backupMergeOneTransaction(
-      transaction,
-      categoryIdMap,
-      installmentIdMap,
-      accountIdMap,
-      otherCategoryId,
-      localAccountIds,
-      transactionDao,
-      resolvePersonId
-    )
+    val newId =
+      backupMergeOneTransaction(
+        transaction,
+        idMaps,
+        otherCategoryId,
+        localAccountIds,
+        transactionDao,
+        resolvePersonId
+      )
+    if (newId != null && transaction.id > 0L) transactionIdMap[transaction.id] = newId
   }
+  return transactionIdMap
 }
 
 private suspend fun backupMergeOneTransaction(
   transaction: Transaction,
-  categoryIdMap: Map<Long, Long>,
-  installmentIdMap: Map<Long, Long>,
-  accountIdMap: Map<Long, Long>,
+  idMaps: BackupMergeIdMaps,
   otherCategoryId: Long?,
   localAccountIds: Set<Long>,
   transactionDao: TransactionDao,
   resolvePersonId: (Long?, String?) -> Long?
-) {
+): Long? {
+  val accountIdMap = idMaps.accountIdMap
   val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
   val mappedDestinationAccountId = transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
   val destinationResolved =
@@ -276,29 +288,34 @@ private suspend fun backupMergeOneTransaction(
         "destinationAccountId=${transaction.destinationAccountId}->$mappedDestinationAccountId " +
         "because no local account matches"
     )
-    return
+    return null
   }
   val mappedCategoryId =
-    categoryIdMap[transaction.categoryId]
+    idMaps.categoryIdMap[transaction.categoryId]
       ?: otherCategoryId ?: transaction.categoryId
-  val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
+  val mappedInstallmentId = transaction.installmentId?.let { idMaps.installmentIdMap[it] }
   if (transaction.installmentId != null && mappedInstallmentId == null) {
     AppLogger.w(
       "HesabyarRepository",
       "mergeFromBackup: skipping transaction=${transaction.id} " +
         "installmentId=${transaction.installmentId} because referenced installment was skipped"
     )
-    return
+    return null
   }
   val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
-  transactionDao.insertTransaction(
+  // Issue #430: the disbursement link follows its loan to the new id; a link
+  // to a loan the merge did not insert is dropped rather than left pointing
+  // at an unrelated local loan with the same id.
+  val mappedLoanId = transaction.loanId?.let { idMaps.loanIdMap[it] }
+  return transactionDao.insertTransaction(
     transaction.copy(
       id = 0,
       categoryId = mappedCategoryId,
       installmentId = mappedInstallmentId,
       accountId = mappedAccountId,
       destinationAccountId = mappedDestinationAccountId,
-      personId = mappedPersonId
+      personId = mappedPersonId,
+      loanId = mappedLoanId
     )
   )
 }
@@ -306,6 +323,7 @@ private suspend fun backupMergeOneTransaction(
 internal suspend fun backupMergePaymentHistories(
   paymentHistories: List<PaymentHistory>,
   loanIdMap: Map<Long, Long>,
+  transactionIdMap: Map<Long, Long>,
   paymentHistoryDao: PaymentHistoryDao
 ) {
   for (payment in paymentHistories) {
@@ -317,6 +335,11 @@ internal suspend fun backupMergePaymentHistories(
       )
       continue
     }
-    paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
+    // Issue #430: re-point the repayment's ledger link to the merged row; a
+    // link to a skipped or absent transaction becomes null (legacy matching).
+    val mappedLinkedTransactionId = payment.linkedTransactionId?.let { transactionIdMap[it] }
+    paymentHistoryDao.insertPayment(
+      payment.copy(id = 0, loanId = mappedLoanId, linkedTransactionId = mappedLinkedTransactionId)
+    )
   }
 }
