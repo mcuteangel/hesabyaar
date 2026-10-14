@@ -121,15 +121,14 @@ tests", read it as "add new Roborazzi tests".
 
 1. "Room Database (v3)" → "(v9)" — `AppDatabase.kt:31` says
    `version = 9`.
-2. Analytics "Charts (visual graphs)" `[ ]` → `[x]` —
+2. Analytics "Charts (visual graphs)" is already `[x]` —
    `AnalyticsScreen.kt` has custom Canvas charts (`BarChart:354`,
    `CombinedLineChartCard:228`, `DonutChart:463`).
-3. Security "Biometric Auth" `[ ]` → `[x]` — `BiometricHelper` is wired
+3. Security "Biometric Auth" is already `[x]` — `BiometricHelper` is wired
    through `AuthManager` and surfaced in
    `SettingsScreen.kt:563,613`.
-   Note (verified 2026-10-14, issue #339): items 2 and 3 are already `[x]`
-   in ROADMAP at HEAD (Biometric was ticked earlier; Charts is ticked by
-   the #339 PR) — do not redo.
+   Note (verified 2026-10-14, issue #339): Charts was ticked by the #339 PR;
+   Biometric was already `[x]` before it.
 4. Testing "UI Tests (Compose)" stays `[ ]` but reword to "UI screenshot
    tests (Roborazzi)" — infra applied, no tests written yet.
 5. Add a "UI/UX" category listing this plan's phases as `[ ]` items with
@@ -224,7 +223,7 @@ Change: add `KeyboardType.Number` to the **two amount fields**
 (Installment + AddPersonLoanDialog). The two `LoanManagementScreen`
 amount fields this plan originally targeted (`LoanFormFields`,
 `RepaymentFormFields`) are dead code — zero call sites (issue #340).
-Do not touch them. Amount fields stay
+Do not touch them. Parse with the normalizing helper: `InstallmentScreen.kt:259` parses with plain `toLongOrNull()`, which returns null for Persian digits, so a valid Persian-digit amount becomes 0 and the save is rejected. Use `toCleanLongOrNull()` / `filterDigits()` (`core/NumberText.kt`) for the Installment field, as `AddPersonLoanDialog` already does. Amount fields stay
 RTL-safe: amounts right-align today; keep that behavior, only change
 the keyboard.
 
@@ -284,7 +283,7 @@ appears on the field. Existing tests pass.
 
 - [ ] Both dialog buttons visible in the assistant confirmation dialog
 - [ ] Account save/cancel in the dialog footer on all screen sizes
-- [ ] Numeric keyboard on the 2 amount fields; ASCII/LTR keyboard on IBAN
+- [ ] Numeric keyboard on the 2 amount fields (Installment + AddPersonLoanDialog); ASCII/LTR keyboard on IBAN
 - [ ] Back dismisses the 3 overlay screens
 - [ ] Inline errors on the 2 forms
 - [ ] `./gradlew test --no-daemon` exits 0
@@ -409,8 +408,9 @@ Change:
 - Apply to: Analytics, Installment, Reports,
   SmartAssistant, Settings, BankLoan (add the missing header),
   DebtHub (replace bare tabs with a titled screen),
-  `PersonsScreen` (DebtHub Persons tab — hand-built header today, no
-  `TopAppBar`/`Scaffold`), `PersonDetailSheet` (DebtHub person detail —
+  `PersonsScreen` (DebtHub Persons tab — embedded below the tab bar; do NOT
+  add a second `TopAppBar` here: the DebtHub-level titled screen above is
+  this tab's single header), `PersonDetailSheet` (DebtHub person detail —
   a `ModalBottomSheet` today; give it the shared header treatment
   inside the sheet). (`LoanManagementScreen` is dead code — zero call
   sites, issue #340 — removed from this list.)
@@ -556,6 +556,13 @@ For `PersonsScreen`, there is no dedicated add-person entry point today (persons
   Already correct — do not touch: `CustomTimePickerDialog.kt:162,216`
   (uses `fa-IR` locale). Dead-code sites that vanish with #340:
   `LoanManagementScreen.kt:627,649`.
+  Formatting rule: Persian-digit formatting applies to READ-ONLY display
+  text only. Editable inputs must stay ASCII-parseable — several are parsed
+  with plain `toLongOrNull()` / `toIntOrNull()`
+  (`SmartAssistantScreen.kt:1034,1139,1170,1185`), which return null for
+  Persian digits or LRM. Never format an editable value with Persian digits
+  or LRM unless its parser normalizes first (`toCleanLongOrNull()` /
+  `filterDigits()`).
 - `ReportsScreen.kt:165`: "امروز" preset uses UTC midnight
   (`now - (now % 86400000)`), silently dropping 00:00–03:30 Tehran
   transactions. Anchor the preset to Asia/Tehran midnight. Note:
