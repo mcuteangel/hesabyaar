@@ -95,6 +95,20 @@
 
 ---
 
+# Design System
+
+- [ ] Complete the design system (epic #459) — close the audit gaps before the page-by-page UI review
+- [ ] Shared `HesabyarFab` component (#451)
+- [ ] Shared Tab component (#452)
+- [ ] Chart system with tokens + RTL (#453)
+- [ ] `labelSmall` in `Type.kt` (#454)
+- [ ] Complete icon-size and alpha tokens (#455)
+- [ ] Remove or wire dead tokens (#456)
+- [ ] Replace raw `OutlinedTextField` with `HesabyarInputField` (#457)
+- [ ] Page-scaffold standard + adopt `WindowSizeTokens` (#458)
+
+---
+
 # Testing
 
 - [x] Unit Tests (parser, calculations, backup, calendar, config)
