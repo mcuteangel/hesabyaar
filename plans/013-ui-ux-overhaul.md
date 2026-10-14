@@ -560,9 +560,16 @@ For `PersonsScreen`, there is no dedicated add-person entry point today (persons
   text only. Editable inputs must stay ASCII-parseable — several are parsed
   with plain `toLongOrNull()` / `toIntOrNull()`
   (`SmartAssistantScreen.kt:1034,1139,1170,1185`), which return null for
-  Persian digits or LRM. (`SmartAssistantScreen.kt:1034,1139,1170,1185` are
-  editable-input parsers — do not format them; the read-only preview at
-  `:1038` already formats via `CurrencyFormatter.format`.) Never format an editable value with Persian digits
+  Persian digits or LRM. Classification of the ≈20 sites above: READ-ONLY
+  display (safe to format) — `KpiCards.kt:61,99`, `SettingsScreen.kt:1697`,
+  `AddPersonLoanDialog.kt:121`, `JalaliDatePickerDialog.kt:218,321,358,396,524`,
+  `JalaliDateTimePicker.kt:124,148`, `FormatterUtils.kt:15`,
+  `AccountBalanceCard.kt:185`, and the `SmartAssistantScreen.kt:1038` preview
+  (already formats via `CurrencyFormatter.format`). EDITABLE-input-related
+  (do NOT format) — `SmartAssistantScreen.kt:821,829` (initial values of the
+  editable amount/days fields), `:1034,1139,1170,1185` (parsers of editable
+  inputs), and `AmountQuickFillButtons.kt:70` (sets the editable amount
+  field's text). Never format an editable value with Persian digits
   or LRM unless its parser normalizes first (`toCleanLongOrNull()` /
   `filterDigits()`).
 - `ReportsScreen.kt:165`: "امروز" preset uses UTC midnight
