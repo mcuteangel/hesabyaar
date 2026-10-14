@@ -106,7 +106,10 @@ class InstallmentScreenAddDialogTest {
     composeRule.waitForIdle()
   }
 
-  private fun fillDialog(title: String, amount: String) {
+  private fun fillDialog(
+    title: String,
+    amount: String
+  ) {
     composeRule
       .onNode(hasText(TITLE_LABEL).and(hasSetTextAction()))
       .performTextInput(title)
@@ -151,6 +154,7 @@ class InstallmentScreenAddDialogTest {
     private const val DIALOG_TITLE = "ثبت قسط جدید"
     private const val CONFIRM_BUTTON = "ذخیره قسط"
     private const val TITLE_LABEL = "عنوان قسط (مثلا قسط ماشین)"
+
     private fun amountLabel() = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
   }
 }
