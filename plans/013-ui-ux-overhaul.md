@@ -127,7 +127,7 @@ tests", read it as "add new Roborazzi tests".
 3. Security "Biometric Auth" is already `[x]` — `BiometricHelper` is wired
    through `AuthManager` and surfaced in
    `SettingsScreen.kt:563,613`.
-   Note (verified 2026-10-14, issue #339): Charts was ticked by the #339 PR;
+   Note (verified 2026-10-14, issue #339): Charts was ticked by this PR (#444);
    Biometric was already `[x]` before it.
 4. Testing "UI Tests (Compose)" stays `[ ]` but reword to "UI screenshot
    tests (Roborazzi)" — infra applied, no tests written yet.
@@ -560,7 +560,9 @@ For `PersonsScreen`, there is no dedicated add-person entry point today (persons
   text only. Editable inputs must stay ASCII-parseable — several are parsed
   with plain `toLongOrNull()` / `toIntOrNull()`
   (`SmartAssistantScreen.kt:1034,1139,1170,1185`), which return null for
-  Persian digits or LRM. Never format an editable value with Persian digits
+  Persian digits or LRM. (`SmartAssistantScreen.kt:1034,1139,1170,1185` are
+  editable-input parsers — do not format them; the read-only preview at
+  `:1038` already formats via `CurrencyFormatter.format`.) Never format an editable value with Persian digits
   or LRM unless its parser normalizes first (`toCleanLongOrNull()` /
   `filterDigits()`).
 - `ReportsScreen.kt:165`: "امروز" preset uses UTC midnight
