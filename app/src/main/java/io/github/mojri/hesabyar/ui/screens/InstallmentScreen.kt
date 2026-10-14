@@ -27,6 +27,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
@@ -285,6 +286,10 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
+  // Holds the tapped installment itself, not a boolean: LazyColumn items are
+  // positional (no keys), so a reorder while the dialog is open must not
+  // retarget the delete to a different row.
+  var pendingDelete by remember { mutableStateOf<Installment?>(null) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
   HesabyarCard(
@@ -420,7 +425,7 @@ fun InstallmentListItem(
             horizontalArrangement = Arrangement.End
           ) {
             IconButton(
-              onClick = { installmentViewModel.deleteInstallment(installment) },
+              onClick = { pendingDelete = installment },
               modifier =
                 Modifier
                   .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
@@ -437,5 +442,20 @@ fun InstallmentListItem(
         }
       }
     }
+  }
+
+  if (pendingDelete != null) {
+    ConfirmDialog(
+      title = "حذف قسط",
+      message = "آیا از حذف این قسط اطمینان دارید؟ این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { pendingDelete = null },
+      onConfirm = {
+        val target = pendingDelete
+        pendingDelete = null
+        if (target != null) installmentViewModel.deleteInstallment(target)
+      }
+    )
   }
 }
