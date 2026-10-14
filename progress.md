@@ -6,11 +6,11 @@
 
 ## Active Task
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+Issue #93 — Harden MIGRATION_3_4 data correction. Branch `fix/issue-93-harden-migration-3-4`.
 
 ## Goal
 
-Ensure robust back navigation across tabs and management overlays, optimize string lookups, and ensure test coverage for all navigation paths.
+Replace the threshold-based `amount > 1000000000` correction in MIGRATION_3_4 with a bounded, marker-independent correction, fix the Toman-to-Rial factor in MIGRATION_1_2, and cover the migration with tests.
 
 ## Completed
 
@@ -80,6 +80,10 @@ Ensure robust back navigation across tabs and management overlays, optimize stri
 
 PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
 
+PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+
+Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
+
 | Item | File | State |
 |---|---|---|
 | MainNavigationCoordinator extraction and slot testing | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
@@ -96,10 +100,22 @@ PR #385 (`fix/back-navigation`): Address review comments and expand test coverag
 | Plan 014: Issue #360 acceptance criteria (concise debts tab label) | `app/src/main/res/values/strings.xml` | done |
 | Plan 014: Issue #360 acceptance criteria (MoreMenuSheet dynamic insets) | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
 | Plan 014: Distinct icons and label unit tests | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
+| Issue #93: MIGRATION_1_2 factor 1000 to 10 | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt` | done |
+| Issue #93: MIGRATION_3_4 bounded band and row-count logging | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `AppDatabase.kt` | done |
+| Issue #93: Migration SQL and plaintext transfer extracted from the companion | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `PlaintextTransfer.kt` | done |
+| Issue #93: Shared MAX_AMOUNT_TOMAN constant | `app/src/main/java/io/github/mojri/hesabyar/core/MoneyLimits.kt` | done |
+| Issue #93: Migration test | `app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration3to4Test.kt` | done |
+| Issue #93: Detekt obligation on AppDatabase.kt | `config/detekt/detekt-baseline.xml` | done |
+| Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md`, `CHANGELOG.md` | done |
+| Issue #93: Open the repair issue for users already past v4 | GitHub | pending |
 
 ## Blocked
 
-None.
+- GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
+
+## Blocked
+
+- GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
 
 ## Findings
 

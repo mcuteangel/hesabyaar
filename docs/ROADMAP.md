@@ -36,7 +36,7 @@
 
 # Data
 
-- [x] Room Database (schema v9, encrypted on disk via SQLCipher)
+- [x] Room Database (schema v10, encrypted on disk via SQLCipher)
 - [x] Backup (JSON format)
 - [x] Restore (replace + merge modes)
 - [x] Excel Export (.xlsx)
