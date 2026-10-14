@@ -6,11 +6,11 @@
 
 ## Active Task
 
-Issue #93 — Harden MIGRATION_3_4 data correction. Branch `fix/issue-93-harden-migration-3-4`.
+Issue #93 — Harden MIGRATION_3_4 data correction. PR #462 on branch `fix/issue-93-harden-migration-3-4`. Follow-up repair work tracked in issue #461.
 
 ## Goal
 
-Replace the threshold-based `amount > 1000000000` correction in MIGRATION_3_4 with a bounded, marker-independent correction, fix the Toman-to-Rial factor in MIGRATION_1_2, and cover the migration with tests.
+Replace the threshold-based `amount > 1000000000` correction in MIGRATION_3_4 with a bounded correction, fix the Toman-to-Rial factor in MIGRATION_1_2, and cover the migration with tests.
 
 ## Completed
 
@@ -106,8 +106,9 @@ Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
 | Issue #93: Shared MAX_AMOUNT_TOMAN constant | `app/src/main/java/io/github/mojri/hesabyar/core/MoneyLimits.kt` | done |
 | Issue #93: Migration test | `app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration3to4Test.kt` | done |
 | Issue #93: Detekt obligation on AppDatabase.kt | `config/detekt/detekt-baseline.xml` | done |
-| Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md`, `CHANGELOG.md` | done |
-| Issue #93: Open the repair issue for users already past v4 | GitHub | pending |
+| Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md` | done |
+| Issue #93: Commit, push, and open PR #462 | `fix/issue-93-harden-migration-3-4` | done |
+| Issue #461: repair path for users already past v4 | new issue | open |
 
 ## Blocked
 
