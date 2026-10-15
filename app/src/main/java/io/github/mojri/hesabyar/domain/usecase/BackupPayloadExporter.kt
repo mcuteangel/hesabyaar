@@ -107,6 +107,11 @@ class BackupPayloadExporter(
     // backup is a consistent snapshot. A tracked loan or repayment inserts its ledger
     // row in the same DB transaction, and no concurrent write can interleave between
     // these reads and export a payment link whose target is missing.
+    //
+    // getAllPersonsIncludingArchived is read outside the transaction on purpose:
+    // it hops to Dispatchers.IO for its blocking DAO read, and Room forbids a
+    // blocking read that leaves the transaction's coroutine context.
+    val persons = repository.getAllPersonsIncludingArchived()
     val snapshot =
       repository.withTransaction {
         BackupSnapshot(
@@ -117,7 +122,7 @@ class BackupPayloadExporter(
           installments = repository.allInstallments.firstOrNull() ?: emptyList(),
           bankLoans = repository.allBankLoans.firstOrNull() ?: emptyList(),
           accounts = repository.allAccounts.firstOrNull() ?: emptyList(),
-          persons = repository.getAllPersonsIncludingArchived()
+          persons = persons
         )
       }
     val curCategories = snapshot.categories

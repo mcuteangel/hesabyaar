@@ -62,7 +62,7 @@ internal fun sanitizeBackupLoanLinks(
       val target = link?.let { linkableTransactions[it] }
       // A generated repayment copies its payment's amount at creation and payments are never
       // edited, so an amount mismatch means the link does not point at this payment's own row.
-      val valid = link == null || (target != null && claimCounts[link] == 1 && target.amount == p.amount)
+      val valid = link == null || target != null && claimCounts[link] == 1 && target.amount == p.amount
       if (valid) {
         p
       } else {

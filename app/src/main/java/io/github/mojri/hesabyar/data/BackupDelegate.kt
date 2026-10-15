@@ -28,8 +28,8 @@ internal class BackupDelegate(
     paymentHistoryDao.deleteAllPaymentHistory()
     bankLoanDao.deleteAllBankLoans()
     val links = sanitizeBackupLoanLinks(transactions, loans, paymentHistories)
-    links.transactions.forEach { transactionDao.insertTransaction(it) }
     loans.forEach { loanDao.insertLoan(normalizeLoanForRestore(it)) }
+    links.transactions.forEach { transactionDao.insertTransaction(it) }
     installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
     links.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
     bankLoans.forEach { bankLoanDao.insertBankLoan(normalizeBankLoanForRestore(it)) }

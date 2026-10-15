@@ -56,14 +56,17 @@ internal object BackupStableLinks {
     if (root == null) return payload
     val txLoanIds = linksById(root.optJSONArray("transactions"), TRANSACTION_LOAN_ID)
     val paymentLinks = linksById(root.optJSONArray("paymentHistories"), PAYMENT_LINKED_TRANSACTION_ID)
-    if (txLoanIds.isEmpty() && paymentLinks.isEmpty()) return payload
-    return payload.copy(
-      transactions = payload.transactions.map { tx -> txLoanIds[tx.id]?.let { tx.copy(loanId = it) } ?: tx },
-      paymentHistories =
-        payload.paymentHistories.map { p ->
-          paymentLinks[p.id]?.let { p.copy(linkedTransactionId = it) } ?: p
-        }
-    )
+    return if (txLoanIds.isEmpty() && paymentLinks.isEmpty()) {
+      payload
+    } else {
+      payload.copy(
+        transactions = payload.transactions.map { tx -> txLoanIds[tx.id]?.let { tx.copy(loanId = it) } ?: tx },
+        paymentHistories =
+          payload.paymentHistories.map { p ->
+            paymentLinks[p.id]?.let { p.copy(linkedTransactionId = it) } ?: p
+          }
+      )
+    }
   }
 
   private fun linksById(
@@ -75,10 +78,12 @@ internal object BackupStableLinks {
     val seenIds = HashSet<Long>()
     val duplicateIds = HashSet<Long>()
     for (i in 0 until array.length()) {
-      val obj = array.optJSONObject(i) ?: continue
-      val id = optPositiveId(obj, "id") ?: continue
-      if (!seenIds.add(id)) duplicateIds += id
-      optPositiveId(obj, key)?.let { links[id] = it }
+      val obj = array.optJSONObject(i)
+      val id = obj?.let { optPositiveId(it, "id") }
+      if (id != null) {
+        if (!seenIds.add(id)) duplicateIds += id
+        optPositiveId(obj, key)?.let { links[id] = it }
+      }
     }
     // A repeated row id makes the link ambiguous: the Rust rows cannot be
     // told apart by id, so drop the link for every row sharing that id.

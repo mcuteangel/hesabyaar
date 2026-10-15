@@ -19,7 +19,7 @@ class HesabyarRepository(
   bankLoanDao: BankLoanDao,
   accountDao: AccountDao,
   personDao: PersonDao,
-  database: AppDatabase
+  private val database: AppDatabase
 ) : HesabyarRepositoryInterface,
   PersonRepositoryInterface by PersonDelegate(
     personDao,
@@ -65,6 +65,5 @@ class HesabyarRepository(
     personDao,
     database
   ) {
-  override suspend fun <R> withTransaction(block: suspend () -> R): R =
-    database.withTransaction(block)
+  override suspend fun <R> withTransaction(block: suspend () -> R): R = database.withTransaction(block)
 }
