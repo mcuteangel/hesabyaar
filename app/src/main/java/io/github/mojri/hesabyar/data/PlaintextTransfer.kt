@@ -67,10 +67,15 @@ internal object PlaintextTransfer {
   /**
    * Handles a transfer that was interrupted after the live database was
    * removed. A transfer that fails throws, restores the plaintext backup, and
-   * never reaches this point, so a leftover backup with a missing or
-   * incomplete live database means the process stopped between the delete and
-   * the encrypted write. Restoring that backup puts the user's data back
-   * instead of discarding the only complete copy.
+   * never reaches this point, so a leftover backup with a missing live
+   * database means the process stopped between the delete and the encrypted
+   * write. Restoring that backup puts the user's data back instead of
+   * discarding the only complete copy.
+   *
+   * A live database that exists but is not plaintext is the completed
+   * encrypted database left behind by a failed backup cleanup. Restoring over
+   * it would destroy the transferred data, so the stale backup is deleted
+   * instead.
    *
    * Returns `true` when a backup was restored and the migration must run again
    * to retry the transfer. Returns `false` when there is nothing to recover.
@@ -82,16 +87,19 @@ internal object PlaintextTransfer {
     tempName: String
   ): Boolean {
     val tempPath = context.getDatabasePath(tempName)
-    if (!isPlaintextDb(tempPath)) {
-      // A transfer that failed and restored normally leaves no backup, and an
-      // already-encrypted live database needs none.
+    val tempIsPlaintext = isPlaintextDb(tempPath)
+    val liveIsPlaintext = isPlaintextDb(dbFile)
+    // A backup that is not plaintext, or a live database that already
+    // completed (exists and is not plaintext), needs no recovery. The stale
+    // backup is deleted so it cannot be restored over good data later.
+    if (!tempIsPlaintext || dbFile.exists() && !liveIsPlaintext) {
       deleteDatabaseFiles(context, tempName)
       return false
     }
-    // The live database is still plaintext only if nothing interrupted a
-    // transfer, so a missing or encrypted file here means the process stopped
-    // between the delete and the encrypted write.
-    return !isPlaintextDb(dbFile) && restoreBackupForRetry(context, tempName, dbFile)
+    // Restore only when the live database is missing, meaning the process
+    // stopped between the delete and the encrypted write. A present plaintext
+    // live database needs no recovery.
+    return !dbFile.exists() && restoreBackupForRetry(context, tempName, dbFile)
   }
 
   /**

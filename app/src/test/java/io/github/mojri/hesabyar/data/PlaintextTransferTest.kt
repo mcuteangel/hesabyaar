@@ -107,4 +107,34 @@ class PlaintextTransferTest {
     assertTrue("Live DB should have been restored", liveDb.exists())
     assertTrue("Restored live DB should be plaintext SQLite", PlaintextTransfer.isPlaintextDb(liveDb))
   }
+
+  @Test
+  fun recoverInterruptedTransferDeletesBackupWhenLiveDbAlreadyEncrypted() {
+    val liveDb = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempName = "${AppDatabase.LIVE_DATABASE_NAME}_plaintext_backup"
+    val tempBackup = context.getDatabasePath(tempName)
+
+    testFiles += liveDb
+    testFiles += tempBackup
+
+    // Live DB exists and is encrypted (arbitrary non-SQLite header)
+    liveDb.parentFile?.mkdirs()
+    FileOutputStream(liveDb).use { out ->
+      out.write(ByteArray(32) { 0x55.toByte() })
+    }
+
+    // Leftover backup from a completed migration where cleanup failed
+    tempBackup.parentFile?.mkdirs()
+    FileOutputStream(tempBackup).use { out ->
+      out.write("SQLite format 3\u0000".toByteArray(Charsets.US_ASCII))
+      out.write(ByteArray(16))
+    }
+
+    val recovered = PlaintextTransfer.recoverInterruptedTransfer(context, liveDb, tempName)
+
+    assertFalse("Should not attempt recovery when live DB is already encrypted", recovered)
+    assertFalse("Stale plaintext backup should be deleted", tempBackup.exists())
+    assertTrue("Live encrypted DB must not be deleted", liveDb.exists())
+    assertFalse("Live DB must not be overwritten with plaintext", PlaintextTransfer.isPlaintextDb(liveDb))
+  }
 }
