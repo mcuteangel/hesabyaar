@@ -161,8 +161,8 @@ internal object PlaintextTransfer {
         .databaseBuilder(context, AppDatabase::class.java, tempName)
         .addMigrations(*AppDatabase.ALL_MIGRATIONS)
         .build()
-    val snapshot =
-      PlaintextSnapshot(
+    try {
+      return PlaintextSnapshot(
         accounts = plaintextDb.accountDao().getAllAccountsBlocking(),
         categories = plaintextDb.categoryDao().getAllCategoriesBlocking(),
         transactions = plaintextDb.transactionDao().getAllTransactionsBlocking(),
@@ -172,8 +172,9 @@ internal object PlaintextTransfer {
         payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking(),
         persons = plaintextDb.personDao().getAllPersonsIncludingArchivedBlocking()
       )
-    plaintextDb.close()
-    return snapshot
+    } finally {
+      plaintextDb.close()
+    }
   }
 
   /**
