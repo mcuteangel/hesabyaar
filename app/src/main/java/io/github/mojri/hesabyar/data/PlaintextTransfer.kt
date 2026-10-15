@@ -77,6 +77,10 @@ internal object PlaintextTransfer {
    * it would destroy the transferred data, so the stale backup is deleted
    * instead.
    *
+   * A backup that holds data but cannot be read as plaintext is kept. It is
+   * not deleted, because it may be the only surviving copy of the user's data.
+   * Only an absent or empty backup file is deleted, because it holds no data.
+   *
    * Returns `true` when a backup was restored and the migration must run again
    * to retry the transfer. Returns `false` when there is nothing to recover.
    */
@@ -87,19 +91,19 @@ internal object PlaintextTransfer {
     tempName: String
   ): Boolean {
     val tempPath = context.getDatabasePath(tempName)
-    val tempIsPlaintext = isPlaintextDb(tempPath)
+    val liveExists = dbFile.exists()
     val liveIsPlaintext = isPlaintextDb(dbFile)
-    // A backup that is not plaintext, or a live database that already
-    // completed (exists and is not plaintext), needs no recovery. The stale
-    // backup is deleted so it cannot be restored over good data later.
-    if (!tempIsPlaintext || dbFile.exists() && !liveIsPlaintext) {
+    // An empty file holds no rows, so deleting it loses nothing.
+    val backupHoldsData = tempPath.exists() && tempPath.length() > 0
+    // The live database completed the transfer, so the backup is stale.
+    // `&&` binds tighter than `||`, so both cleanup cases are covered.
+    if (liveExists && !liveIsPlaintext || !backupHoldsData) {
       deleteDatabaseFiles(context, tempName)
       return false
     }
-    // Restore only when the live database is missing, meaning the process
-    // stopped between the delete and the encrypted write. A present plaintext
-    // live database needs no recovery.
-    return !dbFile.exists() && restoreBackupForRetry(context, tempName, dbFile)
+    // Restore only when the live database is missing and the backup is a
+    // readable plaintext copy. An unreadable backup is left on disk.
+    return !liveExists && isPlaintextDb(tempPath) && restoreBackupForRetry(context, tempName, dbFile)
   }
 
   /**
@@ -133,7 +137,8 @@ internal object PlaintextTransfer {
    * is the only remaining plaintext data, so it is kept until the encrypted
    * database is complete.
    */
-  private fun copyPlaintextFilesToBackup(
+  @androidx.annotation.VisibleForTesting
+  internal fun copyPlaintextFilesToBackup(
     context: Context,
     tempName: String
   ) {
@@ -213,7 +218,8 @@ internal object PlaintextTransfer {
   }
 
   /** Removes the database [name] together with its write-ahead log and index. */
-  private fun deleteDatabaseFiles(
+  @androidx.annotation.VisibleForTesting
+  internal fun deleteDatabaseFiles(
     context: Context,
     name: String
   ) {
