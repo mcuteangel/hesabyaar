@@ -191,6 +191,16 @@ else
   PASS=$((PASS + 1)); printf 'PASS  zero head fails closed\n'
 fi
 
+# 5. unknown head (nonzero but absent from checkout): fail closed.
+# A stale range must never print a range with exit 0: the workflow's
+# `git log` in process substitution can then fail silently.
+if range_for "$A" "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" >/dev/null 2>&1; then
+  FAIL=$((FAIL + 1)); printf 'FAIL  unknown head should exit nonzero\n'
+else
+  PASS=$((PASS + 1)); printf 'PASS  unknown head fails closed\n'
+fi
+
 echo
 echo "=== Result: ${PASS} passed, ${FAIL} failed ==="
 [ "$FAIL" -eq 0 ]
+

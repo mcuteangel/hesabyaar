@@ -11,6 +11,7 @@
 # must then close nothing (fail closed):
 #   unknown base    -> exit 1           (force-push/pruned: no approx window)
 #   empty/zero head -> exit 1
+#   unknown head    -> exit 1           (nonzero but absent from checkout)
 #
 # Covered by scripts/test-issue-autoclose.sh. Must run inside a git repo.
 set -euo pipefail
@@ -21,6 +22,14 @@ head_sha="${PUSH_HEAD:-}"
 
 if [[ -z "$head_sha" || "$head_sha" == "$ZERO_SHA" ]]; then
   echo "error: no valid 'after' SHA — refusing to scan an unknown range" >&2
+  exit 1
+fi
+
+if ! git cat-file -e "${head_sha}^{commit}" 2>/dev/null; then
+  # An unknown nonzero 'after' would otherwise print a range with exit 0,
+  # and the workflow's `git log` in process substitution can fail without
+  # failing the step — making the run look successful while closing nothing.
+  echo "error: PUSH_HEAD ${head_sha:0:7} not found in checkout — refusing to scan an unknown range" >&2
   exit 1
 fi
 
