@@ -253,6 +253,7 @@ jobs:
           ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 1000)
 
           CLOSED=0
+          FAILED_CLOSES=0
 
           # --- Push range ---
           # Only scan commits that landed on the default branch in THIS
@@ -275,13 +276,16 @@ jobs:
             # a root commit and would silently scan nothing).
             LOG_ARGS=("$HEAD_SHA")
           elif ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            # Force-push (or pruned history): BASE is unknown, so the
-            # exact range cannot be computed. Fall back to the most
-            # recent commits instead of failing silently inside the
-            # process substitution below (set -e does not propagate
-            # through it).
-            echo "::warning::BASE ${BASE:0:7} not found in checkout (force-push?) — falling back to the last 100 commits"
-            LOG_ARGS=(-n 100 "$HEAD_SHA")
+            # Force-push (or pruned history): BASE is unknown, so no
+            # exact range can be established. Refuse to close anything
+            # on an approximate window — an older closing reference
+            # could re-close an issue that was reopened since.
+            # (Unreachable in practice: the ruleset blocks direct
+            # pushes to main, so force-pushes cannot happen; fail loud
+            # anyway instead of failing silently inside the process
+            # substitution below, where set -e does not propagate.)
+            echo "::error::BASE ${BASE:0:7} not found in checkout (force-push?) — cannot establish the pushed range, refusing to auto-close"
+            exit 1
           else
             LOG_ARGS=("${BASE}..${HEAD_SHA}")
           fi
@@ -394,27 +398,44 @@ jobs:
           )
 
             echo "✅ Closing #${NUM}"
-            # Retry the comment+close pair: a transient API failure would
-            # otherwise leave the issue open, and later pushes never
-            # rescan this commit — the close would be lost silently.
-            OK=0
+            # Post the comment once, then retry only the close: retrying
+            # the pair would post duplicate comments when the comment
+            # succeeded but the close failed. A transient API failure
+            # would otherwise leave the issue open, and later pushes
+            # never rescan this commit — the close would be lost.
+            COMMENT_OK=0
             for attempt in 1 2 3; do
-              if gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT" \
-                && gh issue close "$NUM" --repo "$REPO"; then
-                OK=1
+              if gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"; then
+                COMMENT_OK=1
                 break
               fi
-              echo "::warning::closing #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
+              echo "::warning::comment on #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
               sleep 10
             done
-            if [[ "$OK" == "1" ]]; then
+            CLOSE_OK=0
+            if [[ "$COMMENT_OK" == "1" ]]; then
+              for attempt in 1 2 3; do
+                if gh issue close "$NUM" --repo "$REPO"; then
+                  CLOSE_OK=1
+                  break
+                fi
+                echo "::warning::close of #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
+                sleep 10
+              done
+            fi
+            if [[ "$COMMENT_OK" == "1" && "$CLOSE_OK" == "1" ]]; then
               CLOSED=$((CLOSED + 1))
             else
               echo "::error::failed to close #${NUM} after 3 attempts"
+              FAILED_CLOSES=$((FAILED_CLOSES + 1))
             fi
           done <<< "$(echo "$ISSUES" | jq -c '.[]')"
 
           echo "=== Done: closed ${CLOSED} issues ==="
+          if [[ "$FAILED_CLOSES" -gt 0 ]]; then
+            echo "::error::${FAILED_CLOSES} issue(s) could not be closed — failing the run so it stays visible and retryable"
+            exit 1
+          fi
 
   # ==========================================
   # JOB 3: MANUAL ISSUE FROM REPLY CONTEXT (was JOB 2)
