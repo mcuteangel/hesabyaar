@@ -223,7 +223,9 @@ internal object PlaintextTransfer {
     dbFile: File,
     cause: Throwable
   ): Nothing {
-    restoreTempBackupToLive(context, tempName, dbFile)
+    runCatching { restoreTempBackupToLive(context, tempName, dbFile) }
+      .exceptionOrNull()
+      ?.let { cause.addSuppressed(it) }
     throw cause
   }
 
