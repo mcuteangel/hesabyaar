@@ -81,4 +81,12 @@ class BackupStableLinksTest {
 
     result.transactions.forEach { assertNull(it.loanId) }
   }
+
+  @Test
+  fun rejectsImpreciseLargeDoublesAsIds() {
+    // 9e18 is a whole Double but beyond 2^53, so it cannot name an id exactly.
+    assertNull(BackupStableLinks.optPositiveId(JSONObject().put("loanId", 9e18), "loanId"))
+    // Small integral doubles still count.
+    assertEquals(7L, BackupStableLinks.optPositiveId(JSONObject().put("loanId", 7.0), "loanId"))
+  }
 }

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.BackupPayload
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,6 +17,8 @@ import org.json.JSONObject
  * matching for those rows.
  */
 internal object BackupStableLinks {
+  private const val TAG = "HesabyarRepository"
+
   const val TRANSACTION_LOAN_ID = "loanId"
   const val PAYMENT_LINKED_TRANSACTION_ID = "linkedTransactionId"
 
@@ -32,7 +35,10 @@ internal object BackupStableLinks {
       when (val raw = obj.opt(key)) {
         is Int -> raw.toLong()
         is Long -> raw
-        is Number -> raw.toDouble().takeIf { it % 1.0 == 0.0 && it <= Long.MAX_VALUE }?.toLong()
+        // Doubles only arrive here from JSON decimals or scientific notation.
+        // Cap at 2^53: larger whole Doubles cannot represent every integer.
+        is Number ->
+          raw.toDouble().takeIf { it % 1.0 == 0.0 && it <= 9.007199254740992E15 }?.toLong()
         else -> null
       }
     return id?.takeIf { it > 0L }
@@ -76,6 +82,9 @@ internal object BackupStableLinks {
     }
     // A repeated row id makes the link ambiguous: the Rust rows cannot be
     // told apart by id, so drop the link for every row sharing that id.
+    if (duplicateIds.isNotEmpty()) {
+      AppLogger.w(TAG, "restore: duplicate row ids lose their links: $duplicateIds")
+    }
     return links - duplicateIds
   }
 }

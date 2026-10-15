@@ -42,9 +42,18 @@ internal fun sanitizeBackupLoanLinks(
       }
     }
   // Only plain ledger rows can be a repayment's generated transaction.
+  // A repeated transaction id is ambiguous, so no row sharing it is linkable.
+  val seenTransactionIds = HashSet<Long>()
+  val duplicateTransactionIds = HashSet<Long>()
+  for (tx in sanitizedTransactions) {
+    if (tx.id > 0L && !seenTransactionIds.add(tx.id)) duplicateTransactionIds += tx.id
+  }
+  if (duplicateTransactionIds.isNotEmpty()) {
+    AppLogger.w(TAG, "restore: duplicate transaction ids are not linkable: $duplicateTransactionIds")
+  }
   val linkableTransactionIds =
     sanitizedTransactions
-      .filter { it.id > 0L && it.loanId == null }
+      .filter { it.id > 0L && it.loanId == null && it.id !in duplicateTransactionIds }
       .mapTo(HashSet()) { it.id }
   val claimCounts = paymentHistories.mapNotNull { it.linkedTransactionId }.groupingBy { it }.eachCount()
   val sanitizedPayments =
@@ -57,7 +66,7 @@ internal fun sanitizeBackupLoanLinks(
         AppLogger.w(
           TAG,
           "restore: dropping linkedTransactionId=$link of payment=${p.id} (loanId=${p.loanId}): " +
-            "target missing, a loan disbursement, or shared by another payment"
+            "target missing, a loan disbursement, a duplicated id, or shared by another payment"
         )
         p.copy(linkedTransactionId = null)
       }

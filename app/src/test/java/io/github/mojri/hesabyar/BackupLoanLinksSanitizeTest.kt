@@ -101,4 +101,15 @@ class BackupLoanLinksSanitizeTest {
     assertNull(result.transactions[0].loanId)
     assertNull(result.paymentHistories[0].linkedTransactionId)
   }
+
+  @Test
+  fun dropsPaymentLinkWhenTransactionIdIsDuplicated() {
+    val result =
+      sanitizeBackupLoanLinks(
+        transactions = listOf(tx(2L, loanId = null), tx(2L, loanId = null)),
+        loans = listOf(loan),
+        paymentHistories = listOf(PaymentHistory(id = 3L, loanId = 7L, amount = 1L, linkedTransactionId = 2L))
+      )
+    assertNull(result.paymentHistories[0].linkedTransactionId)
+  }
 }

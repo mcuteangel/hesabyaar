@@ -191,7 +191,12 @@ class BackupLoanLinksRestoreTest {
 
       repo.deleteLoan(mergedLoan)
 
-      val remaining = target.transactionDao().getAllTransactionsBlocking().map { it.description }.sorted()
+      val remaining =
+        target
+          .transactionDao()
+          .getAllTransactionsBlocking()
+          .map { it.description }
+          .sorted()
       assertEquals(listOf("local 1", "local 2", MANUAL_DESCRIPTION).sorted(), remaining)
     }
 
