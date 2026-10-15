@@ -1,0 +1,33 @@
+app/src/main/java/io/github/mojri/hesabyar/data/PlaintextTransfer.kt
+  s_9ad7a4aae1831f::t_868e0388974984 42
+  s_9ad7a4aae1831f::t_7ee5b53c15db6f 78-79
+  s_9ad7a4aae1831f::t_48021140ea01fa 95-97,100,102-105
+  s_9ad7a4aae1831f::t_037cb3012cd875 91-94,98-99,101
+  s_9ad7a4aae1831f::t_021c22469e1762 189-203
+  s_9ad7a4aae1831f::t_2abb2d069520ac 67-77,80-90,106-107
+  s_9ad7a4aae1831f::t_c64ae834adf759 62-64
+app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration3to4Test.kt
+  s_9ad7a4aae1831f::t_4bc360f5a76541 178,181
+docs/MIGRATION_NOTES.md
+  s_9ad7a4aae1831f::t_2fb862e114f31f 12
+progress.md
+  s_9ad7a4aae1831f::t_27797239e7c66d 87-98
+app/src/test/java/io/github/mojri/hesabyar/data/PlaintextTransferTest.kt
+  s_9ad7a4aae1831f::t_cccae02faad2ed 84-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cbdccdcf1671efe944a42186e77982ddb133f8f1",
+  "prompts": {},
+  "sessions": {
+    "s_9ad7a4aae1831f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfab33be-3e83-44b6-bcf7-37b7e55a031b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
