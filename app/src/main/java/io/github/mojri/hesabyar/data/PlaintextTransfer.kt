@@ -38,9 +38,12 @@ internal object PlaintextTransfer {
    */
   fun migratePlaintextToEncryptedIfNeeded(context: Context) {
     val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
-    if (!isPlaintextDb(dbFile)) return
+    val tempName = "${AppDatabase.LIVE_DATABASE_NAME}$PLAINTEXT_BACKUP_SUFFIX"
+    if (!isPlaintextDb(dbFile)) {
+      deleteDatabaseFiles(context, tempName)
+      return
+    }
 
-    val tempName = "$AppDatabase.LIVE_DATABASE_NAME$PLAINTEXT_BACKUP_SUFFIX"
     copyPlaintextFilesToBackup(context, tempName)
     // The key is read before any live file is removed, so a key failure leaves
     // the plaintext database untouched.
@@ -54,6 +57,8 @@ internal object PlaintextTransfer {
     } catch (e: SQLiteException) {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     } catch (e: IllegalStateException) {
+      restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
+    } catch (e: IOException) {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     }
   }
@@ -80,18 +85,14 @@ internal object PlaintextTransfer {
     context: Context,
     tempName: String
   ) {
-    context
-      .getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
-      .copyTo(context.getDatabasePath(tempName), overwrite = true)
-    listOf("-wal", "-shm")
-      .map { context.getDatabasePath("$AppDatabase.LIVE_DATABASE_NAME$it") }
-      .filter { it.exists() }
-      .forEach {
-        it.copyTo(
-          context.getDatabasePath("$tempName${it.name.removePrefix(AppDatabase.LIVE_DATABASE_NAME)}"),
-          overwrite = true
-        )
-      }
+    val livePath = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempPath = context.getDatabasePath(tempName)
+    livePath.copyTo(tempPath, overwrite = true)
+    listOf("-wal", "-shm").forEach { suffix ->
+      val src = File(livePath.parentFile, livePath.name + suffix)
+      val dst = File(tempPath.parentFile, tempPath.name + suffix)
+      if (src.exists()) src.copyTo(dst, overwrite = true)
+    }
   }
 
   /**
@@ -174,7 +175,7 @@ internal object PlaintextTransfer {
     context: Context,
     tempName: String,
     dbFile: File,
-    cause: RuntimeException
+    cause: Throwable
   ): Nothing {
     restoreTempBackupToLive(context, tempName, dbFile)
     throw cause
@@ -186,15 +187,12 @@ internal object PlaintextTransfer {
     tempName: String,
     dbFile: File
   ) {
-    context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
-    listOf("-wal", "-shm")
-      .map { context.getDatabasePath("$tempName$it") }
-      .filter { it.exists() }
-      .forEach {
-        it.copyTo(
-          context.getDatabasePath("$AppDatabase.LIVE_DATABASE_NAME${it.name.removePrefix(tempName)}"),
-          overwrite = true
-        )
-      }
+    val tempPath = context.getDatabasePath(tempName)
+    tempPath.copyTo(dbFile, overwrite = true)
+    listOf("-wal", "-shm").forEach { suffix ->
+      val src = File(tempPath.parentFile, tempPath.name + suffix)
+      val dst = File(dbFile.parentFile, dbFile.name + suffix)
+      if (src.exists()) src.copyTo(dst, overwrite = true)
+    }
   }
 }

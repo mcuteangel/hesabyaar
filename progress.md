@@ -80,8 +80,6 @@ Replace the threshold-based `amount > 1000000000` correction in MIGRATION_3_4 wi
 
 PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
-
 Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
 
 | Item | File | State |
@@ -109,10 +107,6 @@ Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
 | Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md` | done |
 | Issue #93: Commit, push, and open PR #462 | `fix/issue-93-harden-migration-3-4` | done |
 | Issue #461: repair path for users already past v4 | new issue | open |
-
-## Blocked
-
-- GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
 
 ## Blocked
 

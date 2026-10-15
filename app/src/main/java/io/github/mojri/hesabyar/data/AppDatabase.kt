@@ -67,26 +67,17 @@ abstract class AppDatabase : RoomDatabase() {
       }
 
     /**
-     * Undoes the over-inflation that an early revision of MIGRATION_1_2 caused
-     * by multiplying by 1000 instead of `MigrationSql.TOMAN_TO_RIAL`. Stored
-     * values were 100x too large, so dividing by 100 restores the correct
-     * factor.
+     * Corrects amounts inflated by MIGRATION_1_2 (*1000).
+     * Correct factor: 1 Toman = 10 Rials → values were 100x too big.
+     * Only divides rows with amounts exceeding realistic thresholds to avoid
+     * corrupting data that was never inflated by MIGRATION_1_2.
+     * Room guarantees this runs exactly once per DB file via _room_master_table.
+     * ponytail: one-shot data fix. Remove after all users migrated to v4+.
      *
-     * The predicate is bounded on both sides so the correction can only ever
-     * touch a value that is impossible as a legitimate amount. Without the
-     * upper bound, a single absolute threshold either corrupts a legitimate
-     * large amount or leaves an inflated one in place, because both kinds of
-     * row are plain integers in the same column and no threshold can separate
-     * them. In practice the surviving band is unreachable, so this migration
-     * is inert; it exists so a database still on version 3 is never left
-     * wrong and no future edit can reintroduce a bare threshold.
-     *
-     * `bank_loans` is deliberately absent: MIGRATION_4_5 creates that table, so
-     * it does not exist at version 3.
-     *
-     * Room runs this migration exactly once per database file, and it runs
-     * inside one transaction, so a partial correction cannot survive.
-     * See [MigrationSql] for the statements and the bound derivation.
+     * Historical note (#461, closed 2026-10-15 as moot): the pre-release v1-v4 era
+     * never reached mass installation — only the owner's own device carried inflated
+     * data, his amounts are verified fine, and fresh installs skip old migrations
+     * entirely. No repair path is needed; do not re-flag this migration.
      */
     internal val MIGRATION_3_4 =
       object : Migration(3, 4) {

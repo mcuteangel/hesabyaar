@@ -32,6 +32,7 @@ import org.robolectric.annotation.Config
 class AppDatabaseMigration3to4Test {
   private lateinit var context: Context
   private val dbNames = mutableListOf<String>()
+  private val openedDatabases = mutableListOf<AppDatabase>()
 
   /** Upper bound on a legitimate Rial amount. Mirrors MigrationSql. */
   private val maxLegitimateRial = MAX_AMOUNT_TOMAN * 10L
@@ -46,6 +47,10 @@ class AppDatabaseMigration3to4Test {
 
   @After
   fun tearDown() {
+    openedDatabases.forEach { db ->
+      if (db.isOpen) db.close()
+    }
+    openedDatabases.clear()
     dbNames.forEach { name ->
       context.getDatabasePath(name).delete()
       context.getDatabasePath("$name-wal").delete()
@@ -219,7 +224,6 @@ class AppDatabaseMigration3to4Test {
         .amount
     )
     assertEquals(1, migrated.loanDao().getAllLoansBlocking().size)
-    migrated.close()
   }
 
   // ---------------------------------------------------------------- helpers
@@ -235,7 +239,7 @@ class AppDatabaseMigration3to4Test {
   /**
    * Builds a version 3 database seeded by [seed] and migrates it through the
    * full chain to the current version, so MIGRATION_3_4 runs for real and Room
-   * validates the result. The caller must close the returned database.
+   * validates the result. The returned database is closed by [tearDown].
    */
   private fun migrateV3To4(
     dbName: String,
@@ -252,6 +256,7 @@ class AppDatabaseMigration3to4Test {
         .build()
     // Force the open, which runs the migrations and Room's schema validation.
     migrated.transactionDao().getAllTransactionsBlocking()
+    openedDatabases += migrated
     return migrated
   }
 

@@ -202,9 +202,10 @@ internal object MigrationSql {
    * bound, a single absolute threshold either corrupts a legitimate large
    * amount or leaves an inflated one in place, because both kinds of row are
    * plain integers in the same column and no threshold can separate them. In
-   * practice the surviving band is unreachable, so the correction is inert; it
-   * exists so a database still on version 3 is never left wrong and no future
-   * edit can reintroduce a bare threshold.
+   * practice the surviving band is unreachable by legitimate user input (capped
+   * at `MAX_AMOUNT_TOMAN`), so the correction only activates for values that
+   * must be inflated data. It exists as a safety net for databases still on
+   * version 3 and prevents future edits from reintroducing a bare threshold.
    */
   fun undoTomanToRialInflation(
     db: SupportSQLiteDatabase,
@@ -219,7 +220,7 @@ internal object MigrationSql {
     // collects entries only in debug builds, and this count is the only record
     // of a data correction on a user device.
     android.util.Log.i(
-      "AppDatabase",
+      MigrationSql::class.java.simpleName,
       "MIGRATION_3_4 corrected $affected row(s) in $table.$column"
     )
   }
