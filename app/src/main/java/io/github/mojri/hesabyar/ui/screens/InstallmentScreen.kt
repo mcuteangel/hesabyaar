@@ -26,6 +26,7 @@ import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
@@ -259,13 +260,17 @@ fun InstallmentScreen(
         HesabyarButton(
           onClick = {
             val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
-            if (title.isNotBlank() && amountDisplay > 0L) {
-              val amountRial = CurrencyFormatter.toRial(amountDisplay)
-              installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
-              installmentViewModel.setBankLoanFilter(null)
-              showAddDialog = false
-            } else {
-              settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
+            when {
+              title.isBlank() || amountDisplay <= 0L ->
+                settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
+              overflowsTomanConversion(amountDisplay) ->
+                settingsViewModel.showMessage("مبلغ وارد شده بیش از حد مجاز است")
+              else -> {
+                val amountRial = CurrencyFormatter.toRial(amountDisplay)
+                installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+                installmentViewModel.setBankLoanFilter(null)
+                showAddDialog = false
+              }
             }
           },
           text = "ذخیره قسط"
@@ -461,3 +466,12 @@ fun InstallmentListItem(
     )
   }
 }
+
+/**
+ * True when converting [displayValue] to Rial would overflow a Long.
+ * toRial() multiplies by 10 in Toman mode; toCleanLongOrNull() already rejects
+ * digit overflow, so this is the only remaining overflow path. Rial mode needs
+ * no guard (toRial is the identity there).
+ */
+private fun overflowsTomanConversion(displayValue: Long): Boolean =
+  CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN && displayValue > Long.MAX_VALUE / 10
