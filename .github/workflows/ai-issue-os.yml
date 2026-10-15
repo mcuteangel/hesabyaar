@@ -250,11 +250,25 @@ jobs:
           echo "=== Auto-Close Resolved Issues ==="
 
           # Get open issues (skip PRs — they use `#43` style, skip issues without # prefix)
-          ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 200)
+          ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 1000)
 
           CLOSED=0
+          FAILED_CLOSES=0
 
-          # --- Pass 1: scan history once ---
+          # --- Push range ---
+          # Resolved by .github/scripts/autoclose-range.sh (covered by
+          # scripts/test-issue-autoclose.sh): only commits that landed on
+          # the default branch in THIS push are scanned. Scanning
+          # `git log --all` also matched commits on unmerged branches
+          # (e.g. an open PR whose commit message says "Closes #93"),
+          # which prematurely closed issues whose fix had not merged yet.
+          if ! RANGE="$(PUSH_BASE="${{ github.event.before }}" PUSH_HEAD="${{ github.event.after }}" bash .github/scripts/autoclose-range.sh)"; then
+            echo "::error::could not resolve the pushed commit range — refusing to auto-close"
+            exit 1
+          fi
+          echo "Scanning for closing references: git log ${RANGE}"
+
+          # --- Pass 1: scan the pushed range once ---
           # Build a map of issue number to closing commits, newest first.
           # Keep at most 5 commits per issue. This mirrors the previous
           # per-issue "git log -n 5" limit.
@@ -312,7 +326,7 @@ jobs:
                 MATCH_LINES_BY_ISSUE[$NUM]+="${LOG_LINE}"$'\n'
               fi
             done
-          done < <(git log --all -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
+          done < <(git log "$RANGE" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
 
           while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
@@ -361,12 +375,44 @@ jobs:
           )
 
             echo "✅ Closing #${NUM}"
-            gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"
-            gh issue close "$NUM" --repo "$REPO"
-            CLOSED=$((CLOSED + 1))
+            # Post the comment once, then retry only the close: retrying
+            # the pair would post duplicate comments when the comment
+            # succeeded but the close failed. A transient API failure
+            # would otherwise leave the issue open, and later pushes
+            # never rescan this commit — the close would be lost.
+            COMMENT_OK=0
+            for attempt in 1 2 3; do
+              if gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"; then
+                COMMENT_OK=1
+                break
+              fi
+              echo "::warning::comment on #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
+              sleep 10
+            done
+            CLOSE_OK=0
+            if [[ "$COMMENT_OK" == "1" ]]; then
+              for attempt in 1 2 3; do
+                if gh issue close "$NUM" --repo "$REPO"; then
+                  CLOSE_OK=1
+                  break
+                fi
+                echo "::warning::close of #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
+                sleep 10
+              done
+            fi
+            if [[ "$COMMENT_OK" == "1" && "$CLOSE_OK" == "1" ]]; then
+              CLOSED=$((CLOSED + 1))
+            else
+              echo "::error::failed to close #${NUM} after 3 attempts"
+              FAILED_CLOSES=$((FAILED_CLOSES + 1))
+            fi
           done <<< "$(echo "$ISSUES" | jq -c '.[]')"
 
           echo "=== Done: closed ${CLOSED} issues ==="
+          if [[ "$FAILED_CLOSES" -gt 0 ]]; then
+            echo "::error::${FAILED_CLOSES} issue(s) could not be closed — failing the run so it stays visible and retryable"
+            exit 1
+          fi
 
   # ==========================================
   # JOB 3: MANUAL ISSUE FROM REPLY CONTEXT (was JOB 2)
