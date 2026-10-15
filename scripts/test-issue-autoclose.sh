@@ -118,6 +118,79 @@ echo "=== Multi-line message bodies ==="
 check CLOSE 40 "$(printf 'feat: rework parser\n\nfixes #40')"
 check SKIP 40 "$(printf 'chore: cleanup\n\nsee #40')"
 
+# --- Push-range resolution -------------------------------------------
+# .github/scripts/autoclose-range.sh decides which commits the workflow
+# scans for closing references. Tested here against throwaway git repos
+# (the workflow YAML itself cannot run under unit test).
+RANGE_SCRIPT="${REPO_ROOT}/.github/scripts/autoclose-range.sh"
+if [ ! -f "$RANGE_SCRIPT" ]; then
+  echo "FAIL: range script not found: ${RANGE_SCRIPT}" >&2
+  exit 1
+fi
+
+echo
+echo "=== Push range resolution ==="
+TMPREPO="$(mktemp -d)"
+trap 'rm -rf "$TMPREPO"' EXIT
+git init -q -C "$TMPREPO" 2>/dev/null || git init -q "$TMPREPO"
+git -C "$TMPREPO" config user.email "test@example.com"
+git -C "$TMPREPO" config user.name "test"
+git -C "$TMPREPO" commit -q --allow-empty -m "initial commit"
+A=$(git -C "$TMPREPO" rev-parse HEAD)
+git -C "$TMPREPO" commit -q --allow-empty -m "fix #40: correct the thing"
+git -C "$TMPREPO" commit -q --allow-empty -m "docs: touch readme"
+C=$(git -C "$TMPREPO" rev-parse HEAD)
+git -C "$TMPREPO" commit -q --allow-empty -m "Fixes #41"
+D=$(git -C "$TMPREPO" rev-parse HEAD)
+ZERO=0000000000000000000000000000000000000000
+
+range_for() { ( cd "$TMPREPO" && PUSH_BASE="$1" PUSH_HEAD="$2" bash "$RANGE_SCRIPT" ); }
+
+# 1. normal push: exactly the pushed range — nothing older or newer
+R=$(range_for "$A" "$C")
+if [ "$R" = "${A}..${C}" ]; then
+  SCAN=$(git -C "$TMPREPO" log "$R" --format='%s')
+  if printf '%s\n' "$SCAN" | grep -q "fix #40" && ! printf '%s\n' "$SCAN" | grep -q "Fixes #41"; then
+    PASS=$((PASS + 1)); printf 'PASS  normal push scans exactly the pushed range\n'
+  else
+    FAIL=$((FAIL + 1)); printf 'FAIL  normal push: wrong commits scanned\n'
+  fi
+else
+  FAIL=$((FAIL + 1)); printf 'FAIL  normal push: expected "%s..%s", got "%s"\n' "$A" "$C" "$R"
+fi
+
+# 2. zero-SHA base (initial push): full history, including root commits
+R=$(range_for "$ZERO" "$D")
+if [ "$R" = "$D" ]; then
+  SCAN=$(git -C "$TMPREPO" log "$R" --format='%s')
+  if printf '%s\n' "$SCAN" | grep -q "fix #40" && printf '%s\n' "$SCAN" | grep -q "Fixes #41"; then
+    PASS=$((PASS + 1)); printf 'PASS  zero-SHA base scans full history\n'
+  else
+    FAIL=$((FAIL + 1)); printf 'FAIL  zero-SHA base: history incomplete\n'
+  fi
+else
+  FAIL=$((FAIL + 1)); printf 'FAIL  zero-SHA base: expected "%s", got "%s"\n' "$D" "$R"
+fi
+
+# 3. unknown base (force-push): fail closed, close nothing
+if range_for "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" "$D" >/dev/null 2>&1; then
+  FAIL=$((FAIL + 1)); printf 'FAIL  unknown base should exit nonzero\n'
+else
+  PASS=$((PASS + 1)); printf 'PASS  unknown base fails closed\n'
+fi
+
+# 4. empty / zero head: fail closed
+if range_for "$A" "" >/dev/null 2>&1; then
+  FAIL=$((FAIL + 1)); printf 'FAIL  empty head should exit nonzero\n'
+else
+  PASS=$((PASS + 1)); printf 'PASS  empty head fails closed\n'
+fi
+if range_for "$A" "$ZERO" >/dev/null 2>&1; then
+  FAIL=$((FAIL + 1)); printf 'FAIL  zero head should exit nonzero\n'
+else
+  PASS=$((PASS + 1)); printf 'PASS  zero head fails closed\n'
+fi
+
 echo
 echo "=== Result: ${PASS} passed, ${FAIL} failed ==="
 [ "$FAIL" -eq 0 ]
