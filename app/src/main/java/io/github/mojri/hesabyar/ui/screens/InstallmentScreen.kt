@@ -26,7 +26,6 @@ import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
-import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
@@ -40,6 +39,7 @@ import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
@@ -468,10 +468,11 @@ fun InstallmentListItem(
 }
 
 /**
- * True when converting [displayValue] to Rial would overflow a Long.
- * toRial() multiplies by 10 in Toman mode; toCleanLongOrNull() already rejects
- * digit overflow, so this is the only remaining overflow path. Rial mode needs
- * no guard (toRial is the identity there).
+ * True when [displayValue] is too large for [CurrencyFormatter.toRial] to
+ * convert without overflowing a Long. The bound comes from
+ * [DisplayAmountInput.maxDisplayAmount] — the single source of truth, derived
+ * from the conversion itself (Toman mode allows up to a tenth of [Long.MAX_VALUE],
+ * Rial mode the full range, where this can never fire).
  */
 private fun overflowsTomanConversion(displayValue: Long): Boolean =
-  CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN && displayValue > Long.MAX_VALUE / 10
+  displayValue > DisplayAmountInput.maxDisplayAmount()
