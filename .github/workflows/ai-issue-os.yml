@@ -254,7 +254,18 @@ jobs:
 
           CLOSED=0
 
-          # --- Pass 1: scan history once ---
+          # --- Push range ---
+          # Only scan commits that landed on the default branch in THIS
+          # push. Scanning `git log --all` also matched commits on
+          # unmerged branches (e.g. an open PR whose commit message says
+          # "Closes #93"), which prematurely closed issues whose fix had
+          # not merged yet.
+          BASE="${{ github.event.before }}"
+          HEAD_SHA="${{ github.event.after }}"
+          if [[ "$BASE" == "0000000000000000000000000000000000000000" ]]; then BASE="HEAD~1"; fi
+          echo "Scanning push range for closing references: ${BASE:0:7}..${HEAD_SHA:0:7}"
+
+          # --- Pass 1: scan the pushed range once ---
           # Build a map of issue number to closing commits, newest first.
           # Keep at most 5 commits per issue. This mirrors the previous
           # per-issue "git log -n 5" limit.
@@ -312,7 +323,7 @@ jobs:
                 MATCH_LINES_BY_ISSUE[$NUM]+="${LOG_LINE}"$'\n'
               fi
             done
-          done < <(git log --all -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
+          done < <(git log "${BASE}..${HEAD_SHA}" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
 
           while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
