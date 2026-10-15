@@ -250,7 +250,7 @@ jobs:
           echo "=== Auto-Close Resolved Issues ==="
 
           # Get open issues (skip PRs — they use `#43` style, skip issues without # prefix)
-          ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 200)
+          ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title --limit 1000)
 
           CLOSED=0
 
@@ -262,8 +262,30 @@ jobs:
           # not merged yet.
           BASE="${{ github.event.before }}"
           HEAD_SHA="${{ github.event.after }}"
-          if [[ "$BASE" == "0000000000000000000000000000000000000000" ]]; then BASE="HEAD~1"; fi
-          echo "Scanning push range for closing references: ${BASE:0:7}..${HEAD_SHA:0:7}"
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [[ -z "$HEAD_SHA" || "$HEAD_SHA" == "$ZERO_SHA" ]]; then
+            echo "::error::push payload has no valid 'after' SHA — refusing to scan an unknown range"
+            exit 1
+          fi
+          LOG_ARGS=()
+          if [[ "$BASE" == "$ZERO_SHA" ]]; then
+            # Initial push of the branch: no "before" exists. Scan the
+            # whole history reachable from HEAD so closing references in
+            # the initial commits are not dropped (HEAD~1 is invalid for
+            # a root commit and would silently scan nothing).
+            LOG_ARGS=("$HEAD_SHA")
+          elif ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            # Force-push (or pruned history): BASE is unknown, so the
+            # exact range cannot be computed. Fall back to the most
+            # recent commits instead of failing silently inside the
+            # process substitution below (set -e does not propagate
+            # through it).
+            echo "::warning::BASE ${BASE:0:7} not found in checkout (force-push?) — falling back to the last 100 commits"
+            LOG_ARGS=(-n 100 "$HEAD_SHA")
+          else
+            LOG_ARGS=("${BASE}..${HEAD_SHA}")
+          fi
+          echo "Scanning for closing references: git log ${LOG_ARGS[*]}"
 
           # --- Pass 1: scan the pushed range once ---
           # Build a map of issue number to closing commits, newest first.
@@ -323,7 +345,7 @@ jobs:
                 MATCH_LINES_BY_ISSUE[$NUM]+="${LOG_LINE}"$'\n'
               fi
             done
-          done < <(git log "${BASE}..${HEAD_SHA}" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
+          done < <(git log "${LOG_ARGS[@]}" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
 
           while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
@@ -372,9 +394,24 @@ jobs:
           )
 
             echo "✅ Closing #${NUM}"
-            gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT"
-            gh issue close "$NUM" --repo "$REPO"
-            CLOSED=$((CLOSED + 1))
+            # Retry the comment+close pair: a transient API failure would
+            # otherwise leave the issue open, and later pushes never
+            # rescan this commit — the close would be lost silently.
+            OK=0
+            for attempt in 1 2 3; do
+              if gh issue comment "$NUM" --repo "$REPO" --body "$COMMENT" \
+                && gh issue close "$NUM" --repo "$REPO"; then
+                OK=1
+                break
+              fi
+              echo "::warning::closing #${NUM} failed (attempt ${attempt}/3), retrying in 10s..."
+              sleep 10
+            done
+            if [[ "$OK" == "1" ]]; then
+              CLOSED=$((CLOSED + 1))
+            else
+              echo "::error::failed to close #${NUM} after 3 attempts"
+            fi
           done <<< "$(echo "$ISSUES" | jq -c '.[]')"
 
           echo "=== Done: closed ${CLOSED} issues ==="
