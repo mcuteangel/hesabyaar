@@ -19,13 +19,23 @@ internal object BackupStableLinks {
   const val TRANSACTION_LOAN_ID = "loanId"
   const val PAYMENT_LINKED_TRANSACTION_ID = "linkedTransactionId"
 
-  /** Reads an optional positive id; anything else is "no link". */
+  /**
+   * Reads an optional positive integral id; anything else is "no link".
+   * `optLong` would truncate `7.9` to `7` and parse `"7"`, which could point
+   * a malformed link at the wrong row, so only whole JSON numbers count.
+   */
   fun optPositiveId(
     obj: JSONObject,
     key: String
   ): Long? {
-    if (!obj.has(key) || obj.isNull(key)) return null
-    return obj.optLong(key, 0L).takeIf { it > 0L }
+    val id =
+      when (val raw = obj.opt(key)) {
+        is Int -> raw.toLong()
+        is Long -> raw
+        is Number -> raw.toDouble().takeIf { it % 1.0 == 0.0 && it <= Long.MAX_VALUE }?.toLong()
+        else -> null
+      }
+    return id?.takeIf { it > 0L }
   }
 
   /**
@@ -56,11 +66,16 @@ internal object BackupStableLinks {
   ): Map<Long, Long> {
     if (array == null) return emptyMap()
     val links = mutableMapOf<Long, Long>()
+    val seenIds = HashSet<Long>()
+    val duplicateIds = HashSet<Long>()
     for (i in 0 until array.length()) {
       val obj = array.optJSONObject(i) ?: continue
-      val id = obj.optLong("id", 0L).takeIf { it > 0L } ?: continue
+      val id = optPositiveId(obj, "id") ?: continue
+      if (!seenIds.add(id)) duplicateIds += id
       optPositiveId(obj, key)?.let { links[id] = it }
     }
-    return links
+    // A repeated row id makes the link ambiguous: the Rust rows cannot be
+    // told apart by id, so drop the link for every row sharing that id.
+    return links - duplicateIds
   }
 }

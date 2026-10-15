@@ -230,7 +230,7 @@ internal data class BackupMergeIdMaps(
   val categoryIdMap: Map<Long, Long>,
   val installmentIdMap: Map<Long, Long>,
   val accountIdMap: Map<Long, Long>,
-  val loanIdMap: Map<Long, Long> = emptyMap()
+  val loanIdMap: Map<Long, Long>
 )
 
 /**
@@ -307,6 +307,12 @@ private suspend fun backupMergeOneTransaction(
   // to a loan the merge did not insert is dropped rather than left pointing
   // at an unrelated local loan with the same id.
   val mappedLoanId = transaction.loanId?.let { idMaps.loanIdMap[it] }
+  if (transaction.loanId != null && mappedLoanId == null) {
+    AppLogger.w(
+      "HesabyarRepository",
+      "mergeFromBackup: transaction=${transaction.id} loses loanId=${transaction.loanId}: loan was not merged"
+    )
+  }
   return transactionDao.insertTransaction(
     transaction.copy(
       id = 0,
@@ -331,13 +337,20 @@ internal suspend fun backupMergePaymentHistories(
     if (mappedLoanId == null) {
       AppLogger.w(
         "HesabyarRepository",
-        "mergeFromBackup: skipping payment with unmapped loanId=${payment.loanId}"
+        "mergeFromBackup: skipping payment=${payment.id} with unmapped loanId=${payment.loanId}"
       )
       continue
     }
     // Issue #430: re-point the repayment's ledger link to the merged row; a
     // link to a skipped or absent transaction becomes null (legacy matching).
     val mappedLinkedTransactionId = payment.linkedTransactionId?.let { transactionIdMap[it] }
+    if (payment.linkedTransactionId != null && mappedLinkedTransactionId == null) {
+      AppLogger.w(
+        "HesabyarRepository",
+        "mergeFromBackup: payment=${payment.id} loses linkedTransactionId=${payment.linkedTransactionId}: " +
+          "transaction was skipped"
+      )
+    }
     paymentHistoryDao.insertPayment(
       payment.copy(id = 0, loanId = mappedLoanId, linkedTransactionId = mappedLinkedTransactionId)
     )

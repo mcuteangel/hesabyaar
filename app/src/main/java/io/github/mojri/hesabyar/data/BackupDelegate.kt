@@ -27,7 +27,7 @@ internal class BackupDelegate(
     installmentDao.deleteAllInstallments()
     paymentHistoryDao.deleteAllPaymentHistory()
     bankLoanDao.deleteAllBankLoans()
-    val links = sanitizeLoanLinksForReplace(transactions, loans, paymentHistories)
+    val links = sanitizeBackupLoanLinks(transactions, loans, paymentHistories)
     links.transactions.forEach { transactionDao.insertTransaction(it) }
     loans.forEach { loanDao.insertLoan(normalizeLoanForRestore(it)) }
     installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
@@ -58,7 +58,7 @@ internal class BackupDelegate(
       val personMaps =
         backupInsertPersonsForReplace(personsToInsert, personDao, backup.persons.isEmpty())
       backupInsertLoansWithPersonRemap(backup.loans, personMaps, loanDao)
-      val links = sanitizeLoanLinksForReplace(backup.transactions, backup.loans, backup.paymentHistories)
+      val links = sanitizeBackupLoanLinks(backup.transactions, backup.loans, backup.paymentHistories)
       backupInsertTransactionsWithPersonRemap(links.transactions, personMaps, transactionDao)
       backup.installments.forEach { installmentDao.insertInstallment(normalizeInstallmentForRestore(it)) }
       links.paymentHistories.forEach { paymentHistoryDao.insertPayment(it) }
@@ -72,6 +72,9 @@ internal class BackupDelegate(
 
   override suspend fun mergeFromBackup(backup: BackupPayload) =
     database.withTransaction {
+      // Issue #430: validate the loan links inside the backup first, then
+      // re-point the surviving ones through the id maps below.
+      val links = sanitizeBackupLoanLinks(backup.transactions, backup.loans, backup.paymentHistories)
       val categoryIdMap = backupMergeCategories(backup.categories, categoryDao)
       // Legacy backups predate the persons array; referenced-only identities
       // (a loan/transaction pointing at a person id the persons list never
@@ -119,13 +122,13 @@ internal class BackupDelegate(
         )
       val transactionIdMap =
         backupMergeTransactions(
-          backup.transactions,
+          links.transactions,
           BackupMergeIdMaps(categoryIdMap, installmentIdMap, accountIdMap, loanIdMap),
           categoryDao,
           accountDao,
           transactionDao,
           ::resolveForMerge
         )
-      backupMergePaymentHistories(backup.paymentHistories, loanIdMap, transactionIdMap, paymentHistoryDao)
+      backupMergePaymentHistories(links.paymentHistories, loanIdMap, transactionIdMap, paymentHistoryDao)
     }
 }

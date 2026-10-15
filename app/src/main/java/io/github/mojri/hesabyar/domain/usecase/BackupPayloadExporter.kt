@@ -89,11 +89,15 @@ class BackupPayloadExporter(
     )
 
     val curCategories = repository.allCategories.firstOrNull() ?: emptyList()
-    val curTrans = repository.allTransactions.firstOrNull() ?: emptyList()
+    // Issue #430: read loans and payments before transactions. A tracked
+    // loan or repayment inserts its ledger row in the same DB transaction,
+    // so every link read here already has its target when transactions are
+    // read; the reverse order could export a link whose target is missing.
     val curLoans = repository.allLoans.firstOrNull() ?: emptyList()
+    val allPayments = repository.getAllPaymentHistories()
+    val curTrans = repository.allTransactions.firstOrNull() ?: emptyList()
     val curInstallments = repository.allInstallments.firstOrNull() ?: emptyList()
     val curBankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
-    val allPayments = repository.getAllPaymentHistories()
     val curAccounts = repository.allAccounts.firstOrNull() ?: emptyList()
     val curPersons = repository.getAllPersonsIncludingArchived()
 

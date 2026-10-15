@@ -45,8 +45,8 @@ class BackupStableLinksTest {
   }
 
   @Test
-  fun treatsMissingNullZeroAndNegativeAsNoLink() {
-    listOf<Any?>(null, JSONObject.NULL, 0L, -3L).forEach { raw ->
+  fun treatsMissingNullNonPositiveFractionalAndNonNumericAsNoLink() {
+    listOf<Any?>(null, JSONObject.NULL, 0L, -3L, 7.9, "7", true).forEach { raw ->
       val obj = JSONObject().put("id", 1L)
       if (raw != null) obj.put("loanId", raw)
       assertNull("value=$raw", BackupStableLinks.optPositiveId(obj, BackupStableLinks.TRANSACTION_LOAN_ID))
@@ -58,5 +58,27 @@ class BackupStableLinksTest {
     val payload = BackupPayload(transactions = listOf(tx(1L)))
     val root = JSONObject().put("transactions", JSONArray().put(JSONObject().put("id", 1L)))
     assertEquals(payload, BackupStableLinks.applyFromRawJson(payload, root))
+  }
+
+  @Test
+  fun acceptsWholeNumbersIncludingIntegralDoubles() {
+    assertEquals(7L, BackupStableLinks.optPositiveId(JSONObject().put("loanId", 7), "loanId"))
+    assertEquals(7L, BackupStableLinks.optPositiveId(JSONObject().put("loanId", 7.0), "loanId"))
+  }
+
+  @Test
+  fun dropsLinksForDuplicatedRowIds() {
+    val root =
+      JSONObject().put(
+        "transactions",
+        JSONArray()
+          .put(JSONObject().put("id", 1L).put("loanId", 7L))
+          .put(JSONObject().put("id", 1L))
+      )
+    val payload = BackupPayload(transactions = listOf(tx(1L), tx(1L)))
+
+    val result = BackupStableLinks.applyFromRawJson(payload, root)
+
+    result.transactions.forEach { assertNull(it.loanId) }
   }
 }
