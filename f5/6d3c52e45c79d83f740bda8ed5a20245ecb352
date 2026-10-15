@@ -1,0 +1,34 @@
+app/src/main/java/io/github/mojri/hesabyar/data/BackupMergeTransactions.kt
+  s_97b996203548b2::t_a24698904ff299 47-62,64-68,71,73-89,100-103,108
+  s_97b996203548b2::t_5f0ead96759a05 1-46,90-99,104-107,109-120
+  s_97b996203548b2::t_ba7e381ab2da8b 63,69-70,72
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupStableLinks.kt
+  s_97b996203548b2::t_1244681f89deb6 59-69,81-86
+app/src/main/java/io/github/mojri/hesabyar/data/BackupDelegate.kt
+  s_97b996203548b2::t_79904da49e5fa7 32
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepositoryInterface.kt
+  s_97b996203548b2::t_80421993799b89 19
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupPayloadExporter.kt
+  s_97b996203548b2::t_2bc70f6bff3d52 110-114,125
+app/src/main/java/io/github/mojri/hesabyar/data/SanitizedLoanLinks.kt
+  s_97b996203548b2::t_65ecedb016642f 65
+app/src/main/java/io/github/mojri/hesabyar/data/HesabyarRepository.kt
+  s_97b996203548b2::t_81d7d2d47dfb71 22
+  s_97b996203548b2::t_c37325f476bfe2 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f56d3c52e45c79d83f740bda8ed5a20245ecb352",
+  "prompts": {},
+  "sessions": {
+    "s_97b996203548b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5483eea8-ff5f-42ef-98ef-d9b6fdfb3e21",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
