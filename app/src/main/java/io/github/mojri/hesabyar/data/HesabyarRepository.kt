@@ -1,5 +1,7 @@
 package io.github.mojri.hesabyar.data
 
+import androidx.room.withTransaction
+
 /**
  * Facade over the decomposed repository delegates.
  *
@@ -62,4 +64,7 @@ class HesabyarRepository(
     accountDao,
     personDao,
     database
-  )
+  ) {
+  override suspend fun <R> withTransaction(block: suspend () -> R): R =
+    database.withTransaction(block)
+}

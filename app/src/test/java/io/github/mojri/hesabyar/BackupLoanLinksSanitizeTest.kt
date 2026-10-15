@@ -44,7 +44,7 @@ class BackupLoanLinksSanitizeTest {
       sanitizeBackupLoanLinks(
         transactions = listOf(tx(1L, loanId = 7L), tx(2L, loanId = null)),
         loans = listOf(loan),
-        paymentHistories = listOf(PaymentHistory(id = 3L, loanId = 7L, amount = 1L, linkedTransactionId = 2L))
+        paymentHistories = listOf(PaymentHistory(id = 3L, loanId = 7L, amount = 1_000L, linkedTransactionId = 2L))
       )
     assertEquals(7L, result.transactions[0].loanId)
     assertEquals(2L, result.paymentHistories[0].linkedTransactionId)
@@ -107,6 +107,17 @@ class BackupLoanLinksSanitizeTest {
     val result =
       sanitizeBackupLoanLinks(
         transactions = listOf(tx(2L, loanId = null), tx(2L, loanId = null)),
+        loans = listOf(loan),
+        paymentHistories = listOf(PaymentHistory(id = 3L, loanId = 7L, amount = 1L, linkedTransactionId = 2L))
+      )
+    assertNull(result.paymentHistories[0].linkedTransactionId)
+  }
+
+  @Test
+  fun dropsPaymentLinkWhenAmountMismatches() {
+    val result =
+      sanitizeBackupLoanLinks(
+        transactions = listOf(tx(2L, loanId = null)),
         loans = listOf(loan),
         paymentHistories = listOf(PaymentHistory(id = 3L, loanId = 7L, amount = 1L, linkedTransactionId = 2L))
       )

@@ -11,4 +11,10 @@ interface HesabyarRepositoryInterface :
   LoanOps,
   InstallmentOps,
   BankLoanOps,
-  BackupOps
+  BackupOps {
+  /**
+   * Runs [block] inside a single database transaction, so a set of reads
+   * observes a consistent snapshot even when writers run concurrently.
+   */
+  suspend fun <R> withTransaction(block: suspend () -> R): R
+}

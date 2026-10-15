@@ -120,8 +120,10 @@ person, amount and date (issues #242 and #430). Both are optional:
 - Every restore path (REPLACE, MERGE and the raw-list `importBackup`) first
   checks the links inside the backup. `loanId` must name a loan in the same
   backup. `linkedTransactionId` must name a transaction in the same backup
-  that is not a loan disbursement and that no other payment claims. Rows
-  that share an id lose their link. Anything else is dropped to `null`.
+  that is not a loan disbursement, that no other payment claims, and whose
+  amount equals the payment's amount (a generated repayment always copies
+  its payment's amount at creation). Rows that share an id lose their link.
+  Anything else is dropped to `null`.
 - **REPLACE** and `importBackup` keep source ids, so surviving links stay
   as-is. Dropping dangling ones matters because SQLite can reuse a rowid for
   an unrelated row later.
