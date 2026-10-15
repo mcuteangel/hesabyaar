@@ -256,40 +256,17 @@ jobs:
           FAILED_CLOSES=0
 
           # --- Push range ---
-          # Only scan commits that landed on the default branch in THIS
-          # push. Scanning `git log --all` also matched commits on
-          # unmerged branches (e.g. an open PR whose commit message says
-          # "Closes #93"), which prematurely closed issues whose fix had
-          # not merged yet.
-          BASE="${{ github.event.before }}"
-          HEAD_SHA="${{ github.event.after }}"
-          ZERO_SHA="0000000000000000000000000000000000000000"
-          if [[ -z "$HEAD_SHA" || "$HEAD_SHA" == "$ZERO_SHA" ]]; then
-            echo "::error::push payload has no valid 'after' SHA — refusing to scan an unknown range"
+          # Resolved by .github/scripts/autoclose-range.sh (covered by
+          # scripts/test-issue-autoclose.sh): only commits that landed on
+          # the default branch in THIS push are scanned. Scanning
+          # `git log --all` also matched commits on unmerged branches
+          # (e.g. an open PR whose commit message says "Closes #93"),
+          # which prematurely closed issues whose fix had not merged yet.
+          if ! RANGE="$(PUSH_BASE="${{ github.event.before }}" PUSH_HEAD="${{ github.event.after }}" bash .github/scripts/autoclose-range.sh)"; then
+            echo "::error::could not resolve the pushed commit range — refusing to auto-close"
             exit 1
           fi
-          LOG_ARGS=()
-          if [[ "$BASE" == "$ZERO_SHA" ]]; then
-            # Initial push of the branch: no "before" exists. Scan the
-            # whole history reachable from HEAD so closing references in
-            # the initial commits are not dropped (HEAD~1 is invalid for
-            # a root commit and would silently scan nothing).
-            LOG_ARGS=("$HEAD_SHA")
-          elif ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            # Force-push (or pruned history): BASE is unknown, so no
-            # exact range can be established. Refuse to close anything
-            # on an approximate window — an older closing reference
-            # could re-close an issue that was reopened since.
-            # (Unreachable in practice: the ruleset blocks direct
-            # pushes to main, so force-pushes cannot happen; fail loud
-            # anyway instead of failing silently inside the process
-            # substitution below, where set -e does not propagate.)
-            echo "::error::BASE ${BASE:0:7} not found in checkout (force-push?) — cannot establish the pushed range, refusing to auto-close"
-            exit 1
-          else
-            LOG_ARGS=("${BASE}..${HEAD_SHA}")
-          fi
-          echo "Scanning for closing references: git log ${LOG_ARGS[*]}"
+          echo "Scanning for closing references: git log ${RANGE}"
 
           # --- Pass 1: scan the pushed range once ---
           # Build a map of issue number to closing commits, newest first.
@@ -349,7 +326,7 @@ jobs:
                 MATCH_LINES_BY_ISSUE[$NUM]+="${LOG_LINE}"$'\n'
               fi
             done
-          done < <(git log "${LOG_ARGS[@]}" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
+          done < <(git log "$RANGE" -E -i --grep="${LOOSE_CHAIN}" --format='%H%x1f%B%x1e')
 
           while IFS= read -r ROW; do
             NUM=$(echo "$ROW" | jq -r '.number')
