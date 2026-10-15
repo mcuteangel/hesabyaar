@@ -47,7 +47,7 @@ FAIL=0
 
 check() {
   local expect="$1" num="$2" msg="$3"
-  local got label status
+  local got status
   if issue_closed_by "$msg" "$num"; then got=CLOSE; else got=SKIP; fi
   if [ "$got" = "$expect" ]; then
     status=PASS
