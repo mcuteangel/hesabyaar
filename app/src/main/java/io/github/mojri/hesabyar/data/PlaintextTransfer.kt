@@ -39,8 +39,7 @@ internal object PlaintextTransfer {
   fun migratePlaintextToEncryptedIfNeeded(context: Context) {
     val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
     val tempName = "${AppDatabase.LIVE_DATABASE_NAME}$PLAINTEXT_BACKUP_SUFFIX"
-    if (!isPlaintextDb(dbFile)) {
-      deleteDatabaseFiles(context, tempName)
+    if (!isPlaintextDb(dbFile) && !recoverInterruptedTransfer(context, dbFile, tempName)) {
       return
     }
 
@@ -53,7 +52,6 @@ internal object PlaintextTransfer {
     try {
       deleteDatabaseFiles(context, AppDatabase.LIVE_DATABASE_NAME)
       writeEncryptedDatabase(context, passphrase, snapshot)
-      deleteDatabaseFiles(context, tempName)
     } catch (e: SQLiteException) {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     } catch (e: IllegalStateException) {
@@ -61,6 +59,52 @@ internal object PlaintextTransfer {
     } catch (e: IOException) {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     }
+    // The encrypted database is complete, so the plaintext working copy is no
+    // longer the only surviving data and can go.
+    deleteDatabaseFiles(context, tempName)
+  }
+
+  /**
+   * Handles a transfer that was interrupted after the live database was
+   * removed. A transfer that fails throws, restores the plaintext backup, and
+   * never reaches this point, so a leftover backup with a missing or
+   * incomplete live database means the process stopped between the delete and
+   * the encrypted write. Restoring that backup puts the user's data back
+   * instead of discarding the only complete copy.
+   *
+   * Returns `true` when a backup was restored and the migration must run again
+   * to retry the transfer. Returns `false` when there is nothing to recover.
+   */
+  @androidx.annotation.VisibleForTesting
+  internal fun recoverInterruptedTransfer(
+    context: Context,
+    dbFile: File,
+    tempName: String
+  ): Boolean {
+    val tempPath = context.getDatabasePath(tempName)
+    if (!isPlaintextDb(tempPath)) {
+      // A transfer that failed and restored normally leaves no backup, and an
+      // already-encrypted live database needs none.
+      deleteDatabaseFiles(context, tempName)
+      return false
+    }
+    // The live database is still plaintext only if nothing interrupted a
+    // transfer, so a missing or encrypted file here means the process stopped
+    // between the delete and the encrypted write.
+    return !isPlaintextDb(dbFile) && restoreBackupForRetry(context, tempName, dbFile)
+  }
+
+  /**
+   * Puts the plaintext working copy back at the live path after an interrupted
+   * transfer, so the caller can retry the conversion.
+   */
+  private fun restoreBackupForRetry(
+    context: Context,
+    tempName: String,
+    dbFile: File
+  ): Boolean {
+    restoreTempBackupToLive(context, tempName, dbFile)
+    return true
   }
 
   /** Reads the SQLite header to tell a plaintext database from an encrypted one. */
@@ -142,19 +186,21 @@ internal object PlaintextTransfer {
         .addMigrations(*AppDatabase.ALL_MIGRATIONS)
         .build()
 
-    AppDatabase.transferPlaintextData(
-      accounts = snapshot.accounts,
-      categories = snapshot.categories,
-      transactions = snapshot.transactions,
-      loans = snapshot.loans,
-      bankLoans = snapshot.bankLoans,
-      installments = snapshot.installments,
-      payments = snapshot.payments,
-      persons = snapshot.persons,
-      encryptedDb = encryptedDb
-    )
-
-    encryptedDb.close()
+    try {
+      AppDatabase.transferPlaintextData(
+        accounts = snapshot.accounts,
+        categories = snapshot.categories,
+        transactions = snapshot.transactions,
+        loans = snapshot.loans,
+        bankLoans = snapshot.bankLoans,
+        installments = snapshot.installments,
+        payments = snapshot.payments,
+        persons = snapshot.persons,
+        encryptedDb = encryptedDb
+      )
+    } finally {
+      encryptedDb.close()
+    }
   }
 
   /** Removes the database [name] together with its write-ahead log and index. */

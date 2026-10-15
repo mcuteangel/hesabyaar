@@ -175,10 +175,10 @@ class AppDatabaseMigration3to4Test {
 
   /**
    * The documented limitation. A small v1 amount that the faulty MIGRATION_1_2
-   * inflated — 500,000 Toman is 5e7 Rial, 100x too large — sits below the
+   * inflated — 5,000,000 Toman became 5e9 Rial, 100x too large — sits below the
    * band, so it is no longer corrected. It is left as-is rather than divided,
    * because no threshold can tell it apart from a legitimate amount. The row
-   * survives intact and RTL side of the migration is loss-free.
+   * survives intact, so the migration is loss-free for it.
    */
   @Test
   fun inflatedValueBelowBandIsLeftUnchanged() {

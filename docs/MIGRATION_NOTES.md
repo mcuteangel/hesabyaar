@@ -9,7 +9,7 @@
 **What changed:**
 
 - All monetary columns converted from `Double` (Toman) to `Long` (Rial)
-- Values multiplied by 1000 during migration
+- Values multiplied by 10 during migration (1 Toman = 10 Rials)
 
 **Affected tables and columns:**
 

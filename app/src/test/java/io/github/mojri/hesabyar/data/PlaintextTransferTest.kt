@@ -81,4 +81,30 @@ class PlaintextTransferTest {
 
     assertFalse("Leftover backup file should be cleaned up", tempBackup.exists())
   }
+
+  @Test
+  fun recoverInterruptedTransferRestoresBackupWhenLiveDbMissing() {
+    val liveDb = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempName = "${AppDatabase.LIVE_DATABASE_NAME}_plaintext_backup"
+    val tempBackup = context.getDatabasePath(tempName)
+
+    testFiles += liveDb
+    testFiles += tempBackup
+
+    // Live DB is missing
+    liveDb.delete()
+
+    // Backup is a valid SQLite DB
+    tempBackup.parentFile?.mkdirs()
+    FileOutputStream(tempBackup).use { out ->
+      out.write("SQLite format 3\u0000".toByteArray(Charsets.US_ASCII))
+      out.write(ByteArray(16))
+    }
+
+    val recovered = PlaintextTransfer.recoverInterruptedTransfer(context, liveDb, tempName)
+
+    assertTrue("Should indicate recovery happened", recovered)
+    assertTrue("Live DB should have been restored", liveDb.exists())
+    assertTrue("Restored live DB should be plaintext SQLite", PlaintextTransfer.isPlaintextDb(liveDb))
+  }
 }
