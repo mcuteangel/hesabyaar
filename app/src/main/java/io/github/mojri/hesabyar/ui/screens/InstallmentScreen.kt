@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -220,7 +222,7 @@ fun InstallmentScreen(
 
           HesabyarInputField(
             value = amountText,
-            onValueChange = { amountText = it },
+            onValueChange = { amountText = it.filterDigits() },
             label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
           )
 
@@ -256,7 +258,7 @@ fun InstallmentScreen(
       confirmButton = {
         HesabyarButton(
           onClick = {
-            val amountDisplay = amountText.toLongOrNull() ?: 0L
+            val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
             if (title.isNotBlank() && amountDisplay > 0L) {
               val amountRial = CurrencyFormatter.toRial(amountDisplay)
               installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
