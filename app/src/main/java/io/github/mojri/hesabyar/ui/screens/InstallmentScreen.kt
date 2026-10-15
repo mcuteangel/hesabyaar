@@ -21,12 +21,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
@@ -219,7 +222,7 @@ fun InstallmentScreen(
 
           HesabyarInputField(
             value = amountText,
-            onValueChange = { amountText = it },
+            onValueChange = { amountText = it.filterDigits() },
             label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
           )
 
@@ -255,7 +258,7 @@ fun InstallmentScreen(
       confirmButton = {
         HesabyarButton(
           onClick = {
-            val amountDisplay = amountText.toLongOrNull() ?: 0L
+            val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
             if (title.isNotBlank() && amountDisplay > 0L) {
               val amountRial = CurrencyFormatter.toRial(amountDisplay)
               installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
@@ -285,6 +288,10 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
+  // Holds the tapped installment itself, not a boolean: LazyColumn items are
+  // positional (no keys), so a reorder while the dialog is open must not
+  // retarget the delete to a different row.
+  var pendingDelete by remember { mutableStateOf<Installment?>(null) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
   HesabyarCard(
@@ -420,7 +427,7 @@ fun InstallmentListItem(
             horizontalArrangement = Arrangement.End
           ) {
             IconButton(
-              onClick = { installmentViewModel.deleteInstallment(installment) },
+              onClick = { pendingDelete = installment },
               modifier =
                 Modifier
                   .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
@@ -437,5 +444,20 @@ fun InstallmentListItem(
         }
       }
     }
+  }
+
+  if (pendingDelete != null) {
+    ConfirmDialog(
+      title = "حذف قسط",
+      message = "آیا از حذف این قسط اطمینان دارید؟ این عمل قابل بازگشت نیست.",
+      confirmText = "حذف",
+      dismissText = "انصراف",
+      onDismiss = { pendingDelete = null },
+      onConfirm = {
+        val target = pendingDelete
+        pendingDelete = null
+        if (target != null) installmentViewModel.deleteInstallment(target)
+      }
+    )
   }
 }

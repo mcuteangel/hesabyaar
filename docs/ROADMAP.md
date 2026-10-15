@@ -29,7 +29,7 @@
 - [x] Category Inference (keyword-based)
 - [x] Budget Advisor (AI + offline)
 - [x] Budget Forecast (AI + offline)
-- [ ] Voice Input
+- [x] Voice Input
 - [ ] Local AI Support (on-device model)
 
 ---
@@ -63,7 +63,7 @@
 - [x] Monthly Spending (Jalali months)
 - [x] Debt/Credit Overview
 - [x] Installment Progress
-- [ ] Charts (visual graphs)
+- [x] Charts (visual graphs)
 - [ ] Yearly Reports
 - [ ] Export Reports
 
