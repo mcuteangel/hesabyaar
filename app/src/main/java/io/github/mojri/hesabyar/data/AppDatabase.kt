@@ -108,6 +108,11 @@ abstract class AppDatabase : RoomDatabase() {
      * corrupting data that was never inflated by MIGRATION_1_2.
      * Room guarantees this runs exactly once per DB file via _room_master_table.
      * ponytail: one-shot data fix. Remove after all users migrated to v4+.
+     *
+     * Historical note (#461, closed 2026-10-15 as moot): the pre-release v1-v4 era
+     * never reached mass installation — only the owner's own device carried inflated
+     * data, his amounts are verified fine, and fresh installs skip old migrations
+     * entirely. No repair path is needed; do not re-flag this migration.
      */
     internal val MIGRATION_3_4 =
       object : Migration(3, 4) {
