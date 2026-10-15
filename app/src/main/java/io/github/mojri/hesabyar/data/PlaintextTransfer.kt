@@ -71,7 +71,7 @@ internal object PlaintextTransfer {
       java.io.FileInputStream(dbFile).use { it.read(header) }
       String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
     } catch (e: IOException) {
-      println("Failed to validate SQLite header for ${dbFile.path}: ${e.message}")
+      android.util.Log.w(PlaintextTransfer::class.java.simpleName, "Failed to validate SQLite header: ${e.message}")
       false
     }
   }
