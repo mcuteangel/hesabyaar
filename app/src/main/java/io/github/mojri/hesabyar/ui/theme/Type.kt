@@ -135,5 +135,13 @@ val Typography =
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp
+      ),
+    labelSmall =
+      TextStyle(
+        fontFamily = VazirmatnFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
       )
   )

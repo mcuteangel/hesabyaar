@@ -6,13 +6,21 @@
 
 ## Active Task
 
-Issue #452 — Shared `HesabyarTabRow`. PR #483 (branch `feat/issue-452-shared-tab-row`). Design-system DRY task.
-
-## Goal
-
-Add a shared `HesabyarTabRow` in `ui/components/`, use `Dimens.TabHeight`, migrate both raw tab-row call sites (SmartAssistantScreen, DebtHubScreen), define selected/unselected text style + indicator from the theme. Create unit/UI tests. No Rust, no Room migration.
+None. Issue #454 (`labelSmall` typography) is complete on branch `feat/issue-454-labelsmall-typography`.
 
 ## Completed
+
+- **Task:** Issue #454 — Add `labelSmall` to `Type.kt` (Plan 017)
+- **Status:** Implementation complete, verification pending PR
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/theme/Type.kt` — added `labelSmall` (Vazirmatn, Medium, 11sp/16sp/0.5sp) after `labelMedium`; all 15 M3 styles now use `VazirmatnFontFamily`
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/theme/TypographyTest.kt` — 2 new tests (both pass)
+    - [x] `plans/archive/017-add-labelsmall-typography.md` — plan archived (DONE in `plans/README.md`)
+    - [x] `ktlintCheck detekt` — BUILD SUCCESSFUL, 0 findings
+    - [x] Targeted tests `TypographyTest` — 2/2 pass (`labelSmallStyleConfiguredWithVazirmatn`, `allFifteenMaterialTypographyStylesUseVazirmatn`)
+    - [x] `testDebugUnitTest` full suite — 134 suites, 1142 tests, 0 failures
+    - [x] `python scripts/check_docs.py` — no broken references
 
 - **Task:** Issue #452 — Shared HesabyarTabRow
 - **Status:** Implementation complete, verification pending PR
