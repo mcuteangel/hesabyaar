@@ -6,13 +6,29 @@
 
 ## Active Task
 
-None. Plan 015 (issue #451) is complete on this branch. Main merged Issue #93 hardening via PR #462.
+None — Plan 016 (issue #453) completed and archived. Awaiting next task.
 
 ## Goal
 
-Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating `BottomNavClearance` in favor of the FAB-specific name) for list bottom padding. Main also hardened MIGRATION_3_4 with a bounded correction, fixed the Toman-to-Rial factor in MIGRATION_1_2, and covered the migration with tests (PR #462).
+None — ready for next task.
 
 ## Completed
+
+- **Task:** Plan 016 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
+- **Status:** Completed and verified
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartTokens.kt`: central chart dimensions, stroke widths, corner radii, point radii, padding, and text sizing
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartModel.kt`: strongly typed immutable models (`BarEntry`, `ChartPoint`, `ChartSeries`, `DonutSlice`) enforcing `Long` (Rial) for money values
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarBarChart.kt`: rounded bar chart with automatic RTL coordinate mirroring
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarLineChart.kt`: multi-series line chart with point markers and RTL coordinate inversion
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChart.kt`: proportional arc segments with empty state and zero-total safety
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRing.kt`: animated circular progress ring with clamped progress and accessibility semantics
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt`: migrated all 4 hand-drawn `Canvas` blocks (`MonthlyTrendCard`, `CombinedLineChartCard`, `CategoryBreakdownCard`, `InstallmentProgressCard`); removed ad-hoc `BarChart`, `DonutChart`, `CircularProgress`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt`: migrated to `HesabyarDonutChart`
+    - [x] `docs/architecture/ARCHITECTURE.md`: documented `ui/charts/` component family in architecture guide
+    - [x] `plans/archive/016-design-system-chart-system.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] Unit test suites: `ChartTokensTest` (2 tests), `HesabyarBarChartTest` (4 tests), `HesabyarLineChartTest` (4 tests), `HesabyarDonutChartTest` (3 tests), `HesabyarProgressRingTest` (4 tests) — all passed
 
 - **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
 - **Status:** Merged to `main`
@@ -150,10 +166,8 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 ## Next Steps
 
-1. Pushed (commit `40eb61a`): merged `origin/fix/back-navigation` (PR #387 docs split) and resolved the AGENTS.md conflict by porting the Graphify rule into `docs/agents/code-intelligence.md`.
-2. Await DeepSource "Test coverage" re-run on PR #385 (currently pending on run for `40eb61a`) and confirm it turns green.
-3. Confirm PR auto-merge once all required checks pass.
+None — Plan 016 (issue #453) completed and archived. Awaiting next task.
 
 ## Last Updated
 
-2026-10-09
+2026-10-16
