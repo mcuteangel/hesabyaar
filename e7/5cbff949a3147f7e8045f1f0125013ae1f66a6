@@ -1,0 +1,25 @@
+progress.md
+  s_2b7f2174ea6cca::t_e63eee861bdfc4 9
+  s_2b7f2174ea6cca::t_7dd28a52ce6e11 13
+  s_2b7f2174ea6cca::t_43f4fa243dcfdd 169
+  s_2b7f2174ea6cca::t_4ecc0c4fd28ba3 17-32
+  s_2b7f2174ea6cca::t_b8ee07bc5db4bd 173
+plans/README.md
+  s_2b7f2174ea6cca::t_2682612a8ca6dc 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e75cbff949a3147f7e8045f1f0125013ae1f66a6",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
