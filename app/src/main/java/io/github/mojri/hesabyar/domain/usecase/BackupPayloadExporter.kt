@@ -103,15 +103,17 @@ class BackupPayloadExporter(
       }
     )
 
-    // Issue #430: every read below runs inside a single database transaction, so the
-    // backup is a consistent snapshot. A tracked loan or repayment inserts its ledger
-    // row in the same DB transaction, and no concurrent write can interleave between
-    // these reads and export a payment link whose target is missing.
+    // Issue #430: every read below runs inside a single database transaction, so
+    // the backup is a consistent snapshot. A tracked loan or repayment inserts its
+    // ledger row in the same DB transaction, and no concurrent write can interleave
+    // between these reads and export a payment link whose target is missing.
     //
-    // getAllPersonsIncludingArchived is read outside the transaction on purpose:
-    // it hops to Dispatchers.IO for its blocking DAO read, and Room forbids a
-    // blocking read that leaves the transaction's coroutine context.
-    val persons = repository.getAllPersonsIncludingArchived()
+    // Persons are read through the suspend `getAllPersonsIncludingArchived` DAO
+    // query rather than the blocking `getAllPersonsIncludingArchivedBlocking`.
+    // Room runs a suspend DAO query on the transaction's own coroutine context, so
+    // this read joins the same snapshot instead of hopping to Dispatchers.IO — a
+    // blocking read that leaves the transaction context is forbidden by Room and
+    // throws IllegalStateException.
     val snapshot =
       repository.withTransaction {
         BackupSnapshot(
@@ -122,7 +124,7 @@ class BackupPayloadExporter(
           installments = repository.allInstallments.firstOrNull() ?: emptyList(),
           bankLoans = repository.allBankLoans.firstOrNull() ?: emptyList(),
           accounts = repository.allAccounts.firstOrNull() ?: emptyList(),
-          persons = persons
+          persons = repository.getAllPersonsIncludingArchived()
         )
       }
     val curCategories = snapshot.categories

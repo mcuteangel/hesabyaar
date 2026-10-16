@@ -17,7 +17,7 @@ import org.json.JSONObject
  * matching for those rows.
  */
 internal object BackupStableLinks {
-  private const val TAG = "HesabyarRepository"
+  private const val TAG = "BackupStableLinks"
 
   const val TRANSACTION_LOAN_ID = "loanId"
   const val PAYMENT_LINKED_TRANSACTION_ID = "linkedTransactionId"
@@ -54,8 +54,9 @@ internal object BackupStableLinks {
     root: JSONObject?
   ): BackupPayload {
     if (root == null) return payload
-    val txLoanIds = linksById(root.optJSONArray("transactions"), TRANSACTION_LOAN_ID)
-    val paymentLinks = linksById(root.optJSONArray("paymentHistories"), PAYMENT_LINKED_TRANSACTION_ID)
+    val txLoanIds = linksById(root.optJSONArray("transactions"), TRANSACTION_LOAN_ID, "transactions")
+    val paymentLinks =
+      linksById(root.optJSONArray("paymentHistories"), PAYMENT_LINKED_TRANSACTION_ID, "paymentHistories")
     return if (txLoanIds.isEmpty() && paymentLinks.isEmpty()) {
       payload
     } else {
@@ -71,7 +72,8 @@ internal object BackupStableLinks {
 
   private fun linksById(
     array: JSONArray?,
-    key: String
+    key: String,
+    arrayName: String
   ): Map<Long, Long> {
     if (array == null) return emptyMap()
     val links = mutableMapOf<Long, Long>()
@@ -88,7 +90,7 @@ internal object BackupStableLinks {
     // A repeated row id makes the link ambiguous: the Rust rows cannot be
     // told apart by id, so drop the link for every row sharing that id.
     if (duplicateIds.isNotEmpty()) {
-      AppLogger.w(TAG, "restore: duplicate row ids lose their links: $duplicateIds")
+      AppLogger.w(TAG, "restore: duplicate row ids lose their links in $arrayName: $duplicateIds")
     }
     return links - duplicateIds
   }

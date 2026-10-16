@@ -57,14 +57,15 @@ private fun shouldSkipTransaction(
     AppLogger.w(
       "HesabyarRepository",
       "mergeFromBackup: skipping transaction=${transaction.id} " +
+        "(reason: no local account matches) " +
         "accountId=${transaction.accountId}->$mappedSource " +
-        "destinationAccountId=$rawDest->$mappedDest because no local account matches"
+        "destinationAccountId=$rawDest->$mappedDest"
     )
   } else if (transaction.installmentId != null && mappedInstallmentId == null) {
     AppLogger.w(
       "HesabyarRepository",
       "mergeFromBackup: skipping transaction=${transaction.id} " +
-        "installmentId=${transaction.installmentId} because referenced installment was skipped"
+        "(reason: referenced installment was skipped) installmentId=${transaction.installmentId}"
     )
   } else {
     return false

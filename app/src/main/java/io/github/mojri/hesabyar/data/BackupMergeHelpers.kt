@@ -185,7 +185,7 @@ internal suspend fun backupMergePersons(
 ): Map<String, Long> {
   val existingByKey =
     personDao
-      .getAllPersonsIncludingArchivedBlocking()
+      .getAllPersonsIncludingArchived()
       .associateBy { it.normalizedName }
       .toMutableMap()
   for (person in persons) {
