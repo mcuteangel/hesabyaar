@@ -6,13 +6,27 @@
 
 ## Active Task
 
-None. Plan 015 (issue #451) is complete on this branch. Main merged Issue #93 hardening via PR #462.
+Issue #452 — Shared `HesabyarTabRow`. PR #483 (branch `feat/issue-452-shared-tab-row`). Design-system DRY task.
 
 ## Goal
 
-Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating `BottomNavClearance` in favor of the FAB-specific name) for list bottom padding. Main also hardened MIGRATION_3_4 with a bounded correction, fixed the Toman-to-Rial factor in MIGRATION_1_2, and covered the migration with tests (PR #462).
+Add a shared `HesabyarTabRow` in `ui/components/`, use `Dimens.TabHeight`, migrate both raw tab-row call sites (SmartAssistantScreen, DebtHubScreen), define selected/unselected text style + indicator from the theme. Create unit/UI tests. No Rust, no Room migration.
 
 ## Completed
+
+- **Task:** Issue #452 — Shared HesabyarTabRow
+- **Status:** Implementation complete, verification pending PR
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRow.kt` — new shared component (TabRow + SecondaryScrollableTabRow, Dimens.TabHeight, theme colors)
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt` — migrated to HesabyarTabRow, deleted `sectionTint`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` — migrated to HesabyarTabRow
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRowTest.kt` — 3 new tests (all pass)
+    - [x] `plans/016-shared-tab-row.md` registered in plans/README.md
+    - [x] `ktlintCheck detekt` — BUILD SUCCESSFUL, 0 findings
+    - [x] Targeted tests `HesabyarTabRowTest` + `DebtHubTabBarTest` + `DebtSectionTest` — 10/10 pass
+    - [x] `testDebugUnitTest` full suite — 131 suites, 1136 tests, 0 failures
+    - [x] `python scripts/check_docs.py` — no broken references
 
 - **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
 - **Status:** Merged to `main`
@@ -156,4 +170,4 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 ## Last Updated
 
-2026-10-09
+2026-10-16
