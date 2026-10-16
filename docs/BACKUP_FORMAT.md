@@ -54,9 +54,13 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
   "personName": "",
   "date": 1700000000000,
   "dueDate": 0,
-  "installmentId": 0
+  "installmentId": 0,
+  "loanId": null
 }
 ```
+
+`loanId` (optional) is set only on the disbursement row of a tracked loan:
+the transaction `insertLoanWithInitial` created for that loan.
 
 ### Loan
 
@@ -95,9 +99,36 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
   "loanId": 1,
   "amount": 1000000,
   "date": 1700000000000,
-  "notes": "بازپرداخت جزئی"
+  "notes": "بازپرداخت جزئی",
+  "linkedTransactionId": 12
 }
 ```
+
+`linkedTransactionId` (optional) is the id of the ledger transaction a
+tracked repayment generated.
+
+### Stable loan links
+
+`transactions[].loanId` and `paymentHistories[].linkedTransactionId` let
+`deleteLoan` remove exactly the loan's own ledger rows instead of matching on
+person, amount and date (issues #242 and #430). Both are optional:
+
+- Missing, `null`, `0`, a negative or fractional number, or any value other
+  than a positive integer (number or digit-only string) means "no link"; the row falls back
+  to the legacy matching on delete. Backups written before these keys existed
+  restore unchanged.
+- Every restore path (REPLACE, MERGE and the raw-list `importBackup`) first
+  checks the links inside the backup. `loanId` must name a loan in the same
+  backup. `linkedTransactionId` must name a transaction in the same backup
+  that is not a loan disbursement, that no other payment claims, and whose
+  amount equals the payment's amount (a generated repayment always copies
+  its payment's amount at creation). Rows that share an id lose their link.
+  Anything else is dropped to `null`.
+- **REPLACE** and `importBackup` keep source ids, so surviving links stay
+  as-is. Dropping dangling ones matters because SQLite can reuse a rowid for
+  an unrelated row later.
+- **MERGE** re-points each link to the merged row's new id. A link to a loan or
+  transaction the merge skipped becomes `null`.
 
 ### Category
 

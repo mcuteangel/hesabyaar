@@ -2,9 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 
 internal class PersonDelegate(
   private val personDao: PersonDao,
@@ -16,12 +14,12 @@ internal class PersonDelegate(
   override val allPersons: Flow<List<Person>> = personDao.getAllPersons()
 
   override suspend fun getAllPersonsIncludingArchived(): List<Person> =
-    // The DAO query is blocking (no suspend signature), so hop off the caller's
-    // dispatcher — a Main-dispatcher caller must not run a SQLite read on the
-    // UI thread (ANR risk).
-    withContext(Dispatchers.IO) {
-      personDao.getAllPersonsIncludingArchivedBlocking()
-    }
+    // Use the suspend DAO query so that callers inside a database.withTransaction
+    // snapshot read persons on the transaction's own coroutine context. The
+    // blocking variant hops to Dispatchers.IO, which Room forbids inside a
+    // suspending transaction (IllegalStateException: cannot access database on a
+    // different coroutine context inherited from a suspending transaction).
+    personDao.getAllPersonsIncludingArchived()
 
   override suspend fun getPersonById(id: Long): Person? = personDao.getPersonById(id)
 
