@@ -185,7 +185,7 @@ internal suspend fun backupMergePersons(
 ): Map<String, Long> {
   val existingByKey =
     personDao
-      .getAllPersonsIncludingArchivedBlocking()
+      .getAllPersonsIncludingArchived()
       .associateBy { it.normalizedName }
       .toMutableMap()
   for (person in persons) {
@@ -225,87 +225,18 @@ internal suspend fun backupMergeOnePerson(
   }
 }
 
-internal suspend fun backupMergeTransactions(
-  transactions: List<Transaction>,
-  categoryIdMap: Map<Long, Long>,
-  installmentIdMap: Map<Long, Long>,
-  accountIdMap: Map<Long, Long>,
-  categoryDao: CategoryDao,
-  accountDao: AccountDao,
-  transactionDao: TransactionDao,
-  resolvePersonId: (Long?, String?) -> Long?
-) {
-  val otherCategoryId = categoryDao.getCategoryByKey("Other")?.id
-  val localAccountIds = accountDao.getAllAccountsBlocking().map { it.id }.toSet()
-  transactions.forEach { transaction ->
-    backupMergeOneTransaction(
-      transaction,
-      categoryIdMap,
-      installmentIdMap,
-      accountIdMap,
-      otherCategoryId,
-      localAccountIds,
-      transactionDao,
-      resolvePersonId
-    )
-  }
-}
-
-private suspend fun backupMergeOneTransaction(
-  transaction: Transaction,
-  categoryIdMap: Map<Long, Long>,
-  installmentIdMap: Map<Long, Long>,
-  accountIdMap: Map<Long, Long>,
-  otherCategoryId: Long?,
-  localAccountIds: Set<Long>,
-  transactionDao: TransactionDao,
-  resolvePersonId: (Long?, String?) -> Long?
-) {
-  val mappedAccountId = transaction.accountId.let { accountIdMap[it] ?: it }
-  val mappedDestinationAccountId = transaction.destinationAccountId?.let { accountIdMap[it] ?: it }
-  val destinationResolved =
-    when (mappedDestinationAccountId) {
-      null -> transaction.destinationAccountId == null
-      else -> localAccountIds.contains(mappedDestinationAccountId)
-    }
-  if (!localAccountIds.contains(mappedAccountId) || !destinationResolved) {
-    AppLogger.w(
-      "HesabyarRepository",
-      "mergeFromBackup: skipping transaction=${transaction.id} " +
-        "accountId=${transaction.accountId}->$mappedAccountId " +
-        "destinationAccountId=${transaction.destinationAccountId}->$mappedDestinationAccountId " +
-        "because no local account matches"
-    )
-    return
-  }
-  val mappedCategoryId =
-    categoryIdMap[transaction.categoryId]
-      ?: otherCategoryId ?: transaction.categoryId
-  val mappedInstallmentId = transaction.installmentId?.let { installmentIdMap[it] }
-  if (transaction.installmentId != null && mappedInstallmentId == null) {
-    AppLogger.w(
-      "HesabyarRepository",
-      "mergeFromBackup: skipping transaction=${transaction.id} " +
-        "installmentId=${transaction.installmentId} because referenced installment was skipped"
-    )
-    return
-  }
-  val mappedPersonId = resolvePersonId(transaction.personId, transaction.personName)
-  transactionDao.insertTransaction(
-    transaction.copy(
-      id = 0,
-      categoryId = mappedCategoryId,
-      installmentId = mappedInstallmentId,
-      accountId = mappedAccountId,
-      destinationAccountId = mappedDestinationAccountId,
-      personId = mappedPersonId
-    )
-  )
-}
+/** Source-id to local-id maps the transaction merge resolves references through. */
+internal data class BackupMergeIdMaps(
+  val categoryIdMap: Map<Long, Long>,
+  val installmentIdMap: Map<Long, Long>,
+  val accountIdMap: Map<Long, Long>,
+  val loanIdMap: Map<Long, Long>
+)
 
 internal suspend fun backupMergePaymentHistories(
   paymentHistories: List<PaymentHistory>,
   loanIdMap: Map<Long, Long>,
+  transactionIdMap: Map<Long, Long>,
   paymentHistoryDao: PaymentHistoryDao
 ) {
   for (payment in paymentHistories) {
@@ -313,10 +244,22 @@ internal suspend fun backupMergePaymentHistories(
     if (mappedLoanId == null) {
       AppLogger.w(
         "HesabyarRepository",
-        "mergeFromBackup: skipping payment with unmapped loanId=${payment.loanId}"
+        "mergeFromBackup: skipping payment=${payment.id} with unmapped loanId=${payment.loanId}"
       )
       continue
     }
-    paymentHistoryDao.insertPayment(payment.copy(id = 0, loanId = mappedLoanId))
+    // Issue #430: re-point the repayment's ledger link to the merged row; a
+    // link to a skipped or absent transaction becomes null (legacy matching).
+    val mappedLinkedTransactionId = payment.linkedTransactionId?.let { transactionIdMap[it] }
+    if (payment.linkedTransactionId != null && mappedLinkedTransactionId == null) {
+      AppLogger.w(
+        "HesabyarRepository",
+        "mergeFromBackup: payment=${payment.id} loses linkedTransactionId=${payment.linkedTransactionId}: " +
+          "transaction was skipped"
+      )
+    }
+    paymentHistoryDao.insertPayment(
+      payment.copy(id = 0, loanId = mappedLoanId, linkedTransactionId = mappedLinkedTransactionId)
+    )
   }
 }

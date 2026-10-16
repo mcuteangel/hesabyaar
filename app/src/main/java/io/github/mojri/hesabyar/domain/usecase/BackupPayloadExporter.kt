@@ -45,6 +45,21 @@ internal const val MIN_ITERATIONS_FLOOR = 100_000
 internal const val MAX_ITERATIONS_CEILING = 5_000_000
 
 /**
+ * A consistent point-in-time view of every table the backup envelope serializes.
+ * Read inside a single database transaction by [BackupPayloadExporter].
+ */
+private data class BackupSnapshot(
+  val categories: List<Category>,
+  val loans: List<Loan>,
+  val payments: List<PaymentHistory>,
+  val transactions: List<Transaction>,
+  val installments: List<Installment>,
+  val bankLoans: List<BankLoan>,
+  val accounts: List<AccountEntity>,
+  val persons: List<Person>
+)
+
+/**
  * Serializes the repository contents into the backup JSON envelope, optionally
  * encrypting sensitive banking identifiers with a passphrase-derived key, and
  * builds the human-readable export/restore summary strings.
@@ -88,14 +103,38 @@ class BackupPayloadExporter(
       }
     )
 
-    val curCategories = repository.allCategories.firstOrNull() ?: emptyList()
-    val curTrans = repository.allTransactions.firstOrNull() ?: emptyList()
-    val curLoans = repository.allLoans.firstOrNull() ?: emptyList()
-    val curInstallments = repository.allInstallments.firstOrNull() ?: emptyList()
-    val curBankLoans = repository.allBankLoans.firstOrNull() ?: emptyList()
-    val allPayments = repository.getAllPaymentHistories()
-    val curAccounts = repository.allAccounts.firstOrNull() ?: emptyList()
-    val curPersons = repository.getAllPersonsIncludingArchived()
+    // Issue #430: every read below runs inside a single database transaction, so
+    // the backup is a consistent snapshot. A tracked loan or repayment inserts its
+    // ledger row in the same DB transaction, and no concurrent write can interleave
+    // between these reads and export a payment link whose target is missing.
+    //
+    // Persons are read through the suspend `getAllPersonsIncludingArchived` DAO
+    // query rather than the blocking `getAllPersonsIncludingArchivedBlocking`.
+    // Room runs a suspend DAO query on the transaction's own coroutine context, so
+    // this read joins the same snapshot instead of hopping to Dispatchers.IO — a
+    // blocking read that leaves the transaction context is forbidden by Room and
+    // throws IllegalStateException.
+    val snapshot =
+      repository.withTransaction {
+        BackupSnapshot(
+          categories = repository.allCategories.firstOrNull() ?: emptyList(),
+          loans = repository.allLoans.firstOrNull() ?: emptyList(),
+          payments = repository.getAllPaymentHistories(),
+          transactions = repository.allTransactions.firstOrNull() ?: emptyList(),
+          installments = repository.allInstallments.firstOrNull() ?: emptyList(),
+          bankLoans = repository.allBankLoans.firstOrNull() ?: emptyList(),
+          accounts = repository.allAccounts.firstOrNull() ?: emptyList(),
+          persons = repository.getAllPersonsIncludingArchived()
+        )
+      }
+    val curCategories = snapshot.categories
+    val curLoans = snapshot.loans
+    val allPayments = snapshot.payments
+    val curTrans = snapshot.transactions
+    val curInstallments = snapshot.installments
+    val curBankLoans = snapshot.bankLoans
+    val curAccounts = snapshot.accounts
+    val curPersons = snapshot.persons
 
     rootJson.put("categories", buildCategoriesArray(curCategories))
 
@@ -151,6 +190,7 @@ class BackupPayloadExporter(
           put("installmentId", it.installmentId ?: 0L)
           put("accountId", it.accountId)
           put("destinationAccountId", it.destinationAccountId ?: JSONObject.NULL)
+          put(BackupStableLinks.TRANSACTION_LOAN_ID, it.loanId ?: JSONObject.NULL)
         }
       )
     }
@@ -228,6 +268,7 @@ class BackupPayloadExporter(
           put("amount", it.amount)
           put("date", it.date)
           put("notes", it.notes)
+          put(BackupStableLinks.PAYMENT_LINKED_TRANSACTION_ID, it.linkedTransactionId ?: JSONObject.NULL)
         }
       )
     }

@@ -343,6 +343,14 @@ interface PersonDao {
   @Query("SELECT * FROM persons ORDER BY name")
   fun getAllPersonsIncludingArchivedBlocking(): List<Person>
 
+  // Suspend variant of the same query: Room runs it on the transaction's own
+  // coroutine context, so a caller can read persons inside a
+  // `database.withTransaction { }` snapshot. The blocking variant cannot:
+  // `PersonDelegate.getAllPersonsIncludingArchived` hops to Dispatchers.IO for
+  // it, and Room forbids a blocking read that leaves the transaction context.
+  @Query("SELECT * FROM persons ORDER BY name")
+  suspend fun getAllPersonsIncludingArchived(): List<Person>
+
   @Insert(onConflict = OnConflictStrategy.IGNORE)
   fun insertAllBlocking(persons: List<Person>)
 
