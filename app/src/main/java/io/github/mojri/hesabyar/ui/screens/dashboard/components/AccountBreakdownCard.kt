@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -21,9 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.CategoryBreakdown
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.charts.ChartTokens
+import io.github.mojri.hesabyar.ui.charts.DonutSlice
+import io.github.mojri.hesabyar.ui.charts.HesabyarDonutChart
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.DonutChart
 
 /**
  * Donut chart showing per-account expense distribution.
@@ -46,46 +47,56 @@ internal fun AccountBreakdownCard(accountBreakdown: List<CategoryBreakdown>) {
         color = MaterialTheme.colorScheme.primary
       )
 
-      DonutChart(
-        data = accountBreakdown,
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .height(200.dp)
+      HesabyarDonutChart(
+        slices =
+          accountBreakdown.map { item ->
+            DonutSlice(
+              label = item.categoryName,
+              value = item.total,
+              color = Color(item.color),
+              percentage = item.percentage,
+            )
+          },
+        height = ChartTokens.DonutChartHeight,
+        modifier = Modifier.fillMaxWidth(),
       )
 
-      // Legend — account name + color dot + percentage
-      accountBreakdown.forEach { item ->
-        Row(
+      AccountBreakdownLegend(accountBreakdown = accountBreakdown)
+    }
+  }
+}
+
+@Composable
+private fun AccountBreakdownLegend(accountBreakdown: List<CategoryBreakdown>) {
+  accountBreakdown.forEach { item ->
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(vertical = SpacingTokens.xs),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+      ) {
+        Box(
           modifier =
             Modifier
-              .fillMaxWidth()
-              .padding(vertical = SpacingTokens.xs),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            Box(
-              modifier =
-                Modifier
-                  .size(12.dp)
-                  .background(Color(item.color), CircleShape)
-            )
-            Text(
-              text = item.categoryName,
-              style = MaterialTheme.typography.bodySmall
-            )
-          }
-          Text(
-            text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-          )
-        }
+              .size(12.dp)
+              .background(Color(item.color), CircleShape)
+        )
+        Text(
+          text = item.categoryName,
+          style = MaterialTheme.typography.bodySmall
+        )
       }
+      Text(
+        text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+      )
     }
   }
 }
