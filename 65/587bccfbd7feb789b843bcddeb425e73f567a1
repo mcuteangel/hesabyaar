@@ -1,0 +1,23 @@
+app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt
+  s_9ad7a4aae1831f::t_d6b845046c25a9 205-208
+app/src/main/java/io/github/mojri/hesabyar/core/MoneyLimits.kt
+  s_9ad7a4aae1831f::t_1480178a075629 4,7-9
+docs/MIGRATION_NOTES.md
+  s_9ad7a4aae1831f::t_0eb06c7e83e393 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "65587bccfbd7feb789b843bcddeb425e73f567a1",
+  "prompts": {},
+  "sessions": {
+    "s_9ad7a4aae1831f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfab33be-3e83-44b6-bcf7-37b7e55a031b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
