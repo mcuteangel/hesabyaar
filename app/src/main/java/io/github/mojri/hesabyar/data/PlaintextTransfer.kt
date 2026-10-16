@@ -148,6 +148,13 @@ internal object PlaintextTransfer {
    * Called before any live file is deleted. If this copy throws (e.g. out of
    * storage), the live plaintext database is left untouched and the caller
    * sees the exception without risking data loss.
+   *
+   * The copy runs at startup before any writer is active, so the live files
+   * do not change while they are read. A file-level copy of the main database,
+   * its write-ahead log, and the shared-memory index is a consistent snapshot:
+   * SQLite recovers the log on the next open, and a copy interrupted by a
+   * crash is redone on the next launch because the live database is still in
+   * place.
    */
   @androidx.annotation.VisibleForTesting
   internal fun copyPlaintextFilesToBackup(
