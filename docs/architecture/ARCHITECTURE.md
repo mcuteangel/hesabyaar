@@ -219,6 +219,7 @@ app/src/main/java/io/github/mojri/hesabyar/
 └── ui/
     ├── components/    # Shared reusable Compose elements
     ├── designsystem/  # Design tokens (spacing, shape, elevation, color)
+    ├── charts/       # Shared Compose chart components
     ├── screens/       # Compose screens (dashboard/, account/)
     ├── theme/         # Material 3 theme (Color, Theme, Type)
     ├── utils/         # Formatters, category icons
@@ -469,6 +470,7 @@ Level5
 # Design System Structure
 
 ```text
+ui/charts/                  # Shared Compose chart components (HesabyarBarChart, HesabyarLineChart, HesabyarDonutChart, HesabyarProgressRing)
 ui/components/              # Shared Compose components
 ui/utils/                   # Shared utility functions
 ui/theme/                   # Material 3 theme (colors, typography, shapes)
