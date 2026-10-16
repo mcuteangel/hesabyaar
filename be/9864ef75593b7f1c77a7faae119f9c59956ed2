@@ -1,0 +1,22 @@
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupStableLinks.kt
+  s_97b996203548b2::t_424ef8c3a168d2 43-44
+  s_97b996203548b2::t_ada95223378149 27-28,34,36
+app/src/test/java/io/github/mojri/hesabyar/BackupLoanLinksRestoreTest.kt
+  s_97b996203548b2::t_27241f5b00b9a1 147-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "be9864ef75593b7f1c77a7faae119f9c59956ed2",
+  "prompts": {},
+  "sessions": {
+    "s_97b996203548b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5483eea8-ff5f-42ef-98ef-d9b6fdfb3e21",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
