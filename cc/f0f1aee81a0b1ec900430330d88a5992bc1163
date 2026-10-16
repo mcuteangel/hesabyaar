@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/data/PlaintextTransfer.kt
+  s_9ad7a4aae1831f::t_5ffe392aea1deb 76-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ccf0f1aee81a0b1ec900430330d88a5992bc1163",
+  "prompts": {},
+  "sessions": {
+    "s_9ad7a4aae1831f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfab33be-3e83-44b6-bcf7-37b7e55a031b",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
