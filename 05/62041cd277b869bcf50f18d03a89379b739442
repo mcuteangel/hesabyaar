@@ -1,0 +1,27 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRingTest.kt
+  s_2b7f2174ea6cca::t_88391c6a8b5a28 1-89
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChart.kt
+  s_2b7f2174ea6cca::t_2cd7091636ef9d 1-26,33-35,40-43,49-81
+  s_2b7f2174ea6cca::t_be349bd54d6194 27-32,36-39,44-48
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRing.kt
+  s_2b7f2174ea6cca::t_be349bd54d6194 43-49,54-58
+  s_2b7f2174ea6cca::t_c70e3fe06bce75 52
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChartTest.kt
+  s_2b7f2174ea6cca::t_51ec5ac7741acd 1-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0562041cd277b869bcf50f18d03a89379b739442",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
