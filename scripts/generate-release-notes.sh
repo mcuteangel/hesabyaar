@@ -11,6 +11,7 @@ BASE_REF="${2:?Usage: generate-release-notes.sh <version> <base_ref> <head_ref>}
 HEAD_REF="${3:-HEAD}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}"
+GEMINI_FALLBACK_MODEL="${GEMINI_FALLBACK_MODEL:-gemma-4-31b-it}"
 
 # Collect commit messages
 commits=$(git log --pretty=format:"- %s (%h)" "$BASE_REF".."$HEAD_REF" 2>/dev/null || \
@@ -222,13 +223,11 @@ extract_gemini_text() {
   echo "$parsed"
 }
 
-# Determine candidate models to try
+# Determine candidate models to try: primary, then the configured fallback.
+# (Retired gemini-2.0-flash / gemini-1.5-flash are no longer tried.)
 models_to_try=("$GEMINI_MODEL")
-if [ "$GEMINI_MODEL" != "gemini-2.0-flash" ]; then
-  models_to_try+=("gemini-2.0-flash")
-fi
-if [ "$GEMINI_MODEL" != "gemini-1.5-flash" ]; then
-  models_to_try+=("gemini-1.5-flash")
+if [ -n "$GEMINI_FALLBACK_MODEL" ] && [ "$GEMINI_FALLBACK_MODEL" != "$GEMINI_MODEL" ]; then
+  models_to_try+=("$GEMINI_FALLBACK_MODEL")
 fi
 
 notes=""
