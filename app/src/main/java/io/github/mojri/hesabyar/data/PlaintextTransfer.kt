@@ -275,11 +275,36 @@ internal object PlaintextTransfer {
     dbFile: File
   ) {
     val tempPath = context.getDatabasePath(tempName)
-    tempPath.copyTo(dbFile, overwrite = true)
+    copyThenReplace(tempPath, dbFile)
     listOf("-wal", "-shm").forEach { suffix ->
       val src = File(tempPath.parentFile, tempPath.name + suffix)
       val dst = File(dbFile.parentFile, dbFile.name + suffix)
-      if (src.exists()) src.copyTo(dst, overwrite = true)
+      if (src.exists()) copyThenReplace(src, dst)
+    }
+  }
+
+  /**
+   * Copies [source] into a staging file beside [target] and then renames that
+   * file over [target]. A rename inside one directory either lands the complete
+   * file or leaves the previous one in place, so a copy that stops partway
+   * cannot truncate the live database.
+   */
+  private fun copyThenReplace(
+    source: File,
+    target: File
+  ) {
+    val staging = File(target.parentFile, "${target.name}.restoring")
+    try {
+      source.copyTo(staging, overwrite = true)
+      if (!staging.renameTo(target)) {
+        throw IOException("Failed to replace ${target.name} with the restored copy")
+      }
+    } finally {
+      // After a successful rename the staging file no longer exists, so this
+      // only removes the incomplete copy left behind by a failed one.
+      if (staging.exists()) {
+        staging.delete()
+      }
     }
   }
 }

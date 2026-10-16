@@ -106,6 +106,8 @@ class PlaintextTransferTest {
     assertTrue("Should indicate recovery happened", recovered)
     assertTrue("Live DB should have been restored", liveDb.exists())
     assertTrue("Restored live DB should be plaintext SQLite", PlaintextTransfer.isPlaintextDb(liveDb))
+    val staging = File(liveDb.parentFile, "${liveDb.name}.restoring")
+    assertFalse("Staging file must not remain after a successful restore", staging.exists())
   }
 
   @Test
