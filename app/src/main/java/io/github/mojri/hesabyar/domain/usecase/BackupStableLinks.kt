@@ -24,21 +24,24 @@ internal object BackupStableLinks {
 
   /**
    * Reads an optional positive integral id; anything else is "no link".
-   * `optLong` would truncate `7.9` to `7` and parse `"7"`, which could point
-   * a malformed link at the wrong row, so only whole JSON numbers count.
+   * Accepts JSON numbers or positive integer strings.
+   * Rejects decimals and malformed scientific notation.
    */
   fun optPositiveId(
     obj: JSONObject,
     key: String
   ): Long? {
+    val raw = obj.opt(key) ?: return null
     val id =
-      when (val raw = obj.opt(key)) {
+      when (raw) {
         is Int -> raw.toLong()
         is Long -> raw
         // Doubles only arrive here from JSON decimals or scientific notation.
         // Cap at 2^53: larger whole Doubles cannot represent every integer.
         is Number ->
           raw.toDouble().takeIf { it % 1.0 == 0.0 && it <= 9.007199254740992E15 }?.toLong()
+        is String ->
+          raw.trim().takeIf { s -> s.isNotEmpty() && s.all { it in '0'..'9' } }?.toLongOrNull()
         else -> null
       }
     return id?.takeIf { it > 0L }

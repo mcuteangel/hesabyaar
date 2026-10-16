@@ -144,6 +144,30 @@ class BackupLoanLinksRestoreTest {
     }
 
   @Test
+  fun parserAcceptsStringEncodedLinkIds() =
+    runTest {
+      val (json, loanId) = exportSourceBackup()
+      val root = org.json.JSONObject(json)
+      val txArray = root.getJSONArray("transactions")
+      for (i in 0 until txArray.length()) {
+        val obj = txArray.getJSONObject(i)
+        if (obj.has("loanId") && !obj.isNull("loanId")) {
+          // Older encoders serialize ids as strings; both parsers must keep the link.
+          obj.put("loanId", obj.getLong("loanId").toString())
+        }
+      }
+      val payment = root.getJSONArray("paymentHistories").getJSONObject(0)
+      payment.put("linkedTransactionId", payment.getLong("linkedTransactionId").toString())
+
+      val payload = parse(root.toString())
+
+      val disbursement = payload.transactions.single { it.loanId != null }
+      assertEquals(loanId, disbursement.loanId)
+      val linkedId = assertNotNullAndGet(payload.paymentHistories.single().linkedTransactionId)
+      assertTrue(payload.transactions.any { it.id == linkedId })
+    }
+
+  @Test
   fun replaceRestoreKeepsLinksSoDeleteLoanSparesManualTransaction() =
     runTest {
       val (json, _) = exportSourceBackup()
