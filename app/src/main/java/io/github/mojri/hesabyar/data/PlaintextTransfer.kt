@@ -287,6 +287,17 @@ internal object PlaintextTransfer {
     dbFile: File
   ) {
     val tempPath = context.getDatabasePath(tempName)
+    // Clear any stale WAL and SHM left at the live path by a partial encrypted
+    // write so they cannot be replayed over the restored plaintext database.
+    listOf("-wal", "-shm").forEach { suffix ->
+      val staleFile = File(dbFile.parentFile, dbFile.name + suffix)
+      if (staleFile.exists() && !staleFile.delete()) {
+        android.util.Log.w(
+          PlaintextTransfer::class.java.simpleName,
+          "Failed to delete stale file at ${staleFile.path}"
+        )
+      }
+    }
     copyThenReplace(tempPath, dbFile)
     listOf("-wal", "-shm").forEach { suffix ->
       val src = File(tempPath.parentFile, tempPath.name + suffix)

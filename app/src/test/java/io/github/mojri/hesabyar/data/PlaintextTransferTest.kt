@@ -350,4 +350,35 @@ class PlaintextTransferTest {
     assertTrue("Original cause must be thrown", thrown === cause)
     org.junit.Assert.assertEquals("restored backup content", dbFile.readText())
   }
+
+  @Test
+  fun restorePlaintextBackupAndRethrowRemovesStaleLiveWalAndShm() {
+    val tempName = "restore_stale_wal_test"
+    val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempPath = context.getDatabasePath(tempName)
+    val liveWal = File(dbFile.parentFile, "${dbFile.name}-wal")
+    val liveShm = File(dbFile.parentFile, "${dbFile.name}-shm")
+    testFiles += listOf(dbFile, tempPath, liveWal, liveShm)
+
+    dbFile.parentFile?.mkdirs()
+    // Stale WAL and SHM from a partial encrypted write at the live path.
+    liveWal.writeText("stale-encrypted-wal")
+    liveShm.writeText("stale-encrypted-shm")
+    // Plaintext backup without any WAL or SHM companion files.
+    tempPath.writeText("plaintext backup main")
+
+    val cause = RuntimeException("write failed")
+    val thrown =
+      try {
+        PlaintextTransfer.restorePlaintextBackupAndRethrow(context, tempName, dbFile, cause)
+        null
+      } catch (e: RuntimeException) {
+        e
+      }
+
+    assertTrue("Original cause must be thrown", thrown === cause)
+    org.junit.Assert.assertEquals("plaintext backup main", dbFile.readText())
+    assertFalse("Stale live WAL must be deleted before restore", liveWal.exists())
+    assertFalse("Stale live SHM must be deleted before restore", liveShm.exists())
+  }
 }
