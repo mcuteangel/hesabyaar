@@ -43,6 +43,11 @@ internal object PlaintextTransfer {
    * must not enter the restore path: the live database is still intact at that
    * point, and restoring a partial working copy over it would be worse than
    * the original error. Only the delete-then-write step needs recovery.
+   *
+   * Threading: the copy and the snapshot read are synchronous. The Hilt
+   * database singleton can call this on the main thread, but it runs only on
+   * the one launch that finds a plaintext database. The WorkManager workers
+   * and the mark-paid receiver already call `getDatabase` off the main thread.
    */
   fun migratePlaintextToEncryptedIfNeeded(context: Context) {
     val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
@@ -88,6 +93,11 @@ internal object PlaintextTransfer {
    * A backup that holds data but cannot be read as plaintext is kept. It is
    * not deleted, because it may be the only surviving copy of the user's data.
    * Only an absent or empty backup file is deleted, because it holds no data.
+   *
+   * An I/O failure during restore must throw rather than return false. If it
+   * returned false, the caller would build a blank encrypted database at the
+   * live path, and the next launch would see that completed live file and
+   * delete the backup.
    *
    * Returns `true` when a backup was restored and the migration must run again
    * to retry the transfer. Returns `false` when there is nothing to recover.
