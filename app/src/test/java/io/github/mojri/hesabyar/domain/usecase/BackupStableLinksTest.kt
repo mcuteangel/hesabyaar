@@ -46,7 +46,7 @@ class BackupStableLinksTest {
 
   @Test
   fun treatsMissingNullNonPositiveFractionalAndNonNumericAsNoLink() {
-    listOf<Any?>(null, JSONObject.NULL, 0L, -3L, 7.9, "7.9", "7e2", "-7", "+7", "", true).forEach { raw ->
+    listOf<Any?>(null, JSONObject.NULL, 0L, -3L, 7.9, "7.0", "7.9", "7e2", "-7", "+7", "abc", "", true).forEach { raw ->
       val obj = JSONObject().put("id", 1L)
       if (raw != null) obj.put("loanId", raw)
       assertNull("value=$raw", BackupStableLinks.optPositiveId(obj, BackupStableLinks.TRANSACTION_LOAN_ID))

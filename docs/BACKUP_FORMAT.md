@@ -113,8 +113,8 @@ tracked repayment generated.
 `deleteLoan` remove exactly the loan's own ledger rows instead of matching on
 person, amount and date (issues #242 and #430). Both are optional:
 
-- Missing, `null`, `0`, a negative or fractional number, or a non-number
-  means "no link"; the row falls back
+- Missing, `null`, `0`, a negative or fractional number, or any value other
+  than a positive integer (number or digit-only string) means "no link"; the row falls back
   to the legacy matching on delete. Backups written before these keys existed
   restore unchanged.
 - Every restore path (REPLACE, MERGE and the raw-list `importBackup`) first
