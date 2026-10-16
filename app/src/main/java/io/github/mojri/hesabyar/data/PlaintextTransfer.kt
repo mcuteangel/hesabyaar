@@ -73,9 +73,11 @@ internal object PlaintextTransfer {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     }
     // The encrypted database is complete, so the plaintext working copy is no
-    // longer the only surviving data and can go. A leftover backup only wastes
-    // the file; deferring its removal keeps the above step from turning a
-    // successful transfer into a failure.
+    // longer the only surviving data and can go. A leftover backup is unencrypted
+    // user data that stays readable on the device, so the failure is logged at
+    // warning level and the next launch retries the delete (see
+    // recoverInterruptedTransfer). Throwing here would turn a successful
+    // transfer into a startup failure.
     deleteDatabaseFilesQuietly(context, tempName)
   }
 
