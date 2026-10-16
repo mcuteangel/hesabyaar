@@ -119,9 +119,9 @@ git commit -m "refactor(designsystem): add Dimens.FabClearance and deprecate Bot
   @Composable
   fun HesabyarFab(
     onClick: () -> Unit,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Filled.Add,
-    contentDescription: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
     shape: Shape = ShapeTokens.Large,
@@ -244,9 +244,9 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 @Composable
 fun HesabyarFab(
   onClick: () -> Unit,
+  contentDescription: String,
   modifier: Modifier = Modifier,
   icon: ImageVector = Icons.Filled.Add,
-  contentDescription: String? = null,
   containerColor: Color = MaterialTheme.colorScheme.primary,
   contentColor: Color = MaterialTheme.colorScheme.onPrimary,
   shape: Shape = ShapeTokens.Large,

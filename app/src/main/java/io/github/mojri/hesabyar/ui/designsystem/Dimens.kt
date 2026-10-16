@@ -28,7 +28,7 @@ object Dimens {
 
   @Deprecated(
     message = "Use FabClearance instead — the app clearance is for the FAB.",
-    replaceWith = ReplaceWith("FabClearance"),
+    replaceWith = ReplaceWith("Dimens.FabClearance"),
   )
   val BottomNavClearance = FabClearance
 

@@ -10,7 +10,7 @@ None. Plan 015 (issue #451) is complete.
 
 ## Goal
 
-Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating misleadingly-named `BottomNavClearance`) for list bottom padding.
+Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating `BottomNavClearance` in favor of the FAB-specific name) for list bottom padding.
 
 ## Completed
 
@@ -99,12 +99,10 @@ None.
 
 None.
 
-## Findings
+## Plan 015 Findings
 
-- Issue #451 and #456 claim "the app has NO BottomNav". This is incorrect: `MainActivity.kt:172` renders `MainBottomNavigation` in compact width (<600dp) and `MainNavigationRail` in expanded width. However `Dimens.BottomNavClearance` itself has zero usages today — the three screens hardcode `80.dp` instead (`AccountManagementScreen.kt:370`, `CategoryManagementScreen.kt:176`, `DashboardScreen.kt:107`). Plan 015 wires those call sites to a new `Dimens.FabClearance` (80dp) and deprecates `BottomNavClearance` with a fallback alias rather than deleting it (deleting would break the token's public API for no gain, and the name is not factually wrong since a bottom nav exists).
+- Issue #451 and #456 claim "the app has NO BottomNav". This is incorrect: `MainActivity.kt:172` renders `MainBottomNavigation` in compact width (<600dp) and `MainNavigationRail` in expanded width. `Dimens.BottomNavClearance` itself had zero usages before Plan 015 — the three scrollable screens hardcoded `80.dp` padding instead. Plan 015 wires those call sites (plus `BankLoanScreen`, which had no bottom padding) to a new `Dimens.FabClearance` (80dp) and deprecates `BottomNavClearance` with a fallback alias rather than deleting it (deleting would break the token's public API for no gain, and the screens' clearance pads FAB overlap, not bottom-nav overlap).
 - Issue #451 lists only 3 raw FAB uses. A 4th exists at `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt:64`. Plan 015 migrates all 4.
-
-## Findings
 
 1. **Room Schema Documentation Drift:** `AppDatabase.kt` defines schema `version = 9` with `exportSchema = false`. However, `docs/DATABASE_SCHEMA.md` lists schema version 3, and `docs/MIGRATION_NOTES.md` documents migrations only through v3.
 2. **Missing MigrationTestHelper Test Infrastructure:** While JVM unit tests exist for migrations (e.g. `AppDatabaseMigrationTest.kt`, `AppDatabaseMigration7to8Test.kt`, `AppDatabaseMigration8to9Test.kt`), AndroidX `MigrationTestHelper` test suite using exported Room JSON schemas is not currently present in `app/src/test`.

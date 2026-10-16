@@ -4,6 +4,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +46,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
@@ -80,7 +82,8 @@ fun BankLoanScreen(
             ).fillMaxSize()
             .padding(innerPadding)
             .padding(SpacingTokens.md),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+        contentPadding = PaddingValues(bottom = Dimens.FabClearance)
       ) {
         items(bankLoans, key = { it.id }) { loan ->
           BankLoanItem(

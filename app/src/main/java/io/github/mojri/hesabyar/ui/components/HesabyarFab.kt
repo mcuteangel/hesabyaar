@@ -22,13 +22,15 @@ import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
  *
  * The default colors come from the Material 3 theme.
  * They are [MaterialTheme.colorScheme.primary] and [MaterialTheme.colorScheme.onPrimary].
+ *
+ * [contentDescription] is required so every FAB has an accessible name for screen readers.
  */
 @Composable
 fun HesabyarFab(
   onClick: () -> Unit,
+  contentDescription: String,
   modifier: Modifier = Modifier,
   icon: ImageVector = Icons.Filled.Add,
-  contentDescription: String? = null,
   containerColor: Color = MaterialTheme.colorScheme.primary,
   contentColor: Color = MaterialTheme.colorScheme.onPrimary,
   shape: Shape = ShapeTokens.Large,
