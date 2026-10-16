@@ -31,6 +31,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
@@ -138,16 +139,10 @@ fun CategoryManagementScreen(
       )
     },
     floatingActionButton = {
-      FloatingActionButton(
+      HesabyarFab(
         onClick = { showAddDialog = true },
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary
-      ) {
-        Icon(
-          imageVector = Icons.Filled.Add,
-          contentDescription = "افزودن دسته‌بندی"
-        )
-      }
+        contentDescription = "افزودن دسته‌بندی"
+      )
     }
   ) { innerPadding ->
     if (categories.isEmpty()) {
@@ -173,7 +168,7 @@ fun CategoryManagementScreen(
           modifier
             .fillMaxSize()
             .padding(innerPadding),
-        contentPadding = PaddingValues(bottom = 80.dp),
+        contentPadding = PaddingValues(bottom = Dimens.FabClearance),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
         if (defaultCategories.isNotEmpty()) {

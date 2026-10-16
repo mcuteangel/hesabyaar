@@ -11,11 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +38,9 @@ import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.BalanceCard
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.EmptyState
+import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.SectionHeader
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.BankLoansSummaryCard
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.DashboardHeader
@@ -104,7 +103,7 @@ fun DashboardScreen(
           .fillMaxSize()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = 80.dp)
+      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.FabClearance)
     ) {
       item { DashboardHeader(settingsViewModel) }
 
@@ -269,21 +268,15 @@ fun DashboardScreen(
       }
     }
 
-    FloatingActionButton(
+    HesabyarFab(
       onClick = { showManualAddDialog = true },
       modifier =
         Modifier
           .align(Alignment.BottomEnd)
           .padding(SpacingTokens.lg)
           .testTag("add_transaction_fab"),
-      containerColor = MaterialTheme.colorScheme.primary,
-      contentColor = MaterialTheme.colorScheme.onPrimary
-    ) {
-      Icon(
-        imageVector = Icons.Filled.Add,
-        contentDescription = "ثبت تراکنش دستی"
-      )
-    }
+      contentDescription = "ثبت تراکنش دستی"
+    )
   }
 
   if (showManualAddDialog) {
