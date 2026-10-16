@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/BackupStableLinksTest.kt
+  s_97b996203548b2::t_6cf5626d1f55bf 49,56-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e796de9a70ea540a06578fa38c48cb390fefb48e",
+  "prompts": {},
+  "sessions": {
+    "s_97b996203548b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5483eea8-ff5f-42ef-98ef-d9b6fdfb3e21",
+        "model": "space-bunny-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
