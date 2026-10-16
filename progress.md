@@ -6,11 +6,11 @@
 
 ## Active Task
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+Plan 015 (`plans/015-hesabyar-fab-component.md`, issue #451): Add shared `HesabyarFab` component and migrate 4 raw `FloatingActionButton` uses.
 
 ## Goal
 
-Ensure robust back navigation across tabs and management overlays, optimize string lookups, and ensure test coverage for all navigation paths.
+Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating misleadingly-named `BottomNavClearance`) for list bottom padding.
 
 ## Completed
 
@@ -78,28 +78,26 @@ Ensure robust back navigation across tabs and management overlays, optimize stri
 
 ## In Progress
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+Plan 015 (`plans/015-hesabyar-fab-component.md`, issue #451): Add shared `HesabyarFab` component and migrate 4 raw `FloatingActionButton` uses.
 
 | Item | File | State |
 |---|---|---|
-| MainNavigationCoordinator extraction and slot testing | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| Precompute tab labels outside Compose loops | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
-| Document showExitDialog retention across rotation | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| MoreMenuSheetTest suite | `app/src/test/java/io/github/mojri/hesabyar/MoreMenuSheetTest.kt` | done |
-| MainNavigationCoordinatorTest overlay and callback coverage | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt` | done |
-| Replace hardcoded strings with Context.getString in tests | `app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt` | done |
-| Address bot review findings (DeepSource, Kilo Code, Cubic) | PR #385 review threads | done |
-| Extract navigation bars and content wrappers to testable file | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
-| Unit test suite covering all navigation bar & content components | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
-| DeepSource TCV-001 coverage fix (move untestable Hilt lines out) | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
-| Plan 014: Issue #360 acceptance criteria (distinct dashboard icon) | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
-| Plan 014: Issue #360 acceptance criteria (concise debts tab label) | `app/src/main/res/values/strings.xml` | done |
-| Plan 014: Issue #360 acceptance criteria (MoreMenuSheet dynamic insets) | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| Plan 014: Distinct icons and label unit tests | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
+| Plan file + README row + progress.md | `plans/015-hesabyar-fab-component.md`, `plans/README.md`, `progress.md` | done |
+| Docs drift check (`scripts/check_docs.py`) | `plans/015-hesabyar-fab-component.md` | done (added `<!-- check-docs: planned -->` markers) |
+| Task 1: Dimens tokens (`FabClearance`, deprecate `BottomNavClearance`) | `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt` | pending |
+| Task 2: `HesabyarFab` component + Robolectric tests | `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt`, `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt` | pending |
+| Task 3: Migrate AccountManagementScreen + CategoryManagementScreen | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt`, `app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt` | pending |
+| Task 4: Migrate DashboardScreen + BankLoanScreen | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt`, `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt` | pending |
+| Task 5: ktlint + detekt + full unit tests + docs check | repo-wide | pending |
 
 ## Blocked
 
 None.
+
+## Findings
+
+- Issue #451 and #456 claim "the app has NO BottomNav". This is incorrect: `MainActivity.kt:172` renders `MainBottomNavigation` in compact width (<600dp) and `MainNavigationRail` in expanded width. However `Dimens.BottomNavClearance` itself has zero usages today — the three screens hardcode `80.dp` instead (`AccountManagementScreen.kt:370`, `CategoryManagementScreen.kt:176`, `DashboardScreen.kt:107`). Plan 015 wires those call sites to a new `Dimens.FabClearance` (80dp) and deprecates `BottomNavClearance` with a fallback alias rather than deleting it (deleting would break the token's public API for no gain, and the name is not factually wrong since a bottom nav exists).
+- Issue #451 lists only 3 raw FAB uses. A 4th exists at `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt:64`. Plan 015 migrates all 4.
 
 ## Findings
 
