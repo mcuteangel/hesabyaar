@@ -212,4 +212,67 @@ class PlaintextTransferTest {
     assertFalse("WAL file should be deleted", wal.exists())
     assertFalse("SHM file should be deleted", shm.exists())
   }
+
+  @Test
+  fun recoverInterruptedTransferDeletesEmptyBackup() {
+    val liveDb = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempName = "${AppDatabase.LIVE_DATABASE_NAME}_empty_backup"
+    val tempBackup = context.getDatabasePath(tempName)
+
+    testFiles += liveDb
+    testFiles += tempBackup
+
+    liveDb.delete()
+    tempBackup.parentFile?.mkdirs()
+    tempBackup.createNewFile() // 0-byte file
+
+    val recovered = PlaintextTransfer.recoverInterruptedTransfer(context, liveDb, tempName)
+
+    assertFalse("Cannot recover from empty backup", recovered)
+    assertFalse("Empty backup should be cleaned up", tempBackup.exists())
+  }
+
+  @Test
+  fun copyThenReplaceAtomicallyReplacesTargetFile() {
+    val src = File(context.cacheDir, "test_copy_src.db")
+    val dst = File(context.cacheDir, "test_copy_dst.db")
+    testFiles += listOf(src, dst)
+
+    src.writeText("new-content-from-src")
+    dst.writeText("old-content-in-dst")
+
+    PlaintextTransfer.copyThenReplace(src, dst)
+
+    org.junit.Assert.assertEquals("new-content-from-src", dst.readText())
+    val staging = File(dst.parentFile, "${dst.name}.restoring")
+    assertFalse("Staging file must be cleaned up after replacement", staging.exists())
+  }
+
+  @Test
+  fun recoverInterruptedTransferReturnsFalseWhenLiveDbIsAlreadyPlaintext() {
+    val liveDb = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempName = "${AppDatabase.LIVE_DATABASE_NAME}_plaintext_backup"
+    val tempBackup = context.getDatabasePath(tempName)
+
+    testFiles += liveDb
+    testFiles += tempBackup
+
+    liveDb.parentFile?.mkdirs()
+    FileOutputStream(liveDb).use { out ->
+      out.write("SQLite format 3\u0000".toByteArray(Charsets.US_ASCII))
+      out.write(ByteArray(16))
+    }
+
+    tempBackup.parentFile?.mkdirs()
+    FileOutputStream(tempBackup).use { out ->
+      out.write("SQLite format 3\u0000".toByteArray(Charsets.US_ASCII))
+      out.write(ByteArray(16))
+    }
+
+    val recovered = PlaintextTransfer.recoverInterruptedTransfer(context, liveDb, tempName)
+
+    assertFalse("Should return false when live DB is already plaintext", recovered)
+    assertTrue("Live DB should remain", liveDb.exists())
+    assertTrue("Backup should be preserved", tempBackup.exists())
+  }
 }

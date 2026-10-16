@@ -6,6 +6,9 @@ import androidx.room.Room
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
 import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * Converts the plaintext database that an old install leaves behind into the
@@ -289,18 +292,34 @@ internal object PlaintextTransfer {
    * file or leaves the previous one in place, so a copy that stops partway
    * cannot truncate the live database.
    */
-  private fun copyThenReplace(
+  @androidx.annotation.VisibleForTesting
+  internal fun copyThenReplace(
     source: File,
     target: File
   ) {
     val staging = File(target.parentFile, "${target.name}.restoring")
     try {
       source.copyTo(staging, overwrite = true)
-      if (!staging.renameTo(target)) {
-        throw IOException("Failed to replace ${target.name} with the restored copy")
+      try {
+        Files.move(
+          staging.toPath(),
+          target.toPath(),
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.ATOMIC_MOVE
+        )
+      } catch (e: AtomicMoveNotSupportedException) {
+        android.util.Log.d(
+          PlaintextTransfer::class.java.simpleName,
+          "Atomic move unsupported; falling back to non-atomic replace: ${e.message}"
+        )
+        Files.move(
+          staging.toPath(),
+          target.toPath(),
+          StandardCopyOption.REPLACE_EXISTING
+        )
       }
     } finally {
-      // After a successful rename the staging file no longer exists, so this
+      // After a successful move the staging file no longer exists, so this
       // only removes the incomplete copy left behind by a failed one.
       if (staging.exists()) {
         staging.delete()
