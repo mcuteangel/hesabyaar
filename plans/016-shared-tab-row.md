@@ -40,7 +40,7 @@ fun HesabyarTabRow(
   containerColor: Color = MaterialTheme.colorScheme.surface,
   contentColor: Color = MaterialTheme.colorScheme.primary,
   showDivider: Boolean = true,
-  tabs: @Composable RowScope.() -> Unit
+  tabs: @Composable () -> Unit
 )
 ```
 
