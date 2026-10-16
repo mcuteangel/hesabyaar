@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt
+  s_42054ee1471538::t_a7691fe0569d43 1-64
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt
+  s_42054ee1471538::t_d7efb9ecb51359 18,20-24
+  s_42054ee1471538::t_4561c55e77b836 1-17,19,25-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6740b74c822091617b1f1890c0655f022921f2e0",
+  "prompts": {},
+  "sessions": {
+    "s_42054ee1471538": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba527ec-97fa-45c0-bb7e-e94542724917",
+        "model": "space-bunny-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
