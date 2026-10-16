@@ -57,6 +57,7 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import java.util.*
 import java.util.Calendar
 
@@ -1032,7 +1033,7 @@ fun ParsedResultCard(
           )
           // Formatted Amount preview in Persian words
           val amtToman = amountValue.text.toLongOrNull() ?: 0L
-          if (amtToman > 0L) {
+          if (amtToman > 0L && !overflowsTomanConversion(amtToman)) {
             val amtRial = CurrencyFormatter.toRial(amtToman)
             Text(
               text = "معادل: ${CurrencyFormatter.format(amtRial)}",
@@ -1178,6 +1179,15 @@ fun ParsedResultCard(
               return@HesabyarButton
             }
 
+            if (overflowsTomanConversion(finalAmountToman)) {
+              android.widget.Toast
+                .makeText(
+                  context,
+                  "مبلغ وارد شده بیش از حد مجاز است",
+                  android.widget.Toast.LENGTH_SHORT
+                ).show()
+              return@HesabyarButton
+            }
             val finalDaysFromNow =
               if (selectedType ==
                 "INSTALLMENT"
@@ -1400,3 +1410,13 @@ private fun resolveAmountColor(type: String) =
     TransactionType.EXPENSE.name, "LOAN_CREDITOR" -> MaterialTheme.colorScheme.error
     else -> MaterialTheme.colorScheme.tertiary
   }
+
+/**
+ * True when [displayValue] is too large for [CurrencyFormatter.toRial] to
+ * convert without overflowing a Long. The bound comes from
+ * [DisplayAmountInput.maxDisplayAmount] — the single source of truth, derived
+ * from the conversion itself (Toman mode allows up to a tenth of [Long.MAX_VALUE],
+ * Rial mode the full range, where this can never fire).
+ */
+private fun overflowsTomanConversion(displayValue: Long): Boolean =
+  displayValue > DisplayAmountInput.maxDisplayAmount()
