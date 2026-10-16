@@ -23,7 +23,14 @@ object Dimens {
 
   val DividerThickness = 1.dp
 
-  val BottomNavClearance = 80.dp
+  /** Clearance at the bottom of scrollable lists so content is not obscured by a FAB. */
+  val FabClearance = 80.dp
+
+  @Deprecated(
+    message = "Use FabClearance instead — the app clearance is for the FAB.",
+    replaceWith = ReplaceWith("FabClearance"),
+  )
+  val BottomNavClearance = FabClearance
 
   val ChipHeight = 36.dp
   val TabHeight = 48.dp
