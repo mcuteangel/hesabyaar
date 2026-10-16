@@ -1,0 +1,28 @@
+plans/015-hesabyar-fab-component.md
+  s_42054ee1471538::t_8fcda01d614ddb 1-3
+  s_42054ee1471538::t_b370822c75ebe2 4-21,23-42,44-109,111-424
+  s_42054ee1471538::t_3831a1611c9181 22,43
+  s_42054ee1471538::t_855550e2f3e632 110
+progress.md
+  s_42054ee1471538::t_ca154ba8fecb2c 81,85-91,100
+  s_42054ee1471538::t_4fe6d9890275eb 99
+  s_42054ee1471538::t_a1c9e06acae2a9 9,13
+plans/README.md
+  s_42054ee1471538::t_e28e0daac580d8 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1b767e244ab7c845be9a31dc2cc72f71391b83c4",
+  "prompts": {},
+  "sessions": {
+    "s_42054ee1471538": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba527ec-97fa-45c0-bb7e-e94542724917",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
