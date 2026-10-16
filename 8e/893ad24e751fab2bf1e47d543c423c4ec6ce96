@@ -1,0 +1,26 @@
+app/src/main/java/io/github/mojri/hesabyar/data/PlaintextTransfer.kt
+  s_9ad7a4aae1831f::t_f06e5549add263 76-79
+  s_9ad7a4aae1831f::t_c06c879d2ee7fb 129-130,133
+  s_9ad7a4aae1831f::t_7029345dd550a5 131-132
+  s_9ad7a4aae1831f::t_f195839dfe1c13 121-124
+  s_9ad7a4aae1831f::t_bb8a35f9d07f9a 256-261,268,276,279-302
+app/src/test/java/io/github/mojri/hesabyar/data/PlaintextTransferTest.kt
+  s_9ad7a4aae1831f::t_4b811f5e825a20 244-268
+  s_9ad7a4aae1831f::t_8414122ed595e7 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8e893ad24e751fab2bf1e47d543c423c4ec6ce96",
+  "prompts": {},
+  "sessions": {
+    "s_9ad7a4aae1831f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfab33be-3e83-44b6-bcf7-37b7e55a031b",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
