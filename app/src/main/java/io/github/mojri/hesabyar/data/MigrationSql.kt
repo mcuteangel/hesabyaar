@@ -202,10 +202,10 @@ internal object MigrationSql {
    * bound, a single absolute threshold either corrupts a legitimate large
    * amount or leaves an inflated one in place, because both kinds of row are
    * plain integers in the same column and no threshold can separate them. In
-   * practice the surviving band is unreachable by legitimate user input (capped
-   * at `MAX_AMOUNT_TOMAN`), so the correction only activates for values that
-   * must be inflated data. It exists as a safety net for databases still on
-   * version 3 and prevents future edits from reintroducing a bare threshold.
+   * practice the surviving band is unreachable by an ordinary transaction, so
+   * the correction only activates for values that must be inflated data. It
+   * exists as a safety net for databases still on version 3 and prevents
+   * future edits from reintroducing a bare threshold.
    */
   fun undoTomanToRialInflation(
     db: SupportSQLiteDatabase,
