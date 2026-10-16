@@ -4,6 +4,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,11 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,7 +44,9 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
@@ -61,9 +62,7 @@ fun BankLoanScreen(
   Scaffold(
     modifier = modifier,
     floatingActionButton = {
-      FloatingActionButton(onClick = { showAddDialog = true }) {
-        Icon(Icons.Filled.Add, contentDescription = "افزودن وام بانکی")
-      }
+      HesabyarFab(onClick = { showAddDialog = true }, contentDescription = "افزودن وام بانکی")
     }
   ) { innerPadding ->
     if (bankLoans.isEmpty()) {
@@ -83,7 +82,8 @@ fun BankLoanScreen(
             ).fillMaxSize()
             .padding(innerPadding)
             .padding(SpacingTokens.md),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+        contentPadding = PaddingValues(bottom = Dimens.FabClearance)
       ) {
         items(bankLoans, key = { it.id }) { loan ->
           BankLoanItem(
