@@ -1,0 +1,21 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt
+  s_42054ee1471538::t_11c91cb38a7b14 26-33
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTokenTest.kt
+  s_42054ee1471538::t_e9f56f31946cbd 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1bd422c3ce65b5e52b5e897b2650a735b0e3161a",
+  "prompts": {},
+  "sessions": {
+    "s_42054ee1471538": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba527ec-97fa-45c0-bb7e-e94542724917",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
