@@ -22,6 +22,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODEL: ${{ vars.GEMINI_FALLBACK_MODEL || 'gemma-4-31b-it' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
@@ -52,15 +53,21 @@ jobs:
               "contents": [{"parts": [{"text": prompt}]}],
               "generationConfig": {"maxOutputTokens": 300},
           }).encode()
-          model = os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite"
-          req = urllib.request.Request(
-              f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-              data=payload,
-              headers={
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": os.environ["GEMINI_API_KEY"],
-              },
-          )
+          primary_model = os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite"
+          fallback_model = os.environ.get("GEMINI_FALLBACK_MODEL") or "gemma-4-31b-it"
+          models_to_try = [primary_model]
+          if fallback_model and fallback_model != primary_model:
+              models_to_try.append(fallback_model)
+
+          def make_request(model):
+              return urllib.request.Request(
+                  f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                  data=payload,
+                  headers={
+                      "Content-Type": "application/json",
+                      "x-goog-api-key": os.environ["GEMINI_API_KEY"],
+                  },
+              )
           TRANSIENT_STATUS = {429, 500, 502, 503, 504}
           MAX_ATTEMPTS = 5
           MAX_BACKOFF = 60
@@ -95,33 +102,47 @@ jobs:
               return min(delay, MAX_BACKOFF)
 
           data = None
-          for attempt in range(1, MAX_ATTEMPTS + 1):
-              try:
-                  with urllib.request.urlopen(req, timeout=60) as resp:
-                      data = json.load(resp)
+          for model in models_to_try:
+              req = make_request(model)
+              model_failed = False
+              for attempt in range(1, MAX_ATTEMPTS + 1):
+                  try:
+                      with urllib.request.urlopen(req, timeout=60) as resp:
+                          data = json.load(resp)
+                      break
+                  except urllib.error.HTTPError as e:
+                      err_body = e.read().decode("utf-8", errors="replace")
+                      transient = e.code in TRANSIENT_STATUS
+                      if not transient:
+                          print(f"Gemini API HTTP {e.code} with model {model}; "
+                                f"trying next model: {err_body[:200]}", file=sys.stderr)
+                          model_failed = True
+                          break
+                      if attempt == MAX_ATTEMPTS:
+                          print(f"Gemini API HTTP {e.code} with model {model}: {err_body}", file=sys.stderr)
+                          model_failed = True
+                          break
+                      retry_after = e.headers.get("Retry-After") if e.headers else None
+                      backoff = compute_backoff(attempt, retry_after)
+                      print(f"Gemini API HTTP {e.code} with model {model} (attempt {attempt}/{MAX_ATTEMPTS}); "
+                            f"retrying in {backoff:.0f}s: {err_body[:200]}", file=sys.stderr)
+                      time.sleep(backoff)
+                  except (OSError, http.client.HTTPException) as e:
+                      # Network-level failures only (URLError, TimeoutError,
+                      # ConnectionError, truncated-response IncompleteRead).
+                      # JSON/decode errors propagate immediately.
+                      if attempt == MAX_ATTEMPTS:
+                          print(f"Network error calling Gemini API with model {model}: {e}", file=sys.stderr)
+                          model_failed = True
+                          break
+                      backoff = compute_backoff(attempt)
+                      print(f"Network error calling Gemini API with model {model} (attempt {attempt}/{MAX_ATTEMPTS}); "
+                            f"retrying in {backoff:.0f}s: {e}", file=sys.stderr)
+                      time.sleep(backoff)
+              if not model_failed:
                   break
-              except urllib.error.HTTPError as e:
-                  err_body = e.read().decode("utf-8", errors="replace")
-                  transient = e.code in TRANSIENT_STATUS
-                  if not transient or attempt == MAX_ATTEMPTS:
-                      print(f"Gemini API HTTP {e.code}: {err_body}", file=sys.stderr)
-                      raise
-                  retry_after = e.headers.get("Retry-After") if e.headers else None
-                  backoff = compute_backoff(attempt, retry_after)
-                  print(f"Gemini API HTTP {e.code} (attempt {attempt}/{MAX_ATTEMPTS}); "
-                        f"retrying in {backoff:.0f}s: {err_body[:200]}", file=sys.stderr)
-                  time.sleep(backoff)
-              except (OSError, http.client.HTTPException) as e:
-                  # Network-level failures only (URLError, TimeoutError,
-                  # ConnectionError, truncated-response IncompleteRead).
-                  # JSON/decode errors propagate immediately.
-                  if attempt == MAX_ATTEMPTS:
-                      print(f"Network error calling Gemini API: {e}", file=sys.stderr)
-                      raise
-                  backoff = compute_backoff(attempt)
-                  print(f"Network error calling Gemini API (attempt {attempt}/{MAX_ATTEMPTS}); "
-                        f"retrying in {backoff:.0f}s: {e}", file=sys.stderr)
-                  time.sleep(backoff)
+          if data is None:
+              raise RuntimeError("All Gemini models failed")
 
           summary = next(
               (
