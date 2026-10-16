@@ -73,8 +73,10 @@ internal object PlaintextTransfer {
       restorePlaintextBackupAndRethrow(context, tempName, dbFile, e)
     }
     // The encrypted database is complete, so the plaintext working copy is no
-    // longer the only surviving data and can go.
-    deleteDatabaseFiles(context, tempName)
+    // longer the only surviving data and can go. A leftover backup only wastes
+    // the file; deferring its removal keeps the above step from turning a
+    // successful transfer into a failure.
+    deleteDatabaseFilesQuietly(context, tempName)
   }
 
   /**
@@ -116,25 +118,19 @@ internal object PlaintextTransfer {
     // The live database completed the transfer, so the backup is stale.
     // `&&` binds tighter than `||`, so both cleanup cases are covered.
     if (liveExists && !liveIsPlaintext || !backupHoldsData) {
-      deleteDatabaseFiles(context, tempName)
+      // Cleanup failure here must not abort a healthy launch. The live DB is
+      // already encrypted or the backup holds no data, so logged leftovers are
+      // harmless.
+      deleteDatabaseFilesQuietly(context, tempName)
       return false
     }
     // Restore only when the live database is missing and the backup is a
     // readable plaintext copy. An unreadable backup is left on disk.
-    return !liveExists && isPlaintextDb(tempPath) && restoreBackupForRetry(context, tempName, dbFile)
-  }
-
-  /**
-   * Puts the plaintext working copy back at the live path after an interrupted
-   * transfer, so the caller can retry the conversion.
-   */
-  private fun restoreBackupForRetry(
-    context: Context,
-    tempName: String,
-    dbFile: File
-  ): Boolean {
-    restoreTempBackupToLive(context, tempName, dbFile)
-    return true
+    val restorable = !liveExists && isPlaintextDb(tempPath)
+    if (restorable) {
+      restoreTempBackupToLive(context, tempName, dbFile)
+    }
+    return restorable
   }
 
   /** Reads the SQLite header to tell a plaintext database from an encrypted one. */
@@ -257,15 +253,19 @@ internal object PlaintextTransfer {
   }
 
   /**
-   * Removes the database [name] together with its write-ahead log and index. A
-   * delete that fails is logged, because a stale file left at a path the next
-   * step writes to would otherwise fail much later without a clear cause.
+   * Removes the database [name] together with its write-ahead log and index.
+   *
+   * A delete that fails throws. A file left at a path the next step writes to
+   * makes that step corrupt the new database, so the caller must restore the
+   * backup and stop instead of continuing. Each failure is logged before the
+   * throw, so the cause is visible even when the caller only rethrows.
    */
   @androidx.annotation.VisibleForTesting
   internal fun deleteDatabaseFiles(
     context: Context,
     name: String
   ) {
+    val failedPaths = mutableListOf<String>()
     listOf(name, "$name-wal", "$name-shm").forEach { fileName ->
       val file = context.getDatabasePath(fileName)
       if (file.exists() && !file.delete()) {
@@ -273,8 +273,33 @@ internal object PlaintextTransfer {
           PlaintextTransfer::class.java.simpleName,
           "Failed to delete $fileName at ${file.path}"
         )
+        failedPaths += file.path
       }
     }
+    if (failedPaths.isNotEmpty()) {
+      throw IOException("Failed to delete database files: ${failedPaths.joinToString()}")
+    }
+  }
+
+  /**
+   * Removes the database [name] and logs a failure instead of throwing.
+   *
+   * Only the cleanup steps use this. They run when no further write depends on
+   * the files, so a leftover file is a cleanup problem and not a data risk.
+   * Throwing there would abort a completed transfer or a database open.
+   */
+  private fun deleteDatabaseFilesQuietly(
+    context: Context,
+    name: String
+  ) {
+    runCatching { deleteDatabaseFiles(context, name) }
+      .exceptionOrNull()
+      ?.let {
+        android.util.Log.w(
+          PlaintextTransfer::class.java.simpleName,
+          "Cleanup left files behind for $name: ${it.message}"
+        )
+      }
   }
 
   /**

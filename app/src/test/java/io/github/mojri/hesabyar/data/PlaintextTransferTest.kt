@@ -30,7 +30,7 @@ class PlaintextTransferTest {
 
   @After
   fun tearDown() {
-    testFiles.forEach { it.delete() }
+    testFiles.forEach { it.deleteRecursively() }
     testFiles.clear()
   }
 
@@ -238,6 +238,32 @@ class PlaintextTransferTest {
     assertFalse("Main DB file should be deleted", main.exists())
     assertFalse("WAL file should be deleted", wal.exists())
     assertFalse("SHM file should be deleted", shm.exists())
+  }
+
+  @Test
+  fun deleteDatabaseFilesThrowsWhenAFileCannotBeDeleted() {
+    // A non-empty directory cannot be removed by File.delete(), so it stands
+    // in for a file locked by another process.
+    val name = "delete_failure_db"
+    val undeletable = context.getDatabasePath(name)
+    testFiles += undeletable
+
+    undeletable.mkdirs()
+    File(undeletable, "child").writeText("blocks deletion")
+
+    val thrown =
+      try {
+        PlaintextTransfer.deleteDatabaseFiles(context, name)
+        null
+      } catch (e: java.io.IOException) {
+        e
+      }
+
+    assertTrue("A failed delete must throw so the caller can restore the backup", thrown != null)
+    assertTrue(
+      "The exception must name the file that could not be deleted",
+      thrown!!.message?.contains(undeletable.path) == true
+    )
   }
 
   @Test
