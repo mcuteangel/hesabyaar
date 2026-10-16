@@ -6,11 +6,11 @@
 
 ## Active Task
 
-None. Plan 015 (issue #451) is complete.
+None. Plan 015 (issue #451) is complete on this branch. Main merged Issue #93 hardening via PR #462.
 
 ## Goal
 
-Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating `BottomNavClearance` in favor of the FAB-specific name) for list bottom padding.
+Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.FABIconSize`, migrate all raw FAB sites (AccountManagementScreen, DashboardScreen, CategoryManagementScreen, BankLoanScreen), and add `Dimens.FabClearance` (deprecating `BottomNavClearance` in favor of the FAB-specific name) for list bottom padding. Main also hardened MIGRATION_3_4 with a bounded correction, fixed the Toman-to-Rial factor in MIGRATION_1_2, and covered the migration with tests (PR #462).
 
 ## Completed
 
@@ -93,11 +93,11 @@ Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.F
 
 ## In Progress
 
-None.
+None. Main merged Issue #93 hardening via PR #462 and the back-navigation work from PR #385.
 
 ## Blocked
 
-None.
+- GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
 
 ## Plan 015 Findings
 
