@@ -1,4 +1,4 @@
-# Plan 016: [Design System] Add a Chart Component Family with Theme Tokens & RTL Support (Issue #453)
+# Plan 017: [Design System] Add a Chart Component Family with Theme Tokens & RTL Support (Issue #453)
 
 Status: DONE
 

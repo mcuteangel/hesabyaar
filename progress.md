@@ -6,7 +6,7 @@
 
 ## Active Task
 
-None — Plan 016 (issue #453) completed and archived. Awaiting next task.
+None — Plan 017 (issue #453) completed and archived. Awaiting next task.
 
 ## Goal
 
@@ -14,7 +14,7 @@ None — ready for next task.
 
 ## Completed
 
-- **Task:** Plan 016 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
+- **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
 - **Status:** Completed and verified
 - **Completed Date:** 2026-10-16
 - **Deliverables:**
@@ -27,8 +27,23 @@ None — ready for next task.
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt`: migrated all 4 hand-drawn `Canvas` blocks (`MonthlyTrendCard`, `CombinedLineChartCard`, `CategoryBreakdownCard`, `InstallmentProgressCard`); removed ad-hoc `BarChart`, `DonutChart`, `CircularProgress`
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt`: migrated to `HesabyarDonutChart`
     - [x] `docs/architecture/ARCHITECTURE.md`: documented `ui/charts/` component family in architecture guide
-    - [x] `plans/archive/016-design-system-chart-system.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] `plans/archive/017-design-system-chart-system.md`: completed architecture plan (DONE in `plans/README.md`)
     - [x] Unit test suites: `ChartTokensTest` (2 tests), `HesabyarBarChartTest` (4 tests), `HesabyarLineChartTest` (4 tests), `HesabyarDonutChartTest` (3 tests), `HesabyarProgressRingTest` (4 tests) — all passed
+
+- **Task:** Issue #452 — Shared HesabyarTabRow
+- **Status:** Merged to `main` via PR #483
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRow.kt` — new shared component (TabRow + SecondaryScrollableTabRow, Dimens.TabHeight, theme colors)
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt` — migrated to HesabyarTabRow, deleted `sectionTint`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` — migrated to HesabyarTabRow
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRowTest.kt` — 3 new tests (all pass)
+    - [x] `plans/016-shared-tab-row.md` registered in plans/README.md
+    - [x] `ktlintCheck detekt` — BUILD SUCCESSFUL, 0 findings
+    - [x] Targeted tests `HesabyarTabRowTest` + `DebtHubTabBarTest` + `DebtSectionTest` — 10/10 pass
+    - [x] `testDebugUnitTest` full suite — 131 suites, 1136 tests, 0 failures
+    - [x] `python scripts/check_docs.py` — no broken references
+
 
 - **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
 - **Status:** Merged to `main`
