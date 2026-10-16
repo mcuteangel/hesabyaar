@@ -1,6 +1,6 @@
 # Plan 015: [Design System] Add a shared HesabyarFab component & Migrate Raw Uses (Issue #451)
 
-Status: IN PROGRESS
+Status: DONE
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -48,7 +48,7 @@ Status: IN PROGRESS
 **Interfaces:**
 - Produces: `Dimens.FabClearance = 80.dp`, `@Deprecated val BottomNavClearance = FabClearance`
 
-- [ ] **Step 1: Write test checking Dimens tokens exist and match specifications**
+- [x] **Step 1: Write test checking Dimens tokens exist and match specifications**
 
 In `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt`:
 
@@ -70,12 +70,12 @@ class HesabyarFabTokenTest {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.ui.components.HesabyarFabTokenTest"`
 Expected: FAIL (unresolved reference `FabClearance`)
 
-- [ ] **Step 3: Update `Dimens.kt`**
+- [x] **Step 3: Update `Dimens.kt`**
 
 In `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`:
 
@@ -93,12 +93,12 @@ In `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`:
   val BottomNavClearance = FabClearance
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.ui.components.HesabyarFabTokenTest"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt
@@ -128,7 +128,7 @@ git commit -m "refactor(designsystem): add Dimens.FabClearance and deprecate Bot
   )
   ```
 
-- [ ] **Step 1: Write failing Robolectric Compose UI tests for `HesabyarFab`**
+- [x] **Step 1: Write failing Robolectric Compose UI tests for `HesabyarFab`**
 
 In `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt`:
 
@@ -209,12 +209,12 @@ class HesabyarFabTest {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.ui.components.HesabyarFabTest"`
 Expected: FAIL (unresolved reference `HesabyarFab`)
 
-- [ ] **Step 3: Implement `HesabyarFab.kt`**
+- [x] **Step 3: Implement `HesabyarFab.kt`**
 
 Create `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt`:
 
@@ -267,12 +267,12 @@ fun HesabyarFab(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.ui.components.HesabyarFabTest"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt
@@ -320,13 +320,13 @@ git commit -m "feat(ui): add HesabyarFab component with design system tokens (#4
      ```
    - Clean up unused imports (`FloatingActionButton`).
 
-- [ ] **Step 1: Apply migrations to `AccountManagementScreen.kt` and `CategoryManagementScreen.kt`**
-- [ ] **Step 2: Run unit tests for these screens**
+- [x] **Step 1: Apply migrations to `AccountManagementScreen.kt` and `CategoryManagementScreen.kt`**
+- [x] **Step 2: Run unit tests for these screens**
 
 Run: `./gradlew testDebugUnitTest --tests "*Account*" --tests "*Category*"`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
@@ -373,18 +373,18 @@ git commit -m "refactor(ui): migrate Account and Category screens to HesabyarFab
      ```
    - Clean up unused `FloatingActionButton` import.
 
-- [ ] **Step 1: Apply migrations to `DashboardScreen.kt` and `BankLoanScreen.kt`**
-- [ ] **Step 2: Verify zero raw `FloatingActionButton(` remain in `ui/screens/`**
+- [x] **Step 1: Apply migrations to `DashboardScreen.kt` and `BankLoanScreen.kt`**
+- [x] **Step 2: Verify zero raw `FloatingActionButton(` remain in `ui/screens/`**
 
 Run: `git grep "FloatingActionButton(" app/src/main/java/io/github/mojri/hesabyar/ui/screens`
 Expected: 0 matches
 
-- [ ] **Step 3: Run unit tests for Dashboard & Loan**
+- [x] **Step 3: Run unit tests for Dashboard & Loan**
 
 Run: `./gradlew testDebugUnitTest --tests "*Dashboard*" --tests "*Loan*"`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
@@ -398,27 +398,27 @@ git commit -m "refactor(ui): migrate Dashboard and BankLoan screens to HesabyarF
 **Files:**
 - Verify all modified and new files.
 
-- [ ] **Step 1: Run ktlint check and auto-format**
+- [x] **Step 1: Run ktlint check and auto-format**
 
 Run: `./gradlew ktlintFormat ktlintCheck --no-daemon`
 Expected: PASS with 0 violations
 
-- [ ] **Step 2: Run Detekt static analysis**
+- [x] **Step 2: Run Detekt static analysis**
 
 Run: `./gradlew detekt --no-daemon`
 Expected: BUILD SUCCESSFUL (0 new detekt findings)
 
-- [ ] **Step 3: Run full non-Rust unit test suite**
+- [x] **Step 3: Run full non-Rust unit test suite**
 
 Run: `./gradlew testDebugUnitTest --no-daemon`
 Expected: BUILD SUCCESSFUL, all tests pass
 
-- [ ] **Step 4: Run doc link checker**
+- [x] **Step 4: Run doc link checker**
 
 Run: `python3 scripts/check_docs.py`
 Expected: PASS with 0 broken references
 
-- [ ] **Step 5: Verify Graphify knowledge graph reflects the new component**
+- [x] **Step 5: Verify Graphify knowledge graph reflects the new component**
 
 Run: `graphify query "HesabyarFab"`
 Expected: Node `HesabyarFab()` found in community.

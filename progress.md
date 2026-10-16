@@ -6,7 +6,7 @@
 
 ## Active Task
 
-Plan 015 (`plans/015-hesabyar-fab-component.md`, issue #451): Add shared `HesabyarFab` component and migrate 4 raw `FloatingActionButton` uses.
+None. Plan 015 (issue #451) is complete.
 
 ## Goal
 
@@ -76,19 +76,24 @@ Create a reusable `HesabyarFab` composable wired to `Dimens.FABSize` / `Dimens.F
     - [x] UI: `PersonsScreen`, `PersonDetailSheet`, Debts hub tab integration, Dashboard links
     - [x] Parity test `PersonBalanceParityTest`
 
+- **Task:** Plan 015 — [Design System] Add shared `HesabyarFab` component & migrate raw FAB uses (Issue #451)
+- **Status:** Completed and verified
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`: added `FabClearance = 80.dp`, deprecated `BottomNavClearance` with fallback to `FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt`: created `HesabyarFab` composable consuming `Dimens.FABSize` (56dp) and `Dimens.FABIconSize` (24dp)
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTokenTest.kt`: token specification tests
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt`: Robolectric Compose UI tests for rendering, click events, and test tags
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt`: migrated raw FAB to `HesabyarFab`
+    - [x] `plans/archive/015-hesabyar-fab-component.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] Knowledge graph: ran `graphify update .` to index `HesabyarFab` and its 4 screen callers
+
 ## In Progress
 
-Plan 015 (`plans/015-hesabyar-fab-component.md`, issue #451): Add shared `HesabyarFab` component and migrate 4 raw `FloatingActionButton` uses.
-
-| Item | File | State |
-|---|---|---|
-| Plan file + README row + progress.md | `plans/015-hesabyar-fab-component.md`, `plans/README.md`, `progress.md` | done |
-| Docs drift check (`scripts/check_docs.py`) | `plans/015-hesabyar-fab-component.md` | done (added `<!-- check-docs: planned -->` markers) |
-| Task 1: Dimens tokens (`FabClearance`, deprecate `BottomNavClearance`) | `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt` | pending |
-| Task 2: `HesabyarFab` component + Robolectric tests | `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt`, `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt` | pending |
-| Task 3: Migrate AccountManagementScreen + CategoryManagementScreen | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt`, `app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt` | pending |
-| Task 4: Migrate DashboardScreen + BankLoanScreen | `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt`, `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt` | pending |
-| Task 5: ktlint + detekt + full unit tests + docs check | repo-wide | pending |
+None.
 
 ## Blocked
 
