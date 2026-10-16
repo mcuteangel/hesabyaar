@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.6] - 2026-10-16
+نسخه 0.11.6 حساب‌یار منتشر شد.
+
+### رفع مشکلات
+* fix(installment): ktlint — single-line body expression for overflow guard
+* fix(installment): reuse DisplayAmountInput.maxDisplayAmount for overflow bound
+* fix(installment): reject Toman amounts that would overflow toRial
 ## [0.11.5] - 2026-10-15
 نسخه جدید حساب‌یار با تمرکز بر پایداری و بهبود تجربه کاربری منتشر شد.
 
