@@ -54,7 +54,7 @@ class BackupJsonParser(
             accounts = rustResult.accounts.map { RustMappers.fromRustAccount(it) },
             persons = RustMappers.fromRustPersons(rustResult.persons),
             settings = parseSettings(rootJson)
-          )
+          ).let { BackupStableLinks.applyFromRawJson(it, rootJson) }
         } catch (e: IllegalArgumentException) {
           // Malformed/outdated enum strings — fall back to Kotlin-only parsing
           Log.w(TAG, "Rust→Kotlin mapping failed, falling back to Kotlin parser", e)
@@ -123,7 +123,8 @@ class BackupJsonParser(
               o.optLong("destinationAccountId")
             } else {
               null
-            }
+            },
+          loanId = BackupStableLinks.optPositiveId(o, BackupStableLinks.TRANSACTION_LOAN_ID)
         )
       }
     } ?: emptyList()
@@ -192,7 +193,8 @@ class BackupJsonParser(
         loanId = obj.optLong("loanId", 0L),
         amount = obj.optLong("amount", 0L),
         date = obj.optLong("date", System.currentTimeMillis()),
-        notes = obj.optString("notes", "")
+        notes = obj.optString("notes", ""),
+        linkedTransactionId = BackupStableLinks.optPositiveId(obj, BackupStableLinks.PAYMENT_LINKED_TRANSACTION_ID)
       )
     }
   }
