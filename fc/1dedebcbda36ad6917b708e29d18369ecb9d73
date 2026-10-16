@@ -1,0 +1,23 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartTokens.kt
+  s_2b7f2174ea6cca::t_30f338dfe86495 1-23
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartModel.kt
+  s_2b7f2174ea6cca::t_e5773f4b0e9b92 1-27
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/ChartTokensTest.kt
+  s_2b7f2174ea6cca::t_b37df0696d236d 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fc1dedebcbda36ad6917b708e29d18369ecb9d73",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
