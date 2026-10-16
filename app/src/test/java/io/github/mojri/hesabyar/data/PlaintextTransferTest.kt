@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.data
 
 import android.content.Context
+import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -274,5 +275,79 @@ class PlaintextTransferTest {
     assertFalse("Should return false when live DB is already plaintext", recovered)
     assertTrue("Live DB should remain", liveDb.exists())
     assertTrue("Backup should be preserved", tempBackup.exists())
+  }
+
+  @Test
+  fun readPlaintextSnapshotReadsAllTablesThroughRoom() {
+    val tempName = "read_snapshot_test"
+    val dbFile = context.getDatabasePath(tempName)
+    testFiles += dbFile
+
+    val db =
+      Room
+        .databaseBuilder(context, AppDatabase::class.java, tempName)
+        .allowMainThreadQueries()
+        .addMigrations(*AppDatabase.ALL_MIGRATIONS)
+        .build()
+    try {
+      db.accountDao().insertAllBlocking(
+        listOf(
+          AccountEntity(
+            id = 0,
+            name = "تست",
+            type = AccountType.BANK,
+            bankName = "بانک تست",
+            cardNumber = null,
+            accountNumber = null,
+            iban = null,
+            initialBalance = 100L,
+            color = 0,
+            icon = null,
+            isArchived = false,
+            displayOrder = 0
+          )
+        )
+      )
+    } finally {
+      db.close()
+    }
+
+    val snapshot =
+      java.util.concurrent.Executors
+        .newSingleThreadExecutor()
+        .submit<PlaintextTransfer.PlaintextSnapshot> {
+          PlaintextTransfer.readPlaintextSnapshot(context, tempName)
+        }.get(5, java.util.concurrent.TimeUnit.SECONDS)
+
+    assertTrue("readPlaintextSnapshot must read the account row", snapshot.accounts.isNotEmpty())
+    val account = snapshot.accounts.single()
+    org.junit.Assert.assertEquals("تست", account.name)
+    org.junit.Assert.assertEquals(AccountType.BANK, account.type)
+    org.junit.Assert.assertEquals(100L, account.initialBalance)
+  }
+
+  @Test
+  fun restorePlaintextBackupAndRethrowPutsBackupBackAndRethrowsCause() {
+    val tempName = "restore_rethrow_test"
+    val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val tempPath = context.getDatabasePath(tempName)
+    testFiles += dbFile
+    testFiles += tempPath
+
+    tempPath.parentFile?.mkdirs()
+    tempPath.writeText("restored backup content")
+
+    val cause = RuntimeException("original delete failed")
+
+    val thrown =
+      try {
+        PlaintextTransfer.restorePlaintextBackupAndRethrow(context, tempName, dbFile, cause)
+        null
+      } catch (e: RuntimeException) {
+        e
+      }
+
+    assertTrue("Original cause must be thrown", thrown === cause)
+    org.junit.Assert.assertEquals("restored backup content", dbFile.readText())
   }
 }

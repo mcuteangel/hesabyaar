@@ -23,7 +23,7 @@ internal object PlaintextTransfer {
   private const val PLAINTEXT_BACKUP_SUFFIX = "_plaintext_backup"
 
   /** Every table read out of a plaintext database, ready to be rewritten. */
-  private data class PlaintextSnapshot(
+  internal data class PlaintextSnapshot(
     val accounts: List<AccountEntity>,
     val categories: List<Category>,
     val transactions: List<Transaction>,
@@ -174,7 +174,8 @@ internal object PlaintextTransfer {
    * restored live file is already at the latest schema version, which is
    * compatible with Room's runtime expectations.
    */
-  private fun readPlaintextSnapshot(
+  @androidx.annotation.VisibleForTesting
+  internal fun readPlaintextSnapshot(
     context: Context,
     tempName: String
   ): PlaintextSnapshot {
@@ -259,7 +260,8 @@ internal object PlaintextTransfer {
    * Puts the plaintext working copy back and rethrows [cause]. Both recoverable
    * failures end here, so the restore body is written once.
    */
-  private fun restorePlaintextBackupAndRethrow(
+  @androidx.annotation.VisibleForTesting
+  internal fun restorePlaintextBackupAndRethrow(
     context: Context,
     tempName: String,
     dbFile: File,
