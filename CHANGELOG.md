@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.8] - 2026-10-16
+نسخه 0.11.8 حساب‌یار منتشر شد.
+
+### رفع مشکلات
+* fix(migration): throw on live database deletion failure to prevent stale sidecars
+* fix(migration): delete stale backup WAL/SHM when live has none
+* fix(migration): clear stale live WAL/SHM before plaintext restore
+* fix(migration): use atomic file replacement for restore copy; add follow-up tests
+* fix(migration): make backup restore atomic so partial copies cannot corrupt live database
+
+### بهبودها و تغییرات
+* docs(migration): clarify unencrypted data-remanence tradeoff in cleanup
+* chore: re-trigger CI checks
+* docs(migration): document threading and recovery error behavior
+* docs(migration): document the WAL-copy consistency invariant
+* test(migration): add coverage for MIGRATION_1_2, MIGRATION_2_3, and PlaintextTransfer snapshot and restore
 ## [0.11.7] - 2026-10-16
 نسخه 0.11.7 حساب‌یار منتشر شد.
 
