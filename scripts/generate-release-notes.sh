@@ -10,7 +10,7 @@ VERSION="${1:?Usage: generate-release-notes.sh <version> <base_ref> <head_ref>}"
 BASE_REF="${2:?Usage: generate-release-notes.sh <version> <base_ref> <head_ref>}"
 HEAD_REF="${3:-HEAD}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.1-flash-lite}"
 GEMINI_FALLBACK_MODEL="${GEMINI_FALLBACK_MODEL:-gemma-4-31b-it}"
 
 # Collect commit messages
