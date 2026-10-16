@@ -39,6 +39,7 @@ import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
 import java.util.*
 
@@ -259,13 +260,17 @@ fun InstallmentScreen(
         HesabyarButton(
           onClick = {
             val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
-            if (title.isNotBlank() && amountDisplay > 0L) {
-              val amountRial = CurrencyFormatter.toRial(amountDisplay)
-              installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
-              installmentViewModel.setBankLoanFilter(null)
-              showAddDialog = false
-            } else {
-              settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
+            when {
+              title.isBlank() || amountDisplay <= 0L ->
+                settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
+              overflowsTomanConversion(amountDisplay) ->
+                settingsViewModel.showMessage("مبلغ وارد شده بیش از حد مجاز است")
+              else -> {
+                val amountRial = CurrencyFormatter.toRial(amountDisplay)
+                installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+                installmentViewModel.setBankLoanFilter(null)
+                showAddDialog = false
+              }
             }
           },
           text = "ذخیره قسط"
@@ -461,3 +466,12 @@ fun InstallmentListItem(
     )
   }
 }
+
+/**
+ * True when [displayValue] is too large for [CurrencyFormatter.toRial] to
+ * convert without overflowing a Long. The bound comes from
+ * [DisplayAmountInput.maxDisplayAmount] — the single source of truth, derived
+ * from the conversion itself (Toman mode allows up to a tenth of [Long.MAX_VALUE],
+ * Rial mode the full range, where this can never fire).
+ */
+private fun overflowsTomanConversion(displayValue: Long): Boolean = displayValue > DisplayAmountInput.maxDisplayAmount()

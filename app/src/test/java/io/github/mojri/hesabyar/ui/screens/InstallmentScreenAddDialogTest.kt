@@ -150,6 +150,39 @@ class InstallmentScreenAddDialogTest {
     composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
   }
 
+  @Test
+  fun tomanAmountOverflowingRialConversionIsRejectedAndKeepsDialogOpen() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "922337203685477581")
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertTrue("nothing must be saved", repo.saved.isEmpty())
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+  }
+
+  @Test
+  fun tomanAmountAtOverflowBoundaryIsAccepted() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "922337203685477580")
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertEquals("one installment must be saved", 1, repo.saved.size)
+    assertEquals("amount in Rial", 9_223_372_036_854_775_800L, repo.saved.single().amount)
+    composeRule.onNodeWithText(DIALOG_TITLE).assertDoesNotExist()
+  }
+
+  @Test
+  fun rialModeAcceptsLongMaxValueUnchanged() {
+    CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
+    openAddDialog()
+    fillDialog("قسط ماشین", Long.MAX_VALUE.toString())
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertEquals("one installment must be saved", 1, repo.saved.size)
+    assertEquals("amount unchanged in Rial mode", Long.MAX_VALUE, repo.saved.single().amount)
+    composeRule.onNodeWithText(DIALOG_TITLE).assertDoesNotExist()
+  }
+
   companion object {
     private const val DIALOG_TITLE = "ثبت قسط جدید"
     private const val CONFIRM_BUTTON = "ذخیره قسط"
