@@ -65,7 +65,7 @@ class HesabyarFabTest {
   }
 
   @Test
-  fun fabRendersWithDefaultTokensAndTriggersClick() {
+  fun fabRendersWithDefaultParametersAndTriggersClick() {
     var clicked = false
     val description = "تراکنش جدید"
 
