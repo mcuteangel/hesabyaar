@@ -1,4 +1,4 @@
-# Plan 015: Shared Tab Component — TabRow / SecondaryScrollableTabRow used raw
+# Plan 016: Shared Tab Component — TabRow / SecondaryScrollableTabRow used raw
 
 - **Issue:** #452
 - **PR:** —

@@ -6,7 +6,7 @@
 
 ## Active Task
 
-Issue #452 — Shared `HesabyarTabRow`. PR #463 (branch `feat/issue-452-shared-tab-row`). Design-system DRY task.
+Issue #452 — Shared `HesabyarTabRow`. PR #483 (branch `feat/issue-452-shared-tab-row`). Design-system DRY task.
 
 ## Goal
 
@@ -22,7 +22,7 @@ Add a shared `HesabyarTabRow` in `ui/components/`, use `Dimens.TabHeight`, migra
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DebtHubScreen.kt` — migrated to HesabyarTabRow, deleted `sectionTint`
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` — migrated to HesabyarTabRow
     - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRowTest.kt` — 3 new tests (all pass)
-    - [x] `plans/015-shared-tab-row.md` registered in plans/README.md
+    - [x] `plans/016-shared-tab-row.md` registered in plans/README.md
     - [x] `ktlintCheck detekt` — BUILD SUCCESSFUL, 0 findings
     - [x] Targeted tests `HesabyarTabRowTest` + `DebtHubTabBarTest` + `DebtSectionTest` — 10/10 pass
     - [x] `testDebugUnitTest` full suite — 131 suites, 1136 tests, 0 failures
@@ -92,48 +92,33 @@ Add a shared `HesabyarTabRow` in `ui/components/`, use `Dimens.TabHeight`, migra
     - [x] UI: `PersonsScreen`, `PersonDetailSheet`, Debts hub tab integration, Dashboard links
     - [x] Parity test `PersonBalanceParityTest`
 
+- **Task:** Plan 015 — [Design System] Add shared `HesabyarFab` component & migrate raw FAB uses (Issue #451)
+- **Status:** Completed and verified
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`: added `FabClearance = 80.dp`, deprecated `BottomNavClearance` with fallback to `FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarFab.kt`: created `HesabyarFab` composable consuming `Dimens.FABSize` (56dp) and `Dimens.FABIconSize` (24dp)
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTokenTest.kt`: token specification tests
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt`: Robolectric Compose UI tests for rendering, click events, and test tags
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt`: migrated raw FAB to `HesabyarFab` and `80.dp` bottom padding to `Dimens.FabClearance`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt`: migrated raw FAB to `HesabyarFab`
+    - [x] `plans/archive/015-hesabyar-fab-component.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] Knowledge graph: ran `graphify update .` to index `HesabyarFab` and its 4 screen callers
+
 ## In Progress
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
-
-Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
-
-| Item | File | State |
-|---|---|---|
-| Issue #93: MIGRATION_1_2 factor 1000 to 10 | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt` | done |
-| Issue #93: MIGRATION_3_4 bounded band and row-count logging | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `AppDatabase.kt` | done |
-| Issue #93: Migration SQL and plaintext transfer extracted from the companion | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `PlaintextTransfer.kt` | done |
-| Issue #93: Shared MAX_AMOUNT_TOMAN constant | `app/src/main/java/io/github/mojri/hesabyar/core/MoneyLimits.kt` | done |
-| Issue #93: Migration test | `app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration3to4Test.kt` | done |
-| Issue #93: Detekt obligation on AppDatabase.kt | `config/detekt/detekt-baseline.xml` | done |
-| Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md` | done |
-| Issue #93: Commit, push, and open PR #462 | `fix/issue-93-harden-migration-3-4` | done |
-| Issue #461: repair path for users already past v4 | closed as moot | closed |
-
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
-
-| Item | File | State |
-|---|---|---|
-| MainNavigationCoordinator extraction and slot testing | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| Precompute tab labels outside Compose loops | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
-| Document showExitDialog retention across rotation | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| MoreMenuSheetTest suite | `app/src/test/java/io/github/mojri/hesabyar/MoreMenuSheetTest.kt` | done |
-| MainNavigationCoordinatorTest overlay and callback coverage | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationCoordinatorTest.kt` | done |
-| Replace hardcoded strings with Context.getString in tests | `app/src/test/java/io/github/mojri/hesabyar/MainActivityBackNavigationTest.kt` | done |
-| Address bot review findings (DeepSource, Kilo Code, Cubic) | PR #385 review threads | done |
-| Extract navigation bars and content wrappers to testable file | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
-| Unit test suite covering all navigation bar & content components | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
-| DeepSource TCV-001 coverage fix (move untestable Hilt lines out) | `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt` | done |
-| Plan 014: Issue #360 acceptance criteria (distinct dashboard icon) | `app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt` | done |
-| Plan 014: Issue #360 acceptance criteria (concise debts tab label) | `app/src/main/res/values/strings.xml` | done |
-| Plan 014: Issue #360 acceptance criteria (MoreMenuSheet dynamic insets) | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
-| Plan 014: Distinct icons and label unit tests | `app/src/test/java/io/github/mojri/hesabyar/MainNavigationComponentsTest.kt` | done |
+None. Main merged Issue #93 hardening via PR #462 and the back-navigation work from PR #385.
 
 ## Blocked
 
 - GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
 
-## Findings
+## Plan 015 Findings
+
+- Issue #451 and #456 claim "the app has NO BottomNav". This is incorrect: `MainActivity.kt:172` renders `MainBottomNavigation` in compact width (<600dp) and `MainNavigationRail` in expanded width. `Dimens.BottomNavClearance` itself had zero usages before Plan 015 — the three scrollable screens hardcoded `80.dp` padding instead. Plan 015 wires those call sites (plus `BankLoanScreen`, which had no bottom padding) to a new `Dimens.FabClearance` (80dp) and deprecates `BottomNavClearance` with a fallback alias rather than deleting it (deleting would break the token's public API for no gain, and the screens' clearance pads FAB overlap, not bottom-nav overlap).
+- Issue #451 lists only 3 raw FAB uses. A 4th exists at `app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt:64`. Plan 015 migrates all 4.
 
 1. **Room Schema Documentation Drift:** `AppDatabase.kt` defines schema `version = 9` with `exportSchema = false`. However, `docs/DATABASE_SCHEMA.md` lists schema version 3, and `docs/MIGRATION_NOTES.md` documents migrations only through v3.
 2. **Missing MigrationTestHelper Test Infrastructure:** While JVM unit tests exist for migrations (e.g. `AppDatabaseMigrationTest.kt`, `AppDatabaseMigration7to8Test.kt`, `AppDatabaseMigration8to9Test.kt`), AndroidX `MigrationTestHelper` test suite using exported Room JSON schemas is not currently present in `app/src/test`.
