@@ -4,10 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,21 +16,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.InstallmentViewModel
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
+import io.github.mojri.hesabyar.ui.components.HesabyarTabRow
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-
-@Composable
-private fun sectionTint(selected: Boolean): Color =
-  if (selected) {
-    MaterialTheme.colorScheme.primary
-  } else {
-    MaterialTheme.colorScheme.onSurfaceVariant
-  }
 
 @Composable
 fun DebtHubScreen(
@@ -118,11 +111,11 @@ internal fun DebtHubTabBar(
   section: DebtSection,
   onSectionChange: (DebtSection) -> Unit
 ) {
-  SecondaryScrollableTabRow(
+  HesabyarTabRow(
     selectedTabIndex = DebtSection.entries.indexOf(section),
+    scrollable = true,
     edgePadding = SpacingTokens.md,
-    containerColor = MaterialTheme.colorScheme.surface,
-    divider = {}
+    showDivider = true
   ) {
     DebtSection.entries.forEach { s ->
       val selected = s == section
@@ -132,18 +125,19 @@ internal fun DebtHubTabBar(
         text = {
           Text(
             s.label,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            style = MaterialTheme.typography.bodyMedium
           )
         },
         icon = {
           Icon(
             imageVector = s.icon,
             contentDescription = null,
-            tint = sectionTint(selected)
+            modifier = Modifier.size(Dimens.IconAvatarMedium)
           )
         },
         selectedContentColor = MaterialTheme.colorScheme.primary,
-        unselectedContentColor = sectionTint(false)
+        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
       )
     }
   }

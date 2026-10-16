@@ -51,6 +51,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.HesabyarTabRow
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
@@ -141,19 +142,14 @@ fun SmartAssistantScreen(
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       // Material 3 Responsive Tab Selector
-      TabRow(
-        selectedTabIndex = activeTab,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
-        divider = { HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainer) }
-      ) {
+      HesabyarTabRow(selectedTabIndex = activeTab) {
         Tab(
           selected = activeTab == 0,
           onClick = { activeTab = 0 },
           text = {
             Text(
               "ثبت هوشمند تراکنش",
-              fontWeight = FontWeight.Bold,
+              fontWeight = if (activeTab == 0) FontWeight.Bold else FontWeight.Normal,
               style = MaterialTheme.typography.bodyMedium
             )
           },
@@ -161,9 +157,11 @@ fun SmartAssistantScreen(
             Icon(
               Icons.Filled.ReceiptLong,
               contentDescription = null,
-              modifier = Modifier.size(20.dp)
+              modifier = Modifier.size(Dimens.IconAvatarMedium)
             )
-          }
+          },
+          selectedContentColor = MaterialTheme.colorScheme.primary,
+          unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Tab(
           selected = activeTab == 1,
@@ -171,7 +169,7 @@ fun SmartAssistantScreen(
           text = {
             Text(
               "مشاوره و تحلیل بودجه",
-              fontWeight = FontWeight.Bold,
+              fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Normal,
               style = MaterialTheme.typography.bodyMedium
             )
           },
@@ -179,9 +177,11 @@ fun SmartAssistantScreen(
             Icon(
               Icons.Filled.AutoAwesome,
               contentDescription = null,
-              modifier = Modifier.size(20.dp)
+              modifier = Modifier.size(Dimens.IconAvatarMedium)
             )
-          }
+          },
+          selectedContentColor = MaterialTheme.colorScheme.primary,
+          unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
 
