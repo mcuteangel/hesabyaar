@@ -22,7 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
@@ -35,7 +34,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +69,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.icon
@@ -182,16 +181,10 @@ fun AccountManagementScreen(
       )
     },
     floatingActionButton = {
-      FloatingActionButton(
+      HesabyarFab(
         onClick = { dialogState = AccountDialogState.Add },
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary
-      ) {
-        Icon(
-          imageVector = Icons.Filled.Add,
-          contentDescription = stringResource(id = io.github.mojri.hesabyar.R.string.add_account)
-        )
-      }
+        contentDescription = stringResource(id = io.github.mojri.hesabyar.R.string.add_account)
+      )
     }
   ) { innerPadding ->
     AccountManagementContent(
@@ -367,7 +360,7 @@ private fun AccountManagementContent(
   } else {
     LazyColumn(
       modifier = modifier.fillMaxSize().padding(innerPadding),
-      contentPadding = PaddingValues(bottom = 80.dp),
+      contentPadding = PaddingValues(bottom = Dimens.FabClearance),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
       items(accounts, key = { it.id }) { account ->
