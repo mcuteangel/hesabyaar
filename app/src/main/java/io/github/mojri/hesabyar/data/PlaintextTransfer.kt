@@ -35,6 +35,11 @@ internal object PlaintextTransfer {
    * Converts the plaintext database to the encrypted one. A working copy is
    * made and the rows are read before any live file is removed, so a failure in
    * those steps leaves the user's data exactly as it was.
+   *
+   * The copy, key read, and snapshot read run before the `try`. Their failures
+   * must not enter the restore path: the live database is still intact at that
+   * point, and restoring a partial working copy over it would be worse than
+   * the original error. Only the delete-then-write step needs recovery.
    */
   fun migratePlaintextToEncryptedIfNeeded(context: Context) {
     val dbFile = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
@@ -136,6 +141,10 @@ internal object PlaintextTransfer {
    * Copies the live database and its write-ahead log to [tempName]. This copy
    * is the only remaining plaintext data, so it is kept until the encrypted
    * database is complete.
+   *
+   * Called before any live file is deleted. If this copy throws (e.g. out of
+   * storage), the live plaintext database is left untouched and the caller
+   * sees the exception without risking data loss.
    */
   @androidx.annotation.VisibleForTesting
   internal fun copyPlaintextFilesToBackup(
@@ -156,6 +165,11 @@ internal object PlaintextTransfer {
    * Runs the migration chain on the working copy and reads every table out of
    * it. Reading through the Room DAOs applies the type converters here, so a
    * malformed row surfaces before the live database is touched.
+   *
+   * Migrations are applied directly to the working copy so the DAOs can read
+   * current entity shapes. If the subsequent encrypted write fails, the
+   * restored live file is already at the latest schema version, which is
+   * compatible with Room's runtime expectations.
    */
   private fun readPlaintextSnapshot(
     context: Context,
@@ -217,15 +231,25 @@ internal object PlaintextTransfer {
     }
   }
 
-  /** Removes the database [name] together with its write-ahead log and index. */
+  /**
+   * Removes the database [name] together with its write-ahead log and index. A
+   * delete that fails is logged, because a stale file left at a path the next
+   * step writes to would otherwise fail much later without a clear cause.
+   */
   @androidx.annotation.VisibleForTesting
   internal fun deleteDatabaseFiles(
     context: Context,
     name: String
   ) {
-    context.getDatabasePath(name).delete()
-    context.getDatabasePath("$name-wal").delete()
-    context.getDatabasePath("$name-shm").delete()
+    listOf(name, "$name-wal", "$name-shm").forEach { fileName ->
+      val file = context.getDatabasePath(fileName)
+      if (file.exists() && !file.delete()) {
+        android.util.Log.w(
+          PlaintextTransfer::class.java.simpleName,
+          "Failed to delete $fileName at ${file.path}"
+        )
+      }
+    }
   }
 
   /**
