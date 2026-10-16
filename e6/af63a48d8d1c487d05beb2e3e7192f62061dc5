@@ -1,0 +1,19 @@
+plans/016-shared-tab-row.md
+  s_e55b1a66fba368::t_934ffa51258e05 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e6af63a48d8d1c487d05beb2e3e7192f62061dc5",
+  "prompts": {},
+  "sessions": {
+    "s_e55b1a66fba368": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df72b14f-5876-431b-a90e-e4b1608d689d",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
