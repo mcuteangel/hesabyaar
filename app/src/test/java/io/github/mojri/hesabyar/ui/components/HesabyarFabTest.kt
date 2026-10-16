@@ -63,4 +63,25 @@ class HesabyarFabTest {
       .assertIsDisplayed()
       .assertHasClickAction()
   }
+
+  @Test
+  fun fabRendersWithDefaultTokensAndTriggersClick() {
+    var clicked = false
+    val description = "تراکنش جدید"
+
+    composeRule.setContent {
+      HesabyarFab(
+        onClick = { clicked = true },
+        contentDescription = description,
+      )
+    }
+
+    composeRule
+      .onNodeWithContentDescription(description)
+      .assertIsDisplayed()
+      .assertHasClickAction()
+      .performClick()
+
+    assertTrue("Click handler should be invoked", clicked)
+  }
 }
