@@ -1418,5 +1418,4 @@ private fun resolveAmountColor(type: String) =
  * from the conversion itself (Toman mode allows up to a tenth of [Long.MAX_VALUE],
  * Rial mode the full range, where this can never fire).
  */
-private fun overflowsTomanConversion(displayValue: Long): Boolean =
-  displayValue > DisplayAmountInput.maxDisplayAmount()
+private fun overflowsTomanConversion(displayValue: Long): Boolean = displayValue > DisplayAmountInput.maxDisplayAmount()
