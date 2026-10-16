@@ -1,0 +1,31 @@
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupPayloadExporter.kt
+  s_97b996203548b2::t_23af9e9ad5d3e8 106-109,111-116,127
+app/src/main/java/io/github/mojri/hesabyar/data/PersonDelegate.kt
+  s_97b996203548b2::t_8a88750f35edd3 17-22
+app/src/main/java/io/github/mojri/hesabyar/data/BackupMergeHelpers.kt
+  s_97b996203548b2::t_95c7ca61a75116 188
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupStableLinks.kt
+  s_97b996203548b2::t_6b6ef8652bfaea 20
+  s_97b996203548b2::t_33d0ff270cbf0b 57-59
+  s_97b996203548b2::t_bf9d95ea0b7c32 75-76,93
+app/src/main/java/io/github/mojri/hesabyar/data/BackupMergeTransactions.kt
+  s_97b996203548b2::t_dc813aa1e6d22b 60,62,68
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_97b996203548b2::t_1e837a55d24e0a 346-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4165954f1848788ccd9b3c458f8f95e04efbd701",
+  "prompts": {},
+  "sessions": {
+    "s_97b996203548b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5483eea8-ff5f-42ef-98ef-d9b6fdfb3e21",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
