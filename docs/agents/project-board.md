@@ -9,9 +9,12 @@ The [Hesabyar Project board](https://github.com/users/mcuteangel/projects/1) and
 - New issues auto-appear via the board's auto-add workflow; closed issues auto-archive — don't add them manually.
 - Update the board Status via GraphQL:
   - Find the item ID: `node(id: $projectId) { ... on ProjectV2 { items(first: 100, query: "<issue#>") { nodes { id } } } }`.
-  - Set the Status field (`PVTSSF_lAHOAD9VX84Bm0Xa`) with `updateProjectV2ItemFieldValue`.
+  - Set the Status field (`PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`) with `updateProjectV2ItemFieldValue`.
   - Use the option ID for `In Progress` or `Done`.
   - Find option IDs: `node(id: $projectId) { ... on ProjectV2 { field(name: "Status") { ... on ProjectV2SingleSelectField { options { id name } } } } }`.
+  - Do not copy the field ID from a document. Read it first with
+    `node(id: $projectId) { ... on ProjectV2 { fields(first: 20) { nodes { ... on ProjectV2SingleSelectField { id name } } } } }`.
+    The ID in this file went stale once already and the mutation failed with `NOT_FOUND`.
 
 ## Roadmap (`docs/ROADMAP.md`)
 

@@ -14,11 +14,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import io.github.mojri.hesabyar.core.MAX_AMOUNT_TOMAN
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-
-private const val MAX_AMOUNT_TOMAN = 999_999_999_999L
 
 @Composable
 fun AmountQuickFillButtons(

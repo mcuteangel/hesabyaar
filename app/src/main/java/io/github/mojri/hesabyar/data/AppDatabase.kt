@@ -15,7 +15,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
-import java.io.File
 import java.util.UUID
 
 @Database(
@@ -63,41 +62,7 @@ abstract class AppDatabase : RoomDatabase() {
     internal val MIGRATION_1_2 =
       object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
-          db.execSQL(
-            "CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)"
-          )
-          db.execSQL(
-            "INSERT INTO transactions_new (id, type, category, amount, description, personName, date, dueDate, installmentId) SELECT id, type, category, CAST(amount * 1000 AS INTEGER), description, personName, date, dueDate, installmentId FROM transactions"
-          )
-          db.execSQL("DROP TABLE transactions")
-          db.execSQL("ALTER TABLE transactions_new RENAME TO transactions")
-
-          db.execSQL(
-            "CREATE TABLE loans_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, personName TEXT NOT NULL, type TEXT NOT NULL, originalAmount INTEGER NOT NULL, remainingAmount INTEGER NOT NULL, description TEXT NOT NULL, date INTEGER NOT NULL, isSettled INTEGER NOT NULL)"
-          )
-          db.execSQL(
-            "INSERT INTO loans_new (id, personName, type, originalAmount, remainingAmount, description, date, isSettled) SELECT id, personName, type, CAST(originalAmount * 1000 AS INTEGER), CAST(remainingAmount * 1000 AS INTEGER), description, date, isSettled FROM loans"
-          )
-          db.execSQL("DROP TABLE loans")
-          db.execSQL("ALTER TABLE loans_new RENAME TO loans")
-
-          db.execSQL(
-            "CREATE TABLE installments_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, amount INTEGER NOT NULL, dueDate INTEGER NOT NULL, isPaid INTEGER NOT NULL, reminderEnabled INTEGER NOT NULL, notes TEXT NOT NULL)"
-          )
-          db.execSQL(
-            "INSERT INTO installments_new (id, title, amount, dueDate, isPaid, reminderEnabled, notes) SELECT id, title, CAST(amount * 1000 AS INTEGER), dueDate, isPaid, reminderEnabled, notes FROM installments"
-          )
-          db.execSQL("DROP TABLE installments")
-          db.execSQL("ALTER TABLE installments_new RENAME TO installments")
-
-          db.execSQL(
-            "CREATE TABLE payment_history_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, loanId INTEGER NOT NULL, amount INTEGER NOT NULL, date INTEGER NOT NULL, notes TEXT NOT NULL)"
-          )
-          db.execSQL(
-            "INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history"
-          )
-          db.execSQL("DROP TABLE payment_history")
-          db.execSQL("ALTER TABLE payment_history_new RENAME TO payment_history")
+          MigrationSql.recreateV2Tables(db)
         }
       }
 
@@ -117,15 +82,11 @@ abstract class AppDatabase : RoomDatabase() {
     internal val MIGRATION_3_4 =
       object : Migration(3, 4) {
         override fun migrate(db: SupportSQLiteDatabase) {
-          // Only divide rows where amounts exceed thresholds that indicate
-          // they were inflated by MIGRATION_1_2 (1000x factor, not 10x).
-          db.execSQL("UPDATE transactions SET amount = amount / 100 WHERE amount > 1000000000")
-          db.execSQL("UPDATE loans SET originalAmount = originalAmount / 100 WHERE originalAmount > 1000000000")
-          db.execSQL(
-            "UPDATE loans SET remainingAmount = remainingAmount / 100 WHERE remainingAmount > 1000000000"
-          )
-          db.execSQL("UPDATE installments SET amount = amount / 100 WHERE amount > 1000000000")
-          db.execSQL("UPDATE payment_history SET amount = amount / 100 WHERE amount > 1000000000")
+          MigrationSql.undoTomanToRialInflation(db, "transactions", "amount")
+          MigrationSql.undoTomanToRialInflation(db, "loans", "originalAmount")
+          MigrationSql.undoTomanToRialInflation(db, "loans", "remainingAmount")
+          MigrationSql.undoTomanToRialInflation(db, "installments", "amount")
+          MigrationSql.undoTomanToRialInflation(db, "payment_history", "amount")
         }
       }
 
@@ -454,9 +415,7 @@ abstract class AppDatabase : RoomDatabase() {
     internal val MIGRATION_2_3 =
       object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
-          db.execSQL(
-            "CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL, icon TEXT NOT NULL, color INTEGER NOT NULL, type TEXT NOT NULL, isDefault INTEGER NOT NULL)"
-          )
+          db.execSQL(MigrationSql.CREATE_CATEGORIES_V3_SQL)
 
           val defaults =
             listOf(
@@ -473,28 +432,8 @@ abstract class AppDatabase : RoomDatabase() {
             db.execSQL("INSERT INTO categories (name, key, icon, color, type, isDefault) VALUES $values")
           }
 
-          db.execSQL(
-            "CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, categoryId INTEGER NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)"
-          )
-
-          db.execSQL(
-            """
-                    INSERT INTO transactions_new (id, type, categoryId, amount, description, personName, date, dueDate, installmentId)
-                    SELECT t.id, t.type,
-                        CASE t.category
-                            WHEN 'Food' THEN (SELECT id FROM categories WHERE key = 'Food' LIMIT 1)
-                            WHEN 'Transportation' THEN (SELECT id FROM categories WHERE key = 'Transportation' LIMIT 1)
-                            WHEN 'Shopping' THEN (SELECT id FROM categories WHERE key = 'Shopping' LIMIT 1)
-                            WHEN 'Bills' THEN (SELECT id FROM categories WHERE key = 'Bills' LIMIT 1)
-                            WHEN 'Installments' THEN (SELECT id FROM categories WHERE key = 'Installments' LIMIT 1)
-                            WHEN 'Loans' THEN (SELECT id FROM categories WHERE key = 'Loans' LIMIT 1)
-                            WHEN 'Income' THEN (SELECT id FROM categories WHERE key = 'Income' LIMIT 1)
-                            ELSE (SELECT id FROM categories WHERE key = 'Other' LIMIT 1)
-                        END,
-                        t.amount, t.description, t.personName, t.date, t.dueDate, t.installmentId
-                    FROM transactions t
-                """
-          )
+          db.execSQL(MigrationSql.CREATE_TRANSACTIONS_V3_SQL)
+          db.execSQL(MigrationSql.COPY_TRANSACTIONS_V3_SQL)
 
           db.execSQL("DROP TABLE transactions")
           db.execSQL("ALTER TABLE transactions_new RENAME TO transactions")
@@ -543,6 +482,9 @@ abstract class AppDatabase : RoomDatabase() {
         }
       }
 
+    /** Name of the live encrypted database file. */
+    internal const val LIVE_DATABASE_NAME = "hesabyar_database"
+
     /**
      * Single source of truth for the full migration chain. Used by every
      * `Room.databaseBuilder(...).addMigrations(...)` call so a new migration
@@ -564,29 +506,30 @@ abstract class AppDatabase : RoomDatabase() {
 
     fun getDatabase(context: Context): AppDatabase {
       instance?.let { return it }
-      return synchronized(this) {
-        instance?.let { return it }
-        val appContext = context.applicationContext
-        System.loadLibrary("sqlcipher")
+      return synchronized(this) { openEncryptedDatabase(context.applicationContext) }
+    }
 
-        val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
-        val factory = SupportOpenHelperFactory(passphrase)
+    /**
+     * Builds and caches the encrypted database instance. The caller holds the
+     * companion lock, so the double-checked `instance` read stays correct.
+     */
+    private fun openEncryptedDatabase(appContext: Context): AppDatabase {
+      instance?.let { return it }
+      System.loadLibrary("sqlcipher")
 
-        migratePlaintextToEncryptedIfNeeded(appContext)
+      val passphrase = DatabaseKeyManager.getOrCreateKey(appContext)
+      val factory = SupportOpenHelperFactory(passphrase)
 
-        val db =
-          Room
-            .databaseBuilder(
-              appContext,
-              AppDatabase::class.java,
-              "hesabyar_database"
-            ).openHelperFactory(factory)
-            .addMigrations(*ALL_MIGRATIONS)
-            .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
-            .build()
-        instance = db
-        db
-      }
+      PlaintextTransfer.migratePlaintextToEncryptedIfNeeded(appContext)
+      val db =
+        Room
+          .databaseBuilder(appContext, AppDatabase::class.java, LIVE_DATABASE_NAME)
+          .openHelperFactory(factory)
+          .addMigrations(*ALL_MIGRATIONS)
+          .addCallback(DEFAULT_ACCOUNT_SEED_CALLBACK)
+          .build()
+      instance = db
+      return db
     }
 
     @androidx.annotation.VisibleForTesting
@@ -600,107 +543,6 @@ abstract class AppDatabase : RoomDatabase() {
         }
         instance = db
       }
-    }
-
-    private fun isPlaintextDb(dbFile: File): Boolean {
-      if (!dbFile.exists()) return false
-      return try {
-        val header = ByteArray(16)
-        java.io.FileInputStream(dbFile).use { it.read(header) }
-        String(header, Charsets.US_ASCII).startsWith("SQLite format 3")
-      } catch (e: Exception) {
-        println("Failed to validate SQLite header for ${dbFile.path}: ${e.message}")
-        false
-      }
-    }
-
-    private fun migratePlaintextToEncryptedIfNeeded(context: Context) {
-      val dbFile = context.getDatabasePath("hesabyar_database")
-      if (!isPlaintextDb(dbFile)) return
-
-      val tempName = "hesabyar_database_plaintext_backup"
-      val tempDbFile = context.getDatabasePath(tempName)
-
-      dbFile.copyTo(tempDbFile, overwrite = true)
-      listOf("-wal", "-shm")
-        .map { context.getDatabasePath("hesabyar_database$it") }
-        .filter { it.exists() }
-        .forEach {
-          it.copyTo(
-            context.getDatabasePath("$tempName${it.name.removePrefix("hesabyar_database")}"),
-            overwrite = true
-          )
-        }
-
-      val plaintextDb =
-        Room
-          .databaseBuilder(context, AppDatabase::class.java, tempName)
-          .addMigrations(*ALL_MIGRATIONS)
-          .build()
-
-      val accounts = plaintextDb.accountDao().getAllAccountsBlocking()
-      val categories = plaintextDb.categoryDao().getAllCategoriesBlocking()
-      val transactions = plaintextDb.transactionDao().getAllTransactionsBlocking()
-      val loans = plaintextDb.loanDao().getAllLoansBlocking()
-      val bankLoans = plaintextDb.bankLoanDao().getAllBankLoansBlocking()
-      val installments = plaintextDb.installmentDao().getAllInstallmentsBlocking()
-      val payments = plaintextDb.paymentHistoryDao().getAllPaymentHistoriesBlocking()
-      val persons = plaintextDb.personDao().getAllPersonsIncludingArchivedBlocking()
-
-      plaintextDb.close()
-
-      dbFile.delete()
-      context.getDatabasePath("hesabyar_database-wal").delete()
-      context.getDatabasePath("hesabyar_database-shm").delete()
-
-      try {
-        val passphrase = DatabaseKeyManager.getOrCreateKey(context)
-        val factory = SupportOpenHelperFactory(passphrase)
-        val encryptedDb =
-          Room
-            .databaseBuilder(context, AppDatabase::class.java, "hesabyar_database")
-            .openHelperFactory(factory)
-            .addMigrations(*ALL_MIGRATIONS)
-            .build()
-
-        transferPlaintextData(
-          accounts = accounts,
-          categories = categories,
-          transactions = transactions,
-          loans = loans,
-          bankLoans = bankLoans,
-          installments = installments,
-          payments = payments,
-          persons = persons,
-          encryptedDb = encryptedDb
-        )
-
-        encryptedDb.close()
-
-        context.getDatabasePath(tempName).delete()
-        context.getDatabasePath("$tempName-wal").delete()
-        context.getDatabasePath("$tempName-shm").delete()
-      } catch (e: Exception) {
-        restoreTempBackupToLive(context, tempName, dbFile)
-        throw e
-      }
-    }
-
-    private fun restoreTempBackupToLive(
-      context: Context,
-      tempName: String,
-      dbFile: File
-    ) {
-      context.getDatabasePath(tempName).copyTo(dbFile, overwrite = true)
-      listOf("-wal", "-shm")
-        .map { context.getDatabasePath("$tempName$it") }
-        .filter { it.exists() }
-        .forEach {
-          it.copyTo(
-            context.getDatabasePath("hesabyar_database${it.name.removePrefix(tempName)}"),
-            overwrite = true
-          )
-        }
     }
 
     /**

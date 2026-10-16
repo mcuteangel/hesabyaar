@@ -6,11 +6,11 @@
 
 ## Active Task
 
-PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+Issue #93 — Harden MIGRATION_3_4 data correction. PR #462 on branch `fix/issue-93-harden-migration-3-4`. Follow-up repair work tracked in issue #461.
 
 ## Goal
 
-Ensure robust back navigation across tabs and management overlays, optimize string lookups, and ensure test coverage for all navigation paths.
+Replace the threshold-based `amount > 1000000000` correction in MIGRATION_3_4 with a bounded correction, fix the Toman-to-Rial factor in MIGRATION_1_2, and cover the migration with tests.
 
 ## Completed
 
@@ -80,6 +80,22 @@ Ensure robust back navigation across tabs and management overlays, optimize stri
 
 PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
 
+Issue #93 — Harden MIGRATION_3_4. Branch `fix/issue-93-harden-migration-3-4`.
+
+| Item | File | State |
+|---|---|---|
+| Issue #93: MIGRATION_1_2 factor 1000 to 10 | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt` | done |
+| Issue #93: MIGRATION_3_4 bounded band and row-count logging | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `AppDatabase.kt` | done |
+| Issue #93: Migration SQL and plaintext transfer extracted from the companion | `app/src/main/java/io/github/mojri/hesabyar/data/MigrationSql.kt`, `PlaintextTransfer.kt` | done |
+| Issue #93: Shared MAX_AMOUNT_TOMAN constant | `app/src/main/java/io/github/mojri/hesabyar/core/MoneyLimits.kt` | done |
+| Issue #93: Migration test | `app/src/test/java/io/github/mojri/hesabyar/data/AppDatabaseMigration3to4Test.kt` | done |
+| Issue #93: Detekt obligation on AppDatabase.kt | `config/detekt/detekt-baseline.xml` | done |
+| Issue #93: Docs | `docs/MIGRATION_NOTES.md`, `docs/ROADMAP.md` | done |
+| Issue #93: Commit, push, and open PR #462 | `fix/issue-93-harden-migration-3-4` | done |
+| Issue #461: repair path for users already past v4 | closed as moot | closed |
+
+PR #385 (`fix/back-navigation`): Address review comments and expand test coverage for back navigation and More menu.
+
 | Item | File | State |
 |---|---|---|
 | MainNavigationCoordinator extraction and slot testing | `app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt` | done |
@@ -99,7 +115,7 @@ PR #385 (`fix/back-navigation`): Address review comments and expand test coverag
 
 ## Blocked
 
-None.
+- GitHub Project board Status cannot be set: the `gh` token lacks `read:project` and `project` scopes, so the GraphQL item lookup fails with `INSUFFICIENT_SCOPES`.
 
 ## Findings
 
