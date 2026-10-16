@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarFabTest.kt
+  s_42054ee1471538::t_1d6c37fb221af0 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "39994c8bd622248854806b54e1a427a06be43af7",
+  "prompts": {},
+  "sessions": {
+    "s_42054ee1471538": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba527ec-97fa-45c0-bb7e-e94542724917",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
