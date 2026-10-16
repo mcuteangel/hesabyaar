@@ -46,11 +46,23 @@ class BackupStableLinksTest {
 
   @Test
   fun treatsMissingNullNonPositiveFractionalAndNonNumericAsNoLink() {
-    listOf<Any?>(null, JSONObject.NULL, 0L, -3L, 7.9, "7", true).forEach { raw ->
+    listOf<Any?>(null, JSONObject.NULL, 0L, -3L, 7.9, "7.9", "7e2", "-7", "+7", "", true).forEach { raw ->
       val obj = JSONObject().put("id", 1L)
       if (raw != null) obj.put("loanId", raw)
       assertNull("value=$raw", BackupStableLinks.optPositiveId(obj, BackupStableLinks.TRANSACTION_LOAN_ID))
     }
+  }
+
+  /**
+   * Older or third-party encoders may serialize ids as strings. A string of
+   * plain digits is an unambiguous positive integer, so it stays a valid link
+   * instead of being silently dropped.
+   */
+  @Test
+  fun acceptsDigitOnlyStringIds() {
+    assertEquals(7L, BackupStableLinks.optPositiveId(JSONObject().put("loanId", "7"), "loanId"))
+    assertEquals(7L, BackupStableLinks.optPositiveId(JSONObject().put("loanId", " 7 "), "loanId"))
+    assertNull(BackupStableLinks.optPositiveId(JSONObject().put("loanId", "0"), "loanId"))
   }
 
   @Test
