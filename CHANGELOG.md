@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-10-16
+نسخه 0.12.0 حساب‌یار منتشر شد.
+
+### امکانات جدید
+* feat(ui): add HesabyarFab component with design system tokens (#451)
+
+### رفع مشکلات
+* fix(ui): address review feedback on HesabyarFab PR (#451)
+
+### بهبودها و تغییرات
+* test(ui): assert rendered FAB and icon sizes against design tokens (#451)
+* test(ui): rename HesabyarFab default-path test to reflect its assertions (#451)
+* test(ui): add test covering HesabyarFab default parameter tokens (#451)
+* docs(plan): archive Plan 015 — HesabyarFab component complete (#451)
+* refactor(ui): migrate Dashboard and BankLoan screens to HesabyarFab (#451)
 ## [0.11.8] - 2026-10-16
 نسخه 0.11.8 حساب‌یار منتشر شد.
 
