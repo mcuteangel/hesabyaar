@@ -167,7 +167,11 @@ internal object PlaintextTransfer {
     listOf("-wal", "-shm").forEach { suffix ->
       val src = File(livePath.parentFile, livePath.name + suffix)
       val dst = File(tempPath.parentFile, tempPath.name + suffix)
-      if (src.exists()) src.copyTo(dst, overwrite = true)
+      if (src.exists()) {
+        src.copyTo(dst, overwrite = true)
+      } else if (dst.exists() && !dst.delete()) {
+        throw IOException("Failed to delete stale backup file: ${dst.path}")
+      }
     }
   }
 

@@ -194,6 +194,32 @@ class PlaintextTransferTest {
   }
 
   @Test
+  fun copyPlaintextFilesToBackupDeletesStaleBackupSidecarsWhenLiveHasNone() {
+    val liveDb = context.getDatabasePath(AppDatabase.LIVE_DATABASE_NAME)
+    val liveWal = File(liveDb.parentFile, "${liveDb.name}-wal")
+    val liveShm = File(liveDb.parentFile, "${liveDb.name}-shm")
+    val tempName = "copy_stale_sidecars_backup"
+    val tempBackup = context.getDatabasePath(tempName)
+    val tempWal = File(tempBackup.parentFile, "$tempName-wal")
+    val tempShm = File(tempBackup.parentFile, "$tempName-shm")
+
+    testFiles += listOf(liveDb, liveWal, liveShm, tempBackup, tempWal, tempShm)
+
+    // Live DB has no WAL or SHM; an earlier backup left stale sidecars behind.
+    liveDb.parentFile?.mkdirs()
+    liveDb.writeText("fresh-main-db")
+    tempBackup.writeText("old-backup-main")
+    tempWal.writeText("stale-wal-data")
+    tempShm.writeText("stale-shm-data")
+
+    PlaintextTransfer.copyPlaintextFilesToBackup(context, tempName)
+
+    org.junit.Assert.assertEquals("fresh-main-db", tempBackup.readText())
+    assertFalse("Stale backup WAL must be deleted so SQLite cannot replay it", tempWal.exists())
+    assertFalse("Stale backup SHM must be deleted so SQLite cannot replay it", tempShm.exists())
+  }
+
+  @Test
   fun deleteDatabaseFilesDeletesMainAndWalAndShm() {
     val name = "delete_target_db"
     val main = context.getDatabasePath(name)
