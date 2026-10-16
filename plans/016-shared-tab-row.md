@@ -48,7 +48,7 @@ Behavior:
 
 - When `scrollable = false`, call M3 `TabRow` with `selectedTabIndex`, `containerColor`, `contentColor`, the default primary indicator, the divider slot, and `tabs`.
 - When `scrollable = true`, call M3 `SecondaryScrollableTabRow` with `selectedTabIndex`, `edgePadding`, the same colors, the default secondary indicator, the divider slot, and `tabs`.
-- Height: apply `modifier.height(Dimens.TabHeight)` on the row. This gives `TabHeight` its first usage and fixes both bars to 48.dp. If icon-plus-text tabs clip in the visual check, fall back to `heightIn(min = Dimens.TabHeight)` and record the choice in the PR.
+- Height: apply `modifier.heightIn(min = Dimens.TabHeight)` on the row. This enforces `TabHeight` (48.dp) as the minimum height for single-line / horizontal tabs while allowing taller vertically-stacked icon-plus-text tabs (e.g., M3 72.dp tabs in SmartAssistant) to render without vertical clipping.
 - Divider: single spec. When `showDivider = true`, emit `HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainer, thickness = Dimens.DividerThickness)`. When false, emit an empty `divider = {}`. Do not expose a raw divider slot.
 - Indicator: do not expose an indicator parameter. Use the M3 default per branch. Both render in `contentColor` (primary). Rationale: scrollable rows use the shorter secondary pill per the M3 idiom. Unify the color from the theme, keep the shape per variant.
 - `edgePadding` applies only in the scrollable branch. Document this in KDoc. The default `SpacingTokens.md` matches the current DebtHub call.

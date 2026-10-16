@@ -1,6 +1,6 @@
 package io.github.mojri.hesabyar.ui.components
 
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryScrollableTabRow
@@ -16,7 +16,8 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  * Shared tab row for top-level screen sections and wizards.
  *
  * Wraps [TabRow] when [scrollable] is false and [SecondaryScrollableTabRow]
- * when [scrollable] is true. Height is fixed to [Dimens.TabHeight] (48.dp).
+ * when [scrollable] is true. Height has a minimum of [Dimens.TabHeight] (48.dp)
+ * to accommodate both standard single-line/horizontal tabs and taller icon-plus-text tabs.
  * Indicators and colors follow the Material 3 theme defaults.
  */
 @Composable
@@ -30,7 +31,7 @@ fun HesabyarTabRow(
   showDivider: Boolean = true,
   tabs: @Composable () -> Unit
 ) {
-  val rowModifier = modifier.height(Dimens.TabHeight)
+  val rowModifier = modifier.heightIn(min = Dimens.TabHeight)
   val dividerComposable: @Composable () -> Unit = {
     if (showDivider) {
       HorizontalDivider(

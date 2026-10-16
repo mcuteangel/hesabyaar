@@ -28,8 +28,6 @@ Add a shared `HesabyarTabRow` in `ui/components/`, use `Dimens.TabHeight`, migra
     - [x] `testDebugUnitTest` full suite — 131 suites, 1136 tests, 0 failures
     - [x] `python scripts/check_docs.py` — no broken references
 
-## Completed
-
 - **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
 - **Status:** Merged to `main`
 - **Completed Date:** 2026-10-04
