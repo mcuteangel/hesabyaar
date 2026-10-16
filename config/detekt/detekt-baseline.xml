@@ -1,6 +1,6 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='UTF-8'?>
 <SmellBaseline>
-  <ManuallySuppressedIssues/>
+  <ManuallySuppressedIssues />
   <CurrentIssues>
     <ID>CyclomaticComplexMethod:AiAssistantViewModel.kt:AiAssistantViewModel$fun fetchBudgetAdvice</ID>
     <ID>CyclomaticComplexMethod:AnalyticsScreen.kt:@Composable private fun CombinedLineChartCard</ID>
@@ -16,7 +16,6 @@
     <ID>CyclomaticComplexMethod:SettingsScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun AiConfigDialog</ID>
     <ID>CyclomaticComplexMethod:SmartAssistantScreen.kt:@Composable fun ParsedResultCard</ID>
     <ID>CyclomaticComplexMethod:SmartAssistantScreen.kt:@Composable fun SmartAssistantScreen</ID>
-    <ID>FunctionNaming:AmountQuickFillButtons.kt:@Composable fun AmountQuickFillButtons</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable fun AnalyticsScreen</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun BankLoanStatusCard</ID>
     <ID>FunctionNaming:AnalyticsScreen.kt:@Composable private fun BarChart</ID>
@@ -91,7 +90,6 @@
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun DebtCreditSummaryCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun InstallmentProgressCard</ID>
     <ID>LongMethod:AnalyticsScreen.kt:@Composable private fun LoanStatusCard</ID>
-    <ID>LongMethod:AppDatabase.kt:AppDatabase.Companion$private fun migratePlaintextToEncryptedIfNeeded</ID>
     <ID>LongMethod:BalanceCard.kt:@Composable fun BalanceCard</ID>
     <ID>LongMethod:BankLoanScreen.kt:@Composable private fun AddBankLoanDialog</ID>
     <ID>LongMethod:CategoryManagementScreen.kt:@Composable private fun CategoryItem</ID>
@@ -204,20 +202,9 @@
     <ID>MatchingDeclarationName:CustomTimePickerDialog.kt:TimePickerTab</ID>
     <ID>MatchingDeclarationName:HesabyarButton.kt:ButtonVariant</ID>
     <ID>MaxLineLength:AiProvider.kt:AiProvider$"generateContent: provider=${config.providerType}, model=${config.model}, isConfigured=${config.isConfigured}, apiKeyLength=${config.apiKey.length}"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL, icon TEXT NOT NULL, color INTEGER NOT NULL, type TEXT NOT NULL, isDefault INTEGER NOT NULL)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE installments_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title TEXT NOT NULL, amount INTEGER NOT NULL, dueDate INTEGER NOT NULL, isPaid INTEGER NOT NULL, reminderEnabled INTEGER NOT NULL, notes TEXT NOT NULL)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE loans_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, personName TEXT NOT NULL, type TEXT NOT NULL, originalAmount INTEGER NOT NULL, remainingAmount INTEGER NOT NULL, description TEXT NOT NULL, date INTEGER NOT NULL, isSettled INTEGER NOT NULL)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE payment_history_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, loanId INTEGER NOT NULL, amount INTEGER NOT NULL, date INTEGER NOT NULL, notes TEXT NOT NULL)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"CREATE TABLE transactions_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, type TEXT NOT NULL, categoryId INTEGER NOT NULL, amount INTEGER NOT NULL, description TEXT NOT NULL, personName TEXT, date INTEGER NOT NULL, dueDate INTEGER, installmentId INTEGER)"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO installments_new (id, title, amount, dueDate, isPaid, reminderEnabled, notes) SELECT id, title, CAST(amount * 1000 AS INTEGER), dueDate, isPaid, reminderEnabled, notes FROM installments"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO loans_new (id, personName, type, originalAmount, remainingAmount, description, date, isSettled) SELECT id, personName, type, CAST(originalAmount * 1000 AS INTEGER), CAST(remainingAmount * 1000 AS INTEGER), description, date, isSettled FROM loans"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO payment_history_new (id, loanId, amount, date, notes) SELECT id, loanId, CAST(amount * 1000 AS INTEGER), date, notes FROM payment_history"</ID>
-    <ID>MaxLineLength:AppDatabase.kt:AppDatabase.Companion.&lt;no name provided&gt;$"INSERT INTO transactions_new (id, type, category, amount, description, personName, date, dueDate, installmentId) SELECT id, type, category, CAST(amount * 1000 AS INTEGER), description, personName, date, dueDate, installmentId FROM transactions"</ID>
     <ID>PrintStackTrace:SmartAssistantScreen.kt:e</ID>
     <ID>ReturnCount:AiProvider.kt:AiProvider$private fun callOpenAiCompatible: ApiResult</ID>
     <ID>ReturnCount:AiProviderConfig.kt:AiConfigManager$fun getCachedModels: ModelCacheEntry?</ID>
-    <ID>ReturnCount:AppDatabase.kt:AppDatabase.Companion$fun getDatabase: AppDatabase</ID>
     <ID>ReturnCount:GeminiParser.kt:GeminiParser$internal fun kotlinFallbackParse: ParsedResult?</ID>
     <ID>ReturnCount:GeminiParser.kt:GeminiParser$private fun detectCategory: String</ID>
     <ID>ReturnCount:GeminiParser.kt:GeminiParser$private fun detectType: String</ID>
@@ -238,7 +225,6 @@
     <ID>TooGenericExceptionCaught:AiAssistantViewModel.kt:AiAssistantViewModel$e: Exception</ID>
     <ID>TooGenericExceptionCaught:AiProvider.kt:AiProvider$e: Exception</ID>
     <ID>TooGenericExceptionCaught:AiProviderConfig.kt:AiConfigManager$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:AppDatabase.kt:AppDatabase.Companion$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SettingsScreen.kt:e: Exception</ID>
     <ID>TooGenericExceptionCaught:SmartAssistantScreen.kt:e: Exception</ID>
     <ID>TooGenericExceptionThrown:DatabaseKeyManager.kt:DatabaseKeyManager$throw RuntimeException("Failed to create encrypted preferences", e)</ID>
