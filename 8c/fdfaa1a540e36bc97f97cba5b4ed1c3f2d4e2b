@@ -1,0 +1,21 @@
+docs/BACKUP_FORMAT.md
+  s_97b996203548b2::t_3afd451e66072d 116-117
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/BackupStableLinksTest.kt
+  s_97b996203548b2::t_dbd758c07e263a 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8cfdfaa1a540e36bc97f97cba5b4ed1c3f2d4e2b",
+  "prompts": {},
+  "sessions": {
+    "s_97b996203548b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5483eea8-ff5f-42ef-98ef-d9b6fdfb3e21",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
