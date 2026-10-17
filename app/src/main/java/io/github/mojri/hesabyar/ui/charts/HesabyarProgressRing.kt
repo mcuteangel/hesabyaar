@@ -7,7 +7,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -33,12 +32,16 @@ fun HesabyarProgressRing(
   animated: Boolean = true,
 ) {
   val clampedProgress = progress.coerceIn(0f, 1f)
-  val animatedProgress by animateFloatAsState(
-    targetValue = clampedProgress,
-    animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-    label = "progress",
-  )
-  val effectiveProgress = if (animated) animatedProgress else clampedProgress
+  val effectiveProgress =
+    if (animated) {
+      animateFloatAsState(
+        targetValue = clampedProgress,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "progress",
+      ).value
+    } else {
+      clampedProgress
+    }
   val percentLabel = (effectiveProgress * 100).roundToInt()
 
   Canvas(
