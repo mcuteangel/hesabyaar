@@ -35,6 +35,27 @@ it is a `refactor`, not a `feat`.
   max 3/day outside the night-guard flow).
 - Never close an issue without verification evidence posted as a comment.
 
+## Creating the PR: Use scripts/new-pr.sh
+
+The GitHub API never shows `.github/pull_request_template.md`, so never call
+`gh pr create` (or the API) directly. Always go through the gate:
+
+```sh
+scripts/new-pr.sh --title "refactor(ui): ..." --body-file pr-body.md --base main
+```
+
+The script prints the template rules, then validates before creating the PR:
+
+- title must be conventional-commit shaped: `type[(scope)][!]: subject`
+- a `feat` title bumps the MINOR version: pass `--i-confirm-minor-bump` only
+  after confirming it is a user-facing feature (without it the script asks on
+  a TTY, and fails closed otherwise)
+- body must contain `## Summary`, `## Changes`, `## Type of Change` and
+  `## Verification & Evidence`, with the `- [x]` box matching the title type
+
+If you must use the API directly (no `gh` auth), run with `--validate-only`
+first and fix every violation before creating the PR.
+
 ## PR Bodies
 
 Follow `.github/pull_request_template.md`: Summary, Changes, Type of Change
