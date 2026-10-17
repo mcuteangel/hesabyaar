@@ -93,7 +93,7 @@ private fun AccountBreakdownLegend(accountBreakdown: List<CategoryBreakdown>) {
         )
       }
       Text(
-        text = "${item.percentage.toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
+        text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
       )

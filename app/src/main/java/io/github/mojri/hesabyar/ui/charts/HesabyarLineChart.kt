@@ -117,14 +117,21 @@ private fun DrawScope.drawChartLabels(
   spacing: Float,
   labelPaint: android.graphics.Paint,
 ) {
-  val labels = series.flatMap { s -> s.points }.map { it.label }.distinct()
-  if (labels.isEmpty()) return
+  if (maxPoints < 1) return
 
   drawContext.canvas.nativeCanvas.apply {
-    labels.forEachIndexed { idx, label ->
-      val effectiveIndex = if (isRtl) maxPoints - 1 - idx else idx
+    for (gridIndex in 0 until maxPoints) {
+      val effectiveIndex = if (isRtl) maxPoints - 1 - gridIndex else gridIndex
       val x = contentPaddingPx + effectiveIndex * spacing
-      drawText(label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), labelPaint)
+      val label =
+        series
+          .firstOrNull { gridIndex < it.points.size && it.points[gridIndex].label.isNotBlank() }
+          ?.points
+          ?.get(gridIndex)
+          ?.label ?: ""
+      if (label.isNotEmpty()) {
+        drawText(label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), labelPaint)
+      }
     }
   }
 }
