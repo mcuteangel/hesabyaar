@@ -157,6 +157,17 @@ check_scan "$REPO" "breaking feat commit without confirmation fails closed" 1 \
 check_scan "$REPO" "breaking feat commit with --i-confirm-minor-bump passes" 0 \
   --title "refactor(ui): migrate X" --body-file "$B" --i-confirm-minor-bump
 
+new_scan_repo headarg
+git checkout -q -b other main
+echo "z" > z.txt && git add z.txt && git commit -qm "feat: other branch feature"
+git checkout -q work
+check_scan "$REPO" "scan honors --head branch" 1 \
+  --head other --title "refactor(ui): migrate X" --body-file "$B"
+check_scan "$REPO" "scan defaults to checked-out HEAD" 0 \
+  --title "refactor(ui): migrate X" --body-file "$B"
+check_scan "$REPO" "unresolvable --head fails open" 0 \
+  --head does-not-exist --title "refactor(ui): migrate X" --body-file "$B"
+
 new_scan_repo merge
 git checkout -q -b side main
 echo "s" > s.txt && git add s.txt && git commit -qm "chore: side work"

@@ -112,17 +112,21 @@ fi
 #    so they -- not the PR title -- decide the bump under merge-commit flow.
 FEAT_COMMITS=""
 if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
-  if git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
+  # --head names the branch under review; default to the checked-out HEAD
+  SCAN_HEAD="${HEAD:-HEAD}"
+  if ! git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
+    echo "WARNING: cannot resolve base ref '$BASE' - skipping branch commit scan" >&2
+  elif ! git rev-parse --verify --quiet "$SCAN_HEAD" >/dev/null 2>&1; then
+    echo "WARNING: cannot resolve head ref '$SCAN_HEAD' - skipping branch commit scan" >&2
+  else
     # NOTE: --pretty=format:%s emits no trailing newline, so the loop must also
     # process the final unterminated line (|| [ -n "$subject" ]).
-    FEAT_COMMITS=$(git log --pretty=format:%s "$BASE..HEAD" 2>/dev/null | while IFS= read -r subject || [ -n "$subject" ]; do
+    FEAT_COMMITS=$(git log --pretty=format:%s "$BASE..$SCAN_HEAD" 2>/dev/null | while IFS= read -r subject || [ -n "$subject" ]; do
       case "$subject" in
         "Merge "*) continue ;; # same skip as scripts/parse-commits.sh
         'feat!'*|'feat('*|'feat:'*) printf '%s\n' "$subject" ;;
       esac
     done)
-  else
-    echo "WARNING: cannot resolve base ref '$BASE' - skipping branch commit scan" >&2
   fi
 else
   echo "WARNING: not a git repo (or git not found) - skipping branch commit scan" >&2

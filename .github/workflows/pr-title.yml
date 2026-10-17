@@ -44,9 +44,14 @@ jobs:
           # Commit subjects on the PR branch via the API -- the same source
           # scripts/parse-commits.sh reads, minus the `Merge ` subjects it
           # skips. Warning only (never fail): the release workflow decides
-          # the bump, not this check.
-          subjects=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
-            --paginate --jq '.[].commit.message | split("\n")[0]' || true)
+          # the bump, not this check. An API failure must not look like
+          # "no feat subjects", so it gets its own warning instead.
+          subjects=""
+          if ! subjects=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+            --paginate --jq '.[].commit.message | split("\n")[0]'); then
+            echo "::warning title=pr-commits::Could not list PR commits via the GitHub API; skipping the feat-subject check."
+            subjects=""
+          fi
           feat_subjects=$(printf '%s\n' "$subjects" | grep -v '^Merge ' | grep -E '^feat(\([^)]*\))?:' || true)
           if [ -n "$feat_subjects" ]; then
             printf '%s\n' "$feat_subjects" | while IFS= read -r s; do
