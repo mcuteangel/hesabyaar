@@ -1169,7 +1169,10 @@ private fun ConfigDeleteButton(
 
   // Enforce the 48dp minimum touch area; the minimum must come before
   // the fixed size, otherwise the fixed size wins and the target stays small.
-  IconButton(onClick = { pendingDelete = config }, modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)) {
+  IconButton(
+    onClick = { pendingDelete = config },
+    modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)
+  ) {
     Icon(
       imageVector = Icons.Filled.Delete,
       contentDescription = "حذف",
