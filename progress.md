@@ -21,6 +21,7 @@ None. Issue #454 (`labelSmall` typography) is complete on branch `feat/issue-454
     - [x] Targeted tests `TypographyTest` — 2/2 pass (`labelSmallStyleConfiguredWithVazirmatn`, `allFifteenMaterialTypographyStylesUseVazirmatn`)
     - [x] `testDebugUnitTest` full suite — 134 suites, 1142 tests, 0 failures
     - [x] `python scripts/check_docs.py` — no broken references
+    - [x] `.github/workflows/ai-issue-os.yml` — CI fix (commit `92c5bac`): write the 200-issue payload to `issues.json` on disk instead of the `ISSUES_JSON` env var, fixing the `ai_os_v2` E2BIG ("Argument list too long") failure on this PR
 
 - **Task:** Issue #452 — Shared HesabyarTabRow
 - **Status:** Implementation complete, verification pending PR
