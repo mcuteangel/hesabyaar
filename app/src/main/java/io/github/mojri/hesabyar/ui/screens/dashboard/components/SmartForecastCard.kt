@@ -28,6 +28,7 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
@@ -58,7 +59,7 @@ internal fun SmartForecastCard(
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
       )
   ) {
     Row(
@@ -69,7 +70,7 @@ internal fun SmartForecastCard(
       IconCircle(
         icon = Icons.Filled.AutoAwesome,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-        iconSize = 18.dp
+        iconSize = Dimens.IconMenu
       )
       Column(modifier = Modifier.weight(1f)) {
         Text(

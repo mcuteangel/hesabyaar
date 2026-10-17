@@ -18,11 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.formatPersianDate
@@ -50,7 +50,7 @@ internal fun InstallmentMiniItem(
           icon = Icons.Filled.DateRange,
           tint = MaterialTheme.colorScheme.tertiary,
           backgroundColor = MaterialTheme.colorScheme.tertiary,
-          iconSize = 18.dp
+          iconSize = Dimens.IconMenu
         )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {

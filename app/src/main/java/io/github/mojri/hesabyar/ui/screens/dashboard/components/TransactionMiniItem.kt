@@ -35,6 +35,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.icon
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
@@ -127,8 +128,8 @@ internal fun TransactionMiniItem(
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف تراکنش",
-            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-            modifier = Modifier.size(18.dp)
+            tint = MaterialTheme.colorScheme.error.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
+            modifier = Modifier.size(Dimens.IconMenu)
           )
         }
       }
@@ -186,7 +187,7 @@ private fun AccountColorIndicator(
         tint = sourceColor,
         backgroundColor = sourceColor,
         iconSize = 12.dp,
-        containerSize = 20.dp,
+        containerSize = Dimens.IconAvatarMedium,
       )
       Spacer(modifier = Modifier.height(1.dp))
       IconCircle(
@@ -194,7 +195,7 @@ private fun AccountColorIndicator(
         tint = destColor,
         backgroundColor = destColor,
         iconSize = 12.dp,
-        containerSize = 20.dp,
+        containerSize = Dimens.IconAvatarMedium,
       )
     }
   } else {

@@ -388,7 +388,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
             Text(
               text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
             )
           }
         }
