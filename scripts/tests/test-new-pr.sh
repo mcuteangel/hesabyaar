@@ -166,6 +166,28 @@ check_scan "$REPO" "refactor commits pass scan" 0 \
 check "scan fail-open outside git repo" 0 \
   --title "refactor(ui): migrate X" --body-file "$B"
 
+# --- type-checkbox section scoping (issue #492) ---
+
+# mkbody_wrong_section <checked-type> <file>: like mkbody, but the checked
+# box lives under ## Summary instead of ## Type of Change.
+# shellcheck disable=SC2016 # backticks are literal sample markdown in the fixture body
+mkbody_wrong_section() {
+  {
+    printf '## Summary\n\n- [x] `%s`: whatever\n\n' "$1"
+    printf '## Changes\n\n- A change.\n\n'
+    printf '## Type of Change\n\n- [ ] `%s`: whatever\n\n' "$1"
+    printf '## Verification & Evidence\n\n```text\nok\n```\n'
+  } >"$2"
+}
+
+mkbody_wrong_section refactor "$B"
+check "checked box outside Type of Change fails" 1 \
+  --title "refactor(ui): migrate X" --body-file "$B"
+
+mkbody refactor "$B"
+check "checked box under Type of Change passes" 0 \
+  --title "refactor(ui): migrate X" --body-file "$B"
+
 echo "---"
 echo "pass: $pass, fail: $fail"
 [ "$fail" -eq 0 ]

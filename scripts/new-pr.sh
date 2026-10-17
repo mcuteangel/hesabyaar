@@ -147,8 +147,10 @@ for section in "## Summary" "## Changes" "## Type of Change" "## Verification"; 
   esac
 done
 
-# 5. Checked type box matches the title type
-if ! printf '%s\n' "$BODY" | grep -Eq "^- \[[xX]\] \`$TYPE\`"; then
+# 5. Checked type box matches the title type, scoped to its own section
+#    (a checked box elsewhere in the body must not satisfy the check)
+type_section=$(printf '%s\n' "$BODY" | awk '/^## Type of Change/{f=1; next} /^## /{f=0} f')
+if ! printf '%s\n' "$type_section" | grep -Eq "^- \[[xX]\] \`$TYPE\`"; then
   fail "body has no checked '- [x] \`$TYPE\`' box under '## Type of Change' matching the title"
 fi
 
