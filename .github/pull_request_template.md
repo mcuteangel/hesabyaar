@@ -9,13 +9,21 @@
 
 ## Type of Change
 
-- [ ] `feat`: New feature
-- [ ] `fix`: Bug fix
-- [ ] `refactor`: Code refactoring without behavior change
-- [ ] `perf`: Performance improvement
-- [ ] `test`: Adding or updating tests
-- [ ] `docs`: Documentation updates
-- [ ] `chore`: Build, CI, or tooling maintenance
+<!-- The PR title prefix drives the automatic version bump (scripts/parse-commits.sh):
+     feat: → minor | fix/perf/refactor/style/test/docs/chore: → patch | <type>!: → major.
+     Reserve `feat` for user-facing new features. Design-system / UI-polish work
+     (e.g. epic #459) that adds no user-facing feature must be titled
+     `refactor(ui):` or `style(ui):` — NOT `feat(ui):` — otherwise it needlessly
+     bumps the minor version. -->
+
+- [ ] `feat`: New user-facing feature (→ minor version bump)
+- [ ] `fix`: Bug fix (→ patch)
+- [ ] `refactor`: Code refactoring without behavior change (→ patch)
+- [ ] `style`: UI styling / design-system change without behavior change (→ patch)
+- [ ] `perf`: Performance improvement (→ patch)
+- [ ] `test`: Adding or updating tests (→ patch)
+- [ ] `docs`: Documentation updates (→ patch)
+- [ ] `chore`: Build, CI, or tooling maintenance (→ patch)
 
 ## Invariants & Quality Checklist
 
