@@ -14,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,6 +24,7 @@ import io.github.mojri.hesabyar.ui.charts.DonutSlice
 import io.github.mojri.hesabyar.ui.charts.HesabyarDonutChart
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
 /**
  * Donut chart showing per-account expense distribution.
@@ -53,7 +53,7 @@ internal fun AccountBreakdownCard(accountBreakdown: List<CategoryBreakdown>) {
             DonutSlice(
               label = item.categoryName,
               value = item.total,
-              color = Color(item.color),
+              color = item.color.toComposeColor(),
               percentage = item.percentage,
             )
           },
@@ -85,7 +85,7 @@ private fun AccountBreakdownLegend(accountBreakdown: List<CategoryBreakdown>) {
           modifier =
             Modifier
               .size(12.dp)
-              .background(Color(item.color), CircleShape)
+              .background(item.color.toComposeColor(), CircleShape)
         )
         Text(
           text = item.categoryName,
@@ -93,7 +93,7 @@ private fun AccountBreakdownLegend(accountBreakdown: List<CategoryBreakdown>) {
         )
       }
       Text(
-        text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
+        text = "${item.percentage.toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
       )

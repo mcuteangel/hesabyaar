@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -27,11 +29,25 @@ fun HesabyarLineChart(
   contentDescriptionText: String? = null,
 ) {
   val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val density = LocalDensity.current
+  val description =
+    contentDescriptionText
+      ?: series.joinToString(separator = ". ") { s -> "${s.name}: ${s.points.size} نقطه" }
   val semanticsModifier =
-    if (contentDescriptionText != null) {
-      modifier.semantics { contentDescription = contentDescriptionText }
+    if (description.isNotEmpty()) {
+      modifier.semantics { contentDescription = description }
     } else {
       modifier
+    }
+
+  val axisLabelPaint =
+    remember(labelColor, density) {
+      android.graphics.Paint().apply {
+        textSize = with(density) { ChartTokens.AxisLabelSize.toPx() }
+        textAlign = android.graphics.Paint.Align.CENTER
+        this.color = labelColor.toArgb()
+        isAntiAlias = true
+      }
     }
 
   Canvas(
@@ -52,7 +68,7 @@ fun HesabyarLineChart(
     val spacing = if (maxPoints > 1) availableWidthPx / (maxPoints - 1).toFloat() else availableWidthPx
 
     drawLineSeries(series, isRtl, maxPoints, contentPaddingPx, spacing, chartHeightPx, maxValue)
-    drawChartLabels(series, isRtl, maxPoints, contentPaddingPx, spacing, labelColor)
+    drawChartLabels(series, isRtl, maxPoints, contentPaddingPx, spacing, axisLabelPaint)
   }
 }
 
@@ -74,7 +90,7 @@ private fun DrawScope.drawLineSeries(
       s.points.mapIndexed { idx, pt ->
         val effectiveIndex = if (isRtl) maxPoints - 1 - idx else idx
         val x = contentPaddingPx + effectiveIndex * spacing
-        val y = chartHeightPx - pt.value.toFloat() / maxValue.toFloat() * chartHeightPx
+        val y = chartHeightPx - pt.value.coerceAtLeast(0L).toFloat() / maxValue.toFloat() * chartHeightPx
         Offset(x, y)
       }
 
@@ -99,24 +115,16 @@ private fun DrawScope.drawChartLabels(
   maxPoints: Int,
   contentPaddingPx: Float,
   spacing: Float,
-  labelColor: Color,
+  labelPaint: android.graphics.Paint,
 ) {
-  val labelSeries = series.firstOrNull { it.points.isNotEmpty() }
-  val labels = labelSeries?.points?.map { it.label } ?: emptyList()
+  val labels = series.flatMap { s -> s.points }.map { it.label }.distinct()
   if (labels.isEmpty()) return
 
   drawContext.canvas.nativeCanvas.apply {
-    val paint =
-      android.graphics.Paint().apply {
-        textSize = ChartTokens.AxisLabelSize.toPx()
-        textAlign = android.graphics.Paint.Align.CENTER
-        this.color = labelColor.toArgb()
-        isAntiAlias = true
-      }
     labels.forEachIndexed { idx, label ->
       val effectiveIndex = if (isRtl) maxPoints - 1 - idx else idx
       val x = contentPaddingPx + effectiveIndex * spacing
-      drawText(label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), paint)
+      drawText(label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), labelPaint)
     }
   }
 }

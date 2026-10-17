@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -12,6 +13,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,11 +30,22 @@ fun HesabyarBarChart(
   contentDescriptionText: String? = null,
 ) {
   val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val density = LocalDensity.current
   val semanticsModifier =
     if (contentDescriptionText != null) {
       modifier.semantics { contentDescription = contentDescriptionText }
     } else {
       modifier
+    }
+
+  val axisLabelPaint =
+    remember(labelColor, density) {
+      android.graphics.Paint().apply {
+        textSize = with(density) { ChartTokens.AxisLabelSize.toPx() }
+        textAlign = android.graphics.Paint.Align.CENTER
+        this.color = labelColor.toArgb()
+        isAntiAlias = true
+      }
     }
 
   Canvas(
@@ -54,7 +67,12 @@ fun HesabyarBarChart(
     entries.forEachIndexed { index, entry ->
       val effectiveIndex = if (isRtl) barCount - 1 - index else index
       val x = effectiveIndex * (barWidth + spacing) + spacing / 2f
-      val barHeight = if (maxValue > 0) entry.value.toFloat() / maxValue.toFloat() * chartHeightPx else 0f
+      val barHeight =
+        if (maxValue > 0) {
+          entry.value.coerceAtLeast(0L).toFloat() / maxValue.toFloat() * chartHeightPx
+        } else {
+          0f
+        }
       val y = chartHeightPx - barHeight
 
       drawRoundRect(
@@ -66,17 +84,10 @@ fun HesabyarBarChart(
     }
 
     drawContext.canvas.nativeCanvas.apply {
-      val paint =
-        android.graphics.Paint().apply {
-          textSize = ChartTokens.AxisLabelSize.toPx()
-          textAlign = android.graphics.Paint.Align.CENTER
-          this.color = labelColor.toArgb()
-          isAntiAlias = true
-        }
       entries.forEachIndexed { index, entry ->
         val effectiveIndex = if (isRtl) barCount - 1 - index else index
         val x = effectiveIndex * (barWidth + spacing) + spacing / 2f + barWidth / 2f
-        drawText(entry.label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), paint)
+        drawText(entry.label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), axisLabelPaint)
       }
     }
   }

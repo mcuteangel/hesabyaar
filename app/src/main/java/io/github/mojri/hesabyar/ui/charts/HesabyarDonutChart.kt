@@ -63,7 +63,7 @@ fun HesabyarDonutChart(
 
     var startAngle = -90f
     slices.forEach { slice ->
-      val sweepAngle = if (total > 0L) slice.value.toFloat() / total.toFloat() * 360f else 0f
+      val sweepAngle = if (total > 0L && slice.value > 0L) slice.value.toFloat() / total.toFloat() * 360f else 0f
       if (sweepAngle > 0f) {
         drawArc(
           color = slice.color,

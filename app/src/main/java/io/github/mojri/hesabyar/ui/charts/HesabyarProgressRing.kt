@@ -14,7 +14,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
@@ -37,13 +39,14 @@ fun HesabyarProgressRing(
     label = "progress",
   )
   val effectiveProgress = if (animated) animatedProgress else clampedProgress
-  val percentLabel = (clampedProgress * 100).roundToInt()
+  val percentLabel = (effectiveProgress * 100).roundToInt()
 
   Canvas(
     modifier =
       modifier
         .size(size)
         .semantics {
+          progressBarRangeInfo = ProgressBarRangeInfo(effectiveProgress, 0f..1f)
           contentDescription = "پیشرفت $percentLabel درصد"
           stateDescription = "$percentLabel%"
         },

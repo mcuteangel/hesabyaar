@@ -37,6 +37,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.AccountBreakdownCard
 import io.github.mojri.hesabyar.ui.utils.partyColor
 import io.github.mojri.hesabyar.ui.utils.partyLabelRes
@@ -329,7 +330,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
               DonutSlice(
                 label = item.categoryName,
                 value = item.total,
-                color = Color(item.color),
+                color = item.color.toComposeColor(),
                 percentage = item.percentage,
               )
             },
@@ -357,7 +358,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
                 modifier =
                   Modifier
                     .size(12.dp)
-                    .background(Color(item.color), CircleShape)
+                    .background(item.color.toComposeColor(), CircleShape)
               )
               Text(
                 text = item.categoryName,
@@ -365,7 +366,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
               )
             }
             Text(
-              text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
+              text = "${item.percentage.toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
@@ -695,8 +696,7 @@ private fun InstallmentProgressCard(
         ) {
           HesabyarProgressRing(
             progress = if (total > 0) paid.toFloat() / total else 0f,
-            size = ChartTokens.ProgressRingSize,
-            modifier = Modifier.size(ChartTokens.ProgressRingSize),
+            modifier = Modifier,
           )
 
           Column(
