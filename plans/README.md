@@ -35,6 +35,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 015  | Add shared HesabyarFab component & migrate raw FAB uses (`plans/archive/015-hesabyar-fab-component.md`, issue #451) | P2 | S | — | DONE |
 | 016  | Shared Tab component: `HesabyarTabRow` + migrate both raw tab rows (`plans/016-shared-tab-row.md`, issue #452) | P2 | S | — | IN PROGRESS (branch `feat/issue-452-shared-tab-row`) |
 | 017  | [Design System] Add a chart system — theme-aware chart components and RTL support (`plans/archive/017-design-system-chart-system.md`, issue #453) | P1 | L | 015 (shared component family pattern) | DONE |
+| —    | Add `labelSmall` to `Type.kt` and typography tests (`plans/archive/017-add-labelsmall-typography.md`, issue #454) | P3 | XS | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
