@@ -21,7 +21,7 @@ class HesabyarDonutChartTest {
   val composeRule = createComposeRule()
 
   @Test
-  fun donutChartRendersProportionalSlices() {
+  fun donutChartRendersWithContentDescriptionAndHeight() {
     val description = "توزیع هزینه‌ها بر اساس دسته‌بندی"
     val slices =
       listOf(
