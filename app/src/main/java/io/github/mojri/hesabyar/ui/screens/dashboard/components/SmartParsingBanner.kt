@@ -18,9 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -34,7 +34,7 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
       )
   ) {
     Row(
@@ -51,8 +51,8 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
           tint = MaterialTheme.colorScheme.onPrimary,
           backgroundColor = MaterialTheme.colorScheme.primary,
           backgroundAlpha = 1.0f,
-          iconSize = 20.dp,
-          containerSize = 40.dp
+          iconSize = Dimens.IconAvatarMedium,
+          containerSize = Dimens.AvatarMedium
         )
         Spacer(modifier = Modifier.width(SpacingTokens.md))
         Column {

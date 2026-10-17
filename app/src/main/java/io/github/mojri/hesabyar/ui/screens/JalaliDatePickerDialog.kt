@@ -322,7 +322,7 @@ fun JalaliDatePickerDialog(
                               style = MaterialTheme.typography.bodyMedium,
                               color =
                                 MaterialTheme.colorScheme.onSurface.copy(
-                                  alpha = 0.3f
+                                  alpha = Dimens.BANNER_CONTAINER_ALPHA
                                 )
                             )
                           }
@@ -397,7 +397,7 @@ fun JalaliDatePickerDialog(
                               style = MaterialTheme.typography.bodyMedium,
                               color =
                                 MaterialTheme.colorScheme.onSurface.copy(
-                                  alpha = 0.3f
+                                  alpha = Dimens.BANNER_CONTAINER_ALPHA
                                 )
                             )
                           }
