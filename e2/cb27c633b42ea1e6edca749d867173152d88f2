@@ -1,0 +1,33 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt
+  s_2b7f2174ea6cca::t_e028948abfcbb3 259-264,270,272,282,284,293
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChart.kt
+  s_2b7f2174ea6cca::t_3ed19f72459f1b 33
+  s_2b7f2174ea6cca::t_842a095359991e 66-72
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChartTest.kt
+  s_2b7f2174ea6cca::t_fb4747a6477140 81-101
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRing.kt
+  s_2b7f2174ea6cca::t_cfaaf749477e45 39-42,46
+  s_2b7f2174ea6cca::t_34486ee3c4b2cd 3
+  s_2b7f2174ea6cca::t_bbf76f60b54374 6
+  s_2b7f2174ea6cca::t_15d29b7e11501b 37-38,43-45,47-49
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarLineChart.kt
+  s_2b7f2174ea6cca::t_10b7fe3bd5aebd 123-124,135
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarBarChart.kt
+  s_2b7f2174ea6cca::t_2920cf619c3409 87-88,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e2cb27c633b42ea1e6edca749d867173152d88f2",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
