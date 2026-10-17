@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -570,7 +571,12 @@ fun ReportsScreen(
           modifier =
             Modifier
               .fillMaxWidth()
-              .clickable(role = Role.Button) { selectedCategoryFilter = if (isSelected) null else categoryId },
+              // Filter toggle: expose the selected state like M3 FilterChip does.
+              .selectable(
+                selected = isSelected,
+                onClick = { selectedCategoryFilter = if (isSelected) null else categoryId },
+                role = Role.Checkbox
+              ),
           shape = ShapeTokens.Large,
           cardColors =
             CardDefaults.cardColors(
