@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -361,7 +362,8 @@ fun ReportsScreen(
             if (budgetState is UiResult.Success) {
               IconButton(
                 onClick = { aiAssistantViewModel.clearAdvisorState() },
-                modifier = Modifier.size(Dimens.ContainerXSmall)
+                // Keep the 28dp visual and enforce the 48dp minimum touch area.
+                modifier = Modifier.size(Dimens.ContainerXSmall).minimumInteractiveComponentSize()
               ) {
                 Icon(
                   imageVector = Icons.Filled.Close,
@@ -567,7 +569,7 @@ fun ReportsScreen(
           modifier =
             Modifier
               .fillMaxWidth()
-              .clickable { selectedCategoryFilter = if (isSelected) null else categoryId },
+              .clickable(role = Role.Button) { selectedCategoryFilter = if (isSelected) null else categoryId },
           shape = ShapeTokens.Large,
           cardColors =
             CardDefaults.cardColors(
@@ -690,8 +692,9 @@ fun ReportsScreen(
               .fillMaxWidth()
               .clip(ShapeTokens.Medium)
               .background(MaterialTheme.colorScheme.surface)
-              .padding(SpacingTokens.md)
-              .clickable { showDetailTransaction = transaction },
+              // Clickable sits before padding so the touch area and the ripple cover the full card.
+              .clickable(role = Role.Button) { showDetailTransaction = transaction }
+              .padding(SpacingTokens.md),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
@@ -726,7 +729,8 @@ fun ReportsScreen(
             ReportsTransactionAmount(transaction = transaction)
             IconButton(
               onClick = { deletingTransaction = transaction },
-              modifier = Modifier.size(Dimens.AvatarSmall)
+              // Keep the 32dp visual and enforce the 48dp minimum touch area.
+              modifier = Modifier.size(Dimens.AvatarSmall).minimumInteractiveComponentSize()
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,

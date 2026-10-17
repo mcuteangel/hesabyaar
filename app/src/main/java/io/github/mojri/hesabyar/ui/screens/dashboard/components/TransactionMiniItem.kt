@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -69,7 +70,7 @@ internal fun TransactionMiniItem(
     modifier =
       Modifier
         .fillMaxWidth()
-        .clickable(onClick = onClick),
+        .clickable(onClick = onClick, role = Role.Button),
     shape = ShapeTokens.Medium,
     cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     contentPadding = PaddingValues(SpacingTokens.md)

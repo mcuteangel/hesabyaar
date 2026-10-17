@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
@@ -232,7 +234,13 @@ fun InstallmentScreen(
           )
 
           Row(
-            modifier = Modifier.fillMaxWidth(),
+            // The whole row toggles the switch. TalkBack reads the label and the state.
+            modifier =
+              Modifier.fillMaxWidth().toggleable(
+                value = reminderEnabled,
+                onValueChange = { reminderEnabled = it },
+                role = Role.Switch
+              ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
           ) {
@@ -243,7 +251,8 @@ fun InstallmentScreen(
             )
             Switch(
               checked = reminderEnabled,
-              onCheckedChange = { reminderEnabled = it }
+              onCheckedChange = null,
+              enabled = true
             )
           }
 
@@ -302,7 +311,7 @@ fun InstallmentListItem(
     modifier =
       Modifier
         .fillMaxWidth()
-        .clickable { expanded = !expanded },
+        .clickable(role = Role.Button) { expanded = !expanded },
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
@@ -435,7 +444,9 @@ fun InstallmentListItem(
               modifier =
                 Modifier
                   .background(MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA), CircleShape)
+                  // Keep the 32dp visual and enforce the 48dp minimum touch area.
                   .size(Dimens.AvatarSmall)
+                  .minimumInteractiveComponentSize()
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,

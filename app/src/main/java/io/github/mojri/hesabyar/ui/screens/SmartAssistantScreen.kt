@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -271,7 +272,7 @@ fun SmartAssistantScreen(
                       .fillMaxWidth()
                       .clip(ShapeTokens.Small)
                       .background(MaterialTheme.colorScheme.surfaceContainer)
-                      .clickable {
+                      .clickable(role = Role.Button) {
                         inputText = ex
                         aiAssistantViewModel.parseSmartSentence(
                           ex,
@@ -888,7 +889,8 @@ fun ParsedResultCard(
 
         IconButton(
           onClick = onCancel,
-          modifier = Modifier.size(Dimens.IconLarge)
+          // Keep the 32dp visual and enforce the 48dp minimum touch area.
+          modifier = Modifier.size(Dimens.IconLarge).minimumInteractiveComponentSize()
         ) {
           Icon(
             imageVector = Icons.Filled.Close,
