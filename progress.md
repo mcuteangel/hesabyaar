@@ -28,7 +28,8 @@ None — ready for next task.
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt`: migrated to `HesabyarDonutChart`
     - [x] `docs/architecture/ARCHITECTURE.md`: documented `ui/charts/` component family in architecture guide
     - [x] `plans/archive/017-design-system-chart-system.md`: completed architecture plan (DONE in `plans/README.md`)
-    - [x] Unit test suites: `ChartTokensTest` (2 tests), `HesabyarBarChartTest` (4 tests), `HesabyarLineChartTest` (4 tests), `HesabyarDonutChartTest` (3 tests), `HesabyarProgressRingTest` (4 tests) — all passed
+    - [x] Unit test suites: `ChartTokensTest` (2 tests), `HesabyarBarChartTest` (6 tests), `HesabyarLineChartTest` (7 tests), `HesabyarDonutChartTest` (6 tests), `HesabyarProgressRingTest` (6 tests) — all passed
+    - [x] New `AccountBreakdownCardTest` (2 tests: populated and empty breakdown) with `testTag`-capable `modifier` parameter added to `AccountBreakdownCard`
     - [x] Follow-up fixes: negative-value clamping in bar/line/donut charts; `toComposeColor()` ARGB conversion in `AccountBreakdownCard` and `AnalyticsScreen`; progress-ring label computed from `effectiveProgress` with `ProgressBarRangeInfo` semantics; hoisted `Paint` allocations; removed redundant ring size; default line-chart content description
 
 - **Task:** Issue #454 — Add `labelSmall` to `Type.kt`
