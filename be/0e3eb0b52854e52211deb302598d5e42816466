@@ -1,0 +1,22 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt
+  s_2b7f2174ea6cca::t_7ef2cc86f43d65 248-250,254-255,259-264,270,272-273,282,284-285
+  s_2b7f2174ea6cca::t_7c8f2ada7f9964 251-253
+  s_2b7f2174ea6cca::t_9568a39cf35dba 290-291,300-301,306
+  s_2b7f2174ea6cca::t_751b1125298c89 292-299
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "be0e3eb0b52854e52211deb302598d5e42816466",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
