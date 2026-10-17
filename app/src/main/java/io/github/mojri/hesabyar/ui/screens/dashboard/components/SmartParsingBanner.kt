@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
@@ -30,7 +31,7 @@ internal fun SmartParsingBanner(onNavigateToAssistant: () -> Unit) {
     modifier =
       Modifier
         .fillMaxWidth()
-        .clickable { onNavigateToAssistant() },
+        .clickable(role = Role.Button) { onNavigateToAssistant() },
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
