@@ -44,6 +44,7 @@ Read only the guides that match your task. Each one is short.
 | Change a Room entity or the schema | `docs/agents/room-migrations.md` |
 | Start, continue, or finish any task | `docs/agents/progress-tracking.md` — `progress.md` rules |
 | Start work on an issue or ship a feature | `docs/agents/project-board.md` — board Status + `docs/ROADMAP.md` hygiene |
+| Open a pull request or file an issue | `docs/agents/pr-conventions.md` — title prefixes, version-bump rule, PR body |
 | Search the codebase (Graphify, Serena) | `docs/agents/code-intelligence.md` |
 | Execute a plan | `plans/README.md` and the plan file |
 
