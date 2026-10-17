@@ -1,0 +1,34 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRingTest.kt
+  s_2b7f2174ea6cca::t_0d67766e6a3e8d 89-120
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarBarChartTest.kt
+  s_2b7f2174ea6cca::t_8ff76d8a566463 106-143
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChartTest.kt
+  s_2b7f2174ea6cca::t_216e74a3866202 102-136
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCardTest.kt
+  s_2b7f2174ea6cca::t_66638823df4cad 8,11-13,15-16,44,52-64
+  s_2b7f2174ea6cca::t_8b993386bc7707 1-2,4-7,9-10,14,17-28,30-35,37-42,47-51,65-66
+  s_2b7f2174ea6cca::t_cf754450ac0fdd 36
+  s_2b7f2174ea6cca::t_150e639591f1f5 3
+  s_2b7f2174ea6cca::t_ca558eef1c022e 43,45-46
+  s_2b7f2174ea6cca::t_8836acf6cd72e2 29
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt
+  s_2b7f2174ea6cca::t_9ce3540e4a8db8 36-39,41
+app/src/test/java/io/github/mojri/hesabyar/ui/charts/HesabyarLineChartTest.kt
+  s_2b7f2174ea6cca::t_9e442473a2b553 108-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b3d251a3950149f6137bca9c20eb84adcf646b91",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
