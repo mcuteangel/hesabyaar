@@ -23,8 +23,19 @@ jobs:
       - name: Validate PR title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           set -eu
+          # Mergify's merge-queue drafts have synthetic titles
+          # ("merge queue: checking #NNN on main (...)"); the original PR
+          # was already title-checked and the draft itself is never merged.
+          # Gated on draft status too, so a non-draft mergify[bot] PR still
+          # gets its title validated.
+          if [ "$PR_AUTHOR" = "mergify[bot]" ] && [ "$PR_DRAFT" = "true" ]; then
+            echo "Merge-queue draft PR; skipping title check."
+            exit 0
+          fi
           # $PR_TITLE is untrusted input: strip newlines so a crafted title
           # cannot inject ::error/::warning workflow commands into the log.
           PR_TITLE=$(printf '%s' "$PR_TITLE" | tr -d '\n\r')
