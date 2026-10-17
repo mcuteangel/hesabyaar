@@ -25,6 +25,9 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -eu
+          # $PR_TITLE is untrusted input: strip newlines so a crafted title
+          # cannot inject ::error/::warning workflow commands into the log.
+          PR_TITLE=$(printf '%s' "$PR_TITLE" | tr -d '\n\r')
           if ! printf '%s' "$PR_TITLE" | grep -Eq '^(feat|fix|refactor|style|perf|test|docs|chore|build|ci)(\([^)]*\))?(!)?: [^[:space:]]'; then
             echo "::error title=pr-title::PR title must look like 'type[(scope)][!]: subject' (got: $PR_TITLE)"
             echo "See docs/agents/pr-conventions.md and scripts/new-pr.sh."

@@ -124,7 +124,8 @@ check_scan() {
   sh "$NEWPR" --validate-only --base main "$@" </dev/null >/dev/null 2>&1
   got=$?
   set -e
-  cd "$TMP/nogit" # back to the hermetic cwd (never inside a real repo)
+  cd "$TMP/nogit" # back to the hermetic cwd
+mkbody refactor "$B" # restore: later scan tests use refactor titles (never inside a real repo)
   if [ "$got" -eq "$want" ]; then
     echo "PASS $name"
     pass=$((pass + 1))
@@ -167,6 +168,33 @@ check_scan "$REPO" "scan defaults to checked-out HEAD" 0 \
   --title "refactor(ui): migrate X" --body-file "$B"
 check_scan "$REPO" "unresolvable --head fails open" 0 \
   --head does-not-exist --title "refactor(ui): migrate X" --body-file "$B"
+
+# A confirmed MINOR title must not cover a MAJOR branch scan. The title
+# prompt needs a TTY, so these drive it through `script` (one "yes" per
+# prompt the fixed code asks).
+new_scan_repo tcover
+echo "b" > b.txt && git add b.txt && git commit -qm "feat!: breaking change"
+mkbody feat "$B"
+if printf 'yes\n' | script -qec "sh $NEWPR --validate-only --base main --title 'feat: add x' --body-file '$B'" /dev/null >/dev/null 2>&1; then
+  echo "FAIL minor title confirmation covered a major scan"; fail=$((fail + 1))
+else
+  echo "PASS minor title confirmation does not cover a major scan"; pass=$((pass + 1))
+fi
+if printf 'yes\nyes\n' | script -qec "sh $NEWPR --validate-only --base main --title 'feat: add x' --body-file '$B'" /dev/null >/dev/null 2>&1; then
+  echo "PASS confirming the major scan passes"; pass=$((pass + 1))
+else
+  echo "FAIL confirming the major scan should pass"; fail=$((fail + 1))
+fi
+# No double prompt: a confirmed MINOR title covers a MINOR scan.
+new_scan_repo tcover2
+echo "c" > c.txt && git add c.txt && git commit -qm "feat: minor thing"
+if printf 'yes\n' | script -qec "sh $NEWPR --validate-only --base main --title 'feat: add x' --body-file '$B'" /dev/null >/dev/null 2>&1; then
+  echo "PASS minor title confirmation covers a minor scan (no double prompt)"; pass=$((pass + 1))
+else
+  echo "FAIL minor title confirmation should cover a minor scan"; fail=$((fail + 1))
+fi
+cd "$TMP/nogit" # back to the hermetic cwd
+mkbody refactor "$B" # restore: later scan tests use refactor titles
 
 new_scan_repo merge
 git checkout -q -b side main

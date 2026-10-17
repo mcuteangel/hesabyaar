@@ -88,6 +88,7 @@ TYPE=$(printf '%s' "$TITLE" | sed -E 's/^([a-z]+).*/\1/')
 # 2. Minor-bump gate for feat titles (keeps the title honest; the bump itself
 #    comes from the branch's commit subjects, checked in step 3)
 TITLE_CONFIRMED=0
+TITLE_BUMP=""
 if [ "$TYPE" = "feat" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
   # <type>!: is a MAJOR bump, plain feat: is minor (scripts/parse-commits.sh).
   # The marker must sit right before the header colon (feat!: / feat(s)!:).
@@ -131,26 +132,38 @@ if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; th
 else
   echo "WARNING: not a git repo (or git not found) - skipping branch commit scan" >&2
 fi
-if [ -n "$FEAT_COMMITS" ] && [ "$CONFIRM_MINOR" -eq 0 ] && [ "$TITLE_CONFIRMED" -eq 0 ]; then
+if [ -n "$FEAT_COMMITS" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
   # a breaking '!' marker means MAJOR (scripts/parse-commits.sh)
   SCAN_BUMP="MINOR"
   case "$FEAT_COMMITS" in
     *'!:'*) SCAN_BUMP="MAJOR" ;;
   esac
-  echo "WARNING: feat commit subjects on this branch bump the $SCAN_BUMP version (scripts/parse-commits.sh):" >&2
-  printf '%s\n' "$FEAT_COMMITS" | sed 's/^/  - /' >&2
-  echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
-  if [ -t 0 ]; then
-    printf "Type 'yes' to confirm the minor bump: " >&2
-    read -r answer
-    [ "$answer" = "yes" ] || fail "aborted by user"
-  else
-    fail "refusing: re-run with --i-confirm-minor-bump once you have confirmed the feat commits are user-facing features"
+  # A confirmed title covers the scan only when its bump is at least the
+  # scan's: confirming a MINOR title must not silence a MAJOR (breaking)
+  # commit on the branch. (--i-confirm-minor-bump is an explicit assertion
+  # and keeps its bypass.)
+  scan_covered=0
+  if [ "$TITLE_CONFIRMED" -eq 1 ]; then
+    case "$TITLE_BUMP/$SCAN_BUMP" in
+      "MINOR/MINOR"|"MAJOR/MINOR"|"MAJOR/MAJOR") scan_covered=1 ;;
+    esac
+  fi
+  if [ "$scan_covered" -eq 0 ]; then
+    echo "WARNING: feat commit subjects on this branch bump the $SCAN_BUMP version (scripts/parse-commits.sh):" >&2
+    printf '%s\n' "$FEAT_COMMITS" | sed 's/^/  - /' >&2
+    echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
+    if [ -t 0 ]; then
+      printf "Type 'yes' to confirm the %s bump: " "$(printf '%s' "$SCAN_BUMP" | tr 'A-Z' 'a-z')" >&2
+      read -r answer
+      [ "$answer" = "yes" ] || fail "aborted by user"
+    else
+      fail "refusing: re-run with --i-confirm-minor-bump once you have confirmed the feat commits are user-facing features"
+    fi
   fi
 fi
 
 # 4. Required template sections
-for section in "## Summary" "## Changes" "## Type of Change" "## Verification"; do
+for section in "## Summary" "## Changes" "## Type of Change" "## Verification & Evidence"; do
   case "$BODY" in
     *"$section"*) ;;
     *) fail "body is missing required template section: $section" ;;
