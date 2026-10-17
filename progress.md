@@ -6,7 +6,9 @@
 
 ## Active Task
 
-None. Issue #454 (`labelSmall` typography) is complete on branch `feat/issue-454-labelsmall-typography`.
+- **Task:** Issue #455 — Complete icon-size and alpha tokens in Dimens.kt (Plan 018)
+- **Goal:** Add missing size tokens (28dp, 36dp, 44dp) and semantic alpha tokens (0.08f, 0.10f, 0.12f, 0.30f, 0.60f) to `Dimens.kt`, wire bypassed tokens (`IconMenu`, `IconAvatarMedium`, `SURFACE_TINT_ALPHA`, `SECONDARY_TEXT_ALPHA`), replace raw literals across dashboard components and screens, align `FontWeight.ExtraBold` in `DebtorCreditorCards.kt` to `FontWeight.Bold`, and add `DimensTokenTest`.
+- **Status:** In progress on branch `feat/issue-455-icon-size-alpha-tokens`.
 
 ## Completed
 

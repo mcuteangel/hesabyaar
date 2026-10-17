@@ -35,6 +35,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 015  | Add shared HesabyarFab component & migrate raw FAB uses (`plans/archive/015-hesabyar-fab-component.md`, issue #451) | P2 | S | — | DONE |
 | 016  | Shared Tab component: `HesabyarTabRow` + migrate both raw tab rows (`plans/016-shared-tab-row.md`, issue #452) | P2 | S | — | IN PROGRESS (branch `feat/issue-452-shared-tab-row`) |
 | 017  | Add `labelSmall` to `Type.kt` and typography tests (`plans/archive/017-add-labelsmall-typography.md`, issue #454) | P3 | XS | — | DONE |
+| 018  | Complete icon-size and alpha tokens in Dimens.kt (`plans/018-complete-icon-size-and-alpha-tokens.md`, issue #455) | P2 | S | — | IN PROGRESS (branch `feat/issue-455-icon-size-alpha-tokens`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
