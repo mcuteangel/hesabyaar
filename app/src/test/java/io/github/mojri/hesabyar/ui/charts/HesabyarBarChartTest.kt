@@ -103,4 +103,42 @@ class HesabyarBarChartTest {
 
     composeRule.onNodeWithTag(tag).assertIsDisplayed()
   }
+
+  @Test
+  fun barChartHandlesZeroValueEntries() {
+    val tag = "zero_value_bars"
+    val entries =
+      listOf(
+        BarEntry(label = "نمونه", value = 0L),
+        BarEntry(label = "شکلی", value = 0L),
+      )
+
+    composeRule.setContent {
+      HesabyarBarChart(
+        entries = entries,
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
+
+  @Test
+  fun barChartHandlesEntriesWithoutLabels() {
+    val tag = "no_label_bars"
+    val entries =
+      listOf(
+        BarEntry(label = "", value = 1_000_000L),
+        BarEntry(label = "خالی", value = 500_000L),
+      )
+
+    composeRule.setContent {
+      HesabyarBarChart(
+        entries = entries,
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
 }

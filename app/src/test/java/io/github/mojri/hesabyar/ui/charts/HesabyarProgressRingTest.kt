@@ -86,4 +86,36 @@ class HesabyarProgressRingTest {
       .assertIsDisplayed()
       .assertHeightIsEqualTo(64.dp)
   }
+
+  @Test
+  fun progressRingSupportsAnimatedMode() {
+    val tag = "animated_ring"
+    composeRule.setContent {
+      HesabyarProgressRing(
+        progress = 0.6f,
+        modifier = Modifier.testTag(tag),
+        animated = true,
+      )
+    }
+
+    composeRule
+      .onNodeWithTag(tag)
+      .assertIsDisplayed()
+  }
+
+  @Test
+  fun progressRingZeroProgressRendersTrackOnly() {
+    val tag = "zero_progress_ring"
+    composeRule.setContent {
+      HesabyarProgressRing(
+        progress = 0f,
+        modifier = Modifier.testTag(tag),
+        animated = false,
+      )
+    }
+
+    composeRule
+      .onNodeWithTag(tag)
+      .assertIsDisplayed()
+  }
 }

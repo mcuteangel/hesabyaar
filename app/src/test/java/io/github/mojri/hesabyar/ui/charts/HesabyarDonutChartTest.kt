@@ -99,4 +99,39 @@ class HesabyarDonutChartTest {
       .onNodeWithTag(tag)
       .assertIsDisplayed()
   }
+
+  @Test
+  fun donutChartRendersSingleSlice() {
+    val tag = "single_slice_donut"
+    val slices = listOf(DonutSlice(label = "ت---\nزم", value = 1_200_000L, color = Color.Magenta))
+
+    composeRule.setContent {
+      HesabyarDonutChart(
+        slices = slices,
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
+
+  @Test
+  fun donutChartRendersMixedSignSlices() {
+    val tag = "mixed_sign_donut"
+    val slices =
+      listOf(
+        DonutSlice(label = "هزینه", value = 1_000_000L, color = Color.Red),
+        DonutSlice(label = "برگشتی", value = -200_000L, color = Color.Green),
+        DonutSlice(label = "صرفه‌جویی", value = 300_000L, color = Color.Blue),
+      )
+
+    composeRule.setContent {
+      HesabyarDonutChart(
+        slices = slices,
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
 }

@@ -33,9 +33,12 @@ import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
  * dot with the account name text (secondary signal for accessibility).
  */
 @Composable
-internal fun AccountBreakdownCard(accountBreakdown: List<CategoryBreakdown>) {
+internal fun AccountBreakdownCard(
+  accountBreakdown: List<CategoryBreakdown>,
+  modifier: Modifier = Modifier,
+) {
   HesabyarCard(
-    modifier = Modifier.fillMaxWidth()
+    modifier = modifier.fillMaxWidth()
   ) {
     Column(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)

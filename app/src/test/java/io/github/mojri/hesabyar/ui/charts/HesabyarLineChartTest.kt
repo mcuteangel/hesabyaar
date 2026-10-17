@@ -105,4 +105,46 @@ class HesabyarLineChartTest {
     }
     composeRule.onNodeWithTag("ltr_line").assertIsDisplayed()
   }
+
+  @Test
+  fun lineChartGeneratesDefaultContentDescription() {
+    val s = buildSeries("درآمد", Color.Green, listOf("فروردین"), listOf(1_000_000L))
+    composeRule.setContent {
+      HesabyarLineChart(
+        series = listOf(s),
+      )
+    }
+
+    composeRule
+      .onNodeWithContentDescription("درآمد: 1 نقطه")
+      .assertIsDisplayed()
+  }
+
+  @Test
+  fun lineChartHandlesSinglePointSeries() {
+    val tag = "single_point_line"
+    val s = buildSeries("هزینه", Color.Red, listOf("اردیبهشت"), listOf(500_000L))
+    composeRule.setContent {
+      HesabyarLineChart(
+        series = listOf(s),
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
+
+  @Test
+  fun lineChartHandlesSeriesWithEmptyPoints() {
+    val tag = "empty_points_series"
+    val s = ChartSeries(name = "خالی", color = Color.Gray, points = emptyList())
+    composeRule.setContent {
+      HesabyarLineChart(
+        series = listOf(s),
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
 }
