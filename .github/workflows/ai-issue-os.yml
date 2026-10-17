@@ -44,24 +44,29 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
+            const fs = require("fs");
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner, repo: context.repo.repo,
               state: "all", per_page: 100, sort: "updated", direction: "desc"
             });
-            return issues.filter(i => !i.pull_request).slice(0, 200).map(i => ({
+            const payload = issues.filter(i => !i.pull_request).slice(0, 200).map(i => ({
               number: i.number, title: i.title, body: (i.body || "").slice(0, 500),
               state: i.state, updated_at: i.updated_at
             }));
+            // Write to file on disk instead of passing as an output/env var.
+            // 200 issues with up to 500 chars of body each exceeds the Linux
+            // MAX_ARG_STRLEN / environment limit (E2BIG "Argument list too long").
+            fs.writeFileSync("issues.json", JSON.stringify(payload));
+            core.setOutput("count", payload.length);
 
       - name: Issue intelligence engine
         id: intel
-        env:
-          ISSUES_JSON: ${{ steps.issues.outputs.result }}
         run: |
           python3 - << 'EOF' > intel.json
-          import json, hashlib, os
+          import json, hashlib
           from collections import defaultdict
-          issues = json.loads(os.environ["ISSUES_JSON"])
+          with open("issues.json") as f:
+              issues = json.load(f)
           clusters, enriched = {}, []
           for i in issues:
               text = (i["title"] + i["body"]).lower()
@@ -178,15 +183,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESPONSE: ${{ steps.gemini.outputs.summary }}
-          ISSUES_JSON: ${{ steps.issues.outputs.result }}
           SHORT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           if ! echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then exit 0; fi
 
           REASON=$(echo "$RESPONSE" | jq -r '.reason // "No reason provided"')
-          OPEN_IDS=$(jq -r '.[] | select(.state == "open") | .number' <<< "$ISSUES_JSON")
-          CLOSED_IDS=$(jq -r '.[] | select(.state == "closed") | .number' <<< "$ISSUES_JSON")
+          OPEN_IDS=$(jq -r '.[] | select(.state == "open") | .number' issues.json)
+          CLOSED_IDS=$(jq -r '.[] | select(.state == "closed") | .number' issues.json)
 
           RESOLVED=$(echo "$RESPONSE" | jq -r 'if (.resolved | type) == "array" then .resolved[:5][]? else empty end')
           REOPEN=$(echo "$RESPONSE" | jq -r 'if (.reopen | type) == "array" then .reopen[:5][]? else empty end')
