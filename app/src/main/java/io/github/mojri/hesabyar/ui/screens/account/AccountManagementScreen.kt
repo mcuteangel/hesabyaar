@@ -766,7 +766,7 @@ private fun AccountDialogColorPicker(
             Box(
               modifier =
                 Modifier
-                  .size(28.dp)
+                  .size(Dimens.ContainerXSmall)
                   .clip(CircleShape)
                   .background(color.toComposeColor())
                   .clickable { onColorSelected(color) },
@@ -783,7 +783,7 @@ private fun AccountDialogColorPicker(
             }
           }
           repeat(COLOR_PICKER_COLUMNS - rowColors.size) {
-            Spacer(modifier = Modifier.size(28.dp))
+            Spacer(modifier = Modifier.size(Dimens.ContainerXSmall))
           }
         }
       }

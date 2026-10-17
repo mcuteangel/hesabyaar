@@ -204,7 +204,7 @@ fun SmartAssistantScreen(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.XLarge)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SURFACE_TINT_ALPHA))
                 .padding(SpacingTokens.xl)
           ) {
             Row(
@@ -235,7 +235,7 @@ fun SmartAssistantScreen(
                 Text(
                   text = "جمله خود را به زبان فارسی ساده تایپ کنید یا بگویید تا هوش مصنوعی آن را تحلیل کند.",
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
                   lineHeight = 18.sp
                 )
               }
@@ -289,7 +289,7 @@ fun SmartAssistantScreen(
                   Icon(
                     imageVector = Icons.Filled.ArrowBack,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = Dimens.MUTED_FOREGROUND_ALPHA),
                     modifier = Modifier.size(Dimens.IconSmall)
                   )
                 }
@@ -433,7 +433,7 @@ fun SmartAssistantScreen(
             shape = ShapeTokens.XLarge,
             cardColors =
               CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
               ),
             contentPadding = PaddingValues(SpacingTokens.lg)
           ) {
@@ -471,7 +471,7 @@ fun SmartAssistantScreen(
                       "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
                     },
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
                 )
               }
             }
@@ -666,7 +666,7 @@ fun SmartAssistantScreen(
                     imageVector = Icons.Filled.Error,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(Dimens.IconXLarge)
                   )
                   Text(
                     text = "خطا در تنظیم و ارزیابی عادات مالی",
@@ -907,7 +907,10 @@ fun ParsedResultCard(
         }
       HesabyarCard(
         modifier = Modifier.fillMaxWidth(),
-        cardColors = CardDefaults.cardColors(containerColor = confidenceColor.copy(alpha = 0.1f)),
+        cardColors =
+          CardDefaults.cardColors(
+            containerColor = confidenceColor.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)
+          ),
         contentPadding = PaddingValues(SpacingTokens.md)
       ) {
         Row(
@@ -1313,7 +1316,7 @@ private fun ConfidenceScoreCard(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
-    cardColors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+    cardColors = CardDefaults.cardColors(containerColor = color.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -1372,7 +1375,7 @@ private fun LowConfidenceWarning() {
     modifier = Modifier.fillMaxWidth(),
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        containerColor = MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)
       ),
     contentPadding = PaddingValues(SpacingTokens.sm)
   ) {

@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -32,7 +33,7 @@ fun BalanceCard(
       Brush.verticalGradient(
         colors =
           listOf(
-            FinancialColors.PurpleAccent.copy(alpha = 0.2f),
+            FinancialColors.PurpleAccent.copy(alpha = Dimens.SURFACE_TINT_ALPHA),
             Color.Transparent
           )
       )

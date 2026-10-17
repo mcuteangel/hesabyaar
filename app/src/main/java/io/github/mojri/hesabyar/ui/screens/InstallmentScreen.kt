@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.core.filterDigits
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
@@ -422,7 +421,7 @@ fun InstallmentListItem(
             Text(
               text = "📝 یادداشت: ${installment.notes}",
               style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
               lineHeight = 16.sp
             )
           }
@@ -435,13 +434,13 @@ fun InstallmentListItem(
               onClick = { pendingDelete = installment },
               modifier =
                 Modifier
-                  .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
+                  .background(MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA), CircleShape)
                   .size(Dimens.AvatarSmall)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف قسط",
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(Dimens.IconMenu),
                 tint = MaterialTheme.colorScheme.error
               )
             }

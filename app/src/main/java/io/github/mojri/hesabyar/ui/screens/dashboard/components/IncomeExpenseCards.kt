@@ -19,12 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -51,7 +51,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
             icon = Icons.Filled.TrendingUp,
             tint = MaterialTheme.colorScheme.primary,
             backgroundColor = MaterialTheme.colorScheme.primary,
-            containerSize = 28.dp
+            containerSize = Dimens.ContainerXSmall
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
@@ -85,7 +85,7 @@ internal fun IncomeExpenseCards(dashboardData: DashboardData) {
             icon = Icons.Filled.TrendingDown,
             tint = MaterialTheme.colorScheme.error,
             backgroundColor = MaterialTheme.colorScheme.error,
-            containerSize = 28.dp
+            containerSize = Dimens.ContainerXSmall
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
