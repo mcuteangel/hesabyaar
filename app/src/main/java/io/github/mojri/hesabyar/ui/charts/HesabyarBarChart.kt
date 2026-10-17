@@ -84,10 +84,12 @@ fun HesabyarBarChart(
     }
 
     drawContext.canvas.nativeCanvas.apply {
+      val fontMetrics = axisLabelPaint.fontMetrics
+      val baselineY = size.height - ChartTokens.LabelPaddingBottom.toPx() - fontMetrics.bottom
       entries.forEachIndexed { index, entry ->
         val effectiveIndex = if (isRtl) barCount - 1 - index else index
         val x = effectiveIndex * (barWidth + spacing) + spacing / 2f + barWidth / 2f
-        drawText(entry.label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), axisLabelPaint)
+        drawText(entry.label, x, baselineY, axisLabelPaint)
       }
     }
   }

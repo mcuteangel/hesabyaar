@@ -30,7 +30,7 @@ fun HesabyarDonutChart(
     } else {
       modifier
     }
-  val total = slices.sumOf { it.value }
+  val total = slices.sumOf { it.value.coerceAtLeast(0L) }
 
   Canvas(
     modifier =
@@ -63,7 +63,13 @@ fun HesabyarDonutChart(
 
     var startAngle = -90f
     slices.forEach { slice ->
-      val sweepAngle = if (total > 0L && slice.value > 0L) slice.value.toFloat() / total.toFloat() * 360f else 0f
+      val safeValue = slice.value.coerceAtLeast(0L)
+      val sweepAngle =
+        if (total > 0L && safeValue > 0L) {
+          (safeValue.toFloat() / total.toFloat() * 360f).coerceIn(0f, 360f)
+        } else {
+          0f
+        }
       if (sweepAngle > 0f) {
         drawArc(
           color = slice.color,

@@ -78,4 +78,25 @@ class HesabyarDonutChartTest {
       .onNodeWithTag(tag)
       .assertIsDisplayed()
   }
+
+  @Test
+  fun donutChartHandlesNegativeAndMixedSignSlicesSafely() {
+    val tag = "mixed_sign_donut_chart"
+    val slices =
+      listOf(
+        DonutSlice(label = "هزینه", value = 1_000_000L, color = Color.Red),
+        DonutSlice(label = "برگشتی", value = -200_000L, color = Color.Green),
+      )
+
+    composeRule.setContent {
+      HesabyarDonutChart(
+        slices = slices,
+        modifier = Modifier.testTag(tag),
+      )
+    }
+
+    composeRule
+      .onNodeWithTag(tag)
+      .assertIsDisplayed()
+  }
 }

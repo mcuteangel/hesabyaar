@@ -1,7 +1,9 @@
 package io.github.mojri.hesabyar.ui.charts
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
@@ -32,16 +34,19 @@ fun HesabyarProgressRing(
   animated: Boolean = true,
 ) {
   val clampedProgress = progress.coerceIn(0f, 1f)
-  val effectiveProgress =
-    if (animated) {
-      animateFloatAsState(
-        targetValue = clampedProgress,
-        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-        label = "progress",
-      ).value
-    } else {
-      clampedProgress
-    }
+  // Always invoke animateFloatAsState so Compose's slot-table call
+  // order stays stable regardless of the `animated` flag. When
+  // `animated` is false, we use a snap (zero-duration) spec to
+  // keep the slot reserved without animating.
+  val animationSpec: AnimationSpec<Float> =
+    if (animated) tween(durationMillis = 1000, easing = FastOutSlowInEasing) else snap()
+  val animatedProgress =
+    animateFloatAsState(
+      targetValue = clampedProgress,
+      animationSpec = animationSpec,
+      label = "progress",
+    )
+  val effectiveProgress = if (animated) animatedProgress.value else clampedProgress
   val percentLabel = (effectiveProgress * 100).roundToInt()
 
   Canvas(

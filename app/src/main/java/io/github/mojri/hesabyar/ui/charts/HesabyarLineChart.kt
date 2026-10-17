@@ -120,6 +120,8 @@ private fun DrawScope.drawChartLabels(
   if (maxPoints < 1) return
 
   drawContext.canvas.nativeCanvas.apply {
+    val fontMetrics = labelPaint.fontMetrics
+    val baselineY = size.height - ChartTokens.LabelPaddingBottom.toPx() - fontMetrics.bottom
     for (gridIndex in 0 until maxPoints) {
       val effectiveIndex = if (isRtl) maxPoints - 1 - gridIndex else gridIndex
       val x = contentPaddingPx + effectiveIndex * spacing
@@ -130,7 +132,7 @@ private fun DrawScope.drawChartLabels(
           ?.get(gridIndex)
           ?.label ?: ""
       if (label.isNotEmpty()) {
-        drawText(label, x, size.height - ChartTokens.LabelPaddingBottom.toPx(), labelPaint)
+        drawText(label, x, baselineY, labelPaint)
       }
     }
   }

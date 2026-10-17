@@ -256,20 +256,20 @@ private fun CombinedLineChartCard(
       val incomeColor = MaterialTheme.colorScheme.primary
       val expenseColor = MaterialTheme.colorScheme.error
 
-      val chartPoints =
-        allPeriods.map { (year, month) ->
-          spendByPeriod[year to month]?.label?.substringBefore(" (")
-            ?: incomeByPeriod[year to month]?.label
-            ?: "$year/$month"
-        }
+      fun resolvePeriodLabel(period: Pair<Int, Int>): String =
+        spendByPeriod[period]?.label?.substringBefore(" (")
+          ?: incomeByPeriod[period]?.label
+          ?: "${period.first}/${period.second}"
+
+      val chartPoints = allPeriods.map { period -> resolvePeriodLabel(period) }
       val spendSeries =
         ChartSeries(
           name = "هزینه",
           color = expenseColor,
           points =
-            allPeriods.map { period ->
+            allPeriods.mapIndexed { index, period ->
               ChartPoint(
-                label = chartPoints[allPeriods.indexOf(period)],
+                label = chartPoints[index],
                 value = spendByPeriod[period]?.expense ?: 0L,
               )
             },
@@ -279,9 +279,9 @@ private fun CombinedLineChartCard(
           name = "درآمد",
           color = incomeColor,
           points =
-            allPeriods.map { period ->
+            allPeriods.mapIndexed { index, period ->
               ChartPoint(
-                label = chartPoints[allPeriods.indexOf(period)],
+                label = chartPoints[index],
                 value = incomeByPeriod[period]?.income ?: 0L,
               )
             },
@@ -290,10 +290,7 @@ private fun CombinedLineChartCard(
       val chartContentDescription =
         "مقایسه درآمد و هزینه در ۶ دوره اخیر: " +
           allPeriods.joinToString(separator = "، ") { period ->
-            val label =
-              spendByPeriod[period]?.label?.substringBefore(" (")
-                ?: incomeByPeriod[period]?.label
-                ?: "${period.first}/${period.second}"
+            val label = resolvePeriodLabel(period)
             val inc = CurrencyFormatter.format(incomeByPeriod[period]?.income ?: 0L)
             val exp = CurrencyFormatter.format(spendByPeriod[period]?.expense ?: 0L)
             "$label: درآمد $inc، هزینه $exp"
