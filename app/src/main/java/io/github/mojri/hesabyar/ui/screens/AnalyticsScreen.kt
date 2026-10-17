@@ -245,22 +245,32 @@ private fun CombinedLineChartCard(
       )
       Spacer(modifier = Modifier.height(SpacingTokens.md))
 
-      // Merge by label for combined view
-      val allLabels = (spending.map { it.label } + income.map { it.label }).distinct().takeLast(6)
-      val spendByLabel = spending.associateBy { it.label }
-      val incomeByLabel = income.associateBy { it.label }
+      // Merge by (jalaliYear, jalaliMonth), since Rust emits different label formats
+      // per series (spending labels append " (N days)", income labels do not), so
+      // the label strings would not match while the year/month do.
+      val spendPeriods = spending.map { it.jalaliYear to it.jalaliMonth }
+      val incomePeriods = income.map { it.jalaliYear to it.jalaliMonth }
+      val allPeriods = (spendPeriods + incomePeriods).distinct().takeLast(6)
+      val spendByPeriod = spending.associateBy { it.jalaliYear to it.jalaliMonth }
+      val incomeByPeriod = income.associateBy { it.jalaliYear to it.jalaliMonth }
       val incomeColor = MaterialTheme.colorScheme.primary
       val expenseColor = MaterialTheme.colorScheme.error
 
+      val chartPoints =
+        allPeriods.map { (year, month) ->
+          spendByPeriod[year to month]?.label?.substringBefore(" (")
+            ?: incomeByPeriod[year to month]?.label
+            ?: "$year/$month"
+        }
       val spendSeries =
         ChartSeries(
           name = "هزینه",
           color = expenseColor,
           points =
-            allLabels.map { label ->
+            allPeriods.map { period ->
               ChartPoint(
-                label = label,
-                value = spendByLabel[label]?.expense ?: 0L,
+                label = chartPoints[allPeriods.indexOf(period)],
+                value = spendByPeriod[period]?.expense ?: 0L,
               )
             },
         )
@@ -269,18 +279,31 @@ private fun CombinedLineChartCard(
           name = "درآمد",
           color = incomeColor,
           points =
-            allLabels.map { label ->
+            allPeriods.map { period ->
               ChartPoint(
-                label = label,
-                value = incomeByLabel[label]?.income ?: 0L,
+                label = chartPoints[allPeriods.indexOf(period)],
+                value = incomeByPeriod[period]?.income ?: 0L,
               )
             },
         )
+
+      val chartContentDescription =
+        "مقایسه درآمد و هزینه در ۶ دوره اخیر: " +
+          allPeriods.joinToString(separator = "، ") { period ->
+            val label =
+              spendByPeriod[period]?.label?.substringBefore(" (")
+                ?: incomeByPeriod[period]?.label
+                ?: "${period.first}/${period.second}"
+            val inc = CurrencyFormatter.format(incomeByPeriod[period]?.income ?: 0L)
+            val exp = CurrencyFormatter.format(spendByPeriod[period]?.expense ?: 0L)
+            "$label: درآمد $inc، هزینه $exp"
+          }
 
       HesabyarLineChart(
         series = listOf(incomeSeries, spendSeries),
         height = ChartTokens.LineChartHeight,
         labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        contentDescriptionText = chartContentDescription,
         modifier =
           Modifier
             .fillMaxWidth()
