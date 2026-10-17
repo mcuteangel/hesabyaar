@@ -89,10 +89,11 @@ TYPE=$(printf '%s' "$TITLE" | sed -E 's/^([a-z]+).*/\1/')
 #    comes from the branch's commit subjects, checked in step 3)
 TITLE_CONFIRMED=0
 if [ "$TYPE" = "feat" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
-  # <type>!: is a MAJOR bump, plain feat: is minor (scripts/parse-commits.sh)
+  # <type>!: is a MAJOR bump, plain feat: is minor (scripts/parse-commits.sh).
+  # The marker must sit right before the header colon (feat!: / feat(s)!:).
   TITLE_BUMP="MINOR"
   case "$TITLE" in
-    *'!'*) TITLE_BUMP="MAJOR" ;;
+    *'!:'*) TITLE_BUMP="MAJOR" ;;
   esac
   echo "WARNING: a 'feat' title claims a $TITLE_BUMP bump; the branch's feat commit subjects are what actually bump it (scripts/parse-commits.sh)." >&2
   echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
@@ -117,7 +118,7 @@ if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; th
     FEAT_COMMITS=$(git log --pretty=format:%s "$BASE..HEAD" 2>/dev/null | while IFS= read -r subject || [ -n "$subject" ]; do
       case "$subject" in
         "Merge "*) continue ;; # same skip as scripts/parse-commits.sh
-        'feat('*|'feat:'*) printf '%s\n' "$subject" ;;
+        'feat!'*|'feat('*|'feat:'*) printf '%s\n' "$subject" ;;
       esac
     done)
   else
@@ -127,7 +128,12 @@ else
   echo "WARNING: not a git repo (or git not found) - skipping branch commit scan" >&2
 fi
 if [ -n "$FEAT_COMMITS" ] && [ "$CONFIRM_MINOR" -eq 0 ] && [ "$TITLE_CONFIRMED" -eq 0 ]; then
-  echo "WARNING: feat commit subjects on this branch bump the MINOR version (scripts/parse-commits.sh):" >&2
+  # a breaking '!' marker means MAJOR (scripts/parse-commits.sh)
+  SCAN_BUMP="MINOR"
+  case "$FEAT_COMMITS" in
+    *'!:'*) SCAN_BUMP="MAJOR" ;;
+  esac
+  echo "WARNING: feat commit subjects on this branch bump the $SCAN_BUMP version (scripts/parse-commits.sh):" >&2
   printf '%s\n' "$FEAT_COMMITS" | sed 's/^/  - /' >&2
   echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
   if [ -t 0 ]; then

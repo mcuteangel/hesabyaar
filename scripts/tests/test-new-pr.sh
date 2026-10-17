@@ -149,6 +149,14 @@ echo "x" > x.txt && git add x.txt && git commit -qm "feat(charts): add bar chart
 check_scan "$REPO" "scoped feat commit without confirmation fails closed" 1 \
   --title "refactor(charts): migrate X" --body-file "$B"
 
+new_scan_repo breaking-feat
+echo "x" > x.txt && git add x.txt && git commit -qm "feat!: drop old API"
+check_scan "$REPO" "breaking feat commit without confirmation fails closed" 1 \
+  --title "refactor(ui): migrate X" --body-file "$B"
+
+check_scan "$REPO" "breaking feat commit with --i-confirm-minor-bump passes" 0 \
+  --title "refactor(ui): migrate X" --body-file "$B" --i-confirm-minor-bump
+
 new_scan_repo merge
 git checkout -q -b side main
 echo "s" > s.txt && git add s.txt && git commit -qm "chore: side work"
