@@ -1,0 +1,24 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt
+  s_2b7f2174ea6cca::t_5a32a75b4ec775 392
+app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarLineChart.kt
+  s_2b7f2174ea6cca::t_46f0cc9a1333cc 120,123-124,126,132-134
+  s_2b7f2174ea6cca::t_7818770818c5fe 127-131
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt
+  s_2b7f2174ea6cca::t_2adb1f19ad99d2 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "353539607127aceff9298cbd1fcc9bd12bdb3961",
+  "prompts": {},
+  "sessions": {
+    "s_2b7f2174ea6cca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec03bba6-5f12-4b85-a9ae-a1162001745f",
+        "model": "poolside/laguna-s-2.1:free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
