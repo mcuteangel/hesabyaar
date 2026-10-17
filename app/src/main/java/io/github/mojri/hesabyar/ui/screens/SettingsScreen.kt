@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -357,7 +360,7 @@ fun SettingsScreen(
           modifier =
             Modifier
               .fillMaxWidth()
-              .clickable { onNavigateToCategories() }
+              .clickable(role = Role.Button) { onNavigateToCategories() }
               .clip(ShapeTokens.Medium)
               .background(MaterialTheme.colorScheme.surfaceContainerLowest)
               .padding(SpacingTokens.md),
@@ -391,7 +394,13 @@ fun SettingsScreen(
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
         Row(
-          modifier = Modifier.fillMaxWidth(),
+          // The whole row toggles the switch. TalkBack reads the label and the state.
+          modifier =
+            Modifier.fillMaxWidth().toggleable(
+              value = settingsViewModel.isDarkMode.value,
+              onValueChange = { settingsViewModel.toggleDarkMode() },
+              role = Role.Switch
+            ),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
@@ -408,7 +417,8 @@ fun SettingsScreen(
           }
           Switch(
             checked = settingsViewModel.isDarkMode.value,
-            onCheckedChange = { settingsViewModel.toggleDarkMode() },
+            onCheckedChange = null,
+            enabled = true,
             modifier = Modifier.testTag("dark_mode_switch")
           )
         }
@@ -567,8 +577,28 @@ fun SecuritySection(
   var pendingDisable by remember { mutableStateOf(false) }
   val scope = rememberCoroutineScope()
 
+  val pinLockChecked = isPinSet && !pendingDisable
+  val onPinLockChange: (Boolean) -> Unit = { checked ->
+    if (checked) {
+      pendingDisable = false
+      if (!isPinSet) {
+        showSetPinDialog = true
+      }
+    } else {
+      if (isPinSet) {
+        pendingDisable = true
+        showVerifyPinDialog = true
+      }
+    }
+  }
   Row(
-    modifier = Modifier.fillMaxWidth(),
+    // The whole row toggles the switch. TalkBack reads the label and the state.
+    modifier =
+      Modifier.fillMaxWidth().toggleable(
+        value = pinLockChecked,
+        onValueChange = onPinLockChange,
+        role = Role.Switch
+      ),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
@@ -586,20 +616,9 @@ fun SecuritySection(
       )
     }
     Switch(
-      checked = isPinSet && !pendingDisable,
-      onCheckedChange = { checked ->
-        if (checked) {
-          pendingDisable = false
-          if (!isPinSet) {
-            showSetPinDialog = true
-          }
-        } else {
-          if (isPinSet) {
-            pendingDisable = true
-            showVerifyPinDialog = true
-          }
-        }
-      }
+      checked = pinLockChecked,
+      onCheckedChange = null,
+      enabled = true
     )
   }
 
@@ -610,7 +629,7 @@ fun SecuritySection(
       modifier =
         Modifier
           .fillMaxWidth()
-          .clickable {
+          .clickable(role = Role.Button) {
             if (BiometricHelper.isBiometricAvailable(context)) {
               val activity = context.findActivity()
               if (activity != null) {
@@ -874,12 +893,20 @@ fun DebugLogsSection() {
       }
 
       Row(
+        // The whole row toggles the switch. TalkBack reads the label and the state.
+        modifier =
+          Modifier.fillMaxWidth().toggleable(
+            value = autoRefresh,
+            onValueChange = { autoRefresh = it },
+            role = Role.Switch
+          ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
       ) {
         Switch(
           checked = autoRefresh,
-          onCheckedChange = { autoRefresh = it },
+          onCheckedChange = null,
+          enabled = true,
           modifier = Modifier.testTag("auto_refresh_switch")
         )
         Text(
@@ -958,11 +985,17 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
     ) {
       // Online/Offline Toggle
       Row(
+        // The whole row toggles the switch. TalkBack reads the label and the state.
         modifier =
           Modifier
             .fillMaxWidth()
             .clip(ShapeTokens.Medium)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .toggleable(
+              value = isOnlineMode,
+              onValueChange = { aiAssistantViewModel.toggleOnlineMode() },
+              role = Role.Switch
+            )
             .padding(SpacingTokens.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -992,7 +1025,8 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
         }
         Switch(
           checked = isOnlineMode,
-          onCheckedChange = { aiAssistantViewModel.toggleOnlineMode() }
+          onCheckedChange = null,
+          enabled = true
         )
       }
 
@@ -1072,7 +1106,12 @@ fun ConfigItem(
           } else {
             MaterialTheme.colorScheme.surfaceContainerLowest
           }
-        ).clickable { onSelect() }
+        // Single-select list: expose the row as a radio button with its selected state.
+        ).selectable(
+          selected = isActive,
+          onClick = { onSelect() },
+          role = Role.RadioButton
+        )
         .padding(SpacingTokens.md),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
@@ -1101,7 +1140,9 @@ fun ConfigItem(
       )
     }
 
-    IconButton(onClick = onEdit, modifier = Modifier.size(Dimens.IconLarge)) {
+    // Enforce the 48dp minimum touch area; the minimum must come before
+    // the fixed size, otherwise the fixed size wins and the target stays small.
+    IconButton(onClick = onEdit, modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)) {
       Icon(
         imageVector = Icons.Filled.Edit,
         contentDescription = "ویرایش",
@@ -1126,7 +1167,12 @@ private fun ConfigDeleteButton(
 ) {
   var pendingDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
 
-  IconButton(onClick = { pendingDelete = config }, modifier = Modifier.size(Dimens.IconLarge)) {
+  // Enforce the 48dp minimum touch area; the minimum must come before
+  // the fixed size, otherwise the fixed size wins and the target stays small.
+  IconButton(
+    onClick = { pendingDelete = config },
+    modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)
+  ) {
     Icon(
       imageVector = Icons.Filled.Delete,
       contentDescription = "حذف",
@@ -1532,10 +1578,22 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         .ReminderSettingsManager(context)
     }
   var config by remember { mutableStateOf(settingsManager.getConfig()) }
+  val onMasterReminderChange: (Boolean) -> Unit = { enabled ->
+    config = config.copy(masterEnabled = enabled)
+    settingsManager.setMasterEnabled(enabled)
+    io.github.mojri.hesabyar.reminder.ReminderScheduler
+      .refreshReminders(context)
+  }
 
   Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
     Row(
-      modifier = Modifier.fillMaxWidth(),
+      // The whole row toggles the switch. TalkBack reads the label and the state.
+      modifier =
+        Modifier.fillMaxWidth().toggleable(
+          value = config.masterEnabled,
+          onValueChange = onMasterReminderChange,
+          role = Role.Switch
+        ),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1552,12 +1610,8 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
       }
       Switch(
         checked = config.masterEnabled,
-        onCheckedChange = { enabled ->
-          config = config.copy(masterEnabled = enabled)
-          settingsManager.setMasterEnabled(enabled)
-          io.github.mojri.hesabyar.reminder.ReminderScheduler
-            .refreshReminders(context)
-        }
+        onCheckedChange = null,
+        enabled = true
       )
     }
 
@@ -1566,7 +1620,18 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
 
       // Installment reminders toggle
       Row(
-        modifier = Modifier.fillMaxWidth(),
+        // The whole row toggles the switch. TalkBack reads the label and the state.
+        modifier =
+          Modifier.fillMaxWidth().toggleable(
+            value = config.installmentReminderEnabled,
+            onValueChange = { enabled ->
+              config = config.copy(installmentReminderEnabled = enabled)
+              settingsManager.setInstallmentReminderEnabled(enabled)
+              io.github.mojri.hesabyar.reminder.ReminderScheduler
+                .refreshReminders(context)
+            },
+            role = Role.Switch
+          ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -1584,18 +1649,25 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         }
         Switch(
           checked = config.installmentReminderEnabled,
-          onCheckedChange = { enabled ->
-            config = config.copy(installmentReminderEnabled = enabled)
-            settingsManager.setInstallmentReminderEnabled(enabled)
-            io.github.mojri.hesabyar.reminder.ReminderScheduler
-              .refreshReminders(context)
-          }
+          onCheckedChange = null,
+          enabled = true
         )
       }
 
       // Loan reminders toggle
       Row(
-        modifier = Modifier.fillMaxWidth(),
+        // The whole row toggles the switch. TalkBack reads the label and the state.
+        modifier =
+          Modifier.fillMaxWidth().toggleable(
+            value = config.loanReminderEnabled,
+            onValueChange = { enabled ->
+              config = config.copy(loanReminderEnabled = enabled)
+              settingsManager.setLoanReminderEnabled(enabled)
+              io.github.mojri.hesabyar.reminder.ReminderScheduler
+                .refreshReminders(context)
+            },
+            role = Role.Switch
+          ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -1613,12 +1685,8 @@ fun ReminderSettingsSection(settingsViewModel: SettingsViewModel) {
         }
         Switch(
           checked = config.loanReminderEnabled,
-          onCheckedChange = { enabled ->
-            config = config.copy(loanReminderEnabled = enabled)
-            settingsManager.setLoanReminderEnabled(enabled)
-            io.github.mojri.hesabyar.reminder.ReminderScheduler
-              .refreshReminders(context)
-          }
+          onCheckedChange = null,
+          enabled = true
         )
       }
 

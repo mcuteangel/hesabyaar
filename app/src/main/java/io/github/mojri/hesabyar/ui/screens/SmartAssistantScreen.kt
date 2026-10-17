@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -271,13 +272,16 @@ fun SmartAssistantScreen(
                       .fillMaxWidth()
                       .clip(ShapeTokens.Small)
                       .background(MaterialTheme.colorScheme.surfaceContainer)
-                      .clickable {
+                      // Guarantee the 48dp minimum touch-target height; the padding
+                      // stays inside so the visual spacing does not change.
+                      .clickable(role = Role.Button) {
                         inputText = ex
                         aiAssistantViewModel.parseSmartSentence(
                           ex,
                           aiAssistantViewModel.isOnlineMode.value
                         )
-                      }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
+                      }.heightIn(min = Dimens.MinTouchTarget)
+                      .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
                   horizontalArrangement = Arrangement.SpaceBetween,
                   verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -888,7 +892,9 @@ fun ParsedResultCard(
 
         IconButton(
           onClick = onCancel,
-          modifier = Modifier.size(Dimens.IconLarge)
+          // Enforce the 48dp minimum touch area; the minimum must come before
+          // the fixed size, otherwise the fixed size wins and the target stays small.
+          modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)
         ) {
           Icon(
             imageVector = Icons.Filled.Close,

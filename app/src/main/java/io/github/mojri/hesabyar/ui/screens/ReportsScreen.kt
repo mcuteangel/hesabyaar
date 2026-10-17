@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -361,7 +363,9 @@ fun ReportsScreen(
             if (budgetState is UiResult.Success) {
               IconButton(
                 onClick = { aiAssistantViewModel.clearAdvisorState() },
-                modifier = Modifier.size(Dimens.ContainerXSmall)
+                // Enforce the 48dp minimum touch area; the minimum must come before
+                // the fixed size, otherwise the fixed size wins and the target stays small.
+                modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerXSmall)
               ) {
                 Icon(
                   imageVector = Icons.Filled.Close,
@@ -567,7 +571,12 @@ fun ReportsScreen(
           modifier =
             Modifier
               .fillMaxWidth()
-              .clickable { selectedCategoryFilter = if (isSelected) null else categoryId },
+              // Filter toggle: expose the selected state like M3 FilterChip does.
+              .selectable(
+                selected = isSelected,
+                onClick = { selectedCategoryFilter = if (isSelected) null else categoryId },
+                role = Role.Checkbox
+              ),
           shape = ShapeTokens.Large,
           cardColors =
             CardDefaults.cardColors(
@@ -690,8 +699,9 @@ fun ReportsScreen(
               .fillMaxWidth()
               .clip(ShapeTokens.Medium)
               .background(MaterialTheme.colorScheme.surface)
-              .padding(SpacingTokens.md)
-              .clickable { showDetailTransaction = transaction },
+              // Clickable sits before padding so the touch area and the ripple cover the full card.
+              .clickable(role = Role.Button) { showDetailTransaction = transaction }
+              .padding(SpacingTokens.md),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
@@ -726,7 +736,9 @@ fun ReportsScreen(
             ReportsTransactionAmount(transaction = transaction)
             IconButton(
               onClick = { deletingTransaction = transaction },
-              modifier = Modifier.size(Dimens.AvatarSmall)
+              // Enforce the 48dp minimum touch area; the minimum must come before
+              // the fixed size, otherwise the fixed size wins and the target stays small.
+              modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.AvatarSmall)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,
