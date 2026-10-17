@@ -7,6 +7,7 @@
 # Usage: ./scripts/tests/test-new-pr.sh
 set -eu
 
+# shellcheck disable=SC1007 # CDPATH= applies to this cd only; intentional (same idiom as other scripts/tests)
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 NEWPR="$HERE/../new-pr.sh"
 TMP=$(mktemp -d)
@@ -16,6 +17,7 @@ pass=0
 fail=0
 
 # mkbody <checked-type> <file> [nosummary]
+# shellcheck disable=SC2016 # backticks are literal sample markdown in the fixture body
 mkbody() {
   {
     if [ "${3:-}" != "nosummary" ]; then
