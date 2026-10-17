@@ -153,7 +153,7 @@ if [ -n "$FEAT_COMMITS" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
     printf '%s\n' "$FEAT_COMMITS" | sed 's/^/  - /' >&2
     echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
     if [ -t 0 ]; then
-      printf "Type 'yes' to confirm the %s bump: " "$(printf '%s' "$SCAN_BUMP" | tr 'A-Z' 'a-z')" >&2
+      printf "Type 'yes' to confirm the %s bump: " "$(printf '%s' "$SCAN_BUMP" | tr '[:upper:]' '[:lower:]')" >&2
       read -r answer
       [ "$answer" = "yes" ] || fail "aborted by user"
     else
