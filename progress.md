@@ -6,11 +6,25 @@
 
 ## Active Task
 
-None — Plan 017 (issue #453) completed and archived. Awaiting next task.
+## Active Task
+
+None — Plan 018 (issue #455) completed, PR #498 open and in review.
 
 ## Goal
 
 None — ready for next task.
+
+## Completed
+
+- **Task:** Issue #455 — Complete icon-size and alpha tokens in Dimens.kt (Plan 018)
+- **Status:** Completed and verified (PR #498)
+- **Completed Date:** 2026-10-17
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`: added missing icon and container sizes (`IconXLarge` = 44.dp, `ContainerXSmall` = 28.dp, `ContainerSmall` = 36.dp, `ContainerMedium` = 44.dp), wired bypassed tokens (`IconMenu` = 20.dp, `IconAvatarMedium` = 20.dp), added semantic alpha tokens (`SUBTLE_BRAND_ALPHA` = 0.08f, `CARD_CONTAINER_ALPHA` = 0.10f, `CHIP_CONTAINER_ALPHA` = 0.12f, `BANNER_CONTAINER_ALPHA` = 0.30f, `MUTED_FOREGROUND_ALPHA` = 0.60f, `SELECTED_SURFACE_ALPHA` = 0.25f)
+    - [x] Migrated 19 screens and components from raw `.dp` and alpha literals to design tokens
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt`: 4 unit tests verifying tokens and ranges
+    - [x] `plans/archive/018-complete-icon-size-and-alpha-tokens.md`: archived completed plan
+
 
 ## Completed
 

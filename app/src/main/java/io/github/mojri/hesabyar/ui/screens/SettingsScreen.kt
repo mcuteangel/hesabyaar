@@ -311,7 +311,7 @@ fun SettingsScreen(
         Modifier
           .fillMaxWidth()
           .clip(ShapeTokens.XLarge)
-          .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+          .background(MaterialTheme.colorScheme.primary.copy(alpha = Dimens.SUBTLE_BRAND_ALPHA))
           .padding(SpacingTokens.xl)
     ) {
       Column(
@@ -923,7 +923,7 @@ fun DebugLogsSection() {
                 "E" -> MaterialTheme.colorScheme.error
                 "W" -> MaterialTheme.colorScheme.tertiary
                 "I" -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
               }
             Text(
               text = entry.formatted(),
@@ -1068,7 +1068,7 @@ fun ConfigItem(
         .clip(ShapeTokens.Medium)
         .background(
           if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
           } else {
             MaterialTheme.colorScheme.surfaceContainerLowest
           }

@@ -361,8 +361,8 @@ fun LoanListItem(
             icon = if (loan.type == LoanType.DEBTOR) Icons.Filled.ArrowCircleDown else Icons.Filled.ArrowCircleUp,
             tint = statusColor,
             backgroundColor = statusColor,
-            containerSize = 36.dp,
-            iconSize = 20.dp
+            containerSize = Dimens.ContainerSmall,
+            iconSize = Dimens.IconAvatarMedium
           )
           Spacer(modifier = Modifier.width(SpacingTokens.md))
           Column {
@@ -411,7 +411,7 @@ fun LoanListItem(
           modifier =
             Modifier
               .clip(ShapeTokens.Small)
-              .background(statusColor.copy(alpha = 0.12f))
+              .background(statusColor.copy(alpha = Dimens.CHIP_CONTAINER_ALPHA))
               .padding(horizontal = SpacingTokens.sm, vertical = SpacingTokens.xs)
         ) {
           Text(
@@ -498,7 +498,7 @@ fun LoanListItem(
               onClick = onDelete,
               modifier =
                 Modifier
-                  .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
+                  .background(MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA), CircleShape)
                   .size(Dimens.AvatarMedium)
             ) {
               Icon(
@@ -512,8 +512,10 @@ fun LoanListItem(
               onClick = onEdit,
               modifier =
                 Modifier
-                  .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape)
-                  .size(Dimens.AvatarMedium)
+                  .background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA),
+                    CircleShape
+                  ).size(Dimens.AvatarMedium)
             ) {
               Icon(
                 imageVector = Icons.Filled.Edit,

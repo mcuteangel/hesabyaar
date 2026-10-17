@@ -30,6 +30,7 @@ import androidx.compose.ui.window.Dialog
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -178,7 +179,7 @@ fun CustomTimePickerDialog(
                     } else {
                       MaterialTheme.colorScheme.onSurfaceVariant
                         .copy(
-                          alpha = 0.7f
+                          alpha = Dimens.SECONDARY_TEXT_ALPHA
                         )
                     }
                 )
@@ -232,7 +233,7 @@ fun CustomTimePickerDialog(
                     } else {
                       MaterialTheme.colorScheme.onSurfaceVariant
                         .copy(
-                          alpha = 0.7f
+                          alpha = Dimens.SECONDARY_TEXT_ALPHA
                         )
                     }
                 )
@@ -392,7 +393,7 @@ fun CustomTimePickerDialog(
                     } else {
                       onSurfaceColor
                         .copy(
-                          alpha = 0.6f
+                          alpha = Dimens.MUTED_FOREGROUND_ALPHA
                         ).toArgb()
                     }
                   val textYOffset = numY - (innerPaint.descent() + innerPaint.ascent()) / 2
