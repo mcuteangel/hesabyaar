@@ -14,8 +14,12 @@
 # Rules enforced:
 #   - title must be conventional-commit shaped: type[(scope)][!]: subject
 #     (type in: feat fix refactor style perf test docs chore build ci)
-#   - a `feat` title bumps the MINOR version (scripts/parse-commits.sh):
-#     without --i-confirm-minor-bump the script asks on a TTY, else fails closed
+#   - branch commit subjects are scanned (git log <base>..HEAD, `Merge `
+#     subjects skipped, same as scripts/parse-commits.sh): a `feat` subject
+#     bumps the MINOR version. Without --i-confirm-minor-bump the script asks
+#     on a TTY, else fails closed. The scan is fail-open: outside a git repo
+#     or when the base ref cannot be resolved it warns and continues.
+#   - a `feat` title also triggers the minor-bump confirmation
 #   - body must contain ## Summary, ## Changes, ## Type of Change and
 #     ## Verification & Evidence, with the `- [x]` box matching the title type
 #
@@ -72,7 +76,7 @@ if [ -n "$BODY_FILE" ]; then
 fi
 
 echo "Template: .github/pull_request_template.md"
-echo "Version-bump rule: 'feat:' -> minor | fix/refactor/style/perf/test/docs/chore -> patch | '!' -> major"
+echo "Version-bump rule (commit subjects, scripts/parse-commits.sh): 'feat:' -> minor | fix/refactor/style/perf/test/docs/chore -> patch | '!' -> major"
 echo ""
 
 # 1. Title shape: type[(scope)][!]: subject
@@ -81,20 +85,56 @@ if ! printf '%s' "$TITLE" | grep -Eq '^(feat|fix|refactor|style|perf|test|docs|c
 fi
 TYPE=$(printf '%s' "$TITLE" | sed -E 's/^([a-z]+).*/\1/')
 
-# 2. Minor-bump gate for feat titles
+# 2. Minor-bump gate for feat titles (keeps the title honest; the bump itself
+#    comes from the branch's commit subjects, checked in step 3)
+TITLE_CONFIRMED=0
 if [ "$TYPE" = "feat" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
-  echo "WARNING: a 'feat' title bumps the MINOR version (scripts/parse-commits.sh)." >&2
+  echo "WARNING: a 'feat' title claims a MINOR bump; the branch's feat commit subjects are what actually bump it (scripts/parse-commits.sh)." >&2
   echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
   if [ -t 0 ]; then
     printf "Type 'yes' to confirm this is a user-facing feature: " >&2
     read -r answer
     [ "$answer" = "yes" ] || fail "aborted by user"
+    TITLE_CONFIRMED=1
   else
     fail "refusing: re-run with --i-confirm-minor-bump once you have confirmed this is a user-facing feature"
   fi
 fi
 
-# 3. Required template sections
+# 3. Minor-bump gate for feat commit subjects on the branch.
+#    scripts/parse-commits.sh reads these subjects (skipping `Merge ` ones),
+#    so they -- not the PR title -- decide the bump under merge-commit flow.
+FEAT_COMMITS=""
+if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+  if git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
+    # NOTE: --pretty=format:%s emits no trailing newline, so the loop must also
+    # process the final unterminated line (|| [ -n "$subject" ]).
+    FEAT_COMMITS=$(git log --pretty=format:%s "$BASE..HEAD" 2>/dev/null | while IFS= read -r subject || [ -n "$subject" ]; do
+      case "$subject" in
+        "Merge "*) continue ;; # same skip as scripts/parse-commits.sh
+        'feat('*|'feat:'*) printf '%s\n' "$subject" ;;
+      esac
+    done)
+  else
+    echo "WARNING: cannot resolve base ref '$BASE' - skipping branch commit scan" >&2
+  fi
+else
+  echo "WARNING: not a git repo (or git not found) - skipping branch commit scan" >&2
+fi
+if [ -n "$FEAT_COMMITS" ] && [ "$CONFIRM_MINOR" -eq 0 ] && [ "$TITLE_CONFIRMED" -eq 0 ]; then
+  echo "WARNING: feat commit subjects on this branch bump the MINOR version (scripts/parse-commits.sh):" >&2
+  printf '%s\n' "$FEAT_COMMITS" | sed 's/^/  - /' >&2
+  echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
+  if [ -t 0 ]; then
+    printf "Type 'yes' to confirm the minor bump: " >&2
+    read -r answer
+    [ "$answer" = "yes" ] || fail "aborted by user"
+  else
+    fail "refusing: re-run with --i-confirm-minor-bump once you have confirmed the feat commits are user-facing features"
+  fi
+fi
+
+# 4. Required template sections
 for section in "## Summary" "## Changes" "## Type of Change" "## Verification"; do
   case "$BODY" in
     *"$section"*) ;;
@@ -102,7 +142,7 @@ for section in "## Summary" "## Changes" "## Type of Change" "## Verification"; 
   esac
 done
 
-# 4. Checked type box matches the title type
+# 5. Checked type box matches the title type
 if ! printf '%s\n' "$BODY" | grep -Eq "^- \[[xX]\] \`$TYPE\`"; then
   fail "body has no checked '- [x] \`$TYPE\`' box under '## Type of Change' matching the title"
 fi

@@ -9,12 +9,18 @@
 
 ## Type of Change
 
-<!-- The PR title prefix drives the automatic version bump (scripts/parse-commits.sh):
-     feat: → minor | fix/perf/refactor/style/test/docs/chore: → patch | <type>!: → major.
-     Reserve `feat` for user-facing new features. Design-system / UI-polish work
-     (e.g. epic #459) that adds no user-facing feature must be titled
-     `refactor(ui):` or `style(ui):` — NOT `feat(ui):` — otherwise it needlessly
-     bumps the minor version. -->
+<!-- The MERGED COMMIT SUBJECTS drive the automatic version bump
+     (scripts/parse-commits.sh reads `git log` subjects and skips `Merge`
+     commits; the PR title only decides the bump for squash merges).
+     feat: → minor | fix/perf/refactor/style/test/docs/chore: → patch
+     | <type>!: → major | BREAKING CHANGE in a commit body → major.
+     Reserve `feat` for user-facing new features. Design-system / UI-polish
+     work (e.g. epic #459) that adds no user-facing feature must use
+     `refactor(ui):` / `style(ui):` COMMIT MESSAGES — NOT `feat(ui):` —
+     otherwise it needlessly bumps the minor version.
+     Keep the PR title conventional-commit shaped too (readability, and it
+     becomes the subject for squash merges), but under this repo's
+     merge-commit flow the title does not drive the bump. -->
 
 - [ ] `feat`: New user-facing feature (→ minor version bump)
 - [ ] `fix`: Bug fix (→ patch)

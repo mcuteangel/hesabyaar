@@ -1,9 +1,10 @@
 name: PR Title Check
 
-# Enforces the title convention that drives the automatic version bump
-# (scripts/parse-commits.sh): type[(scope)][!]: subject.
-# A 'feat' title bumps the MINOR version, so it gets a warning annotation;
-# malformed titles fail the check. See docs/agents/pr-conventions.md and
+# Enforces the conventional-commit title shape (type[(scope)][!]: subject):
+# malformed titles fail the check. The automatic version bump
+# (scripts/parse-commits.sh) is driven by the branch's COMMIT SUBJECTS, not
+# the title, so a second step lists them via the API and warns on `feat`
+# subjects (minor bump). See docs/agents/pr-conventions.md and
 # scripts/new-pr.sh.
 
 on:
@@ -12,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   check-title:
@@ -24,12 +26,33 @@ jobs:
         run: |
           set -eu
           if ! printf '%s' "$PR_TITLE" | grep -Eq '^(feat|fix|refactor|style|perf|test|docs|chore|build|ci)(\([^)]*\))?(!)?: [^[:space:]]'; then
-            echo "::error title=pr-title::PR title must look like 'type[(scope)][!]: subject' (type: feat|fix|refactor|style|perf|test|docs|chore|build|ci). Got: $PR_TITLE"
+            echo "::error title=pr-title::PR title must look like 'type[(scope)][!]: subject' (got: $PR_TITLE)"
             echo "See docs/agents/pr-conventions.md and scripts/new-pr.sh."
             exit 1
           fi
           title_type=$(printf '%s' "$PR_TITLE" | sed -E 's/^([a-z]+).*/\1/')
           if [ "$title_type" = "feat" ]; then
-            echo "::warning title=pr-title::A 'feat' title bumps the MINOR version (scripts/parse-commits.sh). Reserve 'feat' for user-facing new features; use refactor(...)/style(...) for design-system work. See docs/agents/pr-conventions.md."
+            echo "::warning title=pr-title::A 'feat' title should match feat commit subjects on the branch; the subjects (not the title) drive the MINOR version bump (scripts/parse-commits.sh). Reserve 'feat' for user-facing new features; use refactor(...)/style(...) for design-system work. See docs/agents/pr-conventions.md."
           fi
           echo "PR title OK: $PR_TITLE"
+
+      - name: Warn on feat commit subjects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          # Commit subjects on the PR branch via the API -- the same source
+          # scripts/parse-commits.sh reads, minus the `Merge ` subjects it
+          # skips. Warning only (never fail): the release workflow decides
+          # the bump, not this check.
+          subjects=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+            --paginate --jq '.[].commit.message | split("\n")[0]' || true)
+          feat_subjects=$(printf '%s\n' "$subjects" | grep -v '^Merge ' | grep -E '^feat(\([^)]*\))?:' || true)
+          if [ -n "$feat_subjects" ]; then
+            printf '%s\n' "$feat_subjects" | while IFS= read -r s; do
+              echo "::warning title=pr-commits::feat commit subject bumps MINOR (scripts/parse-commits.sh): $s"
+            done
+            echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) for design-system work. See docs/agents/pr-conventions.md."
+          else
+            echo "No feat commit subjects on the branch."
+          fi
