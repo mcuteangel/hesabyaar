@@ -6,25 +6,43 @@
 
 ## Active Task
 
-None. Issue #454 (`labelSmall` typography) is complete on branch `feat/issue-454-labelsmall-typography`.
+None — Plan 017 (issue #453) completed and archived. Awaiting next task.
+
+## Goal
+
+None — ready for next task.
 
 ## Completed
 
-- **Task:** Issue #454 — Add `labelSmall` to `Type.kt` (Plan 017)
-- **Status:** Implementation complete, verification pending PR
+- **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
+- **Status:** Completed and verified
+- **Completed Date:** 2026-10-16
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartTokens.kt`: central chart dimensions, stroke widths, corner radii, point radii, padding, and text sizing
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/ChartModel.kt`: strongly typed immutable models (`BarEntry`, `ChartPoint`, `ChartSeries`, `DonutSlice`) enforcing `Long` (Rial) for money values
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarBarChart.kt`: rounded bar chart with automatic RTL coordinate mirroring
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarLineChart.kt`: multi-series line chart with point markers and RTL coordinate inversion
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarDonutChart.kt`: proportional arc segments with empty state and zero-total safety
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/charts/HesabyarProgressRing.kt`: animated circular progress ring with clamped progress and accessibility semantics
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt`: migrated all 4 hand-drawn `Canvas` blocks (`MonthlyTrendCard`, `CombinedLineChartCard`, `CategoryBreakdownCard`, `InstallmentProgressCard`); removed ad-hoc `BarChart`, `DonutChart`, `CircularProgress`
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt`: migrated to `HesabyarDonutChart`
+    - [x] `docs/architecture/ARCHITECTURE.md`: documented `ui/charts/` component family in architecture guide
+    - [x] `plans/archive/017-design-system-chart-system.md`: completed architecture plan (DONE in `plans/README.md`)
+    - [x] Unit test suites: `ChartTokensTest` (2 tests), `HesabyarBarChartTest` (6 tests), `HesabyarLineChartTest` (7 tests), `HesabyarDonutChartTest` (6 tests), `HesabyarProgressRingTest` (6 tests) — all passed
+    - [x] New `AccountBreakdownCardTest` (2 tests: populated and empty breakdown) with `testTag`-capable `modifier` parameter added to `AccountBreakdownCard`
+    - [x] Follow-up fixes: negative-value clamping in bar/line/donut charts; `toComposeColor()` ARGB conversion in `AccountBreakdownCard` and `AnalyticsScreen`; progress-ring label computed from `effectiveProgress` with `ProgressBarRangeInfo` semantics; hoisted `Paint` allocations; removed redundant ring size; default line-chart content description
+
+- **Task:** Issue #454 — Add `labelSmall` to `Type.kt`
+- **Status:** Completed (merged to `main`, plan archived)
 - **Completed Date:** 2026-10-16
 - **Deliverables:**
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/theme/Type.kt` — added `labelSmall` (Vazirmatn, Medium, 11sp/16sp/0.5sp) after `labelMedium`; all 15 M3 styles now use `VazirmatnFontFamily`
     - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/theme/TypographyTest.kt` — 2 new tests (both pass)
     - [x] `plans/archive/017-add-labelsmall-typography.md` — plan archived (DONE in `plans/README.md`)
-    - [x] `ktlintCheck detekt` — BUILD SUCCESSFUL, 0 findings
-    - [x] Targeted tests `TypographyTest` — 2/2 pass (`labelSmallStyleConfiguredWithVazirmatn`, `allFifteenMaterialTypographyStylesUseVazirmatn`)
-    - [x] `testDebugUnitTest` full suite — 134 suites, 1142 tests, 0 failures
-    - [x] `python scripts/check_docs.py` — no broken references
-    - [x] `.github/workflows/ai-issue-os.yml` — CI fix (commit `92c5bac`): write the 200-issue payload to `issues.json` on disk instead of the `ISSUES_JSON` env var, fixing the `ai_os_v2` E2BIG ("Argument list too long") failure on this PR
+    - [x] `.github/workflows/ai-issue-os.yml` — CI fix (commit `92c5bac`): write the 200-issue payload to `issues.json` on disk instead of the `ISSUES_JSON` env var, fixing the `ai_os_v2` E2BIG ("Argument list too long") failure
 
 - **Task:** Issue #452 — Shared HesabyarTabRow
-- **Status:** Implementation complete, verification pending PR
+- **Status:** Merged to `main` via PR #483
 - **Completed Date:** 2026-10-16
 - **Deliverables:**
     - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarTabRow.kt` — new shared component (TabRow + SecondaryScrollableTabRow, Dimens.TabHeight, theme colors)
@@ -36,6 +54,7 @@ None. Issue #454 (`labelSmall` typography) is complete on branch `feat/issue-454
     - [x] Targeted tests `HesabyarTabRowTest` + `DebtHubTabBarTest` + `DebtSectionTest` — 10/10 pass
     - [x] `testDebugUnitTest` full suite — 131 suites, 1136 tests, 0 failures
     - [x] `python scripts/check_docs.py` — no broken references
+
 
 - **Task:** PR #304 — Plan 013 (UI/UX overhaul in prioritized phases)
 - **Status:** Merged to `main`
@@ -173,9 +192,7 @@ Run on 2026-10-09, branch `fix/back-navigation` (PR #385):
 
 ## Next Steps
 
-1. Pushed (commit `40eb61a`): merged `origin/fix/back-navigation` (PR #387 docs split) and resolved the AGENTS.md conflict by porting the Graphify rule into `docs/agents/code-intelligence.md`.
-2. Await DeepSource "Test coverage" re-run on PR #385 (currently pending on run for `40eb61a`) and confirm it turns green.
-3. Confirm PR auto-merge once all required checks pass.
+None — Plan 016 (issue #453) completed and archived. Awaiting next task.
 
 ## Last Updated
 
