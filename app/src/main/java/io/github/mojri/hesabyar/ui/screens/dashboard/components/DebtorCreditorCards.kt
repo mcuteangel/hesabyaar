@@ -72,8 +72,10 @@ internal fun DebtorCreditorCards(
           Box(
             modifier =
               Modifier
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), CircleShape)
-                .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
+                .background(
+                  MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.CHIP_CONTAINER_ALPHA),
+                  CircleShape
+                ).padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
               text = "بدهکاران",
@@ -87,7 +89,7 @@ internal fun DebtorCreditorCards(
         Text(
           text = CurrencyFormatter.format(dashboardData.debtorsTotal),
           style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.ExtraBold,
+          fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
@@ -122,8 +124,10 @@ internal fun DebtorCreditorCards(
           Box(
             modifier =
               Modifier
-                .background(MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.12f), CircleShape)
-                .padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
+                .background(
+                  MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = Dimens.CHIP_CONTAINER_ALPHA),
+                  CircleShape
+                ).padding(horizontal = SpacingTokens.sm, vertical = 2.dp)
           ) {
             Text(
               text = "طلبکاران",
@@ -137,7 +141,7 @@ internal fun DebtorCreditorCards(
         Text(
           text = CurrencyFormatter.format(dashboardData.creditorsTotal),
           style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.ExtraBold,
+          fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onTertiaryContainer,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis

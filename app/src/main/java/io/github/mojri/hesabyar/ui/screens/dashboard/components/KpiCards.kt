@@ -17,10 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.DashboardData
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -47,7 +47,7 @@ internal fun KpiCards(dashboardData: DashboardData) {
             icon = Icons.Filled.Savings,
             tint = MaterialTheme.colorScheme.primary,
             backgroundColor = MaterialTheme.colorScheme.primary,
-            containerSize = 28.dp
+            containerSize = Dimens.ContainerXSmall
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
@@ -85,7 +85,7 @@ internal fun KpiCards(dashboardData: DashboardData) {
             icon = Icons.Filled.AccountBalance,
             tint = MaterialTheme.colorScheme.secondary,
             backgroundColor = MaterialTheme.colorScheme.secondary,
-            containerSize = 28.dp
+            containerSize = Dimens.ContainerXSmall
           )
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
           Text(
