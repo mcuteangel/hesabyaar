@@ -573,7 +573,7 @@ fun ReportsScreen(
             CardDefaults.cardColors(
               containerColor =
                 if (isSelected) {
-                  MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
+                  MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SELECTED_SURFACE_ALPHA)
                 } else {
                   MaterialTheme.colorScheme.surfaceContainerHigh
                 }
@@ -726,7 +726,7 @@ fun ReportsScreen(
             ReportsTransactionAmount(transaction = transaction)
             IconButton(
               onClick = { deletingTransaction = transaction },
-              modifier = Modifier.size(Dimens.ContainerSmall)
+              modifier = Modifier.size(Dimens.AvatarSmall)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,

@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,12 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,12 +22,22 @@ import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.rust.BankLoanSummary
 import io.github.mojri.hesabyar.ui.*
+import io.github.mojri.hesabyar.ui.charts.BarEntry
+import io.github.mojri.hesabyar.ui.charts.ChartPoint
+import io.github.mojri.hesabyar.ui.charts.ChartSeries
+import io.github.mojri.hesabyar.ui.charts.ChartTokens
+import io.github.mojri.hesabyar.ui.charts.DonutSlice
+import io.github.mojri.hesabyar.ui.charts.HesabyarBarChart
+import io.github.mojri.hesabyar.ui.charts.HesabyarDonutChart
+import io.github.mojri.hesabyar.ui.charts.HesabyarLineChart
+import io.github.mojri.hesabyar.ui.charts.HesabyarProgressRing
 import io.github.mojri.hesabyar.ui.components.AccountSelector
 import io.github.mojri.hesabyar.ui.components.CardEmptyHint
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.AccountBreakdownCard
 import io.github.mojri.hesabyar.ui.utils.partyColor
 import io.github.mojri.hesabyar.ui.utils.partyLabelRes
@@ -186,14 +190,14 @@ private fun MonthlyTrendCard(
         CardEmptyHint(message = "داده‌ای موجود نیست")
       } else {
         // Bar chart
-        BarChart(
-          data = data.map { getValue(it) },
-          labels = data.map { it.label },
-          color = color,
+        HesabyarBarChart(
+          entries = data.map { BarEntry(label = it.label, value = getValue(it)) },
+          height = ChartTokens.DefaultHeight,
+          defaultColor = color,
+          labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier =
             Modifier
-              .fillMaxWidth()
-              .height(180.dp)
+              .fillMaxWidth(),
         )
 
         // Legend
@@ -241,96 +245,67 @@ private fun CombinedLineChartCard(
       )
       Spacer(modifier = Modifier.height(SpacingTokens.md))
 
-      // Merge by label for combined view
-      val allLabels = (spending.map { it.label } + income.map { it.label }).distinct().takeLast(6)
-      val spendByLabel = spending.associateBy { it.label }
-      val incomeByLabel = income.associateBy { it.label }
-
-      val spendValues = allLabels.map { label -> spendByLabel[label]?.expense ?: 0L }
-      val incomeValues = allLabels.map { label -> incomeByLabel[label]?.income ?: 0L }
-      val allValues = spendValues + incomeValues
-      val maxValue = allValues.maxOrNull()?.coerceAtLeast(1) ?: 1L
+      // Merge by (jalaliYear, jalaliMonth), since Rust emits different label formats
+      // per series (spending labels append " (N days)", income labels do not), so
+      // the label strings would not match while the year/month do.
+      val spendPeriods = spending.map { it.jalaliYear to it.jalaliMonth }
+      val incomePeriods = income.map { it.jalaliYear to it.jalaliMonth }
+      val allPeriods = (spendPeriods + incomePeriods).distinct().takeLast(6)
+      val spendByPeriod = spending.associateBy { it.jalaliYear to it.jalaliMonth }
+      val incomeByPeriod = income.associateBy { it.jalaliYear to it.jalaliMonth }
       val incomeColor = MaterialTheme.colorScheme.primary
       val expenseColor = MaterialTheme.colorScheme.error
 
-      Canvas(
+      fun resolvePeriodLabel(period: Pair<Int, Int>): String =
+        spendByPeriod[period]?.label?.substringBefore(" (")
+          ?: incomeByPeriod[period]?.label
+          ?: "${period.first}/${period.second}"
+
+      val chartPoints = allPeriods.map { period -> resolvePeriodLabel(period) }
+      val spendSeries =
+        ChartSeries(
+          name = "هزینه",
+          color = expenseColor,
+          points =
+            allPeriods.mapIndexed { index, period ->
+              ChartPoint(
+                label = chartPoints[index],
+                value = spendByPeriod[period]?.expense ?: 0L,
+              )
+            },
+        )
+      val incomeSeries =
+        ChartSeries(
+          name = "درآمد",
+          color = incomeColor,
+          points =
+            allPeriods.mapIndexed { index, period ->
+              ChartPoint(
+                label = chartPoints[index],
+                value = incomeByPeriod[period]?.income ?: 0L,
+              )
+            },
+        )
+
+      val chartContentDescription =
+        "مقایسه درآمد و هزینه در ۶ دوره اخیر: " +
+          allPeriods.joinToString(separator = "، ") { period ->
+            val label = resolvePeriodLabel(period)
+            val inc = CurrencyFormatter.format(incomeByPeriod[period]?.income ?: 0L)
+            val exp = CurrencyFormatter.format(spendByPeriod[period]?.expense ?: 0L)
+            "$label: درآمد $inc، هزینه $exp"
+          }
+
+      HesabyarLineChart(
+        series = listOf(incomeSeries, spendSeries),
+        height = ChartTokens.LineChartHeight,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        contentDescriptionText = chartContentDescription,
         modifier =
           Modifier
             .fillMaxWidth()
-            .height(160.dp)
-      ) {
-        val chartHeight = size.height - 40f
-        val chartWidth = size.width - 40f
-        val startX = 20f
-        val spacing =
-          if (allLabels.isNotEmpty()) {
-            chartWidth /
-              (allLabels.size - 1).coerceAtLeast(
-                1
-              )
-          } else {
-            chartWidth
-          }
-
-        // Draw income line (green)
-        if (incomeValues.isNotEmpty()) {
-          val points =
-            incomeValues.mapIndexed { idx, value ->
-              val x = startX + idx * spacing
-              val y = chartHeight - if (maxValue > 0) value.toFloat() / maxValue * chartHeight else 0f
-              Offset(x, y)
-            }
-          for (i in 0 until points.size - 1) {
-            drawLine(
-              color = incomeColor,
-              start = points[i],
-              end = points[i + 1],
-              strokeWidth = 4f,
-              cap = StrokeCap.Round
-            )
-          }
-          points.forEach { pt ->
-            drawCircle(color = incomeColor, radius = 6f, center = pt)
-          }
-        }
-
-        // Draw expense line (red)
-        if (spendValues.isNotEmpty()) {
-          val points =
-            spendValues.mapIndexed { idx, value ->
-              val x = startX + idx * spacing
-              val y = chartHeight - if (maxValue > 0) value.toFloat() / maxValue * chartHeight else 0f
-              Offset(x, y)
-            }
-          for (i in 0 until points.size - 1) {
-            drawLine(
-              color = expenseColor,
-              start = points[i],
-              end = points[i + 1],
-              strokeWidth = 4f,
-              cap = StrokeCap.Round
-            )
-          }
-          points.forEach { pt ->
-            drawCircle(color = expenseColor, radius = 6f, center = pt)
-          }
-        }
-
-        // Labels
-        drawContext.canvas.nativeCanvas.apply {
-          val paint =
-            android.graphics.Paint().apply {
-              textSize = 24f
-              textAlign = android.graphics.Paint.Align.CENTER
-              this.color = android.graphics.Color.GRAY
-            }
-          val textPadding = 10f
-          allLabels.forEachIndexed { idx, label ->
-            val x = startX + idx * spacing
-            drawText(label, x, size.height - textPadding, paint)
-          }
-        }
-      }
+            .height(160.dp),
+      )
 
       // Legend
       Row(
@@ -345,51 +320,6 @@ private fun CombinedLineChartCard(
         Box(modifier = Modifier.size(12.dp).background(MaterialTheme.colorScheme.error, CircleShape))
         Spacer(modifier = Modifier.width(SpacingTokens.xs))
         Text("هزینه", style = MaterialTheme.typography.labelSmall)
-      }
-    }
-  }
-}
-
-@Composable
-private fun BarChart(
-  data: List<Long>,
-  labels: List<String>,
-  color: Color,
-  modifier: Modifier = Modifier
-) {
-  val maxValue = data.maxOrNull() ?: 1L
-  val primaryColor = MaterialTheme.colorScheme.primary
-  val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-
-  Canvas(modifier = modifier) {
-    val barWidth = size.width / (data.size * 2f)
-    val chartHeight = size.height - 40f
-    val spacing = barWidth
-
-    data.forEachIndexed { index, value ->
-      val barHeight = if (maxValue > 0) (value.toFloat() / maxValue) * chartHeight else 0f
-      val x = index * (barWidth + spacing) + spacing / 2
-      val y = chartHeight - barHeight
-
-      // Bar
-      drawRoundRect(
-        color = color,
-        topLeft = Offset(x, y),
-        size = Size(barWidth, barHeight),
-        cornerRadius =
-          androidx.compose.ui.geometry
-            .CornerRadius(8f, 8f)
-      )
-
-      // Label
-      drawContext.canvas.nativeCanvas.apply {
-        val paint =
-          android.graphics.Paint().apply {
-            textSize = 24f
-            textAlign = android.graphics.Paint.Align.CENTER
-            this.color = android.graphics.Color.GRAY
-          }
-        drawText(labels[index], x + barWidth / 2, size.height, paint)
       }
     }
   }
@@ -414,12 +344,20 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
         CardEmptyHint(message = "هزینه‌ای ثبت نشده")
       } else {
         // Donut chart
-        DonutChart(
-          data = categoryBreakdown,
+        HesabyarDonutChart(
+          slices =
+            categoryBreakdown.map { item ->
+              DonutSlice(
+                label = item.categoryName,
+                value = item.total,
+                color = item.color.toComposeColor(),
+                percentage = item.percentage,
+              )
+            },
+          height = ChartTokens.DonutChartHeight,
           modifier =
             Modifier
-              .fillMaxWidth()
-              .height(200.dp)
+              .fillMaxWidth(),
         )
 
         // Legend
@@ -440,7 +378,7 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
                 modifier =
                   Modifier
                     .size(12.dp)
-                    .background(Color(item.color), CircleShape)
+                    .background(item.color.toComposeColor(), CircleShape)
               )
               Text(
                 text = item.categoryName,
@@ -455,40 +393,6 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
           }
         }
       }
-    }
-  }
-}
-
-@Composable
-internal fun DonutChart(
-  data: List<CategoryBreakdown>,
-  modifier: Modifier = Modifier
-) {
-  val total = data.sumOf { it.total }
-  var startAngle = -90f
-
-  Canvas(modifier = modifier) {
-    val strokeWidth = 40f
-    val diameter = minOf(size.width, size.height) - strokeWidth
-    val topLeft =
-      Offset(
-        (size.width - diameter) / 2f,
-        (size.height - diameter) / 2f
-      )
-    val arcSize = Size(diameter, diameter)
-
-    data.forEach { item ->
-      val sweepAngle = if (total > 0) (item.total.toFloat() / total) * 360f else 0f
-      drawArc(
-        color = Color(item.color),
-        startAngle = startAngle,
-        sweepAngle = sweepAngle,
-        useCenter = false,
-        topLeft = topLeft,
-        size = arcSize,
-        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-      )
-      startAngle += sweepAngle
     }
   }
 }
@@ -810,9 +714,9 @@ private fun InstallmentProgressCard(
           horizontalArrangement = Arrangement.SpaceEvenly,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          CircularProgress(
+          HesabyarProgressRing(
             progress = if (total > 0) paid.toFloat() / total else 0f,
-            modifier = Modifier.size(100.dp)
+            modifier = Modifier,
           )
 
           Column(
@@ -868,48 +772,3 @@ private fun InstallmentProgressCard(
   }
 }
 
-@Composable
-private fun CircularProgress(
-  progress: Float,
-  modifier: Modifier = Modifier,
-  color: Color = MaterialTheme.colorScheme.primary,
-  strokeWidth: Float = 12f
-) {
-  val animatedProgress by animateFloatAsState(
-    targetValue = progress,
-    animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-    label = "progress"
-  )
-
-  Canvas(modifier = modifier) {
-    val diameter = minOf(size.width, size.height) - strokeWidth
-    val topLeft =
-      Offset(
-        (size.width - diameter) / 2f,
-        (size.height - diameter) / 2f
-      )
-    val arcSize = Size(diameter, diameter)
-
-    // Background arc
-    drawArc(
-      color = Color.LightGray.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA),
-      startAngle = -90f,
-      sweepAngle = 360f,
-      useCenter = false,
-      topLeft = topLeft,
-      size = arcSize,
-      style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-    )
-
-    // Progress arc
-    drawArc(
-      color = color,
-      startAngle = -90f,
-      sweepAngle = animatedProgress * 360f,
-      useCenter = false,
-      topLeft = topLeft,
-      size = arcSize,
-      style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-    )
-  }
-}

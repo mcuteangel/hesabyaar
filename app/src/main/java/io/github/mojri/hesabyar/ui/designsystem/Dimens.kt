@@ -62,6 +62,9 @@ object Dimens {
   /** Alpha for subtle surface tints (e.g. selected card backgrounds). */
   const val SURFACE_TINT_ALPHA = 0.2f
 
+  /** Alpha for selected category-filter cards (25%). */
+  const val SELECTED_SURFACE_ALPHA = 0.25f
+
   /** Alpha for highlighted banners and alert containers (30%). */
   const val BANNER_CONTAINER_ALPHA = 0.30f
 

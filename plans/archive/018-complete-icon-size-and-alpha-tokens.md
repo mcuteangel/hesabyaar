@@ -43,10 +43,11 @@ The design system's token library (`ui/designsystem/Dimens.kt`) is inconsistent 
     - `CARD_CONTAINER_ALPHA = 0.10f`
     - `BANNER_CONTAINER_ALPHA = 0.30f`
     - `MUTED_FOREGROUND_ALPHA = 0.60f`
+    - `SELECTED_SURFACE_ALPHA = 0.25f`
 - [x] **Criterion 2 (Unused Tokens Wired):** Wire `Dimens.IconMenu` (`18.dp`), `Dimens.IconAvatarMedium` (`20.dp`), `Dimens.SURFACE_TINT_ALPHA` (`0.2f`), and `Dimens.SECONDARY_TEXT_ALPHA` (`0.7f`) across all bypassed locations identified in the codebase.
-- [x] **Criterion 3 (Hardcoded Literals Replaced):** Replace all identified raw `28.dp`, `36.dp`, `44.dp` container/icon sizes and raw alpha floats (`0.08f`, `0.10f`, `0.12f`, `0.20f`, `0.28f/0.30f`, `0.60f`, `0.70f`) with their corresponding tokens in:
-  - `KpiCards.kt`, `IncomeExpenseCards.kt`, `DebtorCreditorCards.kt`, `DashboardHeader.kt`, `SmartForecastCard.kt`, `SmartParsingBanner.kt`, `TransactionMiniItem.kt`
-  - `LoanManagementScreen.kt`, `CategoryManagementScreen.kt`, `SettingsScreen.kt`, `SmartAssistantScreen.kt`, `ReportsScreen.kt`
+- [x] **Criterion 3 (Hardcoded Literals Replaced):** Replace all identified raw `28.dp`, `36.dp`, `44.dp` container/icon sizes and raw alpha floats (`0.08f`, `0.10f`, `0.12f`, `0.20f`, `0.25f`, `0.28f/0.30f`, `0.60f`, `0.70f`) with their corresponding tokens in:
+  - `KpiCards.kt`, `IncomeExpenseCards.kt`, `DebtorCreditorCards.kt`, `DashboardHeader.kt`, `SmartForecastCard.kt`, `SmartParsingBanner.kt`, `TransactionMiniItem.kt`, `BalanceCard.kt`, `AccountBreakdownCard.kt`, `InstallmentMiniItem.kt`
+  - `LoanManagementScreen.kt`, `CategoryManagementScreen.kt`, `SettingsScreen.kt`, `SmartAssistantScreen.kt`, `ReportsScreen.kt`, `AccountManagementScreen.kt`, `AnalyticsScreen.kt`, `CustomTimePickerDialog.kt`, `InstallmentScreen.kt`, `JalaliDatePickerDialog.kt`
 - [x] **Criterion 4 (Typography Consistency):** Align `FontWeight.ExtraBold` in `DebtorCreditorCards.kt` to `FontWeight.Bold` matching all other KPI and dashboard metric cards (`KpiCards`, `IncomeExpenseCards`, `BalanceCard`).
 - [x] **Criterion 5 (Automated Unit Tests):** Add a comprehensive `DimensTokenTest` in `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt` <!-- check-docs: ignore --> verifying all new and existing size and alpha tokens, their values, and ranges `[0f..1f]`.
 - [x] **Criterion 6 (Static Analysis & Doc Check):** Pass `./gradlew.bat ktlintCheck detekt --no-daemon` and `python scripts/check_docs.py` with 0 errors.
@@ -86,6 +87,9 @@ In `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`:
    /** Alpha for highlighted banners and alert containers (30%). */
    const val BANNER_CONTAINER_ALPHA = 0.30f
 
+   /** Alpha for selected category-filter cards (25%). */
+   const val SELECTED_SURFACE_ALPHA = 0.25f
+
    /** Alpha for muted foreground icons and inactive indicators (60%). */
    const val MUTED_FOREGROUND_ALPHA = 0.60f
    ```
@@ -96,7 +100,7 @@ Create `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTe
 - Test that all size tokens match design specs (`IconSmall = 16.dp`, `IconMenu = 18.dp`, `IconAvatarMedium = 20.dp`, `IconMedium = 24.dp`, `IconLarge = 32.dp`, `IconXLarge = 44.dp`).
 - Test that container sizes match specs (`ContainerXSmall = 28.dp`, `ContainerSmall = 36.dp`, `ContainerMedium = 44.dp`, `AvatarSmall = 32.dp`, `AvatarMedium = 40.dp`, `AvatarLarge = 56.dp`).
 - Test that alpha tokens are valid float probabilities (`0f < alpha <= 1f`):
-  `SUBTLE_BRAND_ALPHA == 0.08f`, `CARD_CONTAINER_ALPHA == 0.10f`, `CHIP_CONTAINER_ALPHA == 0.12f`, `ICON_CIRCLE_BACKGROUND_ALPHA == 0.15f`, `SURFACE_TINT_ALPHA == 0.20f`, `BANNER_CONTAINER_ALPHA == 0.30f`, `MUTED_FOREGROUND_ALPHA == 0.60f`, `SECONDARY_TEXT_ALPHA == 0.70f`.
+  `SUBTLE_BRAND_ALPHA == 0.08f`, `CARD_CONTAINER_ALPHA == 0.10f`, `CHIP_CONTAINER_ALPHA == 0.12f`, `ICON_CIRCLE_BACKGROUND_ALPHA == 0.15f`, `SURFACE_TINT_ALPHA == 0.20f`, `SELECTED_SURFACE_ALPHA == 0.25f`, `BANNER_CONTAINER_ALPHA == 0.30f`, `MUTED_FOREGROUND_ALPHA == 0.60f`, `SECONDARY_TEXT_ALPHA == 0.70f`.
 
 ### Phase 3: Migrate Dashboard Components
 
@@ -153,6 +157,8 @@ Create `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTe
    - Replace `Modifier.size(28.dp)` with `Dimens.ContainerXSmall` (line 364).
    - Replace `containerSize = 20.dp` with `Dimens.IconAvatarMedium` (line 707).
    - Replace `alpha = 0.7f` with `Dimens.SECONDARY_TEXT_ALPHA` (lines 612, 733).
+   - Replace `alpha = 0.25f` (selected category filter card) with `Dimens.SELECTED_SURFACE_ALPHA` (line 576).
+   - Replace `Modifier.size(32.dp)` (delete IconButton) with `Dimens.AvatarSmall` (line 729).
 6. `AccountManagementScreen.kt`:
    - Replace `Modifier.size(28.dp)` with `Dimens.ContainerXSmall` (lines 769, 786).
 

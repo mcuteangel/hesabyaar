@@ -33,6 +33,7 @@ class DimensTokenTest {
     assertEquals("CHIP_CONTAINER_ALPHA must be 0.12f", 0.12f, Dimens.CHIP_CONTAINER_ALPHA, 0.0001f)
     assertEquals("ICON_CIRCLE_BACKGROUND_ALPHA must be 0.15f", 0.15f, Dimens.ICON_CIRCLE_BACKGROUND_ALPHA, 0.0001f)
     assertEquals("SURFACE_TINT_ALPHA must be 0.20f", 0.20f, Dimens.SURFACE_TINT_ALPHA, 0.0001f)
+    assertEquals("SELECTED_SURFACE_ALPHA must be 0.25f", 0.25f, Dimens.SELECTED_SURFACE_ALPHA, 0.0001f)
     assertEquals("BANNER_CONTAINER_ALPHA must be 0.30f", 0.30f, Dimens.BANNER_CONTAINER_ALPHA, 0.0001f)
     assertEquals("MUTED_FOREGROUND_ALPHA must be 0.60f", 0.60f, Dimens.MUTED_FOREGROUND_ALPHA, 0.0001f)
     assertEquals("SECONDARY_TEXT_ALPHA must be 0.70f", 0.70f, Dimens.SECONDARY_TEXT_ALPHA, 0.0001f)
@@ -47,6 +48,7 @@ class DimensTokenTest {
         Dimens.CHIP_CONTAINER_ALPHA,
         Dimens.ICON_CIRCLE_BACKGROUND_ALPHA,
         Dimens.SURFACE_TINT_ALPHA,
+        Dimens.SELECTED_SURFACE_ALPHA,
         Dimens.BANNER_CONTAINER_ALPHA,
         Dimens.MUTED_FOREGROUND_ALPHA,
         Dimens.SECONDARY_TEXT_ALPHA,
