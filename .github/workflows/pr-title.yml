@@ -24,13 +24,15 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           set -eu
           # Mergify's merge-queue drafts have synthetic titles
           # ("merge queue: checking #NNN on main (...)"); the original PR
-          # was already title-checked and the draft itself is never merged,
-          # so it passes unconditionally.
-          if [ "$PR_AUTHOR" = "mergify[bot]" ]; then
+          # was already title-checked and the draft itself is never merged.
+          # Gated on draft status too, so a non-draft mergify[bot] PR still
+          # gets its title validated.
+          if [ "$PR_AUTHOR" = "mergify[bot]" ] && [ "$PR_DRAFT" = "true" ]; then
             echo "Merge-queue draft PR; skipping title check."
             exit 0
           fi
