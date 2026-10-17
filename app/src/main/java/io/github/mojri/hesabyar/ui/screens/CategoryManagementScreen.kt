@@ -310,8 +310,9 @@ private fun CategoryItem(
 
       IconButton(
         onClick = { onEdit(category) },
-        // Keep the 36dp visual and enforce the 48dp minimum touch area.
-        modifier = Modifier.size(Dimens.ContainerSmall).minimumInteractiveComponentSize()
+        // Enforce the 48dp minimum touch area; the minimum must come before
+        // the fixed size, otherwise the fixed size wins and the target stays small.
+        modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerSmall)
       ) {
         Icon(
           imageVector = Icons.Filled.Edit,
@@ -324,8 +325,9 @@ private fun CategoryItem(
       if (!isDefault) {
         IconButton(
           onClick = { onDelete(category) },
-          // Keep the 36dp visual and enforce the 48dp minimum touch area.
-          modifier = Modifier.size(Dimens.ContainerSmall).minimumInteractiveComponentSize()
+          // Enforce the 48dp minimum touch area; the minimum must come before
+          // the fixed size, otherwise the fixed size wins and the target stays small.
+          modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerSmall)
         ) {
           Icon(
             imageVector = Icons.Filled.Delete,

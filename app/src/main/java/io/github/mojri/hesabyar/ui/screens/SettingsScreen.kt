@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -894,7 +895,7 @@ fun DebugLogsSection() {
       Row(
         // The whole row toggles the switch. TalkBack reads the label and the state.
         modifier =
-          Modifier.toggleable(
+          Modifier.fillMaxWidth().toggleable(
             value = autoRefresh,
             onValueChange = { autoRefresh = it },
             role = Role.Switch
@@ -1105,7 +1106,12 @@ fun ConfigItem(
           } else {
             MaterialTheme.colorScheme.surfaceContainerLowest
           }
-        ).clickable(role = Role.Button) { onSelect() }
+        // Single-select list: expose the row as a radio button with its selected state.
+        ).selectable(
+          selected = isActive,
+          onClick = { onSelect() },
+          role = Role.RadioButton
+        )
         .padding(SpacingTokens.md),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
@@ -1134,8 +1140,9 @@ fun ConfigItem(
       )
     }
 
-    // Keep the 32dp visual and enforce the 48dp minimum touch area.
-    IconButton(onClick = onEdit, modifier = Modifier.size(Dimens.IconLarge).minimumInteractiveComponentSize()) {
+    // Enforce the 48dp minimum touch area; the minimum must come before
+    // the fixed size, otherwise the fixed size wins and the target stays small.
+    IconButton(onClick = onEdit, modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)) {
       Icon(
         imageVector = Icons.Filled.Edit,
         contentDescription = "ویرایش",
@@ -1160,8 +1167,9 @@ private fun ConfigDeleteButton(
 ) {
   var pendingDelete by remember { mutableStateOf<AiProviderConfig?>(null) }
 
-  // Keep the 32dp visual and enforce the 48dp minimum touch area.
-  IconButton(onClick = { pendingDelete = config }, modifier = Modifier.size(Dimens.IconLarge).minimumInteractiveComponentSize()) {
+  // Enforce the 48dp minimum touch area; the minimum must come before
+  // the fixed size, otherwise the fixed size wins and the target stays small.
+  IconButton(onClick = { pendingDelete = config }, modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)) {
     Icon(
       imageVector = Icons.Filled.Delete,
       contentDescription = "حذف",

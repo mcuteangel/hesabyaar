@@ -272,13 +272,16 @@ fun SmartAssistantScreen(
                       .fillMaxWidth()
                       .clip(ShapeTokens.Small)
                       .background(MaterialTheme.colorScheme.surfaceContainer)
+                      // Guarantee the 48dp minimum touch-target height; the padding
+                      // stays inside so the visual spacing does not change.
                       .clickable(role = Role.Button) {
                         inputText = ex
                         aiAssistantViewModel.parseSmartSentence(
                           ex,
                           aiAssistantViewModel.isOnlineMode.value
                         )
-                      }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
+                      }.heightIn(min = Dimens.MinTouchTarget)
+                      .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
                   horizontalArrangement = Arrangement.SpaceBetween,
                   verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -889,8 +892,9 @@ fun ParsedResultCard(
 
         IconButton(
           onClick = onCancel,
-          // Keep the 32dp visual and enforce the 48dp minimum touch area.
-          modifier = Modifier.size(Dimens.IconLarge).minimumInteractiveComponentSize()
+          // Enforce the 48dp minimum touch area; the minimum must come before
+          // the fixed size, otherwise the fixed size wins and the target stays small.
+          modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)
         ) {
           Icon(
             imageVector = Icons.Filled.Close,

@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
@@ -311,7 +313,9 @@ fun InstallmentListItem(
     modifier =
       Modifier
         .fillMaxWidth()
-        .clickable(role = Role.Button) { expanded = !expanded },
+        .clickable(role = Role.Button) { expanded = !expanded }
+        // Tell screen readers whether the card is expanded or collapsed.
+        .semantics { stateDescription = if (expanded) "باز" else "بسته" },
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
@@ -441,19 +445,27 @@ fun InstallmentListItem(
           ) {
             IconButton(
               onClick = { pendingDelete = installment },
-              modifier =
-                Modifier
-                  .background(MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA), CircleShape)
-                  // Keep the 32dp visual and enforce the 48dp minimum touch area.
-                  .size(Dimens.AvatarSmall)
-                  .minimumInteractiveComponentSize()
+              // Enforce the 48dp minimum touch area. The 32dp tinted circle
+              // stays on the inner box so the visual does not change.
+              modifier = Modifier.minimumInteractiveComponentSize()
             ) {
-              Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = "حذف قسط",
-                modifier = Modifier.size(Dimens.IconMenu),
-                tint = MaterialTheme.colorScheme.error
-              )
+              Box(
+                modifier =
+                  Modifier
+                    .background(
+                      MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA),
+                      CircleShape
+                    )
+                    .size(Dimens.AvatarSmall),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.Delete,
+                  contentDescription = "حذف قسط",
+                  modifier = Modifier.size(Dimens.IconMenu),
+                  tint = MaterialTheme.colorScheme.error
+                )
+              }
             }
           }
         }

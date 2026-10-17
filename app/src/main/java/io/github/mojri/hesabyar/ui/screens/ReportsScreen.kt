@@ -362,8 +362,9 @@ fun ReportsScreen(
             if (budgetState is UiResult.Success) {
               IconButton(
                 onClick = { aiAssistantViewModel.clearAdvisorState() },
-                // Keep the 28dp visual and enforce the 48dp minimum touch area.
-                modifier = Modifier.size(Dimens.ContainerXSmall).minimumInteractiveComponentSize()
+                // Enforce the 48dp minimum touch area; the minimum must come before
+                // the fixed size, otherwise the fixed size wins and the target stays small.
+                modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerXSmall)
               ) {
                 Icon(
                   imageVector = Icons.Filled.Close,
@@ -729,8 +730,9 @@ fun ReportsScreen(
             ReportsTransactionAmount(transaction = transaction)
             IconButton(
               onClick = { deletingTransaction = transaction },
-              // Keep the 32dp visual and enforce the 48dp minimum touch area.
-              modifier = Modifier.size(Dimens.AvatarSmall).minimumInteractiveComponentSize()
+              // Enforce the 48dp minimum touch area; the minimum must come before
+              // the fixed size, otherwise the fixed size wins and the target stays small.
+              modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.AvatarSmall)
             ) {
               Icon(
                 imageVector = Icons.Filled.Delete,

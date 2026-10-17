@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -337,7 +339,9 @@ fun LoanListItem(
     modifier =
       Modifier
         .fillMaxWidth()
-        .clickable(role = Role.Button) { expanded = !expanded },
+        .clickable(role = Role.Button) { expanded = !expanded }
+        // Tell screen readers whether the card is expanded or collapsed.
+        .semantics { stateDescription = if (expanded) "باز" else "بسته" },
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
