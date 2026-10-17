@@ -89,7 +89,12 @@ TYPE=$(printf '%s' "$TITLE" | sed -E 's/^([a-z]+).*/\1/')
 #    comes from the branch's commit subjects, checked in step 3)
 TITLE_CONFIRMED=0
 if [ "$TYPE" = "feat" ] && [ "$CONFIRM_MINOR" -eq 0 ]; then
-  echo "WARNING: a 'feat' title claims a MINOR bump; the branch's feat commit subjects are what actually bump it (scripts/parse-commits.sh)." >&2
+  # <type>!: is a MAJOR bump, plain feat: is minor (scripts/parse-commits.sh)
+  TITLE_BUMP="MINOR"
+  case "$TITLE" in
+    *'!'*) TITLE_BUMP="MAJOR" ;;
+  esac
+  echo "WARNING: a 'feat' title claims a $TITLE_BUMP bump; the branch's feat commit subjects are what actually bump it (scripts/parse-commits.sh)." >&2
   echo "Reserve 'feat' for user-facing new features; use refactor(...)/style(...) otherwise." >&2
   if [ -t 0 ]; then
     printf "Type 'yes' to confirm this is a user-facing feature: " >&2
