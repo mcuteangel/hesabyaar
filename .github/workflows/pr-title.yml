@@ -1,0 +1,35 @@
+name: PR Title Check
+
+# Enforces the title convention that drives the automatic version bump
+# (scripts/parse-commits.sh): type[(scope)][!]: subject.
+# A 'feat' title bumps the MINOR version, so it gets a warning annotation;
+# malformed titles fail the check. See docs/agents/pr-conventions.md and
+# scripts/new-pr.sh.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -eu
+          if ! printf '%s' "$PR_TITLE" | grep -Eq '^(feat|fix|refactor|style|perf|test|docs|chore|build|ci)(\([^)]*\))?(!)?: [^[:space:]]'; then
+            echo "::error title=pr-title::PR title must look like 'type[(scope)][!]: subject' (type: feat|fix|refactor|style|perf|test|docs|chore|build|ci). Got: $PR_TITLE"
+            echo "See docs/agents/pr-conventions.md and scripts/new-pr.sh."
+            exit 1
+          fi
+          title_type=$(printf '%s' "$PR_TITLE" | sed -E 's/^([a-z]+).*/\1/')
+          if [ "$title_type" = "feat" ]; then
+            echo "::warning title=pr-title::A 'feat' title bumps the MINOR version (scripts/parse-commits.sh). Reserve 'feat' for user-facing new features; use refactor(...)/style(...) for design-system work. See docs/agents/pr-conventions.md."
+          fi
+          echo "PR title OK: $PR_TITLE"
