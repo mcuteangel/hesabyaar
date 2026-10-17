@@ -56,6 +56,16 @@ The script prints the template rules, then validates before creating the PR:
 If you must use the API directly (no `gh` auth), run with `--validate-only`
 first and fix every violation before creating the PR.
 
+## CI Enforcement
+
+`.github/workflows/pr-title.yml` checks every PR title on open/edit/sync:
+
+- malformed titles (not `type[(scope)][!]: subject`) **fail** the check
+- `feat` titles pass but get a **warning** annotation: they bump MINOR
+
+The check cannot tell a real feature from a mislabeled refactor — that
+judgment stays with the author. When in doubt, prefer `refactor`.
+
 ## PR Bodies
 
 Follow `.github/pull_request_template.md`: Summary, Changes, Type of Change
