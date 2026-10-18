@@ -1,10 +1,10 @@
 # Plan 019: Remove Dead Design-System Tokens — 4 Remaining of 7 in Issue #456
 
 - **Issue:** #456
-- **PR:** —
+- **PR:** #515
 - **Created:** 2026-10-18
 - **Author:** Claude Code
-- **Status:** IN PROGRESS
+- **Status:** IN PROGRESS (PR #515 open; moves to archive on merge)
 
 ## 1. Problem Statement
 
