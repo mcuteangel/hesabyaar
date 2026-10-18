@@ -1,0 +1,57 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt
+  s_4bcb58ef9b8746::t_27beea96a87a3b 190,205
+  s_4bcb58ef9b8746::t_2172617c72e58a 270
+  s_4bcb58ef9b8746::t_db1c44d94af402 34
+  s_4bcb58ef9b8746::t_b692f4f863e5b3 107
+  s_4bcb58ef9b8746::t_390d7a40edeada 225,233,243,251
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_4bcb58ef9b8746::t_44d1c18361fce3 756
+  s_4bcb58ef9b8746::t_8e5be66c27ca44 1296
+  s_4bcb58ef9b8746::t_49778a1d7f29f9 1414,1419
+  s_4bcb58ef9b8746::t_9387ecd4961e9c 692
+progress.md
+  s_4bcb58ef9b8746::t_c847c0ec3ba04f 10
+  s_4bcb58ef9b8746::t_5ed80126e44acc 11-14,18-22
+app/src/main/java/io/github/mojri/hesabyar/ui/components/ExportPassphraseDialog.kt
+  s_4bcb58ef9b8746::t_b2340715278c90 98,101,103,105,108
+  s_4bcb58ef9b8746::t_fff77d78f4023f 117
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_4bcb58ef9b8746::t_4146c8e119381b 23
+  s_4bcb58ef9b8746::t_83e5687c9ddbab 108,111,114,117,124
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
+  s_4bcb58ef9b8746::t_9d178298efe20c 403
+app/src/main/java/io/github/mojri/hesabyar/ui/components/ImportPassphraseDialog.kt
+  s_4bcb58ef9b8746::t_1732e10ce1050d 101,104
+plans/README.md
+  s_4bcb58ef9b8746::t_55ba6a5d8d5ae7 40-41
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt
+  s_4bcb58ef9b8746::t_c496e380fb065c 1016
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_4bcb58ef9b8746::t_f50db4cb74cde7 612-626
+  s_4bcb58ef9b8746::t_ebf74cce6bb1f1 674
+plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md
+  s_4bcb58ef9b8746::t_a7166fc4020eef 7
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_4bcb58ef9b8746::t_81acc0d1952b3d 310,318
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarInputField.kt
+  s_4bcb58ef9b8746::t_718bd0b45b9341 9,13,24,27,32-34,42,45,50,52,55-101
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_4bcb58ef9b8746::t_bab9339ea228a7 237,241-242,251
+  s_4bcb58ef9b8746::t_ebe4336681c3e0 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "37677889e0f08752e553c78d52e3240b3329822e",
+  "prompts": {},
+  "sessions": {
+    "s_4bcb58ef9b8746": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93795fac-bebc-4dc8-b210-c10047fe4401",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
