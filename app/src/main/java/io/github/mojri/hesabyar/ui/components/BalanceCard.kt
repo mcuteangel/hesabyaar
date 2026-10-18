@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.FinancialColors
@@ -45,7 +46,7 @@ fun BalanceCard(
         .fillMaxWidth()
         .then(
           if (onClick != null) {
-            Modifier.clickable(onClick = onClick)
+            Modifier.clickable(onClick = onClick, role = Role.Button)
           } else {
             Modifier
           }
