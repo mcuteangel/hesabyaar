@@ -248,35 +248,36 @@ open class AiAssistantViewModel
     ) {
       if (sentence.isBlank()) return
       parseJob?.cancel()
-      parseJob = viewModelScope.launch {
-        _parserState.value = ParserUIState.Loading
-        try {
-          val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
-          AppLogger.d(
-            "AiAssistantViewModel",
-            "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
-              "found(${it.providerType}, model=${it.model})"
-            } ?: "null"}"
-          )
-          val result = performParse(sentence, config)
-          if (result != null) {
-            _parserState.value = ParserUIState.Confirming(result)
-          } else {
-            _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
+      parseJob =
+        viewModelScope.launch {
+          _parserState.value = ParserUIState.Loading
+          try {
+            val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
+            AppLogger.d(
+              "AiAssistantViewModel",
+              "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
+                "found(${it.providerType}, model=${it.model})"
+              } ?: "null"}"
+            )
+            val result = performParse(sentence, config)
+            if (result != null) {
+              _parserState.value = ParserUIState.Confirming(result)
+            } else {
+              _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
+            }
+          } catch (e: java.io.IOException) {
+            AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
+            _parserState.value = ParserUIState.Error("خطا در اتصال")
+          } catch (e: IllegalArgumentException) {
+            AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
+            _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
+          } catch (e: CancellationException) {
+            throw e
           }
-        } catch (e: java.io.IOException) {
-          AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
-          _parserState.value = ParserUIState.Error("خطا در اتصال")
-        } catch (e: IllegalArgumentException) {
-          AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
-          _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
-        } catch (e: CancellationException) {
-          throw e
         }
       }
-    }
 
-    internal open suspend fun performParse(
+      internal open suspend fun performParse(
       sentence: String,
       config: AiProviderConfig?
     ): ParsedResult? = parseTransactionUseCase.parse(sentence, config)
