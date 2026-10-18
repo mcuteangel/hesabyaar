@@ -1,0 +1,21 @@
+plans/019-remove-or-wire-dead-tokens.md
+  s_a90bc59d5ee171::t_ffb184b32ee77e 4,7
+plans/README.md
+  s_a90bc59d5ee171::t_7b6ac97d6955eb 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bd938bf9180525bc42e1cbe3818eac69b6b23168",
+  "prompts": {},
+  "sessions": {
+    "s_a90bc59d5ee171": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "414dd864-2406-4c83-adc9-b6d5c636bb74",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
