@@ -275,9 +275,9 @@ open class AiAssistantViewModel
             throw e
           }
         }
-      }
+    }
 
-      internal open suspend fun performParse(
+    internal open suspend fun performParse(
       sentence: String,
       config: AiProviderConfig?
     ): ParsedResult? = parseTransactionUseCase.parse(sentence, config)
