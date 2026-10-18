@@ -830,6 +830,7 @@ Change:
 - [ ] Zero user-facing Toasts for in-app validation/errors (grep proves
   it); every destructive action offers Undo with a defined reversal
 - [ ] 48dp touch targets on category row actions; ime navigation works
+- [x] `Dimens.MinTouchTarget = 48.dp` is recorded in the design-system changes
 - [ ] Entrance animations run once; empty states centered
 - [ ] Full suite + lint exits 0
 
