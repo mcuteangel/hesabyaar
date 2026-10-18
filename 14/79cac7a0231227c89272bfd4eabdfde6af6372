@@ -1,0 +1,22 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/ElevationTokens.kt
+  s_a90bc59d5ee171::t_1785449081d14e 7
+plans/019-remove-or-wire-dead-tokens.md
+  s_a90bc59d5ee171::t_e33d220758fb05 11-23,27-30,32,34,37,39-42,48,54
+  s_a90bc59d5ee171::t_357691fd9607be 83-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1479cac7a0231227c89272bfd4eabdfde6af6372",
+  "prompts": {},
+  "sessions": {
+    "s_a90bc59d5ee171": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "414dd864-2406-4c83-adc9-b6d5c636bb74",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
