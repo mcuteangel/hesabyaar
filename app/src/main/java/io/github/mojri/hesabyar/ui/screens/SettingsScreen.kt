@@ -991,11 +991,7 @@ fun AiProviderSettingsCard(aiAssistantViewModel: AiAssistantViewModel) {
             .fillMaxWidth()
             .clip(ShapeTokens.Medium)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .toggleable(
-              value = isOnlineMode,
-              onValueChange = { aiAssistantViewModel.toggleOnlineMode() },
-              role = Role.Switch
-            )
+            .toggleable(value = isOnlineMode, role = Role.Switch) { aiAssistantViewModel.toggleOnlineMode() }
             .padding(SpacingTokens.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1095,23 +1091,20 @@ fun ConfigItem(
   onEdit: () -> Unit,
   onDelete: (AiProviderConfig) -> Unit
 ) {
+  // Single-select list: expose the row as a radio button with its selected state.
+  val containerColor =
+    if (isActive) {
+      MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
+    } else {
+      MaterialTheme.colorScheme.surfaceContainerLowest
+    }
   Row(
     modifier =
       Modifier
         .fillMaxWidth()
         .clip(ShapeTokens.Medium)
-        .background(
-          if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
-          } else {
-            MaterialTheme.colorScheme.surfaceContainerLowest
-          }
-        // Single-select list: expose the row as a radio button with its selected state.
-        ).selectable(
-          selected = isActive,
-          onClick = { onSelect() },
-          role = Role.RadioButton
-        )
+        .background(containerColor)
+        .selectable(selected = isActive, onClick = { onSelect() }, role = Role.RadioButton)
         .padding(SpacingTokens.md),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(SpacingTokens.lg)

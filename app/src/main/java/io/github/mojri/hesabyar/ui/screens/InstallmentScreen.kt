@@ -452,11 +452,11 @@ fun InstallmentListItem(
               Box(
                 modifier =
                   Modifier
+                    .size(Dimens.AvatarSmall)
                     .background(
                       MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA),
                       CircleShape
-                    )
-                    .size(Dimens.AvatarSmall),
+                    ),
                 contentAlignment = Alignment.Center
               ) {
                 Icon(
