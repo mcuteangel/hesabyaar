@@ -45,7 +45,7 @@ fun BalanceCard(
         .fillMaxWidth()
         .then(
           if (onClick != null) {
-            Modifier.clickable(onClick = onClick)
+            Modifier.clickable(onClick = onClick, role = Role.Button)
           } else {
             Modifier
           }
