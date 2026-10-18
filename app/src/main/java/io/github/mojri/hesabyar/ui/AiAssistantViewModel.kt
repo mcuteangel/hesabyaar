@@ -271,8 +271,6 @@ open class AiAssistantViewModel
           } catch (e: IllegalArgumentException) {
             AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
             _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
-          } catch (e: CancellationException) {
-            throw e
           }
         }
     }
