@@ -36,7 +36,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class AiAssistantParseRaceTest {
-
   private val testDispatcher = StandardTestDispatcher()
   private lateinit var viewModel: TestableAiAssistantViewModel
 
@@ -149,18 +148,19 @@ class AiAssistantParseRaceTest {
     override fun isOnlineMode(): Boolean = false
   }
 
-  private class TestableAiAssistantViewModel(    parseTransactionUseCase: ParseTransactionUseCase,
+  private class TestableAiAssistantViewModel(
+    parseTransactionUseCase: ParseTransactionUseCase,
     getBudgetAdviceUseCase: GetBudgetAdviceUseCase,
     getForecastUseCase: GetForecastUseCase,
     manageAiConfigUseCase: ManageAiConfigUseCase,
     aiForecastAdviceCache: AiForecastAdviceCache
   ) : AiAssistantViewModel(
-    parseTransactionUseCase,
-    getBudgetAdviceUseCase,
-    getForecastUseCase,
-    manageAiConfigUseCase,
-    aiForecastAdviceCache
-  ) {
+      parseTransactionUseCase,
+      getBudgetAdviceUseCase,
+      getForecastUseCase,
+      manageAiConfigUseCase,
+      aiForecastAdviceCache
+    ) {
     val gate = CompletableDeferred<Unit>()
 
     override suspend fun performParse(

@@ -3,11 +3,13 @@ package io.github.mojri.hesabyar.api
 import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -254,7 +256,7 @@ object AiProvider {
     }
   }
 
-  private fun callGemini(
+  private suspend fun callGemini(
     config: AiProviderConfig,
     prompt: String,
     systemInstruction: String?,
@@ -310,7 +312,7 @@ object AiProvider {
     return executePost(url, requestJson, ::parseGeminiResponse, apiKey = null)
   }
 
-  private fun callOpenAiCompatible(
+  private suspend fun callOpenAiCompatible(
     config: AiProviderConfig,
     prompt: String,
     systemInstruction: String?,
@@ -367,7 +369,7 @@ object AiProvider {
     )
   }
 
-  private fun executePost(
+  private suspend fun executePost(
     url: String,
     body: JSONObject,
     responseParser: (String) -> ApiResult,
@@ -390,8 +392,21 @@ object AiProvider {
 
     val request = requestBuilder.build()
 
+    // Cancellable: cancelling the coroutine (e.g. a superseded parse) also
+    // cancels the in-flight OkHttp call instead of letting it run to completion.
+    val call = client.newCall(request)
     return try {
-      client.newCall(request).execute().use { response ->
+      suspendCancellableCoroutine { cont ->
+        cont.invokeOnCancellation { call.cancel() }
+        try {
+          val response: Response = call.execute()
+          // If the coroutine was cancelled after execute() returned, drop the
+          // undeliverable response instead of leaking it.
+          cont.resume(response) { response.close() }
+        } catch (e: IOException) {
+          cont.resumeWithException(e)
+        }
+      }.use { response ->
         val bodyStr = response.body?.string()
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")
