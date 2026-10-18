@@ -1,0 +1,29 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/ElevationTokens.kt
+  s_a90bc59d5ee171::t_ab3ab127e8b701 7-8
+plans/019-remove-or-wire-dead-tokens.md
+  s_a90bc59d5ee171::t_a9705ae954ba70 1-6,8-136
+  s_a90bc59d5ee171::t_515abecc690f07 7
+progress.md
+  s_a90bc59d5ee171::t_0657b02848a2ce 10-12
+  s_a90bc59d5ee171::t_1bb2f958d0598a 9,13-14,18-21
+plans/README.md
+  s_a90bc59d5ee171::t_54ded9f91b60c4 40
+.gitignore
+  s_a90bc59d5ee171::t_f1f78a16c543f7 91-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "db1283f23ee1aa573217881cd4bd935a0dabed99",
+  "prompts": {},
+  "sessions": {
+    "s_a90bc59d5ee171": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "414dd864-2406-4c83-adc9-b6d5c636bb74",
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
