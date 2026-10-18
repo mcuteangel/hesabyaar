@@ -8,38 +8,50 @@
 
 ## 1. Problem Statement
 
-Issue #456 lists seven design-system tokens with zero usages. A live-repository re-audit on 2026-10-18 (branch `feat/issue-455-icon-size-alpha-tokens`) shows five of the seven are already resolved by merged or open work, and only four tokens remain dead:
+Issue #456 lists 7 bullet entries representing 10 individual design-system tokens claimed to have zero usages. A live-repository re-audit on 2026-10-18 (branch `feat/issue-456-remove-dead-tokens`) reconciles these 10 tokens: 5 were already wired by merged work (Plans 015–018), 1 was wrongly claimed dead but is actively used (`Level4`), and only 4 tokens were genuinely dead:
+
+- **10 tokens total** across the 7 issue bullets:
+  1. `Dimens.FABSize` (already wired)
+  2. `Dimens.FABIconSize` (already wired)
+  3. `Dimens.BottomNavClearance` (dead)
+  4. `Dimens.ChipHeight` (dead)
+  5. `Dimens.TabHeight` (already wired)
+  6. `Dimens.SURFACE_TINT_ALPHA` (already wired)
+  7. `Dimens.SECONDARY_TEXT_ALPHA` (already wired)
+  8. `ElevationTokens.Level1` (dead)
+  9. `ElevationTokens.Level4` (live, used at `MainNavigationBars.kt:80`)
+  10. `ElevationTokens.Level5` (dead)
 
 **Already wired (no action; cite evidence in the PR and issue comment):**
 
-1. `Dimens.FABSize` / `Dimens.FABIconSize` — wired by Plan 015 (issue #451, merged): `ui/components/HesabyarFab.kt:40,48`. Tests: `HesabyarFabTokenTest.fabDimensionsTokensMatchSpec`.
-2. `Dimens.TabHeight` — wired by Plan 016 (issue #452, merged PR #483): `ui/components/HesabyarTabRow.kt:34` (`heightIn(min = Dimens.TabHeight)`).
-3. `Dimens.SURFACE_TINT_ALPHA` — wired by Plan 018 (issue #455, PR #498): 4 call sites (`BalanceCard.kt:36`, `CategoryManagementScreen.kt:492`, `SmartAssistantScreen.kt:207,436`).
-4. `Dimens.SECONDARY_TEXT_ALPHA` — wired by Plan 018: 12 call sites (`AnalyticsScreen.kt:391`, `CustomTimePickerDialog.kt:182,236`, `InstallmentScreen.kt:424`, `SettingsScreen.kt:926`, `ReportsScreen.kt:610,734`, `SmartAssistantScreen.kt:238,474`, `AccountBreakdownCard.kt:102`, `TransactionMiniItem.kt:131`).
+1. `Dimens.FABSize` / `Dimens.FABIconSize` (2 tokens) — wired by Plan 015 (issue #451, merged): `ui/components/HesabyarFab.kt:40,48`. Tests: `HesabyarFabTokenTest.fabDimensionsTokensMatchSpec`.
+2. `Dimens.TabHeight` (1 token) — wired by Plan 016 (issue #452, merged PR #483): `ui/components/HesabyarTabRow.kt:34` (`heightIn(min = Dimens.TabHeight)`).
+3. `Dimens.SURFACE_TINT_ALPHA` (1 token) — wired by Plan 018 (issue #455, PR #498): 4 call sites (`BalanceCard.kt:36`, `CategoryManagementScreen.kt:492`, `SmartAssistantScreen.kt:207,436`).
+4. `Dimens.SECONDARY_TEXT_ALPHA` (1 token) — wired by Plan 018: 12 call sites (`AnalyticsScreen.kt:391`, `CustomTimePickerDialog.kt:182,236`, `InstallmentScreen.kt:424`, `SettingsScreen.kt:926`, `ReportsScreen.kt:610,734`, `SmartAssistantScreen.kt:238,474`, `AccountBreakdownCard.kt:102`, `TransactionMiniItem.kt:131`).
 
-**Stale claims in the issue text (document, do not act on):**
+**Stale claims in the issue text (documented; not acted on):**
 
-- "The app has NO BottomNav" is wrong. `MainActivity.kt:173` renders `MainBottomNavigation` in compact width. Plan 015 already recorded this in `progress.md` (Plan 015 Findings). The rename the issue asks for also already happened: `Dimens.FabClearance` (80dp) exists at `Dimens.kt:39` with 4 call sites.
+- "The app has NO BottomNav" is wrong. `MainActivity.kt:173` renders `MainBottomNavigation` in compact width. Plan 015 already recorded this in `progress.md` (Plan 015 Findings). The rename the issue asks for also already happened: `Dimens.FabClearance` (80dp) exists at `Dimens.kt:43` with 4 call sites.
 - `ElevationTokens.Level4` is used at `MainNavigationBars.kt:80` (`tonalElevation` on `NavigationBar`). It is not dead.
 
-**Still dead (the actual work of this plan):**
+**Still dead (the 4 tokens deleted by this plan):**
 
-1. `Dimens.BottomNavClearance` (`Dimens.kt:41-45`) — a `@Deprecated` alias for `FabClearance` with zero usages. The rename is long merged; the alias can go.
-2. `Dimens.ChipHeight` (`Dimens.kt:47`, 36dp) — zero usages. `HesabyarChip.kt` and `CategoryChip.kt` both use M3 `FilterChip`, which owns its height (M3 default 32dp). Forcing 36dp on the chips would be a visual change; issue #456 carries the `refactor` label ("Code restructuring without behavior change"). Delete the token. If a future chip-standardization issue picks 36dp, it re-adds the token with a consumer in the same PR.
-3. `ElevationTokens.Level1` (`ElevationTokens.kt:9`, 1dp) — zero usages. No elevated component in the codebase takes an explicit 1dp elevation. Delete.
-4. `ElevationTokens.Level5` (`ElevationTokens.kt:13`, 12dp) — zero usages. Same rationale. Delete.
+1. `Dimens.BottomNavClearance` — a `@Deprecated` alias for `FabClearance` with zero usages. The rename is long merged; the alias can go.
+2. `Dimens.ChipHeight` (36dp) — zero usages. `HesabyarChip.kt` and `CategoryChip.kt` both use M3 `FilterChip`, which owns its height (M3 default 32dp). Forcing 36dp on the chips would be a visual change; issue #456 carries the `refactor` label ("Code restructuring without behavior change"). Delete the token. If a future chip-standardization issue picks 36dp, it re-adds the token with a consumer in the same PR.
+3. `ElevationTokens.Level1` (1dp) — zero usages. No elevated component in the codebase takes an explicit 1dp elevation. Delete.
+4. `ElevationTokens.Level5` (12dp) — zero usages. Same rationale. Delete.
 
 Goal per the issue: "Do not leave aspirational tokens that nothing consumes."
 
 ## 2. Goals & Acceptance Criteria
 
-- [x] **Criterion 1 (Dead tokens deleted):** `Dimens.kt` no longer contains `BottomNavClearance` or `ChipHeight`. `ElevationTokens.kt` no longer contains `Level1` or `Level5`. Verification: `grep -rn "BottomNavClearance\|ChipHeight\|ElevationTokens.Level1\|ElevationTokens.Level5" app/src` returns zero matches.
+- [x] **Criterion 1 (Dead tokens deleted):** `Dimens.kt` no longer contains `BottomNavClearance` or `ChipHeight`. `ElevationTokens.kt` no longer contains `Level1` or `Level5`. Verification: `grep -rn "BottomNavClearance\|ChipHeight" app/src` and `grep -rn "Level1\|Level5" app/src --include="*.kt" --include="*.java"` return zero matches.
 - [x] **Criterion 2 (Live tokens untouched):** `FabClearance`, `FABSize`, `FABIconSize`, `TabHeight`, `SURFACE_TINT_ALPHA`, `SECONDARY_TEXT_ALPHA`, and `ElevationTokens.Level0/Level2/Level3/Level4` keep their exact values and KDoc. Verification: `DimensTokenTest`, `HesabyarFabTokenTest`, and the full suite still pass unchanged.
 - [x] **Criterion 3 (Doc sync):** `docs/architecture/ARCHITECTURE.md` (AppElevation list, lines 459-466) lists only the remaining levels (`Level0`, `Level2`, `Level3`, `Level4`). `python scripts/check_docs.py` reports no broken references.
 - [x] **Criterion 4 (No behavior change):** `git diff main...HEAD` for the fix PR touches only `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`, `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/ElevationTokens.kt`, `docs/architecture/ARCHITECTURE.md`, `plans/` metadata, and `progress.md`. No composable behavior, layout, or value changes.
 - [x] **Criterion 5 (Static checks):** `./gradlew.bat ktlintFormat --no-daemon` then `./gradlew.bat ktlintCheck detekt --no-daemon` report BUILD SUCCESSFUL with 0 findings. No new baseline entries.
 - [x] **Criterion 6 (Tests green):** Targeted runs of `DimensTokenTest`, `HesabyarFabTokenTest`, `HesabyarFabTest`, `HesabyarTabRowTest`, and `MainNavigationComponentsTest` pass. Full `./gradlew.bat testDebugUnitTest --no-daemon` passes with 0 failures. Raw `<testcase>` lines are pasted as evidence.
-- [x] **Criterion 7 (Issue hygiene):** A comment on issue #456 lists the five already-resolved items with file:line evidence, links this PR, and states which four tokens were deleted. The issue is not closed until the PR merges.
+- [x] **Criterion 7 (Issue hygiene):** A comment on issue #456 lists the five already-resolved items with file:line evidence, links this PR, and states which four tokens were deleted (posted: comment #6250269870). The issue is not closed until the PR merges.
 
 ## 3. Implementation Steps
 
@@ -68,7 +80,9 @@ Dependency: Phase 0 passed for the tokens in this phase.
    - Delete `val Level1: Dp = 1.dp` (line 9).
    - Delete `val Level5: Dp = 12.dp` (line 13).
    - Keep `Level0`, `Level2`, `Level3`, `Level4` unchanged. Do not renumber.
-3. Done criteria: `grep -rn "BottomNavClearance\|ChipHeight" app/src` → 0 matches. `grep -rn "Level1\|Level5" app/src/main` → 0 matches. `./gradlew.bat --no-daemon compileDebugKotlin` succeeds.
+3. Done criteria: `grep -rn "BottomNavClearance\|ChipHeight" app/src` → 0 matches. `grep -rn "ElevationTokens.Level1\|ElevationTokens.Level5\|val Level1\|val Level5" app/src/main` → 0 matches. `./gradlew.bat --no-daemon compileDebugKotlin` succeeds.
+
+   > Note: the naive `grep -rn "Level1\|Level5" app/src/main` matches the removal-comment lines inside `ElevationTokens.kt` itself (lines 7-8) and the plan docs in `plans/`. To assert the tokens are truly gone from source, search for their qualified usage (`ElevationTokens.Level1`, `ElevationTokens.Level5`) plus their declarations (`val Level1`, `val Level5`), excluding comments. A zero result on that form confirms no consumer.
 
 ### Phase 2: Doc Sync
 
