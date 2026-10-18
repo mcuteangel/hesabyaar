@@ -1,0 +1,21 @@
+plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md
+  s_4bcb58ef9b8746::t_28b4438aad5286 4,7
+plans/README.md
+  s_4bcb58ef9b8746::t_d1be8326d97182 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "13819079646caf9c1b5a19d83901bc0763a0ebfe",
+  "prompts": {},
+  "sessions": {
+    "s_4bcb58ef9b8746": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93795fac-bebc-4dc8-b210-c10047fe4401",
+        "model": "xiaomi/mimo-v2.6-flash"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
