@@ -1,10 +1,10 @@
 # Plan 020: Replace 16 Raw OutlinedTextField Uses With HesabyarInputField
 
 - **Issue:** #457
-- **PR:** —
+- **PR:** #517
 - **Created:** 2026-10-18
 - **Author:** Claude Code
-- **Status:** IN PROGRESS (implementation + verification green; PR pending)
+- **Status:** IN PROGRESS (PR #517 open, verification green; moves to archive on merge)
 
 ## 1. Problem Statement
 

@@ -38,7 +38,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | —    | Add `labelSmall` to `Type.kt` and typography tests (`plans/archive/017-add-labelsmall-typography.md`, issue #454) | P3 | XS | — | DONE |
 | 018  | Complete icon-size and alpha tokens in Dimens.kt (`plans/archive/018-complete-icon-size-and-alpha-tokens.md`, issue #455) | P2 | S | — | DONE |
 | 019  | Remove dead design-system tokens (`plans/019-remove-or-wire-dead-tokens.md`, issue #456, PR #515) | P3 | XS | — | DONE (merged in PR #515) |
-| 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457) | P3 | M | — | IN PROGRESS |
+| 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457, PR #517) | P3 | M | — | IN PROGRESS (PR #517 open; verification green) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
