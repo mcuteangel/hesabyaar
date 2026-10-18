@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,7 +55,8 @@ internal fun SmartForecastCard(
               else -> onShowForecast()
             }
           },
-          enabled = forecastState !is UiResult.Loading
+          enabled = forecastState !is UiResult.Loading,
+          role = Role.Button
         ),
     shape = ShapeTokens.Large,
     cardColors =

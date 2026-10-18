@@ -30,6 +30,10 @@ object Dimens {
   val AvatarLarge = 56.dp
 
   val ButtonHeight = 48.dp
+
+  /** Minimum touch target size for interactive elements (48dp, Material accessibility guideline). */
+  val MinTouchTarget = 48.dp
+
   val FABSize = 56.dp
   val FABIconSize = 24.dp
 
