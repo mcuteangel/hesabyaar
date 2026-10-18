@@ -42,13 +42,6 @@ object Dimens {
   /** Clearance at the bottom of scrollable lists so content is not obscured by a FAB. */
   val FabClearance = 80.dp
 
-  @Deprecated(
-    message = "Use FabClearance instead — the app clearance is for the FAB.",
-    replaceWith = ReplaceWith("Dimens.FabClearance"),
-  )
-  val BottomNavClearance = FabClearance
-
-  val ChipHeight = 36.dp
   val TabHeight = 48.dp
 
   /** Subtle brand card background tint (8%). */

@@ -6,13 +6,19 @@
 
 ## Active Task
 
-## Active Task
-
-None — Plan 018 (issue #455) completed, PR #498 open and in review.
+- **Task:** Issue #456 — Remove dead design-system tokens (Plan 019)
+- **Status:** Implemented and verified; lint/detekt + targeted tests green, full suite green.
+- **Branch:** `feat/issue-456-remove-dead-tokens`
+- **Summary:** Issue #456 listed 7 "dead" tokens. Re-audit showed 5 already wired by Plans 015-018 (`FABSize`/`FABIconSize` → `HesabyarFab.kt:40,48`, `TabHeight` → `HesabyarTabRow.kt:34`, `SURFACE_TINT_ALPHA`, `SECONDARY_TEXT_ALPHA`; `Level4` → `MainNavigationBars.kt:80`). This plan deletes the 4 truly dead tokens: `Dimens.BottomNavClearance` (deprecated alias), `Dimens.ChipHeight` (36dp; M3 `FilterChip` owns height at 32dp — deleting avoids a visual change), `ElevationTokens.Level1`, `ElevationTokens.Level5`. `docs/architecture/ARCHITECTURE.md` AppElevation list synced.
+- **Board:** Issue #456 set to `In Progress` (Status field `PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`, option `47fc9ee4`).
+- **Plan:** `plans/019-remove-or-wire-dead-tokens.md`
 
 ## Goal
 
-None — ready for next task.
+- Delete `Dimens.BottomNavClearance` and `Dimens.ChipHeight`.
+- Delete `ElevationTokens.Level1` and `ElevationTokens.Level5` (Level0/2/3/4 kept; Level4 is used).
+- Update `docs/architecture/ARCHITECTURE.md` AppElevation list.
+- Comment on issue #456 with re-audit findings.
 
 ## Completed
 
