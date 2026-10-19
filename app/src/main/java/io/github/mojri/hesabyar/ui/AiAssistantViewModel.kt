@@ -241,12 +241,16 @@ open class AiAssistantViewModel
     val parserState = _parserState.asStateFlow()
 
     private var parseJob: Job? = null
+    private var parseSequence = 0L
 
     fun parseSmartSentence(
       sentence: String,
       isOnlineMode: Boolean
     ) {
       if (sentence.isBlank()) return
+      // Sequence guard: a parse whose response arrived just before cancellation
+      // (past the last suspension point) must not overwrite a newer parse's state.
+      val sequence = ++parseSequence
       parseJob?.cancel()
       parseJob =
         viewModelScope.launch {
@@ -260,15 +264,18 @@ open class AiAssistantViewModel
               } ?: "null"}"
             )
             val result = performParse(sentence, config)
+            if (sequence != parseSequence) return@launch // superseded: discard stale result
             if (result != null) {
               _parserState.value = ParserUIState.Confirming(result)
             } else {
               _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
             }
           } catch (e: java.io.IOException) {
+            if (sequence != parseSequence) return@launch // superseded: discard stale error
             AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
             _parserState.value = ParserUIState.Error("خطا در اتصال")
           } catch (e: IllegalArgumentException) {
+            if (sequence != parseSequence) return@launch // superseded: discard stale error
             AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
             _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
           }

@@ -46,6 +46,7 @@ object AiProvider {
    * an interceptor-based fake instead of the real network. Null in production.
    */
   @VisibleForTesting
+  @Volatile
   internal var httpClientOverride: OkHttpClient? = null
 
   data class ChatMessage(
