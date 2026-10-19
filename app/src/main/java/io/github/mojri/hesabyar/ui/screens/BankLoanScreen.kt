@@ -307,7 +307,7 @@ internal fun BankLoanForm(
       onValueChange = onReceived,
       label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(received),
-      supportingText = invalidAmountText(received),
+      supportingText = invalidAmountText(received)?.let { text -> { Text(text) } },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
@@ -315,7 +315,7 @@ internal fun BankLoanForm(
       onValueChange = onMonthly,
       label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(monthly),
-      supportingText = invalidAmountText(monthly),
+      supportingText = invalidAmountText(monthly)?.let { text -> { Text(text) } },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(
