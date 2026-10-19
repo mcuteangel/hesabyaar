@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -95,17 +96,18 @@ private fun ExportPassphraseContent(
       fontWeight = FontWeight.Bold
     )
     Spacer(modifier = Modifier.height(SpacingTokens.xs))
-    HesabyarInputField(
+    OutlinedTextField(
       value = passphrase,
       onValueChange = onPassphraseChange,
-      label = stringResource(R.string.passphrase_label),
+      label = { Text(stringResource(R.string.passphrase_label)) },
       visualTransformation = PasswordVisualTransformation(),
-      singleLine = true
+      singleLine = true,
+      modifier = Modifier.fillMaxWidth()
     )
-    HesabyarInputField(
+    OutlinedTextField(
       value = confirmPassphrase,
       onValueChange = onConfirmPassphraseChange,
-      label = stringResource(R.string.passphrase_confirm_label),
+      label = { Text(stringResource(R.string.passphrase_confirm_label)) },
       visualTransformation = PasswordVisualTransformation(),
       singleLine = true,
       isError = confirmPassphrase.isNotEmpty() && !passwordsMatch,
@@ -114,7 +116,8 @@ private fun ExportPassphraseContent(
           { Text(stringResource(R.string.passphrase_mismatch_error)) }
         } else {
           null
-        }
+        },
+      modifier = Modifier.fillMaxWidth()
     )
     if (isCryptoInProgress) {
       LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

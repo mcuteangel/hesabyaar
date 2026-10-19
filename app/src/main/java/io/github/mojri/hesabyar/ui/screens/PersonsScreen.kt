@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,7 +59,6 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
-import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -234,12 +235,12 @@ private fun PersonSearchBar(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
-      HesabyarInputField(
+      OutlinedTextField(
         value = searchQuery,
         onValueChange = onSearchChange,
         modifier = Modifier.weight(1f),
-        label = "جستجو بر اساس نام شخص",
-        placeholder = "نام شخص",
+        label = { Text("جستجو بر اساس نام شخص") },
+        placeholder = { Text("نام شخص") },
         leadingIcon = {
           Icon(
             imageVector = Icons.Filled.Search,
@@ -248,7 +249,12 @@ private fun PersonSearchBar(
           )
         },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        colors =
+          OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+          ),
       )
       if (searchQuery.isNotEmpty()) {
         IconButton(onClick = { onSearchChange("") }) {

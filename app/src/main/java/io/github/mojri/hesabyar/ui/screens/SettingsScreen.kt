@@ -689,7 +689,7 @@ fun SecuritySection(
           label = "رمز عبور فعلی",
           placeholder = "۶ رقم",
           isError = pinError != null,
-          supportingText = pinError?.let { error -> { Text(error) } },
+          supportingText = pinError,
           visualTransformation = PasswordVisualTransformation(),
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
         )
@@ -753,7 +753,7 @@ fun SecuritySection(
             label = "رمز عبور جدید",
             placeholder = "۶ رقم",
             isError = pinError != null,
-            supportingText = pinError?.let { error -> { Text(error) } },
+            supportingText = pinError,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
           )
@@ -1293,7 +1293,7 @@ fun AiConfigDialog(
         expanded = providerDropdownExpanded,
         onExpandedChange = { providerDropdownExpanded = it }
       ) {
-        HesabyarInputField(
+        OutlinedTextField(
           value = selectedProvider.displayName,
           onValueChange = {},
           modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
@@ -1411,12 +1411,12 @@ fun AiConfigDialog(
           expanded = modelDropdownExpanded,
           onExpandedChange = { modelDropdownExpanded = it }
         ) {
-          HesabyarInputField(
+          OutlinedTextField(
             value = model,
             onValueChange = { model = it },
             modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
             shape = ShapeTokens.Large,
-            placeholder = "نام مدل را تایپ یا انتخاب کنید",
+            placeholder = { Text("نام مدل را تایپ یا انتخاب کنید") },
             trailingIcon = {
               ExposedDropdownMenuDefaults.TrailingIcon(
                 expanded = modelDropdownExpanded

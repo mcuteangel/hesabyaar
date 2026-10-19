@@ -1013,7 +1013,7 @@ fun ParsedResultCard(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
-          HesabyarInputField(
+          OutlinedTextField(
             value = amountValue,
             onValueChange = { amountValue = it },
             modifier =

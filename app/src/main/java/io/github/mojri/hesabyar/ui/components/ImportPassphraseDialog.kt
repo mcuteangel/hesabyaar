@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -98,10 +99,10 @@ private fun PassphraseForm(
       text = stringResource(R.string.passphrase_import_body),
       style = MaterialTheme.typography.bodyMedium
     )
-    HesabyarInputField(
+    OutlinedTextField(
       value = passphrase,
       onValueChange = onPassphraseChange,
-      label = stringResource(R.string.passphrase_label),
+      label = { Text(stringResource(R.string.passphrase_label)) },
       visualTransformation = PasswordVisualTransformation(),
       singleLine = true,
       enabled = !isCryptoInProgress,

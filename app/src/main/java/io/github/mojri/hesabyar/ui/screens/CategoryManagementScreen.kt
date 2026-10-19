@@ -400,7 +400,7 @@ private fun CategoryDialog(
             expanded = typeDropdownExpanded,
             onExpandedChange = { typeDropdownExpanded = it }
           ) {
-            HesabyarInputField(
+            OutlinedTextField(
               value = selectedType.displayName,
               onValueChange = {},
               modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,7 +21,6 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
-import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 private const val DESCRIPTION_MAX_LENGTH = 500
@@ -105,23 +105,24 @@ private fun AddPersonLoanInputs(
     modifier = modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
-    HesabyarInputField(
+    OutlinedTextField(
       value = amountText,
       onValueChange = { onAmountChange(it.filterDigits()) },
-      label = "مبلغ (${CurrencyFormatter.unitLabel})",
+      label = { Text("مبلغ (${CurrencyFormatter.unitLabel})") },
+      modifier = Modifier.fillMaxWidth(),
       singleLine = true
     )
-    HesabyarInputField(
+    OutlinedTextField(
       value = description,
       onValueChange = { onDescriptionChange(it.take(DESCRIPTION_MAX_LENGTH)) },
-      label = "توضیحات (اختیاری)",
+      label = { Text("توضیحات (اختیاری)") },
       supportingText = {
         Text(
           text = "${description.length}/$DESCRIPTION_MAX_LENGTH",
           style = MaterialTheme.typography.labelSmall
         )
       },
-      singleLine = false
+      modifier = Modifier.fillMaxWidth()
     )
     if (errorMessage != null) {
       Text(

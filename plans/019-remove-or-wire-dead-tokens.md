@@ -4,7 +4,7 @@
 - **PR:** #515
 - **Created:** 2026-10-18
 - **Author:** Claude Code
-- **Status:** DONE (merged in PR #515)
+- **Status:** IN PROGRESS (PR #515 open; moves to archive on merge)
 
 ## 1. Problem Statement
 
