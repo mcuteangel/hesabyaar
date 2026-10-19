@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.6] - 2026-10-19
+نسخه 0.15.6 حساب‌یار منتشر شد.
+
+### رفع مشکلات
+* fix(input-field): include prefix boundary in unchanged selection region
+* fix(input-field): extract remapSelection and add unit tests
+* fix(input-field): use correct TextRange import path
+* fix(input-field): clamp caret on external value change
+* fix(input-field): guard remembered selection on value change
+
+### بهبودها و تغییرات
+* chore: gitignore .dsh-plugins local plugin directory
 ## [0.15.5] - 2026-10-19
 نسخه 0.15.5 حساب‌یار منتشر شد.
 
