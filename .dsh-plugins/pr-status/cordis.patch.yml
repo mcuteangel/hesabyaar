@@ -1,0 +1,3 @@
+- insert:
+    - id: hesabyar-pr-status
+      name: '@hesabyar/dsh-plugin-pr-status'

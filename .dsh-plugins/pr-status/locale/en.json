@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "title": "Hesabyar PR & CI Status",
+    "description": "Show GitHub PR comments and CI check run statuses alongside your session in the right sidebar and composer dock."
+  },
+  "tab": {
+    "title": "PR & CI Status",
+    "description": "GitHub PR comments and CI check runs for this session."
+  },
+  "badge": {
+    "no-pr": "No linked PR",
+    "loading": "Loading PR...",
+    "pass": "{passing}/{total} checks passed",
+    "fail": "{failing} check(s) failed",
+    "error": "{error}"
+  },
+  "panel": {
+    "pr-title": "PR",
+    "branch": "Branch",
+    "status-open": "Open",
+    "status-draft": "Draft",
+    "status-merged": "Merged",
+    "status-closed": "Closed",
+    "checks": "CI Checks",
+    "checks-pass": "All checks passing",
+    "checks-fail": "Some checks failing",
+    "checks-running": "Checks running",
+    "checks-none": "No checks found",
+    "comments": "Review Comments",
+    "comments-none": "No review comments yet",
+    "refresh": "Refresh",
+    "open-pr": "Open PR in browser",
+    "open-checks": "Open workflow run",
+    "open-comment": "Open on GitHub",
+    "select-pr": "Select PR",
+    "pr-number-placeholder": "Enter PR number (leave blank to auto-detect)",
+    "apply": "Apply",
+    "auto-detect": "Auto-detect from branch",
+    "unknown": "unknown",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "error": "Error",
+    "no-session": "No active session workspace to inspect.",
+    "no-comments": "No inline review comments.",
+    "author": "Author"
+  }
+}
