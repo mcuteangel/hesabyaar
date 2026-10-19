@@ -472,6 +472,14 @@ Build the floating pill navigation bar:
   labels fade to icons-only, TalkBack must still announce and activate
   each destination — verify with TalkBack on device.
 
+- Icon/menu audit note (verified at HEAD `e444f25`): this step names
+  `AccountBalanceWallet` for the داشبورد tab, but `MainNavigationBars.kt:189`
+  uses `Icons.Filled.Dashboard`; this step says the more-sheet keeps
+  «تحلیل و آمار، مدیریت حساب‌ها، تنظیمات», but `MORE_MENU_TABS`
+  (`MainNavigationBars.kt:185`) holds only تحلیل و آمار / گزارش‌ها / تنظیمات.
+  Align the step text with the code before building — do not implement
+  the `AccountBalanceWallet` variant from this doc alone.
+
 ## Phase 3 done criteria
 
 - [ ] Every screen except Dashboard shows `HesabyarTopBar`
@@ -533,6 +541,13 @@ Change: replace all hand-rolled empties with `EmptyState`, always with
 an action that leads somewhere ("ثبت اولین تراکنش", "ثبت وام", ...).
 Wire the actions to the existing FAB/dialog entry points.
 For `PersonsScreen`, there is no dedicated add-person entry point today (persons are created implicitly when a loan/transaction names a new person). Define the empty-state action together with the Step 3.3 Persons-tab FAB work; do not invent a new add-person screen (unapproved new feature).
+
+- Hand-rolled empty states with no action also exist outside Persons:
+  `PersonLoanTimeline.kt:52-61` (Box+Text, «هیچ وامی برای این شخص ثبت نشده
+  است.»), `ReportsScreen.kt:540-556` and `:673-690` (bare centered Texts),
+  `SettingsScreen.kt:919-929` (AI-logs Box+Text). Replace these with
+  `EmptyState` too, each with an action that leads somewhere (e.g. «ثبت وام»
+  on the timeline; re-run for the AI log).
 
 ### Step 4.3: Correctness fixes
 
@@ -607,6 +622,10 @@ Change:
   Settings (persisted in preferences via the existing settings store).
   v1 is show/hide only; reordering is out of scope.
 
+- «۳۰ روزه» label: the audit flagged this label; a grep at HEAD `e444f25`
+  finds no «30 روزه»/«۳۰ روزه» literal in app code or resources — re-verify
+  at execution and fix/rename the section label as part of the curation.
+
 **Verify**: all toggles off/on render correctly; no empty gaps when a
 section is hidden; existing tests pass.
 
@@ -647,6 +666,13 @@ Change:
   into a `CompositionLocal` only if zero call-site churn results —
   otherwise leave the singleton and note it as tech debt.
 
+- Consumer audit (verified at HEAD `e444f25`): live consumers are
+  `AccountBalanceCard.kt`, `AmountQuickFillButtons.kt`, `BalanceCard.kt`
+  plus the `SmartAssistantScreen.kt` alpha call sites (`:909,1306,1365`).
+  `InstallmentItem.kt` and `TransactionItem.kt` also reference
+  `FinancialColors` but are issue #340 dead code (zero call sites) — do not
+  touch them. Unify all live consumers, not just the alpha sites.
+
 ### Step 5.2: Typography gaps
 
 - `ui/theme/Type.kt`: add the missing `labelSmall` (11sp/Medium) in
@@ -661,6 +687,11 @@ Change:
   bolding"). Fix the weight mapping: declare per-weight `Font(...)`
   entries (downloadable preferred; bundle only if download proves
   unreliable). Verify Persian glyph rendering on device before/after.
+
+- Bold-override count (verified at HEAD `e444f25`): 150 live
+  `FontWeight.Bold` call sites plus 2 `FontWeight.SemiBold`; 10 more sit in
+  dead `LoanManagementScreen.kt` — do not touch (issue #340). The audit's
+  «153» is unverified — re-grep at execution; never treat it as fact.
 
 ### Step 5.3: Kill hardcoded alphas and dp
 
@@ -721,6 +752,11 @@ order (`index 0` = oldest, `index N-1` = newest):
   would double-invert the axis back to LTR.
 - Ensure X-axis month labels use the exact same mirrored x-coordinates so labels
   stay aligned with their data points. Visually verify against the Figma dashboard.
+
+- Chart screen-reader semantics are tracked by open issue #366 (5 Canvas
+  charts in `AnalyticsScreen` with zero semantics; proposal: `Modifier.semantics`
+  with ViewModel-built text summaries). Dedupe — do not duplicate #366's work
+  here; coordinate the semantics content there.
 
 ### Step 5.5: Theme system — dynamic, brand, and curated themes (decision #3, decided 2026-10-04)
 
@@ -806,6 +842,12 @@ Change:
   below cannot pass.
 - Keep Toast only where a Snackbar cannot reach (pre-compose contexts).
 
+- Undo additions (dedupe): installment deletion
+  (`InstallmentScreen.kt:478-486`, confirm dialog, no Undo today) and AI-config
+  deletion (`SettingsScreen.kt:1180-1182`, «حذف پیکربندی»). Undo for
+  «تسویه کامل» is covered by open issue #369; the Snackbar pipeline itself by
+  open issue #367 — do not duplicate either; reference them.
+
 ### Step 6.2: Touch targets and input polish
 
 - `CategoryManagementScreen.kt:318,331`: 36dp edit/delete IconButtons →
@@ -815,6 +857,11 @@ Change:
 - `SettingsScreen.kt:1623-1674`: replace the four `+ ساعت / − ساعت /
   + دقیقه / − دقیقه` buttons with the existing
   `CustomTimePickerDialog`.
+
+- Touch-target count (verified at HEAD `e444f25`): open issue #365 already
+  fixed 7 sub-48dp targets and 8 unnamed Switches (PR #504). The audit's «5
+  more» is unverified — re-audit at execution and exclude whatever #365
+  covered.
 
 ### Step 6.3: Motion and empty-state polish
 
@@ -953,3 +1000,30 @@ named test results, and file:line references in the phase report.
   income/expense colors. New tints must come from the container roles,
   never from `.copy(alpha)`.
 - Keep this plan's status row in `plans/README.md` current per phase.
+
+## Not in plan 013
+
+Findings related to this overhaul that live in their own issues rather than
+in plan 013's steps (links verified 2026-10-14; re-verify issue state before
+executing — some may have closed since):
+
+- #340 — dead code (`LoanManagementScreen`, `LoanViewModel`, ...). No step in
+  this plan targets them. https://github.com/mcuteangel/hesabyaar/issues/340
+- #342 — `HesabyarAmountField` component. https://github.com/mcuteangel/hesabyaar/issues/342
+- #343 — `PersianFormat` (digits, percent, date, time). https://github.com/mcuteangel/hesabyaar/issues/343
+- #345 — Jalali dates (dashboard month boundary, installment due time). https://github.com/mcuteangel/hesabyaar/issues/345
+- #347 — طلب/بدهی vocabulary (`LoanType.label()`, shared `PersonDirection`). https://github.com/mcuteangel/hesabyaar/issues/347
+- #348 — state after rotation/recreate + `LazyColumn` rows without key. https://github.com/mcuteangel/hesabyaar/issues/348
+- #354 — Jalali date/time picker move + `JalaliDateField(mode)`. https://github.com/mcuteangel/hesabyaar/issues/354
+- #365 — touch targets + Switch a11y (fixed via PR #504). https://github.com/mcuteangel/hesabyaar/issues/365
+- #366 — Analytics chart semantics (Canvas invisible to screen reader). https://github.com/mcuteangel/hesabyaar/issues/366
+- #367 — Snackbar instead of Toast. https://github.com/mcuteangel/hesabyaar/issues/367
+- #369 — persons ledger features + Undo for «تسویه کامل». https://github.com/mcuteangel/hesabyaar/issues/369
+- #370 — `AddPersonLoanDialog` date/account fields. https://github.com/mcuteangel/hesabyaar/issues/370
+- #372 — installment payment from account. https://github.com/mcuteangel/hesabyaar/issues/372
+- #445 — installment amount rejects Persian digits. https://github.com/mcuteangel/hesabyaar/issues/445
+
+No dedicated open issue was found for: currency unit (rial/toman handling),
+string extraction (hardcoded strings to resources), component repetition,
+report day range, persons ledger as its own topic. Verify before filing —
+do not assume these need new issues.
