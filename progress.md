@@ -6,19 +6,20 @@
 
 ## Active Task
 
-- **Task:** Issue #456 — Remove dead design-system tokens (Plan 019)
-- **Status:** Implemented and verified; lint/detekt + targeted tests green, full suite green.
-- **Branch:** `feat/issue-456-remove-dead-tokens`
-- **Summary:** Issue #456 listed 7 "dead" tokens. Re-audit showed 5 already wired by Plans 015-018 (`FABSize`/`FABIconSize` → `HesabyarFab.kt:40,48`, `TabHeight` → `HesabyarTabRow.kt:34`, `SURFACE_TINT_ALPHA`, `SECONDARY_TEXT_ALPHA`; `Level4` → `MainNavigationBars.kt:80`). This plan deletes the 4 truly dead tokens: `Dimens.BottomNavClearance` (deprecated alias), `Dimens.ChipHeight` (36dp; M3 `FilterChip` owns height at 32dp — deleting avoids a visual change), `ElevationTokens.Level1`, `ElevationTokens.Level5`. `docs/architecture/ARCHITECTURE.md` AppElevation list synced.
-- **Board:** Issue #456 set to `In Progress` (Status field `PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`, option `47fc9ee4`).
-- **Plan:** `plans/019-remove-or-wire-dead-tokens.md`
+- **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
+- **Status:** Implemented and verified; ktlint/detekt green, full suite 1180 tests 0 failures. PR #517 open with all review findings addressed.
+- **Branch:** `feat/issue-457-hesabyar-input-field-migration`
+- **Summary:** Migrated all 16 raw `OutlinedTextField` call sites across 9 files (`ManualTransactionFormSections.kt` 107,190,225,243,270`, `SettingsScreen.kt` 1296,1414`, `AccountManagementScreen.kt` 671`, `SmartAssistantScreen.kt` 1016`, `PersonsScreen.kt` 238`, `CategoryManagementScreen.kt` 403`, `AddPersonLoanDialog.kt` 108,115`, `ImportPassphraseDialog.kt` 102`, `ExportPassphraseDialog.kt` 99,107`) to `HesabyarInputField`. Extended wrapper with `leadingIcon`, `readOnly`, `colors: TextFieldColors?`, a `TextFieldValue` overload (cursor-preserving amount inputs), and changed `supportingText` from `String?` to `@Composable (() -> Unit)?`. Converted the 3 existing `String`-form `supportingText` callers (`BankLoanScreen.kt`, `SettingsScreen.kt`, `AccountManagementScreen.kt`) to composable lambdas. Extracted `defaultInputFieldColors()` to de-duplicate the two overloads. All `testTag`s (`manual_amount_input`, `parsed_amount_input`, `passphrase_field`, `persons_search`), keyboard types, `PasswordVisualTransformation`, and dynamic `typeColor` tinting preserved. After migration, only `HesabyarInputField.kt` imports `OutlinedTextField` in the whole app. Tests green: `ImportPassphraseDialogTest` (`passphrase_field` tag), `SmartAssistantScreenConfirmFlowTest` (`parsed_amount_input` tag).
+- **Board:** Issue #457 set to `In Progress` (item `PVTI_lAHOAD9VX84Bm0XazhAspLM`, Status field `PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`, option `47fc9ee4`).
+- **Plan:** `plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`
 
 ## Goal
 
-- Delete `Dimens.BottomNavClearance` and `Dimens.ChipHeight`.
-- Delete `ElevationTokens.Level1` and `ElevationTokens.Level5` (Level0/2/3/4 kept; Level4 is used).
-- Update `docs/architecture/ARCHITECTURE.md` AppElevation list.
-- Comment on issue #456 with re-audit findings.
+- Extend `HesabyarInputField` with `leadingIcon`, `readOnly`, `colors`, `TextFieldValue` overload, and `supportingText: @Composable (() -> Unit)?`.
+- Migrate 16 raw `OutlinedTextField` call sites across 9 files to `HesabyarInputField`.
+- Convert existing 3 String-form `supportingText` callers to composable lambdas.
+- Verify zero raw `OutlinedTextField` usages in `app/src/main` outside `HesabyarInputField.kt`.
+- Run ktlint, detekt, and unit tests (all green).
 
 ## Completed
 

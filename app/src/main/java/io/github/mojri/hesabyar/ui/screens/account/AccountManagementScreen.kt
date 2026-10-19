@@ -38,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -610,17 +609,21 @@ private fun AccountDialogForm(
         androidx.compose.foundation.text
           .KeyboardOptions(keyboardType = KeyboardType.Number),
       visualTransformation = VisualTransformation.None,
-      supportingText =
-        if (balanceError) {
-          stringResource(
-            id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
-          )
-        } else {
-          stringResource(
-            id = io.github.mojri.hesabyar.R.string.balance_amount_label,
-            CurrencyFormatter.unitLabel
-          )
-        },
+      supportingText = {
+        Text(
+          text =
+            if (balanceError) {
+              stringResource(
+                id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
+              )
+            } else {
+              stringResource(
+                id = io.github.mojri.hesabyar.R.string.balance_amount_label,
+                CurrencyFormatter.unitLabel
+              )
+            }
+        )
+      },
       isError = balanceError
     )
     AccountDialogColorPicker(
@@ -668,7 +671,7 @@ private fun AccountDialogTypeField(
       expanded = dropdownExpanded,
       onExpandedChange = onDropdownExpandedChange
     ) {
-      OutlinedTextField(
+      HesabyarInputField(
         value = selectedType.displayName,
         onValueChange = {},
         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
