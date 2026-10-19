@@ -90,6 +90,7 @@ graphify-out/
 
 # DialogShell scratchpad (local scratch directory)
 .dsh-scratch/
+.dsh-plugins/
 
 # Agent long-term memory mirror (local only; holds personal context)
 .agent-memory/
