@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -139,7 +140,7 @@ object AiProvider {
       }
     }
 
-  private fun fetchGeminiModels(apiKey: String): List<FetchedModel> {
+  private suspend fun fetchGeminiModels(apiKey: String): List<FetchedModel> {
     val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
     val request =
       Request
@@ -148,7 +149,7 @@ object AiProvider {
         .get()
         .build()
 
-    client.newCall(request).execute().use { response ->
+    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -188,7 +189,7 @@ object AiProvider {
     }
   }
 
-  private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
+  private suspend fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
     val url = "https://openrouter.ai/api/v1/models"
     val requestBuilder =
       Request
@@ -197,7 +198,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    client.newCall(request).execute().use { response ->
+    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -226,7 +227,7 @@ object AiProvider {
     }
   }
 
-  private fun fetchCustomModels(
+  private suspend fun fetchCustomModels(
     apiKey: String,
     baseUrl: String
   ): List<FetchedModel> {
@@ -239,7 +240,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    client.newCall(request).execute().use { response ->
+    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -378,6 +379,25 @@ object AiProvider {
     )
   }
 
+  /**
+   * Executes this call, cancelling the in-flight OkHttp call when the
+   * coroutine is cancelled. A blocking [Call.execute] has no suspension
+   * point, so without this a cancelled caller would leave the request
+   * running until it finishes or times out.
+   */
+  private suspend fun Call.executeCancellable(): Response =
+    suspendCancellableCoroutine { cont ->
+      cont.invokeOnCancellation { cancel() }
+      try {
+        val response: Response = execute()
+        // If the coroutine was cancelled after execute() returned, drop the
+        // undeliverable response instead of leaking it.
+        cont.resume(response) { response.close() }
+      } catch (e: IOException) {
+        cont.resumeWith(Result.failure(e))
+      }
+    }
+
   private suspend fun executePost(
     url: String,
     body: JSONObject,
@@ -405,17 +425,7 @@ object AiProvider {
     // cancels the in-flight OkHttp call instead of letting it run to completion.
     val call = (httpClientOverride ?: client).newCall(request)
     return try {
-      suspendCancellableCoroutine { cont ->
-        cont.invokeOnCancellation { call.cancel() }
-        try {
-          val response: Response = call.execute()
-          // If the coroutine was cancelled after execute() returned, drop the
-          // undeliverable response instead of leaking it.
-          cont.resume(response) { response.close() }
-        } catch (e: IOException) {
-          cont.resumeWith(Result.failure(e))
-        }
-      }.use { response ->
+      call.executeCancellable().use { response ->
         val bodyStr = response.body?.string()
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")
