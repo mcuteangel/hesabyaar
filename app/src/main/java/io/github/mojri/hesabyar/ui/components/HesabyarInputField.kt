@@ -6,9 +6,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 
@@ -19,34 +25,95 @@ fun HesabyarInputField(
   modifier: Modifier = Modifier,
   label: String? = null,
   placeholder: String? = null,
+  leadingIcon: @Composable (() -> Unit)? = null,
   trailingIcon: @Composable (() -> Unit)? = null,
   isError: Boolean = false,
-  supportingText: String? = null,
+  supportingText: @Composable (() -> Unit)? = null,
   visualTransformation: VisualTransformation = VisualTransformation.None,
   keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
   singleLine: Boolean = true,
   shape: Shape = ShapeTokens.Large,
-  enabled: Boolean = true
+  enabled: Boolean = true,
+  readOnly: Boolean = false,
+  colors: TextFieldColors? = null
+) {
+  // Mirror the Material 3 String overload: keep TextFieldValue state so the
+  // selection survives recompositions while the caller stays on String state.
+  var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
+  HesabyarInputField(
+    value = textFieldValueState.copy(text = value),
+    onValueChange = { newValue ->
+      textFieldValueState = newValue
+      onValueChange(newValue.text)
+    },
+    modifier = modifier,
+    label = label,
+    placeholder = placeholder,
+    leadingIcon = leadingIcon,
+    trailingIcon = trailingIcon,
+    isError = isError,
+    supportingText = supportingText,
+    visualTransformation = visualTransformation,
+    keyboardOptions = keyboardOptions,
+    singleLine = singleLine,
+    shape = shape,
+    enabled = enabled,
+    readOnly = readOnly,
+    colors = colors
+  )
+}
+
+@Composable
+fun HesabyarInputField(
+  value: TextFieldValue,
+  onValueChange: (TextFieldValue) -> Unit,
+  modifier: Modifier = Modifier,
+  label: String? = null,
+  placeholder: String? = null,
+  leadingIcon: @Composable (() -> Unit)? = null,
+  trailingIcon: @Composable (() -> Unit)? = null,
+  isError: Boolean = false,
+  supportingText: @Composable (() -> Unit)? = null,
+  visualTransformation: VisualTransformation = VisualTransformation.None,
+  keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+  singleLine: Boolean = true,
+  shape: Shape = ShapeTokens.Large,
+  enabled: Boolean = true,
+  readOnly: Boolean = false,
+  colors: TextFieldColors? = null
 ) {
   OutlinedTextField(
     value = value,
     onValueChange = onValueChange,
     modifier = modifier.fillMaxWidth(),
     label = label?.let { { Text(it) } },
-    placeholder = placeholder?.let { { Text(it) } },
+    placeholder =
+      placeholder?.let {
+        {
+          Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium
+          )
+        }
+      },
+    leadingIcon = leadingIcon,
     trailingIcon = trailingIcon,
     isError = isError,
-    supportingText = supportingText?.let { { Text(it) } },
+    supportingText = supportingText,
     visualTransformation = visualTransformation,
     keyboardOptions = keyboardOptions,
     singleLine = singleLine,
     enabled = enabled,
+    readOnly = readOnly,
     shape = shape,
-    colors =
-      OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        errorBorderColor = MaterialTheme.colorScheme.error
-      )
+    colors = colors ?: defaultInputFieldColors()
   )
 }
+
+@Composable
+private fun defaultInputFieldColors(): TextFieldColors =
+  OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    errorBorderColor = MaterialTheme.colorScheme.error
+  )
