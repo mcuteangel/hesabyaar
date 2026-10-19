@@ -40,8 +40,11 @@ fun HesabyarInputField(
   // Mirror the Material 3 String overload: keep TextFieldValue state so the
   // selection survives recompositions while the caller stays on String state.
   var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
+  if (value != textFieldValueState.text) {
+    textFieldValueState = TextFieldValue(text = value)
+  }
   HesabyarInputField(
-    value = textFieldValueState.copy(text = value),
+    value = textFieldValueState,
     onValueChange = { newValue ->
       textFieldValueState = newValue
       onValueChange(newValue.text)
