@@ -39,6 +39,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 018  | Complete icon-size and alpha tokens in Dimens.kt (`plans/archive/018-complete-icon-size-and-alpha-tokens.md`, issue #455) | P2 | S | — | DONE |
 | 019  | Remove dead design-system tokens (`plans/archive/019-remove-or-wire-dead-tokens.md`, issue #456, PR #515) | P3 | XS | — | DONE (merged in PR #515) |
 | 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457, PR #517) | P3 | M | — | IN PROGRESS (PR #517 open; verification green) |
+| 021  | [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (`plans/021-add-page-scaffold-and-adopt-window-size-tokens.md`, issue #458) | P2 | L | 015 (shared component family pattern) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
