@@ -1,0 +1,26 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarInputField.kt
+  s_4bcb58ef9b8746::t_5ca8d5b202ddf4 133,135-138,140-143,159
+  s_4bcb58ef9b8746::t_5703322706af83 45-46,51
+  s_4bcb58ef9b8746::t_9b7adb2e2053ad 144-152,156-158
+  s_4bcb58ef9b8746::t_81e4238535a697 153
+  s_4bcb58ef9b8746::t_bd0134a193e034 154-155
+  s_4bcb58ef9b8746::t_a5ea0fd70f2f9f 131-132,134,139
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarInputFieldTest.kt
+  s_4bcb58ef9b8746::t_0896500315484f 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d5452902c05cdc9b5be2984cb6e8f97b5fb49e74",
+  "prompts": {},
+  "sessions": {
+    "s_4bcb58ef9b8746": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93795fac-bebc-4dc8-b210-c10047fe4401",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
