@@ -94,7 +94,7 @@ class AiAssistantParseRaceTest {
   }
 
   @Test
-  fun `stale parse is cancelled and never overwrites newer result`() {
+  fun staleParseIsCancelledAndNeverOverwritesNewerResult() {
     viewModel.parseSmartSentence(FIRST_SENTENCE, false)
     testDispatcher.scheduler.advanceUntilIdle()
     assertTrue(viewModel.parserState.value is ParserUIState.Loading)
@@ -116,7 +116,7 @@ class AiAssistantParseRaceTest {
   }
 
   @Test
-  fun `single parse applies its result normally`() {
+  fun singleParseAppliesItsResultNormally() {
     viewModel.parseSmartSentence(SECOND_SENTENCE, false)
     testDispatcher.scheduler.advanceUntilIdle()
 
@@ -126,7 +126,7 @@ class AiAssistantParseRaceTest {
   }
 
   @Test
-  fun `blank sentence leaves parser state idle`() {
+  fun blankSentenceLeavesParserStateIdle() {
     viewModel.parseSmartSentence("   ", false)
     testDispatcher.scheduler.advanceUntilIdle()
 

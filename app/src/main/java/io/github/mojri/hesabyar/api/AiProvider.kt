@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.api
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,13 @@ object AiProvider {
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(60, TimeUnit.SECONDS)
       .build()
+
+  /**
+   * Test-only HTTP client override. Lets unit tests drive [executePost] through
+   * an interceptor-based fake instead of the real network. Null in production.
+   */
+  @VisibleForTesting
+  internal var httpClientOverride: OkHttpClient? = null
 
   data class ChatMessage(
     val role: String,
@@ -394,7 +402,7 @@ object AiProvider {
 
     // Cancellable: cancelling the coroutine (e.g. a superseded parse) also
     // cancels the in-flight OkHttp call instead of letting it run to completion.
-    val call = client.newCall(request)
+    val call = (httpClientOverride ?: client).newCall(request)
     return try {
       suspendCancellableCoroutine { cont ->
         cont.invokeOnCancellation { call.cancel() }
