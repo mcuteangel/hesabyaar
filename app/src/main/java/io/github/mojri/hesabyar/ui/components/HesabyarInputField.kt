@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -40,8 +41,18 @@ fun HesabyarInputField(
   // Mirror the Material 3 String overload: keep TextFieldValue state so the
   // selection survives recompositions while the caller stays on String state.
   var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
+  if (value != textFieldValueState.text) {
+    // External value change (filter/normalize/reset): map the previous caret
+    // through the text change instead of resetting it to offset 0.
+    val old = textFieldValueState
+    textFieldValueState =
+      TextFieldValue(
+        text = value,
+        selection = remapSelection(old.text, value, old.selection)
+      )
+  }
   HesabyarInputField(
-    value = textFieldValueState.copy(text = value),
+    value = textFieldValueState,
     onValueChange = { newValue ->
       textFieldValueState = newValue
       onValueChange(newValue.text)
@@ -117,3 +128,32 @@ private fun defaultInputFieldColors(): TextFieldColors =
     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
     errorBorderColor = MaterialTheme.colorScheme.error
   )
+
+/**
+ * Map a selection from [oldText] onto [newText] when [newText] is provided externally.
+ *
+ * - 1:1 character normalizations (e.g. Persian digits to ASCII) preserve caret offset.
+ * - Modifications where caret sits in an unchanged common prefix preserve caret offset.
+ * - Appends keep the caret at the end of the new text.
+ * - Unrelated external replacements (voice input, example chips, resets) move the caret to the end.
+ */
+internal fun remapSelection(
+  oldText: String,
+  newText: String,
+  selection: TextRange
+): TextRange =
+  when {
+    newText.isEmpty() -> TextRange.Zero
+    // 1:1 character normalization (e.g. Persian to English digits via filterDigits)
+    oldText.length == newText.length ->
+      TextRange(
+        selection.start.coerceIn(0, newText.length),
+        selection.end.coerceIn(0, newText.length)
+      )
+    // Caret sits at or within the unchanged common prefix boundary
+    oldText.commonPrefixWith(newText).length.let { prefixLen ->
+      prefixLen > 0 && selection.end <= prefixLen
+    } -> selection
+    // New text is an append or unrelated external replacement: caret lands at the end
+    else -> TextRange(newText.length)
+  }
