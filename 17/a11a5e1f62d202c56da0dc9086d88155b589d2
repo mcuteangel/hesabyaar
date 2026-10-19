@@ -1,0 +1,21 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarInputFieldTest.kt
+  s_4bcb58ef9b8746::t_fd1cb9f729a643 37-47,61,68
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarInputField.kt
+  s_4bcb58ef9b8746::t_31d1235b99e91a 153,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "17a11a5e1f62d202c56da0dc9086d88155b589d2",
+  "prompts": {},
+  "sessions": {
+    "s_4bcb58ef9b8746": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "93795fac-bebc-4dc8-b210-c10047fe4401",
+        "model": "minimax-m3.1-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
