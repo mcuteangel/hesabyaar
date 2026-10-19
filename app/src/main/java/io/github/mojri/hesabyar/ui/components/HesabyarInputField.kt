@@ -150,9 +150,9 @@ internal fun remapSelection(
         selection.start.coerceIn(0, newText.length),
         selection.end.coerceIn(0, newText.length)
       )
-    // Caret sits strictly before the changed region of the common prefix
+    // Caret sits at or within the unchanged common prefix boundary
     oldText.commonPrefixWith(newText).length.let { prefixLen ->
-      prefixLen > 0 && selection.end < prefixLen
+      prefixLen > 0 && selection.end <= prefixLen
     } -> selection
     // New text is an append or unrelated external replacement: caret lands at the end
     else -> TextRange(newText.length)

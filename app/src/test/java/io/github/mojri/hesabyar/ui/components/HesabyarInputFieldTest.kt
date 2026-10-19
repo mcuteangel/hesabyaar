@@ -34,6 +34,18 @@ class HesabyarInputFieldTest {
   }
 
   @Test
+  fun caretAtCommonPrefixBoundaryIsPreserved() {
+    // Caret exactly at the boundary between the unchanged prefix and the changed part
+    val result =
+      remapSelection(
+        oldText = "foo_bar",
+        newText = "foo_baz",
+        selection = TextRange(4)
+      )
+    assertEquals(TextRange(4), result)
+  }
+
+  @Test
   fun unrelatedReplacementMovesCaretToEnd() {
     // Concrete issue: SmartAssistant example chip tapped while old input was "500"
     val result =
@@ -46,14 +58,14 @@ class HesabyarInputFieldTest {
   }
 
   @Test
-  fun textAppendedAtEndMovesCaretToEnd() {
+  fun textAppendedAtEndKeepsCaretAtBoundary() {
     val result =
       remapSelection(
         oldText = "hello",
         newText = "hello world",
         selection = TextRange(5)
       )
-    assertEquals(TextRange("hello world".length), result)
+    assertEquals(TextRange(5), result)
   }
 
   @Test
