@@ -33,7 +33,7 @@ private suspend fun <T> Call.executeCancellable(block: (Response) -> T): T =
     try {
       val response = execute()
       try {
-        cont.resume(block(response))
+        cont.resumeWith(Result.success(block(response)))
       } finally {
         response.close()
       }
