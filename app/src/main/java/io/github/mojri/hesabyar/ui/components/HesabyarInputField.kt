@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TextRange
 import androidx.compose.ui.text.input.VisualTransformation
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 
@@ -41,7 +42,18 @@ fun HesabyarInputField(
   // selection survives recompositions while the caller stays on String state.
   var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
   if (value != textFieldValueState.text) {
-    textFieldValueState = TextFieldValue(text = value)
+    // External value change (filter/normalize/reset): keep the previous caret
+    // clamped to the new length instead of jumping to offset 0.
+    val old = textFieldValueState
+    textFieldValueState =
+      TextFieldValue(
+        text = value,
+        selection =
+          TextRange(
+            old.selection.start.coerceIn(0, value.length),
+            old.selection.end.coerceIn(0, value.length)
+          )
+      )
   }
   HesabyarInputField(
     value = textFieldValueState,
