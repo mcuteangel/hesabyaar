@@ -404,7 +404,7 @@ object AiProvider {
           // undeliverable response instead of leaking it.
           cont.resume(response) { response.close() }
         } catch (e: IOException) {
-          cont.resumeWithException(e)
+          cont.resumeWith(Result.failure(e))
         }
       }.use { response ->
         val bodyStr = response.body?.string()
