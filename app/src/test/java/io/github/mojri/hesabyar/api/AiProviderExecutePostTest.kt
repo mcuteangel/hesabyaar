@@ -76,7 +76,8 @@ class AiProviderExecutePostTest {
   fun cancelledInFlightCallThrowsCancellationException() {
     val enteredCall = CountDownLatch(1)
     AiProvider.httpClientOverride =
-      OkHttpClient.Builder()
+      OkHttpClient
+        .Builder()
         .addInterceptor { chain ->
           enteredCall.countDown()
           // Hold the call open the way a slow server would; unblock only when
@@ -105,7 +106,8 @@ class AiProviderExecutePostTest {
     code: Int,
     body: String
   ): OkHttpClient =
-    OkHttpClient.Builder()
+    OkHttpClient
+      .Builder()
       .addInterceptor { chain ->
         Response.Builder()
           .request(chain.request())
