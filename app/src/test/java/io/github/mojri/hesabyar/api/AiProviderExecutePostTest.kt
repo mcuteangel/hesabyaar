@@ -111,7 +111,7 @@ class AiProviderExecutePostTest {
   private fun holdingInterceptor(enteredCall: CountDownLatch): Interceptor =
     Interceptor { chain ->
       enteredCall.countDown()
-      while (!chain.call().isCanceled) {
+      while (!chain.call().isCanceled()) {
         Thread.sleep(POLL_INTERVAL_MS)
       }
       throw IOException("canceled")
