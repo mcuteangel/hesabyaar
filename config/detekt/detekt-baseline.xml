@@ -203,7 +203,7 @@
     <ID>MatchingDeclarationName:HesabyarButton.kt:ButtonVariant</ID>
     <ID>MaxLineLength:AiProvider.kt:AiProvider$"generateContent: provider=${config.providerType}, model=${config.model}, isConfigured=${config.isConfigured}, apiKeyLength=${config.apiKey.length}"</ID>
     <ID>PrintStackTrace:SmartAssistantScreen.kt:e</ID>
-    <ID>ReturnCount:AiProvider.kt:AiProvider$private fun callOpenAiCompatible: ApiResult</ID>
+    <ID>ReturnCount:AiProvider.kt:AiProvider$private suspend fun callOpenAiCompatible: ApiResult</ID>
     <ID>ReturnCount:AiProviderConfig.kt:AiConfigManager$fun getCachedModels: ModelCacheEntry?</ID>
     <ID>ReturnCount:GeminiParser.kt:GeminiParser$internal fun kotlinFallbackParse: ParsedResult?</ID>
     <ID>ReturnCount:GeminiParser.kt:GeminiParser$private fun detectCategory: String</ID>
