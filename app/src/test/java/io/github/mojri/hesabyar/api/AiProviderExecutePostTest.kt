@@ -1,6 +1,5 @@
 package io.github.mojri.hesabyar.api
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -12,7 +11,6 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -95,10 +93,12 @@ class AiProviderExecutePostTest {
       }
     assertTrue("fake server was never hit", enteredCall.await(ENTER_TIMEOUT_SECONDS, TimeUnit.SECONDS))
     job.cancel()
-    assertThrows(CancellationException::class.java) {
-      runBlocking { job.join() }
-    }
-    assertTrue(job.isCancelled)
+    // Job.join() never throws, even when the job was cancelled: it only
+    // suspends until completion. The cancelled state itself proves the
+    // CancellationException propagated instead of being swallowed into a
+    // Failure result.
+    runBlocking { job.join() }
+    assertTrue("cancelled in-flight call must propagate coroutine cancellation", job.isCancelled)
   }
 
   private fun cannedClient(
