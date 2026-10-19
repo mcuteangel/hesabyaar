@@ -4,16 +4,18 @@ import io.github.mojri.hesabyar.api.AiConfigManager
 import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 
-class ManageAiConfigUseCase(
+// open for tests: AiAssistantParseRaceTest fakes config loading because
+// EncryptedSharedPreferences/AndroidKeyStore is unavailable under Robolectric.
+open class ManageAiConfigUseCase(
   private val aiConfigManager: AiConfigManager
 ) {
-  fun loadConfigs(): List<AiProviderConfig> = aiConfigManager.loadConfigs()
+  open fun loadConfigs(): List<AiProviderConfig> = aiConfigManager.loadConfigs()
 
-  fun getActiveConfigId(): String? = aiConfigManager.getActiveConfigId()
+  open fun getActiveConfigId(): String? = aiConfigManager.getActiveConfigId()
 
   fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
 
-  fun isOnlineMode(): Boolean = aiConfigManager.isOnlineMode()
+  open fun isOnlineMode(): Boolean = aiConfigManager.isOnlineMode()
 
   fun setOnlineMode(enabled: Boolean) = aiConfigManager.setOnlineMode(enabled)
 
