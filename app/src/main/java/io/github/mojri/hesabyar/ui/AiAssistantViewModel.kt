@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.mojri.hesabyar.api.AiProviderConfig
 import io.github.mojri.hesabyar.api.AiProviderType
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.core.AppLogger
@@ -25,7 +26,7 @@ import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
-class AiAssistantViewModel
+open class AiAssistantViewModel
   @Inject
   constructor(
     private val parseTransactionUseCase: ParseTransactionUseCase,
@@ -239,36 +240,52 @@ class AiAssistantViewModel
     private val _parserState = MutableStateFlow<ParserUIState>(ParserUIState.Idle)
     val parserState = _parserState.asStateFlow()
 
+    private var parseJob: Job? = null
+    private var parseSequence = 0L
+
     fun parseSmartSentence(
       sentence: String,
       isOnlineMode: Boolean
     ) {
       if (sentence.isBlank()) return
-      viewModelScope.launch {
-        _parserState.value = ParserUIState.Loading
-        try {
-          val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
-          AppLogger.d(
-            "AiAssistantViewModel",
-            "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
-              "found(${it.providerType}, model=${it.model})"
-            } ?: "null"}"
-          )
-          val result = parseTransactionUseCase.parse(sentence, config)
-          if (result != null) {
-            _parserState.value = ParserUIState.Confirming(result)
-          } else {
-            _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
+      // Sequence guard: a parse whose response arrived just before cancellation
+      // (past the last suspension point) must not overwrite a newer parse's state.
+      val sequence = ++parseSequence
+      parseJob?.cancel()
+      parseJob =
+        viewModelScope.launch {
+          _parserState.value = ParserUIState.Loading
+          try {
+            val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
+            AppLogger.d(
+              "AiAssistantViewModel",
+              "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
+                "found(${it.providerType}, model=${it.model})"
+              } ?: "null"}"
+            )
+            val result = performParse(sentence, config)
+            if (sequence != parseSequence) return@launch // superseded: discard stale result
+            if (result != null) {
+              _parserState.value = ParserUIState.Confirming(result)
+            } else {
+              _parserState.value = ParserUIState.Error("خطا در تحلیل متن")
+            }
+          } catch (e: java.io.IOException) {
+            if (sequence != parseSequence) return@launch // superseded: discard stale error
+            AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
+            _parserState.value = ParserUIState.Error("خطا در اتصال")
+          } catch (e: IllegalArgumentException) {
+            if (sequence != parseSequence) return@launch // superseded: discard stale error
+            AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
+            _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
           }
-        } catch (e: java.io.IOException) {
-          AppLogger.e("AiAssistantViewModel", "parseSmartSentence I/O error", e)
-          _parserState.value = ParserUIState.Error("خطا در اتصال")
-        } catch (e: IllegalArgumentException) {
-          AppLogger.e("AiAssistantViewModel", "parseSmartSentence invalid argument", e)
-          _parserState.value = ParserUIState.Error(e.localizedMessage ?: "ورودی نامعتبر")
         }
-      }
     }
+
+    internal open suspend fun performParse(
+      sentence: String,
+      config: AiProviderConfig?
+    ): ParsedResult? = parseTransactionUseCase.parse(sentence, config)
 
     fun confirmParsedResult(result: ParsedResult) {
       _parserState.value = ParserUIState.Success(result)

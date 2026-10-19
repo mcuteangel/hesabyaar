@@ -74,7 +74,9 @@ data class ModelCacheEntry(
 class AiConfigManager(
   context: Context
 ) {
-  private val prefs: SharedPreferences = createEncryptedPrefs(context)
+  // Lazy: creating EncryptedSharedPreferences eagerly touches AndroidKeyStore, which is
+  // unavailable under Robolectric. Deferring keeps construction cheap and test-safe.
+  private val prefs: SharedPreferences by lazy { createEncryptedPrefs(context) }
 
   companion object {
     private const val TAG = "AiConfigManager"
