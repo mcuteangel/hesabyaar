@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -70,8 +71,12 @@ class AiProviderFetchModelsTest {
     // Job.join() never throws, even when the job was cancelled: it only
     // suspends until completion. The cancelled state itself proves the
     // CancellationException propagated instead of the in-flight OkHttp call
-    // running to completion and delivering a stale result.
-    runBlocking { job.join() }
+    // running to completion and delivering a stale result. The join is
+    // bounded: if cancellation ever stops cancelling the call, the test
+    // fails instead of hanging the suite forever.
+    runBlocking {
+      withTimeout(JOIN_TIMEOUT_MS) { job.join() }
+    }
     assertTrue("cancelled model fetch must propagate coroutine cancellation", job.isCancelled)
   }
 
@@ -116,6 +121,7 @@ class AiProviderFetchModelsTest {
     const val HTTP_OK = 200
     const val POLL_INTERVAL_MS = 20L
     const val ENTER_TIMEOUT_SECONDS = 10L
+    const val JOIN_TIMEOUT_MS = 10_000L
     const val JSON_MEDIA_TYPE = "application/json"
     const val GEMINI_MODELS_JSON =
       """

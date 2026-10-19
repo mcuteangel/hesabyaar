@@ -18,6 +18,30 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Executes this call and processes the response, cancelling the in-flight
+ * OkHttp call when the coroutine is cancelled. A blocking [Call.execute]
+ * has no suspension point, so without this a cancelled caller would leave
+ * the request running until it finishes or times out. The processing block
+ * runs while the cancellation handler is still registered, so cancelling
+ * during a slow body read also aborts the call promptly; the response is
+ * always closed.
+ */
+private suspend fun <T> Call.executeCancellable(block: (Response) -> T): T =
+  suspendCancellableCoroutine { cont ->
+    cont.invokeOnCancellation { cancel() }
+    try {
+      val response = execute()
+      try {
+        cont.resume(block(response))
+      } finally {
+        response.close()
+      }
+    } catch (e: IOException) {
+      cont.resumeWith(Result.failure(e))
+    }
+  }
+
 object AiProvider {
   private const val TAG = "AiProvider"
   private const val ERR_EMPTY_RESPONSE = "Empty response body"
@@ -149,7 +173,7 @@ object AiProvider {
         .get()
         .build()
 
-    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -159,7 +183,7 @@ object AiProvider {
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("models")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .mapNotNull { i ->
           val model = modelsArray.getJSONObject(i)
           val name = model.getString("name").removePrefix("models/")
@@ -198,7 +222,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -208,7 +232,7 @@ object AiProvider {
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("data")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .map { i ->
           val model = modelsArray.getJSONObject(i)
           val id = model.getString("id")
@@ -240,7 +264,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    (httpClientOverride ?: client).newCall(request).executeCancellable().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -248,9 +272,9 @@ object AiProvider {
       val body = response.body?.string()
       if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
-      val modelsArray = json.optJSONArray("data") ?: throw IOException("No 'data' array in response")
+      val modelsArray = json.getJSONArray("data")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .map { i ->
           val model = modelsArray.getJSONObject(i)
           val id = model.getString("id")
@@ -379,25 +403,6 @@ object AiProvider {
     )
   }
 
-  /**
-   * Executes this call, cancelling the in-flight OkHttp call when the
-   * coroutine is cancelled. A blocking [Call.execute] has no suspension
-   * point, so without this a cancelled caller would leave the request
-   * running until it finishes or times out.
-   */
-  private suspend fun Call.executeCancellable(): Response =
-    suspendCancellableCoroutine { cont ->
-      cont.invokeOnCancellation { cancel() }
-      try {
-        val response: Response = execute()
-        // If the coroutine was cancelled after execute() returned, drop the
-        // undeliverable response instead of leaking it.
-        cont.resume(response) { response.close() }
-      } catch (e: IOException) {
-        cont.resumeWith(Result.failure(e))
-      }
-    }
-
   private suspend fun executePost(
     url: String,
     body: JSONObject,
@@ -425,7 +430,7 @@ object AiProvider {
     // cancels the in-flight OkHttp call instead of letting it run to completion.
     val call = (httpClientOverride ?: client).newCall(request)
     return try {
-      call.executeCancellable().use { response ->
+      call.executeCancellable { response ->
         val bodyStr = response.body?.string()
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")
