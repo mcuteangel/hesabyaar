@@ -13,6 +13,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -22,6 +23,7 @@ import org.robolectric.annotation.Config
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Covers [AiProvider.fetchModels]' cancellable HTTP path through an
@@ -62,21 +64,27 @@ class AiProviderFetchModelsTest {
         .Builder()
         .addInterceptor(holdingInterceptor(enteredCall))
         .build()
+    // Set only if fetchModels returns normally: job.isCancelled alone cannot
+    // prove propagation, because cancel() marks the job cancelled even when
+    // the body swallows CancellationException and returns.
+    val returned = AtomicBoolean(false)
     val job =
       CoroutineScope(Dispatchers.Default).launch {
         AiProvider.fetchModels(AiProviderType.GEMINI, "test-key")
+        returned.set(true)
       }
     assertTrue("fake server was never hit", enteredCall.await(ENTER_TIMEOUT_SECONDS, TimeUnit.SECONDS))
     job.cancel()
     // Job.join() never throws, even when the job was cancelled: it only
-    // suspends until completion. The cancelled state itself proves the
-    // CancellationException propagated instead of the in-flight OkHttp call
-    // running to completion and delivering a stale result. The join is
-    // bounded: if cancellation ever stops cancelling the call, the test
-    // fails instead of hanging the suite forever.
+    // suspends until completion. A set returned flag means fetchModels came
+    // back normally instead of throwing, i.e. the in-flight OkHttp call ran
+    // to completion and delivered a stale result. The join is bounded: if
+    // cancellation ever stops cancelling the call, the test fails instead of
+    // hanging the suite forever.
     runBlocking {
       withTimeout(JOIN_TIMEOUT_MS) { job.join() }
     }
+    assertFalse("cancelled fetch must not return a result", returned.get())
     assertTrue("cancelled model fetch must propagate coroutine cancellation", job.isCancelled)
   }
 
