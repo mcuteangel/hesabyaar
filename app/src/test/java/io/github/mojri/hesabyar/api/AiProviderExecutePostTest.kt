@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -78,15 +79,7 @@ class AiProviderExecutePostTest {
     AiProvider.httpClientOverride =
       OkHttpClient
         .Builder()
-        .addInterceptor { chain ->
-          enteredCall.countDown()
-          // Hold the call open the way a slow server would; unblock only when
-          // the test cancels, then fail exactly like OkHttp does on cancel().
-          while (!chain.call().isCanceled) {
-            Thread.sleep(POLL_INTERVAL_MS)
-          }
-          throw IOException("canceled")
-        }
+        .addInterceptor(holdingInterceptor(enteredCall))
         .build()
     val job =
       CoroutineScope(Dispatchers.Default).launch {
@@ -108,16 +101,36 @@ class AiProviderExecutePostTest {
   ): OkHttpClient =
     OkHttpClient
       .Builder()
-      .addInterceptor { chain ->
-        Response.Builder()
-          .request(chain.request())
-          .protocol(Protocol.HTTP_1_1)
-          .code(code)
-          .message("test")
-          .body(body.toResponseBody(JSON_MEDIA_TYPE.toMediaType()))
-          .build()
-      }
+      .addInterceptor(cannedInterceptor(code, body))
       .build()
+
+  /**
+   * Holds the call open the way a slow server would; unblocks only when the
+   * test cancels, then fails exactly like OkHttp does on cancel().
+   */
+  private fun holdingInterceptor(enteredCall: CountDownLatch): Interceptor =
+    Interceptor { chain ->
+      enteredCall.countDown()
+      while (!chain.call().isCanceled) {
+        Thread.sleep(POLL_INTERVAL_MS)
+      }
+      throw IOException("canceled")
+    }
+
+  private fun cannedInterceptor(
+    code: Int,
+    body: String
+  ): Interceptor =
+    Interceptor { chain ->
+      Response
+        .Builder()
+        .request(chain.request())
+        .protocol(Protocol.HTTP_1_1)
+        .code(code)
+        .message("test")
+        .body(body.toResponseBody(JSON_MEDIA_TYPE.toMediaType()))
+        .build()
+    }
 
   private companion object {
     const val HTTP_OK = 200
