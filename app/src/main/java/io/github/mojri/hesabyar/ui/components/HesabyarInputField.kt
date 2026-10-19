@@ -8,6 +8,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.input.TextFieldValue
@@ -33,12 +37,18 @@ fun HesabyarInputField(
   readOnly: Boolean = false,
   colors: TextFieldColors? = null
 ) {
-  OutlinedTextField(
-    value = value,
-    onValueChange = onValueChange,
-    modifier = modifier.fillMaxWidth(),
-    label = label?.let { { Text(it) } },
-    placeholder = placeholder?.let { { Text(it) } },
+  // Mirror the Material 3 String overload: keep TextFieldValue state so the
+  // selection survives recompositions while the caller stays on String state.
+  var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
+  HesabyarInputField(
+    value = textFieldValueState.copy(text = value),
+    onValueChange = { newValue ->
+      textFieldValueState = newValue
+      onValueChange(newValue.text)
+    },
+    modifier = modifier,
+    label = label,
+    placeholder = placeholder,
     leadingIcon = leadingIcon,
     trailingIcon = trailingIcon,
     isError = isError,
@@ -46,10 +56,10 @@ fun HesabyarInputField(
     visualTransformation = visualTransformation,
     keyboardOptions = keyboardOptions,
     singleLine = singleLine,
+    shape = shape,
     enabled = enabled,
     readOnly = readOnly,
-    shape = shape,
-    colors = colors ?: defaultInputFieldColors()
+    colors = colors
   )
 }
 
@@ -77,7 +87,15 @@ fun HesabyarInputField(
     onValueChange = onValueChange,
     modifier = modifier.fillMaxWidth(),
     label = label?.let { { Text(it) } },
-    placeholder = placeholder?.let { { Text(it) } },
+    placeholder =
+      placeholder?.let {
+        {
+          Text(
+            text = it,
+            style = MaterialTheme.typography.bodyMedium
+          )
+        }
+      },
     leadingIcon = leadingIcon,
     trailingIcon = trailingIcon,
     isError = isError,
