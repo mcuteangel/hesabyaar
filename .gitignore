@@ -91,6 +91,9 @@ graphify-out/
 # DialogShell scratchpad (local scratch directory)
 .dsh-scratch/
 
+# Agent long-term memory mirror (local only; holds personal context)
+.agent-memory/
+
 # Obsidian (local vault state — workspace.json changes on every window move)
 .obsidian/
 

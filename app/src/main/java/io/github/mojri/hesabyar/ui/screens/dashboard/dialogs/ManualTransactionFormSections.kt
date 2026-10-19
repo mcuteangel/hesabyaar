@@ -16,7 +16,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +31,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.AmountQuickFillButtons
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -104,7 +104,7 @@ internal fun TransactionAmountInput(
       style = MaterialTheme.typography.labelMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    OutlinedTextField(
+    HesabyarInputField(
       value = amountValue,
       onValueChange = { onAmountChanged(it, false) },
       modifier =
@@ -187,7 +187,7 @@ internal fun LoanPersonNameInput(
       style = MaterialTheme.typography.labelMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    OutlinedTextField(
+    HesabyarInputField(
       value = personName,
       onValueChange = onPersonNameChanged,
       modifier =
@@ -202,7 +202,7 @@ internal fun LoanPersonNameInput(
           tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
       },
-      placeholder = { Text("مثلا: علی محمودی", style = MaterialTheme.typography.bodyMedium) },
+      placeholder = "مثلا: علی محمودی",
       singleLine = true
     )
   }
@@ -222,7 +222,7 @@ internal fun InstallmentFormFields(
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
       )
-      OutlinedTextField(
+      HesabyarInputField(
         value = title,
         onValueChange = onTitleChanged,
         modifier =
@@ -230,7 +230,7 @@ internal fun InstallmentFormFields(
             .fillMaxWidth()
             .testTag("manual_title_input"),
         shape = ShapeTokens.Medium,
-        placeholder = { Text("مثلا: قسط بانک مسکن", style = MaterialTheme.typography.bodyMedium) },
+        placeholder = "مثلا: قسط بانک مسکن",
         singleLine = true
       )
     }
@@ -240,7 +240,7 @@ internal fun InstallmentFormFields(
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
       )
-      OutlinedTextField(
+      HesabyarInputField(
         value = daysFromNow,
         onValueChange = onDaysChanged,
         modifier =
@@ -248,7 +248,7 @@ internal fun InstallmentFormFields(
             .fillMaxWidth()
             .testTag("manual_days_input"),
         shape = ShapeTokens.Medium,
-        placeholder = { Text("مثلا: ۳۰", style = MaterialTheme.typography.bodyMedium) },
+        placeholder = "مثلا: ۳۰",
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true
       )
@@ -267,7 +267,7 @@ internal fun TransactionDescriptionInput(
       style = MaterialTheme.typography.labelMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    OutlinedTextField(
+    HesabyarInputField(
       value = description,
       onValueChange = onDescriptionChanged,
       modifier =
