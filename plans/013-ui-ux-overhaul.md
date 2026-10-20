@@ -755,7 +755,8 @@ replacements into one unverifiable diff):
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
   `ui/` — other than the sites owned by Step 5.1. Recount at fixed
-  HEAD `fa8cbc22` (`grep -rn 'copy(alpha' app/src/main/java/**/ui/`):
+  HEAD `fa8cbc22` (`grep -rn 'copy(alpha' app/src/main/java
+  --include='*.kt' | grep '/ui/'`):
   38 grep hits in `ui/`, one of which is a KDoc comment
   (`IconCircle.kt:21`), leaving 37 call sites; 4 call sites are in
   dead `LoanManagementScreen.kt`, leaving 33 live; of the 33, 5 are
@@ -941,6 +942,17 @@ Change:
   be restored. Without that call, do not offer Undo for AI-config
   deletion (a restored active ID would point at a missing config —
   `getActiveConfig()` silently falls back, `AiProviderConfig.kt:255`).
+- Undo for installment deletion has a cascade the snapshot must cover:
+  `InstallmentDelegate.deleteInstallment`
+  (`data/InstallmentDelegate.kt:116-132`) deletes, inside the same DB
+  transaction, every transaction linked to a paid installment
+  (`transactionLinkDao.deleteTransactionsForInstallment`) before
+  deleting the installment row itself. The pending Undo snapshot must
+  therefore capture the installment AND all its linked transactions,
+  and Undo must restore all of them atomically — one transaction,
+  original IDs and links. If that exact inverse cannot be implemented,
+  installment deletion keeps its `ConfirmDialog` and must NOT offer
+  Snackbar Undo (item 3 above).
 
 ### Step 6.2: Touch targets and input polish
 
