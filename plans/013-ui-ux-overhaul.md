@@ -43,7 +43,7 @@ approach: fix the foundations once, then apply them everywhere.
 1. **Bottom navigation**: DECIDED 2026-10-04 — keep the bottom bar,
    modernized as a floating pill bar: detached rounded container, 4
    destinations (داشبورد، دستیار هوشمند، بدهی‌ها، گزارش‌ها); the "بیشتر"
-   sheet keeps تحلیل و آمار، مدیریت حساب‌ها، تنظیمات. Scroll behavior:
+   sheet keeps تحلیل و آمار، گزارش‌ها، مدیریت حساب‌ها، تنظیمات. Scroll behavior:
    labels fade out and the bar slims to icons-only on scroll down;
    restores on scroll up. The dashboard FAB stays separate, floating
    above the bar at bottom-end.
@@ -451,8 +451,8 @@ Build the floating pill navigation bar:
 - Detached rounded container (28dp corner radius, 16dp side margins,
   16dp bottom margin), 4 destinations: داشبورد (`AccountBalanceWallet`),
   دستیار هوشمند (`AutoAwesome`), بدهی‌ها (`AccountBalance`), گزارش‌ها
-  (`Analytics`). The more-sheet keeps تحلیل و آمار، مدیریت حساب‌ها،
-  تنظیمات.
+  (`Analytics`). The more-sheet keeps تحلیل و آمار، گزارش‌ها،
+  مدیریت حساب‌ها، تنظیمات.
 - Selected indicator: `primaryContainer` pill at full opacity (M3
   default) — no custom alpha (see Phase 5.3 for the alpha-token cleanup).
 - Scroll behavior: on scroll down, labels fade out and the bar animates
@@ -471,6 +471,23 @@ Build the floating pill navigation bar:
   matching semantics) carrying its Persian label. When the visible
   labels fade to icons-only, TalkBack must still announce and activate
   each destination — verify with TalkBack on device.
+
+- Icon/menu audit note (verified at HEAD `4f9b026`): this step names
+  `AccountBalanceWallet` for the داشبورد tab, but `MainNavigationBars.kt:189`
+  uses `Icons.Filled.Dashboard` — align that icon choice with the code
+  before building; do not implement the `AccountBalanceWallet` variant
+  from this doc alone. The more-sheet description is a separate matter:
+  `MORE_MENU_TABS` (`MainNavigationBars.kt:185`) tracks only the tab
+  destinations (تحلیل و آمار / گزارش‌ها / تنظیمات) used for the nav bar's
+  selected state — it is NOT the complete contents of the more-sheet.
+  `MoreMenuSheet` (`MainActivityNavigation.kt:273-297`) renders those
+  three destinations plus a separate مدیریت حساب‌ها entry via its own
+  `onSelectAccounts` parameter (`AccountBalanceWallet` icon) — four
+  entries in total. This step's more-sheet list therefore reads
+  «تحلیل و آمار، گزارش‌ها، مدیریت حساب‌ها، تنظیمات» (an earlier draft
+  omitted گزارش‌ها; corrected): verify the actual `MoreMenuSheet`
+  entries before changing the description, and do not drop the accounts
+  entry to match `MORE_MENU_TABS`.
 
 ## Phase 3 done criteria
 
@@ -534,12 +551,27 @@ an action that leads somewhere ("ثبت اولین تراکنش", "ثبت وام
 Wire the actions to the existing FAB/dialog entry points.
 For `PersonsScreen`, there is no dedicated add-person entry point today (persons are created implicitly when a loan/transaction names a new person). Define the empty-state action together with the Step 3.3 Persons-tab FAB work; do not invent a new add-person screen (unapproved new feature).
 
+- Hand-rolled empty states with no action also exist outside Persons:
+  `PersonLoanTimeline.kt:52-61` (Box+Text, «هیچ وامی برای این شخص ثبت نشده
+  است.»), `ReportsScreen.kt:540-556` and `:673-690` (bare centered Texts),
+  `SettingsScreen.kt:919-929` (AI-logs Box+Text). Replace these with
+  `EmptyState` too, each with an action that leads somewhere (e.g. «ثبت وام»
+  on the timeline; re-run for the AI log).
+
 ### Step 4.3: Correctness fixes
 
 - Latin-digit rendering is not limited to KPI percentages — ≈20 live
   sites (verified at HEAD `e1f6da51`; re-grep at execution, do not trust
   these line numbers blindly). Route every site through a Persian-digits
-  formatter with LRM isolation, like `CurrencyFormatter`. Verified
+  formatter with LRM isolation, like `CurrencyFormatter`. Formatter
+  source (explicit): no shared Persian-digits formatter exists today —
+  `CurrencyFormatter.toPersianDigits` is private
+  (`ui/CurrencyFormatter.kt:44`) and its LRM handling covers only
+  negative amounts (`ui/CurrencyFormatter.kt:96`). This step builds the
+  shared helper it needs (extract/widen that function into a shared
+  Persian-digit formatter with LRM isolation) and routes the sites
+  through it; do not duplicate the conversion per site, and do not
+  block on #343. Verified
   examples: `KpiCards.kt:61,99` (`"$savingsPct%"`, `"$debtPct%"`);
   `SettingsScreen.kt:1697` (`String.format("%02d:%02d", ...)` for reminder
   time, next to Persian-digit slider labels);
@@ -607,6 +639,10 @@ Change:
   Settings (persisted in preferences via the existing settings store).
   v1 is show/hide only; reordering is out of scope.
 
+- «۳۰ روزه» label: the audit flagged this label; a grep at HEAD `e444f25`
+  finds no «30 روزه»/«۳۰ روزه» literal in app code or resources — re-verify
+  at execution and fix/rename the section label as part of the curation.
+
 **Verify**: all toggles off/on render correctly; no empty gaps when a
 section is hidden; existing tests pass.
 
@@ -641,11 +677,52 @@ Change:
   (e.g. income `#1E7E34`, expense `#C0392B` — verify with a contrast
   check, do not guess).
 - Add `incomeContainer`/`expenseContainer` (+ on-colors) for tinted
-  backgrounds, replacing `color.copy(alpha = 0.1f)` call sites
-  (`SmartAssistantScreen.kt:909,1306,1365`).
+  backgrounds. They replace a `FinancialColors` `color.copy(alpha = ...)`
+  site only when that site's color is `IncomeGreen`/`ExpenseRed`.
+  Non-income/expense tints have no container role in this step
+  (`FinancialColors` exposes only `IncomeGreen`, `ExpenseRed`,
+  `WarningOrange`, `InfoBlue`, `PurpleAccent` — `FinancialColors.kt:64-68`)
+  and must NOT be recolored with the income/expense containers: they keep
+  their own color and a tokenized alpha (see the audit below). Ownership
+  vs Step 5.3: this step (5.1) owns every live `FinancialColors` alpha
+  site — container replacement for income/expense, color-preserving
+  tokenized alpha for the rest — and Step 5.3's raw-alpha sweep covers
+  only the remaining non-`FinancialColors` sites in `ui/`; do not apply
+  both steps' prescriptions to the same site.
 - Keep the `FinancialColors` object API shape; executors may refactor it
   into a `CompositionLocal` only if zero call-site churn results —
   otherwise leave the singleton and note it as tech debt.
+
+- Consumer audit (verified at HEAD `4f9b026`): live `FinancialColors`
+  consumers are `AccountBalanceCard.kt`, `BalanceCard.kt`, and
+  `AmountQuickFillButtons.kt`. The live `FinancialColors` alpha sites
+  are `AmountQuickFillButtons.kt:65` (`WarningOrange.copy(alpha = 0.15f)`
+  — a raw alpha; replace the raw value with the matching alpha token,
+  `Dimens.ICON_CIRCLE_BACKGROUND_ALPHA` (0.15f), keeping `WarningOrange`)
+  and `BalanceCard.kt:37` (`PurpleAccent.copy(alpha =
+  Dimens.SURFACE_TINT_ALPHA)` — already tokenized; keep `PurpleAccent`
+  and its token). `AmountQuickFillButtons.kt:82` uses `WarningOrange` at
+  full opacity (no alpha). None of these sites maps to an income/expense
+  container role.
+  `InstallmentItem.kt` and `TransactionItem.kt` also reference
+  `FinancialColors` but are issue #340 dead code (zero call sites) — do not
+  touch them. Unify all live consumers, not just the alpha sites.
+- Separate alpha-tint sites — NOT `FinancialColors`: the three
+  `SmartAssistantScreen.kt` `.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)`
+  card-container sites are at `:918,1325,1384` (verified at HEAD
+  `4f9b026`; the previously cited `:909,1306,1365` no longer contain that
+  code). They tint `MaterialTheme.colorScheme` colors — a confidence
+  color derived from `primary`/`tertiary`/`error` (`:918`), a
+  caller-passed color (`:1325`), and `error` for the low-confidence
+  warning (`:1384`) — so they carry confidence/warning semantics, not
+  income/expense semantics. Converting them is mandatory, not optional
+  (the Phase 5 done criteria require zero `.copy(alpha` in `ui/` outside
+  the design system): replace each with the container role of its own
+  `colorScheme` color — `primary` → `primaryContainer` / `tertiary` →
+  `tertiaryContainer` for the `:918`/`:1325` confidence bands, and
+  `error` → `errorContainer` at `:1384` — preserving the confidence
+  meaning. Do NOT replace them with the `FinancialColors` income/expense
+  container roles.
 
 ### Step 5.2: Typography gaps
 
@@ -662,6 +739,11 @@ Change:
   entries (downloadable preferred; bundle only if download proves
   unreliable). Verify Persian glyph rendering on device before/after.
 
+- Bold-override count (verified at HEAD `e444f25`): 150 live
+  `FontWeight.Bold` call sites plus 2 `FontWeight.SemiBold`; 10 more sit in
+  dead `LoanManagementScreen.kt` — do not touch (issue #340). The audit's
+  «153» is unverified — re-grep at execution; never treat it as fact.
+
 ### Step 5.3: Kill hardcoded alphas and dp
 
 Work through this screen by screen (one file group at a time, verifying
@@ -672,9 +754,22 @@ replacements into one unverifiable diff):
   0.3f container tint) as named constants next to the existing ones in
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
-  `ui/` (38 hits at HEAD `e1f6da51` — re-grep at execution and replace
-  every hit; 4 of the 38 are in dead `LoanManagementScreen.kt`, leaving
-  34 live; list — line numbers drifted, re-grep:
+  `ui/` — other than the sites owned by Step 5.1. Recount at fixed
+  HEAD `fa8cbc22` (`grep -rn 'copy(alpha' app/src/main/java
+  --include='*.kt' | grep '/ui/'`):
+  38 grep hits in `ui/`, one of which is a KDoc comment
+  (`IconCircle.kt:21`), leaving 37 call sites; 4 call sites are in
+  dead `LoanManagementScreen.kt`, leaving 33 live; of the 33, 5 are
+  owned by Step 5.1 (the 2 `FinancialColors` alpha sites and the 3
+  `SmartAssistantScreen.kt` card-container sites at `:918,1325,1384`),
+  leaving **28 live call sites for this step**. Only 3 of the 28
+  still use a raw numeric alpha (`InstallmentScreen.kt:168` `0.4f`,
+  `CustomTimePickerDialog.kt:438` `0.8f`, `CategoryChip.kt:79`
+  `0.15f`); the rest already pass a named token/constant (mostly
+  `Dimens.*`). The earlier 38/4/34 totals predate the Step 5.1
+  ownership split — do not reuse them as this step's inventory.
+  Re-grep at execution and replace every remaining hit; list —
+  line numbers drifted, re-grep:
   `AnalyticsScreen.kt`, `ReportsScreen.kt`,
   `SmartAssistantScreen.kt`, `SettingsScreen.kt`, ...).
   `AnalyticsScreen.kt:905` (`Color.LightGray`) and
@@ -721,6 +816,20 @@ order (`index 0` = oldest, `index N-1` = newest):
   would double-invert the axis back to LTR.
 - Ensure X-axis month labels use the exact same mirrored x-coordinates so labels
   stay aligned with their data points. Visually verify against the Figma dashboard.
+
+- Chart screen-reader semantics are tracked by open issue #366 — but its
+  scope is narrower than "all charts have zero semantics" (verified at
+  HEAD `4f9b026`): `CombinedLineChartCard` (`AnalyticsScreen.kt:232`)
+  already builds a detailed per-period description and passes it to
+  `HesabyarLineChart` (`contentDescriptionText`,
+  `AnalyticsScreen.kt:299-303`), which exposes it via
+  `Modifier.semantics`, and `HesabyarProgressRing` self-describes. The
+  chart components accept an optional `contentDescriptionText`, but the
+  `HesabyarBarChart` (`AnalyticsScreen.kt:193`) and `HesabyarDonutChart`
+  (`AnalyticsScreen.kt:347`) call sites do not pass one — #366's
+  remaining scope is the call sites/charts still lacking a description;
+  re-audit each chart at execution. Dedupe — do not duplicate #366's work
+  here; coordinate the semantics content there.
 
 ### Step 5.5: Theme system — dynamic, brand, and curated themes (decision #3, decided 2026-10-04)
 
@@ -806,15 +915,62 @@ Change:
   below cannot pass.
 - Keep Toast only where a Snackbar cannot reach (pre-compose contexts).
 
+- Undo additions (dedupe): installment deletion
+  (`InstallmentScreen.kt:478-486`, confirm dialog, no Undo today) and AI-config
+  deletion (`SettingsScreen.kt:1180-1182`, «حذف پیکربندی»). Undo for
+  «تسویه کامل» is covered by open issue #369 — do not duplicate it;
+  reference it. Ownership of the Snackbar pipeline is the opposite: this
+  step (6.1) IS the Snackbar migration — it implements the pipeline that
+  open issue #367 tracks, so executors must do that work here, not skip
+  it as covered elsewhere; #367 is the tracking issue this step
+  satisfies, referenced here for that reason.
+- Undo state for AI-config deletion must include the active-config ID:
+  deleting the active config rewrites the stored active ID to another
+  config (`AiProviderConfig.kt:294-300`), so the pending Undo snapshot
+  captures the prior active ID alongside the deleted config, and any
+  change to the active selection while the Snackbar is pending
+  invalidates the pending Undo (extending the same-entity rule in
+  item 2 above) — Undo must never restore the prior active ID over a
+  newer selection made after the deletion. Restoring also needs an API
+  this step must add: the current store cannot re-insert a deleted
+  config with its original ID — `addConfig` always mints a fresh UUID
+  (`AiProviderConfig.kt:276`) and `updateConfig` only replaces an
+  existing entry (`AiProviderConfig.kt:287-291`) — so item 1's
+  exact-inverse contract for this action is a new ID-preserving restore
+  call (e.g. `restoreConfig(snapshot)`) that re-inserts the snapshot
+  with its original ID; only then may the snapshot's prior active ID
+  be restored. Without that call, do not offer Undo for AI-config
+  deletion (a restored active ID would point at a missing config —
+  `getActiveConfig()` silently falls back, `AiProviderConfig.kt:255`).
+- Undo for installment deletion has a cascade the snapshot must cover:
+  `InstallmentDelegate.deleteInstallment`
+  (`data/InstallmentDelegate.kt:116-132`) deletes, inside the same DB
+  transaction, every transaction linked to a paid installment
+  (`transactionLinkDao.deleteTransactionsForInstallment`) before
+  deleting the installment row itself. The pending Undo snapshot must
+  therefore capture the installment AND all its linked transactions,
+  and Undo must restore all of them atomically — one transaction,
+  original IDs and links. If that exact inverse cannot be implemented,
+  installment deletion keeps its `ConfirmDialog` and must NOT offer
+  Snackbar Undo (item 3 above).
+
 ### Step 6.2: Touch targets and input polish
 
-- `CategoryManagementScreen.kt:318,331`: 36dp edit/delete IconButtons →
-  48dp minimum (also matches `Dimens.ButtonHeight`).
+- `CategoryManagementScreen.kt` edit/delete IconButtons: already meet
+  the 48dp minimum — both apply `minimumInteractiveComponentSize()`
+  before their 36dp visual size (`Dimens.ContainerSmall`) at
+  `CategoryManagementScreen.kt:315,330` (verified at HEAD `4f9b026`).
+  No work remains for them; they are not open 48dp targets.
 - `HesabyarInputField.kt`: add `keyboardActions`/`imeAction` for
   next/done navigation across multi-field forms.
 - `SettingsScreen.kt:1623-1674`: replace the four `+ ساعت / − ساعت /
   + دقیقه / − دقیقه` buttons with the existing
   `CustomTimePickerDialog`.
+
+- Touch-target count (verified at HEAD `e444f25`): open issue #365 already
+  fixed 7 sub-48dp targets and 8 unnamed Switches (PR #504). The audit's «5
+  more» is unverified — re-audit at execution and exclude whatever #365
+  covered.
 
 ### Step 6.3: Motion and empty-state polish
 
@@ -828,8 +984,14 @@ Change:
 ## Phase 6 done criteria
 
 - [ ] Zero user-facing Toasts for in-app validation/errors (grep proves
-  it); every destructive action offers Undo with a defined reversal
-- [ ] 48dp touch targets on category row actions; ime navigation works
+  it); every eligible reversible destructive action offers Undo with a
+  defined reversal, and destructive actions that cannot be reversed
+  safely require modal confirmation instead (Step 6.1 item 3 — e.g.
+  AI-config deletion until the ID-preserving restore call exists)
+- [x] 48dp touch targets on category row actions (already satisfied —
+  Step 6.2 audit: `minimumInteractiveComponentSize()` at
+  `CategoryManagementScreen.kt:315,330`; verify at execution)
+- [ ] ime navigation works
 - [x] `Dimens.MinTouchTarget = 48.dp` is recorded in the design-system changes
 - [ ] Entrance animations run once; empty states centered
 - [ ] Full suite + lint exits 0
@@ -953,3 +1115,44 @@ named test results, and file:line references in the phase report.
   income/expense colors. New tints must come from the container roles,
   never from `.copy(alpha)`.
 - Keep this plan's status row in `plans/README.md` current per phase.
+
+## Not in plan 013
+
+Findings related to this overhaul that live in their own issues rather than
+in plan 013's steps (links verified 2026-10-14; re-verify issue state before
+executing — some may have closed since):
+
+- #340 — dead code (`LoanManagementScreen`, `LoanViewModel`, ...). No step in
+  this plan targets them. https://github.com/mcuteangel/hesabyaar/issues/340
+- #342 — `HesabyarAmountField` component. https://github.com/mcuteangel/hesabyaar/issues/342
+- #343 — `PersianFormat` (digits, percent, date, time). Ownership
+  clarified: Step 4.3 of this plan covers Persian-digit formatting for
+  the live read-only percent/date/time sites listed there and builds
+  the shared Persian-digit helper those sites need (extracted from
+  `CurrencyFormatter.toPersianDigits`); #343 is narrowed to the
+  remaining `PersianFormat` API surface (percent/date/time formatting
+  beyond that helper) and must build on the Step 4.3 helper, not
+  duplicate it. https://github.com/mcuteangel/hesabyaar/issues/343
+- #345 — Jalali dates (dashboard month boundary, installment due time). https://github.com/mcuteangel/hesabyaar/issues/345
+- #347 — طلب/بدهی vocabulary (`LoanType.label()`, shared `PersonDirection`). https://github.com/mcuteangel/hesabyaar/issues/347
+- #348 — state after rotation/recreate + `LazyColumn` rows without key. https://github.com/mcuteangel/hesabyaar/issues/348
+- #354 — Jalali date/time picker move + `JalaliDateField(mode)`. https://github.com/mcuteangel/hesabyaar/issues/354
+- #365 — touch targets + Switch a11y (fixed via PR #504). https://github.com/mcuteangel/hesabyaar/issues/365
+- #366 — Analytics chart semantics (Canvas invisible to screen reader). https://github.com/mcuteangel/hesabyaar/issues/366
+- #367 — Snackbar instead of Toast (the migration itself is Step 6.1 of
+  this plan — see the ownership note there; this entry is the tracking
+  cross-reference). https://github.com/mcuteangel/hesabyaar/issues/367
+- #369 — persons ledger features + Undo for «تسویه کامل». https://github.com/mcuteangel/hesabyaar/issues/369
+- #370 — `AddPersonLoanDialog` date/account fields. https://github.com/mcuteangel/hesabyaar/issues/370
+- #372 — installment payment from account. https://github.com/mcuteangel/hesabyaar/issues/372
+- #445 — installment amount rejects Persian digits (closed 2026-10-15).
+  Scope clarified: its Persian-digit parsing fix is already assigned to
+  Step 1.3 of this plan (the Installment amount field must parse via
+  `toCleanLongOrNull()` / `filterDigits()`), so do not treat that fix as
+  out of scope; this entry stays only as the cross-reference.
+  https://github.com/mcuteangel/hesabyaar/issues/445
+
+No dedicated open issue was found for: currency unit (rial/toman handling),
+string extraction (hardcoded strings to resources), component repetition,
+report day range, persons ledger as its own topic. Verify before filing —
+do not assume these need new issues.
