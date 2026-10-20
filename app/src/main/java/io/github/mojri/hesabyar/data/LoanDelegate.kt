@@ -192,7 +192,14 @@ internal class LoanDelegate(
       val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
       // Issue #431: reject payments backdated before the loan creation date or
       // an already-recorded payment. They corrupt point-in-time balances.
-      if (!RustBridge.validateLoanPaymentDateSync(loan.date, existingPaymentDates, date)) return@withTransaction false
+      // Skipped when Rust is unavailable: validateBoolean falls back to false
+      // then, and rejecting every payment would be worse than skipping the check.
+      if (
+        RustBridge.isAvailable &&
+          !RustBridge.validateLoanPaymentDateSync(loan.date, existingPaymentDates, date)
+      ) {
+        return@withTransaction false
+      }
       // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
       // and record payment history. Zero transactions are posted — and the
       // Loans category is only required on the tracked path, so untracked
