@@ -562,7 +562,15 @@ For `PersonsScreen`, there is no dedicated add-person entry point today (persons
 - Latin-digit rendering is not limited to KPI percentages — ≈20 live
   sites (verified at HEAD `e1f6da51`; re-grep at execution, do not trust
   these line numbers blindly). Route every site through a Persian-digits
-  formatter with LRM isolation, like `CurrencyFormatter`. Verified
+  formatter with LRM isolation, like `CurrencyFormatter`. Formatter
+  source (explicit): no shared Persian-digits formatter exists today —
+  `CurrencyFormatter.toPersianDigits` is private
+  (`ui/CurrencyFormatter.kt:44`) and its LRM handling covers only
+  negative amounts (`ui/CurrencyFormatter.kt:96`). This step builds the
+  shared helper it needs (extract/widen that function into a shared
+  Persian-digit formatter with LRM isolation) and routes the sites
+  through it; do not duplicate the conversion per site, and do not
+  block on #343. Verified
   examples: `KpiCards.kt:61,99` (`"$savingsPct%"`, `"$debtPct%"`);
   `SettingsScreen.kt:1697` (`String.format("%02d:%02d", ...)` for reminder
   time, next to Persian-digit slider labels);
@@ -668,17 +676,33 @@ Change:
   (e.g. income `#1E7E34`, expense `#C0392B` — verify with a contrast
   check, do not guess).
 - Add `incomeContainer`/`expenseContainer` (+ on-colors) for tinted
-  backgrounds, replacing the `FinancialColors` `color.copy(alpha = ...)`
-  call sites in the live consumers below (e.g. the raw `0.15f` alpha in
-  `AmountQuickFillButtons.kt:65`).
+  backgrounds. They replace a `FinancialColors` `color.copy(alpha = ...)`
+  site only when that site's color is `IncomeGreen`/`ExpenseRed`.
+  Non-income/expense tints have no container role in this step
+  (`FinancialColors` exposes only `IncomeGreen`, `ExpenseRed`,
+  `WarningOrange`, `InfoBlue`, `PurpleAccent` — `FinancialColors.kt:64-68`)
+  and must NOT be recolored with the income/expense containers: they keep
+  their own color and a tokenized alpha (see the audit below). Ownership
+  vs Step 5.3: this step (5.1) owns every live `FinancialColors` alpha
+  site — container replacement for income/expense, color-preserving
+  tokenized alpha for the rest — and Step 5.3's raw-alpha sweep covers
+  only the remaining non-`FinancialColors` sites in `ui/`; do not apply
+  both steps' prescriptions to the same site.
 - Keep the `FinancialColors` object API shape; executors may refactor it
   into a `CompositionLocal` only if zero call-site churn results —
   otherwise leave the singleton and note it as tech debt.
 
 - Consumer audit (verified at HEAD `4f9b026`): live `FinancialColors`
   consumers are `AccountBalanceCard.kt`, `BalanceCard.kt`, and
-  `AmountQuickFillButtons.kt` (`FinancialColors.WarningOrange` at `:65`
-  — `copy(alpha = 0.15f)`, a raw alpha, not a token — and at `:82`).
+  `AmountQuickFillButtons.kt`. The live `FinancialColors` alpha sites
+  are `AmountQuickFillButtons.kt:65` (`WarningOrange.copy(alpha = 0.15f)`
+  — a raw alpha; replace the raw value with the matching alpha token,
+  `Dimens.ICON_CIRCLE_BACKGROUND_ALPHA` (0.15f), keeping `WarningOrange`)
+  and `BalanceCard.kt:37` (`PurpleAccent.copy(alpha =
+  Dimens.SURFACE_TINT_ALPHA)` — already tokenized; keep `PurpleAccent`
+  and its token). `AmountQuickFillButtons.kt:82` uses `WarningOrange` at
+  full opacity (no alpha). None of these sites maps to an income/expense
+  container role.
   `InstallmentItem.kt` and `TransactionItem.kt` also reference
   `FinancialColors` but are issue #340 dead code (zero call sites) — do not
   touch them. Unify all live consumers, not just the alpha sites.
@@ -690,10 +714,14 @@ Change:
   color derived from `primary`/`tertiary`/`error` (`:918`), a
   caller-passed color (`:1325`), and `error` for the low-confidence
   warning (`:1384`) — so they carry confidence/warning semantics, not
-  income/expense semantics. Do NOT replace them with the `FinancialColors`
-  income/expense container roles; if the container-tint cleanup touches
-  them, map each to the container role of its own `colorScheme` color
-  and preserve the confidence meaning.
+  income/expense semantics. Converting them is mandatory, not optional
+  (the Phase 5 done criteria require zero `.copy(alpha` in `ui/` outside
+  the design system): replace each with the container role of its own
+  `colorScheme` color — `primary` → `primaryContainer` / `tertiary` →
+  `tertiaryContainer` for the `:918`/`:1325` confidence bands, and
+  `error` → `errorContainer` at `:1384` — preserving the confidence
+  meaning. Do NOT replace them with the `FinancialColors` income/expense
+  container roles.
 
 ### Step 5.2: Typography gaps
 
@@ -725,7 +753,8 @@ replacements into one unverifiable diff):
   0.3f container tint) as named constants next to the existing ones in
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
-  `ui/` (38 hits at HEAD `e1f6da51` — re-grep at execution and replace
+  `ui/` — other than the `FinancialColors` sites owned by Step 5.1 —
+  (38 hits at HEAD `e1f6da51` — re-grep at execution and replace
   every hit; 4 of the 38 are in dead `LoanManagementScreen.kt`, leaving
   34 live; list — line numbers drifted, re-grep:
   `AnalyticsScreen.kt`, `ReportsScreen.kt`,
@@ -889,7 +918,17 @@ Change:
   change to the active selection while the Snackbar is pending
   invalidates the pending Undo (extending the same-entity rule in
   item 2 above) — Undo must never restore the prior active ID over a
-  newer selection made after the deletion.
+  newer selection made after the deletion. Restoring also needs an API
+  this step must add: the current store cannot re-insert a deleted
+  config with its original ID — `addConfig` always mints a fresh UUID
+  (`AiProviderConfig.kt:276`) and `updateConfig` only replaces an
+  existing entry (`AiProviderConfig.kt:287-291`) — so item 1's
+  exact-inverse contract for this action is a new ID-preserving restore
+  call (e.g. `restoreConfig(snapshot)`) that re-inserts the snapshot
+  with its original ID; only then may the snapshot's prior active ID
+  be restored. Without that call, do not offer Undo for AI-config
+  deletion (a restored active ID would point at a missing config —
+  `getActiveConfig()` silently falls back, `AiProviderConfig.kt:255`).
 
 ### Step 6.2: Touch targets and input polish
 
@@ -922,7 +961,10 @@ Change:
 
 - [ ] Zero user-facing Toasts for in-app validation/errors (grep proves
   it); every destructive action offers Undo with a defined reversal
-- [ ] 48dp touch targets on category row actions; ime navigation works
+- [x] 48dp touch targets on category row actions (already satisfied —
+  Step 6.2 audit: `minimumInteractiveComponentSize()` at
+  `CategoryManagementScreen.kt:315,330`; verify at execution)
+- [ ] ime navigation works
 - [x] `Dimens.MinTouchTarget = 48.dp` is recorded in the design-system changes
 - [ ] Entrance animations run once; empty states centered
 - [ ] Full suite + lint exits 0
@@ -1058,9 +1100,12 @@ executing — some may have closed since):
 - #342 — `HesabyarAmountField` component. https://github.com/mcuteangel/hesabyaar/issues/342
 - #343 — `PersianFormat` (digits, percent, date, time). Ownership
   clarified: Step 4.3 of this plan covers Persian-digit formatting for
-  the live read-only percent/date/time sites listed there; the remaining
-  #343 scope (the unified `PersianFormat` utility itself) stays with
-  #343. https://github.com/mcuteangel/hesabyaar/issues/343
+  the live read-only percent/date/time sites listed there and builds
+  the shared Persian-digit helper those sites need (extracted from
+  `CurrencyFormatter.toPersianDigits`); #343 is narrowed to the
+  remaining `PersianFormat` API surface (percent/date/time formatting
+  beyond that helper) and must build on the Step 4.3 helper, not
+  duplicate it. https://github.com/mcuteangel/hesabyaar/issues/343
 - #345 — Jalali dates (dashboard month boundary, installment due time). https://github.com/mcuteangel/hesabyaar/issues/345
 - #347 — طلب/بدهی vocabulary (`LoanType.label()`, shared `PersonDirection`). https://github.com/mcuteangel/hesabyaar/issues/347
 - #348 — state after rotation/recreate + `LazyColumn` rows without key. https://github.com/mcuteangel/hesabyaar/issues/348
