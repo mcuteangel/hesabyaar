@@ -300,12 +300,8 @@ pub fn validate_loan_payment_date(
     new_payment_date: i64,
 ) -> Result<(), HesabyarError> {
     catch_unwind_safe(|| {
-        crate::validation::validate_loan_payment_date(
-            loan_creation_date,
-            &existing_payment_dates,
-            new_payment_date,
-        )
-        .map_err(|e| HesabyarError::ValidationError { detail: e })
+        crate::validation::validate_loan_payment_date(loan_creation_date, &existing_payment_dates, new_payment_date)
+            .map_err(|e| HesabyarError::ValidationError { detail: e })
     })?
 }
 
