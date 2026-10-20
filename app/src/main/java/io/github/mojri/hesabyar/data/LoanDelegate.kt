@@ -196,7 +196,7 @@ internal class LoanDelegate(
       // then, and rejecting every payment would be worse than skipping the check.
       if (
         RustBridge.isAvailable &&
-          !RustBridge.validateLoanPaymentDateSync(loan.date, existingPaymentDates, date)
+        !RustBridge.validateLoanPaymentDateSync(loan.date, existingPaymentDates, date)
       ) {
         return@withTransaction false
       }
