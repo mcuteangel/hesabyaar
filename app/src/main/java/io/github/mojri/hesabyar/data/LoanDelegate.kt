@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import io.github.mojri.hesabyar.rust.RustBridge
 import kotlinx.coroutines.flow.Flow
 
 internal class LoanDelegate(
@@ -188,6 +189,10 @@ internal class LoanDelegate(
       val newRemaining = loan.remainingAmount - amount
       val isSettled = newRemaining == 0L
       val date = customDate ?: System.currentTimeMillis()
+      val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
+      // Issue #431: reject payments backdated before the loan creation date or
+      // an already-recorded payment. They corrupt point-in-time balances.
+      if (!RustBridge.validateLoanPaymentDateSync(loan.date, existingPaymentDates, date)) return@withTransaction false
       // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
       // and record payment history. Zero transactions are posted — and the
       // Loans category is only required on the tracked path, so untracked

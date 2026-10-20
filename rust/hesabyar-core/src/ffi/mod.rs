@@ -289,6 +289,26 @@ pub fn validate_loan(loan: Loan) -> Result<(), HesabyarError> {
     })?
 }
 
+/// Validate a loan payment date against the loan creation date and the dates
+/// of already-recorded payments (issue #431).
+///
+/// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
+#[uniffi::export]
+pub fn validate_loan_payment_date(
+    loan_creation_date: i64,
+    existing_payment_dates: Vec<i64>,
+    new_payment_date: i64,
+) -> Result<(), HesabyarError> {
+    catch_unwind_safe(|| {
+        crate::validation::validate_loan_payment_date(
+            loan_creation_date,
+            &existing_payment_dates,
+            new_payment_date,
+        )
+        .map_err(|e| HesabyarError::ValidationError { detail: e })
+    })?
+}
+
 /// Validate a single installment.
 ///
 /// Returns `Ok(())` if valid, or `HesabyarError::ValidationError` if invalid.
