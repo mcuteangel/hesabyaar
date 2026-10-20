@@ -20,7 +20,10 @@ internal interface RustBridgeValidation : RustBridgeCore {
 
   /**
    * True when the repayment date keeps the payment history chronologically
-   * ordered (issue #431). Fail-closed: false when the Rust core is unavailable.
+   * ordered (issue #431). Fail-closed at this level: false when the Rust core
+   * is unavailable. The production caller (LoanDelegate) gates on
+   * RustBridge.isAvailable and skips the check instead of rejecting, so an
+   * unavailable core never blocks repayments.
    */
   fun validateLoanPaymentDateSync(
     loanCreationDate: Long,
