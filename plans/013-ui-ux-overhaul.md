@@ -43,7 +43,7 @@ approach: fix the foundations once, then apply them everywhere.
 1. **Bottom navigation**: DECIDED 2026-10-04 — keep the bottom bar,
    modernized as a floating pill bar: detached rounded container, 4
    destinations (داشبورد، دستیار هوشمند، بدهی‌ها، گزارش‌ها); the "بیشتر"
-   sheet keeps تحلیل و آمار، مدیریت حساب‌ها، تنظیمات. Scroll behavior:
+   sheet keeps تحلیل و آمار، گزارش‌ها، مدیریت حساب‌ها، تنظیمات. Scroll behavior:
    labels fade out and the bar slims to icons-only on scroll down;
    restores on scroll up. The dashboard FAB stays separate, floating
    above the bar at bottom-end.
@@ -451,8 +451,8 @@ Build the floating pill navigation bar:
 - Detached rounded container (28dp corner radius, 16dp side margins,
   16dp bottom margin), 4 destinations: داشبورد (`AccountBalanceWallet`),
   دستیار هوشمند (`AutoAwesome`), بدهی‌ها (`AccountBalance`), گزارش‌ها
-  (`Analytics`). The more-sheet keeps تحلیل و آمار، مدیریت حساب‌ها،
-  تنظیمات.
+  (`Analytics`). The more-sheet keeps تحلیل و آمار، گزارش‌ها،
+  مدیریت حساب‌ها، تنظیمات.
 - Selected indicator: `primaryContainer` pill at full opacity (M3
   default) — no custom alpha (see Phase 5.3 for the alpha-token cleanup).
 - Scroll behavior: on scroll down, labels fade out and the bar animates
@@ -480,13 +480,14 @@ Build the floating pill navigation bar:
   `MORE_MENU_TABS` (`MainNavigationBars.kt:185`) tracks only the tab
   destinations (تحلیل و آمار / گزارش‌ها / تنظیمات) used for the nav bar's
   selected state — it is NOT the complete contents of the more-sheet.
-  `MoreMenuSheet` (`MainActivityNavigation.kt:273-293`) renders those
-  destinations plus a separate مدیریت حساب‌ها entry via its own
-  `onSelectAccounts` parameter (`AccountBalanceWallet` icon), so this
-  step's «تحلیل و آمار، مدیریت حساب‌ها، تنظیمات» more-sheet list is correct
-  as written: verify the actual `MoreMenuSheet` entries before changing
-  the description, and do not drop the accounts entry to match
-  `MORE_MENU_TABS`.
+  `MoreMenuSheet` (`MainActivityNavigation.kt:273-297`) renders those
+  three destinations plus a separate مدیریت حساب‌ها entry via its own
+  `onSelectAccounts` parameter (`AccountBalanceWallet` icon) — four
+  entries in total. This step's more-sheet list therefore reads
+  «تحلیل و آمار، گزارش‌ها، مدیریت حساب‌ها، تنظیمات» (an earlier draft
+  omitted گزارش‌ها; corrected): verify the actual `MoreMenuSheet`
+  entries before changing the description, and do not drop the accounts
+  entry to match `MORE_MENU_TABS`.
 
 ## Phase 3 done criteria
 
@@ -753,10 +754,21 @@ replacements into one unverifiable diff):
   0.3f container tint) as named constants next to the existing ones in
   `Dimens.kt` (`:32`, `:35`, `:38`; the file is 39 lines — insert at
   `:38`), then replace every raw `.copy(alpha = …)` call site in
-  `ui/` — other than the `FinancialColors` sites owned by Step 5.1 —
-  (38 hits at HEAD `e1f6da51` — re-grep at execution and replace
-  every hit; 4 of the 38 are in dead `LoanManagementScreen.kt`, leaving
-  34 live; list — line numbers drifted, re-grep:
+  `ui/` — other than the sites owned by Step 5.1. Recount at fixed
+  HEAD `fa8cbc22` (`grep -rn 'copy(alpha' app/src/main/java/**/ui/`):
+  38 grep hits in `ui/`, one of which is a KDoc comment
+  (`IconCircle.kt:21`), leaving 37 call sites; 4 call sites are in
+  dead `LoanManagementScreen.kt`, leaving 33 live; of the 33, 5 are
+  owned by Step 5.1 (the 2 `FinancialColors` alpha sites and the 3
+  `SmartAssistantScreen.kt` card-container sites at `:918,1325,1384`),
+  leaving **28 live call sites for this step**. Only 3 of the 28
+  still use a raw numeric alpha (`InstallmentScreen.kt:168` `0.4f`,
+  `CustomTimePickerDialog.kt:438` `0.8f`, `CategoryChip.kt:79`
+  `0.15f`); the rest already pass a named token/constant (mostly
+  `Dimens.*`). The earlier 38/4/34 totals predate the Step 5.1
+  ownership split — do not reuse them as this step's inventory.
+  Re-grep at execution and replace every remaining hit; list —
+  line numbers drifted, re-grep:
   `AnalyticsScreen.kt`, `ReportsScreen.kt`,
   `SmartAssistantScreen.kt`, `SettingsScreen.kt`, ...).
   `AnalyticsScreen.kt:905` (`Color.LightGray`) and
@@ -960,7 +972,10 @@ Change:
 ## Phase 6 done criteria
 
 - [ ] Zero user-facing Toasts for in-app validation/errors (grep proves
-  it); every destructive action offers Undo with a defined reversal
+  it); every eligible reversible destructive action offers Undo with a
+  defined reversal, and destructive actions that cannot be reversed
+  safely require modal confirmation instead (Step 6.1 item 3 — e.g.
+  AI-config deletion until the ID-preserving restore call exists)
 - [x] 48dp touch targets on category row actions (already satisfied —
   Step 6.2 audit: `minimumInteractiveComponentSize()` at
   `CategoryManagementScreen.kt:315,330`; verify at execution)
