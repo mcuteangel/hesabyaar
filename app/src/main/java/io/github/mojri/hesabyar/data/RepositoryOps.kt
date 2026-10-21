@@ -68,6 +68,12 @@ interface LoanOps {
     recordInitial: Boolean
   ): Long
 
+  /**
+   * Updates a loan. Returns true when the row was updated. Returns false when
+   * the edit is rejected (issue #529: the new creation date would land after
+   * an already-recorded payment) or the loan row no longer exists.
+   * Persistence failures throw instead of returning false.
+   */
   suspend fun updateLoan(loan: Loan): Boolean
 
   suspend fun deleteLoan(loan: Loan)

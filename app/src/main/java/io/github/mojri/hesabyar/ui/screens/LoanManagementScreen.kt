@@ -245,7 +245,9 @@ fun LoanManagementScreen(
       onUpdate = { updated ->
         loanViewModel.updateLoan(updated) { ok ->
           if (ok) {
-            editingLoan = null
+            // Dismiss only the editor this update belongs to: a newer edit
+            // session may have opened while the update was in flight.
+            if (editingLoan?.id == loanToEdit.id) editingLoan = null
           } else {
             // Keep the dialog open so the user can pick a valid date.
             settingsViewModel.showMessage(loanDateAfterPaymentsMessage)

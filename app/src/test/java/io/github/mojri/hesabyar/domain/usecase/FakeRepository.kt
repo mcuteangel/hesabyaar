@@ -144,12 +144,13 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     return id
   }
 
-  override suspend fun updateLoan(loan: Loan) {
+  override suspend fun updateLoan(loan: Loan): Boolean {
     val current = _allLoans.value
     val idx = current.indexOfFirst { it.id == loan.id }
     if (idx >= 0) {
       _allLoans.value = current.toMutableList().also { it[idx] = loan }
     }
+    return true
   }
 
   override suspend fun deleteLoan(loan: Loan) {}

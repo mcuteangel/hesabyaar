@@ -120,7 +120,7 @@ class InstallmentViewModelTest {
       recordInitial: Boolean
     ): Long = 0L
 
-    override suspend fun updateLoan(loan: Loan) {}
+    override suspend fun updateLoan(loan: Loan): Boolean = true
 
     override suspend fun deleteLoan(loan: Loan) {}
 

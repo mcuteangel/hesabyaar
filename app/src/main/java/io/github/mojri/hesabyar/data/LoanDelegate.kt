@@ -75,9 +75,20 @@ internal class LoanDelegate(
       loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
     // Issue #529: reject edits that move the creation date after an
     // already-recorded payment. They corrupt point-in-time balances.
-    if (!isLoanDateEditChronologicallyValid(normalizedLoan)) return false
-    loanDao.updateLoan(normalizedLoan)
-    return true
+    // The read-validate-write runs in one transaction so a concurrent
+    // writer cannot slip a payment between the check and the persist.
+    // Returns false only for a rejected edit or a missing loan row;
+    // persistence failures throw.
+    return database.withTransaction {
+      val persisted = loanDao.getLoanById(normalizedLoan.id) ?: return@withTransaction false
+      if (persisted.date != normalizedLoan.date &&
+        !isLoanDateEditChronologicallyValid(normalizedLoan.id, normalizedLoan.date)
+      ) {
+        return@withTransaction false
+      }
+      loanDao.updateLoan(normalizedLoan)
+      true
+    }
   }
 
   override suspend fun deleteLoan(loan: Loan) {
@@ -244,19 +255,17 @@ internal class LoanDelegate(
   }
 
   /**
-   * True when the edited loan keeps the payment history chronological. Runs the
-   * existing Rust validate_loan_payment_date rule once per recorded payment,
-   * treating each payment as a new payment against the edited creation date:
-   * a payment predating the new date fails the rule and rejects the edit.
-   * Skips the check when the date did not change or Rust is unavailable,
-   * mirroring isPaymentDateChronologicallyValid's fail-open behavior.
+   * True when the new creation date keeps the payment history chronological.
+   * Runs the existing Rust validate_loan_payment_date rule once per recorded
+   * payment, treating each payment as a new payment against the new date: a
+   * payment predating the new date fails the rule and rejects the edit.
+   * Skips the check when Rust is unavailable, mirroring
+   * isPaymentDateChronologicallyValid's fail-open behavior.
    */
-  private suspend fun isLoanDateEditChronologicallyValid(loan: Loan): Boolean {
+  private suspend fun isLoanDateEditChronologicallyValid(loanId: Long, newDate: Long): Boolean {
     if (!RustBridge.isAvailable) return true
-    val persisted = loanDao.getLoanById(loan.id) ?: return true
-    if (persisted.date == loan.date) return true
-    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id).map { it.date }
-    return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(loan.date, emptyList(), it) }
+    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
+    return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(newDate, emptyList(), it) }
   }
 
   /**

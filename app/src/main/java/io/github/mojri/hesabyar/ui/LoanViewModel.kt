@@ -63,20 +63,24 @@ class LoanViewModel
     // Safety net: a Room/repository failure must reach the UI callback so the
     // dialog is released, instead of crashing via an unhandled exception.
     // Cancellation is rethrown to keep structured concurrency intact.
+    // Only the use-case call is guarded: the callback runs outside the
+    // try-block so a throwing callback cannot trigger a second onResult.
     @Suppress("TooGenericExceptionCaught")
     fun updateLoan(
       loan: Loan,
       onResult: (Boolean) -> Unit = {}
     ) {
       viewModelScope.launch {
-        try {
-          onResult(manageLoanUseCase.updateLoan(loan))
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Exception) {
-          AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
-          onResult(false)
-        }
+        val ok =
+          try {
+            manageLoanUseCase.updateLoan(loan)
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
+            false
+          }
+        onResult(ok)
       }
     }
 
