@@ -190,6 +190,13 @@ object HesabyarCore {
   fun validateLoan(loan: Loan) = __PKG__.validateLoan(loan)
 
   @Throws(HesabyarException::class)
+  fun validateLoanPaymentDate(
+    loanCreationDate: Long,
+    existingPaymentDates: List<Long>,
+    newPaymentDate: Long
+  ) = __PKG__.validateLoanPaymentDate(loanCreationDate, existingPaymentDates, newPaymentDate)
+
+  @Throws(HesabyarException::class)
   fun validateInstallment(installment: Installment) = __PKG__.validateInstallment(installment)
 
   @Throws(HesabyarException::class)

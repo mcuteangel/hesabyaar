@@ -2077,3 +2077,38 @@ fn person_default() -> Person {
         is_archived: false,
     }
 }
+
+#[test]
+fn loan_payment_date_accepts_ordered_payment() {
+    validate_loan_payment_date(1000, &[2000], 3000).expect("ordered payment must pass");
+}
+
+#[test]
+fn loan_payment_date_accepts_payment_on_creation_date() {
+    validate_loan_payment_date(1000, &[], 1000).expect("payment on creation date must pass");
+}
+
+#[test]
+fn loan_payment_date_accepts_equal_dates() {
+    validate_loan_payment_date(1000, &[2000, 2000], 2000).expect("equal dates must pass");
+}
+
+#[test]
+fn loan_payment_date_rejects_before_creation_date() {
+    let err = validate_loan_payment_date(1000, &[], 999).unwrap_err();
+    assert!(err.contains("before the loan creation date"), "got: {}", err);
+}
+
+#[test]
+fn loan_payment_date_rejects_before_existing_payment() {
+    let err = validate_loan_payment_date(1000, &[2000], 1500).unwrap_err();
+    assert!(err.contains("before an existing payment date"), "got: {}", err);
+}
+
+#[test]
+fn loan_payment_date_rejects_non_positive_date() {
+    let err = validate_loan_payment_date(1000, &[], 0).unwrap_err();
+    assert!(err.contains("must be positive"), "got: {}", err);
+    let err = validate_loan_payment_date(1000, &[], -5).unwrap_err();
+    assert!(err.contains("must be positive"), "got: {}", err);
+}

@@ -129,6 +129,30 @@ pub fn validate_loan(loan: &Loan) -> Result<(), String> {
     Ok(())
 }
 
+/// Validate a loan payment date.
+///
+/// Keeps recorded payments chronologically ordered. A payment must not predate
+/// the loan creation date or any already-recorded payment date. Backdated
+/// payments that cross these bounds corrupt point-in-time balances.
+///
+/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+pub fn validate_loan_payment_date(
+    loan_creation_date: i64,
+    existing_payment_dates: &[i64],
+    new_payment_date: i64,
+) -> Result<(), String> {
+    if new_payment_date <= 0 {
+        return Err("Loan payment date must be positive".into());
+    }
+    if new_payment_date < loan_creation_date {
+        return Err("Loan payment date is before the loan creation date".into());
+    }
+    if existing_payment_dates.iter().any(|d| *d > new_payment_date) {
+        return Err("Loan payment date is before an existing payment date".into());
+    }
+    Ok(())
+}
+
 /// Validate a single installment.
 ///
 /// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.

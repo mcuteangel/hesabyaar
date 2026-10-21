@@ -152,7 +152,10 @@ class LoanDeletePaymentTransactionTest {
             description = "Loan 2",
             tracked = true,
             accountId = 1L,
-            date = fixedDate + 1000L
+            // Issue #431: the payment date must not predate the loan creation
+            // date. The collision scenario only needs both payments on the
+            // same date; deleteLoan keys off linkedTransactionId, not dates.
+            date = fixedDate
           )
         )
 
