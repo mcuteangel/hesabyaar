@@ -69,11 +69,15 @@ internal class LoanDelegate(
     }
   }
 
-  override suspend fun updateLoan(loan: Loan) {
+  override suspend fun updateLoan(loan: Loan): Boolean {
     TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
     val normalizedLoan =
       loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
+    // Issue #529: reject edits that move the creation date after an
+    // already-recorded payment. They corrupt point-in-time balances.
+    if (!isLoanDateEditChronologicallyValid(normalizedLoan)) return false
     loanDao.updateLoan(normalizedLoan)
+    return true
   }
 
   override suspend fun deleteLoan(loan: Loan) {
@@ -237,6 +241,22 @@ internal class LoanDelegate(
       }
       true
     }
+  }
+
+  /**
+   * True when the edited loan keeps the payment history chronological. Runs the
+   * existing Rust validate_loan_payment_date rule once per recorded payment,
+   * treating each payment as a new payment against the edited creation date:
+   * a payment predating the new date fails the rule and rejects the edit.
+   * Skips the check when the date did not change or Rust is unavailable,
+   * mirroring isPaymentDateChronologicallyValid's fail-open behavior.
+   */
+  private suspend fun isLoanDateEditChronologicallyValid(loan: Loan): Boolean {
+    if (!RustBridge.isAvailable) return true
+    val persisted = loanDao.getLoanById(loan.id) ?: return true
+    if (persisted.date == loan.date) return true
+    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loan.id).map { it.date }
+    return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(loan.date, emptyList(), it) }
   }
 
   /**

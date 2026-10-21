@@ -68,7 +68,7 @@ interface LoanOps {
     recordInitial: Boolean
   ): Long
 
-  suspend fun updateLoan(loan: Loan)
+  suspend fun updateLoan(loan: Loan): Boolean
 
   suspend fun deleteLoan(loan: Loan)
 

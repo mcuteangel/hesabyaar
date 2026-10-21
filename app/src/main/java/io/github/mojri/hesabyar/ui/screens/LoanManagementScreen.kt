@@ -235,13 +235,22 @@ fun LoanManagementScreen(
     )
   }
 
+  // Issue #529: shown when an edit moves the creation date after a recorded payment.
+  val loanDateAfterPaymentsMessage = "تاریخ جدید وام نمی‌تواند بعد از بازپرداخت‌های ثبت‌شده باشد"
+
   // Edit Loan Dialog
   editingLoan?.let { loanToEdit ->
     EditLoanDialog(
       loan = loanToEdit,
       onUpdate = { updated ->
-        loanViewModel.updateLoan(updated)
-        editingLoan = null
+        loanViewModel.updateLoan(updated) { ok ->
+          if (ok) {
+            editingLoan = null
+          } else {
+            // Keep the dialog open so the user can pick a valid date.
+            settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
+          }
+        }
       },
       showMessage = settingsViewModel::showMessage,
       onDismiss = { editingLoan = null }

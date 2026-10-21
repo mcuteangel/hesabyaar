@@ -160,7 +160,7 @@ class ManageLoanUseCase(
 
   fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> = repository.getPaymentHistoryForLoan(loanId)
 
-  suspend fun updateLoan(loan: Loan) = repository.updateLoan(loan)
+  suspend fun updateLoan(loan: Loan): Boolean = repository.updateLoan(loan)
 
   suspend fun deleteLoan(loan: Loan) = repository.deleteLoan(loan)
 }

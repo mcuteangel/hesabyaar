@@ -60,9 +60,23 @@ class LoanViewModel
 
     fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> = manageLoanUseCase.getPaymentHistory(loanId)
 
-    fun updateLoan(loan: Loan) {
+    // Safety net: a Room/repository failure must reach the UI callback so the
+    // dialog is released, instead of crashing via an unhandled exception.
+    // Cancellation is rethrown to keep structured concurrency intact.
+    @Suppress("TooGenericExceptionCaught")
+    fun updateLoan(
+      loan: Loan,
+      onResult: (Boolean) -> Unit = {}
+    ) {
       viewModelScope.launch {
-        manageLoanUseCase.updateLoan(loan)
+        try {
+          onResult(manageLoanUseCase.updateLoan(loan))
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
+          onResult(false)
+        }
       }
     }
 
