@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import kotlinx.coroutines.CancellationException
@@ -60,9 +61,36 @@ class LoanViewModel
 
     fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> = manageLoanUseCase.getPaymentHistory(loanId)
 
-    fun updateLoan(loan: Loan) {
+    // Safety net: a Room/repository failure must reach the UI callback so the
+    // dialog is released, instead of crashing via an unhandled exception.
+    // Cancellation is rethrown to keep structured concurrency intact.
+    // The use-case call and the callback are guarded separately: the first
+    // guard must not re-invoke the callback (no double onResult), while the
+    // second guard only logs, so a throwing callback cannot crash the scope.
+    // Infrastructure failures map to LoanUpdateResult.Failed; the cause is
+    // logged here so the UI can show the generic failure message.
+    @Suppress("TooGenericExceptionCaught")
+    fun updateLoan(
+      loan: Loan,
+      onResult: (LoanUpdateResult) -> Unit = {}
+    ) {
       viewModelScope.launch {
-        manageLoanUseCase.updateLoan(loan)
+        val result =
+          try {
+            manageLoanUseCase.updateLoan(loan)
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
+            LoanUpdateResult.Failed
+          }
+        try {
+          onResult(result)
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.w("LoanViewModel", "updateLoan callback failed for loan=${loan.id}: ${e.message}")
+        }
       }
     }
 
