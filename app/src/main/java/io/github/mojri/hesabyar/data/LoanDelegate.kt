@@ -262,7 +262,10 @@ internal class LoanDelegate(
    * Skips the check when Rust is unavailable, mirroring
    * isPaymentDateChronologicallyValid's fail-open behavior.
    */
-  private suspend fun isLoanDateEditChronologicallyValid(loanId: Long, newDate: Long): Boolean {
+  private suspend fun isLoanDateEditChronologicallyValid(
+    loanId: Long,
+    newDate: Long
+  ): Boolean {
     if (!RustBridge.isAvailable) return true
     val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
     return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(newDate, emptyList(), it) }
