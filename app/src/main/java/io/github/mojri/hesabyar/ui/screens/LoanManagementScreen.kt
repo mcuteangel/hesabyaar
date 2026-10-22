@@ -261,7 +261,7 @@ fun LoanManagementScreen(
             LoanUpdateResult.ChronologyRejected ->
               settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
             // The loan is gone; nothing left to edit.
-            LoanUpdateResult.NotFound -> editingLoan = null
+            LoanUpdateResult.NotFound -> if (editSession == sessionId) editingLoan = null
             LoanUpdateResult.Failed -> settingsViewModel.showMessage(loanUpdateFailedMessage)
           }
         }

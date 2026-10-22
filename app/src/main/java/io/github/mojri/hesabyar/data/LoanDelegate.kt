@@ -78,8 +78,9 @@ internal class LoanDelegate(
     // The read-validate-write runs in one transaction so a concurrent
     // writer cannot slip a payment between the check and the persist.
     return database.withTransaction {
-      val persisted = loanDao.getLoanById(normalizedLoan.id)
-        ?: return@withTransaction LoanUpdateResult.NotFound
+      val persisted =
+        loanDao.getLoanById(normalizedLoan.id)
+          ?: return@withTransaction LoanUpdateResult.NotFound
       if (persisted.date != normalizedLoan.date &&
         !isLoanDateEditChronologicallyValid(normalizedLoan.id, normalizedLoan.date)
       ) {
