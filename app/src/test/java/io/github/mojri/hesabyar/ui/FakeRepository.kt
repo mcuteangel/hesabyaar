@@ -28,6 +28,12 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   /** Test hook: overrides repayment outcomes — return false or throw. */
   var addPaymentBehavior: (() -> Boolean)? = null
 
+  /** Test hook: overrides loan-update outcomes — return a result or throw. */
+  var updateLoanBehavior: (() -> LoanUpdateResult)? = null
+
+  /** Loans the updateLoan lookup can find; tests seed the rows they edit. */
+  val loansList = mutableListOf<Loan>()
+
   /** Counts how many times a restore actually executed — for duplicate-submission tests. */
   var executeRestoreCount = 0
 
@@ -86,7 +92,13 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
     recordInitial: Boolean
   ): Long = 0L
 
-  override suspend fun updateLoan(loan: Loan): LoanUpdateResult = LoanUpdateResult.Success
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
+    updateLoanBehavior?.let { return it() }
+    val idx = loansList.indexOfFirst { it.id == loan.id }
+    if (idx < 0) return LoanUpdateResult.NotFound
+    loansList[idx] = loan
+    return LoanUpdateResult.Success
+  }
 
   override suspend fun deleteLoan(loan: Loan) {}
 

@@ -277,7 +277,10 @@ fun LoanManagementScreen(
         }
       },
       showMessage = settingsViewModel::showMessage,
-      onDismiss = { editingLoan = null }
+      onDismiss = {
+        editingLoan = null
+        editSaving = false
+      }
     )
   }
 
@@ -721,6 +724,7 @@ internal fun EditLoanDialog(
     },
     dismissButton = {
       HesabyarButton(
+        enabled = !submitting,
         onClick = onDismiss,
         text = stringResource(R.string.cancel_label),
         variant = ButtonVariant.Text
