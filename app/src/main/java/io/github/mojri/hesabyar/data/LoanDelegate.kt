@@ -69,11 +69,26 @@ internal class LoanDelegate(
     }
   }
 
-  override suspend fun updateLoan(loan: Loan) {
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
     TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
     val normalizedLoan =
       loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
-    loanDao.updateLoan(normalizedLoan)
+    // Issue #529: reject edits that move the creation date after an
+    // already-recorded payment. They corrupt point-in-time balances.
+    // The read-validate-write runs in one transaction so a concurrent
+    // writer cannot slip a payment between the check and the persist.
+    return database.withTransaction {
+      val persisted =
+        loanDao.getLoanById(normalizedLoan.id)
+          ?: return@withTransaction LoanUpdateResult.NotFound
+      if (persisted.date != normalizedLoan.date &&
+        !isLoanDateEditChronologicallyValid(normalizedLoan.id, normalizedLoan.date)
+      ) {
+        return@withTransaction LoanUpdateResult.ChronologyRejected
+      }
+      loanDao.updateLoan(normalizedLoan)
+      LoanUpdateResult.Success
+    }
   }
 
   override suspend fun deleteLoan(loan: Loan) {
@@ -237,6 +252,23 @@ internal class LoanDelegate(
       }
       true
     }
+  }
+
+  /**
+   * True when the new creation date keeps the payment history chronological.
+   * Runs the existing Rust validate_loan_payment_date rule once per recorded
+   * payment, treating each payment as a new payment against the new date: a
+   * payment predating the new date fails the rule and rejects the edit.
+   * Skips the check when Rust is unavailable, mirroring
+   * isPaymentDateChronologicallyValid's fail-open behavior.
+   */
+  private suspend fun isLoanDateEditChronologicallyValid(
+    loanId: Long,
+    newDate: Long
+  ): Boolean {
+    if (!RustBridge.isAvailable) return true
+    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
+    return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(newDate, emptyList(), it) }
   }
 
   /**

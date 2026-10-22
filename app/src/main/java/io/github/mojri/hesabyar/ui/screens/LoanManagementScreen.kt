@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.domain.utils.LoanEditCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
@@ -115,6 +116,12 @@ fun LoanManagementScreen(
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingLoan by remember { mutableStateOf<Loan?>(null) }
+  // Identifies the current edit session: opening an editor bumps it, so a
+  // slow update can only dismiss the session it belongs to (issue #529).
+  var editSession by remember { mutableLongStateOf(0L) }
+  // True while the current edit session's update runs. It blocks a second
+  // submit and dismissal until the result arrives.
+  var editSaving by remember { mutableStateOf(false) }
   var deletingLoan by remember { mutableStateOf<Loan?>(null) }
   var termState by remember { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
 
@@ -215,7 +222,11 @@ fun LoanManagementScreen(
             loanViewModel = loanViewModel,
             settingsViewModel = settingsViewModel,
             onDelete = { deletingLoan = loan },
-            onEdit = { editingLoan = loan }
+            onEdit = {
+              editingLoan = loan
+              editSession++
+              editSaving = false
+            }
           )
         }
       }
@@ -235,16 +246,41 @@ fun LoanManagementScreen(
     )
   }
 
+  // Issue #529: shown when an edit moves the creation date after a recorded payment.
+  val loanDateAfterPaymentsMessage = "تاریخ جدید وام نمی‌تواند بعد از بازپرداخت‌های ثبت‌شده باشد"
+  val loanUpdateFailedMessage = "ذخیره تغییرات ناموفق بود؛ لطفا دوباره تلاش کنید"
+
   // Edit Loan Dialog
   editingLoan?.let { loanToEdit ->
+    // Captured per session: a newer session (reopened editor) must not be
+    // dismissed by this session's slow update.
+    val sessionId = editSession
     EditLoanDialog(
       loan = loanToEdit,
+      submitting = editSaving,
       onUpdate = { updated ->
-        loanViewModel.updateLoan(updated)
-        editingLoan = null
+        editSaving = true
+        loanViewModel.updateLoan(updated) { result ->
+          // Stale sessions must not touch the UI: the user already moved on
+          // to another editor (or none). Covers dismissals and messages alike.
+          if (editSession != sessionId || editingLoan == null) return@updateLoan
+          editSaving = false
+          when (result) {
+            LoanUpdateResult.Success -> editingLoan = null
+            // Keep the dialog open so the user can pick a valid date.
+            LoanUpdateResult.ChronologyRejected ->
+              settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
+            // The loan is gone; nothing left to edit.
+            LoanUpdateResult.NotFound -> editingLoan = null
+            LoanUpdateResult.Failed -> settingsViewModel.showMessage(loanUpdateFailedMessage)
+          }
+        }
       },
       showMessage = settingsViewModel::showMessage,
-      onDismiss = { editingLoan = null }
+      onDismiss = {
+        editingLoan = null
+        editSaving = false
+      }
     )
   }
 
@@ -641,7 +677,8 @@ internal fun EditLoanDialog(
   loan: Loan,
   onUpdate: (Loan) -> Unit,
   showMessage: (String) -> Unit,
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  submitting: Boolean = false
 ) {
   val form =
     remember {
@@ -658,7 +695,7 @@ internal fun EditLoanDialog(
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
   AlertDialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!submitting) onDismiss() },
     title = {
       Text(
         "ویرایش قرض",
@@ -670,6 +707,8 @@ internal fun EditLoanDialog(
     text = { LoanFormFields(form) },
     confirmButton = {
       HesabyarButton(
+        enabled = !submitting,
+        loading = submitting,
         onClick = {
           submitLoanEdit(
             form = form,
@@ -685,6 +724,7 @@ internal fun EditLoanDialog(
     },
     dismissButton = {
       HesabyarButton(
+        enabled = !submitting,
         onClick = onDismiss,
         text = stringResource(R.string.cancel_label),
         variant = ButtonVariant.Text

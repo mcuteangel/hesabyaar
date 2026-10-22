@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
@@ -144,12 +145,13 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     return id
   }
 
-  override suspend fun updateLoan(loan: Loan) {
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
     val current = _allLoans.value
     val idx = current.indexOfFirst { it.id == loan.id }
     if (idx >= 0) {
       _allLoans.value = current.toMutableList().also { it[idx] = loan }
     }
+    return if (idx >= 0) LoanUpdateResult.Success else LoanUpdateResult.NotFound
   }
 
   override suspend fun deleteLoan(loan: Loan) {}
