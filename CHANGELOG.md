@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.8] - 2026-10-22
+نسخه 0.15.8 حساب‌یار منتشر شد.
+
+### رفع مشکلات
+* fix(loan): complete the edit-save gating and cover the result mapping
+* fix(loan): gate edit saves while an update is pending
+* fix(loan): guard update callback and gate stale sessions
+* fix(loan): ktlint elvis wrap and session-scoped NotFound dismiss
+* fix(loan): discriminate updateLoan rejection reasons
+
+### بهبودها و تغییرات
+* test(loan): find the in-flight save button by content description
+* style(test): drop the unresolved onNode import from the screen test
+* style(test): add the blank line ktlint requires before the allLoans comment
+* test(loan): cover the rejection path end to end and fix detekt ReturnCount
 ## [0.15.7] - 2026-10-21
 نسخه ۰.۱۵.۷ حساب‌یار با تمرکز بر بهبود دقت در مدیریت وام‌ها منتشر شد.
 
