@@ -96,40 +96,80 @@ internal class LoanDelegate(
 
   /**
    * Issue #532: move the disbursement transaction when a loan date edit is
-   * accepted, before the loan row itself moves. Step 1 moves the stamped row
-   * that is in sync with the loan date. Step 2 heals a single diverged
-   * stamped row (its date was edited before #532, or changed outside
-   * updateLoan); corrupt duplicates are never moved. Step 3 moves a legacy
-   * (pre-#242, unstamped) row by the persisted fields, but only when the
-   * match is unambiguous. Loans created untracked have no disbursement row;
-   * a loan flipped from tracked to untracked keeps its stamped row, which
-   * still moves with the loan date.
+   * accepted, before the loan row itself moves. The fast path moves stamped
+   * rows that are in sync with the loan date; the fallback heals a single
+   * diverged stamped row, or moves a single unambiguous legacy (pre-#242,
+   * unstamped) row. Corrupt duplicates are never moved. Loans created
+   * untracked have no disbursement row; a loan flipped from tracked to
+   * untracked keeps its stamped row, which still moves with the loan date.
    */
   private suspend fun syncDisbursementDate(
     persisted: Loan,
     updated: Loan
   ) {
-    val stampedUpdated =
-      transactionLinkDao.updateDisbursementDateByLoanId(updated.id, persisted.date, updated.date)
-    if (stampedUpdated > 0) return
-    val stampedIds = transactionLinkDao.findTransactionIdsByLoanId(updated.id)
-    if (stampedIds.size == 1) {
-      transactionLinkDao.updateTransactionDateById(stampedIds[0], updated.date)
-      return
+    val targetId = findDisbursementIdToMove(persisted, updated)
+    if (targetId != null) {
+      transactionLinkDao.updateTransactionDateById(targetId, updated.date)
     }
-    if (stampedIds.isNotEmpty()) return
-    if (!persisted.tracked && !updated.tracked) return
+  }
+
+  /**
+   * Issue #532: id of the disbursement row that may move to the new date, or
+   * null when nothing may move.
+   */
+  private suspend fun findDisbursementIdToMove(
+    persisted: Loan,
+    updated: Loan
+  ): Long? {
+    if (transactionLinkDao.updateDisbursementDateByLoanId(updated.id, persisted.date, updated.date) > 0) {
+      return null
+    }
+    return findFallbackDisbursementId(persisted, updated)
+  }
+
+  /**
+   * Issue #532: id of the row to move when the fast path moved nothing, or
+   * null. A single stamped row is healed by id; several stamped rows mean a
+   * corrupt restore and are never touched.
+   */
+  private suspend fun findFallbackDisbursementId(
+    persisted: Loan,
+    updated: Loan
+  ): Long? {
+    val stampedIds = transactionLinkDao.findTransactionIdsByLoanId(updated.id)
+    return if (stampedIds.size == 1) {
+      stampedIds[0]
+    } else if (stampedIds.isEmpty()) {
+      findSingleLegacyDisbursementId(persisted, updated)
+    } else {
+      null
+    }
+  }
+
+  /**
+   * Issue #532: id of the legacy (pre-#242, unstamped) disbursement to move,
+   * or null. The persisted fields identify the row but carry no loan
+   * identity, so the row moves only when exactly one row matches.
+   */
+  private suspend fun findSingleLegacyDisbursementId(
+    persisted: Loan,
+    updated: Loan
+  ): Long? {
     val loansCategoryId =
-      categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id ?: return
-    val legacyIds =
+      if (persisted.tracked || updated.tracked) {
+        categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
+      } else {
+        null
+      }
+    return if (loansCategoryId != null) {
       transactionLinkDao.findLegacyDisbursementIds(
         personNames = setOf(persisted.personName, updated.personName),
         categoryId = loansCategoryId,
         amount = persisted.originalAmount,
         oldDate = persisted.date
-      )
-    if (legacyIds.size == 1) {
-      transactionLinkDao.updateTransactionDateById(legacyIds[0], updated.date)
+      ).singleOrNull()
+    } else {
+      null
     }
   }
 
