@@ -139,8 +139,10 @@ class LoanEditRejectionScreenTest {
     testDispatcher.scheduler.advanceUntilIdle()
     composeRule.waitForIdle()
 
-    // While the save runs, both dialog actions are disabled.
-    composeRule.onNodeWithText("ذخیره تغییرات").assertIsNotEnabled()
+    // While the save runs, both dialog actions are disabled. The save
+    // button swaps its label for a spinner while loading, so in flight it
+    // is found by the content description on its merged semantics node.
+    composeRule.onNodeWithContentDescription("ذخیره تغییرات").assertIsNotEnabled()
     composeRule.onNodeWithText("انصراف").assertIsNotEnabled()
 
     // Release the repository with a chronology rejection.
