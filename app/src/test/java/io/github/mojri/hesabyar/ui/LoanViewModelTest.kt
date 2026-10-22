@@ -69,6 +69,19 @@ class LoanViewModelTest {
       advanceUntilIdle()
 
       assertEquals(LoanUpdateResult.Success, reported)
+      assertEquals("the edited loan must be stored", "Sara", repository.loansList[0].personName)
+    }
+
+  @Test
+  fun updateLoanReportsChronologyRejectionFromRepository() =
+    runTest(testDispatcher) {
+      repository.updateLoanBehavior = { LoanUpdateResult.ChronologyRejected }
+      var reported: LoanUpdateResult? = null
+
+      viewModel.updateLoan(sampleLoan()) { reported = it }
+      advanceUntilIdle()
+
+      assertEquals(LoanUpdateResult.ChronologyRejected, reported)
     }
 
   @Test

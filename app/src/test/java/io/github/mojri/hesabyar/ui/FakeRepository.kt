@@ -29,7 +29,7 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   var addPaymentBehavior: (() -> Boolean)? = null
 
   /** Test hook: overrides loan-update outcomes — return a result or throw. */
-  var updateLoanBehavior: (() -> LoanUpdateResult)? = null
+  var updateLoanBehavior: (suspend () -> LoanUpdateResult)? = null
 
   /** Loans the updateLoan lookup can find; tests seed the rows they edit. */
   val loansList = mutableListOf<Loan>()
@@ -45,7 +45,9 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   var exportCategoryReadCount = 0
 
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-  open override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
+  // Cold flow: reads loansList at collection time, like allAccounts below —
+  // tests seed loansList after the fake is created.
+  open override val allLoans: Flow<List<Loan>> = flow { emit(loansList.toList()) }
   override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
   override val allCategories: Flow<List<Category>> =
     flow {
@@ -95,9 +97,12 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
     updateLoanBehavior?.let { return it() }
     val idx = loansList.indexOfFirst { it.id == loan.id }
-    if (idx < 0) return LoanUpdateResult.NotFound
-    loansList[idx] = loan
-    return LoanUpdateResult.Success
+    return if (idx < 0) {
+      LoanUpdateResult.NotFound
+    } else {
+      loansList[idx] = loan
+      LoanUpdateResult.Success
+    }
   }
 
   override suspend fun deleteLoan(loan: Loan) {}
