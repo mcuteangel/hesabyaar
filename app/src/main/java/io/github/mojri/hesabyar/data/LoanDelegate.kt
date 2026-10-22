@@ -86,17 +86,39 @@ internal class LoanDelegate(
       ) {
         return@withTransaction LoanUpdateResult.ChronologyRejected
       }
-      loanDao.updateLoan(normalizedLoan)
-      // Issue #532: an accepted date edit must move the stamped disbursement
-      // transaction too, or point-in-time balances keep counting it on the
-      // old date. Matches only the stamped row via loanId; payment rows are
-      // stamped via PaymentHistory.linkedTransactionId and never match.
-      // Untracked loans have no disbursement row: the update matches 0 rows.
       if (persisted.date != normalizedLoan.date) {
-        transactionLinkDao.updateDisbursementDateByLoanId(normalizedLoan.id, normalizedLoan.date)
+        syncDisbursementDate(persisted, normalizedLoan)
       }
+      loanDao.updateLoan(normalizedLoan)
       LoanUpdateResult.Success
     }
+  }
+
+  /**
+   * Issue #532: move the disbursement transaction when a loan date edit is
+   * accepted, before the loan row itself moves. The stamped row moves by
+   * loanId and old date; when no stamped row exists, a legacy (pre-#242,
+   * unstamped) row moves by the persisted fields, the same match deleteLoan's
+   * legacy fallback uses. Loans created untracked have no disbursement row;
+   * a loan flipped from tracked to untracked keeps its stamped row, which
+   * still moves with the loan date.
+   */
+  private suspend fun syncDisbursementDate(
+    persisted: Loan,
+    updated: Loan
+  ) {
+    val stampedUpdated =
+      transactionLinkDao.updateDisbursementDateByLoanId(updated.id, persisted.date, updated.date)
+    if (stampedUpdated > 0 || (!persisted.tracked && !updated.tracked)) return
+    val loansCategoryId =
+      categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id ?: return
+    transactionLinkDao.updateLegacyDisbursementDate(
+      personNames = setOf(persisted.personName, updated.personName),
+      categoryId = loansCategoryId,
+      amount = persisted.originalAmount,
+      oldDate = persisted.date,
+      newDate = updated.date
+    )
   }
 
   override suspend fun deleteLoan(loan: Loan) {
@@ -132,10 +154,10 @@ internal class LoanDelegate(
       val disbursementDeletedById =
         transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
       val wasTracked = existing.tracked || loan.tracked
-      // Issue #532: legacy (pre-#242, unstamped) disbursement rows keep their
-      // creation-time date. A loan date edit makes the old date unrecoverable
-      // here, so the field match below cannot find them after an edit. Only
-      // the stamped row moves with the loan date (see updateLoan).
+      // Issue #532: updateLoan moves legacy (pre-#242, unstamped) disbursement
+      // rows with the loan date, so the field match below still finds them
+      // after an edit. A row whose date changed outside updateLoan keeps its
+      // own date and is not found here.
       val needsDisbursementFallback = wasTracked && !disbursementDeletedById
       val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
       if (unlinkedPayments.isNotEmpty() || needsDisbursementFallback) {

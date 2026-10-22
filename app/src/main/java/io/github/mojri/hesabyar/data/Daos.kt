@@ -173,9 +173,30 @@ interface TransactionLinkDao {
   suspend fun deleteTransactionsByLoanId(loanId: Long): Int
 
   // Issue #532: move the stamped disbursement when a loan date edit is
-  // accepted, so the ledger entry stays on the loan's creation date.
-  @Query("UPDATE transactions SET date = :newDate WHERE loanId = :loanId")
-  suspend fun updateDisbursementDateByLoanId(loanId: Long, newDate: Long): Int
+  // accepted. Matches only the row in sync with the loan's current date, so
+  // a corrupt duplicate carrying the same loanId keeps its own date.
+  @Query("UPDATE transactions SET date = :newDate WHERE loanId = :loanId AND date = :oldDate")
+  suspend fun updateDisbursementDateByLoanId(
+    loanId: Long,
+    oldDate: Long,
+    newDate: Long
+  ): Int
+
+  // Issue #532: move a legacy (pre-#242, unstamped) disbursement when a loan
+  // date edit is accepted. Uses the persisted (pre-edit) fields, the same
+  // match deleteLoan's legacy fallback uses.
+  @Query(
+    "UPDATE transactions SET date = :newDate WHERE loanId IS NULL " +
+      "AND personName IN (:personNames) AND categoryId = :categoryId " +
+      "AND amount = :amount AND date = :oldDate"
+  )
+  suspend fun updateLegacyDisbursementDate(
+    personNames: Set<String>,
+    categoryId: Long,
+    amount: Long,
+    oldDate: Long,
+    newDate: Long
+  ): Int
 }
 
 @Dao
