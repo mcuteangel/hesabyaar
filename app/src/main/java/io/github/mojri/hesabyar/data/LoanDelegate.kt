@@ -87,6 +87,14 @@ internal class LoanDelegate(
         return@withTransaction LoanUpdateResult.ChronologyRejected
       }
       loanDao.updateLoan(normalizedLoan)
+      // Issue #532: an accepted date edit must move the stamped disbursement
+      // transaction too, or point-in-time balances keep counting it on the
+      // old date. Matches only the stamped row via loanId; payment rows are
+      // stamped via PaymentHistory.linkedTransactionId and never match.
+      // Untracked loans have no disbursement row: the update matches 0 rows.
+      if (persisted.date != normalizedLoan.date) {
+        transactionLinkDao.updateDisbursementDateByLoanId(normalizedLoan.id, normalizedLoan.date)
+      }
       LoanUpdateResult.Success
     }
   }
@@ -124,6 +132,10 @@ internal class LoanDelegate(
       val disbursementDeletedById =
         transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
       val wasTracked = existing.tracked || loan.tracked
+      // Issue #532: legacy (pre-#242, unstamped) disbursement rows keep their
+      // creation-time date. A loan date edit makes the old date unrecoverable
+      // here, so the field match below cannot find them after an edit. Only
+      // the stamped row moves with the loan date (see updateLoan).
       val needsDisbursementFallback = wasTracked && !disbursementDeletedById
       val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
       if (unlinkedPayments.isNotEmpty() || needsDisbursementFallback) {

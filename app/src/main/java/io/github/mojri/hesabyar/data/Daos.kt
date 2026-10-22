@@ -171,6 +171,11 @@ interface TransactionLinkDao {
   // the field-matching fallback).
   @Query("DELETE FROM transactions WHERE loanId = :loanId")
   suspend fun deleteTransactionsByLoanId(loanId: Long): Int
+
+  // Issue #532: move the stamped disbursement when a loan date edit is
+  // accepted, so the ledger entry stays on the loan's creation date.
+  @Query("UPDATE transactions SET date = :newDate WHERE loanId = :loanId")
+  suspend fun updateDisbursementDateByLoanId(loanId: Long, newDate: Long): Int
 }
 
 @Dao
