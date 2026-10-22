@@ -96,10 +96,12 @@ internal class LoanDelegate(
 
   /**
    * Issue #532: move the disbursement transaction when a loan date edit is
-   * accepted, before the loan row itself moves. The stamped row moves by
-   * loanId and old date; when no stamped row exists, a legacy (pre-#242,
-   * unstamped) row moves by the persisted fields, the same match deleteLoan's
-   * legacy fallback uses. Loans created untracked have no disbursement row;
+   * accepted, before the loan row itself moves. Step 1 moves the stamped row
+   * that is in sync with the loan date. Step 2 heals a single diverged
+   * stamped row (its date was edited before #532, or changed outside
+   * updateLoan); corrupt duplicates are never moved. Step 3 moves a legacy
+   * (pre-#242, unstamped) row by the persisted fields, but only when the
+   * match is unambiguous. Loans created untracked have no disbursement row;
    * a loan flipped from tracked to untracked keeps its stamped row, which
    * still moves with the loan date.
    */
@@ -109,16 +111,26 @@ internal class LoanDelegate(
   ) {
     val stampedUpdated =
       transactionLinkDao.updateDisbursementDateByLoanId(updated.id, persisted.date, updated.date)
-    if (stampedUpdated > 0 || (!persisted.tracked && !updated.tracked)) return
+    if (stampedUpdated > 0) return
+    val stampedIds = transactionLinkDao.findTransactionIdsByLoanId(updated.id)
+    if (stampedIds.size == 1) {
+      transactionLinkDao.updateTransactionDateById(stampedIds[0], updated.date)
+      return
+    }
+    if (stampedIds.isNotEmpty()) return
+    if (!persisted.tracked && !updated.tracked) return
     val loansCategoryId =
       categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id ?: return
-    transactionLinkDao.updateLegacyDisbursementDate(
-      personNames = setOf(persisted.personName, updated.personName),
-      categoryId = loansCategoryId,
-      amount = persisted.originalAmount,
-      oldDate = persisted.date,
-      newDate = updated.date
-    )
+    val legacyIds =
+      transactionLinkDao.findLegacyDisbursementIds(
+        personNames = setOf(persisted.personName, updated.personName),
+        categoryId = loansCategoryId,
+        amount = persisted.originalAmount,
+        oldDate = persisted.date
+      )
+    if (legacyIds.size == 1) {
+      transactionLinkDao.updateTransactionDateById(legacyIds[0], updated.date)
+    }
   }
 
   override suspend fun deleteLoan(loan: Loan) {

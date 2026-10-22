@@ -182,21 +182,34 @@ interface TransactionLinkDao {
     newDate: Long
   ): Int
 
-  // Issue #532: move a legacy (pre-#242, unstamped) disbursement when a loan
-  // date edit is accepted. Uses the persisted (pre-edit) fields, the same
-  // match deleteLoan's legacy fallback uses.
+  // Issue #532: ids of the stamped rows for one loan. loanId is written once
+  // at creation, so more than one row means a corrupt restore.
+  @Query("SELECT id FROM transactions WHERE loanId = :loanId")
+  suspend fun findTransactionIdsByLoanId(loanId: Long): List<Long>
+
+  // Issue #532: ids of legacy (pre-#242, unstamped) disbursement candidates.
+  // Uses the persisted (pre-edit) fields, the same match deleteLoan's legacy
+  // fallback uses. No loan identity exists for these rows, so the caller
+  // must only move them when the match is unambiguous.
   @Query(
-    "UPDATE transactions SET date = :newDate WHERE loanId IS NULL " +
+    "SELECT id FROM transactions WHERE loanId IS NULL " +
       "AND personName IN (:personNames) AND categoryId = :categoryId " +
       "AND amount = :amount AND date = :oldDate"
   )
-  suspend fun updateLegacyDisbursementDate(
+  suspend fun findLegacyDisbursementIds(
     personNames: Set<String>,
     categoryId: Long,
     amount: Long,
-    oldDate: Long,
+    oldDate: Long
+  ): List<Long>
+
+  // Issue #532: move one transaction, identified by primary key, to a new
+  // date. Used after an exact-id lookup, never with a bulk match.
+  @Query("UPDATE transactions SET date = :newDate WHERE id = :id")
+  suspend fun updateTransactionDateById(
+    id: Long,
     newDate: Long
-  ): Int
+  )
 }
 
 @Dao

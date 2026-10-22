@@ -85,8 +85,7 @@ class LoanDisbursementDateUpdateTest {
     )
   }
 
-  private suspend fun loansCategoryId(): Long =
-    requireNotNull(database.categoryDao().getCategoryByKey("Loans")).id
+  private suspend fun loansCategoryId(): Long = requireNotNull(database.categoryDao().getCategoryByKey("Loans")).id
 
   private fun disbursementFor(loanId: Long) =
     database.transactionDao().getAllTransactionsBlocking().single { it.loanId == loanId }
@@ -221,5 +220,55 @@ class LoanDisbursementDateUpdateTest {
       assertEquals(2, transactions.size)
       assertEquals(9_000L, transactions.single { it.description != "duplicate" }.date)
       assertEquals(7_000L, transactions.single { it.description == "duplicate" }.date)
+    }
+
+  @Test
+  fun dateEditHealsDivergedStampedDisbursement() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = true)
+      // The stamped row diverged from the loan date outside updateLoan
+      // (e.g. a date edit from before #532, or a manual transaction edit).
+      val diverged = disbursementFor(loanId)
+      database.transactionDao().updateTransaction(diverged.copy(date = 6_000L))
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      assertEquals(9_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
+      assertEquals(9_000L, disbursementFor(loanId).date)
+    }
+
+  @Test
+  fun dateEditDoesNotMoveAmbiguousLegacyRows() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Two legacy loans sharing person, amount and creation date: their
+      // disbursement rows are indistinguishable, so neither may move.
+      val loanA = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      val categoryId = loansCategoryId()
+      repeat(2) {
+        database.transactionDao().insertTransaction(
+          Transaction(
+            type = TransactionType.EXPENSE,
+            categoryId = categoryId,
+            amount = 5_000L,
+            description = "legacy disbursement",
+            personName = "Ali",
+            date = 5_000L
+          )
+        )
+      }
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanA))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      assertEquals(9_000L, requireNotNull(database.loanDao().getLoanById(loanA)).date)
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(2, transactions.size)
+      assertTrue(transactions.all { it.date == 5_000L })
     }
 }
