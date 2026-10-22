@@ -255,13 +255,16 @@ fun LoanManagementScreen(
       loan = loanToEdit,
       onUpdate = { updated ->
         loanViewModel.updateLoan(updated) { result ->
+          // Stale sessions must not touch the UI: the user already moved on
+          // to another editor (or none). Covers dismissals and messages alike.
+          if (editSession != sessionId) return@updateLoan
           when (result) {
-            LoanUpdateResult.Success -> if (editSession == sessionId) editingLoan = null
+            LoanUpdateResult.Success -> editingLoan = null
             // Keep the dialog open so the user can pick a valid date.
             LoanUpdateResult.ChronologyRejected ->
               settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
             // The loan is gone; nothing left to edit.
-            LoanUpdateResult.NotFound -> if (editSession == sessionId) editingLoan = null
+            LoanUpdateResult.NotFound -> editingLoan = null
             LoanUpdateResult.Failed -> settingsViewModel.showMessage(loanUpdateFailedMessage)
           }
         }

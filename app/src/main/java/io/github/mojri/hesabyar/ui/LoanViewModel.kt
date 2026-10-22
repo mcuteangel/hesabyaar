@@ -64,8 +64,9 @@ class LoanViewModel
     // Safety net: a Room/repository failure must reach the UI callback so the
     // dialog is released, instead of crashing via an unhandled exception.
     // Cancellation is rethrown to keep structured concurrency intact.
-    // Only the use-case call is guarded: the callback runs outside the
-    // try-block so a throwing callback cannot trigger a second onResult.
+    // The use-case call and the callback are guarded separately: the first
+    // guard must not re-invoke the callback (no double onResult), while the
+    // second guard only logs, so a throwing callback cannot crash the scope.
     // Infrastructure failures map to LoanUpdateResult.Failed; the cause is
     // logged here so the UI can show the generic failure message.
     @Suppress("TooGenericExceptionCaught")
@@ -83,7 +84,13 @@ class LoanViewModel
             AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
             LoanUpdateResult.Failed
           }
-        onResult(result)
+        try {
+          onResult(result)
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.w("LoanViewModel", "updateLoan callback failed for loan=${loan.id}: ${e.message}")
+        }
       }
     }
 
