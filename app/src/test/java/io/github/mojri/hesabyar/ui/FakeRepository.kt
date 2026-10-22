@@ -45,6 +45,7 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   var exportCategoryReadCount = 0
 
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
+
   // Cold flow: reads loansList at collection time, like allAccounts below —
   // tests seed loansList after the fake is created.
   open override val allLoans: Flow<List<Loan>> = flow { emit(loansList.toList()) }
