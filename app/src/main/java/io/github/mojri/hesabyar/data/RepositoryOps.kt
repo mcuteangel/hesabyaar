@@ -58,6 +58,24 @@ interface CategoryOps {
   suspend fun deleteCategory(category: Category)
 }
 
+/**
+ * Result of [LoanOps.updateLoan]. Lets the UI tell a rejected date edit apart
+ * from a missing row or an infrastructure failure (issue #529).
+ */
+sealed interface LoanUpdateResult {
+  /** The loan row was updated. */
+  data object Success : LoanUpdateResult
+
+  /** Rejected: the new creation date would land after a recorded payment. */
+  data object ChronologyRejected : LoanUpdateResult
+
+  /** The loan row no longer exists; nothing was updated. */
+  data object NotFound : LoanUpdateResult
+
+  /** A persistence failure; the cause is logged by the caller. */
+  data object Failed : LoanUpdateResult
+}
+
 interface LoanOps {
   val allLoans: Flow<List<Loan>>
 
@@ -68,7 +86,12 @@ interface LoanOps {
     recordInitial: Boolean
   ): Long
 
-  suspend fun updateLoan(loan: Loan)
+  /**
+   * Updates a loan. Returns [LoanUpdateResult.Success] when the row was updated.
+   * Persistence failures throw instead of returning [LoanUpdateResult.Failed];
+   * the ViewModel maps them to it.
+   */
+  suspend fun updateLoan(loan: Loan): LoanUpdateResult
 
   suspend fun deleteLoan(loan: Loan)
 

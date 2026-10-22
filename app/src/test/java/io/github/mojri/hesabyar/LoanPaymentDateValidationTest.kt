@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -26,6 +27,8 @@ import org.robolectric.annotation.Config
  * Regression tests for issue #431: payments backdated before the loan creation
  * date or before an already-recorded payment must be rejected without side
  * effects, while chronologically ordered payments keep working.
+ * Also covers issue #529: editing a loan's creation date to after an
+ * already-recorded payment must be rejected without side effects.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
@@ -157,5 +160,50 @@ class LoanPaymentDateValidationTest {
       val loan = requireNotNull(database.loanDao().getLoanById(loanId))
       assertEquals(2_000L, loan.remainingAmount)
       assertFalse(loan.isSettled)
+    }
+
+  @Test
+  fun editDateAfterExistingPaymentIsRejectedWithoutSideEffects() =
+    runTest {
+      val repo = createRepository()
+      val loanId = seedLoan(loanDate = 5_000L)
+
+      assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+
+      assertEquals(LoanUpdateResult.ChronologyRejected, repo.updateLoan(persisted.copy(date = 7_000L)))
+
+      assertEquals(5_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
+      assertEquals(1, database.paymentHistoryDao().getAllPaymentHistoriesBlocking().size)
+    }
+
+  @Test
+  fun editDateEarlierWithPaymentsSucceeds() =
+    runTest {
+      val repo = createRepository()
+      val loanId = seedLoan(loanDate = 5_000L)
+
+      assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 4_000L)))
+
+      assertEquals(4_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
+    }
+
+  @Test
+  fun editNonDateFieldWithUnchangedDateSucceeds() =
+    runTest {
+      val repo = createRepository()
+      val loanId = seedLoan(loanDate = 5_000L)
+
+      assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(personName = "Sara")))
+
+      val updated = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals("Sara", updated.personName)
+      assertEquals(5_000L, updated.date)
     }
 }
