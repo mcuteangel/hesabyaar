@@ -69,7 +69,7 @@ internal class LoanDelegate(
     }
   }
 
-  override suspend fun updateLoan(loan: Loan): Boolean {
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
     TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
     val normalizedLoan =
       loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
@@ -77,17 +77,16 @@ internal class LoanDelegate(
     // already-recorded payment. They corrupt point-in-time balances.
     // The read-validate-write runs in one transaction so a concurrent
     // writer cannot slip a payment between the check and the persist.
-    // Returns false only for a rejected edit or a missing loan row;
-    // persistence failures throw.
     return database.withTransaction {
-      val persisted = loanDao.getLoanById(normalizedLoan.id) ?: return@withTransaction false
+      val persisted = loanDao.getLoanById(normalizedLoan.id)
+        ?: return@withTransaction LoanUpdateResult.NotFound
       if (persisted.date != normalizedLoan.date &&
         !isLoanDateEditChronologicallyValid(normalizedLoan.id, normalizedLoan.date)
       ) {
-        return@withTransaction false
+        return@withTransaction LoanUpdateResult.ChronologyRejected
       }
       loanDao.updateLoan(normalizedLoan)
-      true
+      LoanUpdateResult.Success
     }
   }
 

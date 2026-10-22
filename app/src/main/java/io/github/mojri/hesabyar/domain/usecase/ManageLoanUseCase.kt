@@ -3,6 +3,7 @@ package io.github.mojri.hesabyar.domain.usecase
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.domain.utils.PersonNameNormalizer
@@ -160,7 +161,7 @@ class ManageLoanUseCase(
 
   fun getPaymentHistory(loanId: Long): Flow<List<PaymentHistory>> = repository.getPaymentHistoryForLoan(loanId)
 
-  suspend fun updateLoan(loan: Loan): Boolean = repository.updateLoan(loan)
+  suspend fun updateLoan(loan: Loan): LoanUpdateResult = repository.updateLoan(loan)
 
   suspend fun deleteLoan(loan: Loan) = repository.deleteLoan(loan)
 }

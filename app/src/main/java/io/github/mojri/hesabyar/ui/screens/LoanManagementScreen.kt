@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.domain.utils.LoanEditCalculator
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
@@ -115,6 +116,9 @@ fun LoanManagementScreen(
 
   var showAddDialog by remember { mutableStateOf(false) }
   var editingLoan by remember { mutableStateOf<Loan?>(null) }
+  // Identifies the current edit session: opening an editor bumps it, so a
+  // slow update can only dismiss the session it belongs to (issue #529).
+  var editSession by remember { mutableLongStateOf(0L) }
   var deletingLoan by remember { mutableStateOf<Loan?>(null) }
   var termState by remember { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
 
@@ -215,7 +219,10 @@ fun LoanManagementScreen(
             loanViewModel = loanViewModel,
             settingsViewModel = settingsViewModel,
             onDelete = { deletingLoan = loan },
-            onEdit = { editingLoan = loan }
+            onEdit = {
+              editingLoan = loan
+              editSession++
+            }
           )
         }
       }
@@ -237,20 +244,25 @@ fun LoanManagementScreen(
 
   // Issue #529: shown when an edit moves the creation date after a recorded payment.
   val loanDateAfterPaymentsMessage = "تاریخ جدید وام نمی‌تواند بعد از بازپرداخت‌های ثبت‌شده باشد"
+  val loanUpdateFailedMessage = "ذخیره تغییرات ناموفق بود؛ لطفا دوباره تلاش کنید"
 
   // Edit Loan Dialog
   editingLoan?.let { loanToEdit ->
+    // Captured per session: a newer session (reopened editor) must not be
+    // dismissed by this session's slow update.
+    val sessionId = editSession
     EditLoanDialog(
       loan = loanToEdit,
       onUpdate = { updated ->
-        loanViewModel.updateLoan(updated) { ok ->
-          if (ok) {
-            // Dismiss only the editor this update belongs to: a newer edit
-            // session may have opened while the update was in flight.
-            if (editingLoan?.id == loanToEdit.id) editingLoan = null
-          } else {
+        loanViewModel.updateLoan(updated) { result ->
+          when (result) {
+            LoanUpdateResult.Success -> if (editSession == sessionId) editingLoan = null
             // Keep the dialog open so the user can pick a valid date.
-            settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
+            LoanUpdateResult.ChronologyRejected ->
+              settingsViewModel.showMessage(loanDateAfterPaymentsMessage)
+            // The loan is gone; nothing left to edit.
+            LoanUpdateResult.NotFound -> editingLoan = null
+            LoanUpdateResult.Failed -> settingsViewModel.showMessage(loanUpdateFailedMessage)
           }
         }
       },

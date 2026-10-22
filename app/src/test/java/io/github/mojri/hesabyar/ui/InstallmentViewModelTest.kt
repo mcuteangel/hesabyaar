@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
@@ -120,7 +121,7 @@ class InstallmentViewModelTest {
       recordInitial: Boolean
     ): Long = 0L
 
-    override suspend fun updateLoan(loan: Loan): Boolean = true
+    override suspend fun updateLoan(loan: Loan): LoanUpdateResult = LoanUpdateResult.Success
 
     override suspend fun deleteLoan(loan: Loan) {}
 

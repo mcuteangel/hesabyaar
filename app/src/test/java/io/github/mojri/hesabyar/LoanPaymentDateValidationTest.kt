@@ -10,6 +10,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepository
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -170,7 +171,7 @@ class LoanPaymentDateValidationTest {
       assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
       val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
 
-      assertFalse(repo.updateLoan(persisted.copy(date = 7_000L)))
+      assertEquals(LoanUpdateResult.ChronologyRejected, repo.updateLoan(persisted.copy(date = 7_000L)))
 
       assertEquals(5_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
       assertEquals(1, database.paymentHistoryDao().getAllPaymentHistoriesBlocking().size)
@@ -185,7 +186,7 @@ class LoanPaymentDateValidationTest {
       assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
       val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
 
-      assertTrue(repo.updateLoan(persisted.copy(date = 4_000L)))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 4_000L)))
 
       assertEquals(4_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
     }
@@ -199,7 +200,7 @@ class LoanPaymentDateValidationTest {
       assertTrue(repo.addPaymentToLoan(loanId, 1_000L, "first", 6_000L))
       val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
 
-      assertTrue(repo.updateLoan(persisted.copy(personName = "Sara")))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(personName = "Sara")))
 
       val updated = requireNotNull(database.loanDao().getLoanById(loanId))
       assertEquals("Sara", updated.personName)

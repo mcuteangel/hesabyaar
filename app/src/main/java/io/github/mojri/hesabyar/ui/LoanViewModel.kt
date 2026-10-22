@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.LoanType
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.domain.usecase.ManageLoanUseCase
 import kotlinx.coroutines.CancellationException
@@ -65,22 +66,24 @@ class LoanViewModel
     // Cancellation is rethrown to keep structured concurrency intact.
     // Only the use-case call is guarded: the callback runs outside the
     // try-block so a throwing callback cannot trigger a second onResult.
+    // Infrastructure failures map to LoanUpdateResult.Failed; the cause is
+    // logged here so the UI can show the generic failure message.
     @Suppress("TooGenericExceptionCaught")
     fun updateLoan(
       loan: Loan,
-      onResult: (Boolean) -> Unit = {}
+      onResult: (LoanUpdateResult) -> Unit = {}
     ) {
       viewModelScope.launch {
-        val ok =
+        val result =
           try {
             manageLoanUseCase.updateLoan(loan)
           } catch (e: CancellationException) {
             throw e
           } catch (e: Exception) {
             AppLogger.w("LoanViewModel", "updateLoan failed for loan=${loan.id}: ${e.message}")
-            false
+            LoanUpdateResult.Failed
           }
-        onResult(ok)
+        onResult(result)
       }
     }
 
