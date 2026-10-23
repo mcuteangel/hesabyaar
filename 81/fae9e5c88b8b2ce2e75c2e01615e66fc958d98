@@ -1,0 +1,159 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 612-626,674,772,789
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/InstallmentScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 11,21-23,239-245,256-257,316-318,437,448-450,452-468
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanEditRejectionScreenTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-161
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 14-15,28,317,363,397-403,420-421,580-593,595-601,619-621,632,692,756,896-902,908-909,953,988,994,1024-1025,1094-1100,1106-1107,1136-1138,1163-1168,1296,1414,1419,1574-1579,1583-1589,1606-1607,1616-1627,1645-1646,1652-1663,1681-1682
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageLoanUseCase.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 6,164
+plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-153
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 29,208,239,275-277,283-284,296,440,478,673,895-897,916-919,1016,1325,1384
+rust/hesabyar-core/src/validation.rs
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 132-155
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 9,22,319,337,345,366-368,498,574-579,585,619,702-704,715,737-742,746-747
+app/src/main/java/io/github/mojri/hesabyar/ui/components/BalanceCard.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 15,18,37,49
+.gitignore
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 91-97
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/SmartParsingBanner.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 20,24,34,38,55-56
+plans/archive/018-complete-icon-size-and-alpha-tokens.md
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-203
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/JalaliDatePickerDialog.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 325,400
+app/src/test/java/io/github/mojri/hesabyar/LoanDeletePaymentTransactionTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 155-158
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DebtorCreditorCards.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 75-78,92,127-130,144
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 10,148,154
+app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 9,64-76,78-93
+app/src/test/java/io/github/mojri/hesabyar/ui/InstallmentViewModelTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 10,124
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 34,107,190,205,225,233,243,251,270
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/InstallmentMiniItem.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 25,53
+app/src/test/java/io/github/mojri/hesabyar/LoanPaymentDateValidationTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-209
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarInputField.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 9,11-14,17-18,29,32,37-94,101-110,113,118,120,123-159
+app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/ElevationTokens.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 7-8
+rust/hesabyar-core/src/ffi/mod.rs
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 292-307
+rust/hesabyar-core/src/validation/tests.rs
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 2080-2114
+VERSION
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1
+app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 174-215
+app/src/main/java/io/github/mojri/hesabyar/ui/AiAssistantViewModel.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 8,29,243-245,251-280,285-288
+app/src/test/java/io/github/mojri/hesabyar/LoanDisbursementDateUpdateTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-389
+.github/workflows/pr-title.yml
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 26-27,30-38
+app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 10-12,19-27,33-36,47-55,62-69
+app/src/main/java/io/github/mojri/hesabyar/MainActivityNavigation.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 27,284,289,294,299
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/AccountBreakdownCard.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 26,102
+app/src/main/java/io/github/mojri/hesabyar/api/AiProviderConfig.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 77-79
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 20-22,29,119-124,225-229,249-252,255-257,260,262-277,280-283,378-380,405-406,455,542,556-559,680-681,698,710-711,727
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 282,313-315,320,328-330,335,403,456,492,496,506,536
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AddPersonLoanDialog.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 23,108,111,114,117,124
+app/src/test/java/io/github/mojri/hesabyar/ui/AiAssistantParseRaceTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-204
+config/detekt/detekt-baseline.xml
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 206
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/TransactionMiniItem.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 26,39,73,132-133,191,199
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CustomTimePickerDialog.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 33,182,236,396
+app/src/test/java/io/github/mojri/hesabyar/api/AiProviderFetchModelsTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-152
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 310,318
+app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-62
+app/src/main/java/io/github/mojri/hesabyar/ui/components/AmountQuickFillButtons.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 14,69
+app/src/test/java/io/github/mojri/hesabyar/api/AiProviderExecutePostTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-143
+app/src/main/java/io/github/mojri/hesabyar/ui/components/ExportPassphraseDialog.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 98,101,103,105,108,117
+app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 10,31-36,48-51,98-107
+app/buildSrc/template/HesabyarCore.template.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 193-198
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDelegate.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 5,16-17,74,78-104,140-143,224-226,273-304
+app/src/test/java/io/github/mojri/hesabyar/ui/LoanViewModelTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 3-5,15,50-107
+app/src/main/java/io/github/mojri/hesabyar/ui/components/InstallmentItem.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 12,36
+app/src/main/java/io/github/mojri/hesabyar/api/AiProvider.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 3,7,9,14,21-44,69-76,167,176,186,216,225,235,254,267,275,277,293,349,406,429-431,433
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/IncomeExpenseCards.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 27,54,88
+plans/013-ui-ux-overhaul.md
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 46,454-455,475-491,554-560,566-574,642-645,680-691,696-726,742-746,757-772,820-833,918-956,959-963,970-974,987-995,1118-1158
+app/src/main/java/io/github/mojri/hesabyar/ui/components/LoanItem.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 10,36
+CHANGELOG.md
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 8-117
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageAiConfigUseCase.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 7-9,12,14,18
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 391
+plans/archive/019-remove-or-wire-dead-tokens.md
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-150
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/SmartForecastCard.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 24,32,58-59,64,75
+app/src/main/java/io/github/mojri/hesabyar/ui/components/ImportPassphraseDialog.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 101,104
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarInputFieldTest.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-82
+app/src/main/java/io/github/mojri/hesabyar/data/RepositoryOps.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 61-78,89-94
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 60,237,241-242,251
+rust/Cargo.toml
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 6
+app/src/main/java/io/github/mojri/hesabyar/data/LoanDisbursementSync.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 1-133
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/KpiCards.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 23,50,88
+app/src/main/java/io/github/mojri/hesabyar/rust/RustBridgeValidation.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 21-34
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/components/DashboardHeader.kt
+  s_1706c936cbaf9d::t_9d03a85fef5ea9 48,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "81fae9e5c88b8b2ce2e75c2e01615e66fc958d98",
+  "prompts": {},
+  "sessions": {
+    "s_1706c936cbaf9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1e9165b-0602-44e2-b550-3a9583383b69",
+        "model": "unknown"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
