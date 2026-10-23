@@ -355,4 +355,35 @@ class LoanDisbursementDateUpdateTest {
       assertEquals(2, transactions.size)
       assertTrue(transactions.all { it.loanId == null })
     }
+
+  @Test
+  fun nameEditDoesNotStampAnotherLoansLegacyRow() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Loan A: modern, its disbursement is already stamped.
+      val loanA = seedTrackedLoan(loanDate = 5_000L, recordInitial = true)
+      // Loan B: legacy, unstamped disbursement with identical fields.
+      seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      // Renaming loan A must not stamp loan B's row with loan A's id:
+      // loan A already has a stamped disbursement, so it has no legacy row.
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanA))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(personName = "Sara")))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(2, transactions.size)
+      assertEquals(loanA, disbursementFor(loanA).loanId)
+      assertTrue(transactions.single { it.description == "legacy disbursement" }.loanId == null)
+    }
 }

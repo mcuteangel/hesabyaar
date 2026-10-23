@@ -37,13 +37,17 @@ internal class LoanDisbursementSync(
    * Issue #532: stamp the legacy (unstamped) disbursement with the loan id
    * when a name/amount edit would otherwise orphan it from future date
    * syncs. The row is found by the persisted (pre-edit) fields, which still
-   * identify it; only stamps on an exactly-one match.
+   * identify it; only stamps on an exactly-one match. Skipped entirely when
+   * the loan already has a stamped disbursement — then it has no legacy
+   * row, and any unstamped field match must belong to a different loan.
    */
   suspend fun stampLegacyDisbursement(
     persisted: Loan,
     updated: Loan
   ) {
-    findAndStampLegacyDisbursement(persisted, updated)
+    if (transactionLinkDao.findTransactionIdsByLoanId(updated.id).isEmpty()) {
+      findAndStampLegacyDisbursement(persisted, updated)
+    }
   }
 
   /**
