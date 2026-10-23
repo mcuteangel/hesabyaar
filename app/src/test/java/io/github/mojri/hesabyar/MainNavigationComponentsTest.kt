@@ -1,17 +1,25 @@
 package io.github.mojri.hesabyar
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -171,6 +179,32 @@ class MainNavigationComponentsTest {
   }
 
   @Test
+  fun expandedMainContentConstrainsWidthToContentMax() {
+    val sampleContent = "ExpandedContentSample"
+
+    composeRule.setContent {
+      Box(modifier = Modifier.requiredWidth(EXPANDED_WIDTH)) {
+        ExpandedMainContent(
+          innerPadding = PaddingValues(0.dp),
+          currentTab = TAB_DASHBOARD,
+          onTabSelected = {},
+          onMoreClick = {},
+          content = {
+            Box(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .testTag(TAG_CONTENT),
+            )
+          }
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag(TAG_CONTENT).assertWidthIsEqualTo(WindowSizeTokens.ContentMaxWidth)
+  }
+
+  @Test
   fun expandedMainContentRendersRailAndContent() {
     val sampleContent = "ExpandedContentSample"
     var selectedTab = ""
@@ -215,5 +249,10 @@ class MainNavigationComponentsTest {
   @Test
   fun debtsTabLabelIsConcise() {
     assertEquals("Debts tab label must be shortened to 'بدهی‌ها'", "بدهی‌ها", labelDebts)
+  }
+
+  private companion object {
+    val EXPANDED_WIDTH = 1200.dp
+    const val TAG_CONTENT = "rail_content"
   }
 }

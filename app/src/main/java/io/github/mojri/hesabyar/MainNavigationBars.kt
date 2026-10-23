@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
+import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 
 @Composable
 internal fun CompactMainContent(
@@ -61,7 +64,16 @@ internal fun ExpandedMainContent(
       modifier = Modifier.fillMaxSize().padding(innerPadding).weight(1f),
       contentAlignment = Alignment.TopCenter
     ) {
-      content()
+      Box(
+        modifier =
+          Modifier
+            .fillMaxHeight()
+            .widthIn(max = WindowSizeTokens.ContentMaxWidth)
+            .fillMaxWidth(),
+        contentAlignment = Alignment.TopCenter
+      ) {
+        content()
+      }
     }
   }
 }
