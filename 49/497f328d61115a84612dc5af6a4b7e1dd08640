@@ -1,0 +1,24 @@
+plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md
+  s_081f9483dae610::t_fbd348c59c088c 7
+progress.md
+  s_081f9483dae610::t_e75f9e922ea17c 10-14,18-22,26-34
+  s_081f9483dae610::t_3e2d3cebe90c56 35
+plans/README.md
+  s_081f9483dae610::t_68dd5300b817b4 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "49497f328d61115a84612dc5af6a4b7e1dd08640",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
