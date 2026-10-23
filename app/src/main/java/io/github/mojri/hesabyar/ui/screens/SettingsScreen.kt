@@ -26,6 +26,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -344,10 +346,11 @@ fun SettingsScreen(
 
     // General Settings
     Text(
-      text = "⚙️ تنظیمات عمومی",
+      text = "تنظیمات عمومی",
       style = MaterialTheme.typography.titleMedium,
       fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.onBackground
+      color = MaterialTheme.colorScheme.onBackground,
+      modifier = Modifier.semantics { heading() },
     )
 
     HesabyarCard(
@@ -466,21 +469,25 @@ fun SettingsScreen(
 
     // AI Provider Settings
     Text(
-      text = "🤖 تنظیمات هوش مصنوعی (API Settings)",
+      text = "تنظیمات هوش مصنوعی (API Settings)",
       style = MaterialTheme.typography.titleMedium,
       fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.onBackground
+      color = MaterialTheme.colorScheme.onBackground,
+      modifier = Modifier.semantics { heading() },
     )
 
     AiProviderSettingsCard(aiAssistantViewModel = aiAssistantViewModel)
 
     // Backup
     Text(
-      text = "💾 پشتیبان‌گیری و بازیابی داده‌ها (آفلاین)",
+      text = "پشتیبان‌گیری و بازیابی داده‌ها (آفلاین)",
       style = MaterialTheme.typography.titleMedium,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.onBackground,
-      modifier = Modifier.padding(top = SpacingTokens.sm)
+      modifier =
+        Modifier
+          .padding(top = SpacingTokens.sm)
+          .semantics { heading() },
     )
 
     HesabyarCard(
@@ -526,11 +533,14 @@ fun SettingsScreen(
 
     // Excel Export
     Text(
-      text = "📊 خروجی اکسل (Excel)",
+      text = "خروجی اکسل (Excel)",
       style = MaterialTheme.typography.titleMedium,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.onBackground,
-      modifier = Modifier.padding(top = SpacingTokens.sm)
+      modifier =
+        Modifier
+          .padding(top = SpacingTokens.sm)
+          .semantics { heading() },
     )
 
     HesabyarCard(
@@ -817,11 +827,14 @@ fun DebugLogsSection() {
   }
 
   Text(
-    text = "🔍 لاگ‌های دیباگ (Debug Logs)",
+    text = "لاگ‌های دیباگ (Debug Logs)",
     style = MaterialTheme.typography.titleMedium,
     fontWeight = FontWeight.Bold,
     color = MaterialTheme.colorScheme.onBackground,
-    modifier = Modifier.padding(top = SpacingTokens.sm)
+    modifier =
+      Modifier
+        .padding(top = SpacingTokens.sm)
+        .semantics { heading() },
   )
 
   HesabyarCard(
@@ -1433,7 +1446,7 @@ fun AiConfigDialog(
                 DropdownMenuItem(
                   text = {
                     Text(
-                      "📁 $family (${models.size})",
+                      "$family (${models.size})",
                       fontWeight = FontWeight.Bold,
                       color = MaterialTheme.colorScheme.primary
                     )
@@ -1475,7 +1488,7 @@ fun AiConfigDialog(
                 DropdownMenuItem(
                   text = {
                     Text(
-                      "📁 $provider (${models.size}${if (freeCount > 0) ", $freeCount رایگان" else ""})",
+                      "$provider (${models.size}${if (freeCount > 0) ", $freeCount رایگان" else ""})",
                       fontWeight = FontWeight.Bold,
                       color = MaterialTheme.colorScheme.primary
                     )

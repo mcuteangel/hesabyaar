@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -232,10 +234,11 @@ fun ReportsScreen(
           verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
         ) {
           Text(
-            text = "📈 تراز عملکرد سود و زیان دوره",
+            text = "تراز عملکرد سود و زیان دوره",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.semantics { heading() },
           )
 
           Row(
@@ -532,7 +535,7 @@ fun ReportsScreen(
     // Category breakdown header
     item {
       SectionHeader(
-        title = "📊 سهم دسته‌بندی‌ها از کل هزینه‌ها",
+        title = "سهم دسته‌بندی‌ها از کل هزینه‌ها",
         modifier = Modifier.padding(top = SpacingTokens.sm)
       )
     }
@@ -644,7 +647,7 @@ fun ReportsScreen(
             .padding(top = SpacingTokens.sm),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
       ) {
-        SectionHeader(title = "📜 تمامی تراکنش‌های ثبت شده (${displayList.size} مورد)")
+        SectionHeader(title = "تمامی تراکنش‌های ثبت شده (${displayList.size} مورد)")
 
         // Horizontal category filter chips row
         val categoryFilterList =

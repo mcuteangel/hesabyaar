@@ -148,6 +148,30 @@ class PersonDetailSheetTest {
   }
 
   @Test
+  fun topBarBackButtonInvokesOnDismiss() {
+    personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
+    loansFlow.value = emptyList()
+    var dismissed = false
+
+    composeRule.setContent {
+      PersonDetailSheet(
+        personId = 1L,
+        personName = NAME_ALI,
+        personViewModel = viewModel,
+        onDismiss = { dismissed = true }
+      )
+    }
+    settle()
+
+    composeRule
+      .onNodeWithContentDescription("بازگشت")
+      .assertIsDisplayed()
+      .performClick()
+
+    assertEquals("Back click should invoke onDismiss", true, dismissed)
+  }
+
+  @Test
   fun loansTimelineDisplaysAmountsAndSettledBadge() {
     personsFlow.value = listOf(Person(id = 1L, name = NAME_ALI, normalizedName = NORMALIZED_NAME_ALI))
     loansFlow.value =
@@ -235,8 +259,8 @@ class PersonDetailSheetTest {
     }
     settle()
 
-    composeRule.onNodeWithText(LABEL_PAYMENTS).assertIsDisplayed()
-    composeRule.onNodeWithText(CurrencyFormatter.format(35_000L)).assertIsDisplayed()
+    composeRule.onNodeWithText(LABEL_PAYMENTS).performScrollTo().assertIsDisplayed()
+    composeRule.onNodeWithText(CurrencyFormatter.format(35_000L)).performScrollTo().assertIsDisplayed()
   }
 
   @Test

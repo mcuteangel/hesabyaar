@@ -73,7 +73,7 @@ internal fun ForecastDetailDialog(
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
           Text(
-            text = "⚠️ خطا در دریافت پیش‌بینی",
+            text = "خطا در دریافت پیش‌بینی",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.error
           )

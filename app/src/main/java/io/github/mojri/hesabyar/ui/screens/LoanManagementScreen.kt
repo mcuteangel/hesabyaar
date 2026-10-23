@@ -480,7 +480,7 @@ fun LoanListItem(
           HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
           Text(
-            text = "📝 تاریخچه بازپرداخت‌ها:",
+            text = "تاریخچه بازپرداخت‌ها:",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
