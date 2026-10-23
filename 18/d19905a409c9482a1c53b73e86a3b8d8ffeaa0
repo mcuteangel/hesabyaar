@@ -1,0 +1,26 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreenDeleteDialogTest.kt
+  s_081f9483dae610::t_c1d92042f2bd50 65-74
+  s_081f9483dae610::t_2734fcf1b5e250 7
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_081f9483dae610::t_f89c43f026586e 175-176,190,216,231
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreenTest.kt
+  s_081f9483dae610::t_56ae2cec059bd8 81
+  s_081f9483dae610::t_bc48b266607b10 121,136
+  s_081f9483dae610::t_2ccd3d3c4473a3 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "18d19905a409c9482a1c53b73e86a3b8d8ffeaa0",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
