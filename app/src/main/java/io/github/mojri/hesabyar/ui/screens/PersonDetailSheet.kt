@@ -30,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -252,7 +254,8 @@ private fun PersonSheetContent(
       text = "تاریخچه تراکنش‌ها و وام‌ها",
       style = MaterialTheme.typography.titleSmall,
       fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.onSurface
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.semantics { heading() },
     )
 
     LoanTimelineList(
@@ -294,7 +297,8 @@ private fun PersonHeader(
         Text(
           text = personName,
           style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.semantics { heading() },
         )
         Text(
           text = label,
