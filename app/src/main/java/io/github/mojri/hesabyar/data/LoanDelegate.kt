@@ -167,7 +167,8 @@ internal class LoanDelegate(
         categoryId = loansCategoryId,
         amount = persisted.originalAmount,
         oldDate = persisted.date
-      ).singleOrNull()
+      )
+        .singleOrNull()
     } else {
       null
     }
