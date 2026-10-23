@@ -1,0 +1,24 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonDetailSheet.kt
+  s_1706c936cbaf9d::t_3a421f5c4df3e9 257-258
+  s_1706c936cbaf9d::t_c9aeb2c37b47ef 33-34
+  s_1706c936cbaf9d::t_7720c226106695 300-301
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/PersonsScreen.kt
+  s_1706c936cbaf9d::t_72211898b6b98d 46,49
+  s_1706c936cbaf9d::t_afecbdc94f0fcd 292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f6b994be12da59e6f6189f969582c0e31e16da2a",
+  "prompts": {},
+  "sessions": {
+    "s_1706c936cbaf9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1e9165b-0602-44e2-b550-3a9583383b69",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
