@@ -171,6 +171,48 @@ interface TransactionLinkDao {
   // the field-matching fallback).
   @Query("DELETE FROM transactions WHERE loanId = :loanId")
   suspend fun deleteTransactionsByLoanId(loanId: Long): Int
+
+  // Issue #532: move the stamped disbursement when a loan date edit is
+  // accepted. Matches only the row in sync with the loan's current date, so
+  // a corrupt duplicate carrying the same loanId keeps its own date.
+  @Query("UPDATE transactions SET date = :newDate WHERE loanId = :loanId AND date = :oldDate")
+  suspend fun updateDisbursementDateByLoanId(
+    loanId: Long,
+    oldDate: Long,
+    newDate: Long
+  ): Int
+
+  // Issue #532: ids of the stamped rows for one loan. loanId is written once
+  // at creation, so more than one row means a corrupt restore.
+  @Query("SELECT id FROM transactions WHERE loanId = :loanId")
+  suspend fun findTransactionIdsByLoanId(loanId: Long): List<Long>
+
+  // Issue #532: ids of legacy (pre-#242, unstamped) disbursement candidates.
+  // Uses the persisted (pre-edit) fields, the same match deleteLoan's legacy
+  // fallback uses. No loan identity exists for these rows, so the caller
+  // must only move them when the match is unambiguous.
+  @Query(
+    "SELECT id FROM transactions WHERE loanId IS NULL " +
+      "AND personName IN (:personNames) AND categoryId = :categoryId " +
+      "AND amount = :amount AND date = :oldDate"
+  )
+  suspend fun findLegacyDisbursementIds(
+    personNames: Set<String>,
+    categoryId: Long,
+    amount: Long,
+    oldDate: Long
+  ): List<Long>
+
+  // Issue #532: update one transaction, identified by primary key: move it
+  // to a new date, optionally stamping it with a loan id. Used after an
+  // exact-id lookup, never with a bulk match. A null loanId leaves any
+  // existing stamp untouched.
+  @Query("UPDATE transactions SET date = :newDate, loanId = COALESCE(:loanId, loanId) WHERE id = :id")
+  suspend fun updateTransactionById(
+    id: Long,
+    newDate: Long,
+    loanId: Long? = null
+  )
 }
 
 @Dao

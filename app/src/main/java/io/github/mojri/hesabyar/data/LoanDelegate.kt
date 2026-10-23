@@ -13,6 +13,8 @@ internal class LoanDelegate(
   private val categoryDao: CategoryDao,
   private val database: AppDatabase
 ) : LoanOps {
+  private val disbursementSync = LoanDisbursementSync(transactionLinkDao, categoryDao)
+
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
 
   override suspend fun insertLoan(loan: Loan): Long {
@@ -86,6 +88,17 @@ internal class LoanDelegate(
       ) {
         return@withTransaction LoanUpdateResult.ChronologyRejected
       }
+      if (persisted.date != normalizedLoan.date) {
+        disbursementSync.syncDisbursementDate(persisted, normalizedLoan)
+      } else if (persisted.personName != normalizedLoan.personName ||
+        persisted.originalAmount != normalizedLoan.originalAmount
+      ) {
+        // Issue #532: a name/amount edit (date unchanged) would orphan an
+        // unstamped legacy disbursement from future date syncs, which match
+        // by the persisted fields. Stamp it now while those fields still
+        // identify it.
+        disbursementSync.stampLegacyDisbursement(persisted, normalizedLoan)
+      }
       loanDao.updateLoan(normalizedLoan)
       LoanUpdateResult.Success
     }
@@ -124,6 +137,10 @@ internal class LoanDelegate(
       val disbursementDeletedById =
         transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
       val wasTracked = existing.tracked || loan.tracked
+      // Issue #532: updateLoan moves legacy (pre-#242, unstamped) disbursement
+      // rows with the loan date, so the field match below still finds them
+      // after an edit. A row whose date changed outside updateLoan keeps its
+      // own date and is not found here.
       val needsDisbursementFallback = wasTracked && !disbursementDeletedById
       val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
       if (unlinkedPayments.isNotEmpty() || needsDisbursementFallback) {
