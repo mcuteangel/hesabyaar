@@ -1,0 +1,32 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/AdaptiveContentContainer.kt
+  s_081f9483dae610::t_a406e23eb55f4a 1-42
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarScaffold.kt
+  s_081f9483dae610::t_5c65233904def9 60-63,65-69
+app/src/main/java/io/github/mojri/hesabyar/MainNavigationBars.kt
+  s_081f9483dae610::t_1c4f9e1a61c802 30
+  s_081f9483dae610::t_f4df0a58a81e87 61-62
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
+  s_081f9483dae610::t_cec87d16421c65 157
+plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md
+  s_081f9483dae610::t_36441e283be57a 136
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_081f9483dae610::t_a1fa3bc17c14e0 358
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_081f9483dae610::t_7d537219f16784 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f17daf7eae693cce2fffc25e38484e8dbe7c519e",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
