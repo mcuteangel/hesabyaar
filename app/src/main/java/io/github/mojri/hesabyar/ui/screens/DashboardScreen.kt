@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -39,8 +37,8 @@ import io.github.mojri.hesabyar.ui.components.BalanceCard
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.EmptyState
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
+import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
 import io.github.mojri.hesabyar.ui.components.SectionHeader
-import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.BankLoansSummaryCard
 import io.github.mojri.hesabyar.ui.screens.dashboard.components.DashboardHeader
@@ -96,14 +94,27 @@ fun DashboardScreen(
     aiAssistantViewModel.onFinancialDataChanged(transactions, loans, installments, categories, bankLoans)
   }
 
-  Box(modifier = modifier.fillMaxSize()) {
+  HesabyarScaffold(
+    modifier = modifier.fillMaxSize(),
+    floatingActionButton = {
+      HesabyarFab(
+        onClick = { showManualAddDialog = true },
+        modifier = Modifier.testTag("add_transaction_fab"),
+        contentDescription = "ثبت تراکنش دستی"
+      )
+    }
+  ) { contentPadding ->
     LazyColumn(
       modifier =
         Modifier
           .fillMaxSize()
           .padding(horizontal = SpacingTokens.lg),
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg),
-      contentPadding = PaddingValues(top = SpacingTokens.sm, bottom = Dimens.FabClearance)
+      contentPadding =
+        PaddingValues(
+          top = SpacingTokens.sm,
+          bottom = contentPadding.calculateBottomPadding()
+        )
     ) {
       item { DashboardHeader(settingsViewModel) }
 
@@ -267,16 +278,6 @@ fun DashboardScreen(
         }
       }
     }
-
-    HesabyarFab(
-      onClick = { showManualAddDialog = true },
-      modifier =
-        Modifier
-          .align(Alignment.BottomEnd)
-          .padding(SpacingTokens.lg)
-          .testTag("add_transaction_fab"),
-      contentDescription = "ثبت تراکنش دستی"
-    )
   }
 
   if (showManualAddDialog) {

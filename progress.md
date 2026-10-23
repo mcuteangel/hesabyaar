@@ -7,16 +7,58 @@
 ## Active Task
 
 - **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
-- **Status:** Completed. All phases merged on branch `feat/issue-361-topbar-heading-semantics` (commits f584f384, f6b994be, 457672eb, 60f57f8). Plan moved to `plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`. PR to be opened against `main`.
+- **Status:** Completed and verified (PR #540 open against `main`).
 - **Branch:** `feat/issue-361-topbar-heading-semantics`
 - **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
 
 ## Goal
 
-Plan 022 complete. Ready for PR creation against `main`.
+- [x] Create reusable `HesabyarTopBar` with heading semantics and RTL auto-mirrored back navigation.
+- [x] Add heading semantics to `SectionHeader` and primary headers on core screens.
+- [x] Integrate `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`.
+- [x] Remove all literal emoji characters from `ui/` package and enforce via `UiEmojiIntegrityTest`.
+- [x] Archive Plan 022 and verify CI on PR #540.
 
 ## Completed
 
+- **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
+- **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)
+- **Completed Date:** 2026-10-23
+- **Deliverables:**
+    - [x] Created `HesabyarTopBar` in `ui/components/HesabyarTopBar.kt` with heading semantics, `Icons.AutoMirrored.Filled.ArrowBack`, and actions slot
+    - [x] Added `Modifier.semantics { heading() }` to `SectionHeader.kt` and key screens
+    - [x] Integrated `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`
+    - [x] Removed literal emojis from `ui/` (both supplementary and BMP blocks) and added `UiEmojiIntegrityTest`
+    - [x] Added component tests in `HesabyarTopBarTest.kt`, `SectionHeaderTest.kt`, and integration tests in `PersonsScreenTest.kt` and `PersonDetailSheetTest.kt`
+
+- **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
+- **Status:** Completed and verified (branch `feat/issue-458-page-scaffold`)
+- **Completed Date:** 2026-10-23
+- **Deliverables:**
+    - [x] Created `HesabyarScaffold` in `ui/components/HesabyarScaffold.kt` with RTL TopAppBar, FAB slot, automatic bottom FAB clearance, and ContentMaxWidth (840.dp) centering
+    - [x] Added Robolectric unit tests in `HesabyarScaffoldTest.kt` covering title, custom topBar, FAB, clearance calculation, and width clamping
+    - [x] Migrated `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` to `HesabyarScaffold`, deleting duplicated TopAppBar declarations
+    - [x] Migrated `BankLoanScreen.kt` and `DashboardScreen.kt` to `HesabyarScaffold`, preserving `testTag("add_transaction_fab")`
+    - [x] Adopted `WindowSizeTokens.ContentMaxWidth` in `ExpandedMainContent` and `CompactMainContent` (`MainNavigationBars.kt`) with tests in `MainNavigationComponentsTest.kt`
+    - [x] Full test suite (1204 unit tests) passing, ktlint and detekt reporting zero findings
+
+- **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
+- **Status:** Implemented and verified (PR #517 open; 1180 tests passing, ktlint/detekt green)
+- **Completed Date:** 2026-10-18
+- **Deliverables:**
+    - [x] Migrated all 16 raw `OutlinedTextField` call sites across 9 files to `HesabyarInputField`
+    - [x] Extended `HesabyarInputField` with `leadingIcon`, `readOnly`, `colors`, `TextFieldValue` overload, and composable `supportingText`
+    - [x] Converted existing 3 String-form `supportingText` callers to composable lambdas
+    - [x] Verified zero raw `OutlinedTextField` usages in `app/src/main` outside `HesabyarInputField.kt`
+
+- **Task:** Issue #455 — Complete icon-size and alpha tokens in Dimens.kt (Plan 018)
+- **Status:** Completed and verified (PR #498)
+- **Completed Date:** 2026-10-17
+- **Deliverables:**
+    - [x] `app/src/main/java/io/github/mojri/hesabyar/ui/designsystem/Dimens.kt`: added missing icon and container sizes (`IconXLarge` = 44.dp, `ContainerXSmall` = 28.dp, `ContainerSmall` = 36.dp, `ContainerMedium` = 44.dp), wired bypassed tokens (`IconMenu` = 20.dp, `IconAvatarMedium` = 20.dp), added semantic alpha tokens (`SUBTLE_BRAND_ALPHA` = 0.08f, `CARD_CONTAINER_ALPHA` = 0.10f, `CHIP_CONTAINER_ALPHA` = 0.12f, `BANNER_CONTAINER_ALPHA` = 0.30f, `MUTED_FOREGROUND_ALPHA` = 0.60f, `SELECTED_SURFACE_ALPHA` = 0.25f)
+    - [x] Migrated 19 screens and components from raw `.dp` and alpha literals to design tokens
+    - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt`: 4 unit tests verifying tokens and ranges
+    - [x] `plans/archive/018-complete-icon-size-and-alpha-tokens.md`: archived completed plan
 - **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
 - **Status:** Completed and verified
 - **Completed Date:** 2026-10-16
