@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -38,10 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -70,6 +66,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.icon
 import io.github.mojri.hesabyar.ui.designsystem.ACCOUNT_PICKER_COLORS
@@ -143,7 +140,6 @@ internal fun resolveDeleteDialogState(
   }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("LongMethod")
 @Composable
 fun AccountManagementScreen(
   accountViewModel: AccountViewModel,
@@ -167,38 +163,51 @@ fun AccountManagementScreen(
     }
   }
 
-  Scaffold(
-    topBar = {
-      TopAppBar(
-        title = { Text(text = "مدیریت حساب‌ها", fontWeight = FontWeight.Bold) },
-        navigationIcon = {
-          IconButton(onClick = onBack) {
-            Icon(imageVector = Icons.Filled.ArrowForward, contentDescription = "بازگشت")
-          }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-      )
-    },
+  AccountManagementScaffoldSection(
+    accounts = accounts,
+    dialogState = dialogState,
+    modifier = modifier,
+    accountViewModel = accountViewModel,
+    onBack = onBack,
+    onDialogStateChange = { dialogState = it },
+    scope = scope
+  )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountManagementScaffoldSection(
+  accounts: List<AccountEntity>,
+  dialogState: AccountDialogState,
+  modifier: Modifier,
+  accountViewModel: AccountViewModel,
+  onBack: () -> Unit,
+  onDialogStateChange: (AccountDialogState) -> Unit,
+  scope: kotlinx.coroutines.CoroutineScope,
+) {
+  HesabyarScaffold(
+    modifier = modifier,
+    title = "مدیریت حساب‌ها",
+    onBack = onBack,
     floatingActionButton = {
       HesabyarFab(
-        onClick = { dialogState = AccountDialogState.Add },
+        onClick = { onDialogStateChange(AccountDialogState.Add) },
         contentDescription = stringResource(id = io.github.mojri.hesabyar.R.string.add_account)
       )
     }
-  ) { innerPadding ->
+  ) { contentPadding ->
     AccountManagementContent(
       accounts = accounts,
-      modifier = modifier,
-      innerPadding = innerPadding,
-      onOverflowEdit = { dialogState = AccountDialogState.Edit(it) },
+      contentPadding = contentPadding,
+      onOverflowEdit = { onDialogStateChange(AccountDialogState.Edit(it)) },
       onOverflowArchive = { accountViewModel.archiveAccount(it) },
-      onOverflowDelete = { dialogState = AccountDialogState.PendingDelete(it) },
+      onOverflowDelete = { onDialogStateChange(AccountDialogState.PendingDelete(it)) },
     )
   }
 
   AccountManagementDialogs(
     dialogState = dialogState,
-    onDismiss = { dialogState = AccountDialogState.None },
+    onDismiss = { onDialogStateChange(AccountDialogState.None) },
     onSaveAccount = { form ->
       scope.launch {
         val result =
@@ -213,7 +222,7 @@ fun AccountManagementScreen(
             color = form.color
           )
         if (result is AccountViewModel.AddAccountResult.Success) {
-          dialogState = AccountDialogState.None
+          onDialogStateChange(AccountDialogState.None)
         }
       }
     },
@@ -230,7 +239,7 @@ fun AccountManagementScreen(
           color = form.color
         )
       )
-      dialogState = AccountDialogState.None
+      onDialogStateChange(AccountDialogState.None)
     },
     onDeleteAccount = { account -> accountViewModel.deleteAccount(account) },
   )
@@ -339,15 +348,14 @@ private fun AccountDeleteWarningDialog(
 @Composable
 private fun AccountManagementContent(
   accounts: List<AccountEntity>,
-  modifier: Modifier,
-  innerPadding: PaddingValues,
+  contentPadding: PaddingValues,
   onOverflowEdit: (AccountEntity) -> Unit,
   onOverflowArchive: (AccountEntity) -> Unit,
   onOverflowDelete: (AccountEntity) -> Unit,
 ) {
   if (accounts.isEmpty()) {
     Box(
-      modifier = modifier.fillMaxSize().padding(innerPadding),
+      modifier = Modifier.fillMaxSize(),
       contentAlignment = Alignment.Center
     ) {
       Text(
@@ -358,8 +366,8 @@ private fun AccountManagementContent(
     }
   } else {
     LazyColumn(
-      modifier = modifier.fillMaxSize().padding(innerPadding),
-      contentPadding = PaddingValues(bottom = Dimens.FabClearance),
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = contentPadding,
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {
       items(accounts, key = { it.id }) { account ->
