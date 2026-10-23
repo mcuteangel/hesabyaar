@@ -39,7 +39,7 @@ internal fun CompactMainContent(
     modifier = Modifier.fillMaxSize().padding(innerPadding),
     contentAlignment = Alignment.TopCenter
   ) {
-    content()
+    AdaptiveContentContainer(content = content)
   }
 }
 

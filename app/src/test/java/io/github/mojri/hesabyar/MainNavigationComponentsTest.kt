@@ -179,6 +179,27 @@ class MainNavigationComponentsTest {
   }
 
   @Test
+  fun compactMainContentConstrainsWidthToContentMax() {
+    composeRule.setContent {
+      Box(modifier = Modifier.requiredWidth(EXPANDED_WIDTH)) {
+        CompactMainContent(
+          innerPadding = PaddingValues(0.dp),
+          content = {
+            Box(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .testTag(TAG_CONTENT),
+            )
+          }
+        )
+      }
+    }
+
+    composeRule.onNodeWithTag(TAG_CONTENT).assertWidthIsEqualTo(WindowSizeTokens.ContentMaxWidth)
+  }
+
+  @Test
   fun expandedMainContentConstrainsWidthToContentMax() {
     val sampleContent = "ExpandedContentSample"
 

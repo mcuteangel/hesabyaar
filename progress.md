@@ -6,10 +6,10 @@
 
 ## Active Task
 
-- **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
-- **Status:** Completed and verified (Phases 1-5 done; branch `feat/issue-458-page-scaffold`)
+- **Task:** Issue #458 — Address PR #538 review feedback and finalize adaptive layout
+- **Status:** In progress (branch `feat/issue-458-page-scaffold`)
 - **Branch:** `feat/issue-458-page-scaffold`
-- **Summary:** Established `HesabyarScaffold` in `ui/components/`, migrated `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen`, adopted `WindowSizeTokens.ContentMaxWidth` (840.dp) in `ExpandedMainContent`, added Robolectric unit tests in `HesabyarScaffoldTest`, and verified all static analysis and unit tests pass.
+- **Summary:** Extracted `AdaptiveContentContainer` in `ui/components/`, applied `ContentMaxWidth` (840.dp) constraint across `ExpandedMainContent` and `CompactMainContent`, applied `contentPadding` to empty-state screens for FAB clearance, and added Robolectric tests.
 - **Board:** Issue #458 set to `In Progress`
 - **Plan:** `plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`
 
@@ -17,7 +17,7 @@
 
 - [x] Create shared `HesabyarScaffold` composable in `ui/components/HesabyarScaffold.kt`.
 - [x] Migrate `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen` to `HesabyarScaffold`.
-- [x] Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold and `ExpandedMainContent`.
+- [x] Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold, `ExpandedMainContent`, and `CompactMainContent`.
 - [x] Provide automated Robolectric tests in `HesabyarScaffoldTest.kt` and `MainNavigationComponentsTest.kt`.
 - [x] Verify ktlint, detekt, and unit tests pass with zero errors.
 
@@ -31,7 +31,7 @@
     - [x] Added Robolectric unit tests in `HesabyarScaffoldTest.kt` covering title, custom topBar, FAB, clearance calculation, and width clamping
     - [x] Migrated `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` to `HesabyarScaffold`, deleting duplicated TopAppBar declarations
     - [x] Migrated `BankLoanScreen.kt` and `DashboardScreen.kt` to `HesabyarScaffold`, preserving `testTag("add_transaction_fab")`
-    - [x] Adopted `WindowSizeTokens.ContentMaxWidth` in `ExpandedMainContent` (`MainNavigationBars.kt`) with test in `MainNavigationComponentsTest.kt`
+    - [x] Adopted `WindowSizeTokens.ContentMaxWidth` in `ExpandedMainContent` and `CompactMainContent` (`MainNavigationBars.kt`) with tests in `MainNavigationComponentsTest.kt`
     - [x] Full test suite (1204 unit tests) passing, ktlint and detekt reporting zero findings
 
 - **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
@@ -51,9 +51,6 @@
     - [x] Migrated 19 screens and components from raw `.dp` and alpha literals to design tokens
     - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt`: 4 unit tests verifying tokens and ranges
     - [x] `plans/archive/018-complete-icon-size-and-alpha-tokens.md`: archived completed plan
-
-
-## Completed
 
 - **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
 - **Status:** Completed and verified
