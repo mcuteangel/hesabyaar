@@ -6,22 +6,42 @@
 
 ## Active Task
 
-- **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
-- **Status:** Implemented and verified; ktlint/detekt green, full suite 1180 tests 0 failures. PR #517 open with all review findings addressed.
-- **Branch:** `feat/issue-457-hesabyar-input-field-migration`
-- **Summary:** Migrated all 16 raw `OutlinedTextField` call sites across 9 files (`ManualTransactionFormSections.kt` 107,190,225,243,270`, `SettingsScreen.kt` 1296,1414`, `AccountManagementScreen.kt` 671`, `SmartAssistantScreen.kt` 1016`, `PersonsScreen.kt` 238`, `CategoryManagementScreen.kt` 403`, `AddPersonLoanDialog.kt` 108,115`, `ImportPassphraseDialog.kt` 102`, `ExportPassphraseDialog.kt` 99,107`) to `HesabyarInputField`. Extended wrapper with `leadingIcon`, `readOnly`, `colors: TextFieldColors?`, a `TextFieldValue` overload (cursor-preserving amount inputs), and changed `supportingText` from `String?` to `@Composable (() -> Unit)?`. Converted the 3 existing `String`-form `supportingText` callers (`BankLoanScreen.kt`, `SettingsScreen.kt`, `AccountManagementScreen.kt`) to composable lambdas. Extracted `defaultInputFieldColors()` to de-duplicate the two overloads. All `testTag`s (`manual_amount_input`, `parsed_amount_input`, `passphrase_field`, `persons_search`), keyboard types, `PasswordVisualTransformation`, and dynamic `typeColor` tinting preserved. After migration, only `HesabyarInputField.kt` imports `OutlinedTextField` in the whole app. Tests green: `ImportPassphraseDialogTest` (`passphrase_field` tag), `SmartAssistantScreenConfirmFlowTest` (`parsed_amount_input` tag).
-- **Board:** Issue #457 set to `In Progress` (item `PVTI_lAHOAD9VX84Bm0XazhAspLM`, Status field `PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`, option `47fc9ee4`).
-- **Plan:** `plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`
+- **Task:** Issue #458 — Address PR #538 review feedback and finalize adaptive layout
+- **Status:** In progress (branch `feat/issue-458-page-scaffold`)
+- **Branch:** `feat/issue-458-page-scaffold`
+- **Summary:** Extracted `AdaptiveContentContainer` in `ui/components/`, applied `ContentMaxWidth` (840.dp) constraint across `ExpandedMainContent` and `CompactMainContent`, applied `contentPadding` to empty-state screens for FAB clearance, and added Robolectric tests.
+- **Board:** Issue #458 set to `In Progress`
+- **Plan:** `plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`
 
 ## Goal
 
-- Extend `HesabyarInputField` with `leadingIcon`, `readOnly`, `colors`, `TextFieldValue` overload, and `supportingText: @Composable (() -> Unit)?`.
-- Migrate 16 raw `OutlinedTextField` call sites across 9 files to `HesabyarInputField`.
-- Convert existing 3 String-form `supportingText` callers to composable lambdas.
-- Verify zero raw `OutlinedTextField` usages in `app/src/main` outside `HesabyarInputField.kt`.
-- Run ktlint, detekt, and unit tests (all green).
+- [x] Create shared `HesabyarScaffold` composable in `ui/components/HesabyarScaffold.kt`.
+- [x] Migrate `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen` to `HesabyarScaffold`.
+- [x] Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold, `ExpandedMainContent`, and `CompactMainContent`.
+- [x] Provide automated Robolectric tests in `HesabyarScaffoldTest.kt` and `MainNavigationComponentsTest.kt`.
+- [x] Verify ktlint, detekt, and unit tests pass with zero errors.
 
 ## Completed
+
+- **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
+- **Status:** Completed and verified (branch `feat/issue-458-page-scaffold`)
+- **Completed Date:** 2026-10-23
+- **Deliverables:**
+    - [x] Created `HesabyarScaffold` in `ui/components/HesabyarScaffold.kt` with RTL TopAppBar, FAB slot, automatic bottom FAB clearance, and ContentMaxWidth (840.dp) centering
+    - [x] Added Robolectric unit tests in `HesabyarScaffoldTest.kt` covering title, custom topBar, FAB, clearance calculation, and width clamping
+    - [x] Migrated `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` to `HesabyarScaffold`, deleting duplicated TopAppBar declarations
+    - [x] Migrated `BankLoanScreen.kt` and `DashboardScreen.kt` to `HesabyarScaffold`, preserving `testTag("add_transaction_fab")`
+    - [x] Adopted `WindowSizeTokens.ContentMaxWidth` in `ExpandedMainContent` and `CompactMainContent` (`MainNavigationBars.kt`) with tests in `MainNavigationComponentsTest.kt`
+    - [x] Full test suite (1204 unit tests) passing, ktlint and detekt reporting zero findings
+
+- **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
+- **Status:** Implemented and verified (PR #517 open; 1180 tests passing, ktlint/detekt green)
+- **Completed Date:** 2026-10-18
+- **Deliverables:**
+    - [x] Migrated all 16 raw `OutlinedTextField` call sites across 9 files to `HesabyarInputField`
+    - [x] Extended `HesabyarInputField` with `leadingIcon`, `readOnly`, `colors`, `TextFieldValue` overload, and composable `supportingText`
+    - [x] Converted existing 3 String-form `supportingText` callers to composable lambdas
+    - [x] Verified zero raw `OutlinedTextField` usages in `app/src/main` outside `HesabyarInputField.kt`
 
 - **Task:** Issue #455 — Complete icon-size and alpha tokens in Dimens.kt (Plan 018)
 - **Status:** Completed and verified (PR #498)
@@ -31,9 +51,6 @@
     - [x] Migrated 19 screens and components from raw `.dp` and alpha literals to design tokens
     - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt`: 4 unit tests verifying tokens and ranges
     - [x] `plans/archive/018-complete-icon-size-and-alpha-tokens.md`: archived completed plan
-
-
-## Completed
 
 - **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
 - **Status:** Completed and verified

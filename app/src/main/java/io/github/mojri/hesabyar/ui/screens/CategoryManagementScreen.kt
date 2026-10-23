@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.SectionHeader
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -103,7 +104,6 @@ private val CategoryType.displayName: String
       CategoryType.UNKNOWN -> stringResource(R.string.category_type_unknown)
     }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryManagementScreen(
   categoryViewModel: CategoryViewModel,
@@ -115,104 +115,115 @@ fun CategoryManagementScreen(
   var editingCategory by remember { mutableStateOf<Category?>(null) }
   var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
 
-  Scaffold(
-    topBar = {
-      TopAppBar(
-        title = {
-          Text(
-            text = "مدیریت دسته‌بندی‌ها",
-            fontWeight = FontWeight.Bold
-          )
-        },
-        navigationIcon = {
-          IconButton(onClick = onBack) {
-            Icon(
-              imageVector = Icons.Filled.ArrowForward,
-              contentDescription = "بازگشت"
-            )
-          }
-        },
-        colors =
-          TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-          )
-      )
-    },
+  HesabyarScaffold(
+    modifier = modifier,
+    title = "مدیریت دسته‌بندی‌ها",
+    onBack = onBack,
     floatingActionButton = {
       HesabyarFab(
         onClick = { showAddDialog = true },
         contentDescription = "افزودن دسته‌بندی"
       )
     }
-  ) { innerPadding ->
-    if (categories.isEmpty()) {
-      Box(
-        modifier =
-          modifier
-            .fillMaxSize()
-            .padding(innerPadding),
-        contentAlignment = Alignment.Center
-      ) {
-        Text(
-          text = "هنوز دسته‌بندی‌ای ثبت نشده است.",
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-      }
-    } else {
-      val defaultCategories = categories.filter { it.isDefault }
-      val customCategories = categories.filter { !it.isDefault }
+  ) { contentPadding ->
+    CategoryManagementContent(
+      categories = categories,
+      contentPadding = contentPadding,
+      onEdit = { editingCategory = it },
+      onDelete = { showDeleteConfirmation = it }
+    )
+  }
 
-      LazyColumn(
-        modifier =
-          modifier
-            .fillMaxSize()
-            .padding(innerPadding),
-        contentPadding = PaddingValues(bottom = Dimens.FabClearance),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-      ) {
-        if (defaultCategories.isNotEmpty()) {
-          item {
-            SectionHeader(title = "دسته‌بندی‌های پیش‌فرض")
-          }
-          items(defaultCategories, key = { it.id }) { category ->
-            CategoryItem(
-              category = category,
-              isDefault = true,
-              onEdit = { editingCategory = it },
-              onDelete = { showDeleteConfirmation = it }
-            )
-          }
-        }
+  CategoryManagementDialogs(
+    showAddDialog = showAddDialog,
+    editingCategory = editingCategory,
+    showDeleteConfirmation = showDeleteConfirmation,
+    categoryViewModel = categoryViewModel,
+    onDismissAdd = { showAddDialog = false },
+    onDismissEdit = { editingCategory = null },
+    onDismissDelete = { showDeleteConfirmation = null }
+  )
+}
 
-        if (customCategories.isNotEmpty()) {
-          item {
-            SectionHeader(title = "دسته‌بندی‌های اختصاصی")
-          }
-          items(customCategories, key = { it.id }) { category ->
-            CategoryItem(
-              category = category,
-              isDefault = false,
-              onEdit = { editingCategory = it },
-              onDelete = { showDeleteConfirmation = it }
-            )
-          }
-        }
+@Composable
+private fun CategoryManagementContent(
+  categories: List<Category>,
+  contentPadding: PaddingValues,
+  onEdit: (Category) -> Unit,
+  onDelete: (Category) -> Unit,
+) {
+  if (categories.isEmpty()) {
+    Box(
+      modifier = Modifier.fillMaxSize().padding(contentPadding),
+      contentAlignment = Alignment.Center
+    ) {
+      Text(
+        text = "هنوز دسته‌بندی‌ای ثبت نشده است.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+    }
+  } else {
+    val defaultCategories = categories.filter { it.isDefault }
+    val customCategories = categories.filter { !it.isDefault }
 
+    LazyColumn(
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = contentPadding,
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      if (defaultCategories.isNotEmpty()) {
         item {
-          Spacer(modifier = Modifier.height(SpacingTokens.lg))
+          SectionHeader(title = "دسته‌بندی‌های پیش‌فرض")
         }
+        items(defaultCategories, key = { it.id }) { category ->
+          CategoryItem(
+            category = category,
+            isDefault = true,
+            onEdit = onEdit,
+            onDelete = onDelete
+          )
+        }
+      }
+
+      if (customCategories.isNotEmpty()) {
+        item {
+          SectionHeader(title = "دسته‌بندی‌های اختصاصی")
+        }
+        items(customCategories, key = { it.id }) { category ->
+          CategoryItem(
+            category = category,
+            isDefault = false,
+            onEdit = onEdit,
+            onDelete = onDelete
+          )
+        }
+      }
+
+      item {
+        Spacer(modifier = Modifier.height(SpacingTokens.lg))
       }
     }
   }
+}
 
+@Composable
+private fun CategoryManagementDialogs(
+  showAddDialog: Boolean,
+  editingCategory: Category?,
+  showDeleteConfirmation: Category?,
+  categoryViewModel: CategoryViewModel,
+  onDismissAdd: () -> Unit,
+  onDismissEdit: () -> Unit,
+  onDismissDelete: () -> Unit,
+) {
   if (showAddDialog) {
     CategoryDialog(
       initialCategory = null,
-      onDismiss = { showAddDialog = false },
+      onDismiss = onDismissAdd,
       onSave = { name, key, icon, color, type ->
         categoryViewModel.addCategory(name, key, icon, color, type)
-        showAddDialog = false
+        onDismissAdd()
       }
     )
   }
@@ -220,10 +231,10 @@ fun CategoryManagementScreen(
   if (editingCategory != null) {
     CategoryDialog(
       initialCategory = editingCategory,
-      onDismiss = { editingCategory = null },
+      onDismiss = onDismissEdit,
       onSave = { name, key, icon, color, type ->
         categoryViewModel.updateCategory(
-          editingCategory!!.copy(
+          editingCategory.copy(
             name = name,
             key = key,
             icon = icon,
@@ -231,21 +242,22 @@ fun CategoryManagementScreen(
             type = type
           )
         )
-        editingCategory = null
+        onDismissEdit()
       }
     )
   }
 
   if (showDeleteConfirmation != null) {
+    val categoryToDelete = showDeleteConfirmation
     ConfirmDialog(
       title = "حذف دسته‌بندی",
-      message = "آیا از حذف دسته‌بندی «${showDeleteConfirmation!!.name}» اطمینان دارید؟",
+      message = "آیا از حذف دسته‌بندی «${categoryToDelete.name}» اطمینان دارید؟",
       confirmText = "حذف",
       dismissText = "انصراف",
-      onDismiss = { showDeleteConfirmation = null },
+      onDismiss = onDismissDelete,
       onConfirm = {
-        categoryViewModel.deleteCategory(showDeleteConfirmation!!)
-        showDeleteConfirmation = null
+        categoryViewModel.deleteCategory(categoryToDelete)
+        onDismissDelete()
       }
     )
   }
