@@ -172,7 +172,8 @@ fun AccountManagementScreen(
     accountViewModel = accountViewModel,
     onBack = onBack,
     onDialogStateChange = { dialogState = it },
-    scope = scope
+    scope = scope,
+    currentDialogState = { dialogState }
   )
 }
 
@@ -186,6 +187,7 @@ private fun AccountManagementScaffoldSection(
   onBack: () -> Unit,
   onDialogStateChange: (AccountDialogState) -> Unit,
   scope: kotlinx.coroutines.CoroutineScope,
+  currentDialogState: () -> AccountDialogState = { dialogState },
 ) {
   HesabyarScaffold(
     modifier = modifier,
@@ -211,7 +213,7 @@ private fun AccountManagementScaffoldSection(
     dialogState = dialogState,
     onDismiss = { onDialogStateChange(AccountDialogState.None) },
     onSaveAccount = { form ->
-      val initiatingDialog = dialogState
+      val initiatingDialog = currentDialogState()
       scope.launch {
         val result =
           accountViewModel.addAccount(
@@ -226,7 +228,7 @@ private fun AccountManagementScaffoldSection(
           )
         // Close only the dialog this save started from. A later dialog,
         // opened while the insert was suspended, must stay open.
-        if (result is AccountViewModel.AddAccountResult.Success && dialogState == initiatingDialog) {
+        if (result is AccountViewModel.AddAccountResult.Success && currentDialogState() == initiatingDialog) {
           onDialogStateChange(AccountDialogState.None)
         }
       }

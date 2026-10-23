@@ -60,7 +60,7 @@ class CategoryManagementScreenTest {
   }
 
   @Test
-  fun emptyState_rendersScaffoldTitleBackAndEmptyMessage() {
+  fun emptyStateRendersScaffoldTitleBackAndEmptyMessage() {
     var backClicked = false
     composeRule.setContent {
       CategoryManagementScreen(
@@ -78,7 +78,7 @@ class CategoryManagementScreenTest {
   }
 
   @Test
-  fun withCategories_rendersDefaultAndCustomCategories() {
+  fun withCategoriesRendersDefaultAndCustomCategories() {
     val sampleCategories =
       listOf(
         Category(
@@ -118,7 +118,7 @@ class CategoryManagementScreenTest {
   }
 
   @Test
-  fun clickFab_opensAddCategoryDialog() {
+  fun clickFabOpensAddCategoryDialog() {
     composeRule.setContent {
       CategoryManagementScreen(
         categoryViewModel = viewModel,
@@ -133,7 +133,7 @@ class CategoryManagementScreenTest {
   }
 
   @Test
-  fun deleteCustomCategory_passesTheConfirmedCategoryToViewModel() {
+  fun deleteCustomCategoryPassesTheConfirmedCategoryToViewModel() {
     val deleted = mutableListOf<Category>()
     val recordingRepository =
       object : FakeRepository() {
