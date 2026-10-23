@@ -105,7 +105,10 @@ internal class LoanDisbursementSync(
    * or null. Only the persisted person name identifies the row: the
    * transaction keeps the name it was created with (a loan edit never
    * rewrites it), so including the updated name could only match unrelated
-   * rows. The row moves only when exactly one row matches.
+   * rows. Issue #537: the match also requires the expected disbursement
+   * direction — a repayment row with identical fields has the opposite
+   * direction and must not be stamped or moved. The row moves only when
+   * exactly one row matches.
    */
   private suspend fun findSingleLegacyDisbursementId(
     persisted: Loan,
@@ -118,12 +121,19 @@ internal class LoanDisbursementSync(
         null
       }
     return if (loansCategoryId != null) {
+      // Disbursement and repayment have opposite directions for the same
+      // loan type: CREDITOR receives the money (INCOME), DEBTOR hands it
+      // out (EXPENSE).
+      val disbursementType =
+        if (persisted.type == LoanType.CREDITOR) TransactionType.INCOME
+        else TransactionType.EXPENSE
       val ids =
         transactionLinkDao.findLegacyDisbursementIds(
           personNames = setOf(persisted.personName),
           categoryId = loansCategoryId,
           amount = persisted.originalAmount,
-          oldDate = persisted.date
+          oldDate = persisted.date,
+          type = disbursementType
         )
       ids.singleOrNull()
     } else {

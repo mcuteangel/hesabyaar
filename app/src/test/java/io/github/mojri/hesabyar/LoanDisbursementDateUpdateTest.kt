@@ -194,6 +194,51 @@ class LoanDisbursementDateUpdateTest {
     }
 
   @Test
+  fun dateEditDoesNotStampSameFieldsRepayment() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Legacy loan: tracked, but created before the loanId stamp, so no
+      // disbursement row was written by insertLoanWithInitial. DEBTOR, so
+      // the disbursement direction is EXPENSE and a repayment is INCOME.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      // Issue #537: a full repayment on the loan's start date matches every
+      // legacy field (person, category, amount, date) but has the opposite
+      // direction — it must not be stamped with the loan id or retimed.
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy repayment",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      val repayment = transactions.single { it.description == "legacy repayment" }
+      assertEquals(null, repayment.loanId)
+      assertEquals(5_000L, repayment.date)
+      val disbursement = transactions.single { it.description == "legacy disbursement" }
+      assertEquals(9_000L, disbursement.date)
+      assertEquals(loanId, disbursement.loanId)
+    }
+
+  @Test
   fun dateEditDoesNotMoveUnrelatedSameLoanIdRow() =
     runTest {
       val repo = createRepository()
