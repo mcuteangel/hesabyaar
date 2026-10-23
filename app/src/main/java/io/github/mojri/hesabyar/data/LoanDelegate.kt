@@ -91,12 +91,15 @@ internal class LoanDelegate(
       if (persisted.date != normalizedLoan.date) {
         disbursementSync.syncDisbursementDate(persisted, normalizedLoan)
       } else if (persisted.personName != normalizedLoan.personName ||
-        persisted.originalAmount != normalizedLoan.originalAmount
+        persisted.originalAmount != normalizedLoan.originalAmount ||
+        persisted.type != normalizedLoan.type
       ) {
         // Issue #532: a name/amount edit (date unchanged) would orphan an
         // unstamped legacy disbursement from future date syncs, which match
         // by the persisted fields. Stamp it now while those fields still
-        // identify it.
+        // identify it. Issue #537: a type edit does the same — the direction
+        // filter uses the persisted (old) type, so stamp before the type
+        // changes, or a later date edit would miss the old-direction row.
         disbursementSync.stampLegacyDisbursement(persisted, normalizedLoan)
       }
       loanDao.updateLoan(normalizedLoan)

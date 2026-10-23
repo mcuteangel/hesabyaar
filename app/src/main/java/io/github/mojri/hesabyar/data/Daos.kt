@@ -193,11 +193,14 @@ interface TransactionLinkDao {
   // must only move them when the match is unambiguous. Issue #537: also
   // filters on the expected disbursement transaction type — a repayment row
   // with identical fields (person, category, amount, date) has the opposite
-  // direction and must never be matched.
+  // direction and must never be matched. Rows linked to a payment history
+  // entry are repayments by construction, so they are excluded as well.
   @Query(
     "SELECT id FROM transactions WHERE loanId IS NULL " +
       "AND personName IN (:personNames) AND categoryId = :categoryId " +
-      "AND amount = :amount AND date = :oldDate AND type = :type"
+      "AND amount = :amount AND date = :oldDate AND type = :type " +
+      "AND id NOT IN (SELECT linkedTransactionId FROM payment_history " +
+      "WHERE linkedTransactionId IS NOT NULL)"
   )
   suspend fun findLegacyDisbursementIds(
     personNames: Set<String>,

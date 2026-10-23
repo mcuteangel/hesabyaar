@@ -92,13 +92,14 @@ class LoanDisbursementDateUpdateTest {
 
   private suspend fun seedTrackedLoan(
     loanDate: Long,
-    recordInitial: Boolean
+    recordInitial: Boolean,
+    type: LoanType = LoanType.DEBTOR
   ): Long {
     val repo = createRepository()
     return repo.insertLoanWithInitial(
       Loan(
         personName = "Ali",
-        type = LoanType.DEBTOR,
+        type = type,
         originalAmount = 5_000L,
         remainingAmount = 5_000L,
         description = "test",
@@ -236,6 +237,82 @@ class LoanDisbursementDateUpdateTest {
       val disbursement = transactions.single { it.description == "legacy disbursement" }
       assertEquals(9_000L, disbursement.date)
       assertEquals(loanId, disbursement.loanId)
+    }
+
+  @Test
+  fun dateEditDoesNotStampSameFieldsRepaymentCreditor() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // CREDITOR mirror: disbursement is INCOME, repayment is EXPENSE.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false, type = LoanType.CREDITOR)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy repayment",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      val repayment = transactions.single { it.description == "legacy repayment" }
+      assertEquals(null, repayment.loanId)
+      assertEquals(5_000L, repayment.date)
+      val disbursement = transactions.single { it.description == "legacy disbursement" }
+      assertEquals(9_000L, disbursement.date)
+      assertEquals(loanId, disbursement.loanId)
+    }
+
+  @Test
+  fun typeEditStampsLegacyDisbursementWithOldDirection() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Legacy DEBTOR loan: the disbursement direction is EXPENSE.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      // Type-only edit: no date/name/amount change. The legacy row must be
+      // stamped now, while the persisted (old) type still identifies its
+      // direction — otherwise a later date edit would miss it.
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(type = LoanType.CREDITOR)))
+      val stamped = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(loanId, stamped.loanId)
+      assertEquals(5_000L, stamped.date)
+
+      // A later date edit moves the stamped row via the loanId fast path,
+      // regardless of the direction filter.
+      val afterTypeEdit = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(afterTypeEdit.copy(date = 9_000L)))
+      val moved = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(9_000L, moved.date)
+      assertEquals(loanId, moved.loanId)
     }
 
   @Test
