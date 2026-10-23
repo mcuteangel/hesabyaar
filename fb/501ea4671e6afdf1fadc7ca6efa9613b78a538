@@ -1,0 +1,21 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/DashboardScreen.kt
+  s_081f9483dae610::t_f398b829977394 40,97-106,113-117
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_081f9483dae610::t_f398b829977394 45,57,62,65,74,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fb501ea4671e6afdf1fadc7ca6efa9613b78a538",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
