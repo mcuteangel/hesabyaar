@@ -4,7 +4,7 @@
 - **PR:** —
 - **Created:** 2026-10-23
 - **Author:** Claude Code
-- **Status:** TODO
+- **Status:** DONE
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -38,22 +38,22 @@ Issue #361 and the UI/UX audit (`hesabyar-ux-audit.md` findings E4, G7, Step 3.1
 
 ## 2. Goals & Acceptance Criteria
 
-- [ ] **Criterion 1 (Shared `HesabyarTopBar` Component):** A reusable `HesabyarTopBar` composable is created in `ui/components/HesabyarTopBar.kt`.
+- [x] **Criterion 1 (Shared `HesabyarTopBar` Component):** A reusable `HesabyarTopBar` composable is created in `ui/components/HesabyarTopBar.kt`.
   - Built on M3 `TopAppBar` with theme tokens (`surface` container color, `FontWeight.Bold` title, `Icons.Filled.ArrowForward` for RTL back navigation when `onBack != null`).
   - Automatically attaches `Modifier.semantics { heading() }` to the top-bar title `Text`.
   - Exposes an optional `actions: @Composable RowScope.() -> Unit = {}` slot.
-- [ ] **Criterion 2 (`SectionHeader` Heading Semantics):** `ui/components/SectionHeader.kt` applies `Modifier.semantics { heading() }` to its title `Text`. All call sites (`CategoryManagementScreen`, `DashboardScreen`, `ReportsScreen`, etc.) immediately become accessible heading stops for TalkBack.
-- [ ] **Criterion 3 (Persons & PersonDetailSheet Heading Integration):**
+- [x] **Criterion 2 (`SectionHeader` Heading Semantics):** `ui/components/SectionHeader.kt` applies `Modifier.semantics { heading() }` to its title `Text`. All call sites (`CategoryManagementScreen`, `DashboardScreen`, `ReportsScreen`, etc.) immediately become accessible heading stops for TalkBack.
+- [x] **Criterion 3 (Persons & PersonDetailSheet Heading Integration):**
   - `PersonDetailSheet.kt` person title (`personName`) in `PersonHeader` and section title (`"تاریخچه تراکنش‌ها و وام‌ها"`) expose `heading()` semantics.
   - `PersonsScreen.kt` embedded layout conforms to Step 3.1 architecture (no duplicate top app bar below DebtHub tabs; empty state and filter headers exposed with proper accessibility).
-- [ ] **Criterion 4 (Heading Semantics Across Core Screens):** Screen titles and section headers in `AnalyticsScreen.kt`, `SettingsScreen.kt`, and `SmartAssistantScreen.kt` expose `heading()` semantics for TalkBack navigation.
-- [ ] **Criterion 5 (Emoji Removal):** All 22+ literal emoji characters in `ui/` are removed from titles and labels. Where visual accents are needed, Compose `Icon` or `IconCircle` components with `contentDescription = null` are used.
+- [x] **Criterion 4 (Heading Semantics Across Core Screens):** Screen titles and section headers in `AnalyticsScreen.kt`, `SettingsScreen.kt`, and `SmartAssistantScreen.kt` expose `heading()` semantics for TalkBack navigation.
+- [x] **Criterion 5 (Emoji Removal):** All 22+ literal emoji characters in `ui/` are removed from titles and labels. Where visual accents are needed, Compose `Icon` or `IconCircle` components with `contentDescription = null` are used.
   - Documented exception: conversational markdown templates in `api/` (`BudgetAdviceGenerator.kt`, `BudgetAdvisor.kt`, `LocalBudgetAdvice.kt`, `LocalBudgetForecast.kt`) generate chat-style markdown advice and are preserved or documented.
-- [ ] **Criterion 6 (Automated Verification & Tests):**
+- [x] **Criterion 6 (Automated Verification & Tests):**
   - `HesabyarTopBarTest.kt` verifies title rendering, heading semantics, back button click behavior, and action slots.
   - `SectionHeaderTest.kt` verifies title rendering and heading semantics.
   - An automated test (or static check) confirms `rg '[\x{1F300}-\x{1FAFF}]' app/src/main/java/io/github/mojri/hesabyar/ui` returns 0 matches.
-- [ ] **Criterion 7 (Static Checks & Verification):**
+- [x] **Criterion 7 (Static Checks & Verification):**
   - `./gradlew ktlintCheck detekt --no-daemon` passes with 0 findings; no detekt baseline modifications.
   - `./gradlew testDebugUnitTest --no-daemon` passes with 0 failures.
   - `python3 scripts/check_docs.py` reports 0 broken path references.
