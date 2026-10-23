@@ -1,12 +1,7 @@
 package io.github.mojri.hesabyar.ui.components
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -63,25 +57,16 @@ fun HesabyarScaffold(
     floatingActionButtonPosition = floatingActionButtonPosition,
     containerColor = containerColor,
   ) { innerPadding ->
-    Box(
-      modifier = Modifier.fillMaxSize().padding(innerPadding),
-      contentAlignment = Alignment.TopCenter,
+    AdaptiveContentContainer(
+      modifier = Modifier.padding(innerPadding),
+      contentMaxWidth = contentMaxWidth,
+      applyContentMaxWidth = applyContentMaxWidth,
     ) {
-      Box(
-        modifier =
-          if (applyContentMaxWidth) {
-            Modifier.fillMaxHeight().widthIn(max = contentMaxWidth).fillMaxWidth()
-          } else {
-            Modifier.fillMaxSize()
-          },
-        contentAlignment = Alignment.TopCenter,
-      ) {
-        val scaffoldContentPadding =
-          PaddingValues(
-            bottom = if (floatingActionButton != null) Dimens.FabClearance else 0.dp,
-          )
-        content(scaffoldContentPadding)
-      }
+      val scaffoldContentPadding =
+        PaddingValues(
+          bottom = if (floatingActionButton != null) Dimens.FabClearance else 0.dp,
+        )
+      content(scaffoldContentPadding)
     }
   }
 }

@@ -62,7 +62,7 @@ fun BankLoanScreen(
   ) { contentPadding ->
     if (bankLoans.isEmpty()) {
       Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(contentPadding),
         contentAlignment = Alignment.Center
       ) {
         Text("وام بانکی ثبت نشده است", style = MaterialTheme.typography.bodyLarge)

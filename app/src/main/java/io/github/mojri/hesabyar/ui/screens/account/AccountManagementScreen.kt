@@ -355,7 +355,7 @@ private fun AccountManagementContent(
 ) {
   if (accounts.isEmpty()) {
     Box(
-      modifier = Modifier.fillMaxSize(),
+      modifier = Modifier.fillMaxSize().padding(contentPadding),
       contentAlignment = Alignment.Center
     ) {
       Text(

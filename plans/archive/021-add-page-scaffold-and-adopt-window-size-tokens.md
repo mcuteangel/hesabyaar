@@ -133,7 +133,7 @@ fun HesabyarScaffold(
               IconButton(onClick = onBack) {
                 Icon(
                   imageVector = Icons.Filled.ArrowForward,
-                  contentDescription = stringResource(R.string.cancel_label)
+                  contentDescription = stringResource(R.string.back_navigation_description)
                 )
               }
             }
