@@ -7,13 +7,13 @@
 ## Active Task
 
 - **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
-- **Status:** In progress (executing phases). Board status set to In Progress.
+- **Status:** Completed. All phases merged on branch `feat/issue-361-topbar-heading-semantics` (commits f584f384, f6b994be, 457672eb, 60f57f8). Plan moved to `plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`. PR to be opened against `main`.
 - **Branch:** `feat/issue-361-topbar-heading-semantics`
-- **Note:** Plan 021 (issue #458, page scaffold) runs in parallel on branch `feat/issue-458-page-scaffold` in a separate worktree — do not duplicate its work here. Plan 022 creates `ui/components/HesabyarTopBar.kt` (plan 013 Step 3.1 scope), which is distinct from `HesabyarScaffold`.
+- **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
 
 ## Goal
 
-Execute plan 022 (issue #361): shared `HesabyarTopBar`, `heading()` semantics on section/screen titles, and zero literal emoji in `ui/`.
+Plan 022 complete. Ready for PR creation against `main`.
 
 ## Completed
 

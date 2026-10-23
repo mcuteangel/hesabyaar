@@ -40,7 +40,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 019  | Remove dead design-system tokens (`plans/archive/019-remove-or-wire-dead-tokens.md`, issue #456, PR #515) | P3 | XS | — | DONE (merged in PR #515) |
 | 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457, PR #517) | P3 | M | — | IN PROGRESS (PR #517 open; verification green) |
 | 021  | [Design System] Add page-scaffold standard & adopt WindowSizeTokens (`plans/021-add-page-scaffold-and-adopt-window-size-tokens.md`, issue #458) <!-- check-docs: ignore — file lives on branch feat/issue-458-page-scaffold --> | P1 | M | 015 (shared component family pattern) | IN PROGRESS on `feat/issue-458-page-scaffold` (component + tests + 4-screen migration done; expanded-content and remaining steps pending — see the plan file on that branch) |
-| 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | TODO (plan under review) |
+| 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | DONE (branch `feat/issue-361-topbar-heading-semantics`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
