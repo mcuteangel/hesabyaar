@@ -29,7 +29,7 @@ internal class LoanDisbursementSync(
   ) {
     val targetId = findDisbursementIdToMove(persisted, updated)
     if (targetId != null) {
-      transactionLinkDao.updateTransactionDateById(targetId, updated.date)
+      transactionLinkDao.updateTransactionById(targetId, updated.date)
     }
   }
 
@@ -84,13 +84,15 @@ internal class LoanDisbursementSync(
    * persisted fields and stamp it with the loan id, returning its id — or
    * null when no unambiguous row exists. Stamping lets later edits and
    * deletes use the stable loanId key instead of fragile field matching.
+   * The date is left at the persisted value here; callers move it when the
+   * edit changed the date.
    */
   private suspend fun findAndStampLegacyDisbursement(
     persisted: Loan,
     updated: Loan
   ): Long? {
     val id = findSingleLegacyDisbursementId(persisted, updated) ?: return null
-    transactionLinkDao.stampTransactionLoanId(id, updated.id)
+    transactionLinkDao.updateTransactionById(id, persisted.date, updated.id)
     return id
   }
 

@@ -203,21 +203,15 @@ interface TransactionLinkDao {
     oldDate: Long
   ): List<Long>
 
-  // Issue #532: move one transaction, identified by primary key, to a new
-  // date. Used after an exact-id lookup, never with a bulk match.
-  @Query("UPDATE transactions SET date = :newDate WHERE id = :id")
-  suspend fun updateTransactionDateById(
+  // Issue #532: update one transaction, identified by primary key: move it
+  // to a new date, optionally stamping it with a loan id. Used after an
+  // exact-id lookup, never with a bulk match. A null loanId leaves any
+  // existing stamp untouched.
+  @Query("UPDATE transactions SET date = :newDate, loanId = COALESCE(:loanId, loanId) WHERE id = :id")
+  suspend fun updateTransactionById(
     id: Long,
-    newDate: Long
-  )
-
-  // Issue #532: stamp an unstamped legacy disbursement with its loan id so
-  // later edits and deletes find it by stable key. Only called after an
-  // exactly-one match.
-  @Query("UPDATE transactions SET loanId = :loanId WHERE id = :id")
-  suspend fun stampTransactionLoanId(
-    id: Long,
-    loanId: Long
+    newDate: Long,
+    loanId: Long? = null
   )
 }
 
