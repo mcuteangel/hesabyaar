@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -93,7 +92,6 @@ fun PersonDetailSheet(
           containerColor = Color.Transparent,
           titleContentColor = MaterialTheme.colorScheme.onSurface,
         ),
-      windowInsets = WindowInsets(0),
     )
     PersonSheetContent(
       balance = currentBalance,
@@ -107,7 +105,6 @@ fun PersonDetailSheet(
           settleError = dialogState.settleError,
           isSettling = isSettling
         ),
-      modifier = Modifier.weight(1f, fill = false)
     )
   }
 
