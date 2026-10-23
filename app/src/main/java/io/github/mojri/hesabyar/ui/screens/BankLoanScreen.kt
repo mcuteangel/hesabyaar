@@ -4,13 +4,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -22,7 +19,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,9 +42,8 @@ import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
-import io.github.mojri.hesabyar.ui.designsystem.Dimens
+import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.designsystem.WindowSizeTokens
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 
 @Composable
@@ -59,15 +54,15 @@ fun BankLoanScreen(
   val bankLoans by bankLoanViewModel.bankLoans.collectAsState()
   var showAddDialog by remember { mutableStateOf(false) }
 
-  Scaffold(
+  HesabyarScaffold(
     modifier = modifier,
     floatingActionButton = {
       HesabyarFab(onClick = { showAddDialog = true }, contentDescription = "افزودن وام بانکی")
     }
-  ) { innerPadding ->
+  ) { contentPadding ->
     if (bankLoans.isEmpty()) {
       Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
       ) {
         Text("وام بانکی ثبت نشده است", style = MaterialTheme.typography.bodyLarge)
@@ -76,14 +71,10 @@ fun BankLoanScreen(
       LazyColumn(
         modifier =
           Modifier
-            .wrapContentWidth(Alignment.CenterHorizontally)
-            .widthIn(
-              max = WindowSizeTokens.ContentMaxWidth
-            ).fillMaxSize()
-            .padding(innerPadding)
+            .fillMaxSize()
             .padding(SpacingTokens.md),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
-        contentPadding = PaddingValues(bottom = Dimens.FabClearance)
+        contentPadding = contentPadding
       ) {
         items(bankLoans, key = { it.id }) { loan ->
           BankLoanItem(
