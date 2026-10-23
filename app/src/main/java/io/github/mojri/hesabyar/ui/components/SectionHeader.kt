@@ -6,6 +6,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 @Composable
@@ -29,7 +31,7 @@ fun SectionHeader(
       text = title,
       style = MaterialTheme.typography.titleMedium,
       color = MaterialTheme.colorScheme.onSurface,
-      modifier = if (action != null) Modifier.weight(1f) else Modifier
+      modifier = (if (action != null) Modifier.weight(1f) else Modifier).semantics { heading() }
     )
     action?.invoke()
   }

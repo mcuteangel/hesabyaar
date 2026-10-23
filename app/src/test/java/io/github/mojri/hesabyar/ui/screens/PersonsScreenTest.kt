@@ -1,6 +1,9 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -352,6 +355,31 @@ class PersonsScreenTest {
     composeRule.onNodeWithContentDescription(rowDescription(NAME_REZA, LABEL_CREDITOR, -200_000L)).assertIsDisplayed()
     composeRule.onNodeWithContentDescription(rowDescription(NAME_ALI, LABEL_DEBTOR, 100_000L)).assertDoesNotExist()
     composeRule.onNodeWithContentDescription(rowDescription(NAME_SARA, LABEL_BALANCED, 0L)).assertDoesNotExist()
+  }
+
+  @Test
+  fun showTopBarRendersHesabyarTopBarWithHeadingSemantics() {
+    var backClicked = false
+    composeRule.setContent {
+      PersonsScreen(
+        personViewModel = viewModel,
+        showTopBar = true,
+        onBack = { backClicked = true },
+      )
+    }
+    settle()
+
+    composeRule
+      .onNodeWithText("اشخاص")
+      .assertIsDisplayed()
+      .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+
+    composeRule
+      .onNodeWithContentDescription("بازگشت")
+      .assertIsDisplayed()
+      .performClick()
+
+    assertEquals("Back callback should be invoked", true, backClicked)
   }
 
   private companion object {
