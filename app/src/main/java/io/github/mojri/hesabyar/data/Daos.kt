@@ -210,6 +210,15 @@ interface TransactionLinkDao {
     id: Long,
     newDate: Long
   )
+
+  // Issue #532: stamp an unstamped legacy disbursement with its loan id so
+  // later edits and deletes find it by stable key. Only called after an
+  // exactly-one match.
+  @Query("UPDATE transactions SET loanId = :loanId WHERE id = :id")
+  suspend fun stampTransactionLoanId(
+    id: Long,
+    loanId: Long
+  )
 }
 
 @Dao

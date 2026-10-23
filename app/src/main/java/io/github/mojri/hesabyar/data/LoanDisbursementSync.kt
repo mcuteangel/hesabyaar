@@ -34,6 +34,19 @@ internal class LoanDisbursementSync(
   }
 
   /**
+   * Issue #532: stamp the legacy (unstamped) disbursement with the loan id
+   * when a name/amount edit would otherwise orphan it from future date
+   * syncs. The row is found by the persisted (pre-edit) fields, which still
+   * identify it; only stamps on an exactly-one match.
+   */
+  suspend fun stampLegacyDisbursement(
+    persisted: Loan,
+    updated: Loan
+  ) {
+    findAndStampLegacyDisbursement(persisted, updated)
+  }
+
+  /**
    * Issue #532: id of the disbursement row that may move to the new date, or
    * null when nothing may move.
    */
@@ -60,10 +73,25 @@ internal class LoanDisbursementSync(
     return if (stampedIds.size == 1) {
       stampedIds[0]
     } else if (stampedIds.isEmpty()) {
-      findSingleLegacyDisbursementId(persisted, updated)
+      findAndStampLegacyDisbursement(persisted, updated)
     } else {
       null
     }
+  }
+
+  /**
+   * Issue #532: find the legacy (pre-#242, unstamped) disbursement by the
+   * persisted fields and stamp it with the loan id, returning its id — or
+   * null when no unambiguous row exists. Stamping lets later edits and
+   * deletes use the stable loanId key instead of fragile field matching.
+   */
+  private suspend fun findAndStampLegacyDisbursement(
+    persisted: Loan,
+    updated: Loan
+  ): Long? {
+    val id = findSingleLegacyDisbursementId(persisted, updated) ?: return null
+    transactionLinkDao.stampTransactionLoanId(id, updated.id)
+    return id
   }
 
   /**

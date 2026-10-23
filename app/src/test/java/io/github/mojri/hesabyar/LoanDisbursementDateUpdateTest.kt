@@ -271,4 +271,88 @@ class LoanDisbursementDateUpdateTest {
       assertEquals(2, transactions.size)
       assertTrue(transactions.all { it.date == 5_000L })
     }
+
+  @Test
+  fun nameEditStampsLegacyDisbursementForLaterDateEdit() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Legacy loan: tracked, but created before the loanId stamp.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      // Rename without touching the date: the legacy row must be stamped
+      // now, while the old name still identifies it.
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(personName = "Sara")))
+      assertEquals(loanId, disbursementFor(loanId).loanId)
+
+      // A later date edit finds the row by its new stamp, not by the
+      // (now stale) person name.
+      val renamed = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(renamed.copy(date = 9_000L)))
+      assertEquals(9_000L, disbursementFor(loanId).date)
+    }
+
+  @Test
+  fun amountEditStampsLegacyDisbursement() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(originalAmount = 8_000L)))
+
+      val stamped = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(loanId, stamped.loanId)
+      assertEquals(5_000L, stamped.date)
+    }
+
+  @Test
+  fun ambiguousLegacyRowsAreNotStampedOnNameEdit() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      val categoryId = loansCategoryId()
+      repeat(2) {
+        database.transactionDao().insertTransaction(
+          Transaction(
+            type = TransactionType.EXPENSE,
+            categoryId = categoryId,
+            amount = 5_000L,
+            description = "legacy disbursement",
+            personName = "Ali",
+            date = 5_000L
+          )
+        )
+      }
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(personName = "Sara")))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      assertEquals(2, transactions.size)
+      assertTrue(transactions.all { it.loanId == null })
+    }
 }
