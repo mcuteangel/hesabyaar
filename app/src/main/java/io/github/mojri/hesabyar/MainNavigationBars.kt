@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import io.github.mojri.hesabyar.ui.components.AdaptiveContentContainer
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 
 @Composable
@@ -38,7 +39,7 @@ internal fun CompactMainContent(
     modifier = Modifier.fillMaxSize().padding(innerPadding),
     contentAlignment = Alignment.TopCenter
   ) {
-    content()
+    AdaptiveContentContainer(content = content)
   }
 }
 
@@ -57,11 +58,8 @@ internal fun ExpandedMainContent(
       onTabSelected = onTabSelected,
       onMoreClick = onMoreClick
     )
-    Box(
-      modifier = Modifier.fillMaxSize().padding(innerPadding).weight(1f),
-      contentAlignment = Alignment.TopCenter
-    ) {
-      content()
+    Box(modifier = Modifier.fillMaxSize().padding(innerPadding).weight(1f)) {
+      AdaptiveContentContainer(content = content)
     }
   }
 }

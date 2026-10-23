@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.ui.AccountViewModel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -60,5 +61,15 @@ class AccountManagementScreenDeleteDialogTest {
         state.message == "خطا در بررسی حساب: x" &&
         state.account == account
     )
+  }
+
+  @Test
+  fun addDialogInstancesWithDifferentTokensAreNotEqual() {
+    val add1 = AccountDialogState.Add(instanceId = 1L)
+    val add2 = AccountDialogState.Add(instanceId = 2L)
+    val add3 = AccountDialogState.Add(instanceId = 1L)
+
+    assertEquals("Add states with the same token must compare equal", add1, add3)
+    assertNotEquals("Add states with distinct tokens must not compare equal", add1, add2)
   }
 }
