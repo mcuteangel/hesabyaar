@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-10-23
+نسخه 0.16.0 حساب‌یار منتشر شد.
+
+### امکانات جدید
+* feat(adaptive): adopt WindowSizeTokens.ContentMaxWidth in navigation rail container
+* feat(design-system): add HesabyarScaffold standard component
+
+### رفع مشکلات
+* fix(ui): use AutoMirrored ArrowBack for scaffold back navigation
+* fix(ui): pass dynamic dialog state accessor and format test names for Codacy
+* fix(ui): guard dialog race conditions and add CategoryManagementScreen tests
+* fix(account): guard add-account dialog dismissal against race condition
+
+### بهبودها و تغییرات
+* test(navigation): add compact-mode ContentMaxWidth clamp test and update progress
+* refactor(ui): extract AdaptiveContentContainer and apply FAB padding in empty states
+* docs(plans): mark plan 021 as DONE and archive
+* refactor(ui): migrate BankLoanScreen and DashboardScreen to HesabyarScaffold
+* refactor(ui): migrate CategoryManagementScreen and AccountManagementScreen to HesabyarScaffold
 ## [0.15.9] - 2026-10-23
 در این به‌روزرسانی، تمرکز اصلی ما بر بهبود پایداری و رفع مشکلات مربوط به مدیریت وام‌ها بوده است تا تجربه کاربری روان‌تری داشته باشید.
 
