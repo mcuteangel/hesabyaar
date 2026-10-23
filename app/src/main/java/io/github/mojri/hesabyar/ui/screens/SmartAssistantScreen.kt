@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -252,7 +254,7 @@ fun SmartAssistantScreen(
               verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
             ) {
               Text(
-                text = "💡 عبارت‌های نمونه جهت آزمایش:",
+                text = "عبارت‌های نمونه جهت آزمایش:",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -593,10 +595,11 @@ fun SmartAssistantScreen(
                     verticalAlignment = Alignment.CenterVertically
                   ) {
                     Text(
-                      text = "💡 نتایج مشاوره و توصیه‌های بودجه",
+                      text = "نتایج مشاوره و توصیه‌های بودجه",
                       style = MaterialTheme.typography.titleMedium,
                       fontWeight = FontWeight.Bold,
-                      color = MaterialTheme.colorScheme.primary
+                      color = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.semantics { heading() },
                     )
                     IconButton(onClick = {
                       aiAssistantViewModel.fetchBudgetAdvice(

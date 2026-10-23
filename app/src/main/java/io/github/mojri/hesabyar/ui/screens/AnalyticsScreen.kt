@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,7 +67,8 @@ fun AnalyticsScreen(
         text = "تحلیل و آمار پیشرفته",
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onBackground
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.semantics { heading() },
       )
     }
 
@@ -83,7 +86,7 @@ fun AnalyticsScreen(
     // Monthly Spending Trend Chart
     item {
       MonthlyTrendCard(
-        title = "📈 روند هزینه‌های ماهانه",
+        title = "روند هزینه‌های ماهانه",
         data = analyticsData.monthlySpending,
         getValue = { it.expense },
         color = MaterialTheme.colorScheme.error
@@ -93,7 +96,7 @@ fun AnalyticsScreen(
     // Monthly Income Trend Chart
     item {
       MonthlyTrendCard(
-        title = "💰 روند درآمدهای ماهانه",
+        title = "روند درآمدهای ماهانه",
         data = analyticsData.monthlyIncome,
         getValue = { it.income },
         color = MaterialTheme.colorScheme.primary
@@ -123,7 +126,7 @@ fun AnalyticsScreen(
     // Debt Summary
     item {
       DebtCreditSummaryCard(
-        title = "👥 خلاصه بدهکاران",
+        title = "خلاصه بدهکاران",
         items = analyticsData.debtors,
         totalAmount = analyticsData.totalDebt,
         icon = Icons.Filled.AccountBalance,
@@ -134,7 +137,7 @@ fun AnalyticsScreen(
     // Creditor Summary
     item {
       DebtCreditSummaryCard(
-        title = "🏦 خلاصه طلبکاران",
+        title = "خلاصه طلبکاران",
         items = analyticsData.creditors,
         totalAmount = analyticsData.totalCredit,
         icon = Icons.Filled.CreditCard,
@@ -183,7 +186,8 @@ private fun MonthlyTrendCard(
         text = title,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.semantics { heading() },
       )
 
       if (data.isEmpty()) {
@@ -239,9 +243,10 @@ private fun CombinedLineChartCard(
   ) {
     Column {
       Text(
-        text = "📊 مقایسه درآمد و هزینه",
+        text = "مقایسه درآمد و هزینه",
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.semantics { heading() },
       )
       Spacer(modifier = Modifier.height(SpacingTokens.md))
 
@@ -334,10 +339,11 @@ private fun CategoryBreakdownCard(categoryBreakdown: List<CategoryBreakdown>) {
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
       Text(
-        text = "🍩 توزیع هزینه‌ها بر اساس دسته‌بندی",
+        text = "توزیع هزینه‌ها بر اساس دسته‌بندی",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.semantics { heading() },
       )
 
       if (categoryBreakdown.isEmpty()) {
@@ -430,7 +436,8 @@ private fun DebtCreditSummaryCard(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.semantics { heading() },
           )
         }
         Text(
@@ -533,10 +540,11 @@ private fun LoanStatusCard(loans: List<Loan>) {
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
       Text(
-        text = "📊 وضعیت وام‌ها",
+        text = "وضعیت وام‌ها",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.semantics { heading() },
       )
 
       if (loans.isEmpty()) {
@@ -622,10 +630,11 @@ private fun BankLoanStatusCard(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text(
-          text = "🏦 وضعیت وام‌های بانکی",
+          text = "وضعیت وام‌های بانکی",
           style = MaterialTheme.typography.titleSmall,
           fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary
+          color = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.semantics { heading() },
         )
         Text(
           text = CurrencyFormatter.format(totalDebt),
