@@ -13,10 +13,13 @@ internal class LoanDisbursementSync(
 ) {
   /**
    * Move the disbursement transaction when a loan date edit is accepted. The
-   * fast path moves stamped rows that are in sync with the loan date; the
-   * fallback heals a single diverged stamped row, or moves a single
-   * unambiguous legacy (pre-#242, unstamped) row. Corrupt duplicates are
-   * never moved. Loans created untracked have no disbursement row; a loan
+   * fast path moves stamped rows that are in sync with the loan date — those
+   * are certainly the disbursement (or its exact duplicates, which move
+   * together consistently). The fallback heals a single diverged stamped
+   * row, or moves a single unambiguous legacy (pre-#242, unstamped) row.
+   * Diverged rows in a multi-row set are never touched: they are ambiguous
+   * (duplicate? corrupt attachment?) and guessing would risk retiming the
+   * wrong row. Loans created untracked have no disbursement row; a loan
    * flipped from tracked to untracked keeps its stamped row, which still
    * moves with the loan date.
    */
@@ -65,8 +68,10 @@ internal class LoanDisbursementSync(
 
   /**
    * Issue #532: id of the legacy (pre-#242, unstamped) disbursement to move,
-   * or null. The persisted fields identify the row but carry no loan
-   * identity, so the row moves only when exactly one row matches.
+   * or null. Only the persisted person name identifies the row: the
+   * transaction keeps the name it was created with (a loan edit never
+   * rewrites it), so including the updated name could only match unrelated
+   * rows. The row moves only when exactly one row matches.
    */
   private suspend fun findSingleLegacyDisbursementId(
     persisted: Loan,
@@ -81,7 +86,7 @@ internal class LoanDisbursementSync(
     return if (loansCategoryId != null) {
       val ids =
         transactionLinkDao.findLegacyDisbursementIds(
-          personNames = setOf(persisted.personName, updated.personName),
+          personNames = setOf(persisted.personName),
           categoryId = loansCategoryId,
           amount = persisted.originalAmount,
           oldDate = persisted.date
