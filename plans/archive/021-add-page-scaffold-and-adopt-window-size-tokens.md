@@ -4,7 +4,7 @@
 - **PR:** —
 - **Created:** 2026-10-19
 - **Author:** Claude Code
-- **Status:** TODO
+- **Status:** DONE
 
 ## 1. Problem Statement
 
@@ -28,34 +28,34 @@ Every full-screen or sub-page in Hesabyar manages its own layout shell by hand, 
 
 ## 2. Goals & Acceptance Criteria
 
-- [ ] **Criterion 1 (Shared Component):** A reusable `HesabyarScaffold` composable is created in `ui/components/HesabyarScaffold.kt`. It encapsulates:
+- [x] **Criterion 1 (Shared Component):** A reusable `HesabyarScaffold` composable is created in `ui/components/HesabyarScaffold.kt`. It encapsulates:
   - Standard top app bar support via `title: String? = null` and `onBack: (() -> Unit)? = null` (rendering M3 `TopAppBar` with RTL-correct back navigation `Icons.Filled.ArrowForward` and `surface` container color), or a customizable `topBar: (@Composable () -> Unit)? = null` slot.
   - Floating action button slot (`floatingActionButton: @Composable () -> Unit = {}`, `floatingActionButtonPosition: FabPosition = FabPosition.End`).
   - Automatic adaptive content centering using `WindowSizeTokens.ContentMaxWidth` (`840.dp`), enabled by default via `applyContentMaxWidth: Boolean = true` (overridable when a full-width canvas is needed).
   - Lambda slot `content: @Composable (contentPadding: PaddingValues) -> Unit` that provides standard content padding (including `bottom = Dimens.FabClearance` when a FAB is present) while consuming Scaffold `innerPadding` so child layouts never have to manage system or top-bar offsets manually.
-- [ ] **Criterion 2 (Migrate Overlay Screens):** `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` migrate from raw `Scaffold` + duplicated `TopAppBar` to `HesabyarScaffold(title = ..., onBack = onBack, floatingActionButton = { ... })`:
+- [x] **Criterion 2 (Migrate Overlay Screens):** `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` migrate from raw `Scaffold` + duplicated `TopAppBar` to `HesabyarScaffold(title = ..., onBack = onBack, floatingActionButton = { ... })`:
   - Duplicated `TopAppBar` declarations are deleted.
   - Manual `innerPadding` handling is replaced by `contentPadding`.
   - Content on both screens automatically gains `WindowSizeTokens.ContentMaxWidth` centering on large screens.
-- [ ] **Criterion 3 (Migrate BankLoanScreen):** `BankLoanScreen.kt` migrates from raw `Scaffold` to `HesabyarScaffold`:
+- [x] **Criterion 3 (Migrate BankLoanScreen):** `BankLoanScreen.kt` migrates from raw `Scaffold` to `HesabyarScaffold`:
   - Manual `.wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = WindowSizeTokens.ContentMaxWidth)` at lines 79–82 is removed in favor of `HesabyarScaffold`'s built-in centering.
-- [ ] **Criterion 4 (Migrate DashboardScreen):** `DashboardScreen.kt` migrates from ad-hoc `Box` + aligned FAB to `HesabyarScaffold`:
+- [x] **Criterion 4 (Migrate DashboardScreen):** `DashboardScreen.kt` migrates from ad-hoc `Box` + aligned FAB to `HesabyarScaffold`:
   - `HesabyarFab` is hosted in `HesabyarScaffold`'s `floatingActionButton` slot with `.testTag("add_transaction_fab")` preserved.
   - Content gains `WindowSizeTokens.ContentMaxWidth` centering on tablets/foldables.
-- [ ] **Criterion 5 (Expanded Window Adaptive Alignment):** In `MainNavigationBars.kt:61` (`ExpandedMainContent`), the content container applies `.widthIn(max = WindowSizeTokens.ContentMaxWidth)` to enforce readable line lengths for all main tabs in navigation rail mode.
-- [ ] **Criterion 6 (Unit Tests):** Automated Robolectric tests in `HesabyarScaffoldTest.kt` cover:
+- [x] **Criterion 5 (Expanded Window Adaptive Alignment):** In `MainNavigationBars.kt:61` (`ExpandedMainContent`), the content container applies `.widthIn(max = WindowSizeTokens.ContentMaxWidth)` to enforce readable line lengths for all main tabs in navigation rail mode.
+- [x] **Criterion 6 (Unit Tests):** Automated Robolectric tests in `HesabyarScaffoldTest.kt` cover:
   - Title and back button rendering and click callback.
   - Custom `topBar` slot rendering.
   - Floating action button rendering and semantics.
   - Content centering and max-width constraint application.
   - `contentPadding` bottom clearance matches `Dimens.FabClearance` when a FAB is supplied, and `0.dp` when absent.
-- [ ] **Criterion 7 (Static Analysis & Tests Green):**
+- [x] **Criterion 7 (Static Analysis & Tests Green):**
   - `./gradlew ktlintCheck detekt --no-daemon` reports 0 findings; no detekt baseline modifications.
   - `./gradlew testDebugUnitTest --no-daemon` reports 0 failures.
 
 ## 3. Implementation Steps
 
-### Phase 1: Create `HesabyarScaffold` Component <!-- check-docs: planned -->
+### Phase 1: Create `HesabyarScaffold` Component
 
 Create `app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarScaffold.kt`.
 
@@ -189,7 +189,7 @@ fun HesabyarScaffold(
 
 - Note on string resource: Ensure a dedicated back content description string exists in `strings.xml` (e.g. `back_navigation_description = "بازگشت"`), reusing or adding cleanly.
 
-### Phase 2: Create Robolectric Unit Tests <!-- check-docs: planned -->
+### Phase 2: Create Robolectric Unit Tests
 
 Create `app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarScaffoldTest.kt`.
 

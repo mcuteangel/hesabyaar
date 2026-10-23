@@ -7,21 +7,32 @@
 ## Active Task
 
 - **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
-- **Status:** Plan 021 written and validated; stopped for user approval before execution.
-- **Branch:** `main` (branch to be created after plan approval)
-- **Summary:** Issue #458 targets page layout drift where screens duplicate raw `Scaffold`, `TopAppBar`, and manual bottom FAB clearance, and lack `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive constraints on large screens. Plan 021 establishes `HesabyarScaffold` in `ui/components/`, migrates `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen`, adopts `ContentMaxWidth` in `ExpandedMainContent`, and adds Robolectric tests.
-- **Board:** Issue #458 set to `In Progress` (item `PVTI_lAHOAD9VX84Bm0XazhAspNI`, Status field `PVTSSF_lAHOAD9VX84Bm0Xazhlbydk`, option `47fc9ee4`).
-- **Plan:** `plans/021-add-page-scaffold-and-adopt-window-size-tokens.md`
+- **Status:** Completed and verified (Phases 1-5 done; branch `feat/issue-458-page-scaffold`)
+- **Branch:** `feat/issue-458-page-scaffold`
+- **Summary:** Established `HesabyarScaffold` in `ui/components/`, migrated `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen`, adopted `WindowSizeTokens.ContentMaxWidth` (840.dp) in `ExpandedMainContent`, added Robolectric unit tests in `HesabyarScaffoldTest`, and verified all static analysis and unit tests pass.
+- **Board:** Issue #458 set to `In Progress`
+- **Plan:** `plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`
 
 ## Goal
 
-- Create shared `HesabyarScaffold` composable in `ui/components/HesabyarScaffold.kt`.
-- Migrate `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen` to `HesabyarScaffold`.
-- Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold and `ExpandedMainContent`.
-- Provide automated Robolectric tests in `HesabyarScaffoldTest.kt`.
-- Verify ktlint, detekt, and unit tests pass with zero errors.
+- [x] Create shared `HesabyarScaffold` composable in `ui/components/HesabyarScaffold.kt`.
+- [x] Migrate `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen` to `HesabyarScaffold`.
+- [x] Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold and `ExpandedMainContent`.
+- [x] Provide automated Robolectric tests in `HesabyarScaffoldTest.kt` and `MainNavigationComponentsTest.kt`.
+- [x] Verify ktlint, detekt, and unit tests pass with zero errors.
 
 ## Completed
+
+- **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
+- **Status:** Completed and verified (branch `feat/issue-458-page-scaffold`)
+- **Completed Date:** 2026-10-23
+- **Deliverables:**
+    - [x] Created `HesabyarScaffold` in `ui/components/HesabyarScaffold.kt` with RTL TopAppBar, FAB slot, automatic bottom FAB clearance, and ContentMaxWidth (840.dp) centering
+    - [x] Added Robolectric unit tests in `HesabyarScaffoldTest.kt` covering title, custom topBar, FAB, clearance calculation, and width clamping
+    - [x] Migrated `CategoryManagementScreen.kt` and `AccountManagementScreen.kt` to `HesabyarScaffold`, deleting duplicated TopAppBar declarations
+    - [x] Migrated `BankLoanScreen.kt` and `DashboardScreen.kt` to `HesabyarScaffold`, preserving `testTag("add_transaction_fab")`
+    - [x] Adopted `WindowSizeTokens.ContentMaxWidth` in `ExpandedMainContent` (`MainNavigationBars.kt`) with test in `MainNavigationComponentsTest.kt`
+    - [x] Full test suite (1204 unit tests) passing, ktlint and detekt reporting zero findings
 
 - **Task:** Issue #457 — Replace 16 raw OutlinedTextField uses with HesabyarInputField (Plan 020)
 - **Status:** Implemented and verified (PR #517 open; 1180 tests passing, ktlint/detekt green)
