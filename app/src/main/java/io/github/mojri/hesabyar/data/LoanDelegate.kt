@@ -41,8 +41,10 @@ internal class LoanDelegate(
             )
         val accountId = TrackedLedgerHelper.resolveAccountId(normalizedLoan.accountId)
         val stored = loanDao.getLoanById(loanId) ?: normalizedLoan.copy(id = loanId)
-        val isDebt = stored.type == LoanType.CREDITOR
-        val transactionType = if (isDebt) TransactionType.INCOME else TransactionType.EXPENSE
+        // UNKNOWN has no known direction; keep the historical EXPENSE
+        // fallback so a transaction is always recorded.
+        val transactionType =
+          TrackedLedgerHelper.disbursementDirection(stored.type) ?: TransactionType.EXPENSE
         transactionDao.insertTransaction(
           Transaction(
             // CREDITOR = "I owe": receiving the money is an inflow, and the
@@ -52,7 +54,7 @@ internal class LoanDelegate(
             categoryId = loansCategory.id,
             amount = stored.originalAmount,
             description =
-              if (isDebt) {
+              if (stored.type == LoanType.CREDITOR) {
                 "دریافت وام از ${stored.personName}"
               } else {
                 "پرداخت وام به ${stored.personName}"

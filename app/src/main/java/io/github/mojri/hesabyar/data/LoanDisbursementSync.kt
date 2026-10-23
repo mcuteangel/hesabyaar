@@ -121,16 +121,11 @@ internal class LoanDisbursementSync(
         null
       }
     return if (loansCategoryId != null) {
-      // Disbursement and repayment have opposite directions for the same
-      // loan type: CREDITOR receives the money (INCOME), DEBTOR hands it
-      // out (EXPENSE). UNKNOWN has no known direction: never guess, so no
-      // unrelated row can be stamped or moved by mistake.
+      // The direction comes from the shared helper so the write path and
+      // this lookup cannot drift. UNKNOWN has no known direction: never
+      // guess, so no unrelated row can be stamped or moved by mistake.
       val disbursementType =
-        when (persisted.type) {
-          LoanType.CREDITOR -> TransactionType.INCOME
-          LoanType.DEBTOR -> TransactionType.EXPENSE
-          LoanType.UNKNOWN -> return null
-        }
+        TrackedLedgerHelper.disbursementDirection(persisted.type) ?: return null
       val ids =
         transactionLinkDao.findLegacyDisbursementIds(
           personNames = setOf(persisted.personName),
