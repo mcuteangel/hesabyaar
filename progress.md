@@ -6,22 +6,30 @@
 
 ## Active Task
 
-- **Task:** Issue #458 — Address PR #538 review feedback and finalize adaptive layout
-- **Status:** In progress (branch `feat/issue-458-page-scaffold`)
-- **Branch:** `feat/issue-458-page-scaffold`
-- **Summary:** Extracted `AdaptiveContentContainer` in `ui/components/`, applied `ContentMaxWidth` (840.dp) constraint across `ExpandedMainContent` and `CompactMainContent`, applied `contentPadding` to empty-state screens for FAB clearance, and added Robolectric tests.
-- **Board:** Issue #458 set to `In Progress`
-- **Plan:** `plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`
+- **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
+- **Status:** Completed and verified (PR #540 open against `main`).
+- **Branch:** `feat/issue-361-topbar-heading-semantics`
+- **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
 
 ## Goal
 
-- [x] Create shared `HesabyarScaffold` composable in `ui/components/HesabyarScaffold.kt`.
-- [x] Migrate `CategoryManagementScreen`, `AccountManagementScreen`, `BankLoanScreen`, and `DashboardScreen` to `HesabyarScaffold`.
-- [x] Enforce `WindowSizeTokens.ContentMaxWidth` (840.dp) adaptive centering across the scaffold, `ExpandedMainContent`, and `CompactMainContent`.
-- [x] Provide automated Robolectric tests in `HesabyarScaffoldTest.kt` and `MainNavigationComponentsTest.kt`.
-- [x] Verify ktlint, detekt, and unit tests pass with zero errors.
+- [x] Create reusable `HesabyarTopBar` with heading semantics and RTL auto-mirrored back navigation.
+- [x] Add heading semantics to `SectionHeader` and primary headers on core screens.
+- [x] Integrate `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`.
+- [x] Remove all literal emoji characters from `ui/` package and enforce via `UiEmojiIntegrityTest`.
+- [x] Archive Plan 022 and verify CI on PR #540.
 
 ## Completed
+
+- **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
+- **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)
+- **Completed Date:** 2026-10-23
+- **Deliverables:**
+    - [x] Created `HesabyarTopBar` in `ui/components/HesabyarTopBar.kt` with heading semantics, `Icons.AutoMirrored.Filled.ArrowBack`, and actions slot
+    - [x] Added `Modifier.semantics { heading() }` to `SectionHeader.kt` and key screens
+    - [x] Integrated `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`
+    - [x] Removed literal emojis from `ui/` (both supplementary and BMP blocks) and added `UiEmojiIntegrityTest`
+    - [x] Added component tests in `HesabyarTopBarTest.kt`, `SectionHeaderTest.kt`, and integration tests in `PersonsScreenTest.kt` and `PersonDetailSheetTest.kt`
 
 - **Task:** Issue #458 — [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (Plan 021)
 - **Status:** Completed and verified (branch `feat/issue-458-page-scaffold`)
@@ -51,7 +59,6 @@
     - [x] Migrated 19 screens and components from raw `.dp` and alpha literals to design tokens
     - [x] `app/src/test/java/io/github/mojri/hesabyar/ui/designsystem/DimensTokenTest.kt`: 4 unit tests verifying tokens and ranges
     - [x] `plans/archive/018-complete-icon-size-and-alpha-tokens.md`: archived completed plan
-
 - **Task:** Plan 017 — [Design System] Add chart system & migrate raw Canvas uses (Issue #453)
 - **Status:** Completed and verified
 - **Completed Date:** 2026-10-16

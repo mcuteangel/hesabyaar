@@ -432,7 +432,7 @@ fun InstallmentListItem(
 
           if (installment.notes.isNotBlank()) {
             Text(
-              text = "📝 یادداشت: ${installment.notes}",
+              text = "یادداشت: ${installment.notes}",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
               lineHeight = 16.sp
