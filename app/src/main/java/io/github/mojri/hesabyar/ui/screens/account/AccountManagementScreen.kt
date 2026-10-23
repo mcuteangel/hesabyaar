@@ -94,7 +94,9 @@ private data class AccountFormData(
 internal sealed interface AccountDialogState {
   data object None : AccountDialogState
 
-  data object Add : AccountDialogState
+  data class Add(
+    val instanceId: Long = System.nanoTime()
+  ) : AccountDialogState
 
   data class Edit(
     val account: AccountEntity
@@ -191,7 +193,7 @@ private fun AccountManagementScaffoldSection(
     onBack = onBack,
     floatingActionButton = {
       HesabyarFab(
-        onClick = { onDialogStateChange(AccountDialogState.Add) },
+        onClick = { onDialogStateChange(AccountDialogState.Add()) },
         contentDescription = stringResource(id = io.github.mojri.hesabyar.R.string.add_account)
       )
     }
@@ -209,6 +211,7 @@ private fun AccountManagementScaffoldSection(
     dialogState = dialogState,
     onDismiss = { onDialogStateChange(AccountDialogState.None) },
     onSaveAccount = { form ->
+      val initiatingDialog = dialogState
       scope.launch {
         val result =
           accountViewModel.addAccount(
@@ -223,7 +226,7 @@ private fun AccountManagementScaffoldSection(
           )
         // Close only the dialog this save started from. A later dialog,
         // opened while the insert was suspended, must stay open.
-        if (result is AccountViewModel.AddAccountResult.Success && dialogState is AccountDialogState.Add) {
+        if (result is AccountViewModel.AddAccountResult.Success && dialogState == initiatingDialog) {
           onDialogStateChange(AccountDialogState.None)
         }
       }
@@ -258,7 +261,7 @@ private fun AccountManagementDialogs(
 ) {
   when (dialogState) {
     AccountDialogState.None -> {}
-    AccountDialogState.Add ->
+    is AccountDialogState.Add ->
       AccountDialog(
         initialAccount = null,
         onDismiss = onDismiss,

@@ -248,14 +248,15 @@ private fun CategoryManagementDialogs(
   }
 
   if (showDeleteConfirmation != null) {
+    val categoryToDelete = showDeleteConfirmation
     ConfirmDialog(
       title = "حذف دسته‌بندی",
-      message = "آیا از حذف دسته‌بندی «${showDeleteConfirmation.name}» اطمینان دارید؟",
+      message = "آیا از حذف دسته‌بندی «${categoryToDelete.name}» اطمینان دارید؟",
       confirmText = "حذف",
       dismissText = "انصراف",
       onDismiss = onDismissDelete,
       onConfirm = {
-        categoryViewModel.deleteCategory(showDeleteConfirmation)
+        categoryViewModel.deleteCategory(categoryToDelete)
         onDismissDelete()
       }
     )
