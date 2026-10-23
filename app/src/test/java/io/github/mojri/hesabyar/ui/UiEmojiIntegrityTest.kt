@@ -48,11 +48,27 @@ class UiEmojiIntegrityTest {
   @Test
   fun emojiRegexDetectsKnownEmoji() {
     // Guards the guard: a regex that matches nothing would let every emoji through.
+    // Covers the supplementary emoji planes and the BMP emoji blocks
+    // (Misc Symbols U+2600-26FF and Dingbats U+2700-27BF).
     assertEquals(1, EMOJI_REGEX.findAll("📝 یادداشت").count())
+    assertEquals(1, EMOJI_REGEX.findAll("⚠️ علامت خطر").count())
+    assertEquals(1, EMOJI_REGEX.findAll("⚙️ تنظیمات").count())
+    assertEquals(1, EMOJI_REGEX.findAll("✅ تایید شده").count())
+    assertEquals(1, EMOJI_REGEX.findAll("✏️ ویرایش").count())
     assertEquals(0, EMOJI_REGEX.findAll("یادداشت ساده").count())
+    // Persian ZWNJ, em dash, and the U+2192 arrow stay allowed.
+    assertEquals(0, EMOJI_REGEX.findAll("به‌سوی → مقصد — پایان").count())
   }
 
   private companion object {
-    val EMOJI_REGEX = Regex("[\\x{1F300}-\\x{1FAFF}]")
+    // Supplemental Symbols and Pictographs, Emoticons, Transport & Map,
+    // Alchemical Symbols, plus Chess/pictographic extensions.
+    const val SUPPLEMENTARY_EMOJI = "[\\x{1F300}-\\x{1FAFF}]"
+
+    // Misc Symbols (U+2600-26FF: ⚠️ ⚙️ ✅ origin), Dingbats (U+2700-27BF: ✏️ ✅),
+    // and Misc Symbols and Arrows (U+2B00-2BFF: ⭐ ⭕). Persian text uses
+    // ZWNJ (U+200C), em dash (U+2014), and the arrow U+2192 — excluded on purpose.
+    const val BMP_EMOJI = "[\\x{2600}-\\x{27BF}\\x{2B00}-\\x{2BFF}]"
+    val EMOJI_REGEX = Regex("$SUPPLEMENTARY_EMOJI|$BMP_EMOJI")
   }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +61,7 @@ import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
+import io.github.mojri.hesabyar.ui.components.HesabyarTopBar
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -75,6 +77,7 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  * [onPersonClick] opens the detail sheet/screen. Pass a filtered direction
  * from the dashboard DebtorCreditorCards via [initialDirectionFilter].
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonsScreen(
   personViewModel: PersonViewModel,
@@ -82,6 +85,8 @@ fun PersonsScreen(
   initialDirectionFilter: LoanDirectionFilter = LoanDirectionFilter.ALL,
   onDirectionFilterChange: (LoanDirectionFilter) -> Unit = {},
   onPersonClick: (personId: Long, personName: String) -> Unit = { _, _ -> },
+  showTopBar: Boolean = false,
+  onBack: (() -> Unit)? = null,
 ) {
   // Single source of truth for the search text: the ViewModel StateFlow.
   val query by personViewModel.searchQuery.collectAsState()
@@ -92,18 +97,26 @@ fun PersonsScreen(
   LaunchedEffect(initialDirectionFilter) {
     directionFilter = initialDirectionFilter
   }
-  PersonListContent(
-    personViewModel = personViewModel,
-    searchQuery = query,
-    directionFilter = directionFilter,
-    onSearchChange = { personViewModel.setSearchQuery(it) },
-    onDirectionFilterChange = {
-      directionFilter = it
-      onDirectionFilterChange(it)
-    },
-    onPersonClick = onPersonClick,
-    modifier = modifier.fillMaxSize(),
-  )
+  Column(modifier = modifier.fillMaxSize()) {
+    if (showTopBar) {
+      HesabyarTopBar(
+        title = DebtSection.PERSONS.label,
+        onBack = onBack,
+      )
+    }
+    PersonListContent(
+      personViewModel = personViewModel,
+      searchQuery = query,
+      directionFilter = directionFilter,
+      onSearchChange = { personViewModel.setSearchQuery(it) },
+      onDirectionFilterChange = {
+        directionFilter = it
+        onDirectionFilterChange(it)
+      },
+      onPersonClick = onPersonClick,
+      modifier = Modifier.fillMaxWidth().weight(1f),
+    )
+  }
 }
 
 enum class LoanDirectionFilter {

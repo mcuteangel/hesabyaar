@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -19,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,7 @@ import io.github.mojri.hesabyar.ui.PersonViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarTopBar
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -82,8 +85,17 @@ fun PersonDetailSheet(
     sheetState = sheetState,
     modifier = modifier
   ) {
+    HesabyarTopBar(
+      title = personName,
+      onBack = onDismiss,
+      colors =
+        TopAppBarDefaults.topAppBarColors(
+          containerColor = Color.Transparent,
+          titleContentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+      windowInsets = WindowInsets(0),
+    )
     PersonSheetContent(
-      personName = personName,
       balance = currentBalance,
       loans = loans,
       personViewModel = personViewModel,
@@ -94,7 +106,8 @@ fun PersonDetailSheet(
           onSettleFully = { dialogState.showSettleConfirm = true },
           settleError = dialogState.settleError,
           isSettling = isSettling
-        )
+        ),
+      modifier = Modifier.weight(1f, fill = false)
     )
   }
 
@@ -216,21 +229,21 @@ private fun SettleConfirmDialog(
 
 @Composable
 private fun PersonSheetContent(
-  personName: String,
   balance: PersonBalanceCalculator.PersonBalance?,
   loans: List<Loan>,
   personViewModel: PersonViewModel,
   actions: PersonSheetActions,
+  modifier: Modifier = Modifier,
 ) {
   Column(
     modifier =
-      Modifier
+      modifier
         .fillMaxWidth()
         .padding(horizontal = SpacingTokens.lg)
         .navigationBarsPadding(),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
-    PersonHeader(personName = personName, balance = balance)
+    PersonBalanceSummary(balance = balance)
 
     PersonQuickActions(
       onAddReceivable = actions.onAddReceivable,
@@ -269,10 +282,7 @@ private fun PersonSheetContent(
 }
 
 @Composable
-private fun PersonHeader(
-  personName: String,
-  balance: PersonBalanceCalculator.PersonBalance?
-) {
+private fun PersonBalanceSummary(balance: PersonBalanceCalculator.PersonBalance?) {
   val net = balance?.netBalance ?: 0L
   val (label, tint, icon) = balanceDirectionMeta(net)
 
@@ -293,19 +303,12 @@ private fun PersonHeader(
         iconSize = ICON_SIZE_DP.dp,
         contentDescription = label
       )
-      Column {
-        Text(
-          text = personName,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.semantics { heading() },
-        )
-        Text(
-          text = label,
-          style = MaterialTheme.typography.bodySmall,
-          color = tint
-        )
-      }
+      Text(
+        text = label,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = tint
+      )
     }
     Text(
       text = CurrencyFormatter.format(net),

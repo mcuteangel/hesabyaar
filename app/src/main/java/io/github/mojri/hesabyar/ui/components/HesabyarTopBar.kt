@@ -1,8 +1,9 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,8 +24,8 @@ import io.github.mojri.hesabyar.R
 /**
  * Standard top app bar for Hesabyar screens and dialog sheets.
  *
- * Provides consistent typography, RTL navigation icon, and marks the title
- * with [heading] semantics for TalkBack accessibility.
+ * Provides consistent typography, RTL-aware auto-mirrored navigation icon, and
+ * marks the title with [heading] semantics for TalkBack accessibility.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +39,7 @@ fun HesabyarTopBar(
       titleContentColor = MaterialTheme.colorScheme.onSurface,
     ),
   scrollBehavior: TopAppBarScrollBehavior? = null,
+  windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
   actions: @Composable RowScope.() -> Unit = {},
 ) {
   TopAppBar(
@@ -54,7 +56,7 @@ fun HesabyarTopBar(
       if (onBack != null) {
         IconButton(onClick = onBack) {
           Icon(
-            imageVector = Icons.Filled.ArrowForward,
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = stringResource(R.string.action_back),
           )
         }
@@ -63,5 +65,6 @@ fun HesabyarTopBar(
     actions = actions,
     colors = colors,
     scrollBehavior = scrollBehavior,
+    windowInsets = windowInsets,
   )
 }

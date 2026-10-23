@@ -708,7 +708,7 @@ private fun InstallmentProgressCard(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
     ) {
       Text(
-        text = "✅ پیشرفت اقساط",
+        text = "پیشرفت اقساط",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary

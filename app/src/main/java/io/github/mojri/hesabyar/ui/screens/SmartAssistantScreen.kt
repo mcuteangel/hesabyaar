@@ -887,7 +887,7 @@ fun ParsedResultCard(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text(
-          text = "✏️ ویرایش و تایید نهایی تراکنش",
+          text = "ویرایش و تایید نهایی تراکنش",
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.primary
@@ -1389,7 +1389,7 @@ private fun LowConfidenceWarning() {
     contentPadding = PaddingValues(SpacingTokens.sm)
   ) {
     Text(
-      text = "⚠️ اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
+      text = "اطمینان پایین است. لطفاً اطلاعات را بررسی کنید.",
       color = MaterialTheme.colorScheme.error,
       style = MaterialTheme.typography.bodySmall,
       fontWeight = FontWeight.Bold

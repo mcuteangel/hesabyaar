@@ -39,7 +39,7 @@ Issue #361 and the UI/UX audit (`hesabyar-ux-audit.md` findings E4, G7, Step 3.1
 ## 2. Goals & Acceptance Criteria
 
 - [x] **Criterion 1 (Shared `HesabyarTopBar` Component):** A reusable `HesabyarTopBar` composable is created in `ui/components/HesabyarTopBar.kt`.
-  - Built on M3 `TopAppBar` with theme tokens (`surface` container color, `FontWeight.Bold` title, `Icons.Filled.ArrowForward` for RTL back navigation when `onBack != null`).
+  - Built on M3 `TopAppBar` with theme tokens (`surface` container color, `FontWeight.Bold` title, `Icons.AutoMirrored.Filled.ArrowBack` for RTL back navigation when `onBack != null`).
   - Automatically attaches `Modifier.semantics { heading() }` to the top-bar title `Text`.
   - Exposes an optional `actions: @Composable RowScope.() -> Unit = {}` slot.
 - [x] **Criterion 2 (`SectionHeader` Heading Semantics):** `ui/components/SectionHeader.kt` applies `Modifier.semantics { heading() }` to its title `Text`. All call sites (`CategoryManagementScreen`, `DashboardScreen`, `ReportsScreen`, etc.) immediately become accessible heading stops for TalkBack.
@@ -52,7 +52,7 @@ Issue #361 and the UI/UX audit (`hesabyar-ux-audit.md` findings E4, G7, Step 3.1
 - [x] **Criterion 6 (Automated Verification & Tests):**
   - `HesabyarTopBarTest.kt` verifies title rendering, heading semantics, back button click behavior, and action slots.
   - `SectionHeaderTest.kt` verifies title rendering and heading semantics.
-  - An automated test (or static check) confirms `rg '[\x{1F300}-\x{1FAFF}]' app/src/main/java/io/github/mojri/hesabyar/ui` returns 0 matches.
+  - An automated test (or static check) confirms emoji matcher covering supplementary `[\x{1F300}-\x{1FAFF}]` and BMP `[\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}]` returns 0 matches across `app/src/main/java/io/github/mojri/hesabyar/ui`.
 - [x] **Criterion 7 (Static Checks & Verification):**
   - `./gradlew ktlintCheck detekt --no-daemon` passes with 0 findings; no detekt baseline modifications.
   - `./gradlew testDebugUnitTest --no-daemon` passes with 0 failures.
@@ -304,7 +304,7 @@ Per the repository Evidence Standard (`AGENTS.md` and `docs/agents/testing.md`):
    - Command: `./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.ui.components.HesabyarTopBarTest" --tests "io.github.mojri.hesabyar.ui.components.SectionHeaderTest" --tests "io.github.mojri.hesabyar.ui.UiEmojiIntegrityTest"`
    - Required Output: All test cases pass with named JUnit XML `<testcase>` records.
 3. **Emoji Grep Evidence:**
-   - Command: `python3 -c "import re, pathlib; emoji_re = re.compile(r'[\U0001F300-\U0001FAFF]'); print('Matches:', sum(len(emoji_re.findall(p.read_text(encoding='utf-8'))) for p in pathlib.Path('app/src/main/java/io/github/mojri/hesabyar/ui').rglob('*.kt')))"`
+   - Command: `python3 -c "import re, pathlib; emoji_re = re.compile(r'[\U0001F300-\U0001FAFF☀-➿⬀-⯿]'); print('Matches:', sum(len(emoji_re.findall(p.read_text(encoding='utf-8'))) for p in pathlib.Path('app/src/main/java/io/github/mojri/hesabyar/ui').rglob('*.kt')))"`
    - Required Output: `Matches: 0`
 4. **Docs Verification:**
    - Command: `python3 scripts/check_docs.py`
