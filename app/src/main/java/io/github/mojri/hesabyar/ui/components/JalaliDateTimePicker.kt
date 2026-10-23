@@ -93,7 +93,7 @@ internal fun JalaliDateTimePicker(
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
     Text(
-      text = "📅 تنظیم تاریخ و ساعت (شمسی):",
+      text = "تنظیم تاریخ و ساعت (شمسی):",
       style = MaterialTheme.typography.labelMedium,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.primary
