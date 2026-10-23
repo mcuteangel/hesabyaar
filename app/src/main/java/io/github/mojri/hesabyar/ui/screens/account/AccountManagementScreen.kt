@@ -221,7 +221,9 @@ private fun AccountManagementScaffoldSection(
             initialBalance = form.initialBalance,
             color = form.color
           )
-        if (result is AccountViewModel.AddAccountResult.Success) {
+        // Close only the dialog this save started from. A later dialog,
+        // opened while the insert was suspended, must stay open.
+        if (result is AccountViewModel.AddAccountResult.Success && dialogState is AccountDialogState.Add) {
           onDialogStateChange(AccountDialogState.None)
         }
       }
