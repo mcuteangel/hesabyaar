@@ -177,4 +177,7 @@
     <string name="nav_tab_accounts">مدیریت حساب‌ها</string>
     <string name="nav_tab_settings">تنظیمات</string>
     <string name="nav_tab_more">بیشتر</string>
+
+    <!-- Shared top-bar back navigation icon -->
+    <string name="action_back">بازگشت</string>
 </resources>

@@ -6,11 +6,13 @@
 
 ## Active Task
 
-None — Plan 017 (issue #453) completed and archived. Awaiting next task.
+- **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
+- **Status:** Plan written (`plans/022-topbar-heading-semantics-and-emoji-cleanup.md`), awaiting user approval before execution. Board status set to In Progress. No code changed yet.
+- **Note:** Plan 021 (issue #458, page scaffold) runs in parallel on branch `feat/issue-458-page-scaffold` in a separate worktree — do not duplicate its work here. Plan 022 creates `ui/components/HesabyarTopBar.kt` (plan 013 Step 3.1 scope), which is distinct from `HesabyarScaffold`.
 
 ## Goal
 
-None — ready for next task.
+Execute plan 022 (issue #361) after approval: shared `HesabyarTopBar`, `heading()` semantics on section/screen titles, and zero literal emoji in `ui/`.
 
 ## Completed
 
