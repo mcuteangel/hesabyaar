@@ -1,0 +1,20 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarScaffold.kt
+  s_081f9483dae610::t_9991c6edb9a5d9 6
+  s_081f9483dae610::t_c9385edfc346c6 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3f91e9260a5820c65c50d73c2f75ef6fa9ab3d1d",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
