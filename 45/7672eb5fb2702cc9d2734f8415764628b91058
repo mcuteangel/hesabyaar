@@ -1,0 +1,56 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/UiEmojiIntegrityTest.kt
+  s_1706c936cbaf9d::t_bb9c2753644ce4 1-3,5,7-17,24,29,37,40-45,53-58
+  s_1706c936cbaf9d::t_3b325931b68311 6
+  s_1706c936cbaf9d::t_d33e39a896f29d 25-28,30-36,38-39,46-52
+  s_1706c936cbaf9d::t_298abcfe1c9747 18-23
+  s_1706c936cbaf9d::t_19e6c4b893cf71 4
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/InstallmentScreen.kt
+  s_1706c936cbaf9d::t_65b70c8fa9b5a1 435
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/AnalyticsScreen.kt
+  s_1706c936cbaf9d::t_3ae6a6d343e96c 18-19
+  s_1706c936cbaf9d::t_69d46f4c5dd8b0 342,345-346
+  s_1706c936cbaf9d::t_a95dfddcd10b7a 439-440
+  s_1706c936cbaf9d::t_40d975aeee9fb2 246,248-249
+  s_1706c936cbaf9d::t_6a8c2c5bdcca3c 189-190
+  s_1706c936cbaf9d::t_5e0db4327800fe 633,636-637
+  s_1706c936cbaf9d::t_47f6c02df86c0c 70-71,89,99,129,140
+  s_1706c936cbaf9d::t_55ff45c230835e 543,546-547
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt
+  s_1706c936cbaf9d::t_d5ece03487ba9e 538
+  s_1706c936cbaf9d::t_b8bf0d7a6a81f8 237,240-241
+  s_1706c936cbaf9d::t_d034ad227cb168 23-24
+  s_1706c936cbaf9d::t_634f5825c9ec1b 650
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt
+  s_1706c936cbaf9d::t_f439ca8bacf7f7 257
+  s_1706c936cbaf9d::t_4d74e4952206f2 598,601-602
+  s_1706c936cbaf9d::t_a58bfdc75d6b04 30-31
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_1706c936cbaf9d::t_9710a4c6139309 349,352-353
+  s_1706c936cbaf9d::t_25e18aad598062 472,475-476
+  s_1706c936cbaf9d::t_919f9aac9e9878 483,487-490
+  s_1706c936cbaf9d::t_37713a86e72b96 536,540-543
+  s_1706c936cbaf9d::t_ab739544dcb1cc 1491
+  s_1706c936cbaf9d::t_6d079a79a5bb06 1449
+  s_1706c936cbaf9d::t_26395f7b116b00 29-30
+  s_1706c936cbaf9d::t_64ed3b6abfba6a 830,834-837
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt
+  s_1706c936cbaf9d::t_c16aa8d82bc69b 483
+app/src/main/java/io/github/mojri/hesabyar/ui/components/JalaliDateTimePicker.kt
+  s_1706c936cbaf9d::t_a4f1e5370cc98a 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "457672eb5fb2702cc9d2734f8415764628b91058",
+  "prompts": {},
+  "sessions": {
+    "s_1706c936cbaf9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1e9165b-0602-44e2-b550-3a9583383b69",
+        "model": "mimo-v2.6-flash-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
