@@ -1,0 +1,21 @@
+plans/README.md
+  s_1706c936cbaf9d::t_2c6ef1db959e00 43
+progress.md
+  s_1706c936cbaf9d::t_c40c3ac889e3e4 10,12,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "778f01b1021b4e45430d727e99265a2328a50316",
+  "prompts": {},
+  "sessions": {
+    "s_1706c936cbaf9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1e9165b-0602-44e2-b550-3a9583383b69",
+        "model": "beam-free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
