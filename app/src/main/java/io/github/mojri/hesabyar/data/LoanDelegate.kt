@@ -162,13 +162,14 @@ internal class LoanDelegate(
         null
       }
     return if (loansCategoryId != null) {
-      transactionLinkDao.findLegacyDisbursementIds(
-        personNames = setOf(persisted.personName, updated.personName),
-        categoryId = loansCategoryId,
-        amount = persisted.originalAmount,
-        oldDate = persisted.date
-      )
-        .singleOrNull()
+      val ids =
+        transactionLinkDao.findLegacyDisbursementIds(
+          personNames = setOf(persisted.personName, updated.personName),
+          categoryId = loansCategoryId,
+          amount = persisted.originalAmount,
+          oldDate = persisted.date
+        )
+      ids.singleOrNull()
     } else {
       null
     }
