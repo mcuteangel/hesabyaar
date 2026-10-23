@@ -1,8 +1,11 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,6 +22,7 @@ import org.robolectric.annotation.Config
 /**
  * Robolectric Compose UI tests for [HesabyarTopBar].
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class HesabyarTopBarTest {
@@ -76,9 +80,12 @@ class HesabyarTopBarTest {
   @Test
   fun topBarRendersActionsSlot() {
     composeRule.setContent {
-      HesabyarTopBar(title = TOP_BAR_TITLE) {
-        Text(ACTION_LABEL)
-      }
+      HesabyarTopBar(
+        title = TOP_BAR_TITLE,
+        actions = {
+          Text(ACTION_LABEL)
+        },
+      )
     }
 
     composeRule.onNodeWithText(ACTION_LABEL).assertIsDisplayed()
@@ -89,11 +96,14 @@ class HesabyarTopBarTest {
     var clickedLabel: String? = null
 
     composeRule.setContent {
-      HesabyarTopBar(title = TOP_BAR_TITLE) {
-        androidx.compose.material3.TextButton(onClick = { clickedLabel = ACTION_LABEL }) {
-          Text(ACTION_LABEL)
-        }
-      }
+      HesabyarTopBar(
+        title = TOP_BAR_TITLE,
+        actions = {
+          TextButton(onClick = { clickedLabel = ACTION_LABEL }) {
+            Text(ACTION_LABEL)
+          }
+        },
+      )
     }
 
     composeRule.onNodeWithText(ACTION_LABEL).performClick()
