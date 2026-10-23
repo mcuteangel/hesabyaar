@@ -1,0 +1,32 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
+  s_081f9483dae610::t_60d69ecdf27950 251,254,259
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreenTest.kt
+  s_081f9483dae610::t_12f6e2055ff6b6 20
+  s_081f9483dae610::t_ffa28ced00346f 40
+  s_081f9483dae610::t_6058e6335df1be 134-164,167-171,173-175
+  s_081f9483dae610::t_ba3907322294a1 111
+  s_081f9483dae610::t_fd5a0da0adadff 165-166,172
+  s_081f9483dae610::t_cd777e1dfe3114 1-15,17-19,21-39,41-110,113-133,176
+  s_081f9483dae610::t_52444c466c157e 16
+  s_081f9483dae610::t_4ff45f4d033dc5 112
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_081f9483dae610::t_ec0d111a35c5bd 97-99
+  s_081f9483dae610::t_34ad87270e478f 264
+  s_081f9483dae610::t_625c0f1b6f2820 196,214,229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2c02c55e46d38ad9f82c46344a816fa8aaa334ee",
+  "prompts": {},
+  "sessions": {
+    "s_081f9483dae610": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8b413eec-165f-47c9-8d9b-1906d146ff1e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
