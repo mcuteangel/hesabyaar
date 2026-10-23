@@ -70,7 +70,7 @@ fun HesabyarScaffold(
       Box(
         modifier =
           if (applyContentMaxWidth) {
-            Modifier.fillMaxHeight().fillMaxWidth().widthIn(max = contentMaxWidth)
+            Modifier.fillMaxHeight().widthIn(max = contentMaxWidth).fillMaxWidth()
           } else {
             Modifier.fillMaxSize()
           },
