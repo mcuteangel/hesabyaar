@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -314,7 +316,7 @@ fun ReportsScreen(
         shape = ShapeTokens.XLarge,
         cardColors =
           CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.CHIP_CONTAINER_ALPHA)
           )
       ) {
         Column(
@@ -332,7 +334,7 @@ fun ReportsScreen(
               Box(
                 modifier =
                   Modifier
-                    .size(36.dp)
+                    .size(Dimens.ContainerSmall)
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
               ) {
@@ -340,7 +342,7 @@ fun ReportsScreen(
                   imageVector = Icons.Filled.AutoAwesome,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.onPrimary,
-                  modifier = Modifier.size(18.dp)
+                  modifier = Modifier.size(Dimens.IconMenu)
                 )
               }
               Column {
@@ -361,7 +363,9 @@ fun ReportsScreen(
             if (budgetState is UiResult.Success) {
               IconButton(
                 onClick = { aiAssistantViewModel.clearAdvisorState() },
-                modifier = Modifier.size(28.dp)
+                // Enforce the 48dp minimum touch area; the minimum must come before
+                // the fixed size, otherwise the fixed size wins and the target stays small.
+                modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerXSmall)
               ) {
                 Icon(
                   imageVector = Icons.Filled.Close,
@@ -491,7 +495,7 @@ fun ReportsScreen(
                     imageVector = Icons.Filled.ErrorOutline,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(Dimens.IconMenu)
                   )
                   Text(
                     text = state.message,
@@ -567,15 +571,18 @@ fun ReportsScreen(
           modifier =
             Modifier
               .fillMaxWidth()
-              .clickable { selectedCategoryFilter = if (isSelected) null else categoryId },
+              // Filter toggle: expose the selected state like M3 FilterChip does.
+              .selectable(
+                selected = isSelected,
+                onClick = { selectedCategoryFilter = if (isSelected) null else categoryId },
+                role = Role.Checkbox
+              ),
           shape = ShapeTokens.Large,
           cardColors =
             CardDefaults.cardColors(
               containerColor =
                 if (isSelected) {
-                  MaterialTheme.colorScheme.primaryContainer.copy(
-                    alpha = 0.25f
-                  )
+                  MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SELECTED_SURFACE_ALPHA)
                 } else {
                   MaterialTheme.colorScheme.surfaceContainerHigh
                 }
@@ -609,7 +616,7 @@ fun ReportsScreen(
               Text(
                 text = "$percent٪ | " + CurrencyFormatter.format(total),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
               )
             }
 
@@ -692,8 +699,9 @@ fun ReportsScreen(
               .fillMaxWidth()
               .clip(ShapeTokens.Medium)
               .background(MaterialTheme.colorScheme.surface)
-              .padding(SpacingTokens.md)
-              .clickable { showDetailTransaction = transaction },
+              // Clickable sits before padding so the touch area and the ripple cover the full card.
+              .clickable(role = Role.Button) { showDetailTransaction = transaction }
+              .padding(SpacingTokens.md),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
@@ -704,7 +712,7 @@ fun ReportsScreen(
               tint = sourceAccount.color.toComposeColor(),
               backgroundColor = sourceAccount.color.toComposeColor(),
               iconSize = 12.dp,
-              containerSize = 20.dp,
+              containerSize = Dimens.IconAvatarMedium,
               contentDescription = stringResource(id = R.string.account_content_description, sourceAccount.name)
             )
             Spacer(modifier = Modifier.width(SpacingTokens.sm))
@@ -726,12 +734,17 @@ fun ReportsScreen(
 
           Row(verticalAlignment = Alignment.CenterVertically) {
             ReportsTransactionAmount(transaction = transaction)
-            IconButton(onClick = { deletingTransaction = transaction }, modifier = Modifier.size(32.dp)) {
+            IconButton(
+              onClick = { deletingTransaction = transaction },
+              // Enforce the 48dp minimum touch area; the minimum must come before
+              // the fixed size, otherwise the fixed size wins and the target stays small.
+              modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.AvatarSmall)
+            ) {
               Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "حذف تراکنش",
-                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                modifier = Modifier.size(18.dp)
+                tint = MaterialTheme.colorScheme.error.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
+                modifier = Modifier.size(Dimens.IconMenu)
               )
             }
           }

@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
@@ -46,7 +45,7 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
         backgroundAlpha = 1.0f,
         iconSize = Dimens.IconMedium,
-        containerSize = 44.dp
+        containerSize = Dimens.ContainerMedium
       )
       Column {
         Text(
@@ -73,7 +72,7 @@ internal fun DashboardHeader(settingsViewModel: SettingsViewModel) {
       Icon(
         imageVector = if (settingsViewModel.isDarkMode.value) Icons.Filled.LightMode else Icons.Filled.DarkMode,
         contentDescription = "تغییر تم",
-        modifier = Modifier.size(20.dp),
+        modifier = Modifier.size(Dimens.IconAvatarMedium),
         tint = MaterialTheme.colorScheme.primary
       )
     }

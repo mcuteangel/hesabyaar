@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.data
 
 import androidx.room.withTransaction
 import io.github.mojri.hesabyar.domain.utils.LoansCategoryExclusion
+import io.github.mojri.hesabyar.rust.RustBridge
 import kotlinx.coroutines.flow.Flow
 
 internal class LoanDelegate(
@@ -12,6 +13,8 @@ internal class LoanDelegate(
   private val categoryDao: CategoryDao,
   private val database: AppDatabase
 ) : LoanOps {
+  private val disbursementSync = LoanDisbursementSync(transactionLinkDao, categoryDao)
+
   override val allLoans: Flow<List<Loan>> = loanDao.getAllLoans()
 
   override suspend fun insertLoan(loan: Loan): Long {
@@ -68,11 +71,37 @@ internal class LoanDelegate(
     }
   }
 
-  override suspend fun updateLoan(loan: Loan) {
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
     TrackedLedgerHelper.validateTrackedAccount(loan.tracked, loan.accountId)
     val normalizedLoan =
       loan.copy(accountId = TrackedLedgerHelper.normalizeAccountId(loan.tracked, loan.accountId))
-    loanDao.updateLoan(normalizedLoan)
+    // Issue #529: reject edits that move the creation date after an
+    // already-recorded payment. They corrupt point-in-time balances.
+    // The read-validate-write runs in one transaction so a concurrent
+    // writer cannot slip a payment between the check and the persist.
+    return database.withTransaction {
+      val persisted =
+        loanDao.getLoanById(normalizedLoan.id)
+          ?: return@withTransaction LoanUpdateResult.NotFound
+      if (persisted.date != normalizedLoan.date &&
+        !isLoanDateEditChronologicallyValid(normalizedLoan.id, normalizedLoan.date)
+      ) {
+        return@withTransaction LoanUpdateResult.ChronologyRejected
+      }
+      if (persisted.date != normalizedLoan.date) {
+        disbursementSync.syncDisbursementDate(persisted, normalizedLoan)
+      } else if (persisted.personName != normalizedLoan.personName ||
+        persisted.originalAmount != normalizedLoan.originalAmount
+      ) {
+        // Issue #532: a name/amount edit (date unchanged) would orphan an
+        // unstamped legacy disbursement from future date syncs, which match
+        // by the persisted fields. Stamp it now while those fields still
+        // identify it.
+        disbursementSync.stampLegacyDisbursement(persisted, normalizedLoan)
+      }
+      loanDao.updateLoan(normalizedLoan)
+      LoanUpdateResult.Success
+    }
   }
 
   override suspend fun deleteLoan(loan: Loan) {
@@ -108,6 +137,10 @@ internal class LoanDelegate(
       val disbursementDeletedById =
         transactionLinkDao.deleteTransactionsByLoanId(loan.id) > 0
       val wasTracked = existing.tracked || loan.tracked
+      // Issue #532: updateLoan moves legacy (pre-#242, unstamped) disbursement
+      // rows with the loan date, so the field match below still finds them
+      // after an edit. A row whose date changed outside updateLoan keeps its
+      // own date and is not found here.
       val needsDisbursementFallback = wasTracked && !disbursementDeletedById
       val unlinkedPayments = payments.filter { it.linkedTransactionId == null }
       if (unlinkedPayments.isNotEmpty() || needsDisbursementFallback) {
@@ -188,6 +221,9 @@ internal class LoanDelegate(
       val newRemaining = loan.remainingAmount - amount
       val isSettled = newRemaining == 0L
       val date = customDate ?: System.currentTimeMillis()
+      // Issue #431: reject payments backdated before the loan creation date or
+      // an already-recorded payment. They corrupt point-in-time balances.
+      if (!isPaymentDateChronologicallyValid(loan.date, loanId, date)) return@withTransaction false
       // Phase 2 (DECISION 1): untracked loans only reduce the ledger balance
       // and record payment history. Zero transactions are posted — and the
       // Loans category is only required on the tracked path, so untracked
@@ -233,6 +269,39 @@ internal class LoanDelegate(
       }
       true
     }
+  }
+
+  /**
+   * True when the new creation date keeps the payment history chronological.
+   * Runs the existing Rust validate_loan_payment_date rule once per recorded
+   * payment, treating each payment as a new payment against the new date: a
+   * payment predating the new date fails the rule and rejects the edit.
+   * Skips the check when Rust is unavailable, mirroring
+   * isPaymentDateChronologicallyValid's fail-open behavior.
+   */
+  private suspend fun isLoanDateEditChronologicallyValid(
+    loanId: Long,
+    newDate: Long
+  ): Boolean {
+    if (!RustBridge.isAvailable) return true
+    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
+    return existingPaymentDates.all { RustBridge.validateLoanPaymentDateSync(newDate, emptyList(), it) }
+  }
+
+  /**
+   * True when [date] keeps the payment history chronological: not before the
+   * loan creation date and not before any already-recorded payment. Returns
+   * true when Rust is unavailable, since validateBoolean falls back to false
+   * then and rejecting every payment would be worse than skipping the check.
+   */
+  private suspend fun isPaymentDateChronologicallyValid(
+    loanDate: Long,
+    loanId: Long,
+    date: Long
+  ): Boolean {
+    if (!RustBridge.isAvailable) return true
+    val existingPaymentDates = paymentHistoryDao.getPaymentHistoriesForLoanSync(loanId).map { it.date }
+    return RustBridge.validateLoanPaymentDateSync(loanDate, existingPaymentDates, date)
   }
 }
 

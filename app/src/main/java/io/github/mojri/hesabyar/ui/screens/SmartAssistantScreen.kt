@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -204,7 +205,7 @@ fun SmartAssistantScreen(
               Modifier
                 .fillMaxWidth()
                 .clip(ShapeTokens.XLarge)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SURFACE_TINT_ALPHA))
                 .padding(SpacingTokens.xl)
           ) {
             Row(
@@ -235,7 +236,7 @@ fun SmartAssistantScreen(
                 Text(
                   text = "جمله خود را به زبان فارسی ساده تایپ کنید یا بگویید تا هوش مصنوعی آن را تحلیل کند.",
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA),
                   lineHeight = 18.sp
                 )
               }
@@ -271,13 +272,16 @@ fun SmartAssistantScreen(
                       .fillMaxWidth()
                       .clip(ShapeTokens.Small)
                       .background(MaterialTheme.colorScheme.surfaceContainer)
-                      .clickable {
+                      // Guarantee the 48dp minimum touch-target height; the padding
+                      // stays inside so the visual spacing does not change.
+                      .clickable(role = Role.Button) {
                         inputText = ex
                         aiAssistantViewModel.parseSmartSentence(
                           ex,
                           aiAssistantViewModel.isOnlineMode.value
                         )
-                      }.padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
+                      }.heightIn(min = Dimens.MinTouchTarget)
+                      .padding(horizontal = SpacingTokens.md, vertical = SpacingTokens.sm),
                   horizontalArrangement = Arrangement.SpaceBetween,
                   verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -289,7 +293,7 @@ fun SmartAssistantScreen(
                   Icon(
                     imageVector = Icons.Filled.ArrowBack,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = Dimens.MUTED_FOREGROUND_ALPHA),
                     modifier = Modifier.size(Dimens.IconSmall)
                   )
                 }
@@ -433,7 +437,7 @@ fun SmartAssistantScreen(
             shape = ShapeTokens.XLarge,
             cardColors =
               CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
               ),
             contentPadding = PaddingValues(SpacingTokens.lg)
           ) {
@@ -471,7 +475,7 @@ fun SmartAssistantScreen(
                       "طراحی شده با مدل تحلیل هوش مالی محلی (آفلاین)"
                     },
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
                 )
               }
             }
@@ -666,7 +670,7 @@ fun SmartAssistantScreen(
                     imageVector = Icons.Filled.Error,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(Dimens.IconXLarge)
                   )
                   Text(
                     text = "خطا در تنظیم و ارزیابی عادات مالی",
@@ -888,7 +892,9 @@ fun ParsedResultCard(
 
         IconButton(
           onClick = onCancel,
-          modifier = Modifier.size(Dimens.IconLarge)
+          // Enforce the 48dp minimum touch area; the minimum must come before
+          // the fixed size, otherwise the fixed size wins and the target stays small.
+          modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.IconLarge)
         ) {
           Icon(
             imageVector = Icons.Filled.Close,
@@ -907,7 +913,10 @@ fun ParsedResultCard(
         }
       HesabyarCard(
         modifier = Modifier.fillMaxWidth(),
-        cardColors = CardDefaults.cardColors(containerColor = confidenceColor.copy(alpha = 0.1f)),
+        cardColors =
+          CardDefaults.cardColors(
+            containerColor = confidenceColor.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)
+          ),
         contentPadding = PaddingValues(SpacingTokens.md)
       ) {
         Row(
@@ -1004,7 +1013,7 @@ fun ParsedResultCard(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
-          OutlinedTextField(
+          HesabyarInputField(
             value = amountValue,
             onValueChange = { amountValue = it },
             modifier =
@@ -1313,7 +1322,7 @@ private fun ConfidenceScoreCard(
 ) {
   HesabyarCard(
     modifier = Modifier.fillMaxWidth(),
-    cardColors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+    cardColors = CardDefaults.cardColors(containerColor = color.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)),
     contentPadding = PaddingValues(SpacingTokens.md)
   ) {
     Row(
@@ -1372,7 +1381,7 @@ private fun LowConfidenceWarning() {
     modifier = Modifier.fillMaxWidth(),
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+        containerColor = MaterialTheme.colorScheme.error.copy(alpha = Dimens.CARD_CONTAINER_ALPHA)
       ),
     contentPadding = PaddingValues(SpacingTokens.sm)
   ) {

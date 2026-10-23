@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,7 @@ import io.github.mojri.hesabyar.ui.AiAssistantViewModel
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.IconCircle
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
@@ -53,12 +55,13 @@ internal fun SmartForecastCard(
               else -> onShowForecast()
             }
           },
-          enabled = forecastState !is UiResult.Loading
+          enabled = forecastState !is UiResult.Loading,
+          role = Role.Button
         ),
     shape = ShapeTokens.Large,
     cardColors =
       CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = Dimens.BANNER_CONTAINER_ALPHA)
       )
   ) {
     Row(
@@ -69,7 +72,7 @@ internal fun SmartForecastCard(
       IconCircle(
         icon = Icons.Filled.AutoAwesome,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-        iconSize = 18.dp
+        iconSize = Dimens.IconMenu
       )
       Column(modifier = Modifier.weight(1f)) {
         Text(

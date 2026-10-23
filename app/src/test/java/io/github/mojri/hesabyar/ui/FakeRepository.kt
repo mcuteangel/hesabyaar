@@ -7,6 +7,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
+import io.github.mojri.hesabyar.data.LoanUpdateResult
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Person
 import io.github.mojri.hesabyar.data.Transaction
@@ -27,6 +28,12 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   /** Test hook: overrides repayment outcomes — return false or throw. */
   var addPaymentBehavior: (() -> Boolean)? = null
 
+  /** Test hook: overrides loan-update outcomes — return a result or throw. */
+  var updateLoanBehavior: (suspend () -> LoanUpdateResult)? = null
+
+  /** Loans the updateLoan lookup can find; tests seed the rows they edit. */
+  val loansList = mutableListOf<Loan>()
+
   /** Counts how many times a restore actually executed — for duplicate-submission tests. */
   var executeRestoreCount = 0
 
@@ -38,7 +45,10 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
   var exportCategoryReadCount = 0
 
   override val allTransactions: Flow<List<Transaction>> = flowOf(emptyList())
-  open override val allLoans: Flow<List<Loan>> = flowOf(emptyList())
+
+  // Cold flow: reads loansList at collection time, like allAccounts below —
+  // tests seed loansList after the fake is created.
+  open override val allLoans: Flow<List<Loan>> = flow { emit(loansList.toList()) }
   override val allInstallments: Flow<List<Installment>> = flowOf(emptyList())
   override val allCategories: Flow<List<Category>> =
     flow {
@@ -85,7 +95,16 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
     recordInitial: Boolean
   ): Long = 0L
 
-  override suspend fun updateLoan(loan: Loan) {}
+  override suspend fun updateLoan(loan: Loan): LoanUpdateResult {
+    updateLoanBehavior?.let { return it() }
+    val idx = loansList.indexOfFirst { it.id == loan.id }
+    return if (idx < 0) {
+      LoanUpdateResult.NotFound
+    } else {
+      loansList[idx] = loan
+      LoanUpdateResult.Success
+    }
+  }
 
   override suspend fun deleteLoan(loan: Loan) {}
 

@@ -36,6 +36,9 @@ Planned at commit `44dd519`, 2026-07-23.
 | 016  | Shared Tab component: `HesabyarTabRow` + migrate both raw tab rows (`plans/016-shared-tab-row.md`, issue #452) | P2 | S | — | IN PROGRESS (branch `feat/issue-452-shared-tab-row`) |
 | 017  | [Design System] Add a chart system — theme-aware chart components and RTL support (`plans/archive/017-design-system-chart-system.md`, issue #453) | P1 | L | 015 (shared component family pattern) | DONE |
 | —    | Add `labelSmall` to `Type.kt` and typography tests (`plans/archive/017-add-labelsmall-typography.md`, issue #454) | P3 | XS | — | DONE |
+| 018  | Complete icon-size and alpha tokens in Dimens.kt (`plans/archive/018-complete-icon-size-and-alpha-tokens.md`, issue #455) | P2 | S | — | DONE |
+| 019  | Remove dead design-system tokens (`plans/archive/019-remove-or-wire-dead-tokens.md`, issue #456, PR #515) | P3 | XS | — | DONE (merged in PR #515) |
+| 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457, PR #517) | P3 | M | — | IN PROGRESS (PR #517 open; verification green) |
 | 021  | [Design System] Add page-scaffold standard & adopt WindowSizeTokens (`plans/021-add-page-scaffold-and-adopt-window-size-tokens.md`, issue #458) <!-- check-docs: ignore — file lives on branch feat/issue-458-page-scaffold --> | P1 | M | 015 (shared component family pattern) | IN PROGRESS on `feat/issue-458-page-scaffold` (component + tests + 4-screen migration done; expanded-content and remaining steps pending — see the plan file on that branch) |
 | 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | TODO (plan under review) |
 

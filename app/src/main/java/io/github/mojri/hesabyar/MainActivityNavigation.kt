@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.screens.DebtSection
 import io.github.mojri.hesabyar.ui.screens.LoanDirectionFilter
@@ -280,22 +281,22 @@ internal fun MoreMenuSheet(
     ListItem(
       headlineContent = { Text(stringResource(R.string.nav_tab_analytics)) },
       leadingContent = { Icon(Icons.Filled.BarChart, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_ANALYTICS) }
+      modifier = Modifier.clickable(role = Role.Button) { onSelect(TAB_ANALYTICS) }
     )
     ListItem(
       headlineContent = { Text(stringResource(R.string.nav_tab_reports)) },
       leadingContent = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_REPORTS) }
+      modifier = Modifier.clickable(role = Role.Button) { onSelect(TAB_REPORTS) }
     )
     ListItem(
       headlineContent = { Text(stringResource(R.string.nav_tab_accounts)) },
       leadingContent = { Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null) },
-      modifier = Modifier.clickable { onSelectAccounts() }
+      modifier = Modifier.clickable(role = Role.Button) { onSelectAccounts() }
     )
     ListItem(
       headlineContent = { Text(stringResource(R.string.nav_tab_settings)) },
       leadingContent = { Icon(Icons.Filled.Settings, contentDescription = null) },
-      modifier = Modifier.clickable { onSelect(TAB_SETTINGS) }
+      modifier = Modifier.clickable(role = Role.Button) { onSelect(TAB_SETTINGS) }
     )
     Spacer(modifier = Modifier.navigationBarsPadding())
   }

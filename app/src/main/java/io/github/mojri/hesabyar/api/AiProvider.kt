@@ -1,18 +1,46 @@
 package io.github.mojri.hesabyar.api
 
+import androidx.annotation.VisibleForTesting
 import io.github.mojri.hesabyar.core.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+
+/**
+ * Executes this call and processes the response, cancelling the in-flight
+ * OkHttp call when the coroutine is cancelled. A blocking [Call.execute]
+ * has no suspension point, so without this a cancelled caller would leave
+ * the request running until it finishes or times out. The processing block
+ * runs while the cancellation handler is still registered, so cancelling
+ * during a slow body read also aborts the call promptly; the response is
+ * always closed.
+ */
+private suspend fun <T> Call.executeCancellable(block: (Response) -> T): T =
+  suspendCancellableCoroutine { cont ->
+    cont.invokeOnCancellation { cancel() }
+    try {
+      val response = execute()
+      try {
+        cont.resumeWith(Result.success(block(response)))
+      } finally {
+        response.close()
+      }
+    } catch (e: IOException) {
+      cont.resumeWith(Result.failure(e))
+    }
+  }
 
 object AiProvider {
   private const val TAG = "AiProvider"
@@ -37,6 +65,14 @@ object AiProvider {
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(60, TimeUnit.SECONDS)
       .build()
+
+  /**
+   * Test-only HTTP client override. Lets unit tests drive [executePost] through
+   * an interceptor-based fake instead of the real network. Null in production.
+   */
+  @VisibleForTesting
+  @Volatile
+  internal var httpClientOverride: OkHttpClient? = null
 
   data class ChatMessage(
     val role: String,
@@ -128,7 +164,7 @@ object AiProvider {
       }
     }
 
-  private fun fetchGeminiModels(apiKey: String): List<FetchedModel> {
+  private suspend fun fetchGeminiModels(apiKey: String): List<FetchedModel> {
     val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
     val request =
       Request
@@ -137,7 +173,7 @@ object AiProvider {
         .get()
         .build()
 
-    client.newCall(request).execute().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -147,7 +183,7 @@ object AiProvider {
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("models")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .mapNotNull { i ->
           val model = modelsArray.getJSONObject(i)
           val name = model.getString("name").removePrefix("models/")
@@ -177,7 +213,7 @@ object AiProvider {
     }
   }
 
-  private fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
+  private suspend fun fetchOpenRouterModels(apiKey: String): List<FetchedModel> {
     val url = "https://openrouter.ai/api/v1/models"
     val requestBuilder =
       Request
@@ -186,7 +222,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    client.newCall(request).execute().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -196,7 +232,7 @@ object AiProvider {
       val json = JSONObject(body)
       val modelsArray = json.getJSONArray("data")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .map { i ->
           val model = modelsArray.getJSONObject(i)
           val id = model.getString("id")
@@ -215,7 +251,7 @@ object AiProvider {
     }
   }
 
-  private fun fetchCustomModels(
+  private suspend fun fetchCustomModels(
     apiKey: String,
     baseUrl: String
   ): List<FetchedModel> {
@@ -228,7 +264,7 @@ object AiProvider {
     requestBuilder.addBearerAuthorization(apiKey)
     val request = requestBuilder.get().build()
 
-    client.newCall(request).execute().use { response ->
+    return (httpClientOverride ?: client).newCall(request).executeCancellable { response ->
       if (!response.isSuccessful) {
         val body = response.body?.string().orEmpty()
         throw IOException(ERR_HTTP_FORMAT.format(response.code, body))
@@ -236,9 +272,9 @@ object AiProvider {
       val body = response.body?.string()
       if (body.isNullOrBlank()) throw IOException(ERR_EMPTY_RESPONSE)
       val json = JSONObject(body)
-      val modelsArray = json.optJSONArray("data") ?: throw IOException("No 'data' array in response")
+      val modelsArray = json.getJSONArray("data")
 
-      return (0 until modelsArray.length())
+      (0 until modelsArray.length())
         .map { i ->
           val model = modelsArray.getJSONObject(i)
           val id = model.getString("id")
@@ -254,7 +290,7 @@ object AiProvider {
     }
   }
 
-  private fun callGemini(
+  private suspend fun callGemini(
     config: AiProviderConfig,
     prompt: String,
     systemInstruction: String?,
@@ -310,7 +346,7 @@ object AiProvider {
     return executePost(url, requestJson, ::parseGeminiResponse, apiKey = null)
   }
 
-  private fun callOpenAiCompatible(
+  private suspend fun callOpenAiCompatible(
     config: AiProviderConfig,
     prompt: String,
     systemInstruction: String?,
@@ -367,7 +403,7 @@ object AiProvider {
     )
   }
 
-  private fun executePost(
+  private suspend fun executePost(
     url: String,
     body: JSONObject,
     responseParser: (String) -> ApiResult,
@@ -390,8 +426,11 @@ object AiProvider {
 
     val request = requestBuilder.build()
 
+    // Cancellable: cancelling the coroutine (e.g. a superseded parse) also
+    // cancels the in-flight OkHttp call instead of letting it run to completion.
+    val call = (httpClientOverride ?: client).newCall(request)
     return try {
-      client.newCall(request).execute().use { response ->
+      call.executeCancellable { response ->
         val bodyStr = response.body?.string()
         if (!response.isSuccessful) {
           AppLogger.e(TAG, "API error ${response.code} for URL ${url.substringBefore("?")}: ${bodyStr ?: "null body"}")

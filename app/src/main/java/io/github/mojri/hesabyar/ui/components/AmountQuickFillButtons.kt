@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -65,7 +66,7 @@ fun AmountQuickFillButtons(
               } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
               }
-            ).clickable(enabled = isEnabled) {
+            ).clickable(enabled = isEnabled, role = Role.Button) {
               val newText = newValue.toString()
               onValueChanged(
                 TextFieldValue(

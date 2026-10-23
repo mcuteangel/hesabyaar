@@ -23,6 +23,7 @@ import io.github.mojri.hesabyar.ui.charts.ChartTokens
 import io.github.mojri.hesabyar.ui.charts.DonutSlice
 import io.github.mojri.hesabyar.ui.charts.HesabyarDonutChart
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.designsystem.toComposeColor
 
@@ -98,7 +99,7 @@ private fun AccountBreakdownLegend(accountBreakdown: List<CategoryBreakdown>) {
       Text(
         text = "${(item.percentage * 100).toInt()}٪ | ${CurrencyFormatter.format(item.total)}",
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = Dimens.SECONDARY_TEXT_ALPHA)
       )
     }
   }

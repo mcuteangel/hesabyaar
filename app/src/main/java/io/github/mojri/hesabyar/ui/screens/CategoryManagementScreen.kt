@@ -279,7 +279,7 @@ private fun CategoryItem(
         tint = categoryColor,
         backgroundColor = categoryColor,
         containerSize = Dimens.AvatarMedium,
-        iconSize = 20.dp
+        iconSize = Dimens.IconAvatarMedium
       )
 
       Column(modifier = Modifier.weight(1f)) {
@@ -310,12 +310,14 @@ private fun CategoryItem(
 
       IconButton(
         onClick = { onEdit(category) },
-        modifier = Modifier.size(36.dp)
+        // Enforce the 48dp minimum touch area; the minimum must come before
+        // the fixed size, otherwise the fixed size wins and the target stays small.
+        modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerSmall)
       ) {
         Icon(
           imageVector = Icons.Filled.Edit,
           contentDescription = "ویرایش",
-          modifier = Modifier.size(18.dp),
+          modifier = Modifier.size(Dimens.IconMenu),
           tint = MaterialTheme.colorScheme.primary
         )
       }
@@ -323,12 +325,14 @@ private fun CategoryItem(
       if (!isDefault) {
         IconButton(
           onClick = { onDelete(category) },
-          modifier = Modifier.size(36.dp)
+          // Enforce the 48dp minimum touch area; the minimum must come before
+          // the fixed size, otherwise the fixed size wins and the target stays small.
+          modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerSmall)
         ) {
           Icon(
             imageVector = Icons.Filled.Delete,
             contentDescription = "حذف",
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(Dimens.IconMenu),
             tint = MaterialTheme.colorScheme.error
           )
         }
@@ -396,7 +400,7 @@ private fun CategoryDialog(
             expanded = typeDropdownExpanded,
             onExpandedChange = { typeDropdownExpanded = it }
           ) {
-            OutlinedTextField(
+            HesabyarInputField(
               value = selectedType.displayName,
               onValueChange = {},
               modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
@@ -449,7 +453,7 @@ private fun CategoryDialog(
               Box(
                 modifier =
                   Modifier
-                    .size(28.dp)
+                    .size(Dimens.ContainerXSmall)
                     .clip(CircleShape)
                     .background(Color(color))
                     .clickable { selectedColor = color },
@@ -485,11 +489,11 @@ private fun CategoryDialog(
               Box(
                 modifier =
                   Modifier
-                    .size(36.dp)
+                    .size(Dimens.ContainerSmall)
                     .clip(ShapeTokens.Small)
                     .background(
                       if (isSelected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
                       } else {
                         MaterialTheme.colorScheme.surfaceContainerLow
                       }
@@ -499,7 +503,7 @@ private fun CategoryDialog(
                 Icon(
                   imageVector = iconVector,
                   contentDescription = iconName,
-                  modifier = Modifier.size(20.dp),
+                  modifier = Modifier.size(Dimens.IconAvatarMedium),
                   tint =
                     if (isSelected) {
                       MaterialTheme.colorScheme.primary
@@ -529,7 +533,7 @@ private fun CategoryDialog(
             tint = previewColor,
             backgroundColor = previewColor,
             containerSize = Dimens.AvatarMedium,
-            iconSize = 20.dp
+            iconSize = Dimens.IconAvatarMedium
           )
           Column {
             Text(
