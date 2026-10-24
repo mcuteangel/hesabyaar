@@ -92,13 +92,14 @@ class LoanDisbursementDateUpdateTest {
 
   private suspend fun seedTrackedLoan(
     loanDate: Long,
-    recordInitial: Boolean
+    recordInitial: Boolean,
+    type: LoanType = LoanType.DEBTOR
   ): Long {
     val repo = createRepository()
     return repo.insertLoanWithInitial(
       Loan(
         personName = "Ali",
-        type = LoanType.DEBTOR,
+        type = type,
         originalAmount = 5_000L,
         remainingAmount = 5_000L,
         description = "test",
@@ -191,6 +192,218 @@ class LoanDisbursementDateUpdateTest {
 
       val moved = database.transactionDao().getAllTransactionsBlocking().single()
       assertEquals(9_000L, moved.date)
+    }
+
+  @Test
+  fun dateEditDoesNotStampSameFieldsRepayment() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Legacy loan: tracked, but created before the loanId stamp, so no
+      // disbursement row was written by insertLoanWithInitial. DEBTOR, so
+      // the disbursement direction is EXPENSE and a repayment is INCOME.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      // Issue #537: a full repayment on the loan's start date matches every
+      // legacy field (person, category, amount, date) but has the opposite
+      // direction — it must not be stamped with the loan id or retimed.
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy repayment",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      val repayment = transactions.single { it.description == "legacy repayment" }
+      assertEquals(null, repayment.loanId)
+      assertEquals(5_000L, repayment.date)
+      val disbursement = transactions.single { it.description == "legacy disbursement" }
+      assertEquals(9_000L, disbursement.date)
+      assertEquals(loanId, disbursement.loanId)
+    }
+
+  @Test
+  fun dateEditDoesNotStampSameFieldsRepaymentCreditor() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // CREDITOR mirror: disbursement is INCOME, repayment is EXPENSE.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false, type = LoanType.CREDITOR)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.INCOME,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy repayment",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+
+      val transactions = database.transactionDao().getAllTransactionsBlocking()
+      val repayment = transactions.single { it.description == "legacy repayment" }
+      assertEquals(null, repayment.loanId)
+      assertEquals(5_000L, repayment.date)
+      val disbursement = transactions.single { it.description == "legacy disbursement" }
+      assertEquals(9_000L, disbursement.date)
+      assertEquals(loanId, disbursement.loanId)
+    }
+
+  @Test
+  fun typeEditStampsLegacyDisbursementWithOldDirection() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Legacy DEBTOR loan: the disbursement direction is EXPENSE.
+      val loanId = seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+
+      // Type-only edit: no date/name/amount change. The legacy row must be
+      // stamped now, while the persisted (old) type still identifies its
+      // direction — otherwise a later date edit would miss it.
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(type = LoanType.CREDITOR)))
+      val stamped = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(loanId, stamped.loanId)
+      assertEquals(5_000L, stamped.date)
+
+      // A later date edit moves the stamped row via the loanId fast path,
+      // regardless of the direction filter.
+      val afterTypeEdit = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(afterTypeEdit.copy(date = 9_000L)))
+      val moved = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(9_000L, moved.date)
+      assertEquals(loanId, moved.loanId)
+    }
+
+  @Test
+  fun untrackedToTrackedFlipDoesNotStampAnotherLoansRow() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Loan B: legacy TRACKED loan with an unstamped disbursement row.
+      seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "loan B disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      // Loan A: legacy UNTRACKED loan with identical fields. It never had a
+      // disbursement row: none is recorded for untracked loans.
+      val loanAId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Ali",
+            type = LoanType.DEBTOR,
+            originalAmount = 5_000L,
+            remainingAmount = 5_000L,
+            description = "test",
+            date = 5_000L
+          ),
+          recordInitial = false
+        )
+
+      // Flip loan A to tracked with a name change, which triggers the stamp
+      // path. The lookup uses the persisted name, so loan B's row is the
+      // match — it must not be stamped with loan A's id.
+      val persistedA = requireNotNull(database.loanDao().getLoanById(loanAId))
+      assertEquals(
+        LoanUpdateResult.Success,
+        repo.updateLoan(persistedA.copy(tracked = true, personName = "Sara", accountId = 1L))
+      )
+
+      val rowB = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(null, rowB.loanId)
+      assertEquals(5_000L, rowB.date)
+    }
+
+  @Test
+  fun untrackedToTrackedFlipWithDateEditDoesNotMoveAnotherLoansRow() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      // Loan B: legacy TRACKED loan with an unstamped disbursement row.
+      seedTrackedLoan(loanDate = 5_000L, recordInitial = false)
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = 5_000L,
+          description = "loan B disbursement",
+          personName = "Ali",
+          date = 5_000L
+        )
+      )
+      // Loan A: legacy UNTRACKED loan with identical fields.
+      val loanAId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Ali",
+            type = LoanType.DEBTOR,
+            originalAmount = 5_000L,
+            remainingAmount = 5_000L,
+            description = "test",
+            date = 5_000L
+          ),
+          recordInitial = false
+        )
+
+      // Flip loan A to tracked with a date change, which triggers the
+      // date-sync path that shares the legacy lookup. Loan B's row must be
+      // neither stamped nor moved.
+      val persistedA = requireNotNull(database.loanDao().getLoanById(loanAId))
+      assertEquals(
+        LoanUpdateResult.Success,
+        repo.updateLoan(persistedA.copy(tracked = true, date = 9_000L, accountId = 1L))
+      )
+
+      val rowB = database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(null, rowB.loanId)
+      assertEquals(5_000L, rowB.date)
     }
 
   @Test

@@ -41,8 +41,10 @@ internal class LoanDelegate(
             )
         val accountId = TrackedLedgerHelper.resolveAccountId(normalizedLoan.accountId)
         val stored = loanDao.getLoanById(loanId) ?: normalizedLoan.copy(id = loanId)
-        val isDebt = stored.type == LoanType.CREDITOR
-        val transactionType = if (isDebt) TransactionType.INCOME else TransactionType.EXPENSE
+        // UNKNOWN has no known direction; keep the historical EXPENSE
+        // fallback so a transaction is always recorded.
+        val transactionType =
+          TrackedLedgerHelper.disbursementDirection(stored.type) ?: TransactionType.EXPENSE
         transactionDao.insertTransaction(
           Transaction(
             // CREDITOR = "I owe": receiving the money is an inflow, and the
@@ -52,7 +54,7 @@ internal class LoanDelegate(
             categoryId = loansCategory.id,
             amount = stored.originalAmount,
             description =
-              if (isDebt) {
+              if (stored.type == LoanType.CREDITOR) {
                 "دریافت وام از ${stored.personName}"
               } else {
                 "پرداخت وام به ${stored.personName}"
@@ -91,12 +93,15 @@ internal class LoanDelegate(
       if (persisted.date != normalizedLoan.date) {
         disbursementSync.syncDisbursementDate(persisted, normalizedLoan)
       } else if (persisted.personName != normalizedLoan.personName ||
-        persisted.originalAmount != normalizedLoan.originalAmount
+        persisted.originalAmount != normalizedLoan.originalAmount ||
+        persisted.type != normalizedLoan.type
       ) {
         // Issue #532: a name/amount edit (date unchanged) would orphan an
         // unstamped legacy disbursement from future date syncs, which match
         // by the persisted fields. Stamp it now while those fields still
-        // identify it.
+        // identify it. Issue #537: a type edit does the same — the direction
+        // filter uses the persisted (old) type, so stamp before the type
+        // changes, or a later date edit would miss the old-direction row.
         disbursementSync.stampLegacyDisbursement(persisted, normalizedLoan)
       }
       loanDao.updateLoan(normalizedLoan)

@@ -45,6 +45,21 @@ internal object TrackedLedgerHelper {
     }
 
   /**
+   * Direction of the disbursement transaction for a loan type: CREDITOR
+   * ("I owe") receives the money (INCOME), DEBTOR ("owed to me") hands it
+   * out (EXPENSE). Null for UNKNOWN — no known direction, so callers that
+   * match existing rows must skip instead of guessing. Shared by the
+   * initial-transaction write and the legacy disbursement lookup so the two
+   * paths cannot drift (issue #537).
+   */
+  fun disbursementDirection(loanType: LoanType): TransactionType? =
+    when (loanType) {
+      LoanType.CREDITOR -> TransactionType.INCOME
+      LoanType.DEBTOR -> TransactionType.EXPENSE
+      LoanType.UNKNOWN -> null
+    }
+
+  /**
    * Resolve the posting account for a tracked write. Enforces the same
    * positive-ID invariant as [validateTrackedAccount] so every posting path is
    * governed by one contract, not just the entry points that normalize first.
